@@ -1,0 +1,12 @@
+# Scoped to this handoff package only.
+# Real secrets: never commit.
+scripts/spikes/.env.local
+scripts/spikes/**/__pycache__/
+scripts/spikes/**/*.pyc
+
+# Bulk raw API samples collected during spikes: too large/noisy for git.
+# Curate a few representative examples manually with `git add -f` when writing the Phase 0 report.
+data/samples/**
+!data/samples/.gitkeep
+!data/samples/examples/
+!data/samples/examples/**
