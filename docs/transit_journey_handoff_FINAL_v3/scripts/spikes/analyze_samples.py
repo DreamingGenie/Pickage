@@ -90,6 +90,7 @@ def analyze_subway(statn_id: str) -> None:
     print(f"arrival samples: {len(arrival_samples)}, position samples: {len(position_samples)}")
 
     train_arvlcd: dict[str, list[tuple[str, str]]] = defaultdict(list)  # (recptnDt, arvlCd)
+    train_subwayid: dict[str, str] = {}
     for sample in arrival_samples:
         raw = sample.get("raw_payload") or ""
         try:
@@ -100,13 +101,22 @@ def analyze_subway(statn_id: str) -> None:
             if item.get("statnId") != statn_id:
                 continue
             train_arvlcd[item["btrainNo"]].append((item["recptnDt"], item["arvlCd"]))
+            train_subwayid[item["btrainNo"]] = item.get("subwayId")
 
     for train_no, series in train_arvlcd.items():
         series_sorted = sorted(set(series), key=lambda t: t[0])
         codes = [c for _, c in series_sorted]
-        print(f"  train {train_no}: {series_sorted}")
+        print(f"  train {train_no} (subwayId={train_subwayid[train_no]}): {series_sorted}")
 
-    position_train_nos = set()
+    # Position trainNo is only unique *within* a line — a name-based station
+    # query (e.g. "강남") can return trains from multiple lines that share the
+    # station's display name (e.g. 2호선 vs 신분당선 both stopping at "강남").
+    # Those other-line trains can never appear in a position feed polled for
+    # a single target line, so join rate must be computed per subwayId
+    # instead of pooling all trainNos together (see docs/05_DECISION_LOG.md
+    # D-032 — this exact pooling previously made a cross-line name collision
+    # look like a same-line join gap).
+    position_train_nos_by_line: dict[str, set[str]] = defaultdict(set)
     for sample in position_samples:
         raw = sample.get("raw_payload") or ""
         try:
@@ -114,12 +124,29 @@ def analyze_subway(statn_id: str) -> None:
         except json.JSONDecodeError:
             continue
         for item in data.get("realtimePositionList", []):
-            position_train_nos.add(item.get("trainNo"))
+            position_train_nos_by_line[item.get("subwayId")].add(item.get("trainNo"))
 
-    arrival_train_nos = set(train_arvlcd.keys())
-    overlap = arrival_train_nos & position_train_nos
-    print(f"trainNo join at this station: {len(overlap)}/{len(arrival_train_nos)} "
-          f"arrival trains also seen in position ({sorted(overlap)})")
+    arrival_by_line: dict[str, set[str]] = defaultdict(set)
+    for train_no, subway_id in train_subwayid.items():
+        arrival_by_line[subway_id].add(train_no)
+
+    for subway_id, arrival_train_nos in sorted(arrival_by_line.items(), key=lambda kv: kv[0] or ""):
+        position_train_nos = position_train_nos_by_line.get(subway_id, set())
+        if not position_train_nos:
+            print(f"  subwayId={subway_id}: no position samples polled for this line "
+                  f"(cannot join {len(arrival_train_nos)} arrival trains - not a data-quality gap, "
+                  f"just never collected)")
+            continue
+        overlap = arrival_train_nos & position_train_nos
+        rate = len(overlap) / len(arrival_train_nos) * 100
+        print(f"  subwayId={subway_id} trainNo join: {len(overlap)}/{len(arrival_train_nos)} "
+              f"({rate:.1f}%) unmatched={sorted(arrival_train_nos - position_train_nos)}")
+
+    all_arrival_train_nos = set(train_arvlcd.keys())
+    all_position_train_nos = set().union(*position_train_nos_by_line.values()) if position_train_nos_by_line else set()
+    overlap = all_arrival_train_nos & all_position_train_nos
+    print(f"trainNo join at this station (all lines pooled, informational only): "
+          f"{len(overlap)}/{len(all_arrival_train_nos)} ({sorted(overlap)})")
 
 
 def main() -> None:
