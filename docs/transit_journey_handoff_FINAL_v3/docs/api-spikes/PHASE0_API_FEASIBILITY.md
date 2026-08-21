@@ -19,8 +19,8 @@ night-time collection — see caveats per section).
 | Subway realtime arrival | **GO** | High — real endpoint, real data |
 | Subway realtime position | **GO** | High — real endpoint, real data |
 | Subway arrival↔position trainNo join | **GO on Line 1, CONDITIONAL on Line 2** | Line 1/시청 re-measured after the pagination fix: 75%→**91.7% (11/12)**. Line 2/강남: **54.5% (6/11)**, and this time it's *not* the pagination bug (Line 2's `totalCount` was only 16–18, fully within range) — cause unknown, needs a Line 2-specific investigation (D-026) |
-| Mixed bus+subway route | **GO** | Was misdiagnosed as a key-registration BLOCKER (D-019); actual cause was our own URL typo (`getPathInfoByBusNSubList` → real path drops "List"). Fixed and confirmed live: 20 alternative routes for a real Seoul corridor, `routeId`s in the same domain as the realtime bus APIs |
-| Historical bus section join | **PIVOT** | OA-21217 turns out to be a weekly/monthly ZIP file download, not a pollable OpenAPI as assumed — and the page shows a service-termination notice. Needs PM input on whether to keep this as a baseline source (D-025) |
+| Mixed bus+subway route | **GO** | Was misdiagnosed as a key-registration BLOCKER (D-019); actual cause was our own URL typo. Fixed and confirmed live, including genuine bus+subway mixed legs (D-029). **Demo Corridor locked: 삼청동↔역삼역 (D-030)** |
+| Historical bus section join | **DROPPED (PM decision)** | OA-21217 turns out to be a weekly/monthly ZIP file download, not a pollable OpenAPI as assumed, with a service-termination notice on its page. PM decided to drop it as a baseline candidate rather than pursue file-based ingestion (D-028) |
 
 ## A. Bus Arrival — `getArrInfoByRouteAll`
 
@@ -73,8 +73,9 @@ night-time collection — see caveats per section).
 - **Real root cause (D-024):** a **URL typo in our own code**. The data.go.kr catalog *names* the operation `getPathInfoByBusNSubList`, but the official 활용가이드 document (already sitting in this repo at `docs/api & data/서울특별시_대중교통환승경로 조회 서비스_활용가이드_20211116.docx` — extracted directly from its docx/zip/xml to confirm) shows the real Call Back URL drops the "List" suffix (`getPathInfoByBusNSub`), and the auth parameter is capitalized `ServiceKey`, not `serviceKey`. Requesting the nonexistent `...List` path apparently falls through to the gateway's generic 401 instead of a 404, which reads exactly like an unapproved key even when the key is fine.
 - **Fixed and verified:** corrected `mixed_route_spike.py` to the real URL + param casing + `resultType=json`. Real call for 서울역↔강남역 (coords 126.972559,37.554648 → 127.027610,37.498095) returned HTTP 200 with **20 alternative routes**, each a multi-leg `pathList` with `routeId`/`routeNm`/stop names/coordinates
 - **ID mapping:** returned bus `routeId` values (e.g. `100100023`) are in the same numeric domain as `getArrInfoByRouteAll`/`getBusPosByRouteSt`/`getBusRouteList` — a real, positive signal for joinability, though not yet directly cross-queried against those APIs
-- **Gap:** this particular corridor returned bus-only alternatives — no leg had a populated `railLinkList`, so a genuine bus+subway mixed leg hasn't been observed yet. Needs a corridor better suited to forcing a transfer, which ties into the PM's still-open Demo Corridor decision (`01_PROJECT_HANDOFF.md` section 18, Q1)
-- **Next decision:** **GO** for using this as the route candidate provider. Once PM picks a demo corridor (Q1), re-test with real Seoul coordinates for it and confirm a mixed leg with `railLinkList` populated, then check subway station IDs there against the realtime subway APIs
+- **Gap (resolved):** the 서울역↔강남역 test happened to return bus-only alternatives. Testing 4 more candidate corridors confirmed the API does return genuine mixed legs (`railLinkList` populated) — it was just that one pair, not a capability gap (D-029).
+- **Demo Corridor decided (D-030):** PM specified destination = 역삼역, start flexible. Picked **삼청동 ↔ 역삼역** (3호선 안국역→교대역 subway leg, ~50min total, one of 24 mixed-leg alternatives for this pair). Sample saved at `data/samples/examples/seoul_bus/demo_corridor_samcheong_yeoksam/`.
+- **Next decision:** **GO**, corridor locked. Proceed to Spike E (fixed mixed corridor E2E) using this route; cross-check the subway leg's station IDs (안국역/교대역, presumably `statnId`s on subwayId 1003) against the realtime subway APIs next
 
 ## G. Historical Bus Section Join
 
@@ -87,7 +88,7 @@ night-time collection — see caveats per section).
 
 1. Investigate the Line 2 subway join-rate gap (54.5%, not explained by pagination — see D-026)
 2. Extend subway sampling to a third line if Line 2's gap turns out to be loop-line-specific, to isolate the pattern
-3. ~~Follow up on data.go.kr registration for the mixed-route service~~ — resolved (D-024): was a URL typo, not a registration gap. Remaining: get PM's demo corridor pick (Q1) and re-test mixed_route_spike.py against it to confirm an actual bus+subway leg with populated `railLinkList`
-4. Historical bus section join — resolved as PIVOT (D-025), needs PM decision on whether to keep it as a baseline source at all
+3. ~~Follow up on data.go.kr registration for the mixed-route service~~ — resolved (D-024). ~~Get PM's demo corridor pick~~ — resolved (D-030): 삼청동↔역삼역. Next: cross-check the 안국역/교대역 station IDs from this route against the realtime subway APIs, then build the Spike E vertical slice on this corridor
+4. ~~Historical bus section join~~ — resolved: PM decided to drop it as a baseline candidate (D-028). Historical baseline needs a different source (e.g. accumulating our own realtime bus data over time)
 5. Run bus/subway collection during a daytime window — all data so far is from two nighttime windows (23:45 KST 8/21 and past-midnight 8/22); ridership, congestion-field population (`avgCf1` etc. were all `0` at night), and call-volume patterns likely differ substantially in daytime
 6. Nine representative raw samples are curated into `data/samples/examples/` (bus route/arrival/position, subway arrival/position on both Line 1 and Line 2, the original mixed-route 401 bug, and the fixed mixed-route success) and committed to git for reviewers
