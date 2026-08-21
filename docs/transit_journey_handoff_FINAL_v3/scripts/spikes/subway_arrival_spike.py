@@ -1,13 +1,12 @@
 """Spike B (part 1) — Subway real-time arrival collector.
 
-STATUS: HYPOTHESIS / TO_VERIFY. data.seoul.go.kr's catalog page (OA-15799)
-does not expose the technical spec directly; the URL pattern below is the
-widely-documented Seoul Open API convention for this service family, not
-something this script has confirmed against a live response yet. Treat the
-first successful run as the actual verification step, and record the real
-response shape in docs/05_DECISION_LOG.md.
+STATUS: VERIFIED (see docs/05_DECISION_LOG.md D-016). Confirmed live with
+a real key: HTTP 200, code=INFO-000. Real response fields match the
+checklist closely, plus extras (trainLineNm, arvlMsg3, ordkey, subwayList,
+statnList, trnsitCo). Observed arvlCd values: 0=entering, 1=arrived,
+2=departed, 99=en route (see D-018).
 
-Assumed pattern:
+Confirmed pattern:
     GET http://swopenAPI.seoul.go.kr/api/subway/<KEY>/json/realtimeStationArrival/<startIndex>/<endIndex>/<stationName>
 
 Checklist fields to inspect (docs/03_API_SPIKE_CHECKLIST.md section D):

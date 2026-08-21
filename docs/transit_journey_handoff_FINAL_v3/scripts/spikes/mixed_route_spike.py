@@ -1,5 +1,13 @@
 """Spike C — Bus+Subway mixed transit route collector.
 
+STATUS: BLOCKED (see docs/05_DECISION_LOG.md D-019). Both operations on
+this endpoint (getPathInfoByBusNSubList and the simpler
+getLocationInfoList) returned HTTP 401 "등록되지 않은 서비스키" with the
+real DATA_GO_TRANSIT_PATH_KEY — not a code/param bug, the key is not
+approved/registered for THIS specific data.go.kr service (15000414) yet,
+even though the bus arrival/position keys worked fine. Apply separately
+for this service on data.go.kr before retrying.
+
 Endpoint confirmed live from data.go.kr service 15000414:
     GET http://ws.bus.go.kr/api/rest/pathinfo/getPathInfoByBusNSubList
         ?serviceKey=...&startX=...&startY=...&endX=...&endY=...
