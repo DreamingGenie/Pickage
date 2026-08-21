@@ -19,7 +19,7 @@ night-time collection — see caveats per section).
 | Subway realtime arrival | **GO** | High — real endpoint, real data |
 | Subway realtime position | **GO** | High — real endpoint, real data |
 | Subway arrival↔position trainNo join | **GO** (with a code fix) | Initial run showed 75% (6/8) and looked like a data/ID-stability problem; root-caused to our own fixed `0/20` pagination window against a line that actually has 46–53 active trains (D-023). Fixed the script to `0/100`; re-verification with the fix is the next step, not yet re-run |
-| Mixed bus+subway route | **BLOCKED** (not code — key registration) | Cannot judge GO/PIVOT until the key is approved for this specific service |
+| Mixed bus+subway route | **GO** | Was misdiagnosed as a key-registration BLOCKER (D-019); actual cause was our own URL typo (`getPathInfoByBusNSubList` → real path drops "List"). Fixed and confirmed live: 20 alternative routes for a real Seoul corridor, `routeId`s in the same domain as the realtime bus APIs |
 | Historical bus section join | **NOT YET TESTED** | Pending |
 
 ## A. Bus Arrival — `getArrInfoByRouteAll`
@@ -65,12 +65,15 @@ night-time collection — see caveats per section).
 - **Risks:** one station, one line, one ~7.5-minute window, and the join rate needs re-measuring now that the pagination bug is fixed. Do **not** finalize `SUBWAY_ACTUAL_RULE_V0.md` yet — the `{0,1,2,3,4,5,99}` code meanings for `3`/`4`/`5` are inferred from ordering, not documented anywhere official
 - **Next decision:** re-run the sustained collection with the fixed `--end-ord` default, confirm join rate approaches 100% once pagination is no longer truncating the fleet, then extend to a second line to check whether `3`/`4`/`5` hold the same relative meaning there
 
-## F. Mixed Bus+Subway Route — `getPathInfoByBusNSubList` / `getLocationInfoList`
+## F. Mixed Bus+Subway Route — `getPathInfoByBusNSub`
 
-- **Tested at:** 2026-08-21 23:50 KST
-- **Result:** HTTP 401 `{"error":"Unauthorized","message":"유효하지 않은 서비스키입니다: 등록되지 않은 서비스키"}` on **both** the main mixed-route operation and the simpler POI-search operation, using the same `DATA_GO_TRANSIT_PATH_KEY` that's distinct from (and independent of) the bus arrival/position keys that worked fine
-- **Interpretation:** this is a **registration/approval gap**, not a code or parameter bug — data.go.kr requires separate 활용신청 (usage application) per service even under one account
-- **Next decision:** PM/Infra should apply for service 15000414 specifically on data.go.kr. Until then this spike is BLOCKED, and per the handoff's own fallback rule, do not attempt to swap providers — wait for approval or use a fixed/static demo corridor as a stopgap
+- **Tested at:** 2026-08-21 23:50 KST (failed) and 2026-08-22 (fixed, succeeded)
+- **First result:** HTTP 401 `등록되지 않은 서비스키` — initially misdiagnosed as a key-registration gap (D-019) since all 5 `DATA_GO_*` keys were confirmed byte-identical (one account-wide key), so it looked like this one service just hadn't been approved yet
+- **Real root cause (D-024):** a **URL typo in our own code**. The data.go.kr catalog *names* the operation `getPathInfoByBusNSubList`, but the official 활용가이드 document (already sitting in this repo at `docs/api & data/서울특별시_대중교통환승경로 조회 서비스_활용가이드_20211116.docx` — extracted directly from its docx/zip/xml to confirm) shows the real Call Back URL drops the "List" suffix (`getPathInfoByBusNSub`), and the auth parameter is capitalized `ServiceKey`, not `serviceKey`. Requesting the nonexistent `...List` path apparently falls through to the gateway's generic 401 instead of a 404, which reads exactly like an unapproved key even when the key is fine.
+- **Fixed and verified:** corrected `mixed_route_spike.py` to the real URL + param casing + `resultType=json`. Real call for 서울역↔강남역 (coords 126.972559,37.554648 → 127.027610,37.498095) returned HTTP 200 with **20 alternative routes**, each a multi-leg `pathList` with `routeId`/`routeNm`/stop names/coordinates
+- **ID mapping:** returned bus `routeId` values (e.g. `100100023`) are in the same numeric domain as `getArrInfoByRouteAll`/`getBusPosByRouteSt`/`getBusRouteList` — a real, positive signal for joinability, though not yet directly cross-queried against those APIs
+- **Gap:** this particular corridor returned bus-only alternatives — no leg had a populated `railLinkList`, so a genuine bus+subway mixed leg hasn't been observed yet. Needs a corridor better suited to forcing a transfer, which ties into the PM's still-open Demo Corridor decision (`01_PROJECT_HANDOFF.md` section 18, Q1)
+- **Next decision:** **GO** for using this as the route candidate provider. Once PM picks a demo corridor (Q1), re-test with real Seoul coordinates for it and confirm a mixed leg with `railLinkList` populated, then check subway station IDs there against the realtime subway APIs
 
 ## G. Historical Bus Section Join
 
@@ -80,7 +83,7 @@ Not yet tested this session.
 
 1. Re-run the sustained subway position collection with the fixed `--end-ord 100` default and re-measure the trainNo join rate (expect it to approach 100%, not yet confirmed under sustained load)
 2. Extend subway sampling to a second line to check whether `arvlCd` codes `3`/`4`/`5` hold the same relative meaning there
-3. Follow up on data.go.kr registration for the mixed-route service (`DATA_GO_TRANSIT_PATH_KEY` / service 15000414)
+3. ~~Follow up on data.go.kr registration for the mixed-route service~~ — resolved (D-024): was a URL typo, not a registration gap. Remaining: get PM's demo corridor pick (Q1) and re-test mixed_route_spike.py against it to confirm an actual bus+subway leg with populated `railLinkList`
 4. Historical bus section join (Spike D / Task F) not started — need to confirm the actual OpenAPI service name for OA-21217 (data.seoul.go.kr's catalog page didn't expose it; candidate table name `tpss_route_section_speedh` is unconfirmed)
 5. Run bus/subway collection during a daytime window — all data so far is from a single 23:45–00:00 KST night window; ridership, congestion-field population (`avgCf1` etc. were all `0` at night), and call-volume patterns likely differ substantially in daytime
 6. Six representative raw samples are already curated into `data/samples/examples/` (bus route/arrival/position, subway arrival/position, and the blocked mixed-route 401) and committed to git for reviewers
