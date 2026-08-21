@@ -18,9 +18,9 @@ night-time collection — see caveats per section).
 | Bus arrival↔position vehId join | **GO** | ~10min/30s-interval run on route 753 (final): **100% join rate (2026/2026)**, 49 real `stopFlag` 0→1 transitions, ~19.8% duplicate `dataTm` ratio. Still 1 route, 1 night window — not yet generalized citywide |
 | Subway realtime arrival | **GO** | High — real endpoint, real data |
 | Subway realtime position | **GO** | High — real endpoint, real data |
-| Subway arrival↔position trainNo join | **GO** (with a code fix) | Initial run showed 75% (6/8) and looked like a data/ID-stability problem; root-caused to our own fixed `0/20` pagination window against a line that actually has 46–53 active trains (D-023). Fixed the script to `0/100`; re-verification with the fix is the next step, not yet re-run |
+| Subway arrival↔position trainNo join | **GO on Line 1, CONDITIONAL on Line 2** | Line 1/시청 re-measured after the pagination fix: 75%→**91.7% (11/12)**. Line 2/강남: **54.5% (6/11)**, and this time it's *not* the pagination bug (Line 2's `totalCount` was only 16–18, fully within range) — cause unknown, needs a Line 2-specific investigation (D-026) |
 | Mixed bus+subway route | **GO** | Was misdiagnosed as a key-registration BLOCKER (D-019); actual cause was our own URL typo (`getPathInfoByBusNSubList` → real path drops "List"). Fixed and confirmed live: 20 alternative routes for a real Seoul corridor, `routeId`s in the same domain as the realtime bus APIs |
-| Historical bus section join | **NOT YET TESTED** | Pending |
+| Historical bus section join | **PIVOT** | OA-21217 turns out to be a weekly/monthly ZIP file download, not a pollable OpenAPI as assumed — and the page shows a service-termination notice. Needs PM input on whether to keep this as a baseline source (D-025) |
 
 ## A. Bus Arrival — `getArrInfoByRouteAll`
 
@@ -59,11 +59,12 @@ night-time collection — see caveats per section).
 - **Observed arrival schema:** matches checklist plus `trainLineNm`, `arvlMsg3`, `ordkey`, `subwayList`, `statnList`, `trnsitCo`; wrapped in an `errorMessage{status,code,message,total}` envelope
 - **Observed position schema:** `subwayId, subwayNm, statnId, statnNm, trainNo, lastRecptnDt, recptnDt, updnLine, statnTid, statnTnm, trainSttus, directAt, lstcarAt`
 - **Identity / join:** `btrainNo` (arrival) and `trainNo` (position) matched directly for trains `0224`, `0823`, `0825` at 시청 station, Line 1 — **direct confirmation of the project's top-risk join**, on the first snapshot
-- **Sustained run (~7.5 min, 15s interval, 시청/Line 1):** trainNo join rate first measured **6/8 (75%)** — but this was a **false alarm**, not a real ID-stability problem. Root cause: our `realtimePosition` call used a fixed `0/20` index range, while Line 1's real `totalCount` fluctuated 46–53 active trains during the window — the two unmatched trains (`5166`, `0226`, confirmed same `subwayId=1001`, not a different line) were simply outside the requested page. Fixed `subway_position_spike.py` to request `0/100` by default (see D-023) and confirmed with one call: `selectedCount == totalCount == 42`, full fleet returned. A sustained re-run to get a real fixed join-rate % (not just "pagination no longer truncates") is still pending.
-- **Actual arrival rule candidate — richer than first observed:** sustained collection surfaced state codes `{0,1,2,3,4,5,99}`, not just the `{0,1,2,99}` seen in the single snapshot. Two trains (`0704`, `0825`) showed a clean ordered progression `99 → 5 → 3 → 1 → 2` over ~8 minutes — a real, reproducible state machine, richer than checklist section F's assumed `전역출발→진입→도착→출발` 4-state sequence
+- **Sustained run, Line 1/시청 (~15 min total across two sessions):** trainNo join rate first measured **6/8 (75%)** — traced to our own fixed `0/20` pagination window against a line with 46–53 active trains (D-023). Fixed to `0/100` and re-ran: join rate improved to **11/12 (91.7%)**. Exactly one train (`5166`) stayed unmatched all session despite appearing in arrival 4 times — cause unknown, not explained by pagination this time.
+- **Sustained run, Line 2/강남 (~7.5 min):** join rate **6/11 (54.5%)** — notably *not* a pagination artifact here: Line 2's `totalCount` was only 16–18 (well under the `0/100` range, `selectedCount == totalCount` every poll), yet 5 trains never appeared in position. Root cause open (D-026) — candidates include loop-line position feed scoping differences, but nothing confirmed yet.
+- **Actual arrival rule candidate — richer than first observed, and now cross-line confirmed:** sustained collection surfaced state codes `{0,1,2,3,4,5,99}`, not just the `{0,1,2,99}` seen in the single snapshot. The ordered progression `99 → 4 → 5 → 3 → 1 → 2` was observed on **both Line 1** (trains 0704, 0825) **and Line 2** (trains 6513, 4515, 6508) — the same relative code ordering held across two independent lines, a real, reproducible state machine, richer than checklist section F's assumed `전역출발→진입→도착→출발` 4-state sequence
 - **Timestamp semantics:** `recptnDt` (arrival) and `recptnDt`/`lastRecptnDt` (position) are per-train, not per-call — unlike bus arrival's call-level `mkTm`
-- **Risks:** one station, one line, one ~7.5-minute window, and the join rate needs re-measuring now that the pagination bug is fixed. Do **not** finalize `SUBWAY_ACTUAL_RULE_V0.md` yet — the `{0,1,2,3,4,5,99}` code meanings for `3`/`4`/`5` are inferred from ordering, not documented anywhere official
-- **Next decision:** re-run the sustained collection with the fixed `--end-ord` default, confirm join rate approaches 100% once pagination is no longer truncating the fleet, then extend to a second line to check whether `3`/`4`/`5` hold the same relative meaning there
+- **Risks:** two lines, two stations, ~15-23 minutes of sampling total — still not citywide. Do **not** finalize `SUBWAY_ACTUAL_RULE_V0.md` yet — the `{0,1,2,3,4,5,99}` code meanings for `3`/`4`/`5` are inferred from ordering (now cross-line consistent, which helps), and the Line 2 join-rate gap is unexplained
+- **Next decision:** investigate the Line 2 unmatched-train cases specifically (candidate: check if realtimePosition scopes to one direction/loop segment rather than the whole line) before treating trainNo join as citywide-reliable
 
 ## F. Mixed Bus+Subway Route — `getPathInfoByBusNSub`
 
@@ -77,13 +78,16 @@ night-time collection — see caveats per section).
 
 ## G. Historical Bus Section Join
 
-Not yet tested this session.
+- **Tested at:** 2026-08-22, via WebSearch + WebFetch (no API call — this dataset isn't one)
+- **Result:** OA-21217 is **not a pollable OpenAPI** the way the other six are. It's distributed as weekly/monthly ZIP file downloads (26–169MB, CSV), with a vague claim that "Sheet/Open API provide the most recent 30 days" that this session couldn't pin down to an actual service name or endpoint. The data.seoul.go.kr page for it also carries a **service termination notice**.
+- **Interpretation:** **PIVOT**, not a code problem. Team handoff (`01_PROJECT_HANDOFF.md` section 13.1) assumed this could feed a "historical bus section average + realtime correction" baseline via simple API calls — that assumption needs PM re-evaluation. Either confirm the dataset is still alive and pursue file-based ingestion instead of polling, or drop it as a baseline source.
+- **Next decision:** flag to PM (see Decision Log D-025). Do not build collector code around this until its status is confirmed.
 
 ## Open items carried to next session
 
-1. Re-run the sustained subway position collection with the fixed `--end-ord 100` default and re-measure the trainNo join rate (expect it to approach 100%, not yet confirmed under sustained load)
-2. Extend subway sampling to a second line to check whether `arvlCd` codes `3`/`4`/`5` hold the same relative meaning there
+1. Investigate the Line 2 subway join-rate gap (54.5%, not explained by pagination — see D-026)
+2. Extend subway sampling to a third line if Line 2's gap turns out to be loop-line-specific, to isolate the pattern
 3. ~~Follow up on data.go.kr registration for the mixed-route service~~ — resolved (D-024): was a URL typo, not a registration gap. Remaining: get PM's demo corridor pick (Q1) and re-test mixed_route_spike.py against it to confirm an actual bus+subway leg with populated `railLinkList`
-4. Historical bus section join (Spike D / Task F) not started — need to confirm the actual OpenAPI service name for OA-21217 (data.seoul.go.kr's catalog page didn't expose it; candidate table name `tpss_route_section_speedh` is unconfirmed)
-5. Run bus/subway collection during a daytime window — all data so far is from a single 23:45–00:00 KST night window; ridership, congestion-field population (`avgCf1` etc. were all `0` at night), and call-volume patterns likely differ substantially in daytime
-6. Six representative raw samples are already curated into `data/samples/examples/` (bus route/arrival/position, subway arrival/position, and the blocked mixed-route 401) and committed to git for reviewers
+4. Historical bus section join — resolved as PIVOT (D-025), needs PM decision on whether to keep it as a baseline source at all
+5. Run bus/subway collection during a daytime window — all data so far is from two nighttime windows (23:45 KST 8/21 and past-midnight 8/22); ridership, congestion-field population (`avgCf1` etc. were all `0` at night), and call-volume patterns likely differ substantially in daytime
+6. Nine representative raw samples are curated into `data/samples/examples/` (bus route/arrival/position, subway arrival/position on both Line 1 and Line 2, the original mixed-route 401 bug, and the fixed mixed-route success) and committed to git for reviewers
