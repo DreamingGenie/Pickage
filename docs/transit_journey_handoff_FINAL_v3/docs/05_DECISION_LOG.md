@@ -14,6 +14,8 @@
 | 2026-08-21 | D-008 | TO_VERIFY | Subway Actual Ground Truth rule | 실제 dual API Spike 미완료 | Critical path | BE-Subway |
 | 2026-08-21 | D-009 | TO_VERIFY | Mixed route API를 route provider로 사용 | 공식 서비스 존재, 실제 ID interoperability 미검증 | Critical path | Backend/PM |
 | 2026-08-21 | D-010 | FIXED | API keys 취득 완료. 실제 secret은 repo/package에 저장하지 않음 | PM 보고 | Secret management 시작 가능 | Infra |
+| 2026-08-21 | D-011 | VERIFIED | Bus Position 실제 endpoint는 `getBusPosByRouteSt` (busRouteId+startOrd+endOrd 필요), 팀 문서가 가정한 `getBusPosByRtid` 계열이 아님 | data.go.kr 15000332 공식 spec 페이지 | scripts/spikes/bus_position_spike.py를 실제 endpoint로 작성. checklist B의 `실제 endpoint 명` 항목 해소 | Data |
+| 2026-08-21 | D-012 | TO_VERIFY | Subway realtime arrival/position의 `swopenAPI.seoul.go.kr` URL 패턴은 공개적으로 통용되는 관례이나 이 세션에서 실제 응답으로 검증하지 못함 (data.seoul.go.kr 카탈로그 페이지는 기술 스펙 비공개) | WebFetch 시도 실패 (HTTPS 강제 업그레이드로 연결 거부) | 실제 key로 첫 실행이 검증 단계. scripts/spikes/subway_*_spike.py는 HYPOTHESIS로 표시됨 | BE-Subway |
 
 ## Status meanings
 
