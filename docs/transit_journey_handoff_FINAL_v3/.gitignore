@@ -1,8 +1,5 @@
 # Scoped to this handoff package only.
-# Real secrets: never commit.
-scripts/spikes/.env.local
-scripts/spikes/**/__pycache__/
-scripts/spikes/**/*.pyc
+# .env.local / __pycache__ are covered repo-wide by the root .gitignore.
 
 # Bulk raw API samples collected during spikes: too large/noisy for git.
 # Curate a few representative examples manually with `git add -f` when writing the Phase 0 report.
