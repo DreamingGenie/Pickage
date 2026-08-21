@@ -219,7 +219,7 @@ H100이 있다는 이유만으로 딥러닝을 채택하지 않는다.
 
 ## Tier A — 실제 데이터/Feasibility 근거
 
-### `버스_ETA_신뢰도_데이터_API_분석_보고서.pdf`
+### `sources/project/01_bus_eta_reliability.pdf`
 
 가장 중요한 실제 PoC 문서.
 
@@ -238,7 +238,7 @@ H100이 있다는 이유만으로 딥러닝을 채택하지 않는다.
 
 ## Tier B — 계산/시나리오 설계
 
-### `버스_API_및_시나리오_구축.pdf`
+### `sources/project/02_bus_api_scenario.pdf`
 
 활용 가치가 높은 아이디어:
 
@@ -252,7 +252,7 @@ H100이 있다는 이유만으로 딥러닝을 채택하지 않는다.
 
 단, 이 문서는 아이디어가 많으므로 **실제 API Spike에서 확인된 필드/품질만 승격**한다.
 
-### `실제_도착지까지_특정시간에_도착하는_확률_계산_방법의_연구.pdf`
+### `sources/project/03_journey_probability_research.pdf`
 
 Journey Probability의 핵심 논리.
 
@@ -267,7 +267,7 @@ Journey Probability의 핵심 논리.
 
 ## Tier C — ML/AI 고도화안
 
-### `전체_경로_도착확률_및_AI_적용_설계.pdf`
+### `sources/project/04_journey_probability_ai_design.pdf`
 
 - LightGBM Quantile → Monte Carlo 연결안.
 - P10/P50/P90 등 분위수 예측.
@@ -285,7 +285,7 @@ Baseline 경험분포가 먼저며, 아래 평가에서 실제 개선이 확인�
 
 ## Tier D — 데이터 목록/참고
 
-### `지하철 detail.pdf`
+### `sources/project/05_subway_detail.pdf`
 
 - 지하철 승하차/혼잡도/실시간 도착/실시간 위치 데이터 후보 목록.
 - 30분 혼잡도는 **실시간 차량 혼잡도 아님**. Historical context로만 사용.
@@ -293,7 +293,7 @@ Baseline 경험분포가 먼저며, 아래 평가에서 실제 개선이 확인�
 
 ## Tier E — 원래 RailOdds 기준
 
-### `지하철_연착_확률_메트릭.pdf`
+### `sources/project/06_subway_reliability_metric.pdf`
 
 유지할 철학/설계 원칙:
 
@@ -310,7 +310,7 @@ Baseline 경험분포가 먼저며, 아래 평가에서 실제 개선이 확인�
 
 ## Tier F — 기획 품질 참고문서
 
-### `OSS_Shift_Proposal_2026-08-20.pdf`
+### `sources/reference_quality/90_oss_shift_proposal.pdf`
 
 내용을 복사하는 자료가 아니라 **기획 수준의 기준**.
 
@@ -322,7 +322,7 @@ Baseline 경험분포가 먼저며, 아래 평가에서 실제 개선이 확인�
 - Distributed Proof를 benchmark, shuffle, correctness까지 연결.
 - Final Acceptance Criteria가 재현 가능해야 함.
 
-### `깃든_서비스기획서_최종본.md`
+### `sources/reference_quality/91_service_plan_reference.md`
 
 기획 구조의 기준:
 
@@ -447,7 +447,7 @@ DATA_GO_BUS_STATION_KEY=
 
 ### Subway support
 
-13. `지하철 detail.pdf`에 정리된 후보:
+13. `sources/project/05_subway_detail.pdf`에 정리된 후보:
 
 - 수도권 지하철 역별 일별 시간대별 승하차
 - 30분 단위 혼잡도
