@@ -38,7 +38,7 @@ actually forces a bus+subway transfer.
 
 ## Historical bus section (OA-21217)
 
-**PIVOT (D-025)** — this turned out to be a weekly/monthly ZIP file
+**DROPPED (D-028)** — this turned out to be a weekly/monthly ZIP file
 download, not a pollable OpenAPI, and its data.seoul.go.kr page shows a
-service-termination notice. No ID mapping work is possible until PM
-decides whether this source is still viable at all.
+service-termination notice. PM decided to drop it as a baseline
+candidate; no ID mapping work needed here.
