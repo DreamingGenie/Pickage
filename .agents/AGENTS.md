@@ -20,7 +20,8 @@
   | 버그 (Bug) | `10004` |
 - 에픽 연결: `createJiraIssue`의 `parent` 파라미터에 에픽 키(예: `S15P21A506-20`)를 지정
   (classic 프로젝트라 내부적으로 `customfield_10014` 에픽 링크 필드와 동기화됨)
-- 스프린트 연결: `customfield_10020` (스프린트 ID 배열, 예: `[53719]`) — `additional_fields`로 지정
+- 스프린트 연결: `customfield_10020` (스프린트 ID 정수 단일값, 예: `53719`. 배열로 감싸면
+  `createJiraIssue`에서 "스프린트에 유효한 값을 지정하세요" 오류 발생) — `additional_fields`로 지정
 
 ## 2. 작업 전 Jira 연동 워크플로우 (AI 에이전트 필수 준수)
 
@@ -45,7 +46,7 @@
      반환된 이슈 중 아무거나 `customfield_10020` 필드를 읽어 활성 스프린트 id를 확인합니다
      (스프린트는 주 단위로 바뀌므로 매번 새로 조회 — 하드코딩 금지).
    - `createJiraIssue`로 이슈를 생성하며 `parent`에 위에서 고른 에픽 키를,
-     `additional_fields`에 `{"customfield_10020": [<sprintId>]}`를 지정합니다.
+     `additional_fields`에 `{"customfield_10020": <sprintId>}`를 지정합니다.
 4. **작업 종료 후**: 완료되면 `transitionJiraIssue`로 상태를 "완료"로 전이하고,
    필요하면 `addCommentToJiraIssue`로 결과를 요약합니다.
 
