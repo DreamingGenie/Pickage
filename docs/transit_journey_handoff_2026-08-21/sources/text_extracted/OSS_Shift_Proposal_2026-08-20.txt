@@ -1,0 +1,1488 @@
+OSS Shift
+Evidence‑Grounded OSS Dependency Decision Intelligence
+
+공개 npm dependency history 에서실제선택·유지·이탈·이동행동을근거와한계까지함께본다.
+
+
+
+
+   현재프로젝트판정 GO
+   Data Feasibility 는실제 BigQuery profiling 으로통과. Movement 는 Week 3 specificity validation 까지
+   Conditional.
+
+
+
+
+문서구성
+
+                             현재판단, 핵심가치, 실제데이터 feasibility
+ Executive Summary
+                             사용자, 경쟁포지셔닝, 제품경계와 Review Action
+ 문제와제품
+                             관찰모집단, mainline, Adoption/Retention/Exit, Transition
+ 데이터와분석계약
+                             수학적 State rule, entropy/concentration, threshold calibration, AI ev‑
+ State & Evidence            idence
+                             State 를 Tech Lead 의판단과 evidence flow 로연결
+ Product Experience
+                             Spark DAG, partition/join/shuffle/skew, 1/2/4 Worker benchmark
+ Distributed System
+                             Quality Gate, Go/Pivot, 6 주 WBS, Acceptance Criteria
+ Validation & Execution
+
+
+
+
+MVP: npm / Node.js HTTP Client / 6 주 / 6 인   |   기준일: 2026‑08‑20
+목차
+대목차와핵심목차중심으로구성했다. 본문에서는하위정의와수식을단계적으로설명한다.
+
+
+
+목차
+
+Executive Summary                            1
+
+문제와제품                                        2
+Problem                                      2
+Competitive Positioning                      3
+Product Definition                           3
+
+데이터와분석계약                                     4
+Observation Contract                         4
+Actual Data Feasibility                      4
+Analysis Unit and Mainline                   6
+Behavior Metrics                             6
+Transition Contract                          8
+
+State & Evidence                             9
+State Model                                  9
+Time, Baseline and Support                   9
+Movement Mathematics                        10
+State Rules                                 11
+Threshold Calibration                       13
+Evidence Confidence and Ladder              13
+AI Evidence Interpreter                     14
+
+Product Experience                          15
+End‑to‑End Flow                             15
+Behavior and Why This State                 15
+Movement and Cohort Compare                 16
+Review Action Contract                      16
+Limitations at the Point of Decision        17
+
+Distributed System                          18
+Distributed Design Principle                18
+System Architecture                         18
+Data Lake and Partition Contract            19
+Spark Job DAG                               19
+Optimization Strategy                       20
+Scale‑Out Benchmark and Correctness         20
+
+
+                                       2
+목차                                  OSS Shift
+
+
+
+Observability                             21
+
+Validation & Execution                    22
+Validation Framework                      22
+Quality Gates                             22
+Go / Conditional / Pivot                  23
+Six‑Week WBS                              23
+Team and Parallel Development             24
+Risk and Scope Cut                        25
+Final Acceptance Criteria                 25
+Final Demo Narrative                      26
+
+Appendix & Sources                        27
+Metric Dictionary                         27
+MVP In / Out                              28
+Source and Verification Notes             28
+
+
+
+
+                                3
+Executive Summary                                                             OSS Shift
+
+
+
+
+Executive Summary
+장기간운영할신규서비스나핵심기능에 OSS dependency 를도입할때 Tech Lead 는일반적으로 Stars,
+downloads, release freshness, vulnerability, maintainer activity 와같은신호를본다. 이신호들은중요하
+지만 공개 package ecosystem 에서실제 dependency 선택행동이어떻게변하고있는지를직접설명하지않는
+다.
+
+
+  OSS Shift 가답하려는핵심질문
+  공개 npm package 들이 A 를계속새로선택하는가? 이미 A 를사용하던 package 는다음 release 에서도
+  유지하는가? A 가제거될때특정대안이반복적으로함께추가되는가? 아니면여러 destination 으로분산되
+  는가?
+
+OSS Shift 는 공 개 npm package 의 version 별 regular dependency declaration history를 분 석 해
+Adoption, Retention, Exit, Transition Candidate 를계산한다. 그뒤 Behavior 와 Movement 를 deter‑
+ministic rule 로판정하고, 중요한 transition 에한해서실제 GitHub PR/commit evidence 를결합한다.
+제품은특정 library 를자동추천하거나미래에죽을 package 를예측하지않는다. 최종적으로지원하는판단은세가
+지뿐이다.
+
+
+   Review Action          의미
+
+   Proceed to Review      강한 ecosystem shift signal 이없어일반적인기술검토를계속
+   Compare     Alterna‑   본격검토전에 functional alternatives 를함께비교할근거가있음
+   tives
+   Investigate            근거가부족하거나변화맥락이복잡해추가확인이필요
+
+
+
+실제 Data Feasibility 결과
+2026‑08‑20 실제 BigQuery profiling 에서분석조건에해당하는 npm release version 은약 4,660 만건,
+distinct package 는약 402 만개였다. 약 257.9 만 package(64.1%) 가두개이상의 release 를가지고있어
+version‑to‑version change 분석의기본조건을충족했다. 이번 profiling 조건에서는 PackageVersionsLatest
+와 NPMRequirementsLatest 가 (Name, Version) 기준으로모두연결되었다.
+Node.js HTTP Client MVP cohort 의여섯 package 도모두관찰가능했다. 가장큰 axios 는약 16.6 만 distinct
+dependent package, 가장작은 undici 도약 7.5 천 distinct dependent package 에서 regular depen‑
+dency declaration 이관찰되었다.
+
+
+  현재판정: GO
+  Data structure 와 cohort support 때문에프로젝트를중단할이유는발견되지않았다. 다만 Movement
+  는 A removed + B added co‑change noise 를통제해야하므로 Week 3 specificity validation 까지
+  Conditional 로유지한다.
+
+
+
+
+                                          1
+문제와제품                                                                         OSS Shift
+
+
+
+
+문제와제품
+Health score 를하나더만드는것이아니라, 신규 dependency review 전에실제 ecosystem behav‑
+ior 를보는 Evidence Layer 를제안한다.
+
+
+
+Problem
+
+
+
+Primary User 와 Decision Context
+Primary Persona 는 Tech Lead / 핵심 dependency 선택을책임지는 Senior Engineer다. Secondary
+Persona 는 Software Architect 와 Platform Engineer 다.
+Primary 상황은다음과같다.
+
+
+  장기간운영할신규서비스또는핵심기능에, 교체비용이큰 OSS dependency 를도입하기직전
+
+OSS Shift 는기존 dependency 를자동으로교체하는 migration tool 이아니라 Search/Compare 와본격
+Technical Review 사이의 Evidence Layer 다.
+
+
+  Search       Compare        OSS Shift Evidence     Technical Review      Integrate
+
+
+
+
+기존지표가직접답하지못하는질문
+기존지표는 popularity, security, release freshness, maintainer/community activity 를보는데강하다.
+OSS Shift 가추가하려는질문은다음과같다.
+
+ • A 가 observable published npm packages 에서계속새로추가되는가?
+ • 기존 adopter 가다음 observable release 에서도 A 를유지하는가?
+ • A declaration 이사라지는 Exit 가 baseline 대비증가하는가?
+ • A 가제거될때특정 B 가반복적으로같은 release 에서추가되는가?
+ • 한 destination 으로집중되는가, 여러 alternatives 로분산되는가?
+ • 신규유입은크지않아도기존관계가안정적인 Mature Stable 인가?
+ • same‑cohort replacement 가관찰되지않는 No‑Replacement Exit 가증가하는가?
+
+핵심은 Level 이아니라 Flow다.
+
+
+
+
+                                           2
+문제와제품                                                                                OSS Shift
+
+
+
+Competitive Positioning
+
+
+기존도구가약해서가아니라, 문제축이다르다. GitHub Dependency Review 는 repository pull request 단
+위에서 dependency changes 와 security impact 를검토하는데강하다. SCA/Package Health 계열도구는
+vulnerability, maintenance, popularity, supply‑chain quality 등 package 상태를폭넓게평가한다. 기존
+연구또한 npm dependency change 에서 migration‑like pattern 과 alternative 를찾는접근을제시했다.
+따라서 OSS Shift 가단순히 A removed + B added 를찾아 B 를추천하면차별성이약하다. OSS Shift 는그보다앞
+선판단을다룬다.
+
+
+  영역                      기존강점                               OSS Shift 의질문
+
+  Repository Review       PR/commit 단 위 dependency           ecosystem‑scale 반복행동은어떤
+                          diff, security impact              가
+  Package Health / SCA    security, maintenance, popular‑    새선택/유지/이탈의시간흐름은어떤
+                          ity, quality                       가
+  Migration Research      declining package 의 alterna‑       추 천 이 전 에 현 재 behavior 와 evi‑
+                          tive/migration pattern 탐색          dence confidence 를어떻게설명할
+                                                             까
+
+
+
+
+Product Definition
+
+
+
+Vision
+공개 OSS dependency history 에서실제선택·유지·이탈·이동행동을재현가능한근거로계산하고, Tech Lead
+가신규핵심 dependency 를그대로기술검토할지 alternatives 를먼저비교할지판단하도록돕는다.
+
+Product Boundary
+
+
+   제공                                            제공하지않음
+
+   Adoption / Retention / Exit                   Best package 추천
+   Cohort‑relative behavior                      미래 survival prediction
+   Transition Candidate / repeated flow          자동 migration 코드
+   Evidence Confidence                           Vulnerability / License scanner
+   Repository‑supported examples                 전체 JavaScript ecosystem 추정
+   Proceed / Compare / Investigate               실제 runtime usage 추정
+
+
+제품의핵심문장은다음과같다.
+
+  OSS Shift analyzes where an OSS ecosystem is actually staying, leaving, and moving ‑
+  before your team commits to the dependency.
+
+
+
+
+                                             3
+데이터와분석계약                                                                         OSS Shift
+
+
+
+
+데이터와분석계약
+무엇을관찰하고무엇을계산하는지먼저고정한다. Data Contract 가없으면 State 와 Migration 해석
+이흔들린다.
+
+
+
+Observation Contract
+
+
+
+NPM_REGULAR_DEPENDENCY_V1
+관찰모집단은 deps.dev 의 selected latest snapshot 에서관찰가능한 published npm package versions
+다.
+Release eligibility 는다음과같다.
+
+  System = 'NPM'
+  VersionInfo.IsRelease = TRUE
+  UpstreamPublishedAt IS NOT NULL
+  NPMRequirements state observable
+
+
+MVP dependency scope 는 NPMRequirementsLatest.Dependencies 하 나 다. DevDependencies, Option‑
+alDependencies, PeerDependencies, BundledDependencies 는제외한다.
+따라서제품에서사용하는가장정확한표현은 regular dependency declaration이다. 실제 runtime code
+path 에서사용된다는의미가아니다.
+
+deps.dev Schema Verification
+2026‑08‑20 기 준 공 식 deps.dev BigQuery 문 서 와 실 제 BigQuery public dataset query 를 교 차 확 인 했
+다. NPMRequirements 와 NPMRequirementsLatest 가존재하며, npm requirement 에는 Dependencies, De‑
+vDependencies, OptionalDependencies, PeerDependencies 가구분되고각 requirement 에 package
+name 과 requirement string 이제공된다. NPMRequirementsLatest 는최신 snapshot view 다.
+
+
+Actual Data Feasibility
+
+
+
+
+                                            4
+데이터와분석계약                                                                             OSS Shift
+
+
+
+npm Release Population
+이번프로젝트에서실제실행한 BigQuery profiling 결과다.
+
+    Metric                                                                Observed value
+
+    Release versions                                                          46,603,902
+    Distinct packages                                                          4,024,046
+    DependenciesProcessed = true                                              46,389,825
+    DependencyError = true                                                     1,957,570
+    DependencyError ratio                                                       약 4.20%
+
+DependencyError=true 인 version 도이번 profiling 에서 NPM requirements row 와 regular dependency
+declarations 가대부분존재했다. 따라서 DependenciesProcessed 와 DependencyError 는 QA metadata 로보
+존하되 raw declaration observation 을자동제외하는기준으로사용하지않는다.
+
+Missing 과 Empty 를구분한다
+이번 profiling 조건에서 release versions 는모두 NPMRequirementsLatest 와연결되었다. 그러나 pipeline
+contract 는미래 snapshot anomaly 에대비해다음의미를유지한다.
+
+     상태                           해석
+
+     Requirements row 존 재 +       OBSERVED EMPTY: regular dependency declaration 0 개
+     Dependencies = []
+     Requirements row 자 체 가       UNKNOWN: dependency state 미관측, Exit 계산금지
+     없음
+
+UNKNOWN 을 EMPTY 로바꾸면데이터미관측이가짜 Exit 로변할수있다.
+
+Release History Viability
+package 당 release 수는 p50=3, p75=8, p95=40, p99=156, max=37,328 이었다. 두개이상의 release 를가
+진 package 는 2,578,837 개, 약 64.1% 였다.
+이결과는두가지를동시에보여준다.
+
+ • 연속 release 기반 behavior 분석의후보 population 이충분하다.
+ • release frequency 가극단적으로높은 package 가존재하므로 release count 를그대로 ecosystem vote
+   로사용하면 bias 가생길수있다.
+
+따라서 State 계산은뒤에서설명하는 package‑period collapse를사용한다.
+
+HTTP_CLIENT_V1 Support
+
+ Package           Declarations   Distinct dependents            2020+                 2022+
+
+ axios               2,579,970               166,297          2,327,670            1,862,755
+ request               554,489                51,590            185,461               82,176
+ node‑fetch            640,809                45,236            557,975              417,488
+ superagent            128,439                 9,072             65,186               38,797
+ got                   127,335                 8,814            106,877               71,810
+ undici                110,358                 7,522            110,339              109,622
+
+
+                                               5
+데이터와분석계약                                                                                     OSS Shift
+
+
+
+이수치는현재 adoption 을의미하지않는다. 기존 adopter 가새 version 을 publish 하면같은 dependency
+declaration 이다시관찰될수있다. 바로이이유때문에 Adoption 과 Retention 을분리한다.
+
+
+   Data Feasibility: PASS
+   package‑version history, regular dependency declaration, release‑requirements join, con‑
+   secutive release population, HTTP client cohort support 가모두확인되었다.
+
+
+
+Analysis Unit and Mainline
+
+
+
+원자단위
+dependent package P 의 mainline releases 를 r1 , r2 , . . . , rn , release ri 의 regular dependency set 을
+D(P, ri ) 라고한다. 기본 observation 은연속 release transition 이다.
+
+
+                                           Ti = (ri−1 → ri )
+
+예를들어 D(P, r1 ) = {A, C}, D(P, r2 ) = {B, C} 이면 A 는 REMOVED, B 는 ADDED, C 는 RETAINED 다. 이
+단계에서는 A 에서 B 로 migration 했다고부르지않는다.
+
+Mainline Release Approximation
+publish time 만사용하면과거 branch backport 가섞일수있다. MVP 에서는 time order 를따라가며 current
+ordinal 이이전 running maximum 보다클때만 mainline 으로인정한다.
+
+                                            [                                  ]
+                        isM ainline(ri ) = 1 Ordinal(ri ) > max Ordinal(rj )
+                                                               j<i
+
+
+이 rule 은 parallel major maintenance 를완전히모델링하지않는다. 따라서 MVP Mainline Approxima‑
+tion으로명시하고 representative package history 에서별도 validation 한다.
+
+
+Behavior Metrics
+
+
+
+Change Event
+두연속 mainline release 사이에서 dependency A 의상태를비교한다.
+
+
+      Event                      정의
+
+      RETAINED          A ∈ Dprev and A ∈ Dcurr
+      REMOVED           A ∈ Dprev and A ∈
+                                        / Dcurr
+      ADDED             A∈/ Dprev and A ∈ Dcurr
+      REQUIREMENT_CHANGED
+                        양쪽에존재하지만 requirement string 변경
+
+
+Requirement change 는 migration 이나 adoption 으로취급하지않는다.
+
+                                                  6
+데이터와분석계약                                                                      OSS Shift
+
+
+
+Entry Adoption 과 Switch‑in Adoption
+Entry Adoption은첫 observable mainline release 에 A 가이미존재하는경우다. 실제새프로젝트가그시점
+에 A 를처음선택했다는뜻은아니다.
+Switch‑in Adoption은이전 observable release 에는 A 가없고다음 release 에는 A 가생긴경우다. 이것이기
+존 published package 의신규 declaration behavior 를더직접적으로나타낸다.
+
+Retention 과 Exit
+기간 t 시작시 A 를가지고있었고그기간에새 mainline release 가실제로관찰된 distinct dependent package
+만 denominator 에넣는다.
+
+                                                   RetainedA,t
+                          RetentionRateA,t =
+                                               EligibleExistingA,t
+                                                  ExitA,t
+                            ExitRateA,t =
+                                            EligibleExistingA,t
+
+핵심원칙은 새 release 가없음 ̸= Exit 이다.
+
+Package‑Period Collapse
+release frequency bias 를줄이기위해 State 계산에서는 package P 의 period start 와 period end de‑
+pendency state 만 사 용 한 다. 한 달 에 release 가 30 개 있 어 도 package‑dependency‑period 당 최 대 한
+observation 으로 collapse 한다. 중간 release‑level event 는 Evidence 와 Transition 분석을위해그대로보
+존한다.
+
+Cohort‑relative Metrics
+기간 t 에 mainline release 를낸전체 distinct npm package 수를 Pt 라고할때, A switch‑in 의 absolute
+intensity 는다음과같이둔다.
+
+                                                    SwitchInA,t
+                           SwitchInIntensityA,t =
+                                                        Pt
+
+HTTP client cohort C 의 switch‑in event 중 A 가차지하는상대비중은:
+
+                                                       SwitchInA,t
+                       CohortSwitchInShareA,t = ∑
+                                                      c∈C SwitchInc,t
+
+또기간끝에 A 를가진 active publishing package 수를 UA,t , cohort member 하나이상을가진 package 수를
+UC,t 라하면:
+
+                                                          UA,t
+                             CohortP resenceShareA,t =
+                                                          UC,t
+
+이값은 market share 가아니라 curated cohort 안에서의 observed presence다.
+
+
+
+
+                                             7
+데이터와분석계약                                                                           OSS Shift
+
+
+
+Cohort Contraction 을위한 Footprint
+cohort 자체가 observable npm publishing population 에서줄어드는지보기위해:
+
+                                                         Ct
+                                   CohortF ootprintt =
+                                                         Pt
+
+를사용한다. Ct 는해당 period 에 HTTP_CLIENT_V1 하나이상을 declaration 한 active publishing package
+수다. 이값의감소를전체 Node.js HTTP 시장감소로일반화하지않는다.
+
+
+Transition Contract
+
+
+
+Transition Candidate
+같은 release transition 에서 A 가 REMOVED 되고 B 가 ADDED 되면:
+
+
+                               T ransitionCandidate(P, A, B, t)
+
+를만든다. 의미는 same‑release co‑change correlation까지이며 migration intent 가아니다.
+
+Pair Complexity
+한 transition 에서 removed dependency 가 m 개, added dependency 가 n 개라면 potential pair 는:
+
+
+                                  P airComplexity = m × n
+
+이다. Pair Complexity 가커질수록 unrelated co‑change false positive 와 candidate row expansion/shuf‑
+fle 이함께증가한다. 따라서이후 quality gate 는제품정확성과 distributed cost 를동시에개선하는지점이된
+다.
+
+No Observed Replacement
+A 가제거되었지만같은 transition 에서다른 HTTP_CLIENT_V1 package 가추가되지않으면 NO_OBSERVED_COHORT_
+기록한다.
+
+
+  No Observed Replacement 는 Native Migration 이아니다. node‑fetch removal 이후 native
+  fetch 를사용했는지여부는 npm dependency declaration 만으로확인할수없다. 강한해석은 reposi‑
+  tory evidence 가필요하다.
+
+
+
+
+                                              8
+State & Evidence                                                                                 OSS Shift
+
+
+
+
+State & Evidence
+State 를점수로만들지않는다. Behavior, Movement, Cohort Context 를분리하고, rule/met‑
+ric/period/support 를모두재현가능하게남긴다.
+
+
+
+State Model
+
+
+기존후보 State 는서로다른현상을한축에섞을위험이있다. 따라서내부계산을세축으로나눈다.
+
+                            Behavior
+    Growing / Stable / Mature Stable / Weakening / Insufficient
+
+
+
+                           Movement                                              Display State
+       None / Directional Shift / Fragmenting / Insufficient                대표 label + Why this state
+
+
+
+
+                         Cohort Context
+                     Normal / Cohort Contraction
+
+
+State 와 Evidence Confidence 도별도로유지한다. 예를들어 Directional Shift / Confidence: Medium처
+럼표현한다.
+
+
+Time, Baseline and Support
+
+
+
+Period Granularity
+raw aggregate 는 calendar month 를기본 primitive 로저장한다. State evaluation 은 EDA 결과에따라
+cohort 전체에공통으로 MONTHLY 또는 QUARTERLY 를선택한다. package 마다서로다른 granularity 를쓰
+지않는다.
+선택기준은 eligible denominator, rate confidence interval, low‑support period 비율, bootstrap State
+stability 다.
+
+Baseline 과 Trend
+metric xt 에대해 baseline 과 recent level 을 robust median 으로정의한다.
+
+
+                   Baseline(x) = M edian(xt , t ∈ B),       Recent(x) = M edian(xt , t ∈ R)
+
+                                      ∆x = Recent(x) − Baseline(x)
+
+                                                        9
+State & Evidence                                                                    OSS Shift
+
+
+
+장기방향성은 Theil‑Sen 계열 robust slope βx 를사용하고, baseline noise scale 은 MAD 계열을사용한다.
+단한 period 의 spike 가 State 를뒤집지않도록하기위한설계다.
+
+UP / DOWN / NEUTRAL Primitive
+State rule 은 raw 숫자를직접비교하지않고다음 primitive 를사용한다.
+
+                                            [          ]
+                      U P (x) = [∆x > δx ] ∧ βx > βxmin ∧ SupportOK
+                                              [           ]
+                    DOW N (x) = [∆x < −δx ] ∧ βx < −βxmin ∧ SupportOK
+
+그외는 NEUTRAL 이다. δ 와 slope threshold 는임의로고정하지않고 calibration 한다.
+
+Minimum Support
+2/4 = 50% 와 5, 000/10, 000 = 50% 를같은 evidence 로취급하지않는다. high‑support historical window
+를 down‑sampling 하며 confidence interval width, trend sign stability, bootstrap State agreement
+가안정되기시작하는 sample size 를 minimum support 후보로정한다.
+
+
+Movement Mathematics
+
+
+
+Replacement Coverage
+A Exit 중 quality‑gated same‑cohort destination 이관찰된 Exit 의비율을:
+
+                                                  ReplacementExitA
+                        ReplacementCoverageA =
+                                                  AllObservableExitA
+
+로둔다. 이값이낮다면 destination distribution 만으로강한 Movement 를주장하지않는다.
+
+Destination Distribution
+quality‑gated A 에서 B 로의 flow 를보인 distinct dependent package 수를 nAB 라하면:
+
+                                              nAB
+                                        qB = ∑
+                                               j nAj
+
+                              T opDestinationShareA = max(qB )
+                                                        B
+
+TopDestinationShare 는전체 Exit 중비율이아니라 eligible destination distribution 안에서의 concentra‑
+tion 이다. 따라서 Replacement Coverage 와항상함께보여준다.
+
+
+
+
+                                             10
+State & Evidence                                                               OSS Shift
+
+
+
+Entropy 와 HHI
+
+                                                    ∑
+                                     H(A) = −            qB log qB
+                                                    B
+
+                                          H(A)                       ∑
+                                                                          2
+                            Hnorm (A) =         ,        HHI(A) =        qB
+                                          log K
+                                                                     B
+
+
+Hnorm 이낮고 HHI 가높으면한 destination 으로집중되는경향, Hnorm 이높고 HHI 가낮으면여러 destination
+으로분산되는경향을의미한다.
+No Observed Replacement 는 destination entropy 에넣지않고별도비율로유지한다.
+
+                                                         N oReplacementExitA
+                        N oReplacementShareA =
+                                                          AllObservableExitA
+
+
+
+State Rules
+
+
+
+Stable
+
+   BEHAVIOR_SUPPORT_OK
+   AND NEUTRAL(CohortPresenceShare)
+   AND NEUTRAL(CohortSwitchInShare)
+   AND NEUTRAL(ExitRate)
+   AND RetentionRate in calibrated stable range
+
+
+의미는뚜렷한 strengthening 또는 weakening signal 이관찰되지않는다는것이며, 좋은 package 라는보증이
+아니다.
+
+Growing
+
+   UP(CohortPresenceShare)
+   AND (UP(CohortSwitchInShare) OR DOWN(ExitRate))
+
+observable cohort 안에서 A 의선택/유지 behavior 가상대적으로강화되는경우다.
+
+Mature Stable
+Stable 의 subset 으로, 높은 Retention, 낮은 Exit, 낮지만붕괴하지않는신규선택, 그리고 npm package
+release cadence 가 calibrated mature band 에있는경우다. GitHub commit frequency 는 Core State 에
+넣지않는다. GitHub coverage 차이가 State 를왜곡하면안되기때문이다.
+
+
+
+
+                                                    11
+State & Evidence                                                                       OSS Shift
+
+
+
+Weakening
+한 signal 하나로판정하지않는다.
+
+
+   DOWN(CohortPresenceShare) AND [DOWN(CohortSwitchInShare) OR UP(ExitRate)]
+   OR
+   DOWN(CohortSwitchInShare) AND UP(ExitRate)
+
+즉적어도두개의 independent weakening signals 을요구한다.
+
+Directional Shift
+Weakening behavior 에더해 Exit 증가, sufficient Movement support, sufficient Replacement Cover‑
+age, 높은 TopDestinationShare, 낮은 entropy, 높은 HHI, independent evidence gate 를모두통과해야한
+다.
+제품문장은 “A Exit 와같은 release 에서특정 B 가추가되는 repeated functional flow 가한 destination
+으로집중되어관찰됨” 까지다. intentional migration 을자동주장하지않는다.
+
+Fragmenting
+Weakening 과 Exit 증가가존재하고, sufficient Movement support 와 Replacement Coverage 를확보했지
+만 destination 이여러곳으로퍼져높은 entropy, 낮은 HHI, 낮은 TopDestinationShare 를보이면 Fragment‑
+ing 으로본다. Directional 과 Fragmenting 사이 gray zone 이면억지로 label 을고르지않고 Weakening 으
+로남긴다.
+
+Cohort Contraction
+CohortFootprint 가하락하고 cohort‑wide 신규선택 intensity 감소또는 cohort‑wide Exit 증가가함께나타
+날때 context 후보가된다. focal A 의 relative CohortPresenceShare 가 cohort 전체보다유의하게더나쁘지
+않을때 Display State 를 Cohort Contraction 으로올린다.
+
+Insufficient Evidence
+recent/baseline coverage, eligible Exit denominator, Switch‑in support, cohort denominator, core
+DQ 중하나가 calibrated minimum 에미달하면 Behavior 를보류한다. Movement support 만부족하면
+Behavior 까지제거하지않고 Weakening / Movement Insufficient처럼표현한다.
+
+
+
+
+                                              12
+State & Evidence                                                                     OSS Shift
+
+
+
+Threshold Calibration
+
+
+threshold 는결과에맞추어임의로조정하지않는다.
+
+
+                              Period support EDA ‑ Monthly / Quarterly
+
+
+
+                            Down‑sampling ‑ minimum support stability
+
+
+
+                           Stable control ‑ normal noise / effect threshold
+
+
+
+                      Shift Benchmark ‑ pair / destination / entropy calibration
+
+
+
+                          Historical Replay ‑ oscillation / false alarm check
+
+
+
+                              HTTP_CLIENT_V1_STATE_RULE_V1 freeze
+
+
+
+Week 4 이후에는결과가마음에들지않는다는이유로 threshold 를계속바꾸지않는다.
+
+
+Evidence Confidence and Ladder
+
+
+
+Evidence Confidence
+State 와분리해 Support Sufficiency, Time Coverage, Independent Dependents, Project Diversity, Pair
+Quality, Repository Evidence 를관리한다. project mapping 은 authoritative 하지않을수있으므로보조
+diversity evidence 로만사용한다.
+
+Evidence Ladder
+
+
+     Level                     의미
+
+     Observed Change           한 release transition 의 add/remove
+     Transition Candidate      A removed + B added co‑change
+     Repeated Flow             여러 independent dependent 에서반복
+     Functional Transition     curated functional cohort 안에서반복
+     Repository‑supported      실제 manifest/PR/commit instance 가구조와일치
+     Explicit Migration Ex‑    해당 repository evidence 에교체의도/이유가명시
+     ample
+
+
+마지막단계도 ecosystem 전체 pair 가 confirmed migration 이라는뜻이아니다.
+
+
+
+                                                  13
+State & Evidence                                                                          OSS Shift
+
+
+
+AI Evidence Interpreter
+
+
+AI 는 Adoption, Retention, Exit, Transition count, State, package recommendation 을계산하지않는다.
+selected GitHub evidence 의비정형의도와이유만구조화한다.
+
+   migration_intent: true | false | unclear
+   reason_type: DEPRECATION | MAINTENANCE | PERFORMANCE | API | COMPATIBILITY | SECURITY | OTHER
+   | NOT_STATED
+   reason_summary: string | null
+   evidence_span: string | null
+   unsupported_inference: boolean
+
+
+evidence_span=null 이면 reason 을숨기고, unsupported_inference=true 이면 AI interpretation 을제품에서
+억제한다.
+
+
+
+
+                                                14
+Product Experience                                                                   OSS Shift
+
+
+
+
+Product Experience
+State 를보여주는데서끝나지않고, Tech Lead 가왜이결과가나왔고무엇을더검토해야하는지이해하게
+만든다.
+
+
+
+End‑to‑End Flow
+
+
+
+                                       Candidate Review
+
+
+                                 Observed Population & Scope
+
+
+                                      Ecosystem Behavior
+
+
+                                         State & Why
+
+
+                                 Movement & Cohort Compare
+
+
+                                Ecosystem / Repository Evidence
+
+
+                                Proceed / Compare / Investigate
+
+
+
+
+Behavior and Why This State
+
+
+핵심 behavior surface 는 Switch‑in Adoption, Retention, Exit, Cohort Presence Share 다. 각 metric 에
+는 Recent, Baseline, Direction, Support 를함께보여준다.
+State label 만보여주지않고 triggered rule 을노출한다.
+
+
+  예시 ‑ Why Weakening?
+  Cohort Presence Share: DOWN
+  Exit Rate: UP
+  Cohort Switch‑in Share: NEUTRAL
+  Rule: 2 independent weakening signals detected
+  Rule Version: HTTP_CLIENT_V1_STATE_RULE_V1
+
+
+                                              15
+Product Experience                                                                                  OSS Shift
+
+
+
+제안서의수치는 UI 구조설명용 mock 일수있지만실제제품 State 는 frozen rule output 만사용한다.
+
+
+Movement and Cohort Compare
+
+
+Movement 화면은 destination 비율뿐아니라 Replacement Coverage, Top Destination Share, Normal‑
+ized Entropy, HHI, Independent Dependents 를같이보여준다.
+
+
+     A Exit Movement ‑ illustrative
+     B 51% C 18% D 8% No observed cohort replacement 23%
+     Same‑release remove/add flow is correlation evidence. It does not by itself establish intentional mi‑
+     gration.
+
+
+Cohort Compare 는 0‑100 health score 가아니라 behavior 를나란히비교한다.
+
+
+ Package        New Selection             Retention        Exit    Cohort Position          State
+
+ A              Down                         High        Up        Down                     Weakening
+ B              Up                           High      Stable      Up                       Growing
+ C              Stable                       High       Low        Stable                   Mature Stable
+
+
+
+
+Review Action Contract
+
+
+
+     Display State                Default Action                  의미
+
+     Growing / Stable / Ma‑       Proceed to Review               강한 shift signal 없이일반기술검토지속
+     ture Stable
+     Weakening / Direc‑           Compare Alternatives            architecture commitment 전 에 cohort
+     tional / Fragmenting                                         alternatives 비교
+     Cohort Contraction           Investigate                     focal package 보다 category context 추
+                                                                  가확인
+     Insufficient Evidence        Investigate                     판단근거부족
+
+
+Confidence 가 Low 이면 State 기반 action 을 Investigate로 downgrade 할수있다. Action 은 recom‑
+mendation 이아니라 review workflow 다.
+
+
+
+
+                                                      16
+Product Experience                                                                   OSS Shift
+
+
+
+Limitations at the Point of Decision
+
+
+Limitation 은별도약관페이지에숨기지않고결과가까이에둔다.
+
+
+   항목                     제품이말할수없는것
+
+   Observed Population    모든 JavaScript applications / private repos / internal software
+   Dependency Declara‑    실제 runtime code path usage
+   tion
+   Transition Candidate   intentional migration 또는 causality
+   No Replacement         native API migration
+   HTTP_CLIENT_V1         완전한 HTTP market taxonomy
+   State                  future package survival / best library choice
+
+
+
+
+                                            17
+Distributed System                                                                      OSS Shift
+
+
+
+
+Distributed System
+데이터크기를과장하지않는다. 제품계산에서실제로발생하는 Window, Join, Shuffle, Expansion,
+Aggregation 을 multi‑worker 에서재현하고최적화효과를측정한다.
+
+
+
+Distributed Design Principle
+
+
+OSS Shift 는 “Spark 없이는불가능하다” 고주장하지않는다. 대신약 4,660 만 release 의 dependency history
+에서 package 별 release sequencing, large join, dependency diff, removed‑by‑added expansion, de‑
+pendency/pair aggregation 이실제제품계산에필요하다는점을근거로분산시스템을설계한다.
+
+
+  Distributed Proof 의질문
+  같은 logical workload 를 1/2/4 Worker 에서실행했을때어디에서 shuffle, spill, skew, serialization
+  overhead 가발생하며 Partition, Broadcast, AQE, Pair Quality Gate 가처리비용을어떻게바꾸는가?
+
+
+
+System Architecture
+
+
+
+
+    deps.dev           MinIO + Parquet       Spark Standalone         Behavior / Flow               PostgreSQ
+    BigQuery                L0‑L4          Master + 1/2/4 Workers         State                       API / UI
+
+
+
+
+                                              Spark Event Log         Selected GitHub               AI Evidenc
+                                               History Server           PR / commit                 Interprete
+
+
+
+BigQuery 는 source extraction/profiling, Spark 는제품계산, PostgreSQL 은 serving 을담당한다. GitHub
+는 selected evidence layer 이며 ecosystem 전수 source 가아니다.
+
+
+
+
+                                             18
+Distributed System                                                                               OSS Shift
+
+
+
+Data Lake and Partition Contract
+
+
+
+   Layer              Content                                               Physical Partition
+
+   L0 RAW             deps.dev snapshot export                              snapshot_date
+   L1 RELEASE         release timeline input                                published year/month
+   L1 REQUIRE‑        regular declarations                                  published year/month
+   MENT
+   L2 CHANGE          add/remove/retain/change                              event year/month
+   L3    TRANSI‑      quality‑gated candidate flow                          event year/month
+   TION
+   L4 AGGREGATE       behavior/flow/state                                   period
+
+
+package name 은 physical directory partition 으로쓰지않는다. 402 만 package 의 high cardinality 는
+small‑file explosion 위험이크다. Physical partition 은 scan 범위를줄이는 storage layout 이고 Spark
+repartition 은 runtime 계산을위한 row redistribution 이다.
+
+
+Spark Job DAG
+
+
+
+ Job                 Input ‑ Output                   Main operation                   Distributed char‑
+                                                                                       acter
+
+ D1 Release Time‑    Release ‑ Timeline               Window / running max / lag       Wide
+ line
+ D2 Requirement      Timeline + Requirements          large‑large join                 Wide
+ State
+ D3 Dependency       Prev/Curr ‑ Change               FULL OUTER JOIN                  Heavy Wide
+ Diff
+ D4 Pair Genera‑     Removed x Added                  self join / m x n expansion      Wide + amplifica‑
+ tion                                                                                  tion
+ D5A Period Col‑     Changes ‑ package‑period         Window / aggregate               Wide
+ lapse
+ D5B Behavior Ag‑    package‑period ‑ A/R/E           GroupBy                          Wide + skew can‑
+ gregate                                                                               didate
+ D6 Flow Aggre‑      Candidate ‑ pair flow            distinct / GroupBy               Wide + skew can‑
+ gate                                                                                  didate
+ D7 State Detect     aggregate ‑ State                temporal Window / rule           reduced data
+ D8 Evidence         selected pair ‑ GitHub           limited external process         outside     core
+                                                                                       Spark
+ D9 Publish          validated result ‑ DB            batch publish                    serving bound‑
+                                                                                       ary
+
+
+
+핵심 Wide Stage
+D1 은 package‑level release Window, D3 는 transition/dependency FULL OUTER JOIN, D4 는 removed‑
+by‑added expansion, D5/D6 는 dependency/pair GroupBy 에서주요 shuffle 이발생한다. D5A 는 Phase
+3 의 package‑period collapse 를실제 DAG 에반영한단계다.
+
+                                                 19
+Distributed System                                                                          OSS Shift
+
+
+
+Optimization Strategy
+
+
+
+Pair Quality Gate A/B
+D4 에서 All Removed x Added 와 Quality‑gated candidate generation 을비교한다. candidate rows,
+shuffle write, stage time, spill, manual transition precision 을함께본다.
+이실험이중요한이유는 제품정확성 gate 와 distributed cost optimization 이같은지점에서만난다는데있다.
+
+Broadcast / AQE / Skew
+작은 cohort_registry, package_relation_registry 는 Broadcast Join 후보다. AQE 는 OFF/ON 을비교하고
+runtime partition coalescing 과 skew optimization 효과를확인한다.
+Skew 대응순서는고정한다.
+
+
+  Baseline ‑ AQE ‑ actual hot key 확인 ‑ 필요할때만 Salting 또는 2‑stage aggregation
+
+
+실제 skew 가없으면 manual salting 을하지않는것이올바른결과다.
+
+
+Scale‑Out Benchmark and Correctness
+
+
+동일 input, code, configuration 에서 Worker 1/2/4 를비교한다. Worker 당 cores/memory 는동일하게두
+고 Worker 증가에따라총 compute resource 가늘어나는 scale‑out experiment 를수행한다.
+측정 metric:
+
+ • wall time, records/sec, executor‑hour
+ • stage wall time, task count, p50/p95 task duration
+ • shuffle read/write, fetch wait, memory/disk spill
+ • executor CPU/GC, partition distribution
+
+선형 speedup 은성공조건이아니다. 2 Worker 이후 overhead 가커져 4 Worker 가느려진다면 crossover 를
+시스템결과로설명한다.
+성능보다먼저지켜야할 correctness invariant 는다음과같다.
+
+
+                                Output1W = Output2W = Output4W
+
+           OutputAQE Of f = OutputAQE On ,      OutputBroadcast Of f = OutputBroadcast On
+
+canonical sorting/serialization 뒤 checksum 으로 dependency_change, package_period_behavior, pair_period_flow,
+package_shift_state 를비교한다.
+
+
+
+
+                                                20
+Distributed System                                                                  OSS Shift
+
+
+
+Observability
+
+
+Spark UI / Event Log / History Server 는장식이아니라분산증거저장소다. 각 benchmark run 에 snapshot
+id, code version, worker count, Spark config, state rule version 을남기고 Job/Stage DAG, executor
+task distribution, shuffle, spill, SQL physical plan 을캡처한다.
+
+
+
+
+                                             21
+Validation & Execution                                                                 OSS Shift
+
+
+
+
+Validation & Execution
+결과를만들기전에성공과실패기준을정의한다. Meaningful Movement 가사라지면억지로살리지않
+고 Lifecycle 중심으로 Pivot 한다.
+
+
+
+Validation Framework
+
+
+검증을하나의 accuracy 숫자로합치지않는다.
+
+
+   Layer                     핵심질문
+
+   Data Validity             dependency history 자체를믿고계산할수있는가
+   Behavior Correctness      Adoption / Retention / Exit 가 source 와일치하는가
+   Movement Specificity      co‑change noise 가 top result 를지배하지않는가
+   State Reliability         State 가재현가능하고 noise 에과민하지않은가
+   Evidence Validation       AI 가 source 밖 inference 를만들지않는가
+   Product Validation        Tech Lead 가 State/Transition 의미를오해하지않는가
+   Distributed Proof         same output 을 multi‑worker 에서재현하고비용을설명하는가
+
+
+
+
+Quality Gates
+
+
+
+Data and Change Gates
+snapshot 마다 Release/Requirements join coverage, Missing vs Empty, publish timestamp, ordinal
+anomalies, npm alias, snapshot consistency 를확인한다. 20‑30 representative transition 을 source
+declaration 과 manual 비교해 add/remove/retain/requirement change 가 deterministic 하게일치해야
+한다.
+Mainline rule 은 normal semver, major transition, later backport, parallel major maintenance, un‑
+usual release cadence 를포함한 sample history 에서검증한다.
+
+Shift Benchmark Set
+Movement 는 50‑80 transition instance 로 precision‑first validation 한다.
+
+ • Known migration‑like positive
+ • Co‑change negative
+ • No‑Replacement / Native candidate
+ • Stable / Mature control
+
+                                              22
+Validation & Execution                                                                     OSS Shift
+
+
+
+pair complexity, same cohort, independent dependents, Replacement Coverage, Top Destination
+Share, Entropy, HHI, owner/project concentration, repository evidence 를비교한다.
+
+
+   Movement 에서는 Recall 보다 Precision 을우선한다. 애매한 flow 를숨기는것이잘못된 migration‑
+   like claim 을강하게보여주는것보다낫다.
+
+
+State Reliability
+Historical Replay 에서의미없는 Stable/Weakening oscillation 이반복되지않는지, bootstrap resampling
+에서 State agreement 가안정적인지, Stable/Mature controls 에서 false alarm 이과도하지않은지확인한
+다.
+모든 State result 는 display state, triggered rules, recent/baseline metrics, support, rule version 을
+가져야한다. 사람이같은 metric 으로결과를재현할수없으면 fail 이다.
+
+Repository / AI Evidence Gate
+selected pair 의실제 PR/commit 을사람이읽고 AI output 을검토한다. 가장치명적인실패는 reason taxon‑
+omy 오분류보다 source 에없는이유를생성하는것이다. Evidence span 이없거나 unsupported inference
+가발생하면제품에서 AI interpretation 을숨긴다.
+
+
+Go / Conditional / Pivot
+
+
+
+   Decision              조건                                   조치
+
+   GO                    history, A/R/E, meaningful re‑       현재방향유지
+                         peated flow, State explainability,
+                         evidence 확보
+   CONDITIONAL           transition noise 가높지만 gate 로통        cohort/complexity/diversity 강화
+                         제가능
+   PIVOT                 quality gate 이 후 meaningful          Movement 를 Core 에 서 내 리 고
+                         movement 가거의사라짐                      Ecosystem Lifecycle Intelligence 로
+                                                              전환
+   NO‑GO                 declaration history 또는 A/R/E 자체      데이터/분석방향재설계
+                         가재현불가
+
+
+Lifecycle Pivot 의 Core 는 Adoption, Retention, Exit, Cohort Position, Mature Stable, Weakening,
+Cohort Contraction 이다. Transition 이실패해도 behavior layer 의제품가치는별도검증한다.
+
+
+Six‑Week WBS
+
+
+
+
+                                                 23
+Validation & Execution                                                                    OSS Shift
+
+
+
+
+ Week         Goal                   Main Work                          Completion Evidence / Gate
+
+ 1            Data Contract & Dis‑   snapshot 고정, profiling, raw par‑   Snapshot Manifest, Data Con‑
+              tributed Smoke         quet, Spark Master + 2 Worker      tract, History log. history 불가시
+                                     smoke                              기간축소또는 No‑Go
+ 2            Behavior Engine        Mainline, Requirement State,       20‑30 manual QA, A/R/E sample.
+                                     Diff, Package‑Period Collapse      sequencing/diff 불안정시수정후재
+                                                                        검증
+ 3            Movement & State       Pair generation, 50‑80 bench‑      Transition specificity + State Rule
+              Calibration            mark, threshold calibration, se‑   candidate. 가장큰 Go/Pivot 지점
+                                     lected GitHub sample
+ 4            Product E2E / Scope    aggregate, State/Action, Post‑     Candidate‑to‑Decision E2E. 이 후
+              Freeze                 greSQL, API, Candidate/Behav‑      신규분석기능추가금지
+                                     ior/Movement/Evidence UI
+ 5            Distributed Proof      1/2/4 Worker, Pair Gate, Broad‑    benchmark + History evidence.
+                                     cast, AQE, actual skew observa‑    manual salting 은필요할때만
+                                     tion
+ 6            Final Validation       correctness replay, AI QA, de‑     Final Acceptance Package. 미검증
+                                     veloper review, final benchmark,   기능은숨김
+                                     demo
+
+
+
+
+Team and Parallel Development
+
+
+
+     Role                   Responsibility
+
+     PM / Product           Problem, State Contract, Validation, Go/Pivot, Demo
+     AI + UI/UX             Evidence Interpreter, Evidence/Decision UX
+     Data Engineer          deps.dev extraction, DQ, release sequencing
+     Distributed Data En‑   Diff, Pair, Aggregate, optimization, benchmark
+     gineer
+     Backend / Infra        Spark Standalone, MinIO, PostgreSQL, History Server, API
+     Frontend               Candidate, Behavior, Movement, Evidence, Decision surfaces
+
+
+Frontend 는실제 State result 를기다리지않고 Week 1‑2 부터 mock contract 로병렬개발한다.
+
+
+
+
+                                               24
+Validation & Execution                                                                    OSS Shift
+
+
+
+Risk and Scope Cut
+
+
+
+ Risk                    Failure Signal                      Response
+
+ Mainline distortion     backport 가 prev release 를지배         sample validation / scope 제한
+ Transition noise        unrelated co‑change 가 top pair 지배   complexity/cohort/diversity gate
+ Movement 거의없음           quality gate 뒤 pair 소멸              Lifecycle Pivot
+ Sparse State            monthly denominator 부족              Quarterly
+ Owner      concentra‑   flow 대부분한 owner/project             Movement confidence 하향/보류
+ tion
+ AI hallucination        source 에없는 reason                   evidence‑span gate
+ Spark skew              p95 task, spill, straggler 상승       AQE ‑ 필요시 salting
+ 4 Worker slower         overhead 가 compute gain 보다큼         crossover 로설명
+ Small files             excessive objects/tasks             partition 축소 / compaction
+ Scope expansion         새 source/tool 요구                    Week 4 freeze
+
+
+일정지연시 AI Review Brief, GitHub evidence 개수, 고급 Cohort Compare/Fragmentation UX, fron‑
+tend polishing, AI reason taxonomy, multi‑host 를먼저줄인다. dependency history, Adoption/Re‑
+tention/Exit, Transition Candidate, quality gate, Spark 2+ Worker, Shuffle evidence, correctness 는
+자르지않는다.
+
+
+Final Acceptance Criteria
+
+
+
+Product
+Candidate ‑ Behavior ‑ State ‑ Movement ‑ Evidence ‑ Review Action E2E 가동작하고 Proceed / Com‑
+pare / Investigate 중하나가 deterministic 하게생성되어야한다.
+
+Analysis
+Entry/Switch‑in 을구분하고, Retention/Exit denominator 와 Mainline rule 을명시하며, Requirement
+Change 를별도처리하고, No Replacement limitation 과 triggered State rule 을추적할수있어야한다.
+
+Movement and Evidence
+50‑80 benchmark set 에서 unrelated co‑change 가 top result 를지배하면 Movement fail 이다. demo
+result 는 source package/release 까지 trace 가능하고 repository evidence 를사용한경우 PR/commit 과
+evidence span 까지연결되어야한다.
+
+Distributed
+Spark Standalone 2+ Worker 실제 task 참여, 1/2/4 Worker benchmark, actual shuffle metric, 최소 2
+개의 optimization A/B, logical output checksum equality 를반드시남긴다.
+
+
+
+
+                                                 25
+Validation & Execution                                                     OSS Shift
+
+
+
+Honesty
+제품과발표에다음한계를고정한다.
+
+ • Published npm package ecosystem ̸= all JavaScript applications
+ • Dependency declaration ̸= runtime usage
+ • Transition Candidate ̸= migration intent
+ • HTTP_CLIENT_V1 ̸= complete HTTP market taxonomy
+ • State ̸= future survival prediction
+
+
+
+Final Demo Narrative
+
+
+최종 demo 는 illustrative State 를실제결과처럼연기하지않는다. 실제 pipeline result 가확보된 package 를
+사용한다.
+
+1. Tech Lead 가신규 core dependency 후보를입력한다.
+2. Observed Population 과 limitation 을먼저확인한다.
+3. Recent vs Baseline Behavior 를본다.
+4. State 와 triggered rules 를확인한다.
+5. Movement 가있으면 Replacement Coverage, concentration, No Replacement 를확인한다.
+6. release‑level source evidence 를연다.
+7. selected GitHub evidence 가있으면 AI 가 evidence span 안에서 intent/reason 을구조화한다.
+8. Review Action 을확인한다.
+9. Engineering Proof 로전환해 1/2/4 Worker 결과와핵심 Shuffle Stage 를보여준다.
+10. Pair Quality Gate 또는 Broadcast/AQE 전후를비교하고 correctness checksum 이동일함을확인한다.
+
+
+
+
+                                              26
+Appendix & Sources                                                                 OSS Shift
+
+
+
+
+Appendix & Sources
+핵심용어와외부사실의근거를분리해문서의재현성과검증가능성을높인다.
+
+
+
+Metric Dictionary
+
+
+     Metric / Term           Definition
+
+     Entry Adoption          첫 observable mainline release 에 A 가이미존재. 새프로젝트탄
+                             생으로해석금지
+     Switch‑in Adoption      이전 observable release 에는없던 A declaration 이다음 release
+                             에추가
+     Retention               A 를가지고 period 를시작한 eligible dependent 가 period end
+                             에도 A 유지
+     Exit                    A 를가지고 period 를시작한 eligible dependent 의다음 observ‑
+                             able state 에서 A 제거
+     Cohort Presence Share   HTTP_CLIENT_V1 하나이상을가진 active package 중 A pres‑
+                             ence 비율
+     Cohort Footprint        active npm publishing package 중 HTTP_CLIENT_V1 하나이
+                             상을가진비율
+     Transition Candidate    같은 release transition 에서 A removed + B added
+     Pair Complexity         한 transition 의 removed count x added count
+     Replacement Coverage    observable A Exit 중 eligible same‑cohort destination 을가진
+                             비율
+     Top Destination Share   eligible destination distribution 안에서가장큰 destination 비
+                             율
+     Normalized Entropy      destination distribution 의분산정도, 0‑1 normalized
+     HHI                     destination concentration 보조지표
+     No Replacement Share    A Exit 중 same‑cohort destination 이관찰되지않은비율
+     Evidence Confidence     support/time/diversity/pair quality/repository evidence 의
+                             별도 confidence layer
+
+
+
+
+                                           27
+Appendix & Sources                                                                     OSS Shift
+
+
+
+MVP In / Out
+
+
+
+   IN                                             OUT
+
+   npm / HTTP_CLIENT_V1                           PyPI / Maven
+   Adoption / Retention / Exit                    Kafka / GraphFrames
+   Transition Candidate / State                   Kubernetes / Airflow
+   Evidence Confidence                            full GitHub crawling
+   selected GitHub evidence                       vulnerability/license scanner
+   AI evidence interpretation                     Health Score / best recommender
+   Batch Spark / 1‑2‑4 Worker                     future survival prediction
+                                                  automatic migration code / row‑level LLM
+
+
+
+
+Source and Verification Notes
+
+
+외부시스템의 capability 와 schema 는공식문서를우선하며, 실제 feasibility 숫자는프로젝트가직접실행한
+BigQuery profiling 결과와구분한다.
+
+ • deps.dev BigQuery dataset: schema, PackageVersions, NPMRequirements/NPMRequirements‑
+   Latest, PackageVersionToProject limitation.
+   https://docs.deps.dev/bigquery/v1/
+ • Apache Spark Standalone Mode: Master/Worker cluster 구성.
+   https://spark.apache.org/docs/latest/spark-standalone.html
+ • Apache Spark SQL Performance Tuning: broadcast, AQE, shuffle/skew optimization.
+   https://spark.apache.org/docs/latest/sql-performance-tuning
+ • Apache Spark Monitoring: Event Log, Web UI, History Server.
+   https://spark.apache.org/docs/latest/monitoring.html
+ • GitHub Dependency Review: repository‑level dependency changes 와 security impact review.
+   https://docs.github.com/en/code-security/concepts/supply-chain-security/dependency-review
+
+
+Actual Project Profiling Note
+2026‑08‑20 Google BigQuery 에서 bigquery-public-data.deps_dev_v1 을대상으로실행한 profiling 결과를
+본문 Data Feasibility 에사용했다. 이값은해당실행시점의 Latest view 관찰값이며, 향후 snapshot 에서다시
+측정한다.
+
+
+   최종한문장
+   OSS Shift 는 “죽어가는 OSS 를맞히는서비스” 가아니라, 공개 dependency history 에서실제선택·유
+   지·이탈·이동행동을근거와한계까지함께보여주고, 그계산을 multi‑worker 분산시스템으로구현·검증하
+   여 Tech Lead 의신규 dependency review 를돕는프로젝트다.
+
+
+End of proposal ‑ OSS Shift / 2026‑08‑20
+
+
+                                             28
+
