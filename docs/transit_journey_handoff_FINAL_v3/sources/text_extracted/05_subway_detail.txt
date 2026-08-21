@@ -1,0 +1,53 @@
+        수도권 지하철 역별 일별 시간대별 승하차
+
+          연번, 수송일자, 호선, 역번호, 역명, 승하차구분        + 시간대 20개
+          https://data.seoul.go.kr/dataList/OA-12921/F/1/datasetView.do
+        지하철 혼잡도
+
+          요일구분, 호선, 역번호, 출발역, 상하구분
+
+          https://data.seoul.go.kr/dataList/OA-12928/F/1/datasetView.do
+          혼잡도(%) = 승차인원 / 정원 × 100
+
+          좌석이 모두 찬 상태 = 34%
+
+          대형 전동차 1칸 정원 = 160명 (좌석 + 입석)
+
+          공개 통계는 30분 단위 평균 (그 30분간 해당 역을 통과한 모든 열차의 평균)
+
+        역별 요일별 환승인원
+
+          https://www.data.go.kr/data/15044244/openapi.do?
+          recommendDataYn=Y
+        실시간만 가능한 api - 과거 데이터를 제공하지 않음
+
+          지하철 호선ID·역ID·역명, 상하행, 열차번호, 종착역, 도착까지 남은 초(barvlDt),
+          도착 상태코드/메시지("전역 출발", "곧 도착")
+
+          realtimeStationArrival/ALL
+             https://data.seoul.go.kr/dataList/OA-15799/A/1/datasetView.do
+          realtimePosition
+             https://data.seoul.go.kr/dataList/OA-12601/A/1/datasetView.do
+        레퍼런스 조사
+
+          전인우·남현우·전철민 (2018), "환승 저항을 고려한 운행시간표 기반 대중교통 다
+          중 경로 탐색 알고리즘"
+
+             기존 시간표 기반 탐색이 최소 이동시간 단일 경로만 내놓는 한계를 지적
+
+             RAPTOR를 개선해 환승저항 + 다중경로 탐색 반영. 환승저항을 환승 시점에,
+             교통수단 유형별로 차등 적용
+
+
+
+
+제목 없음                                                                        1
+        RAPTOR. Dijkstra를 안 쓰고 라운드 기반으로 도는 시간표 경로탐색. 라운드 k =
+        "환승 k−1회 이하로 각 정류장에 가장 빨리 닿는 법". 각 노선을 라운드당 최대 1회
+        만 훑는다
+
+
+
+
+제목 없음                                                          2
+
