@@ -42,7 +42,7 @@ Which variable goes with which script:
 | Bus arrival (`getArrInfoByRouteAll`) | `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRouteAll` | **VERIFIED** — real call, route 753, 104 stop items |
 | Bus position | `http://ws.bus.go.kr/api/rest/buspos/getBusPosByRouteSt` | **VERIFIED** — real call, 13 live vehicles, vehId direct-joined against arrival (D-013) |
 | Bus route master | `http://ws.bus.go.kr/api/rest/busRouteInfo/getBusRouteList` | **VERIFIED** — resolved route 753 → busRouteId 100100118 |
-| Mixed bus+subway route | `http://ws.bus.go.kr/api/rest/pathinfo/getPathInfoByBusNSubList` | **BLOCKED** — HTTP 401 "등록되지 않은 서비스키" on both operations tried; key not registered for this specific service (D-019). Needs separate data.go.kr application, not a code fix |
+| Mixed bus+subway route | `http://ws.bus.go.kr/api/rest/pathinfo/getPathInfoByBusNSub` (no "List"!) | **VERIFIED** — the catalog names the operation `...NSubList` but the real Call Back URL and `ServiceKey` casing come from the official docx guide in `docs/api & data/`; got this wrong at first and it looked exactly like a 401 registration problem (D-019 → corrected in D-024) |
 | Subway realtime arrival | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimeStationArrival/...` | **VERIFIED** — real call, code=INFO-000 (D-016) |
 | Subway realtime position | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimePosition/...` | **VERIFIED** — real call; `trainNo` direct-matched arrival's `btrainNo` for multiple trains at 시청/Line 1 (D-017) |
 

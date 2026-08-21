@@ -28,8 +28,13 @@ exist in the real response (D-014).
 
 ## Mixed route
 
-Blocked (D-019) — no ID mapping possible yet until the
-`DATA_GO_TRANSIT_PATH_KEY` is approved for service 15000414.
+Working (D-024) — real call returned bus `routeId` values (e.g.
+`100100023`) in the same numeric domain as `getArrInfoByRouteAll`/
+`getBusPosByRouteSt`/`getBusRouteList`, though not yet directly
+cross-queried to prove the join. No subway leg (`railLinkList` populated)
+observed yet in the one corridor tested — station/line ID mapping against
+the realtime subway APIs is still open, pending a demo corridor that
+actually forces a bus+subway transfer.
 
 ## Historical bus section (OA-21217)
 
