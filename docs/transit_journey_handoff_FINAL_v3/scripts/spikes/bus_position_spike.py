@@ -11,9 +11,16 @@ startOrd/endOrd (stop sequence range) are required — not just busRouteId.
 Use resolve_bus_route.py / the route master API to find a route's stop
 count if startOrd=1 / endOrd=<last stop> is not already known.
 
+STATUS: VERIFIED (see docs/05_DECISION_LOG.md D-013/D-014). Real fields
+observed: busType, congetion (sic — real API typo, not ours), dataTm,
+isFullFlag, lastStnId, plainNo, posX/posY, routeId, sectDist, sectOrd,
+sectionId, stopFlag, tmX/tmY, vehId. `nextStId`/`nextStTm`/`rtDist` from
+the checklist are NOT present in the response.
+
 Checklist fields to inspect (docs/03_API_SPIKE_CHECKLIST.md section B):
   - vehId, sectOrd, sectionId, stopFlag, nextStId, nextStTm, dataTm
-  - vehId1/vehId2 (arrival) vs vehId (position) join rate
+  - vehId1/vehId2 (arrival) vs vehId (position) join rate — CONFIRMED
+    direct match on first live sample (route 753, vehId 111033105)
 
 Usage:
     python bus_position_spike.py <busRouteId> <startOrd> <endOrd> [--interval S] [--count N]

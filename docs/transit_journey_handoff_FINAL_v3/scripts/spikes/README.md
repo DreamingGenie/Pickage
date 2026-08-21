@@ -6,12 +6,14 @@ described in `../../docs/01_PROJECT_HANDOFF.md` and
 inside `docs/transit_journey_handoff_FINAL_v3/` by design — nothing outside
 this folder is touched.
 
-## Status: code ready, not yet run
+## Status: live-verified
 
-No real API key exists anywhere in this repo or environment. These scripts
-are written and ready, but **none have been executed against the live
-APIs yet** — that requires you to supply real key values locally (never
-in chat).
+Real keys are now in `.env.local` (never committed). All five endpoints
+have been smoke-tested against the live APIs at least once — see
+docs/05_DECISION_LOG.md D-013 through D-019 for what came back. Summary:
+Bus arrival/position and Subway arrival/position are VERIFIED with real
+data (including a direct vehId/trainNo join on the first snapshot); Mixed
+route is BLOCKED on a data.go.kr key-registration issue, not a code bug.
 
 ## One-time setup
 
@@ -33,21 +35,18 @@ Which variable goes with which script:
 | `subway_arrival_spike.py`, `subway_position_spike.py` | `SEOUL_SUBWAY_REALTIME_KEY` |
 | `mixed_route_spike.py` | `DATA_GO_TRANSIT_PATH_KEY` |
 
-## Endpoints — VERIFIED vs HYPOTHESIS
-
-Confirmed live from the official data.go.kr listing pages:
+## Endpoints — live-call status
 
 | API | Base URL | Status |
 |---|---|---|
-| Bus arrival (`getArrInfoByRouteAll`) | `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRouteAll` | VERIFIED (spec page) |
-| Bus position | `http://ws.bus.go.kr/api/rest/buspos/getBusPosByRouteSt` | VERIFIED (spec page) — **differs from the team doc's assumed `getBusPosByRtid`**, see Decision Log D-011 |
-| Bus route master | `http://ws.bus.go.kr/api/rest/busRouteInfo/getBusRouteList` | VERIFIED base path, response fields TO_VERIFY |
-| Mixed bus+subway route | `http://ws.bus.go.kr/api/rest/pathinfo/getPathInfoByBusNSubList` | VERIFIED base path, param names TO_VERIFY |
-| Subway realtime arrival | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimeStationArrival/...` | **HYPOTHESIS** — data.seoul.go.kr's catalog page didn't expose the spec; this is the commonly documented URL convention for this API family, unconfirmed by an actual response |
-| Subway realtime position | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimePosition/...` | **HYPOTHESIS**, same caveat |
+| Bus arrival (`getArrInfoByRouteAll`) | `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRouteAll` | **VERIFIED** — real call, route 753, 104 stop items |
+| Bus position | `http://ws.bus.go.kr/api/rest/buspos/getBusPosByRouteSt` | **VERIFIED** — real call, 13 live vehicles, vehId direct-joined against arrival (D-013) |
+| Bus route master | `http://ws.bus.go.kr/api/rest/busRouteInfo/getBusRouteList` | **VERIFIED** — resolved route 753 → busRouteId 100100118 |
+| Mixed bus+subway route | `http://ws.bus.go.kr/api/rest/pathinfo/getPathInfoByBusNSubList` | **BLOCKED** — HTTP 401 "등록되지 않은 서비스키" on both operations tried; key not registered for this specific service (D-019). Needs separate data.go.kr application, not a code fix |
+| Subway realtime arrival | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimeStationArrival/...` | **VERIFIED** — real call, code=INFO-000 (D-016) |
+| Subway realtime position | `http://swopenAPI.seoul.go.kr/api/subway/<key>/json/realtimePosition/...` | **VERIFIED** — real call; `trainNo` direct-matched arrival's `btrainNo` for multiple trains at 시청/Line 1 (D-017) |
 
-First live run of each script is the actual verification step. Update the
-table above and `../docs/05_DECISION_LOG.md` with what really comes back.
+See `../docs/05_DECISION_LOG.md` D-013 through D-019 for full evidence and caveats.
 
 ## Suggested run order
 
