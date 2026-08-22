@@ -476,12 +476,16 @@ Agent는 사용 전 **공식 페이지의 현재 제공기관/범위/갱신주�
     쓰려 했으나, 실제 키로 호출한 결과 `HTTP 403 permission denied` —
     카카오모빌리티 제휴 계약이 필요한 partner-only API로 확인됨. IP 허용
     목록 설정과는 무관한 별개의 권한 문제. 제휴가 승인되기 전까지는 사용 불가.
-15. **TMAP(SK Open API) 보행자 경로 API — 대안 후보, 아직 미검증 (D-044).**
-    `POST https://apis.openapi.sk.com/tmap/routes/pedestrian` — 일반
-    개발자 가입만으로 키 발급 가능한 것으로 알려져 있음(제휴 불필요로 추정,
-    실제 키로 미검증). `tmap_walk_spike.py` 작성 완료, `TMAP_APP_KEY` 발급 후
-    바로 실제 호출 검증 가능. 이 데이터도 P0-1(서울시 데이터만) 원칙의 대상이
-    아니라 별도 유틸리티다.
+15. **TMAP(SK Open API) 보행자 경로 API — VERIFIED / GO (D-045).**
+    `POST https://apis.openapi.sk.com/tmap/routes/pedestrian` — 실제 키로
+    호출해 GeoJSON 도보 경로(turn-by-turn, totalDistance/totalTime) 수신
+    확인. **주의:** 앱키 생성과 상품 구독(신청)이 분리된 구조라, 앱키만
+    받고 "보행자 경로 안내" 상품을 별도 구독하지 않으면 `403
+    INVALID_API_KEY`가 남 — openapi.sk.com > Products > TMAP > TMAP 기능 >
+    경로 > 경로 안내 > 보행자 경로 안내에서 구독 신청 필요(구독 후 동일
+    키로 바로 동작, 재발급 불필요). WALK leg(access-time/final-walk,
+    Q2/Q3·D-039/D-040)의 확정 provider. 이 데이터도 P0-1(서울시 데이터만)
+    원칙의 대상이 아니라 별도 유틸리티다.
 
 ---
 
@@ -1200,11 +1204,11 @@ Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 �
 > **핵심 교통 reliability 데이터**의 공급자에 적용되는 것이며, 도보/경로 계산용
 > 지도 API(카카오맵 등)는 이 원칙의 대상이 아닌 별도 유틸리티로 취급한다.
 >
-> **업데이트: 카카오맵은 BLOCKED로 확인됨 (D-043).** 키 발급 후 실제 호출한
-> 결과 `403 permission denied` — 카카오모빌리티 제휴 계약이 필요한
-> partner-only API였다. 대안으로 **TMAP(SK Open API) 보행자 경로 API**를
-> 다음 후보로 확인 중 (D-044, 아직 실제 키로 미검증). 섹션 6 API 레지스트리
-> 참고.
+> **업데이트: 카카오맵은 BLOCKED (D-043), TMAP으로 확정 (D-045).** 카카오는
+> 키 발급 후 실제 호출 결과 `403 permission denied` — 카카오모빌리티 제휴
+> 계약이 필요한 partner-only API였다. 대안으로 확인한 **TMAP(SK Open API)
+> 보행자 경로 API**는 실제 키로 GeoJSON 도보 경로 수신까지 확인 완료 — WALK
+> leg의 provider로 확정. 섹션 6 API 레지스트리 참고.
 
 ## Q4. Support geography — 결정됨 (D-041)
 
