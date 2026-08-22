@@ -1,0 +1,18 @@
+{
+  "provider": "seoul_subway",
+  "api_name": "realtimeStationArrival",
+  "request_id": "7ffc8625bf64",
+  "requested_at": "2026-08-22T05:45:49.738001+00:00",
+  "received_at": "2026-08-22T05:45:49.959546+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "station": "안국",
+    "range": "0/20"
+  },
+  "raw_payload": "{\"errorMessage\":{\"status\":200,\"code\":\"INFO-000\",\"message\":\"정상 처리되었습니다.\",\"link\":\"\",\"developerMessage\":\"\",\"total\":4},\"realtimeArrivalList\":[{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":1,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"상행\",\"trainLineNm\":\"대화행 - 경복궁방면\",\"subwayHeading\":null,\"statnFid\":\"1003000329\",\"statnTid\":\"1003000327\",\"statnId\":\"1003000328\",\"statnNm\":\"안국\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"01001대화0\",\"subwayList\":\"1003\",\"statnList\":\"1003000328\",\"btrainSttus\":\"일반\",\"barvlDt\":\"120\",\"btrainNo\":\"3190\",\"bstatnId\":\"1003000309\",\"bstatnNm\":\"대화\",\"recptnDt\":\"2026-08-22 14:45:10\",\"arvlMsg2\":\"전역 도착\",\"arvlMsg3\":\"종로3가\",\"arvlCd\":\"5\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":2,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"상행\",\"trainLineNm\":\"구파발행 - 경복궁방면\",\"subwayHeading\":null,\"statnFid\":\"1003000329\",\"statnTid\":\"1003000327\",\"statnId\":\"1003000328\",\"statnNm\":\"안국\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"02004구파발0\",\"subwayList\":\"1003\",\"statnList\":\"1003000328\",\"btrainSttus\":\"일반\",\"barvlDt\":\"420\",\"btrainNo\":\"3192\",\"bstatnId\":\"1003000320\",\"bstatnNm\":\"구파발\",\"recptnDt\":\"2026-08-22 14:45:10\",\"arvlMsg2\":\"7분 후 (동대입구)\",\"arvlMsg3\":\"동대입구\",\"arvlCd\":\"99\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":3,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"하행\",\"trainLineNm\":\"오금행 - 종로3가방면\",\"subwayHeading\":null,\"statnFid\":\"1003000327\",\"statnTid\":\"1003000329\",\"statnId\":\"1003000328\",\"statnNm\":\"안국\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"11000오금0\",\"subwayList\":\"1003\",\"statnList\":\"1003000328\",\"btrainSttus\":\"일반\",\"barvlDt\":\"0\",\"btrainNo\":\"3179\",\"bstatnId\":\"1003000352\",\"bstatnNm\":\"오금\",\"recptnDt\":\"2026-08-22 14:45:10\",\"arvlMsg2\":\"안국 진입\",\"arvlMsg3\":\"안국\",\"arvlCd\":\"0\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":4,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"하행\",\"trainLineNm\":\"오금행 - 종로3가방면\",\"subwayHeading\":null,\"statnFid\":\"1003000327\",\"statnTid\":\"1003000329\",\"statnId\":\"1003000328\",\"statnNm\":\"안국\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"12003오금0\",\"subwayList\":\"1003\",\"statnList\":\"1003000328\",\"btrainSttus\":\"일반\",\"barvlDt\":\"390\",\"btrainNo\":\"3181\",\"bstatnId\":\"1003000352\",\"bstatnNm\":\"오금\",\"recptnDt\":\"2026-08-22 14:45:10\",\"arvlMsg2\":\"6분 30초 후 (무악재)\",\"arvlMsg3\":\"무악재\",\"arvlCd\":\"99\",\"lstcarAt\":\"0\"}]}",
+  "raw_payload_hash": "c36f4d48fd89bad8987e3c1b070d7a45937598bd51299f583790e0c10ec6e899",
+  "source_timestamp": null,
+  "collector_version": "spike-v1-ev2-01",
+  "error_code": null,
+  "error_body": null
+}

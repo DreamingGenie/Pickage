@@ -1,0 +1,18 @@
+{
+  "provider": "seoul_subway",
+  "api_name": "realtimeStationArrival",
+  "request_id": "83fa716e2fc8",
+  "requested_at": "2026-08-22T05:49:37.426582+00:00",
+  "received_at": "2026-08-22T05:49:37.453533+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "station": "교대",
+    "range": "0/20"
+  },
+  "raw_payload": "{\"status\":500,\"code\":\"ERROR-337\",\"message\":\"데이터요청은 일일 호출건수 최대 1000건을 넘을 수 없습니다. \",\"link\":\"\",\"developerMessage\":\"\",\"total\":0}",
+  "raw_payload_hash": "f3732893c487f37ed7c634bbbd38fa83f8cb1dacd5c0672d1dced1dd283f609a",
+  "source_timestamp": null,
+  "collector_version": "spike-v1-ev2-01",
+  "error_code": null,
+  "error_body": null
+}
