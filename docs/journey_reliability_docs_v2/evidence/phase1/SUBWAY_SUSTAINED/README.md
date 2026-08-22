@@ -123,7 +123,7 @@ tails) rather than a mature distribution.
 ## Reproduction
 
 ```bash
-python docs/journey_reliability_docs_v2/evidence/phase1/_scripts/analyze_subway_sustained.py
+python evidence/phase1/_scripts/analyze_subway_sustained.py
 ```
 
 ## Recommendation for a real Phase 2 run

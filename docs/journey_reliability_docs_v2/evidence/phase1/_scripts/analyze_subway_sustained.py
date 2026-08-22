@@ -23,8 +23,8 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]  # journey_reliability_docs_v2/
-SAMPLES = ROOT / "baseline" / "phase0" / "data" / "samples" / "seoul_subway"
+ROOT = Path(__file__).resolve().parents[3]
+SAMPLES = ROOT / "docs" / "journey_reliability_docs_v2" / "baseline" / "phase0" / "data" / "samples" / "seoul_subway"
 OUT = Path(__file__).resolve().parents[1] / "SUBWAY_SUSTAINED" / "derived"
 OUT.mkdir(parents=True, exist_ok=True)
 

@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-011
 title: Scope and Source Policy
-version: 1.1
+version: 1.2
 status: LOCKED
 owner: PM
 last_updated: 2026-08-22
@@ -73,18 +73,18 @@ TMAP street routing과 지하철 내부 이동을 같은 source로 취급하지 
 - `SUBWAY_TO_BUS`: platform→exit internal part + exit→bus stop street part
 - `SUBWAY_TO_SUBWAY`: official transfer reference 우선
 
-현재 안국 bus-stop→platform 전체를 하나의 VERIFIED TMAP 시간으로 간주하지 않는다. `EVD-XFER-B2S-001`이 Gate다.
+Phase 1에서 안국 bus stop→mixed subway node의 street part는 143 m/101 s로 VERIFIED됐다. 그러나 node role은 `STATION_CENTER` candidate이고 entrance→platform internal part는 미측정이므로 **전체 BUS_TO_SUBWAY time은 CONDITIONAL**이다.
 
 모든 endpoint는 `PD-028`의 coordinate role/source를 기록한다. station center를 station exit로 조용히 사용하지 않는다.
 
 ## 5. Static Transfer Policy
 
-교대 3→2:
-1. OA-22521 row
-2. OA-13290 row
-3. 둘 다 사용 불가 시 문서화된 fixed fallback
+교대 3→2 Phase 1 official rows:
+- OA-22521: 4개 door/direction row 모두 **144 s**
+- OA-13290: 75 m / **63 s**
 
-우선순위.
+`PD-031`에 따라 Tier-0 runtime reference는 OA-22521 144 s를 사용한다.
+OA-13290 63 s는 geometric/1.2m/s sanity reference로 보관하며 평균하거나 랜덤 후보로 섞지 않는다.
 
 Static time은 개인 walking distribution이 아니다.
 `uncertainty_model=UNMODELED` 또는 이후 별도 calibration.
@@ -144,7 +144,7 @@ realtime Arrival/Position에서 현재 candidate service를 식별할 수 있으
 
 미래 특정 bus vehicle ID를 정확히 예측할 수 있다는 가정을 두지 않는다.
 
-`EVD-SCHED-001`과 `EVD-WAIT-001` 완료 전 recommended departure는 CONDITIONAL이다.
+`EVD-WAIT-001`은 Bus source feasibility VERIFIED다. 그러나 `EVD-SCHED-001`은 dated timetable의 current validity가 CONDITIONAL이므로 **user-facing Recommended Departure는 HOLD/unavailable 가능**하다.
 
 
 ## 11. Coverage Label

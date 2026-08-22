@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-042
 title: Journey Probability Contract
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: PM/Data/Backend
 last_updated: 2026-08-22
@@ -103,14 +103,27 @@ support가 없는 조합에 임의 정규분포를 넣지 않는다.
 
 ## 3.4 Transfer decomposition
 
-`SUBWAY_TO_SUBWAY`는 서울교통공사 reference/fixed fallback을 우선한다.
+### SUBWAY_TO_SUBWAY — Route A 교대 3→2 Tier-0
 
-`BUS_TO_SUBWAY` / `SUBWAY_TO_BUS`는 가능한 경우 다음을 분리한다.
+Phase 1 official rows:
+- OA-22521: 4개 door/direction row 모두 **144 s**
+- OA-13290: 75 m / **63 s**
+
+`PD-031`에 따라 runtime Tier-0 reference는 **144 s**를 사용한다.
+63 s는 geometric/1.2m/s sanity reference일 뿐, 평균하거나 확률적으로 섞지 않는다.
+둘 다 personal empirical distribution이 아니므로 `uncertainty_model=UNMODELED`다.
+
+### BUS_TO_SUBWAY / SUBWAY_TO_BUS
+
+가능한 경우 다음을 분리한다.
 
 ```text
 street component (TMAP point)
 + station internal access/egress component (official/static/fixed fallback)
 ```
+
+Route A BUS_TO_SUBWAY는 street 143 m/101 s까지 VERIFIED됐으나 station-internal entrance→platform이 없다.
+따라서 전체 transfer는 `PARTIAL/UNMODELED_UNCERTAINTY`로 유지한다.
 
 어느 component도 empirical distribution이 아니면 variance는 `UNMODELED` 또는 `PARTIAL`로 유지한다.
 station center 좌표를 출구/승강장처럼 사용하지 않는다.
@@ -170,6 +183,8 @@ Tier-0 safety/transfer buffer는 `PD-016`.
 정확 buffer 값은 실제 source/운영 검토 후 rule version으로 고정.
 
 후보 service를 exact ID로 구성할 수 없는 미래 PRE_TRIP 구간에서는 검증된 timetable 또는 empirical wait/headway distribution으로 WAIT를 sample한다. 즉 exact future bus vehicle ID는 correctness 전제가 아니다.
+
+Phase 1 `EVD-WAIT-001`은 source feasibility를 증명하지만 20초 polling `exps1` snapshots는 serial-correlated하다. Distribution build에서는 `PD-034`에 따라 vehicle arrival/headway event 또는 dependence-aware sample unit을 사용한다.
 
 ---
 
@@ -404,7 +419,9 @@ fixed seed fixture로 regression 가능해야 한다.
 - citywide station/train behavior 미검증
 - route alternatives reliability comparison 없음
 - cross-mode/vehicle 간 잔여 correlation 일부 미모델링
-- future Bus WAIT empirical support 미검증
+- future Bus WAIT **source feasibility는 검증됐으나 event-unit/multi-window distribution maturity 미검증**
+- future Subway WAIT timetable의 current validity 미검증
+- 01A target-leg Prediction→Actual residual artifact 미생성
 - whole-Journey END_TO_END calibration 미검증
 
 이 limitation은 모델이 좋아졌다고 자동 삭제하지 않고 Evidence로 해소한다.

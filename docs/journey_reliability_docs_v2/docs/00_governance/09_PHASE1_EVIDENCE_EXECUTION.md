@@ -1,8 +1,8 @@
 ---
 doc_id: JR-DOC-009
 title: Phase 1 Evidence Execution Contract
-version: 1.0
-status: LOCKED
+version: 1.1
+status: SUPERSEDED
 owner: PM/Data
 last_updated: 2026-08-22
 depends_on:
@@ -13,11 +13,13 @@ depends_on:
   - JR-DOC-042
   - JR-DOC-043
 source_of_truth_for:
-  - phase1-evidence-work-order
+  - historical-phase1-evidence-work-order
 supersedes: []
 ---
 
 # Phase 1 Evidence Execution Contract
+
+> **COMPLETED 2026-08-22.** 결과는 `../../evidence/phase1/PHASE1_EVIDENCE_VALIDATION_REPORT.md`와 `evidence/phase1/` artifact에 있으며, 다음 작업은 `10_PHASE2_EVIDENCE_EXECUTION.md`를 따른다.
 
 ## 1. Agent에게 줄 가장 짧은 지시
 

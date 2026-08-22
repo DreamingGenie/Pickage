@@ -128,11 +128,14 @@ Token:
 
 각 collector:
 - expected daily call count 계산
+- **공유 credential 단위 total call budget** 계산
 - current quota 기록
 - retry가 quota 폭증하지 않게 exponential backoff/jitter
+- provider quota/business error를 HTTP transport success와 별도 계측
 - error storm circuit-break 후보
 
-팀원 key rotation으로 한도 우회 금지.
+Phase 1에서 5개 realtime subway poller가 15 s cadence로 shared 1,000/day quota를 실제 소진했다(`EVD-OPS-001`).
+팀원 key rotation으로 한도 우회하지 않고 shared rate budget 또는 공식 quota 증액을 사용한다.
 
 ## 11. Provider Failure
 

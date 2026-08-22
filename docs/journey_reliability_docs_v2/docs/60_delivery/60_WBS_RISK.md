@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-060
 title: WBS and Risk Register
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: PM
 last_updated: 2026-08-22
@@ -54,67 +54,59 @@ Evidence maturity
 
 # 3. Schedule
 
-## 8/22–8/25 — D0/D1 + Evidence Maturity
+## 8/22 — Phase 1 Evidence Complete + Reconciliation
 
-문서:
-- governance
-- Service Plan
-- Scope/Source
-- User Journey
+완료:
+- Route B realtime source interoperability
+- ACCESS/FINAL WALK point routes
+- BUS_TO_SUBWAY street component
+- 교대 official transfer rows
+- Bus future WAIT source feasibility
+- Route A station×line train join reconfirmation
+- first volume profile
 
-실험:
-- Route B `SUBWAY_TO_BUS` realtime E2E (`EVD-CROSS-002`)
-- Subway 1h+
-- Bus 01A target-leg + multi-window
-- Demo ACCESS_WALK (`EVD-ACCESS-001`)
-- 01A→안국 BUS_TO_SUBWAY transfer (`EVD-XFER-B2S-001`)
-- Final WALK (`EVD-DEST-001`)
-- 교대 transfer row (`EVD-TRANSFER-001`)
-- OA-22522 future subway WAIT (`EVD-SCHED-001`)
-- Bus empirical future WAIT/headway (`EVD-WAIT-001`)
+미완료/Conditional:
+- Subway 1h target (quota로 22~33분 usable)
+- 역삼 Actual 0건
+- 01A target-leg residual artifact
+- BUS_TO_SUBWAY station internal time
+- OA-22522 current validity
+- true latency/lateness
 
-완료 증거:
-- EVD-CROSS-002
-- EVD-ACCESS-001
-- EVD-XFER-B2S-001
-- EVD-DEST-001
-- EVD-TRANSFER-001
-- EVD-SCHED-001 / EVD-WAIT-001
-- subway actual sample
+## 8/22–8/26 — Phase 2 Evidence + Canonical Schema
 
-## 8/26–8/29 — D2/D4 Contract Freeze
+- collector timestamp instrumentation 수정
+- quota-aware subway station×line sustained run
+- 01A target-leg Prediction→Actual ResidualEvent
+- Bus WAIT event-unit/headway 분석
+- OA-22522 current-validity 확인
+- BUS_TO_SUBWAY internal access source/fallback 조사
+- `ENT-*` schema code화
+- Actual/Residual parser
 
-- Requirements/BR/NFR review
-- canonical schema
-- actual/residual parser
-- support profile
-- validation fixture
+## 8/26–9/1 — Probability Vertical Slice
 
-## 8/30–9/3 — Probability Vertical Slice
+- low-support/fallback-aware LegDistribution
+- fixed-seed Monte Carlo
+- P50/P90/P(on_time) **UNVALIDATED/COMPONENT_ONLY** 결과
+- BUS_SKIPPED state/reforecast logic
+- Recommended Departure interface + unavailable path
 
-- Bus distribution
-- Subway empirical/fallback
-- WALK/static limitation
-- Monte Carlo
-- P50/P90/P(on-time)
-- recommended departure
-- BUS_SKIPPED
+**Gate:** mock probability가 아니라 실제 artifact를 읽되, mature/calibrated claim은 하지 않는 Route A vertical slice.
 
-**Gate:** mock probability 없이 Route A result 1개.
-
-## 9/4–9/8 — UX/Product Vertical Slice
+## 9/2–9/8 — UX/Product Vertical Slice
 
 - S01~S05/06
 - API contract implementation
 - live Journey state
 - Reforecast delta
-- support/freshness UX
+- support/freshness/validation-scope UX
 - mobile
 
 ## 9/9–9/14 — Streaming/Data Architecture
 
-- Kafka
-- Flink state matching
+- 실제 repaired timestamp profile 반영
+- Kafka/Flink
 - Bronze/Silver/Gold
 - replay
 - observability
@@ -176,27 +168,31 @@ Evidence maturity
 
 | ID | Risk | Trigger | Prob. | Impact | Owner | Prevention | Fallback / Decision |
 |---|---|---|---|---|---|---|---|
-| RISK-001 | Subway actual sample 부족 | 1h+에도 usable actual/residual 부족 | M | H | BE-2 | sustained multi-window collection | broader/fixed fallback + limitation; empirical claim 금지 |
-| RISK-002 | Route B realtime ID/stop 연결 실패 | 기존 Raw structural path는 있으나 station/route/stop join 불가 | M | M/H | PM/BE | 같은 OD 01A→3호선→147을 먼저 검증 | cross-mode claim 축소; 새 OD는 PM 승인 후 1개만 |
-| RISK-003 | Bus 01A 표본 편향 | single time window dominance | H | M | BE-1 | 다른 시간대 수집 | LOW confidence + broader fallback |
+| RISK-001 | Subway actual sample 부족 | Phase 1 usable window 22~33분, 역삼 Actual 0건 | H | H | BE-2 | quota-aware multi-window station×line collection | empirical claim 보류; LOW/INSUFFICIENT + fallback/limitation |
+| RISK-002 | Route B source interoperability drift | Phase 1에서는 join VERIFIED지만 provider ID/schema 변경 | L/M | M | PM/BE | demo preflight + evidence fixture | source claim 재검증; product Reforecast와 분리 |
+| RISK-003 | Bus 01A target-leg 표본/정의 부족 | 11 traverse samples만 있고 residual artifact 없음 | H | H | BE-1 | multi-window Prediction→Actual ResidualEvent 수집 | Bus Reliability claim 축소; LOW/INSUFFICIENT |
 | RISK-004 | TMAP final WALK 실패 | provider error/quota | L/M | M | BE/Infra | subscription/quota preflight | validated cached demo pair only if policy documented; otherwise unavailable |
-| RISK-005 | 교대 transfer static row 불일치/부재 | source row 없음 | M | M | BE-2/PM | OA-22521/13290 둘 다 check | explicit fixed fallback + unmodeled uncertainty |
+| RISK-005 | 교대 transfer official source 의미 차이 | OA-22521 144 s vs OA-13290 63 s | M | M | BE-2/PM | PD-031로 OA-22521 reference 고정 | 두 값 평균 금지; source semantics 문서화 |
 | RISK-006 | 2호선 join anomaly 확산 | demo station에서도 join gap | L/M | H | BE-2 | continuous join metrics | scope shrink / affected station drop |
 | RISK-007 | Probability calibration 실패 | holdout coverage poor | M | H | Data/PM | baseline-first validation | confidence 낮춤; product claim 축소; ML로 억지 보정 금지 |
-| RISK-008 | Recommended departure source 부족 | future WAIT/service-availability source 부족 | M | H | BE-2/PM | timetable/support source Spike | feature unavailable state; P(on-time) core 유지 |
+| RISK-008 | Recommended departure subway source currentness 부족 | OA-22522 file date 2025-09-30 | H | H | BE-2/PM | latest official file/effective-date/live comparison | `AVAILABLE` HOLD; core P(on_time) near-now 유지 |
 | RISK-009 | Kafka/Flink complexity가 E2E 지연 | stream work가 core blocking | M | H | Infra/PM | vertical slice first | core single-process E2E 보호 후 proof 분리 |
 | RISK-010 | Flink state duplication/loss | failure test mismatch | M | H | Infra | deterministic keys/checkpoint/dedupe | demo claims 축소; recovery fix |
 | RISK-011 | Spark 4 worker가 느림 | overhead > gain | M | L/M | Infra/Data | report crossover | 실패로 숨기지 않고 crossover 설명 |
-| RISK-012 | External API quota | 429/limit near demo | M | H | Infra | call budget/backoff/cache | collection window 조정, pre-collected evidence, live claim 제한 |
+| RISK-012 | External API quota | realtime subway shared key가 Phase 1에서 실제 `ERROR-337` 소진 | H | H | Infra | shared call-budget coordinator, quota increase request, backoff | lower cadence/serialized collection; key rotation 우회 금지 |
 | RISK-013 | EC2 장애 | node down | L/M | H | Infra | health/backup/restore | restore/secondary service plan |
 | RISK-014 | Secret leak | CI/log/repo detected | L | Critical | Infra/PM | secret scan/masking | rotate immediately, invalidate artifacts |
 | RISK-015 | 문서/코드 contract drift | REQ/API/schema mismatch | M | H | PM | docs lint + contract tests | freeze, reconcile before merge |
 | RISK-016 | Demo provider outage | preflight failure | M | H | PM/Infra | demo preflight + evidence snapshot | live unavailable를 정직하게 표시; fake result 금지 |
 | RISK-017 | Scope expansion | 신규 source/feature 요구 | H | H | PM | change control | Scope Cut/PD 필요 |
 | RISK-018 | H100 미제공 | resource unavailable | M | L | AI | core independent | AI optional drop |
-| RISK-019 | Future WAIT source 부족 | timetable/headway ID/data 부족 | M | H | Data/PM | OA-22522 + empirical bus headway 검증 | Recommended Departure unavailable, core P(on-time) near-now 유지 |
+| RISK-019 | Future WAIT distribution 과대 support | 20초 polling snapshots를 iid sample로 오인 | H | H | Data/PM | event-unit/headway 정의 + dependence analysis | raw snapshot n 대신 effective/event support 사용 |
 | RISK-020 | Station center/exit 혼용으로 WALK/Transfer 편향 | 좌표 provenance 없음 | M | H | Data/BE | coordinate role 강제 | 해당 leg fallback/limitation, 임의 보정 금지 |
 | RISK-021 | Whole-Journey calibration 근거 부족 | component metrics만 존재 | H | M/H | PM/Data | validation scope 분리 | `COMPONENT_ONLY`로 공개, calibrated claim 금지 |
+| RISK-022 | Collector timestamp 계측 결함 | requested/received가 HTTP 종료 후 함께 생성 | H | H | Infra/Data | PD-037 instrumentation repair | latency/watermark/TTL 결정 HOLD |
+| RISK-023 | Multi-line station 집계 오류 | 교대 rows를 line 분리 없이 join/Actual 집계 | M | H | BE-2/Data | `subwayId×statnId` key 강제 + test | 잘못된 metric 폐기/재계산 |
+| RISK-024 | FINAL_WALK station-center 편향 | 실제 출구와 center 차이 | M | M | PM/Data | exit provenance 추가 검증 | 300 s를 STATION_CENTER reference로만 표시 |
+| RISK-025 | BUS_TO_SUBWAY internal access 누락 | street 101 s만으로 transfer 전체를 사용 | H | H | PM/Data | official/internal source 탐색 | `UNMODELED_UNCERTAINTY`, FULL claim 금지 |
 
 Prob.는 현재 정성 L/M/H이며 수치 risk probability가 아니다.
 
@@ -206,16 +202,16 @@ Prob.는 현재 정성 L/M/H이며 수치 risk probability가 아니다.
 
 | Topic | Deadline | If unresolved |
 |---|---|---|
-| Route B realtime E2E | 8/25 | `SUBWAY_TO_BUS` claim CONDITIONAL/제거 |
-| Final WALK | 8/25 | final destination probability limitation |
-| 교대 transfer | 8/25 | fixed fallback |
-| Subway actual data | 8/29 | empirical claim 보류 |
-| ACCESS/BUS_TO_SUBWAY/FINAL WALK provenance | 8/29 | PARTIAL_MODEL limitation |
-| Future WAIT/timetable feasibility | 9/1 | Recommended Departure unavailable 허용 |
+| Route B source interoperability | RESOLVED | EVD-CROSS-002 VERIFIED; product Reforecast는 별도 Gate |
+| Final WALK point route | RESOLVED | EVD-DEST-001; STATION_CENTER limitation 유지 |
+| 교대 transfer reference | RESOLVED | PD-031: OA-22521 144 s |
+| Subway station×line Actual maturity | 8/29 | empirical claim 보류; Phase 2 multi-window |
+| BUS_TO_SUBWAY internal access | 8/29 | PARTIAL_MODEL/UNMODELED 유지 |
+| Subway timetable current validity | 9/1 | Recommended Departure `AVAILABLE` HOLD |
 | Support Rule candidate | 9/3 | LOW/INSUFFICIENT conservative |
 | ML promotion | 9/10 | baseline 유지 |
 | Security TTL/share | 9/14 | share feature cut 가능 |
-| Architecture partition/watermark | 9/14 | benchmark-based minimal config |
+| Repaired latency/lateness profile + partition/watermark | 9/14 | benchmark-based minimal config |
 | Scope freeze | 9/21 | 신규 기능 금지 |
 
 ---

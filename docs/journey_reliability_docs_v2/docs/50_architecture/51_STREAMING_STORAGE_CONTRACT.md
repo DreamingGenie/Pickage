@@ -57,7 +57,18 @@ Actual state 내부에 station key를 포함.
 
 ---
 
-# 3. Partition Count
+# 3. Phase 1 Measured Workload Snapshot
+
+`EVD-VOLUME-001` session 기준:
+- 1,930 raw samples
+- 61.8 MB / 약 70분
+- 약 53 MB/h observed evidence-session workload
+- `getArrInfoByRouteAll`이 raw bytes 대부분을 차지
+
+이는 **production traffic estimate가 아니라 Phase 1 polling cadence의 측정값**이다.
+true source/collector lateness는 timestamp instrumentation 결함으로 아직 없다.
+
+# 4. Partition Count
 
 **TBD-after-profile**
 
@@ -73,7 +84,7 @@ Actual state 내부에 station key를 포함.
 
 ---
 
-# 4. Delivery Semantics
+# 5. Delivery Semantics
 
 External API polling 자체는 end-to-end exactly-once가 아니다.
 
@@ -89,7 +100,7 @@ Flink state/sink: checkpoint-based consistent processing
 
 ---
 
-# 5. Event Time
+# 6. Event Time
 
 Primary:
 `source_generated_at`
@@ -106,11 +117,11 @@ API별:
 
 ---
 
-# 6. Watermark / Allowed Lateness
+# 7. Watermark / Allowed Lateness
 
-**TBD-after-lateness-profile**
+**TBD-after-valid-timestamp-profile**
 
-Profile:
+Phase 1 SpikeResult의 near-zero timestamp는 사용하지 않는다. `PD-037`을 만족하는 collector run에서 profile:
 `received_at - source_generated_at`
 
 provider별 p50/p95/p99와 out-of-order rate를 측정.
@@ -124,7 +135,7 @@ provider별 p50/p95/p99와 out-of-order rate를 측정.
 
 ---
 
-# 7. State TTL
+# 8. State TTL
 
 TTL은 임의 시간으로 정하지 않는다.
 
@@ -139,7 +150,7 @@ expired state가 unfinished Prediction을 버리는 영향도 측정한다.
 
 ---
 
-# 8. Checkpoint
+# 9. Checkpoint
 
 Interval/storage는 benchmark 후 결정.
 
@@ -152,7 +163,7 @@ Acceptance:
 
 ---
 
-# 9. Bronze
+# 10. Bronze
 
 경로 예시:
 
@@ -179,7 +190,7 @@ compaction 전/후 raw logical count/hash manifest 유지.
 
 ---
 
-# 10. Silver
+# 11. Silver
 
 Canonical normalized observation.
 
@@ -193,7 +204,7 @@ Canonical normalized observation.
 
 ---
 
-# 11. Gold
+# 12. Gold
 
 ```text
 actual_arrival_interval
@@ -208,7 +219,7 @@ Gold는 derivation version을 기록한다.
 
 ---
 
-# 12. Parquet Partition
+# 13. Parquet Partition
 
 초기 후보:
 `date/provider/api`
@@ -220,7 +231,7 @@ high-cardinality small-files 위험.
 
 ---
 
-# 13. Replay Contract
+# 14. Replay Contract
 
 Replay envelope:
 
@@ -246,7 +257,7 @@ amplified copy를 training sample count로 세기.
 
 ---
 
-# 14. Benchmark Matrix
+# 15. Benchmark Matrix
 
 Stream:
 - 1x
@@ -271,7 +282,7 @@ Batch:
 
 ---
 
-# 15. Optimization Proof
+# 16. Optimization Proof
 
 최소 2개 A/B.
 
@@ -287,7 +298,7 @@ Batch:
 
 ---
 
-# 16. Correctness Manifest
+# 17. Correctness Manifest
 
 각 run:
 - input row/event count

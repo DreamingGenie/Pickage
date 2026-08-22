@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-020
 title: Functional Requirements
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: PM
 last_updated: 2026-08-22
@@ -68,7 +68,7 @@ Priority:
 ### REQ-004 — Cross-mode Route B realtime verification
 **Priority:** CLAIM_GATE
 
-Phase 0 Raw에 이미 존재하는 동일 OD의 Route B(`01A→3호선→147`)를 우선 사용해 `SUBWAY_TO_BUS`의 realtime ID/Transfer/Wait/Reforecast E2E를 검증한다.
+Phase 0 Raw에 존재하는 동일 OD의 Route B(`01A→3호선→147`)를 사용한다. Realtime station/route/stop/WAIT source interoperability는 `EVD-CROSS-002 VERIFIED`; 이 Requirement의 남은 claim gate는 Transfer duration과 `BUS_SKIPPED/Reforecast` product implementation이다.
 
 새 OD 탐색은 Route B가 실제 운영상 사용할 수 없을 때만 PM Decision 후 수행한다.
 
@@ -358,8 +358,8 @@ JourneyResult에서 사용된:
 | Share token exact TTL | OPEN | D5 Security |
 | Freshness thresholds | OPEN | D5 Observability profile |
 | TRANSFER_MISSED exact buffer values | OPEN | D4 data/validation |
-| Route A ACCESS_WALK exact pair | OPEN | Phase 1 Evidence |
-| Route A BUS_TO_SUBWAY internal access source | OPEN | Phase 1 Evidence |
-| OA-22522 timetable ID interoperability | OPEN | Phase 1 Evidence |
-| Bus future wait/headway model support | OPEN | Phase 1 Evidence |
+| Route A ACCESS_WALK exact pair | RESOLVED | EVD-ACCESS-001 VERIFIED |
+| Route A BUS_TO_SUBWAY internal access source | OPEN | Phase 2 Evidence; street part VERIFIED, internal UNMODELED |
+| OA-22522 timetable ingest/Route A mapping | PARTIAL | EVD-SCHED-001; current-validity Gate remains |
+| Bus future wait/headway source feasibility | RESOLVED_FEASIBILITY | EVD-WAIT-001; event-unit model still Phase 2 |
 | User-selectable reliability options beyond 90% | OPEN | D3 UX review |

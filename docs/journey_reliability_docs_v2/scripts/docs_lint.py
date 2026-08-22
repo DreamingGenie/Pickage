@@ -124,7 +124,7 @@ if evfile.exists():
         evid,status,claim,scope,artifact,lim=cells[:6]
         # explicit package-root paths in backticks must resolve; URLs/external refs/summary refs can be prose
         for path in re.findall(r'`([^`]+)`',artifact):
-            if path.startswith(('baseline/','docs/','scripts/')):
+            if path.startswith(('baseline/','evidence/','docs/','scripts/')):
                 if not (ROOT/path).exists(): errors.append(f'{evid} artifact path missing: {path}')
         if status in {'VERIFIED','CONDITIONAL'} and artifact in {'','—','-'}:
             errors.append(f'{evid} {status} has no artifact/reference')

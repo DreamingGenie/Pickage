@@ -79,7 +79,7 @@ finding).
 ## Reproduction
 
 ```bash
-python docs/journey_reliability_docs_v2/evidence/phase1/_scripts/analyze_volume_lateness.py
+python evidence/phase1/_scripts/analyze_volume_lateness.py
 ```
 
 ## Recommendation for a real Phase 2 collector

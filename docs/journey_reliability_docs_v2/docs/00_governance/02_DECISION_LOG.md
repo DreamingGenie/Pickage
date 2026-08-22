@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-002
 title: Normalized Decision Log
-version: 1.1
+version: 1.2
 status: LOCKED
 owner: PM
 last_updated: 2026-08-22
@@ -51,6 +51,16 @@ supersedes:
 | PD-028 | FIXED | WALK/Transfer 계산의 모든 endpoint는 좌표의 의미와 출처(`ORIGIN_POINT`, `BUS_STOP`, `STATION_CENTER`, `STATION_EXIT`, `PLATFORM_REFERENCE`, `POI`)를 기록한다. station center와 exit를 조용히 동일시하지 않는다. | 몇십~수백 m 차이가 transfer/final WALK를 바꿀 수 있음 | D0 final review | PM/Data |
 | PD-029 | FIXED | `SUBWAY_TO_BUS` capability는 **구조적 mixed-route 존재**와 **realtime ID/Wait/Reforecast E2E**를 분리해 판정한다. 구조는 Phase 0 Raw에서 VERIFIED, E2E는 추가 Evidence 전까지 CONDITIONAL/TO_VERIFY다. | “경로 존재”와 “Reliability 계산 가능”의 구분 | EVD-CROSS-001/EVD-CROSS-002 | PM/Planner |
 | PD-030 | FIXED | Full-Journey probability의 “calibrated” claim은 실제/재구성 가능한 journey-level hold-out 검증을 통과한 경우에만 사용한다. leg-level calibration만으로 whole-journey calibration을 주장하지 않는다. | component correctness ≠ journey probability calibration | D0 final review | PM/Data |
+| PD-031 | FIXED | Route A 교대 3→2 Tier-0 `SUBWAY_TO_SUBWAY` reference duration은 **OA-22521의 144 s**를 사용한다. OA-13290의 63 s는 geometric/1.2m/s sanity reference로만 보관하며 평균/혼합하지 않는다. | 두 공식 source의 의미가 다르고 OA-22521이 from/to line + door-specific operational transfer 정보를 직접 제공 | EVD-TRANSFER-001 | PM/Data |
+| PD-032 | FIXED | Subway station ID mapping은 `SI_ID`/mixed code/realtime `statnId` 사이의 산술 패턴을 canonical rule로 사용하지 않는다. 새 station은 explicit crosswalk + live/source verification이 필요하다. | 교대 3호선이 단순 패턴의 실제 예외 | EVD-SCHED-001, EVD-SUB-003 | PM/Data |
+| PD-033 | FIXED | 실시간 지하철 수집은 하나의 공유 quota budget으로 조정한다. 여러 poller가 같은 1,000 calls/day key를 독립적으로 소모하지 않으며, quota 회피를 위한 key rotation을 사용하지 않는다. 필요하면 사용량 증액/공식 한도 조정을 우선한다. | Phase 1 5 poller가 22~33분 만에 `ERROR-337` 재현 | EVD-OPS-001 | PM/Infra |
+| PD-034 | FIXED | Bus future WAIT 모델에서 20초 간격의 연속 `exps1` snapshot 181개를 181개의 독립 headway sample로 간주하지 않는다. 실제 vehicle turnover/arrival/headway event 또는 dependence-aware sampling을 기본 분석단위로 한다. | 반복 polling은 동일 접근차량 상태를 여러 번 포함해 serial dependence가 큼 | EVD-WAIT-001 | PM/Data |
+| PD-035 | FIXED | Route A FINAL_WALK의 현재 reference는 **역삼 mixed-route `STATION_CENTER` candidate → 멀티캠퍼스 POI entrance 329 m / 300 s**다. exit-based route로 표현하지 않으며 실제 exit가 검증되면 새 Evidence로 supersede한다. | Phase 1 TMAP live result의 coordinate provenance | EVD-DEST-001 | PM/Data |
+| PD-036 | FIXED | Phase 1의 01A 춘추문→안국 11건은 **target-leg traverse-time sample**이다. Prediction→Actual `ResidualEvent`로 간주하지 않으며 residual pipeline과 multi-window evidence를 별도로 만든다. | Phase 1 analyzer가 traverse duration만 산출 | EVD-BUS-010 | PM/Data |
+| PD-037 | FIXED | collector `requested_at`은 HTTP send 직전, `received_at`은 response 수신 직후 기록해야 한다. Phase 0/1 SpikeResult의 post-response 동시 timestamp는 latency/watermark 근거로 사용하지 않는다. | Phase 1 volume/lateness 분석에서 0 ms가 harness artifact로 확인 | EVD-VOLUME-001 | PM/Infra/Data |
+| PD-038 | FIXED | OA-22522는 timetable parsing/Route A mapping feasibility source로는 사용 가능하지만 2025-09-30 dated file의 **현재 운행 유효성**이 확인되기 전에는 user-facing Recommended Departure의 authoritative future SUBWAY_WAIT source로 승격하지 않는다. | 약 11개월 freshness gap | EVD-SCHED-001 | PM/Data |
+| PD-039 | FIXED | multi-line station의 arrival/join/Actual 통계는 station name만으로 합치지 않고 `subwayId × statnId` 단위로 분리한다. | 교대 두 line을 합친 초기 분석이 실제 ~55% 가짜 join gap을 만들었고 수정 후 각 line 100% | EVD-SUB-003 | PM/Data |
+| PD-040 | FIXED | Phase 1 이후 Probability Vertical Slice 구현은 **CONDITIONAL GO**다. schema/Actual/Residual/state/engine logic은 시작하되, mature/calibrated result claim과 Recommended Departure `AVAILABLE`은 각 Evidence/Validation Gate 전 금지한다. | 핵심 source feasibility는 확대되었지만 residual/support/freshness가 아직 제한 | Phase 1 reconciliation | PM |
 
 ## Superseded 기록
 
