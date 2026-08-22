@@ -35,16 +35,29 @@ def _field(item: str, name: str) -> str | None:
 
 
 def analyze_bus(bus_route_id: str) -> None:
+    # NOTE: all getArrInfoByRouteAll / getBusPosByRouteSt samples land in the
+    # same directory regardless of which busRouteId was polled (see
+    # docs/05_DECISION_LOG.md D-037) - every item must be filtered by its own
+    # busRouteId/routeId field, matched against the bus_route_id argument.
+    # An earlier version of this function ignored the argument entirely and
+    # silently pooled every route ever collected together.
     arrival_samples = _load_samples("seoul_bus", "getArrInfoByRouteAll")
     position_samples = _load_samples("seoul_bus", "getBusPosByRouteSt")
-    print(f"arrival samples: {len(arrival_samples)}, position samples: {len(position_samples)}")
+    print(f"arrival samples: {len(arrival_samples)}, position samples: {len(position_samples)} "
+          f"(across all routes ever collected; filtering to busRouteId={bus_route_id})")
 
     # Duplicate ratio for position dataTm per vehId across polls.
     veh_datatm: dict[str, list[str]] = defaultdict(list)
     veh_stopflag: dict[str, list[tuple[str, str]]] = defaultdict(list)  # (dataTm, stopFlag)
+    position_items_total = 0
+    position_items_matched = 0
     for sample in position_samples:
         raw = sample.get("raw_payload") or ""
         for item in re.findall(r"<itemList>(.*?)</itemList>", raw, re.S):
+            position_items_total += 1
+            if _field(item, "routeId") != bus_route_id:
+                continue
+            position_items_matched += 1
             veh_id = _field(item, "vehId")
             data_tm = _field(item, "dataTm")
             stop_flag = _field(item, "stopFlag")
@@ -52,6 +65,7 @@ def analyze_bus(bus_route_id: str) -> None:
                 continue
             veh_datatm[veh_id].append(data_tm)
             veh_stopflag[veh_id].append((data_tm, stop_flag))
+    print(f"position items: {position_items_matched}/{position_items_total} matched busRouteId={bus_route_id}")
 
     total_obs = sum(len(v) for v in veh_datatm.values())
     dup_obs = sum(len(v) - len(set(v)) for v in veh_datatm.values())
@@ -67,19 +81,27 @@ def analyze_bus(bus_route_id: str) -> None:
                 print(f"  stopFlag 0->1 transition: vehId={veh_id} {t0} -> {t1}")
     print(f"observed stopFlag 0->1 transitions: {transitions}")
 
-    # vehId join rate: arrival vehId1/2 seen in any position vehId.
+    # vehId join rate: arrival vehId1/2 seen in any position vehId, both
+    # restricted to this busRouteId.
     position_veh_ids = set(veh_datatm.keys())
+    arrival_items_total = 0
+    arrival_items_matched = 0
     arrival_veh_refs = 0
     matched = 0
     for sample in arrival_samples:
         raw = sample.get("raw_payload") or ""
         for item in re.findall(r"<itemList>(.*?)</itemList>", raw, re.S):
+            arrival_items_total += 1
+            if _field(item, "busRouteId") != bus_route_id:
+                continue
+            arrival_items_matched += 1
             for name in ("vehId1", "vehId2"):
                 v = _field(item, name)
                 if v and v != "0":
                     arrival_veh_refs += 1
                     if v in position_veh_ids:
                         matched += 1
+    print(f"arrival items: {arrival_items_matched}/{arrival_items_total} matched busRouteId={bus_route_id}")
     rate = (matched / arrival_veh_refs * 100) if arrival_veh_refs else 0.0
     print(f"vehId join rate: {matched}/{arrival_veh_refs} ({rate:.1f}%)")
 
