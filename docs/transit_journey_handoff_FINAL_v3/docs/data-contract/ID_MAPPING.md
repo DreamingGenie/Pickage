@@ -41,17 +41,24 @@ exact same `busRouteId=100100001` — confirmed identical, not just
 against the realtime APIs (D-034) — **but the station identifiers do
 not match directly**:
 
-| Station | Mixed-route API code (`fid`/`tid`) | Realtime API `statnId` |
-|---|---|---|
-| 안국 | `03180` | `1003000328` |
-| 교대 (3호선 side) | `03300` | `1003000340` |
+| Station | subwayId | Mixed-route API code (`fid`/`tid`) | Mixed-route coords (`fx,fy`/`tx,ty`) | Realtime API `statnId` |
+|---|---|---|---|---|
+| 안국 | 1003 (Line 3) | `03180` | `126.98546,37.57649` | `1003000328` |
+| 교대 (3호선 side) | 1003 (Line 3) | `03300` | `127.01379,37.49309` | `1003000340` |
+| 교대 (2호선 side) | 1002 (Line 2) | `02230` | `127.01437,37.49385` | `1002000223` |
+| 역삼 | 1002 (Line 2, destination) | `02210` | `127.03650,37.50064` | `1002000221` |
 
-**No shared ID space.** To actually join a mixed-route response's
-subway leg to the realtime arrival/position APIs in production, a
-crosswalk table (built from station name + line, or coordinates) is
-needed — this is not yet built. TO_VERIFY/TO_BUILD before Spike E's
-vertical slice can programmatically pull realtime data for whatever
-subway leg a route response returns.
+**No shared ID space, but a full manual crosswalk for the demo
+corridor's 4 station-nodes is now built** (D-047) — every node on the
+locked route (안국 → 교대 → 역삼) has a confirmed `fid`/`tid` ↔
+`statnId` pair, each independently verified live against the realtime
+arrival API (D-034/D-047; 교대의 두 codes were both seen in a single
+"교대" name-search response, confirming they're the same physical
+station's two line-specific nodes). **This is still a hand-built,
+corridor-specific table, not a general station-name/coordinate-based
+crosswalk service** — building the latter (e.g. nearest-station-by-
+coordinate lookup against a full station master) is still open work
+for citywide coverage beyond this one corridor.
 
 ## Historical bus section (OA-21217)
 
