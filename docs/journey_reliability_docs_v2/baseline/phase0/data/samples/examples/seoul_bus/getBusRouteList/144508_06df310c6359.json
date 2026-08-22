@@ -1,0 +1,17 @@
+{
+  "provider": "seoul_bus",
+  "api_name": "getBusRouteList",
+  "request_id": "06df310c6359",
+  "requested_at": "2026-08-21T14:45:08.220390+00:00",
+  "received_at": "2026-08-21T14:45:08.220390+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "strSrch": "753"
+  },
+  "raw_payload": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><ServiceResult><comMsgHeader/><msgHeader><headerCd>0</headerCd><headerMsg>정상적으로 처리되었습니다.</headerMsg><itemCount>0</itemCount></msgHeader><msgBody><itemList><busRouteAbrv>753</busRouteAbrv><busRouteId>100100118</busRouteId><busRouteNm>753</busRouteNm><corpNm>선진운수  02-355-6974</corpNm><edStationNm>상도동</edStationNm><firstBusTm>20260821041000</firstBusTm><firstLowTm>20191216000000</firstLowTm><lastBusTm>20260821222000</lastBusTm><lastBusYn>0</lastBusYn><lastLowTm>20150717000000</lastLowTm><length>49.2</length><routeType>3</routeType><stStationNm>구산동</stStationNm><term>12</term></itemList></msgBody></ServiceResult>",
+  "raw_payload_hash": "9c7ccb4baa2216c3e0832b30e4ac9c1ecffb99b90803fedca8fc0df3248eb71b",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}

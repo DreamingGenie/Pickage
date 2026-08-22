@@ -1,0 +1,20 @@
+{
+  "provider": "seoul_bus",
+  "api_name": "getPathInfoByBusNSubList",
+  "request_id": "87302b3daa6f",
+  "requested_at": "2026-08-21T14:50:25.851105+00:00",
+  "received_at": "2026-08-21T14:50:25.851105+00:00",
+  "http_status": 401,
+  "request_params_sanitized": {
+    "startX": "126.972559",
+    "startY": "37.554648",
+    "endX": "127.027610",
+    "endY": "37.498095"
+  },
+  "raw_payload": "{\"error\":\"Unauthorized\",\"message\":\"유효하지 않은 서비스키입니다: 등록되지 않은 서비스키\",\"status\":401}",
+  "raw_payload_hash": "9678f988c6318d6df5307121cf22de63ad906b680bb21c010bfabce2dc092c8c",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}
