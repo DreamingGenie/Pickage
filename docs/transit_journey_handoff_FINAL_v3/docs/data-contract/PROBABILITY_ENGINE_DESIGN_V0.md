@@ -33,7 +33,8 @@ This is a 7-leg composition (4 WALK + 1 BUS + 2 SUBWAY), not the
 the extra WALK legs come from Q2/Q3 (D-039/D-040) extending scope
 beyond the transit-only response.
 
-**OPEN QUESTION (PM/team):** should in-station subway-to-subway
+**OPEN QUESTION (PM/team) — the only one still open (D-049/D-050
+resolved the other two, see §4):** should in-station subway-to-subway
 transfers (교대역 3호선→2호선) be modeled as a WALK leg queried from
 TMAP, or as a fixed/looked-up transfer-time constant? TMAP's pedestrian
 API expects real coordinates and may not model "inside paid-area
@@ -77,8 +78,12 @@ Per simulation run:
 3. Sample WALK transfer time (bus stop → 안국역 entrance)
 4. Sample SUBWAY 3호선 travel time (안국 → 교대)
 5. Sample WALK/transfer time (교대역 3호선→2호선 platform)
-6. If planned 2호선 train is missed (headway-based feasibility check):
-   choose next feasible train per MVP rule [OPEN QUESTION, see below]
+6. If planned 2호선 train is missed, choose next feasible train using
+   a **fixed transfer-buffer rule** (PM decision, D-049 — Tier-0):
+   if the scheduled transfer window is under a fixed threshold, treat
+   the connection as missed and advance by that line/time-of-day's
+   typical (currently fixed, not live-headway) interval. Upgrade to a
+   live-headway rule once real interval data exists for these legs.
 7. Sample SUBWAY 2호선 travel time (교대 → 역삼)
 8. Sample WALK final time (역삼역 → destination)
 9. Sum all legs → one simulated total journey time
@@ -98,16 +103,17 @@ Report **both**:
 Recommended departure: binary search / time-grid over depart_time such
 that `P(arrival <= target | depart_time) >= p*` for a user-chosen `p*`.
 
-**OPEN QUESTIONS for PM/team before implementation:**
-- What determines "missed transfer" for the bus→subway and
-  subway→subway legs? A fixed minimum transfer buffer? Live headway
-  from the realtime position feed? This wasn't decided in Q1–Q4 and
-  isn't obvious from existing data alone.
-- Default `N` (simulation count) — no number has been chosen; pick
-  based on how stable `P(on_time)` is at that N, not an arbitrary round
-  number.
-- Default `p*` if the user doesn't specify one (the handoff mentions
-  80/90/95% as examples in section 16, not a decided default).
+**RESOLVED (D-049/D-050 — PM decisions):**
+- "Missed transfer" for bus→subway and subway→subway legs: **fixed
+  transfer-buffer rule for Tier-0** (not live headway yet — the two
+  subway legs have zero real interval data so far, D-048). Upgrade to
+  headway-based once real data exists.
+- Default `N` = **2000–5000** simulations (standard error ~0.7–1%p at
+  p≈0.8–0.9, fast enough for interactive web use).
+- Default `p*` = **90%** if the user doesn't specify one.
+
+**Still open:** the in-station subway transfer-walk modeling question
+in §2 (TMAP vs fixed constant for 교대역 3호선↔2호선).
 
 ## 5. Handling legs with no real distribution yet (fallback tiers)
 
@@ -140,9 +146,9 @@ applied here rather than blocking on full data collection:
 
 ## 7. Suggested next steps, in order
 
-1. PM/team review of the two `OPEN QUESTION` items above (transfer
-   handling, missed-connection rule) — these are product/data
-   judgment calls, not something to infer from code.
+1. ~~PM/team review of missed-connection rule and N/p* defaults~~ —
+   **resolved (D-049/D-050).** One design question remains open: the
+   in-station subway transfer-walk modeling choice (§2).
 2. Sustained (1h+) real data collection on route `01A` and the two
    subway legs (mirrors D-020/D-035's proven approach) — a *data* task,
    safe to do without further design sign-off.
