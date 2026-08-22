@@ -20,5 +20,5 @@ dist/
 # Bulk raw poll history from the Phase 0/1 spike harness — stays local per
 # baseline/phase0/scripts/spikes/README.md's own convention. Curated,
 # representative samples belong in data/samples/examples/ instead (tracked).
-docs/journey_reliability_docs_v2/baseline/phase0/data/samples/*
-!docs/journey_reliability_docs_v2/baseline/phase0/data/samples/examples/
+docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/*
+!docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/examples/
