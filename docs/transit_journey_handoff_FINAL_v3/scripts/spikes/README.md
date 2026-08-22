@@ -29,11 +29,8 @@ Which variable goes with which script:
 
 | Script | Env var |
 |---|---|
-| `resolve_bus_route.py`, part of route master lookups | `DATA_GO_BUS_ROUTE_KEY` |
-| `bus_arrival_spike.py` | `DATA_GO_BUS_ARRIVAL_KEY` |
-| `bus_position_spike.py` | `DATA_GO_BUS_POSITION_KEY` |
+| `resolve_bus_route.py`, `bus_arrival_spike.py`, `bus_position_spike.py`, `mixed_route_spike.py` | `DATA_GO_BUS_API_KEY` — one shared account-level key, confirmed byte-identical across all four data.go.kr services (D-013); consolidated from 4 separate names into 1 by PM decision (D-046) |
 | `subway_arrival_spike.py`, `subway_position_spike.py` | `SEOUL_SUBWAY_REALTIME_KEY` |
-| `mixed_route_spike.py` | `DATA_GO_TRANSIT_PATH_KEY` |
 | `kakao_walk_spike.py` | `KAKAO_MAP_REST_API_KEY` — **BLOCKED**: confirmed 403 partner-only (D-043) |
 | `tmap_walk_spike.py` | `TMAP_APP_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040) — **VERIFIED/GO** (D-045) |
 

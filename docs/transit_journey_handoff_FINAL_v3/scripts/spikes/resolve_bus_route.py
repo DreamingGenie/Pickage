@@ -27,7 +27,7 @@ def main() -> None:
         sys.exit(1)
     route_number = sys.argv[1]
 
-    service_key = require_key("DATA_GO_BUS_ROUTE_KEY")
+    service_key = require_key("DATA_GO_BUS_API_KEY")
     params = {"serviceKey": service_key, "strSrch": route_number}
     sanitized_params = {k: v for k, v in params.items() if k != "serviceKey"}
 

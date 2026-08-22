@@ -387,19 +387,22 @@ Secrets는 GitLab/Jenkins/EC2 Secret/환경변수로만 전달한다.
 SEOUL_OPEN_API_KEY=
 SEOUL_SUBWAY_REALTIME_KEY=
 
-# data.go.kr - 실제 발급 형태에 맞게 설정
-DATA_GO_BUS_ARRIVAL_KEY=
-DATA_GO_BUS_POSITION_KEY=
-DATA_GO_TRANSIT_PATH_KEY=
-DATA_GO_BUS_ROUTE_KEY=
-DATA_GO_BUS_STATION_KEY=
+# data.go.kr - 계정 단위 공용 키 (D-013에서 4개 서비스 전부 byte-identical 확인,
+# D-046에서 PM 결정으로 하나로 통합)
+DATA_GO_BUS_API_KEY=
 
 # Walking / access-time (P0-1 대상 아님 — Q3/D-040)
 KAKAO_MAP_REST_API_KEY=   # BLOCKED: 카카오모빌리티 제휴 전용 API로 확인됨 (D-043)
-TMAP_APP_KEY=             # 대안, 아직 미검증 (D-044)
+TMAP_APP_KEY=             # VERIFIED/GO (D-045)
 ```
 
-만약 data.go.kr이 서비스별로 동일 키를 발급했다 하더라도 코드에서는 **논리 이름을 분리**해 두는 것을 권장한다.
+**(D-046) 과거 방침 변경 이력:** 원래는 "data.go.kr이 서비스별로 동일 키를
+발급했다 하더라도 코드에서는 논리 이름을 분리해 두는 것을 권장"하는
+방침이었다 (서비스별 회전/자기문서화 목적). 하지만 D-013에서 4개 서비스가
+전부 byte-identical임을 실측 확인한 뒤, 매번 같은 값을 4번 입력해야 하는
+반복 비용이 그 이론적 이점보다 커졌다고 판단해 PM이 `DATA_GO_BUS_API_KEY`
+하나로 통합하기로 결정함(D-046). **만약 나중에 서비스별로 값이 갈리는 계정을
+쓰게 되면 그때 다시 분리한다.**
 
 ## 6.2 공식 데이터 페이지
 
