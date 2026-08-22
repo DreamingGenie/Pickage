@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Date: Sat, 22 Aug 2026 05:57:49 GMT
+Server: Apache
+Content-Disposition: attachment; filename="서울교통공사_역사심도정보_20241104.csv"
+Cache-Control: no-cache
+Pragma: no-cache
+Expires: Thu, 01 Jan 1970 00:00:00 GMT
+Content-Length: 15009
+Connection: close
+Content-Type: application/x-msdownload
+

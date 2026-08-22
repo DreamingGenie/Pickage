@@ -1,0 +1,15 @@
+HTTP/1.1 200 OK
+Date: Sat, 22 Aug 2026 05:53:57 GMT
+Server: Apache
+Expires: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Set-Cookie: JSESSIONID=GzVijLDStGeeu_3doqnBOwpoR_wOu5XZZZctH3js.portal11; path=/
+X-XSS-Protection: 1; mode=block
+Pragma: no-cache
+X-Frame-Options: DENY
+Content-Disposition: attachment; filename="서울교통공사_서울 도시철도 열차운행시각표.csv"
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000 ; includeSubDomains
+Content-Length: 32806139
+Content-Type: application/octet-stream; charset=UTF-8
+

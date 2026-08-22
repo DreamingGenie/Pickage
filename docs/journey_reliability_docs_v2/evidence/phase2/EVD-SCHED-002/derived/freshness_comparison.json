@@ -1,0 +1,560 @@
+{
+  "교대|2|DAY|IN": {
+    "old_2025-09-30": {
+      "trains": 240,
+      "median_headway_sec": 270,
+      "p10_headway_sec": 150.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20550,
+      "last_departure": 89550
+    },
+    "new_2026-06-16": {
+      "trains": 242,
+      "median_headway_sec": 270,
+      "p10_headway_sec": 150.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20550,
+      "last_departure": 89550
+    },
+    "delta_trains": 2,
+    "delta_median_headway_sec": 0
+  },
+  "교대|2|DAY|OUT": {
+    "old_2025-09-30": {
+      "trains": 239,
+      "median_headway_sec": 270.0,
+      "p10_headway_sec": 180.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20310,
+      "last_departure": 89340
+    },
+    "new_2026-06-16": {
+      "trains": 241,
+      "median_headway_sec": 270.0,
+      "p10_headway_sec": 180.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20310,
+      "last_departure": 89340
+    },
+    "delta_trains": 2,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|2|END|IN": {
+    "old_2025-09-30": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20520,
+      "last_departure": 85980
+    },
+    "new_2026-06-16": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20520,
+      "last_departure": 85980
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "교대|2|END|OUT": {
+    "old_2025-09-30": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20250,
+      "last_departure": 85680
+    },
+    "new_2026-06-16": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20250,
+      "last_departure": 85680
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|2|SAT|IN": {
+    "old_2025-09-30": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20520,
+      "last_departure": 85980
+    },
+    "new_2026-06-16": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20520,
+      "last_departure": 85980
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "교대|2|SAT|OUT": {
+    "old_2025-09-30": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20250,
+      "last_departure": 85680
+    },
+    "new_2026-06-16": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20250,
+      "last_departure": 85680
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|2||IN": {
+    "old_2025-09-30": {
+      "trains": 146,
+      "median_headway_sec": 420,
+      "p10_headway_sec": 420.0,
+      "p90_headway_sec": 480.0,
+      "first_departure": 20550,
+      "last_departure": 85950
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  },
+  "교대|2||OUT": {
+    "old_2025-09-30": {
+      "trains": 147,
+      "median_headway_sec": 420.0,
+      "p10_headway_sec": 420.0,
+      "p90_headway_sec": 489.0,
+      "first_departure": 20310,
+      "last_departure": 85710
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  },
+  "교대|3|DAY|DOWN": {
+    "old_2025-09-30": {
+      "trains": 192,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 540.0,
+      "first_departure": 20340,
+      "last_departure": 89520
+    },
+    "new_2026-06-16": {
+      "trains": 192,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 540.0,
+      "first_departure": 20340,
+      "last_departure": 89520
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "교대|3|DAY|UP": {
+    "old_2025-09-30": {
+      "trains": 192,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 504.0,
+      "first_departure": 19980,
+      "last_departure": 89460
+    },
+    "new_2026-06-16": {
+      "trains": 192,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 504.0,
+      "first_departure": 19980,
+      "last_departure": 89460
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "교대|3|END|DOWN": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20340,
+      "last_departure": 86160
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20340,
+      "last_departure": 86160
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|3|END|UP": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20040,
+      "last_departure": 85890
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20040,
+      "last_departure": 85890
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|3|SAT|DOWN": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20340,
+      "last_departure": 86160
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20340,
+      "last_departure": 86160
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|3|SAT|UP": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20040,
+      "last_departure": 85890
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20040,
+      "last_departure": 85890
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "교대|3||UP": {
+    "old_2025-09-30": {
+      "trains": 42,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 300.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 52140,
+      "last_departure": 67680
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  },
+  "안국|3|DAY|DOWN": {
+    "old_2025-09-30": {
+      "trains": 192,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 540.0,
+      "first_departure": 20070,
+      "last_departure": 89520
+    },
+    "new_2026-06-16": {
+      "trains": 192,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 540.0,
+      "first_departure": 20070,
+      "last_departure": 89520
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "안국|3|DAY|UP": {
+    "old_2025-09-30": {
+      "trains": 192,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 504.0,
+      "first_departure": 20310,
+      "last_departure": 89760
+    },
+    "new_2026-06-16": {
+      "trains": 192,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 240.0,
+      "p90_headway_sec": 504.0,
+      "first_departure": 20310,
+      "last_departure": 89760
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "안국|3|END|DOWN": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20070,
+      "last_departure": 85920
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20070,
+      "last_departure": 85920
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "안국|3|END|UP": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20310,
+      "last_departure": 86370
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20310,
+      "last_departure": 86370
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "안국|3|SAT|DOWN": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20070,
+      "last_departure": 85920
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 390.0,
+      "p10_headway_sec": 330.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20070,
+      "last_departure": 85920
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "안국|3|SAT|UP": {
+    "old_2025-09-30": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20310,
+      "last_departure": 86370
+    },
+    "new_2026-06-16": {
+      "trains": 173,
+      "median_headway_sec": 360.0,
+      "p10_headway_sec": 360.0,
+      "p90_headway_sec": 450.0,
+      "first_departure": 20310,
+      "last_departure": 86370
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "안국|3||UP": {
+    "old_2025-09-30": {
+      "trains": 42,
+      "median_headway_sec": 360,
+      "p10_headway_sec": 300.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 53520,
+      "last_departure": 69060
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  },
+  "역삼|2|DAY|IN": {
+    "old_2025-09-30": {
+      "trains": 240,
+      "median_headway_sec": 270,
+      "p10_headway_sec": 150.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20760,
+      "last_departure": 89760
+    },
+    "new_2026-06-16": {
+      "trains": 242,
+      "median_headway_sec": 270,
+      "p10_headway_sec": 150.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20760,
+      "last_departure": 89760
+    },
+    "delta_trains": 2,
+    "delta_median_headway_sec": 0
+  },
+  "역삼|2|DAY|OUT": {
+    "old_2025-09-30": {
+      "trains": 239,
+      "median_headway_sec": 300.0,
+      "p10_headway_sec": 180.0,
+      "p90_headway_sec": 393.0,
+      "first_departure": 20070,
+      "last_departure": 89100
+    },
+    "new_2026-06-16": {
+      "trains": 241,
+      "median_headway_sec": 285.0,
+      "p10_headway_sec": 180.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20070,
+      "last_departure": 89100
+    },
+    "delta_trains": 2,
+    "delta_median_headway_sec": -15.0
+  },
+  "역삼|2|END|IN": {
+    "old_2025-09-30": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20730,
+      "last_departure": 86190
+    },
+    "new_2026-06-16": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20730,
+      "last_departure": 86190
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "역삼|2|END|OUT": {
+    "old_2025-09-30": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20040,
+      "last_departure": 85410
+    },
+    "new_2026-06-16": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20040,
+      "last_departure": 85410
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "역삼|2|SAT|IN": {
+    "old_2025-09-30": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20730,
+      "last_departure": 86190
+    },
+    "new_2026-06-16": {
+      "trains": 194,
+      "median_headway_sec": 330,
+      "p10_headway_sec": 282.0,
+      "p90_headway_sec": 390.0,
+      "first_departure": 20730,
+      "last_departure": 86190
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0
+  },
+  "역삼|2|SAT|OUT": {
+    "old_2025-09-30": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20040,
+      "last_departure": 85410
+    },
+    "new_2026-06-16": {
+      "trains": 197,
+      "median_headway_sec": 330.0,
+      "p10_headway_sec": 270.0,
+      "p90_headway_sec": 420.0,
+      "first_departure": 20040,
+      "last_departure": 85410
+    },
+    "delta_trains": 0,
+    "delta_median_headway_sec": 0.0
+  },
+  "역삼|2||IN": {
+    "old_2025-09-30": {
+      "trains": 146,
+      "median_headway_sec": 420,
+      "p10_headway_sec": 420.0,
+      "p90_headway_sec": 480.0,
+      "first_departure": 20760,
+      "last_departure": 86160
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  },
+  "역삼|2||OUT": {
+    "old_2025-09-30": {
+      "trains": 147,
+      "median_headway_sec": 420.0,
+      "p10_headway_sec": 420.0,
+      "p90_headway_sec": 480.0,
+      "first_departure": 20070,
+      "last_departure": 85470
+    },
+    "new_2026-06-16": null,
+    "delta_trains": null,
+    "delta_median_headway_sec": null
+  }
+}

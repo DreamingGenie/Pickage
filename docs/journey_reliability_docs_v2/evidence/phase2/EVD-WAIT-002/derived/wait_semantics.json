@@ -1,0 +1,24 @@
+{
+  "target_stop": {
+    "route": "100100026",
+    "stId": "122000005"
+  },
+  "raw_snapshot_series": {
+    "n_polls": 90,
+    "exps1_lag1_autocorrelation": 0.7695495621030061,
+    "exps1_median_sec": 5.0,
+    "note": "each poll re-observes the SAME approaching vehicle repeatedly; high lag-1 autocorrelation here is expected and is exactly why these are not independent headway samples (PD-034)."
+  },
+  "event_based_headway": {
+    "n_turnover_events": 6,
+    "headway_samples_sec": [
+      20.076713,
+      20.077778,
+      20.099273,
+      20.057973,
+      20.073775,
+      20.072925
+    ],
+    "median_headway_sec": 20.075244
+  }
+}
