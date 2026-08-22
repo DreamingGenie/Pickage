@@ -1,0 +1,25 @@
+{
+  "provider": "tmap",
+  "api_name": "routes_pedestrian",
+  "request_id": "0dd07cbbc7e8",
+  "requested_at": "2026-08-22T03:37:46.507782+00:00",
+  "received_at": "2026-08-22T03:37:46.507782+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "version": "1",
+    "body": {
+      "startX": "126.98412712121268",
+      "startY": "37.57575695248874",
+      "endX": "126.98546292770595",
+      "endY": "37.57648700828617",
+      "startName": "01A_alight_안국역6번출구_BUS_STOP",
+      "endName": "안국역_3호선_mixed_node_STATION_CENTER_candidate"
+    }
+  },
+  "raw_payload": "{  \"type\": \"FeatureCollection\",  \"features\": [    {\"type\": \"Feature\",     \"geometry\": {       \"type\": \"Point\",       \"coordinates\": [126.98411191471884,37.57577593063921 ]     },     \"properties\":{      \"totalDistance\": 143,      \"totalTime\": 101,      \"index\": 0,      \"pointIndex\": 0,      \"name\": \"\",      \"description\": \"율곡로를 따라 143m 이동\",      \"direction\": \"\",      \"nearPoiName\": \"\",      \"nearPoiX\": \"0.0\",      \"nearPoiY\": \"0.0\",      \"intersectionName\": \"\",      \"facilityType\": \"11\",      \"facilityName\": \"\",      \"turnType\": 200,      \"pointType\": \"SP\"     }    },    {\"type\": \"Feature\",     \"geometry\":        {       \"type\": \"LineString\",       \"coordinates\": [        [126.98411191471884,37.57577593063921 ],[126.98416746458182,37.57579815127449 ],[126.98436188910222,37.57587592349797 ],[126.98446743377889,37.57592036466884 ],[126.98457020100963,37.57596202833509 ],[126.98466185829925,37.57599813689238 ],[126.98552843480758,37.576392551025634 ]        ]     },     \"properties\":{      \"index\": 1,      \"lineIndex\": 0,      \"name\": \"율곡로\",      \"description\": \"율곡로, 143m\",      \"distance\": 143,      \"time\": 101,      \"roadType\": 21,      \"categoryRoadType\": 1,      \"facilityType\": \"11\",      \"facilityName\": \"\"     }    },    {\"type\": \"Feature\",     \"geometry\": {       \"type\": \"Point\",       \"coordinates\": [126.98552843480758,37.576392551025634 ]     },     \"properties\":{      \"index\": 2,      \"pointIndex\": 1,      \"name\": \"안국역_3호선_mixed_node_STATION_CENTER_candidate\",      \"description\": \"도착\",      \"direction\": \"\",      \"nearPoiName\": \"안국역_3호선_mixed_node_STATION_CENTER_candidate\",      \"nearPoiX\": \"0.0\",      \"nearPoiY\": \"0.0\",      \"intersectionName\": \"안국역\",      \"facilityType\": \"\",      \"facilityName\": \"\",      \"turnType\": 201,      \"pointType\": \"EP\"     }    }  ] } ",
+  "raw_payload_hash": "902b227f9952abf90a083e64dd60ed49521386e543ee3319a734bd553ed6fddc",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}

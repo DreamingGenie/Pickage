@@ -1,0 +1,60 @@
+{
+  "01A_arrival_target_leg": {
+    "route_id": "100100001",
+    "wait_candidate_exps1_seconds_by_stop": {
+      "100000417": {
+        "sample_count": 181,
+        "seconds_min": 2,
+        "seconds_p50": 190,
+        "seconds_p90": 464,
+        "seconds_max": 732
+      },
+      "100000104": {
+        "sample_count": 181,
+        "seconds_min": 1,
+        "seconds_p50": 240,
+        "seconds_p90": 502,
+        "seconds_max": 624
+      }
+    },
+    "polls": 181,
+    "success": 181,
+    "error": 0,
+    "duplicate_mkTm": 25,
+    "out_of_order_mkTm": 0,
+    "target_stop_transitions": {
+      "100000417": {
+        "polls_with_data": 181,
+        "distinct_vehId1_seen": 10,
+        "vehId1_transitions": 9
+      },
+      "100000104": {
+        "polls_with_data": 181,
+        "distinct_vehId1_seen": 8,
+        "vehId1_transitions": 7
+      }
+    }
+  },
+  "01A_position_target_leg": {
+    "route_id": "100100001",
+    "polls": 180,
+    "success": 180,
+    "error": 0,
+    "total_position_rows": 412,
+    "congestion_counts": {
+      "3": 338,
+      "4": 65,
+      "5": 9
+    },
+    "isFullFlag_counts": {
+      "0": 412
+    },
+    "distinct_vehicles_in_target_range": 11,
+    "target_leg_traverse_time_samples": 11,
+    "target_leg_traverse_seconds": {
+      "min": 100.203087,
+      "p50": 681.575712,
+      "max": 1222.65207
+    }
+  }
+}

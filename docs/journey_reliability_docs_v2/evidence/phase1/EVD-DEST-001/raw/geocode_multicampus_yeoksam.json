@@ -1,0 +1,21 @@
+{
+  "provider": "tmap",
+  "api_name": "fullAddrGeo",
+  "request_id": "5f34bddb2e04",
+  "requested_at": "2026-08-22T03:38:06.417502+00:00",
+  "received_at": "2026-08-22T03:38:06.417502+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "version": "1",
+    "addressFlag": "F00",
+    "fullAddr": "서울특별시 강남구 테헤란로 212",
+    "coordType": "WGS84GEO",
+    "format": "json"
+  },
+  "raw_payload": "{ \"coordinateInfo\" : {  \"coordType\" : \"WGS84GEO\",   \"addressFlag\" : \"F00\",   \"page\" : \"1\",   \"count\" : \"20\",   \"totalCount\" : \"1\",   \"coordinate\" : [   {      \"matchFlag\": \"\",       \"lat\": \"\",       \"lon\": \"\",       \"latEntr\": \"\",       \"lonEntr\": \"\",       \"city_do\": \"서울\",       \"gu_gun\": \"강남구\",       \"eup_myun\": \"\",       \"legalDong\": \"\",       \"legalDongCode\": \"\",       \"adminDong\": \"\",       \"adminDongCode\": \"\",       \"ri\": \"\",       \"bunji\": \"\",       \"buildingName\": \"멀티캠퍼스\",       \"buildingDong\": \"역삼동 718빌딩\",       \"newMatchFlag\": \"N51\",       \"newLat\": \"37.501276\",       \"newLon\": \"127.039589\",       \"newLatEntr\": \"37.501331\",       \"newLonEntr\": \"127.039533\",       \"newRoadName\": \"테헤란로\",       \"newBuildingIndex\": \"212\",       \"newBuildingName\": \"멀티캠퍼스\",       \"newBuildingCateName\": \"\",       \"newBuildingDong\": \"역삼동 718빌딩\",       \"zipcode\": \"06220\",       \"remainder\": \"\"    }  ] }}",
+  "raw_payload_hash": "1845622b9e50ac2b6dd5e9e73bbe30173e84ec733b9985a92caee9150ba3e1f0",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}
