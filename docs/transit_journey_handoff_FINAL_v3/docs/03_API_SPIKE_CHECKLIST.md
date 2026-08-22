@@ -35,7 +35,7 @@ Official: https://www.data.go.kr/data/15000314/openapi.do
 
 - [x] route-wide endpoint 실제 명칭 — `getArrInfoByRouteAll` (D-013)
 - [x] `busRouteId` (D-013)
-- [ ] `stId`, `staOrd` — 실제 응답 필드명은 `arsId` 계열, 체크리스트 가정과 불일치 (TO_VERIFY 정확한 대응)
+- [x] `stId`, `staOrd` — 실제 응답에 그대로 존재함 (`arsId`와 별개 필드로 둘 다 있음, D-038 raw item에서 확인)
 - [x] `vehId1`, `vehId2` (D-013/D-014)
 - [x] `exps1`, `exps2` (실 응답 schema에 포함, PHASE0 A절)
 - [x] `mkTm` (D-015 — call-level, per-stop 아님)
@@ -197,7 +197,7 @@ Official: https://www.data.go.kr/data/15000414/openapi.do
 - [x] subway line/station id (`routeNm`="3호선" 등 + `fid`/`tid`, D-034)
 - [ ] walking/transfer time — 별도 필드로 명시 확인 안 됨
 - [x] total time (`time` 필드, D-030/D-031 — 50분)
-- [x] ID를 realtime APIs와 join — **조사 완료, 결과: 직접 조인 불가** (D-034 — `fid`/`tid`와 realtime `statnId`는 다른 ID 공간, crosswalk 필요)
+- [x] ID를 realtime APIs와 join — **조사 완료, 결과가 API 종류별로 다름**: bus는 `routeId`가 `getArrInfoByRouteAll`/`getBusPosByRouteSt`의 `busRouteId`/`routeId`와 **직접 일치** (D-038, crosswalk 불필요), subway는 `fid`/`tid`가 realtime `statnId`와 **다른 ID 공간**이라 직접 조인 불가 (D-034, crosswalk 필요)
 
 ### 판정
 

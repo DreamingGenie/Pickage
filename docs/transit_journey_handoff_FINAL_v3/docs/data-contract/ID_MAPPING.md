@@ -28,13 +28,18 @@ exist in the real response (D-014).
 
 ## Mixed route
 
-Working (D-024) — real call returned bus `routeId` values (e.g.
-`100100023`) in the same numeric domain as `getArrInfoByRouteAll`/
-`getBusPosByRouteSt`/`getBusRouteList`, though not yet directly
-cross-queried to prove the join. Subway legs (`railLinkList` populated)
-confirmed present in later corridor tests (D-029), and the demo
-corridor's subway leg was directly cross-checked against the realtime
-APIs (D-034) — **but the station identifiers do not match directly**:
+**Bus leg: joins directly, no crosswalk needed.** The demo corridor's
+bus leg (route `01A`) has `routeId=100100001` in the mixed-route
+response, and `resolve_bus_route.py 01A` independently resolves to the
+exact same `busRouteId=100100001` — confirmed identical, not just
+"same numeric domain" (D-038). `getArrInfoByRouteAll`/
+`getBusPosByRouteSt` can be called directly with this ID.
+
+**Subway leg: does NOT join directly, crosswalk needed.** Subway legs
+(`railLinkList` populated) confirmed present in later corridor tests
+(D-029), and the demo corridor's subway leg was directly cross-checked
+against the realtime APIs (D-034) — **but the station identifiers do
+not match directly**:
 
 | Station | Mixed-route API code (`fid`/`tid`) | Realtime API `statnId` |
 |---|---|---|
