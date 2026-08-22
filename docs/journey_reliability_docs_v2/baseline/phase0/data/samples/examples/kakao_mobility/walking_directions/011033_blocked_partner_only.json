@@ -1,0 +1,18 @@
+{
+  "provider": "kakao_mobility",
+  "api_name": "walking_directions",
+  "request_id": "c03174186ffc",
+  "requested_at": "2026-08-22T01:10:33.312086+00:00",
+  "received_at": "2026-08-22T01:10:33.312086+00:00",
+  "http_status": 403,
+  "request_params_sanitized": {
+    "origin": "127.0137858,37.493090",
+    "destination": "127.0362,37.5006"
+  },
+  "raw_payload": "{\"code\":-5,\"msg\":\"permission denied\"}",
+  "raw_payload_hash": "cdb1908196ccdb0dbc4a49a3cfdafae73514322ca39a67550233f67a07039667",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}
