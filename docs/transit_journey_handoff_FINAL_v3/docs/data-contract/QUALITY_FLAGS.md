@@ -33,12 +33,25 @@
 
 ## Subway Arrival (`realtimeStationArrival`)
 
-- `ARRIVAL_STATE_CODE` — `arvlCd` takes values `0` (entering/진입), `1`
-  (arrived/도착), `2` (departed/출발), `99` (en route, with either a
-  countdown or a station-count message in `arvlMsg2`). Treat this as an
-  ordered state machine, not a boolean "arrived or not."
+- `ARRIVAL_STATE_CODE` — `arvlCd` takes values `{0,1,2,3,4,5,99}`, richer
+  than first observed: `99` (en route, countdown/station-count message
+  in `arvlMsg2`), `5/4/3/2` (descending "stations away" countdown,
+  individual code semantics not confirmed beyond ordering), `0`
+  (entering/진입), `1` (arrived/도착 — the Actual-event trigger). Ordered
+  progression `99 → {5,4,3,2} → 0 → 1 → 2` confirmed cross-line (Lines
+  1, 2, 3 — see `SUBWAY_ACTUAL_RULE_V0.md`). Treat as an ordered state
+  machine, not a boolean "arrived or not."
 - `TRAIN_LEVEL_TIMESTAMP` — `recptnDt` differs per train within one
   response (unlike bus arrival's call-level `mkTm`).
+- `STATION_NAME_AMBIGUITY` — querying by station display name (e.g.
+  "강남") can return multiple distinct `(statnId, subwayId)` pairs when
+  more than one line's station shares that name (Line 2's 강남 vs
+  Sinbundang Line's 강남, `subwayId` 1002 vs 1077 — D-032/D-033). Worse,
+  repeated identical-parameter calls do not reliably return the same set
+  of matching station codes every time (D-032 observed one of two known
+  Line 2 강남 codes across 14 consecutive daytime polls, never both) —
+  do not assume a name-search response enumerates every matching
+  physical station/platform on every call.
 
 ## Subway Position (`realtimePosition`)
 
@@ -52,6 +65,11 @@
   credential, not a data-quality flag on any response — surfaced here so
   the collector can distinguish "key not approved for this service" from
   a transient auth failure and avoid retry-storming it.
+- `DISJOINT_STATION_ID_SPACE` — this API's own station/stop codes
+  (`fid`/`tid`, e.g. 안국=`03180`) are **not** the same identifiers as
+  the realtime subway APIs' `statnId` (안국=`1003000328` — D-034). Do
+  not assume these can be joined as literal strings; a crosswalk
+  (name/line or coordinate based) is required.
 
 ## Still to characterize (needs sustained collection)
 

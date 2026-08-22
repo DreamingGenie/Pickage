@@ -41,12 +41,15 @@ timestamp is shared).
 - **Bus**: `stopFlag` 0→1 transition (checklist's original candidate) —
   both values observed in one snapshot, transition not yet observed
   across polls. Still the leading candidate, not yet confirmed.
-- **Subway**: `arvlCd` state sequence `0→1→2` (진입→도착→출발), with `99`
-  meaning "not yet at this station" — real values match the checklist's
-  candidate sequence better than expected. This is more promising than
-  the bus rule already, but per `../01_PROJECT_HANDOFF.md` section 17,
-  **do not finalize `SUBWAY_ACTUAL_RULE_V0.md` until this holds up across
-  more stations/lines/time**.
+- **Subway**: `arvlCd` state sequence `99 → {5,4,3,2} → 0 → 1 → 2`
+  (richer than the checklist's original `0→1→2`/`99` candidate — see
+  D-021), confirmed with the same relative ordering on three independent
+  lines (1, 2, 3 — D-034). `arvlCd=1` (도착/arrived) is the Actual event
+  trigger. **Drafted as `SUBWAY_ACTUAL_RULE_V0.md`, status CONDITIONAL** —
+  safe for the demo corridor's stations (all 100% join), but one Line 2
+  station/platform code (`1002000201`) has a persistent, unexplained
+  ~45% non-join rate (D-026/D-032/D-033) that blocks calling this
+  citywide-reliable yet.
 
 ## Duplicate / empty / error — not yet characterized
 
