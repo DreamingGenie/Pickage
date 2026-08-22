@@ -34,6 +34,7 @@ Which variable goes with which script:
 | `bus_position_spike.py` | `DATA_GO_BUS_POSITION_KEY` |
 | `subway_arrival_spike.py`, `subway_position_spike.py` | `SEOUL_SUBWAY_REALTIME_KEY` |
 | `mixed_route_spike.py` | `DATA_GO_TRANSIT_PATH_KEY` |
+| `kakao_walk_spike.py` | `KAKAO_MAP_REST_API_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040; TO_VERIFY whether a plain REST key is sufficient, see D-042) |
 
 ## Endpoints — live-call status
 
