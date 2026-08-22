@@ -1293,26 +1293,30 @@ Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 �
 
 다음이 모두 충족되기 전 최종 서비스기획서/아키텍처를 확정하지 않는다.
 
+> **2026-08-22 갱신 — 실제 근거(Decision Log D-013~D-047) 대조 기준.**
+> API/일부 Data 항목은 충족, **Probability 섹션은 의도적으로 미착수 상태**
+> (설계는 PM 리뷰 전까지 코드로 먼저 밀어붙이지 않는다는 방침).
+
 ### API
 
-- [ ] 모든 credential이 repo 밖에서 정상 로드됨
-- [ ] Bus arrival 실제 호출 성공
-- [ ] Bus position 실제 호출 성공
-- [ ] Subway arrival 실제 호출 성공
-- [ ] Subway position 실제 호출 성공
-- [ ] Mixed route 실제 호출 성공 또는 명시적 fallback 결정
+- [x] 모든 credential이 repo 밖에서 정상 로드됨 (`.env.local`, gitignored, `require_key()` 패턴 — D-046으로 5개→1개 통합)
+- [x] Bus arrival 실제 호출 성공 (D-013, 주간 재검증 D-035)
+- [x] Bus position 실제 호출 성공 (D-013, 주간 재검증 D-035)
+- [x] Subway arrival 실제 호출 성공 (D-016)
+- [x] Subway position 실제 호출 성공 (D-016)
+- [x] Mixed route 실제 호출 성공 또는 명시적 fallback 결정 (D-024/D-029/D-030 — **GO**, fallback 불필요)
 
 ### Data
 
-- [ ] raw payload 보존
-- [ ] source time / received time 분리
-- [ ] duplicate/empty/error 규칙
-- [ ] Bus actual interval 재현
-- [ ] Subway actual rule 검증
-- [ ] ID mapping 표
-- [ ] historical bus section join 결과
+- [x] raw payload 보존 (`scripts/spikes/common/storage.py` Bronze 계약)
+- [ ] source time / received time 분리 — **부분 충족**: `requested_at`/`received_at`은 저장되지만 `source_generated_at`은 아직 null(Silver 파싱 단계로 미룸, `OBSERVATION_CONTRACT.md`). 실제 구현 전
+- [ ] duplicate/empty/error 규칙 — **부분 충족**: 버스 duplicate 비율은 수치화됨(D-020/D-035), 지하철 duplicate·empty·error rate는 미측정
+- [x] Bus actual interval 재현 (D-020 야간 100%, D-035 주간 100%)
+- [ ] Subway actual rule 검증 — **CONDITIONAL**: `SUBWAY_ACTUAL_RULE_V0.md` v0 초안 있음(1·2·3호선 상태머신 확인), 강남 `1002000201` 갭(D-026/D-032/D-036) 원인 미상이라 citywide 검증 미완료로 체크 보류
+- [x] ID mapping 표 (`ID_MAPPING.md` — bus는 직접 조인 GO, subway는 demo corridor 4-node crosswalk 완성 D-047, citywide crosswalk는 별도 과제)
+- [x] historical bus section join 결과 (D-025/D-028 — PIVOT/DROP으로 결과 확정, PM 승인 완료)
 
-### Probability
+### Probability — **의도적으로 미착수**
 
 - [ ] fixed mixed route의 travel-time distribution 생성
 - [ ] `P(on_time)` 계산
@@ -1320,12 +1324,19 @@ Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 �
 - [ ] transfer/miss recovery 처리
 - [ ] current state를 반영한 Reforecast
 
+> 이 섹션은 `01_PROJECT_HANDOFF.md` 3.2절이 "PM + Reliability 담당 +
+> Backend 공동 계약으로 설계"하라고 명시한 영역이며, 확률/통계 설계 오류는
+> 검증 없이 넘어가기 쉬운 대표적 위험 지점이다. 데이터 계층(API/ID
+> mapping/actual rule)은 Phase 0 기준 충분히 GO 상태이므로, 다음 단계는
+> 코드 구현이 아니라 **설계 문서(초안) 작성 → PM 리뷰 → 그 다음 구현**
+> 순서를 따른다.
+
 ### Honesty
 
-- [ ] synthetic replay를 학습 truth로 사용하지 않음
-- [ ] support 부족을 숨기지 않음
-- [ ] 1 route PoC를 서울 전체 정확도로 표현하지 않음
-- [ ] historical congestion을 realtime 혼잡으로 표현하지 않음
+- [x] synthetic replay를 학습 truth로 사용하지 않음 (아직 replay 자체를 만들지 않아 위반 사례 없음 — 실제 replay 구현 시 재확인 필요)
+- [x] support 부족을 숨기지 않음 (Decision Log 전반에 관측수/CONDITIONAL 명시가 일관됨 — 예: D-020, D-021, ID_MAPPING.md)
+- [x] 1 route PoC를 서울 전체 정확도로 표현하지 않음 (모든 보고서가 "citywide 일반화 아님" 명시 — PHASE0_API_FEASIBILITY.md 등)
+- [x] historical congestion을 realtime 혼잡으로 표현하지 않음 (`QUALITY_FLAGS.md`의 `CONGESTION_NIGHT_ZERO` 등에서 구분)
 
 ---
 
