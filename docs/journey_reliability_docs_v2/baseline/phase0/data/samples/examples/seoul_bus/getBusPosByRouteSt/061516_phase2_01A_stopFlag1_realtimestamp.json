@@ -1,0 +1,19 @@
+{
+  "provider": "seoul_bus",
+  "api_name": "getBusPosByRouteSt",
+  "request_id": "a42cc92e872f",
+  "requested_at": "2026-08-22T06:15:16.502438+00:00",
+  "received_at": "2026-08-22T06:15:16.522972+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "busRouteId": "100100001",
+    "startOrd": "19",
+    "endOrd": "21"
+  },
+  "raw_payload": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><ServiceResult><comMsgHeader/><msgHeader><headerCd>0</headerCd><headerMsg>정상적으로 처리되었습니다.</headerMsg><itemCount>0</itemCount></msgHeader><msgBody><itemList><busType>1</busType><congetion>3</congetion><dataTm>20260822151500</dataTm><isFullFlag>0</isFullFlag><lastStnId>100000104</lastStnId><plainNo>서울74사3876</plainNo><posX>198598.64128897196</posX><posY>452922.0473708017</posY><routeId>100100001</routeId><sectDist>0</sectDist><sectOrd>21</sectOrd><sectionId>100701896</sectionId><stopFlag>1</stopFlag><tmX>126.984134</tmX><tmY>37.575799</tmY><vehId>106024456</vehId></itemList></msgBody></ServiceResult>",
+  "raw_payload_hash": "9d4662cde7de4949e3fa37a74da0e6499cfaf6bf8d454fef1276dd8c0f57974b",
+  "source_timestamp": null,
+  "collector_version": "spike-v1-ev2-01",
+  "error_code": null,
+  "error_body": null
+}
