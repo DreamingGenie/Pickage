@@ -1,0 +1,40 @@
+{
+  "total_samples": 1930,
+  "total_raw_bytes": 61828781,
+  "error_count": 0,
+  "active_keys": [
+    "seoul_bus/getArrInfoByRouteAll",
+    "seoul_bus/getBusPosByRouteSt",
+    "seoul_subway/realtimePosition",
+    "seoul_subway/realtimeStationArrival",
+    "tmap/fullAddrGeo",
+    "tmap/routes_pedestrian"
+  ],
+  "active_key_count": 6,
+  "per_key_counts": {
+    "seoul_bus/getArrInfoByRouteAll": 362,
+    "seoul_bus/getBusPosByRouteSt": 361,
+    "seoul_subway/realtimePosition": 481,
+    "seoul_subway/realtimeStationArrival": 722,
+    "tmap/fullAddrGeo": 1,
+    "tmap/routes_pedestrian": 3
+  },
+  "per_key_bytes": {
+    "seoul_bus/getArrInfoByRouteAll": 57792663,
+    "seoul_bus/getBusPosByRouteSt": 422869,
+    "seoul_subway/realtimePosition": 2464025,
+    "seoul_subway/realtimeStationArrival": 1133828,
+    "tmap/fullAddrGeo": 959,
+    "tmap/routes_pedestrian": 14437
+  },
+  "collector_side_latency_ms_note": "This is requested_at->received_at (collector round-trip), NOT received_at-source_generated_at. No API in this package exposes a true provider-side generation timestamp for every response, so the execution contract's exact 'received_at-source_generated_at' metric is NOT_AVAILABLE as specified; this is the closest real, measured proxy and is reported as such rather than substituted silently.",
+  "negative_lateness_count": 0,
+  "collector_latency_near_zero_caveat": "The inherited Phase 0 storage.SpikeResult dataclass stamps both requested_at and received_at via the same default_factory call at SpikeResult construction time, which happens AFTER requests.get()/post() already returned. So collector_latency_ms here measures ~0 not because the network round-trip was instant, but because this harness never captured a pre-request timestamp. This is a harness limitation inherited from Phase 0, not a real finding about API speed.",
+  "collector_latency_ms": {
+    "min": 0.0,
+    "p50": 0.0,
+    "p95": 0.0,
+    "p99": 0.0,
+    "max": 3.659
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "arrival": {
+    "안국": {
+      "station": "안국",
+      "polls": 241,
+      "success": 133,
+      "error": 0,
+      "quota_exceeded_count": 108,
+      "quota_first_exceeded_at": "2026-08-22T04:14:32.841326+00:00",
+      "empty": 0,
+      "total_arrival_rows": 532,
+      "duplicate_recptn": 21,
+      "out_of_order_recptn": 0,
+      "arvlCd_counts": {
+        "99": 369,
+        "0": 16,
+        "5": 50,
+        "3": 36,
+        "1": 53,
+        "4": 8
+      },
+      "arvlCd_1_count": 53,
+      "distinct_trains_seen": 16,
+      "prediction_to_actual_match_count": 12,
+      "actual_arrival_interval_count": 11,
+      "actual_arrival_interval_seconds": {
+        "min": 25.0,
+        "p50": 190.0,
+        "p90": 265.0,
+        "max": 315.0
+      }
+    },
+    "교대": {
+      "station": "교대",
+      "polls": 240,
+      "success": 88,
+      "error": 0,
+      "quota_exceeded_count": 152,
+      "quota_first_exceeded_at": "2026-08-22T04:14:42.554979+00:00",
+      "empty": 0,
+      "total_arrival_rows": 704,
+      "duplicate_recptn": 14,
+      "out_of_order_recptn": 0,
+      "arvlCd_counts": {
+        "5": 72,
+        "99": 516,
+        "4": 12,
+        "3": 53,
+        "0": 11,
+        "1": 40
+      },
+      "arvlCd_1_count": 40,
+      "distinct_trains_seen": 24,
+      "prediction_to_actual_match_count": 8,
+      "actual_arrival_interval_count": 6,
+      "actual_arrival_interval_seconds": {
+        "min": 55.0,
+        "p50": 170.0,
+        "p90": 370.0,
+        "max": 370.0
+      }
+    },
+    "역삼": {
+      "station": "역삼",
+      "polls": 240,
+      "success": 88,
+      "error": 0,
+      "quota_exceeded_count": 152,
+      "quota_first_exceeded_at": "2026-08-22T04:14:42.550411+00:00",
+      "empty": 0,
+      "total_arrival_rows": 352,
+      "duplicate_recptn": 14,
+      "out_of_order_recptn": 0,
+      "arvlCd_counts": {
+        "99": 286,
+        "4": 4,
+        "5": 40,
+        "3": 14,
+        "0": 7,
+        "2": 1
+      },
+      "arvlCd_1_count": 0,
+      "distinct_trains_seen": 11,
+      "prediction_to_actual_match_count": 0,
+      "actual_arrival_interval_count": 0
+    }
+  },
+  "position": {
+    "3호선": {
+      "line": "3호선",
+      "polls": 241,
+      "success": 88,
+      "error": 0,
+      "quota_exceeded_count": 153,
+      "quota_first_exceeded_at": "2026-08-22T04:14:30.747527+00:00",
+      "total_position_rows": 2965,
+      "distinct_trains_seen": 44
+    },
+    "2호선": {
+      "line": "2호선",
+      "polls": 240,
+      "success": 88,
+      "error": 0,
+      "quota_exceeded_count": 152,
+      "quota_first_exceeded_at": "2026-08-22T04:14:45.759102+00:00",
+      "total_position_rows": 3350,
+      "distinct_trains_seen": 55
+    }
+  },
+  "train_join": {
+    "안국__3호선": {
+      "arrival_distinct_trains_on_this_line": 16,
+      "position_distinct_trains": 44,
+      "joined_trains": 16,
+      "join_rate_vs_arrival": 1.0
+    },
+    "교대__3호선": {
+      "arrival_distinct_trains_on_this_line": 12,
+      "position_distinct_trains": 44,
+      "joined_trains": 12,
+      "join_rate_vs_arrival": 1.0
+    },
+    "교대__2호선": {
+      "arrival_distinct_trains_on_this_line": 12,
+      "position_distinct_trains": 55,
+      "joined_trains": 12,
+      "join_rate_vs_arrival": 1.0
+    },
+    "역삼__2호선": {
+      "arrival_distinct_trains_on_this_line": 11,
+      "position_distinct_trains": 55,
+      "joined_trains": 11,
+      "join_rate_vs_arrival": 1.0
+    }
+  },
+  "statnId_crosswalk_observed": {
+    "안국__3호선": [
+      "1003000328"
+    ],
+    "교대__3호선": [
+      "1003000340"
+    ],
+    "교대__2호선": [
+      "1002000223"
+    ],
+    "역삼__2호선": [
+      "1002000221"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "provider": "seoul_subway",
+  "api_name": "realtimeStationArrival",
+  "request_id": "09f6d94c41b0",
+  "requested_at": "2026-08-22T03:39:34.592879+00:00",
+  "received_at": "2026-08-22T03:39:34.592879+00:00",
+  "http_status": 200,
+  "request_params_sanitized": {
+    "station": "압구정",
+    "range": "0/20"
+  },
+  "raw_payload": "{\"errorMessage\":{\"status\":200,\"code\":\"INFO-000\",\"message\":\"정상 처리되었습니다.\",\"link\":\"\",\"developerMessage\":\"\",\"total\":4},\"realtimeArrivalList\":[{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":1,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"상행\",\"trainLineNm\":\"구파발행 - 옥수방면\",\"subwayHeading\":null,\"statnFid\":\"1003000337\",\"statnTid\":\"1003000335\",\"statnId\":\"1003000336\",\"statnNm\":\"압구정\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"01001구파발0\",\"subwayList\":\"1003\",\"statnList\":\"1003000336\",\"btrainSttus\":\"일반\",\"barvlDt\":\"150\",\"btrainNo\":\"3152\",\"bstatnId\":\"1003000320\",\"bstatnNm\":\"구파발\",\"recptnDt\":\"2026-08-22 12:39:10\",\"arvlMsg2\":\"전역 진입\",\"arvlMsg3\":\"신사\",\"arvlCd\":\"4\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":2,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"상행\",\"trainLineNm\":\"대화행 - 옥수방면\",\"subwayHeading\":null,\"statnFid\":\"1003000337\",\"statnTid\":\"1003000335\",\"statnId\":\"1003000336\",\"statnNm\":\"압구정\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"02003대화0\",\"subwayList\":\"1003\",\"statnList\":\"1003000336\",\"btrainSttus\":\"일반\",\"barvlDt\":\"390\",\"btrainNo\":\"3154\",\"bstatnId\":\"1003000309\",\"bstatnNm\":\"대화\",\"recptnDt\":\"2026-08-22 12:39:10\",\"arvlMsg2\":\"6분 30초 후 (고속터미널)\",\"arvlMsg3\":\"고속터미널\",\"arvlCd\":\"99\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":3,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"하행\",\"trainLineNm\":\"오금행 - 신사방면\",\"subwayHeading\":null,\"statnFid\":\"1003000335\",\"statnTid\":\"1003000337\",\"statnId\":\"1003000336\",\"statnNm\":\"압구정\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"11002오금0\",\"subwayList\":\"1003\",\"statnList\":\"1003000336\",\"btrainSttus\":\"일반\",\"barvlDt\":\"240\",\"btrainNo\":\"3131\",\"bstatnId\":\"1003000352\",\"bstatnNm\":\"오금\",\"recptnDt\":\"2026-08-22 12:39:10\",\"arvlMsg2\":\"4분 후 (금호)\",\"arvlMsg3\":\"금호\",\"arvlCd\":\"99\",\"lstcarAt\":\"0\"},{\"beginRow\":null,\"endRow\":null,\"curPage\":null,\"pageRow\":null,\"totalCount\":4,\"rowNum\":4,\"selectedCount\":4,\"subwayId\":\"1003\",\"subwayNm\":null,\"updnLine\":\"하행\",\"trainLineNm\":\"오금행 - 신사방면\",\"subwayHeading\":null,\"statnFid\":\"1003000335\",\"statnTid\":\"1003000337\",\"statnId\":\"1003000336\",\"statnNm\":\"압구정\",\"trainCo\":null,\"trnsitCo\":\"1\",\"ordkey\":\"12005오금0\",\"subwayList\":\"1003\",\"statnList\":\"1003000336\",\"btrainSttus\":\"일반\",\"barvlDt\":\"540\",\"btrainNo\":\"3133\",\"bstatnId\":\"1003000352\",\"bstatnNm\":\"오금\",\"recptnDt\":\"2026-08-22 12:39:10\",\"arvlMsg2\":\"9분 후 (충무로)\",\"arvlMsg3\":\"충무로\",\"arvlCd\":\"99\",\"lstcarAt\":\"0\"}]}",
+  "raw_payload_hash": "1dbb868c7c92da806e0b7f48f2217ce7d2d0fcb2012420877440482512d54aec",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}

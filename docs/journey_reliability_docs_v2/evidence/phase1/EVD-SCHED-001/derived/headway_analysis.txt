@@ -1,0 +1,14 @@
+--- ('3', '안국', 'DOWN') DAY ---
+n_trains: 192
+gap count: 191
+gap min/median/max (s): 180/330/1380
+gap mean (s): 363.6
+first/last STT: 05:34 / 24:51
+
+--- ('2', '역삼', 'IN') DAY ---
+n_trains: 240
+gap count: 239
+gap min/median/max (s): 120/270/990
+gap mean (s): 288.7
+first/last STT: 05:45 / 24:55
+
