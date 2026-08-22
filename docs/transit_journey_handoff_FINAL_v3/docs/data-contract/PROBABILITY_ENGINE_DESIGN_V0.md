@@ -45,19 +45,27 @@ covers this well without testing it specifically for this transfer.
 
 | Leg | Actual-rule method | Data depth so far | Ready for real quantiles? |
 |---|---|---|---|
-| BUS 01A | `stopFlag` 0→1 transition, residual = actual − predicted (proven methodology, D-020/D-035 on route 753) | Only ~6 polls / 12 vehicles observed on 01A itself (D-038) — a smoke test, not sustained collection | **No** — methodology is proven, but not on this specific route with enough volume for empirical quantiles |
-| SUBWAY 3호선 안국→교대 | `arvlCd` state machine (`SUBWAY_ACTUAL_RULE_V0.md`) | A few polls only (D-034), same-day smoke test | **No** — rule validity confirmed here, but no sustained interval-width sample |
-| SUBWAY 2호선 교대→역삼 | Same rule | Same as above (D-034), plus the unresolved Line 2 station-code gap (D-026/D-032/D-036) still open for *other* Line 2 stations, though not this leg's stations | **No**, and carries the general Line 2 caveat until D-036 resolves |
+| BUS 01A | `stopFlag` 0→1 transition, residual = actual − predicted (proven methodology, D-020/D-035 on route 753) | Upgraded (D-048): ~15min sustained run, 20s interval, 45 polls — 2174/2174 (100%) vehId join, 13 vehicles, **54 real `stopFlag` 0→1 transitions captured** | **Partial** — first real transition sample exists now, enough to compute an initial (small-N, single-window) residual set. Still not hour-scale/multi-day, so quantiles from it would carry a low `confidence_level`/`fallback_level` tag, not a mature empirical distribution |
+| SUBWAY 3호선 안국→교대 | `arvlCd` state machine (`SUBWAY_ACTUAL_RULE_V0.md`) | Upgraded (D-048): ~15min sustained run, 15s interval, 60 polls per station — 100% join at both 안국(13 trains)/교대(14 trains), but **zero trains reached `arvlCd=1` (arrived) within this window** | **Still No** — join reliability re-confirmed at real volume, but zero completed arrival events means zero real interval-width samples. Needs a longer (hour-scale) window to actually catch arrivals, not just approaching trains |
+| SUBWAY 2호선 교대→역삼 | Same rule | Upgraded (D-048): same run, 교대 2호선측(15 trains)/역삼(16 trains) both 100% join; same zero-arrival-event caveat as above | **Still No**, same reason. The general Line 2 station-code gap (D-026/D-032/D-036) remains open for *other* Line 2 stations, not these two — not a blocker for this corridor specifically |
 | WALK legs (×4) | TMAP pedestrian route API, single point estimate per call (D-045) | One real call per leg tested | **Point estimate only** — TMAP does not return a distribution/percentiles, just one route's time. A variance model is needed (see §5) |
 
-**Conclusion: no leg on this corridor has enough real data yet for a
-genuine empirical P10/P50/P90.** The next concrete *data* task (not
-implementation) is a sustained (hour-scale) collection window
-specifically on route `01A` and these two subway legs, mirroring what
-D-020/D-035 already did for route 753. Building simulation code before
-that data exists would mean feeding it fabricated distributions —
-exactly what the project's Honesty principle (P0-4, section 20
-"Honesty") forbids.
+**Conclusion (updated after D-048): no leg on this corridor has enough
+real data yet for a genuine empirical P10/P50/P90, but the bus leg has
+moved from "no transition sample at all" to "one small real sample."**
+A ~15min sustained run (D-048) upgraded join-rate confidence for every
+leg to real volume, and gave `01A` its first real `stopFlag`
+transitions (54) — a first step toward Tier-1, still far short of the
+hour/multi-day scale route 753 used for its proven residual (D-020).
+The two subway legs still have **zero** captured arrival events
+(`arvlCd=1`) despite the same run — their join reliability is
+re-confirmed, but no interval-width data exists yet at all. The next
+concrete *data* task (not implementation) is a longer (hour-scale)
+window on these two subway legs specifically — short 15-minute windows
+aren't catching full station-to-station cycles. Building simulation
+code before real distributions exist would mean feeding it fabricated
+numbers — exactly what the project's Honesty principle (P0-4, section
+20 "Honesty") forbids.
 
 ## 4. Monte Carlo mechanics (restating `01_PROJECT_HANDOFF.md` §11, scoped to this corridor)
 
