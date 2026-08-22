@@ -47,8 +47,10 @@ def poll_once(service_key: str, bus_route_id: str, start_ord: str, end_ord: str)
     }
     sanitized_params = {k: v for k, v in params.items() if k != "serviceKey"}
 
+    requested_at = storage.now_iso()
     try:
         resp = requests.get(BASE_URL, params=params, timeout=10)
+        received_at = storage.now_iso()
         path = storage.record(
             storage.SpikeResult(
                 provider="seoul_bus",
@@ -56,10 +58,13 @@ def poll_once(service_key: str, bus_route_id: str, start_ord: str, end_ord: str)
                 request_params_sanitized=sanitized_params,
                 http_status=resp.status_code,
                 raw_payload=resp.text,
+                requested_at=requested_at,
+                received_at=received_at,
             )
         )
         print(f"[{time.strftime('%H:%M:%S')}] saved {path.name} ({len(resp.text)} bytes)")
     except requests.RequestException as exc:
+        received_at = storage.now_iso()
         storage.record(
             storage.SpikeResult(
                 provider="seoul_bus",
@@ -67,6 +72,8 @@ def poll_once(service_key: str, bus_route_id: str, start_ord: str, end_ord: str)
                 request_params_sanitized=sanitized_params,
                 http_status=None,
                 raw_payload=None,
+                requested_at=requested_at,
+                received_at=received_at,
                 error_code=type(exc).__name__,
                 error_body=str(exc),
             )

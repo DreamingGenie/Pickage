@@ -6,6 +6,12 @@ per-endpoint storage rules in docs/03_API_SPIKE_CHECKLIST.md.
 
 Never put a secret key value inside request_params — callers must strip
 it before calling record().
+
+PD-037 / EV2-01: `requested_at` and `received_at` are required constructor
+args (no default) so a caller cannot silently reproduce the Phase 0/1 bug
+of stamping both fields after the response returns. Call `now_iso()`
+immediately before `requests.get(...)` for `requested_at`, and again
+immediately after it returns for `received_at`.
 """
 from __future__ import annotations
 
@@ -17,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-COLLECTOR_VERSION = "spike-v0"
+COLLECTOR_VERSION = "spike-v1-ev2-01"  # requested_at/received_at now request-boundary-accurate (PD-037)
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "samples"
 
@@ -29,15 +35,15 @@ class SpikeResult:
     request_params_sanitized: dict[str, Any]
     http_status: int | None
     raw_payload: str | None
+    requested_at: str
+    received_at: str
     source_timestamp: str | None = None
     error_code: str | None = None
     error_body: str | None = None
-    requested_at: str = field(default_factory=lambda: _now_iso())
-    received_at: str = field(default_factory=lambda: _now_iso())
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
 
 
-def _now_iso() -> str:
+def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 

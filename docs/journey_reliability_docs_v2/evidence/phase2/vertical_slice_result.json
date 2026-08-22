@@ -1,0 +1,67 @@
+{
+  "bus_01A_target_leg": {
+    "predictions": 180,
+    "position_events": 44,
+    "actual_intervals": 0,
+    "residual_events": 0,
+    "residual_mid_samples_sec": [],
+    "lead_time_samples_sec": []
+  },
+  "subway_station_line": {
+    "안국/3호선": {
+      "predictions": 8,
+      "distinct_trains": 8,
+      "actual_intervals": 0,
+      "residual_events": 0,
+      "residual_mid_samples_sec": []
+    },
+    "교대/3호선": {
+      "predictions": 0,
+      "distinct_trains": 0,
+      "actual_intervals": 0,
+      "residual_events": 0,
+      "residual_mid_samples_sec": []
+    },
+    "교대/2호선": {
+      "predictions": 0,
+      "distinct_trains": 0,
+      "actual_intervals": 0,
+      "residual_events": 0,
+      "residual_mid_samples_sec": []
+    },
+    "역삼/2호선": {
+      "predictions": 0,
+      "distinct_trains": 0,
+      "actual_intervals": 0,
+      "residual_events": 0,
+      "residual_mid_samples_sec": []
+    }
+  },
+  "journey_simulation": {
+    "simulation_run_id": "sim-ROUTE_A-corridor_a-e4a19096",
+    "seed": 42,
+    "n_executed": 2000,
+    "p50_arrival_at": "2026-08-22T08:58:09+09:00",
+    "p90_arrival_at": "2026-08-22T08:58:09+09:00",
+    "on_time_probability": 1.0,
+    "confidence_label": "INSUFFICIENT",
+    "validation_scope": "COMPONENT_ONLY",
+    "model_coverage": "PARTIAL",
+    "limitations": [
+      "UNMODELED_UNCERTAINTY legs (point value only, no variance): ['ACCESS_WALK', 'TRANSFER_교대_3to2', 'TRANSIT_RIDE_subway', 'FINAL_WALK']",
+      "INSUFFICIENT sample-count legs: ['TRANSIT_RIDE_01A']",
+      "LOW sample-count legs: ['ACCESS_WALK', 'TRANSFER_교대_3to2', 'TRANSIT_RIDE_subway', 'FINAL_WALK']",
+      "cross-leg/cross-mode residual dependence not modeled (DQ-018, PD-027)",
+      "leg-level empirical fit only - no journey-level hold-out calibration has been run (PD-030)"
+    ]
+  },
+  "bus_skipped_reforecast_demo": {
+    "state_before": "ACTIVE",
+    "state_after": "REFORECASTING",
+    "state_version_before": 1,
+    "state_version_after": 2,
+    "event_id": "evt-0eecf09b",
+    "reforecast_on_time_probability": 1.0,
+    "reforecast_p90_arrival_at": "2026-08-22T08:50:24+09:00"
+  }
+}

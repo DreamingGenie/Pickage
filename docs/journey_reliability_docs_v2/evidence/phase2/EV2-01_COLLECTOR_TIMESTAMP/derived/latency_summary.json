@@ -1,0 +1,50 @@
+{
+  "seoul_bus/getArrInfoByRouteAll": {
+    "n": 180,
+    "collector_versions": [
+      "spike-v1-ev2-01"
+    ],
+    "p50_sec": 0.063904,
+    "p95_sec": 0.159749,
+    "p99_sec": 0.449052,
+    "min_sec": 0.014226,
+    "max_sec": 0.752392,
+    "zero_latency_count": 0
+  },
+  "seoul_bus/getBusPosByRouteSt": {
+    "n": 180,
+    "collector_versions": [
+      "spike-v1-ev2-01"
+    ],
+    "p50_sec": 0.042931,
+    "p95_sec": 0.100555,
+    "p99_sec": 0.380903,
+    "min_sec": 0.004653,
+    "max_sec": 0.384314,
+    "zero_latency_count": 0
+  },
+  "seoul_subway/realtimeStationArrival": {
+    "n": 172,
+    "collector_versions": [
+      "spike-v1-ev2-01"
+    ],
+    "p50_sec": 0.023997,
+    "p95_sec": 0.03645,
+    "p99_sec": 0.050838,
+    "min_sec": 0.004869,
+    "max_sec": 0.221545,
+    "zero_latency_count": 0
+  },
+  "seoul_subway/realtimePosition": {
+    "n": 114,
+    "collector_versions": [
+      "spike-v1-ev2-01"
+    ],
+    "p50_sec": 0.022876,
+    "p95_sec": 0.032464,
+    "p99_sec": 0.03477,
+    "min_sec": 0.005884,
+    "max_sec": 0.039356,
+    "zero_latency_count": 0
+  }
+}

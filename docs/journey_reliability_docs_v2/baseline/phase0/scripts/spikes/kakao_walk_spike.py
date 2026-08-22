@@ -55,8 +55,10 @@ def main() -> None:
     # Nothing secret in params themselves, but the Authorization header
     # must never be logged/stored - storage.record only ever receives params.
 
+    requested_at = storage.now_iso()
     try:
         resp = requests.get(BASE_URL, params=params, headers=headers, timeout=15)
+        received_at = storage.now_iso()
         path = storage.record(
             storage.SpikeResult(
                 provider="kakao_mobility",
@@ -64,12 +66,15 @@ def main() -> None:
                 request_params_sanitized=params,
                 http_status=resp.status_code,
                 raw_payload=resp.text,
+                requested_at=requested_at,
+                received_at=received_at,
             )
         )
         print(f"saved {path.name} ({len(resp.text)} bytes)")
         print(f"HTTP {resp.status_code}")
         print(resp.text[:2000])
     except requests.RequestException as exc:
+        received_at = storage.now_iso()
         storage.record(
             storage.SpikeResult(
                 provider="kakao_mobility",
@@ -77,6 +82,8 @@ def main() -> None:
                 request_params_sanitized=params,
                 http_status=None,
                 raw_payload=None,
+                requested_at=requested_at,
+                received_at=received_at,
                 error_code=type(exc).__name__,
                 error_body=str(exc),
             )

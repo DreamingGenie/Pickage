@@ -58,8 +58,10 @@ def main() -> None:
     }
     sanitized_params = {k: v for k, v in params.items() if k != "ServiceKey"}
 
+    requested_at = storage.now_iso()
     try:
         resp = requests.get(BASE_URL, params=params, timeout=15)
+        received_at = storage.now_iso()
         path = storage.record(
             storage.SpikeResult(
                 provider="seoul_bus",
@@ -67,11 +69,14 @@ def main() -> None:
                 request_params_sanitized=sanitized_params,
                 http_status=resp.status_code,
                 raw_payload=resp.text,
+                requested_at=requested_at,
+                received_at=received_at,
             )
         )
         print(f"saved {path.name} ({len(resp.text)} bytes)")
         print(resp.text[:2000])
     except requests.RequestException as exc:
+        received_at = storage.now_iso()
         storage.record(
             storage.SpikeResult(
                 provider="seoul_bus",
@@ -79,6 +84,8 @@ def main() -> None:
                 request_params_sanitized=sanitized_params,
                 http_status=None,
                 raw_payload=None,
+                requested_at=requested_at,
+                received_at=received_at,
                 error_code=type(exc).__name__,
                 error_body=str(exc),
             )
