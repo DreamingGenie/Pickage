@@ -47,7 +47,7 @@ def main() -> None:
     parser.add_argument("end_y")
     args = parser.parse_args()
 
-    service_key = require_key("DATA_GO_TRANSIT_PATH_KEY")
+    service_key = require_key("DATA_GO_BUS_API_KEY")
     params = {
         "ServiceKey": service_key,
         "startX": args.start_x,

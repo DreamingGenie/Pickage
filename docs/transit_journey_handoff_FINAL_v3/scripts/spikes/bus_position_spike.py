@@ -83,7 +83,7 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=1)
     args = parser.parse_args()
 
-    service_key = require_key("DATA_GO_BUS_POSITION_KEY")
+    service_key = require_key("DATA_GO_BUS_API_KEY")
 
     for i in range(args.count):
         poll_once(service_key, args.bus_route_id, args.start_ord, args.end_ord)
