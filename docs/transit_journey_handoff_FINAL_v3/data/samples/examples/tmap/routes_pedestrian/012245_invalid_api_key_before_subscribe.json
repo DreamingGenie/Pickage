@@ -1,0 +1,25 @@
+{
+  "provider": "tmap",
+  "api_name": "routes_pedestrian",
+  "request_id": "ba21e1592fe9",
+  "requested_at": "2026-08-22T01:22:45.297182+00:00",
+  "received_at": "2026-08-22T01:22:45.297182+00:00",
+  "http_status": 403,
+  "request_params_sanitized": {
+    "version": "1",
+    "body": {
+      "startX": "127.0137858",
+      "startY": "37.493090",
+      "endX": "127.0362",
+      "endY": "37.5006",
+      "startName": "교대역",
+      "endName": "역삼역"
+    }
+  },
+  "raw_payload": "{\n  \"error\": {\n    \"id\": \"403\",\n    \"category\": \"gw\",\n    \"code\": \"INVALID_API_KEY\",\n    \"message\": \"Forbidden\"\n  }\n}",
+  "raw_payload_hash": "4d790309027c782d7f3c959394c9486b88ba8851335aa33d2464f3836ed38a28",
+  "source_timestamp": null,
+  "collector_version": "spike-v0",
+  "error_code": null,
+  "error_body": null
+}

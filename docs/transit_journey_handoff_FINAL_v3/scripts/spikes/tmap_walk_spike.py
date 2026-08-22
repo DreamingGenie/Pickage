@@ -1,12 +1,19 @@
 """Spike — TMAP (SK Open API) Pedestrian Route API (access-time / final-walk leg).
 
-STATUS: TO_VERIFY. Kakao Mobility's walking-directions API turned out to
-be BLOCKED - a partner-only product, confirmed with a real 403 "permission
-denied" (docs/05_DECISION_LOG.md D-043). This is the leading alternative
-(D-044): TMAP Open API's pedestrian route endpoint is documented as a
-general-signup public API (skopenapi.readme.io), not partner-gated like
-Kakao Mobility - but that has NOT been confirmed with a real key yet.
-Don't assume; call it for real, same discipline as every other spike here.
+STATUS: VERIFIED / GO (see docs/05_DECISION_LOG.md D-045). Kakao Mobility's
+walking-directions API turned out to be BLOCKED - a partner-only product,
+confirmed with a real 403 "permission denied" (D-043). This TMAP endpoint
+is the replacement and it works: real GeoJSON pedestrian route returned
+(HTTP 200, turn-by-turn geometry, totalDistance/totalTime).
+
+GOTCHA (D-045): the first real call with a freshly-generated appKey
+returned `403 INVALID_API_KEY` even though the key itself was valid.
+Root cause: SK Open API separates "create an app (get an appKey)" from
+"subscribe to a specific product" - the pedestrian-route product must be
+subscribed to individually from the app's dashboard
+(openapi.sk.com > Products > TMAP > TMAP 기능 > 경로 > 경로 안내 >
+보행자 경로 안내) before that same appKey will work for this endpoint.
+After subscribing, the identical key succeeded with no new key needed.
 
 Same P0-1 note as kakao_walk_spike.py: this is a routing/geometry utility
 for the WALK leg (Q2/D-039, Q3/D-040), not a transit reliability data

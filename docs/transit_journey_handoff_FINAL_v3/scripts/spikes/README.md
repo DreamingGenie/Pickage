@@ -32,7 +32,7 @@ Which variable goes with which script:
 | `resolve_bus_route.py`, `bus_arrival_spike.py`, `bus_position_spike.py`, `mixed_route_spike.py` | `DATA_GO_BUS_API_KEY` — one shared account-level key, confirmed byte-identical across all four data.go.kr services (D-013); consolidated from 4 separate names into 1 by PM decision (D-046) |
 | `subway_arrival_spike.py`, `subway_position_spike.py` | `SEOUL_SUBWAY_REALTIME_KEY` |
 | `kakao_walk_spike.py` | `KAKAO_MAP_REST_API_KEY` — **BLOCKED**: confirmed 403 partner-only (D-043) |
-| `tmap_walk_spike.py` | `TMAP_APP_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040; leading alternative to Kakao, not yet verified, see D-044) |
+| `tmap_walk_spike.py` | `TMAP_APP_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040) — **VERIFIED/GO** (D-045) |
 
 ## Endpoints — live-call status
 
