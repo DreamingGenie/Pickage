@@ -1,23 +1,22 @@
 """Spike — Kakao Mobility Walking Directions API (access-time / final-walk leg).
 
-STATUS: TO_VERIFY. Added per PM decisions Q2/Q3 (docs/05_DECISION_LOG.md
-D-039/D-040): Journey "arrival" now includes the final walk to the actual
-destination, and access/walking time should come from a real routing API
-(Kakao Map) rather than user input or a fixed demo value.
-
-IMPORTANT — this is NOT covered by the P0-1 "Seoul data only" principle
-(D-040): it is a routing/geometry utility, not a transit reliability data
-source, so it is fine to use a non-Seoul, non-government provider here.
-
-KNOWN RISK (found via WebSearch/WebFetch before this key ever existed —
-see docs/05_DECISION_LOG.md D-042): Kakao Mobility's own documentation at
+STATUS: BLOCKED (see docs/05_DECISION_LOG.md D-043). Tested live with a
+real Kakao Developers REST API key: HTTP 403
+`{"code":-5,"msg":"permission denied"}`. This confirmed the risk flagged
+in D-042 before ever having a key: Kakao Mobility's own documentation at
 https://developers.kakaomobility.com/affiliate/walking/directions
 describes this as a "partner-only" API requiring a prior partnership
-agreement - a plain Kakao Developers REST API key may NOT be sufficient
-on its own, unlike the Local API (place search) which works with any
-REST key. Do not assume success from the docs; this script exists to
-find out for real, exactly like the mixed-route "...List" 401 saga
-(D-019/D-024) taught us to.
+agreement - a plain Kakao Developers REST API key is NOT sufficient,
+unlike the Local API (place search) which works with any REST key.
+
+This is NOT an IP-allowlist problem (Kakao Developers' optional "호출
+허용 IP 주소" setting under [내 애플리케이션]>[앱 설정]>[플랫폼] is a
+separate, unrelated security feature - leaving it blank allows any IP).
+The 403 here is a hard product/partnership gate, unaffected by IP config.
+
+Kept in the repo (not deleted) in case a Kakao Mobility partnership is
+approved later - see kakao_walk_spike.py in that case. For now, see
+tmap_walk_spike.py for the live alternative (D-044).
 
 Documented pattern (per Kakao Mobility Developers docs):
     GET https://apis-navi.kakaomobility.com/affiliate/walking/v1/directions
