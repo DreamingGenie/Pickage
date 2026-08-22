@@ -1,16 +1,34 @@
 # Phase 0 API Feasibility Report
 
 > Working document — updated as spikes progress. See `../05_DECISION_LOG.md`
-> (D-013 through D-034) for the underlying evidence entries this report
+> (D-013 through D-050) for the underlying evidence entries this report
 > summarizes. Raw samples referenced below live under
 > `../../data/samples/` (gitignored; a curated subset will be added to
 > `data/samples/examples/` for reviewers).
 
-**Snapshot dates:** 2026-08-21 ~23:45–00:00 KST (night) and 2026-08-22
-~08:35–09:10 KST (daytime) — two collection windows, see caveats per
-section. Daytime pass re-verified the demo corridor and cross-checked
-its subway stations; it did not re-verify bus arrival/position or the
-citywide subway coverage question.
+**Snapshot dates:** 2026-08-21 ~23:45–00:00 KST (night), 2026-08-22
+~08:35–09:10 KST (daytime), and 2026-08-22 ~10:40–11:03 KST (a second,
+longer daytime pass — sustained collection + PM decision session).
+
+## Phase 0 closure status (2026-08-22)
+
+**All four PM decision questions (Q1–Q4, `01_PROJECT_HANDOFF.md` §18)
+are now answered**, plus two follow-on Probability Engine design
+questions (D-049/D-050). This closes the "API/Data Feasibility"
+portion of Phase 0 for the demo corridor. What's NOT done — and
+deliberately left for the next phase, not this report — is any actual
+Probability Engine implementation (Monte Carlo code), Web App work, or
+Distributed Proof. See `PROBABILITY_ENGINE_DESIGN_V0.md` for the
+design-only proposal that phase requires before implementation starts.
+
+| Question | Answer | Decision |
+|---|---|---|
+| Q1. Demo Corridor | 삼청동 ↔ 역삼역 | D-030, re-verified D-031/D-034/D-047 |
+| Q2. Arrival boundary | Includes the final walk to the actual destination, not just the transit stop | D-039 |
+| Q3. Access time | Real routing API (TMAP, after Kakao proved BLOCKED) | D-040/D-043/D-045 |
+| Q4. Support geography | Provider AND geography, both required (intersection) | D-041 |
+| Missed-transfer rule | Fixed buffer for Tier-0, not live headway yet | D-049 |
+| Monte Carlo defaults | N=2000–5000, default p*=90% | D-050 |
 
 ## Summary verdict
 
@@ -24,6 +42,8 @@ citywide subway coverage question.
 | Subway arrival↔position trainNo join | **GO on Line 1 & Line 3, CONDITIONAL on Line 2** | Line 1/시청 re-measured after the pagination fix: 75%→**91.7% (11/12)**. Line 3 (안국/교대, demo corridor stations, daytime): **100% (4/4 each)**. Line 2/강남 is split by station code: `1002000222` and `1002000221`(역삼) both **100%**, but `1002000201` shows a persistent, still-unexplained **54.5% (6/11)** gap that survived a subwayId-filter fix ruling out cross-line name collision (D-032/D-033) |
 | Mixed bus+subway route | **GO** | Was misdiagnosed as a key-registration BLOCKER (D-019); actual cause was our own URL typo. Fixed and confirmed live, including genuine bus+subway mixed legs (D-029). **Demo Corridor locked: 삼청동↔역삼역 (D-030), re-verified stable in daytime (D-031), and its subway leg stations all show 100% Ground Truth join (D-034)** |
 | Historical bus section join | **DROPPED (PM decision)** | OA-21217 turns out to be a weekly/monthly ZIP file download, not a pollable OpenAPI as assumed, with a service-termination notice on its page. PM decided to drop it as a baseline candidate rather than pursue file-based ingestion (D-028) |
+| Walking / access-time (WALK legs, Q2/Q3) | **GO — TMAP** | Kakao Mobility's walking directions API is **BLOCKED**: real call returned `403 permission denied`, a partner-only product (D-043). TMAP (SK Open API) pedestrian route API is **VERIFIED/GO**: real GeoJSON route returned after subscribing to the specific product on openapi.sk.com (an appKey alone wasn't enough) (D-045) |
+| Demo corridor sustained data readiness | **PARTIAL** | Bus 01A: upgraded to a real ~15min/45-poll sample, 100% join, 54 real `stopFlag` transitions — a first real residual sample exists (D-048). Subway legs (안국→교대, 교대→역삼): 100% join re-confirmed at real volume, but **zero arrival events (`arvlCd=1`) captured** in the same window — real interval-width data is still 0 samples, needs an hour-scale window (D-048) |
 
 ## A. Bus Arrival — `getArrInfoByRouteAll`
 
@@ -94,13 +114,49 @@ citywide subway coverage question.
 - **Interpretation:** **PIVOT**, not a code problem. Team handoff (`01_PROJECT_HANDOFF.md` section 13.1) assumed this could feed a "historical bus section average + realtime correction" baseline via simple API calls — that assumption needs PM re-evaluation. Either confirm the dataset is still alive and pursue file-based ingestion instead of polling, or drop it as a baseline source.
 - **Next decision:** flag to PM (see Decision Log D-025). Do not build collector code around this until its status is confirmed.
 
+## H. Walking / Access-Time (Q2/Q3, not subject to P0-1's "Seoul data only")
+
+- **Tested at:** 2026-08-22, Kakao first, then TMAP after Kakao failed.
+- **Kakao Mobility walking directions — BLOCKED (D-043).** Real REST API
+  key, real call: `HTTP 403 {"code":-5,"msg":"permission denied"}`. Not
+  an IP-allowlist issue — Kakao Mobility's own docs describe this as a
+  partner-only product requiring a business agreement beyond a plain
+  Kakao Developers key.
+- **TMAP (SK Open API) pedestrian route — VERIFIED/GO (D-045).** First
+  call with a freshly-generated appKey failed (`403 INVALID_API_KEY`) —
+  root cause: SK Open API separates "create an app" from "subscribe to
+  a product"; the appKey alone doesn't unlock any specific API until
+  its product is subscribed on the dashboard. After subscribing to
+  "보행자 경로 안내," the identical key succeeded: real GeoJSON route
+  (`totalDistance=2331m`, `totalTime=1972s`, turn-by-turn geometry).
+- **Scope note:** this is a routing/geometry utility, not a transit
+  reliability data source — PM confirmed (D-040) it's outside P0-1's
+  "Seoul data only" principle.
+- **Gap:** TMAP returns a single point estimate per call, not a
+  distribution — no percentiles. A variance/fallback model is needed
+  before this feeds a real `LegDistribution` (see
+  `PROBABILITY_ENGINE_DESIGN_V0.md` §5).
+- **Next decision:** GO for WALK legs. Still open: whether in-station
+  subway-to-subway transfers (교대역 3호선↔2호선) should also go through
+  TMAP or use a fixed constant — TMAP is built for street-level routing
+  and may not model paid-area transfer corridors well (untested).
+
 ## Open items carried to next session
 
-1. **The `1002000201` (강남/Line 2) join-rate gap is still unresolved.** Four hypotheses ruled out so far: pagination (D-023), geographic coverage and direction (D-027), cross-line name collision (D-032/D-033). Next hypotheses to try: train-ID reuse/dispatch patterns specific to that platform code, or whether `realtimePosition` structurally under-reports one direction of a two-way platform pairing. Could not even attempt daytime reproduction this session because that exact station code never appeared in 14 daytime polls (D-032) — worth polling for a longer window or more repetitions to catch it again.
-2. ~~Extend subway sampling to a third line~~ — done: Line 3 (안국/교대, demo corridor stations) tested daytime, 100% join, no gap reproduced there (D-034). The gap looks isolated to one specific station/platform code, not "Line 2" or "loop lines" broadly.
-3. ~~Follow up on data.go.kr registration for the mixed-route service~~ — resolved (D-024). ~~Get PM's demo corridor pick~~ — resolved (D-030): 삼청동↔역삼역, re-verified stable in daytime (D-031). ~~Cross-check the 안국역/교대역/역삼역 station IDs against realtime subway APIs~~ — done, all 100% join (D-034); found the mixed-route API's station codes are a different ID space from realtime `statnId`s, a crosswalk is needed for production joins.
-4. ~~Historical bus section join~~ — resolved: PM decided to drop it as a baseline candidate (D-028). Historical baseline needs a different source (e.g. accumulating our own realtime bus data over time)
-5. ~~Bus arrival/position daytime run~~ — done (D-035): route 753, 100% join (3831/3831), and `congetion` observed non-zero for the first time. Citywide subway coverage (beyond the demo corridor's 3 stations and 강남) is still open.
-6. Nine representative raw samples are curated into `data/samples/examples/` (bus route/arrival/position, subway arrival/position on both Line 1 and Line 2, the original mixed-route 401 bug, and the fixed mixed-route success) and committed to git for reviewers
-7. `SUBWAY_ACTUAL_RULE_V0.md` (`../data-contract/SUBWAY_ACTUAL_RULE_V0.md`) is drafted and CONDITIONAL — safe for the demo corridor, not yet citywide. Bump to v1 once item 1 above gets a root cause.
-8. **New hypothesis for the `1002000201` gap (D-036):** across 30 daytime "강남" name-search polls this session, `1002000201` never appeared once (only `1002000222` and occasionally Sinbundang's `1077000687` did) — but it appeared repeatedly throughout the original night session. This weakens the "pure random subset" reading of the station-name-search quirk (`STATION_NAME_AMBIGUITY` in `QUALITY_FLAGS.md`) in favor of a time-of-day-dependent pattern. Next session: re-poll 강남 late at night again to confirm `1002000201` reappears, then investigate what's schedule-specific about it (`lstcarAt`, direction-specific service frequency).
+**Resolved this session, kept for history:** mixed-route registration
+(D-024), demo corridor pick (D-030) and daytime stability (D-031),
+corridor station-ID cross-check (D-034) and full 4-node crosswalk
+(D-047), historical bus section (D-028), bus daytime run (D-035),
+DATA_GO_* key sprawl (D-046), all four PM questions Q1–Q4 (D-030/D-039/
+D-040/D-041), WALK-leg provider (D-043 BLOCKED Kakao / D-045 GO TMAP),
+missed-transfer rule and Monte Carlo defaults (D-049/D-050).
+
+**Still genuinely open:**
+
+1. **The `1002000201` (강남/Line 2) join-rate gap.** Five hypotheses ruled out: pagination (D-023), geographic coverage and direction (D-027), cross-line name collision (D-032/D-033). D-036 found the station code itself hasn't appeared in 44+ daytime polls across two sessions (only in the original night session) — leading hypothesis is now time-of-day-dependent, not pure randomness. Needs a late-night re-poll to confirm reappearance, then investigate what's schedule-specific about it. Not a blocker for the demo corridor (its stations are unaffected), but blocks calling the subway actual rule citywide-reliable.
+2. **Subway leg real interval-width data is still zero samples.** D-048's ~15min sustained run re-confirmed 100% join at real volume for both corridor subway legs, but captured zero `arvlCd=1` (arrived) events — an hour-scale window is needed to actually catch full station-to-station cycles before any real quantile can be computed.
+3. **Bus 01A has a first real residual sample (54 transitions, D-048) but it's still single-window, ~15min** — not the hour/multi-day scale route 753 used for its proven baseline (D-020). More sustained collection would strengthen it.
+4. **In-station subway transfer-walk modeling** (교대역 3호선↔2호선): TMAP vs a fixed constant — untested, TMAP is built for street-level routing and may not model paid-area transfer corridors well. The one remaining open question in `PROBABILITY_ENGINE_DESIGN_V0.md`.
+5. **Citywide generalization** (beyond the demo corridor's specific stations/routes) is still untouched for both bus and subway — everything verified here is corridor-scoped by design.
+6. `SUBWAY_ACTUAL_RULE_V0.md` and the demo-corridor crosswalk in `ID_MAPPING.md` are both explicitly corridor-scoped, not general services — building general-purpose versions (station-name/coordinate crosswalk, citywide actual-rule validation) is future work, not blocking the corridor.
+7. **Everything past API/Data Feasibility is unstarted by design**: Probability Engine implementation (Monte Carlo code), Web App, Distributed Proof. `PROBABILITY_ENGINE_DESIGN_V0.md` is the design-only handoff artifact for the next phase.
