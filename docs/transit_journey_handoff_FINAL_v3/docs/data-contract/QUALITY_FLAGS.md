@@ -30,6 +30,12 @@
   build downstream logic assuming they're present.
 - `FIELD_TYPO` — the real field is `congetion`, not `congestion`. Parse
   it as-is.
+- `CONGESTION_NIGHT_ZERO` — `congetion` read all-`0` in the original
+  night sample, leaving open whether the field was just unpopulated at
+  night or unused altogether. Daytime re-run (D-035) observed real
+  non-zero values (`0`, `3` seen) — the field is genuinely populated,
+  just correlates with ridership. Do not treat all-zero as a parsing
+  failure.
 
 ## Subway Arrival (`realtimeStationArrival`)
 
@@ -51,7 +57,13 @@
   of matching station codes every time (D-032 observed one of two known
   Line 2 강남 codes across 14 consecutive daytime polls, never both) —
   do not assume a name-search response enumerates every matching
-  physical station/platform on every call.
+  physical station/platform on every call. **Update (D-036):** this may
+  not be pure per-call randomness — across 30 total daytime polls this
+  session, station code `1002000201` never appeared once (only
+  `1002000222` and Sinbundang's `1077000687` did), while the original
+  night session saw `1002000201` repeatedly. A time-of-day-dependent
+  cause is now the leading hypothesis over pure randomness — still
+  unconfirmed.
 
 ## Subway Position (`realtimePosition`)
 
