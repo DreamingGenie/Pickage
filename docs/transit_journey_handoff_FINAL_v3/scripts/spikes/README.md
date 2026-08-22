@@ -35,7 +35,7 @@ Which variable goes with which script:
 | `subway_arrival_spike.py`, `subway_position_spike.py` | `SEOUL_SUBWAY_REALTIME_KEY` |
 | `mixed_route_spike.py` | `DATA_GO_TRANSIT_PATH_KEY` |
 | `kakao_walk_spike.py` | `KAKAO_MAP_REST_API_KEY` — **BLOCKED**: confirmed 403 partner-only (D-043) |
-| `tmap_walk_spike.py` | `TMAP_APP_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040; leading alternative to Kakao, not yet verified, see D-044) |
+| `tmap_walk_spike.py` | `TMAP_APP_KEY` (not subject to the "Seoul data only" principle - P0-1/D-040) — **VERIFIED/GO** (D-045) |
 
 ## Endpoints — live-call status
 
