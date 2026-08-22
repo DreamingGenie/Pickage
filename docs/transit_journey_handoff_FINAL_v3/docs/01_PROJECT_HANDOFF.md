@@ -50,11 +50,21 @@
 
 **서울시 데이터만 사용한다.**
 
-현재 해석은 "프로젝트 핵심 데이터 공급자가 서울특별시/서울교통공사/서울시 공개 교통 API·데이터"라는 의미로 사용한다.
+**PM 확정 (2026-08-22, Q4 — D-041): "서울시 데이터"는 제공기관 기준 AND 지리적
+서울 행정구역 기준을 모두 만족해야 한다 (교집합이지 합집합이 아니다).** 즉
+핵심 교통(버스/지하철) reliability 데이터는 서울특별시/서울교통공사 등이 직접
+제공하면서 동시에 서울 행정구역 내 노선/역/정류장이어야 한다.
 
 - TAGO 등 전국 단위 API는 **최종 분석 데이터 소스에서 제외**한다.
 - 기존 팀 자료의 TAGO 실험은 "왜 서울 API가 우위인지 보여주는 feasibility 참고"로만 남긴다.
-- 지리적 지원범위를 정확히 "서울 행정구역 안"으로 고정할지는 별도 결정 필요. 다만 **실제 데모 경로는 서울시 데이터만으로 완결되는 서울 내 경로를 사용**하는 것이 안전하다.
+- 버스/지하철 핵심 데이터 중 서울시가 제공기관이 아닌 데이터가 불가피하게
+  필요한 경우 예외적으로 쓸 수 있으나, PM은 **MVP 범위를 안전하게 좁게
+  유지**하려는 의도가 명확하므로 범위를 넓히는 판단은 신중히 한다.
+- 이 원칙은 버스/지하철 등 **핵심 교통 reliability 데이터**에 적용되는 것이며,
+  도보/접근시간 계산에 쓰는 지도·경로 API(카카오맵 등, Q3/D-040 참고)는 이
+  원칙의 적용 대상이 아닌 별도 유틸리티로 취급한다.
+- **실제 데모 경로는 서울시 데이터만으로 완결되는 서울 내 경로를 사용**한다
+  (Demo Corridor 삼청동↔역삼역, D-030으로 이미 충족).
 
 ### P0-2. 교통수단
 
@@ -383,6 +393,9 @@ DATA_GO_BUS_POSITION_KEY=
 DATA_GO_TRANSIT_PATH_KEY=
 DATA_GO_BUS_ROUTE_KEY=
 DATA_GO_BUS_STATION_KEY=
+
+# Walking / access-time (P0-1 대상 아님 — Q3/D-040)
+KAKAO_MAP_REST_API_KEY=
 ```
 
 만약 data.go.kr이 서비스별로 동일 키를 발급했다 하더라도 코드에서는 **논리 이름을 분리**해 두는 것을 권장한다.
@@ -454,6 +467,13 @@ DATA_GO_BUS_STATION_KEY=
 - 환승인원
 
 Agent는 사용 전 **공식 페이지의 현재 제공기관/범위/갱신주기/식별자를 다시 확인**한다.
+
+### Walking / Access Time (P0-1 대상 아님, Q3/D-040)
+
+14. **카카오맵 길찾기(도보) API** — 출발지→첫 승강장 접근시간, 그리고 마지막
+    정류장/역→실제 목적지 도보 leg(Q2/D-039) 계산에 사용. **아직 API 키 미발급
+    — 다음 세션에서 카카오 디벨로퍼스 앱 등록/키 발급부터 시작해야 함.** 이
+    데이터는 P0-1(서울시 데이터만) 원칙의 대상이 아니라 별도 유틸리티다.
 
 ---
 
@@ -770,12 +790,12 @@ Journey Engine에게 Bus/Subway 내부 구현을 숨긴다.
 
 ```text
 leg_id
-mode
+mode                BUS | SUBWAY | WALK   # WALK 추가: Q2/D-039(최종 도보 포함), Q3/D-040(접근시간 포함)
 from_id
 to_id
 query_time
 journey_state       PRE_TRIP | WAITING | ON_BOARD
-vehicle_run_id      nullable
+vehicle_run_id      nullable              # WALK leg는 null
 distribution_repr   empirical/t_digest/quantiles/samples/model
 p10_sec
 p50_sec
@@ -786,6 +806,12 @@ fallback_level
 model_or_rule_version
 context_snapshot
 ```
+
+**WALK leg 참고 (D-039/D-040):** `distribution_repr`은 WALK leg에서 보통
+`model`(카카오맵 등 라우팅 API가 반환한 단일 추정치)이 되며, 버스/지하철처럼
+관측 기반 empirical distribution이 아닐 수 있다. `confidence_level`/
+`fallback_level`로 이 차이를 명시해야 사용자에게 support 수준을 숨기지 않는다
+(P0-4 원칙).
 
 ## 10.5 JourneyResult
 
@@ -1102,7 +1128,7 @@ Agent는 아래를 "최종 결정"처럼 작성하지 말 것.
 5. 실시간 지하철 혼잡 — 현재 자료의 30분 혼잡은 historical context
 6. 버스 승차 실패 probability — Ground Truth 부족
 7. 희귀 사고 future probability — MVP 제외
-8. 최종 목적지의 정의 — stop/platform vs 실제 약속 장소 walking leg 결정 필요
+8. ~~최종 목적지의 정의~~ — **PM 결정 완료 (D-039, Q2): 마지막 도보(약속 장소)까지 포함**
 9. 환승 횟수 제한 — 현재 문서 1회는 과거 4주 MVP 가정. 이번 일정에서 재평가 필요
 10. EC2 2대의 정확한 역할/cluster topology — infra 담당자와 benchmark 목표에 따라 확정
 
@@ -1112,7 +1138,10 @@ Agent는 아래를 "최종 결정"처럼 작성하지 말 것.
 
 Agent는 기술적으로 답할 수 없는 아래 결정이 필요할 때 PM에게 물어본다.
 
-## Q1. Demo Corridor
+> **Q1~Q4 전부 PM 답변 완료 (2026-08-22).** 근거와 세부 사항은
+> `05_DECISION_LOG.md` D-030(Q1), D-039(Q2), D-040(Q3), D-041(Q4) 참고.
+
+## Q1. Demo Corridor — 결정됨 (D-030)
 
 서울 내에서 반드시 재현할 **대표 mixed-mode route** 1~2개를 정해야 한다.
 
@@ -1124,7 +1153,11 @@ Agent는 기술적으로 답할 수 없는 아래 결정이 필요할 때 PM에�
 - 실제 수집/현장검증 가능
 - 너무 긴 광역구간 피함
 
-## Q2. Arrival Boundary
+**PM 답변: 삼청동 ↔ 역삼역** (도착지는 역삼역으로 지정, 출발지는 무관). 3호선
+안국역→교대역 subway leg, 총 소요 50분. Spike E에서 subway leg·bus leg 모두
+100% Ground Truth join 확인됨 (D-034, D-038).
+
+## Q2. Arrival Boundary — 결정됨 (D-039)
 
 MVP의 "도착"을 어디까지로 볼지.
 
@@ -1136,7 +1169,13 @@ MVP의 "도착"을 어디까지로 볼지.
 
 Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 약해지면 Transit boundary를 먼저 고정할 수 있다.
 
-## Q3. Access Time
+**PM 답변: 마지막 도보(약속 장소까지)를 포함한다.** 목적 정류장/승강장 도착이
+아니라 실제 약속 장소 도착까지가 "도착"의 정의다. Journey 구성은
+`... → 목적 정류장/역 도착 → WALK leg → 실제 목적지`. `LegDistribution`/
+`JourneyResult` 계약의 `mode` enum(`BUS | SUBWAY`)에 `WALK`를 추가해야 한다
+(섹션 10.4 참고).
+
+## Q3. Access Time — 결정됨 (D-040)
 
 출발지→첫 승강장/정류장까지 시간을:
 
@@ -1146,7 +1185,16 @@ Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 �
 
 중 무엇으로 할지.
 
-## Q4. Support geography
+**PM 답변: 카카오맵 등 실제 지도/경로 API로 계산한 값을 쓴다.** 사용자 입력이나
+고정값이 아니라 실제 지도 앱처럼 계산된 도보/접근 시간을 사용해야 한다는 판단.
+
+> **중요 — P0-1과의 관계:** "서울시 데이터만" 원칙(P0-1)은 버스/지하철 등
+> **핵심 교통 reliability 데이터**의 공급자에 적용되는 것이며, 도보/경로 계산용
+> 지도 API(카카오맵 등)는 이 원칙의 대상이 아닌 별도 유틸리티로 취급한다.
+> 카카오맵 REST API 키는 **아직 미발급** — 섹션 6 API 레지스트리에 신규 항목
+> 추가, 다음 세션 Spike 대상 (D-040).
+
+## Q4. Support geography — 결정됨 (D-041)
 
 "서울시 데이터만"의 의미를
 
@@ -1154,6 +1202,12 @@ Main Use Case는 실제 약속장소까지를 원하지만 데이터 근거가 �
 - 지리적 서울시 행정구역 기준
 
 중 어디까지 엄격히 적용할지 최종 확인.
+
+**PM 답변: 제공기관 AND 지리적 행정구역, 둘 다 만족해야 한다** (교집합이지
+합집합이 아님). 버스/지하철 핵심 데이터 중 서울시가 제공기관이 아닌 데이터가
+불가피하게 필요하면 예외적으로 쓸 수 있으나, PM은 **MVP 범위를 안전하게 좁게
+유지**하고 싶다는 의사를 명확히 함 — 범위를 넓히는 방향의 판단은 신중하게.
+지금까지 검증된 API·Demo Corridor는 이미 이 기준을 만족한다.
 
 ---
 
