@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-043
 title: Probability and Data Validation Plan
-version: 1.1
+version: 1.2
 status: LOCKED
 owner: Data/PM
 last_updated: 2026-08-22
@@ -148,6 +148,16 @@ bucket boundary는 실제 distribution/profile 후 결정.
 
 # 8. Support Calibration
 
+## 8.0 Sample-unit integrity
+
+support count 전에 무엇이 한 sample인지 정의한다.
+
+- 20초 간격 동일 `vehId1/exps1` snapshot은 독립 headway event가 아님
+- 같은 Actual event에 붙은 여러 Prediction snapshot은 grouped dependence를 가진다
+- multi-line station observation은 `subwayId × statnId`로 분리한다
+
+따라서 raw row count를 그대로 effective sample count로 사용하지 않는다.
+
 ## 목적
 `LOW_SUPPORT` threshold를 데이터에서 결정.
 
@@ -279,19 +289,22 @@ Promotion 조건:
 
 ### Bus mature claim 전
 - multiple time windows
-- residual count
+- **Prediction→Actual ResidualEvent count** (`EVD-BUS-010` traverse count로 대체 금지)
 - interval widths
+- wait/headway event-unit definition
 - join/dedupe/out-of-order
 
 ### Subway empirical claim 전
-- actual `arvlCd=1` events
+- station×line별 actual `arvlCd=1` events
 - Prediction↔Actual matching
+- 역삼 등 zero-event station의 additional window
 - interval width
 - held-out coverage
+- quota-aware collection completeness
 
 ### Recommended Departure claim 전
-- `EVD-SCHED-001` 또는 대체 subway future WAIT source
-- `EVD-WAIT-001` bus future WAIT/headway feasibility
+- `EVD-SCHED-001` current-validity VERIFIED 또는 대체 subway future WAIT source
+- `EVD-WAIT-001` bus source feasibility + event-based/dependence-aware distribution artifact
 - candidate-time별 WAIT/source 재평가 fixture
 
 ### Whole-Journey calibrated claim 전

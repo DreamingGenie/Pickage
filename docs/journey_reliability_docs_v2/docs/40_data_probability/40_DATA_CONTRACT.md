@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-040
 title: Canonical Data Contract
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: Data/Backend
 last_updated: 2026-08-22
@@ -93,6 +93,13 @@ schema_version: string
 ```
 
 `source_generated_at`이 null이어도 raw는 보존한다.
+
+Timestamp capture invariant:
+- `requested_at`: 실제 HTTP request 직전
+- `received_at`: response bytes 수신 직후
+- `source_generated_at`: provider raw field semantics에 따라 별도 mapping
+
+Phase 0/1 SpikeResult처럼 request 종료 후 `requested_at/received_at`을 함께 생성하는 구현은 canonical collector contract에 부적합하다(`PD-037`).
 
 ### ENT-002 PredictionSnapshot
 
@@ -209,7 +216,11 @@ wait_source_type: REALTIME_CANDIDATE | TIMETABLE | EMPIRICAL_HEADWAY | FIXED_FAL
 distribution_ref: string|null
 source_version: string|null
 observed_state: string|null
+sample_unit: POLL_SNAPSHOT | VEHICLE_ARRIVAL_EVENT | HEADWAY_EVENT | SCHEDULE_INTERVAL | null
+independence_assumption: IID | DEPENDENCE_AWARE | NOT_APPLICABLE | UNKNOWN
 ```
+
+Phase 1 bus `exps1` 반복 snapshot은 `POLL_SNAPSHOT`이며 iid headway sample로 승격하지 않는다.
 
 ### ENT-009 TransitRideLeg
 
@@ -339,6 +350,8 @@ Not yet canonicalized citywide:
 Verified/corridor:
 - line: `subwayId`
 - train: Arrival `btrainNo` ↔ Position `trainNo`
+- multi-line station metric key: `subwayId + statnId`; station name만으로 join하지 않음
+- OA-22522 `SI_ID`↔realtime `statnId`는 explicit crosswalk이며 산술 변환 rule이 아님
 - station: realtime `statnId`
 
 Mixed-route code는 별도 namespace.

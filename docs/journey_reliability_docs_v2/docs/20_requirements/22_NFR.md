@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-022
 title: Non-functional Requirements
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: PM/Infra
 last_updated: 2026-08-22
@@ -43,6 +43,9 @@ UserEvent 후 Reforecast는 사용자에게 “즉시 갱신” 경험을 주는
 Provider별 stale threshold는 실제 polling interval/jitter profile 이후 설정한다.
 
 **금지:** 현재 근거 없이 “30초면 stale” 같은 전역 수치 사용.
+
+### NFR-012 — Quota budget
+실시간 지하철 collector는 공유 일일 quota를 중앙 budget으로 관리한다. poller별 독립 loop가 총 quota를 초과하지 않도록 예상 call count를 시작 전에 계산하고, `ERROR-337` 등 provider quota code를 transport success와 분리해 계측한다.
 
 ## Reliability
 
@@ -95,6 +98,9 @@ Collector/API/stream job에 최소:
 
 ### NFR-041
 Demo 직전 health를 한 화면/명령으로 확인 가능해야 한다.
+
+### NFR-042 — Collector timestamp instrumentation
+`requested_at`은 HTTP send 직전, `received_at`은 response 수신 직후 기록해야 한다. 두 값을 response 이후 한 시점에 생성한 harness 결과는 network latency/stream watermark 근거로 사용할 수 없다.
 
 ## Security
 

@@ -77,5 +77,5 @@ constructible from this real data**, per stop:
 ## Reproduction
 
 ```bash
-python docs/journey_reliability_docs_v2/evidence/phase1/_scripts/analyze_bus_extended.py
+python evidence/phase1/_scripts/analyze_bus_extended.py
 ```

@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-021
 title: Business Rules
-version: 1.1
+version: 1.2
 status: LOCKED
 owner: PM
 last_updated: 2026-08-22
@@ -43,7 +43,8 @@ supersedes: []
 **BR-023** service-discrete probability가 monotonic이라고 증명되지 않은 상태에서 binary search를 정확성 전제로 사용하지 않는다.  
 **BR-024** 필요한 source/schedule가 부족하면 recommended departure는 unavailable이 될 수 있다.  
 **BR-025** 미래 bus WAIT는 exact future vehicle ID를 필수로 하지 않으며 time-conditioned empirical wait/headway를 허용한다.  
-**BR-026** 미래 subway WAIT는 검증된 timetable 또는 empirical headway를 사용하고 source version을 기록한다.
+**BR-026** 미래 subway WAIT는 검증된 timetable 또는 empirical headway를 사용하고 source version을 기록한다.  
+**BR-027** dated timetable의 parsing/ID compatibility와 **현재 운행 유효성**을 분리한다. current validity가 미검증이면 Recommended Departure `AVAILABLE`의 authoritative source로 사용하지 않는다.
 
 ## Transfer / Wait
 
@@ -53,7 +54,8 @@ supersedes: []
 **BR-033** transfer miss는 물리적 transfer 자체의 실패가 아니라 boarding feasibility 결과로 판정한다.  
 **BR-034** Tier-0 miss rule은 fixed buffer이고, 실측 headway 기반으로 upgrade하기 전 version을 유지한다.  
 **BR-035** WALK/Transfer endpoint는 coordinate role/source를 기록하며 station center와 exit/platform을 동일시하지 않는다.  
-**BR-036** `BUS_TO_SUBWAY`와 `SUBWAY_TO_BUS`는 street component와 station-internal component의 source/fallback을 구분한다.
+**BR-036** `BUS_TO_SUBWAY`와 `SUBWAY_TO_BUS`는 street component와 station-internal component의 source/fallback을 구분한다.  
+**BR-037** 반복 polling의 ETA snapshot을 서로 독립인 headway sample로 취급하지 않는다. Bus WAIT distribution은 vehicle/arrival event unit 또는 dependence-aware method를 사용한다.
 
 ## Reforecast
 
@@ -70,7 +72,9 @@ supersedes: []
 **BR-052** `VERIFIED` claim은 Evidence ID가 있어야 한다.  
 **BR-053** corridor-scoped Evidence를 citywide claim에 사용하지 않는다.  
 **BR-054** source timestamp와 collector received time을 구분한다.  
-**BR-055** raw payload는 parser 실패 전에도 보존한다.
+**BR-055** raw payload는 parser 실패 전에도 보존한다.  
+**BR-056** HTTP 200이더라도 provider payload가 quota/error code이면 success와 분리해 `PROVIDER_ERROR/QUOTA_EXCEEDED`로 계측한다.  
+**BR-057** latency/lateness는 실제 pre-request/post-response timestamp가 있는 collector run만 근거로 사용하며 Phase 0/1 harness의 near-zero timestamp artifact를 사용하지 않는다.
 
 ## UX / Honesty
 
@@ -85,5 +89,5 @@ supersedes: []
 ## Demo
 
 **BR-070** Final Demo probability는 실제 pipeline output만 사용한다.  
-**BR-071** Route B realtime E2E 미완료 시 `SUBWAY_TO_BUS VERIFIED`라고 발표하지 않는다.  
+**BR-071** Route B source interoperability VERIFIED와 `SUBWAY_TO_BUS Reforecast product implementation`을 구분한다. `AC-PROB-008/AC-PROD-003` 전에는 후자를 구현 완료라고 발표하지 않는다.  
 **BR-072** distributed proof는 실제 worker participation과 correctness evidence가 있어야 한다.

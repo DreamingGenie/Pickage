@@ -52,7 +52,7 @@ coordinate, not silently relabeled.
 
 ```bash
 cd docs/journey_reliability_docs_v2/baseline/phase0/scripts/spikes
-python ../../../../evidence/phase1/_scripts/tmap_geocode.py "서울특별시 강남구 테헤란로 212"
+python ../../../../../../evidence/phase1/_scripts/tmap_geocode.py "서울특별시 강남구 테헤란로 212"
 python tmap_walk_spike.py 127.03649815857663 37.50063694862099 127.039533 37.501331 \
   "역삼역_mixed_node_STATION_CENTER_candidate" "멀티캠퍼스역삼_entrance_POI"
 ```

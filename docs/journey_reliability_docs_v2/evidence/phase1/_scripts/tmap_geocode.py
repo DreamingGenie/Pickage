@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-SPIKES_DIR = Path(__file__).resolve().parents[3] / "baseline" / "phase0" / "scripts" / "spikes"
+SPIKES_DIR = Path(__file__).resolve().parents[3] / "docs" / "journey_reliability_docs_v2" / "baseline" / "phase0" / "scripts" / "spikes"
 sys.path.insert(0, str(SPIKES_DIR))
 
 import requests

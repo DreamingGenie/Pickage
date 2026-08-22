@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-099
 title: Package Validation
-version: 2.1
+version: 2.2
 status: LOCKED
 owner: PM
 last_updated: 2026-08-22
@@ -9,7 +9,7 @@ depends_on:
   - JR-DOC-000
   - JR-DOC-001
   - JR-DOC-003
-  - JR-DOC-009
+  - JR-DOC-090
 source_of_truth_for:
   - package-validation
 supersedes: []
@@ -17,64 +17,71 @@ supersedes: []
 
 # Package Validation
 
-## 1. Automated documentation lint
+## 1. Validation scope
+
+이 문서는 Phase 1 Evidence reconciliation 이후 canonical package의 정합성을 검증한다.
+
+검증 범위:
+- canonical Markdown frontmatter / ID / reference / link
+- Phase 0 baseline Raw의 Route A/B assertion
+- Phase 1 report + evidence artifact 동봉 여부
+- Phase 1 Evidence status와 Decision reconciliation
+- Evidence feasibility와 product implementation의 분리
+- Bus 54 transition / 11 traverse sample의 scope 오인 방지
+- Subway station×line 분리와 quota limitation
+- 교대 3→2 두 공식 source 의미 충돌과 canonical Decision
+- WAIT polling snapshot의 serial dependence
+- collector timestamp instrumentation 문제
+- Recommended Departure / Probability Gate
+- Architecture profile 과장 방지
+- Phase 2 work-order 존재
+- secret file/value 기본 검사
+
+## 2. Automated documentation lint
 
 ```text
-Markdown files: 30
-doc_ids: 30
-PD: 30
-EVD: 30
+Markdown files: 31
+doc_ids: 31
+PD: 40
+EVD: 33
 SRC: 14
 REQ: 31
-BR: 49
-NFR: 30
+BR: 53
+NFR: 32
 SCR: 6
 API: 9
 ENT: 18
-DQ: 19
+DQ: 22
 ADR: 8
-RISK: 21
-AC: 50
-TST: 10
+RISK: 25
+AC: 54
+TST: 13
 F: 22
 
 RESULT: PASS
 ```
 
-## 2. Final semantic/package checks
+## 3. Final semantic/package checks
 
-`Final semantic/package checks: 23 / 23 PASS`
+```text
+Checks: 46
+RESULT: PASS
+```
 
-검사 항목:
-- required canonical files / Phase 0 selected baseline 존재
-- README의 canonical `09_PHASE1_EVIDENCE_EXECUTION.md` 경로
-- `.env.example` secret value 비어 있음
-- packaged Phase 0 Raw에서 Route A `01A→3호선→2호선` 재확인
-- 같은 Raw에서 Route B `01A→3호선→147` structural `SUBWAY_TO_BUS` 재확인
-- 54 route-level transition을 target-leg residual 54건으로 오인하지 않는 계약
-- `EVD-CROSS-001 VERIFIED` vs `EVD-CROSS-002 TO_VERIFY` 분리
-- ACCESS / BUS_TO_SUBWAY / FINAL WALK / 교대 transfer / timetable / future WAIT blocker 명시
-- Recommended Departure의 time-conditioned service availability/WAIT 재평가
-- future bus exact vehicle ID를 correctness prerequisite로 두지 않음
-- Monte Carlo Wilson interval을 finite-N sampling error로 제한
-- whole-leg Tier-0 correlation policy
-- validation scope ladder
-- Collector→immutable Bronze Raw와 Kafka publish 경로 분리
-- 이전 package의 잘못된 validation artifact 제거
+상세 검사는 `scripts/final_package_check.py`를 실행하면 재현된다.
 
-## 3. Manual reconciliation completed
-
-- [x] Decision / Evidence / Implementation 상태축 분리
-- [x] superseded Corridor B 결정 충돌 제거
-- [x] TMAP을 Transit Reliability core가 아닌 external WALK utility 예외로 명시
-- [x] route optimization과 selected-route Reliability scope 분리
-- [x] Recommended Departure의 service-discrete semantics 정정
-- [x] arbitrary Minimum Support threshold 금지 + calibration plan
-- [x] WALK/static transfer unmodeled uncertainty 명시
-- [x] Subway component validation과 whole-Journey calibration claim 분리
-- [x] coordinate role/provenance contract 추가
-- [x] API/Entity/REQ/BR/NFR/AC/TST/Feature traceability 구축
-- [x] Risk/QA/Demo no-mock 정책 정리
+주요 PASS 항목:
+- `EVD-CROSS-002 VERIFIED`는 Route B source interoperability claim으로만 유지되고 Reforecast 구현과 분리됨
+- `EVD-ACCESS-001 VERIFIED`
+- `EVD-XFER-B2S-001 CONDITIONAL`
+- `EVD-DEST-001 VERIFIED`는 `STATION_CENTER` 기반임을 유지
+- `EVD-TRANSFER-001 VERIFIED`; `PD-031`이 144 s를 Tier-0 reference로 선택하고 63 s는 sanity reference로 분리
+- `EVD-SCHED-001 CONDITIONAL`
+- `EVD-WAIT-001 VERIFIED feasibility`; 181 snapshot을 iid headway로 사용하지 않음
+- `EVD-VOLUME-001 CONDITIONAL`; Phase 1의 near-zero timestamp를 실제 latency로 사용하지 않음
+- `EVD-OPS-001 VERIFIED`; shared subway quota exhaustion을 운영정책에 반영
+- 01A target-range 11건은 traverse-time이지 ResidualEvent가 아님
+- Probability Vertical Slice는 `CONDITIONAL GO`, user-facing Recommended Departure는 `HOLD`
 
 ## 4. Gate interpretation
 
@@ -82,27 +89,40 @@ RESULT: PASS
 - D1 Product Contract: **PASS**
 - D2 Requirements: **REVIEW**
 - D3 UX: **REVIEW**
-- D4 Data/Probability: **REVIEW + Evidence blockers**
-- D5 Architecture/Ops: **REVIEW + profiling needed**
-- D6 Delivery: **REVIEW + implementation evidence needed**
+- D4 Data/Probability: **REVIEW / CONDITIONAL GO for implementation**
+- D5 Architecture/Ops: **REVIEW / profiling incomplete**
+- D6 Delivery: **REVIEW / implementation tracking**
 
-`REVIEW`는 빈 문서라는 뜻이 아니라 실제 Evidence/구현/담당자 review 전에는 LOCK하면 안 되는 계약이라는 뜻이다.
+Execution gate:
+- G1.5 Evidence Maturity: **CONDITIONAL PASS**
+- Probability Vertical Slice: **CONDITIONAL GO**
+- Recommended Departure user-facing `AVAILABLE`: **HOLD**
 
-## 5. Remaining Evidence blockers
+## 5. Remaining blockers
 
-1. `EVD-CROSS-002`: same-OD Route B realtime station/route/stop/WAIT/Reforecast E2E
-2. `EVD-ACCESS-001`: Demo origin→춘추문 ACCESS_WALK actual pair
-3. `EVD-XFER-B2S-001`: 01A 하차→안국 3호선 BUS_TO_SUBWAY decomposition
-4. `EVD-DEST-001`: 역삼 endpoint→멀티캠퍼스 역삼 FINAL_WALK actual pair
-5. `EVD-TRANSFER-001`: 교대 3→2 official static row
-6. `EVD-SCHED-001`: OA-22522 timetable actual ingest/ID interoperability
-7. `EVD-WAIT-001`: future bus WAIT/headway support
-8. Demo subway completed-arrival/Prediction→Actual maturity
-9. 01A target-leg/multi-window residual maturity
-10. actual volume/lateness profile
+1. 01A target-leg `PredictionSnapshot → ActualArrivalInterval → ResidualEvent` 실측 artifact
+2. Subway station×line Actual/Residual multi-window maturity, 특히 역삼 Actual 0건 보강
+3. BUS_TO_SUBWAY station entrance→platform 시간 source 또는 explicit unmodeled/fallback policy 유지
+4. OA-22522 current-validity 확인 또는 대체 future Subway WAIT source
+5. collector timestamp instrumentation 수정 후 true latency/lateness profile
+6. quota-aware subway sustained collection
+7. event-based Bus WAIT/headway unit 및 dependence 검증
+8. support calibration용 independent window 확대
 
-이 항목은 문서의 빈칸을 임의 숫자나 가정으로 채워 해결하지 않는다.
+Precision enhancement:
+- 역삼역 실제 `STATION_EXIT` 기반 FINAL_WALK 재검증
 
-## 6. Manifest policy
+## 6. Current work order
 
-`MANIFEST_SHA256.txt`는 모든 최종 파일이 고정된 뒤 생성하며 **manifest 자신은 목록에서 제외**한다. 따라서 self-hash 불일치가 발생하지 않는다. `scripts/validate_manifest.py`로 검증한다.
+완료된 Phase 1 contract:
+`09_PHASE1_EVIDENCE_EXECUTION.md` — `SUPERSEDED`
+
+다음 Agent 작업 정본:
+`10_PHASE2_EVIDENCE_EXECUTION.md` — `LOCKED`
+
+Phase 2는 Evidence gap을 닫으면서 canonical schema / Actual / Residual / fixed-seed engine vertical slice까지만 허용한다. Web/Kafka/Flink/Spark/ML/AI로 자동 확장하지 않는다.
+
+## 7. Manifest policy
+
+`MANIFEST_SHA256.txt`는 최종 파일 고정 후 생성하고 manifest 자신은 목록에서 제외한다.
+최종 ZIP 재추출 후 `docs_lint.py`, `final_package_check.py`, `validate_manifest.py`를 모두 다시 실행한다.

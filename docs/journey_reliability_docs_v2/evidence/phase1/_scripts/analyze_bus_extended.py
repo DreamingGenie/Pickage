@@ -13,8 +13,8 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]  # journey_reliability_docs_v2/
-SAMPLES = ROOT / "baseline" / "phase0" / "data" / "samples" / "seoul_bus"
+ROOT = Path(__file__).resolve().parents[3]
+SAMPLES = ROOT / "docs" / "journey_reliability_docs_v2" / "baseline" / "phase0" / "data" / "samples" / "seoul_bus"
 OUT_01A = Path(__file__).resolve().parents[1] / "BUS_01A_EXTENDED" / "derived"
 OUT_147 = Path(__file__).resolve().parents[1] / "EVD-WAIT-001" / "derived"
 OUT_01A.mkdir(parents=True, exist_ok=True)

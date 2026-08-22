@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-010
 title: Journey Reliability Service Plan
-version: 2.1
+version: 2.2
 status: LOCKED
 owner: PM
 last_updated: 2026-08-22
@@ -18,7 +18,7 @@ source_of_truth_for:
 supersedes: []
 ---
 
-# Journey Reliability Service Plan v2.1
+# Journey Reliability Service Plan v2.2
 
 ## 1. Executive Summary
 
@@ -39,20 +39,29 @@ supersedes: []
 **Demo Corridor-level Data Feasibility: GO**
 
 실제 확인된 것:
-- 서울 버스 Prediction/Position 호출
-- bus `vehId` direct join
-- bus `stopFlag` transition
+- 서울 버스 Prediction/Position 호출과 `vehId` direct join
+- bus `stopFlag` Actual transition
+- Route A 01A target range 실제 traverse-time 11건
 - 지하철 Arrival/Position 호출
-- Demo Corridor trainNo join
-- mixed bus+subway route
-- corridor-specific subway crosswalk
-- TMAP walking call
+- Route A 4개 station×line의 `btrainNo↔trainNo` join 100% 재확인
+- 실제 `arvlCd=1` 및 일부 ActualArrivalInterval 발생
+- mixed bus+subway Route A/B 구조
+- Route B 압구정 subway→147 realtime station/route/stop/WAIT source interoperability
+- Demo ACCESS WALK 297 m/245 s
+- BUS→SUBWAY street component 143 m/101 s
+- FINAL WALK STATION_CENTER→POI 329 m/300 s
+- 교대 3→2 공식 transfer rows: OA-22521 144 s, OA-13290 63 s
+- Bus future WAIT source feasibility
 
-아직 확인되지 않은 것:
+아직 확인/완료되지 않은 것:
 - 실제 Journey Probability Engine 결과
-- 충분한 subway Actual sample
-- `SUBWAY_TO_BUS` Route B
+- 01A target-leg Prediction→Actual residual artifact와 multi-window maturity
+- 충분한 subway Actual/residual distribution: Phase 1 usable window 22~33분, 역삼 Actual 0건
+- 안국 station-internal entrance→platform time
+- OA-22522 timetable의 2026-08 current validity
+- `SUBWAY_TO_BUS`의 BUS_SKIPPED/Reforecast product implementation
 - Web App E2E
+- true source/collector lateness profile
 - 분산처리 benchmark/failure/correctness
 - citywide 일반화
 
@@ -226,12 +235,13 @@ Primary Demo는 Phase 0에서 반복 재현된 **Route A**를 사용한다. Rout
 
 ### 현재 Evidence 한계
 
-- Bus 01A: 15분 extended summary는 있으나 특정 target leg/multi-window maturity 부족
-- Subway: Route A node join은 강하나 completed-arrival distribution 미성숙
-- Demo origin→춘추문 ACCESS_WALK 실호출 필요
-- 01A 하차→안국 승강장 BUS_TO_SUBWAY transfer의 street/internal decomposition 필요
-- 역삼→멀티캠퍼스 FINAL_WALK pair 실호출 필요
-- 교대 3→2 static transfer row 추가 검증 필요
+- Bus 01A: target range traverse-time 11건은 확보됐지만 Prediction→Actual residual이 아니며 single-window/고분산이다.
+- Subway: Route A 4 node join은 VERIFIED지만 usable window가 quota로 22~33분이었고 역삼 `arvlCd=1`/Actual interval은 0건이다.
+- Demo ACCESS_WALK은 VERIFIED point estimate지만 walking variance는 미모델링이다.
+- 01A→안국 BUS_TO_SUBWAY street component는 143 m/101 s로 VERIFIED, entrance→platform은 `UNMODELED_UNCERTAINTY`다.
+- FINAL_WALK은 329 m/300 s로 VERIFIED하되 **STATION_CENTER 기반**이며 실제 station exit 기반이 아니다.
+- 교대 3→2 공식 row는 VERIFIED; Tier-0 reference는 PD-031에 따라 OA-22521 144 s를 사용한다.
+- OA-22522 timetable ingest는 가능하지만 current validity가 미검증이다.
 
 ---
 
@@ -253,16 +263,22 @@ Primary Demo는 Phase 0에서 반복 재현된 **Route A**를 사용한다. Rout
 
 해당 raw의 provider value는 `time=52`, `distance=13048`이며, 이 값은 Reliability Ground Truth가 아니라 route-provider metadata다.
 
-### 추가 검증해야 할 것
+### Phase 1에서 추가 VERIFIED된 것
 
-- 압구정 3호선 mixed code ↔ realtime `statnId`
-- `147 routeId=100100026` ↔ realtime bus route
-- 압구정역4번출구 bus stop identity/coordinate
-- subway alight → bus boarding point Transfer
-- `BUS_WAIT` source
-- `BUS_SKIPPED` 후 next candidate/Reforecast
+- 압구정 3호선 realtime `statnId=1003000336`
+- `147 routeId=100100026` realtime route
+- 압구정역4번출구/역삼역6번출구 bus stop ID exact join
+- 147 1시간 realtime WAIT source/vehicle turnover feasibility
 
-즉 **`SUBWAY_TO_BUS` 경로 구조 존재는 VERIFIED지만 Reliability E2E는 아직 VERIFIED가 아니다.**
+따라서 Route B의 **structural + realtime source interoperability는 VERIFIED**다.
+
+아직 남은 것:
+- subway alight→bus boarding point의 실제 Transfer duration decomposition
+- `BUS_SKIPPED` state mutation
+- next candidate selection
+- Journey Probability Reforecast 구현/테스트
+
+즉 **source feasibility와 product Reforecast implementation을 분리한다.**
 
 Route B는 Route A 수준의 장기 probability maturity를 요구하지 않고 cross-mode contract의 secondary proof로 사용한다.
 
@@ -424,7 +440,7 @@ Evidence를 벗어난 원인 설명은 숨긴다.
 
 - Subway Actual 표본 없이 지하철 empirical probability라고 주장
 - mock probability를 실제 demo 결과로 사용
-- `SUBWAY_TO_BUS` 미검증인데 지원 완료라고 표현
+- Route B source interoperability만으로 `SUBWAY_TO_BUS Reforecast product가 구현 완료`라고 표현
 - selected-route conditional 결과를 global route recommendation처럼 표현
 - small-N/fallback을 숨김
 - distributed benchmark에 실제 worker participation 증거가 없음

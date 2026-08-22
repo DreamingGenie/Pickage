@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-041
 title: Observation Actual Residual Contract
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: Data
 last_updated: 2026-08-22
@@ -82,7 +82,7 @@ upper_inclusive_at = first stopFlag=1 source time
 현재 Phase 0에서 실제 transition이 관측되었으므로
 “transition 미관측”이라는 legacy OBSERVATION_CONTRACT 문장은 superseded다.
 
-단 Phase 0 D-048의 54 transition은 **01A route-level multi-stop transition count**다. 이를 춘추문→안국 target leg의 54 residual로 해석하지 않는다. target-leg Prediction→Actual residual support는 Phase 1에서 별도로 계산한다.
+Phase 0 D-048의 54 transition은 **01A route-level multi-stop transition count**다. Phase 1에서 춘추문→안국 target range traverse-time 11건을 추가 확보했지만 이것도 ResidualEvent가 아니다. target-leg PredictionSnapshot→ActualArrivalInterval→ResidualEvent는 Phase 2에서 별도 생성한다(`PD-036`).
 
 ### Quality guard
 
@@ -155,9 +155,10 @@ Interval:
 `CONDITIONAL`
 
 이유:
-- Demo Corridor trainNo join은 100% sustained evidence
-- 그러나 completed arrival sample이 아직 부족
-- 특정 Line2 code `1002000201` join gap root cause 미해결
+- Route A station×line 4개에서 trainNo join은 Phase 1 live sample로 100% 재확인
+- 실제 ActualArrivalInterval은 안국 11, 교대 name-search combined 6, 역삼 0으로 관측됐으나 usable window가 quota로 22~33분에 그침
+- 교대는 multi-line station이므로 이후 Actual metric을 `subwayId × statnId`로 분리해야 함
+- 특정 Line2 code `1002000201` join gap root cause는 Route A와 별개로 미해결
 
 Citywide rule로 승격하지 않는다.
 
@@ -196,8 +197,11 @@ actual sample 확보 전 “subway residual distribution exists”라고 문서�
 | DQ-017 | `WAIT_SOURCE_MISSING` | future WAIT를 구성할 realtime/timetable/empirical source 없음 |
 | DQ-018 | `CROSS_LEG_DEPENDENCE_UNMODELED` | cross-mode/vehicle 간 잔여 상관을 모델링하지 않음 |
 | DQ-019 | `VALIDATION_SCOPE_LIMITED` | component 검증만 있고 corridor/end-to-end calibration 없음 |
+| DQ-020 | `PROVIDER_QUOTA_EXCEEDED` | HTTP transport 성공 여부와 별개로 provider quota/error code 발생 |
+| DQ-021 | `TIMESTAMP_INSTRUMENTATION_INVALID` | requested/received timing이 실제 request boundary를 측정하지 못함 |
+| DQ-022 | `MULTILINE_STATION_NOT_SPLIT` | multi-line station observation을 `subwayId`로 분리하지 않은 집계 |
 
-`DQ-007/008`의 numeric threshold는 실제 profile 전 TBD.
+`DQ-007/008`의 numeric threshold는 실제 profile 전 TBD. `DQ-020`은 Phase 1 `ERROR-337` 같은 provider business error를 HTTP status와 독립적으로 기록한다.
 
 ---
 

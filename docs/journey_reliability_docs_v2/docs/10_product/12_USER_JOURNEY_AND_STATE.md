@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-012
 title: User Journey and State
-version: 1.1
+version: 1.2
 status: LOCKED
 owner: PM/UX
 last_updated: 2026-08-22
@@ -105,7 +105,7 @@ Phase 0 Raw에 이미 존재하는 Route B structural example:
 01A → 3호선(안국→압구정) → TRANSFER_SUBWAY_TO_BUS → 147 → 역삼권역
 ```
 
-구조 존재는 VERIFIED지만 압구정 station/bus stop/realtime WAIT 연결은 `EVD-CROSS-002 TO_VERIFY`다.
+구조와 압구정 station/147 route·stop/realtime WAIT source interoperability는 `EVD-CROSS-002 VERIFIED`다. 단 `BUS_SKIPPED→REFORECAST` product state/engine 구현은 아직 NOT_STARTED다.
 
 ```mermaid
 flowchart LR

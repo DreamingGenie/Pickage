@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-061
 title: QA and Acceptance
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: PM/QA
 last_updated: 2026-08-22
@@ -70,6 +70,18 @@ Demo origin coordinate→춘추문 bus stop의 TMAP point route/time과 coordina
 ### AC-DATA-016 Future WAIT source
 - Subway timetable 또는 empirical headway source가 Demo station IDs와 연결되거나 unavailable 판정
 - Bus future empirical wait/headway feasibility가 측정됨
+
+### AC-DATA-017 Bus target-leg ResidualEvent
+01A target leg/target stop에 대해 실제 PredictionSnapshot↔ActualArrivalInterval 매칭으로 residual lower/mid/upper가 생성된다. Traverse-time sample만으로 대체하지 않는다.
+
+### AC-DATA-018 Subway multi-line isolation
+교대 등 multi-line station metric이 `subwayId × statnId`로 분리되며 line-mixed join/Actual 집계가 없다.
+
+### AC-DATA-019 Collector timing validity
+`requested_at`/`received_at`이 실제 HTTP boundary에서 캡처되고 Phase 0/1 near-zero harness artifact가 새 latency profile에 섞이지 않는다.
+
+### AC-DATA-020 Quota accounting
+HTTP 200 quota payload가 success로 숨겨지지 않고 provider quota error로 별도 계측되며 planned call budget이 일일 한도를 넘지 않는다.
 
 ---
 
@@ -250,6 +262,19 @@ Then bus/subway WAIT source is `TIMETABLE` or `EMPIRICAL_HEADWAY` (or result is 
 Given a WALK/Transfer leg  
 Then both endpoints carry coordinate role/source and station-center→exit coercion does not occur silently.
 
+## TST-DATA-004 Multi-line Station Isolation
+Given 교대 arrival payload containing Line 2 and Line 3 rows  
+When join/Actual metrics are computed  
+Then rows are split by `subwayId × statnId` and each line metric is calculated independently.
+
+## TST-DATA-005 Collector Timestamp Boundary
+Given a live HTTP collector call  
+Then `requested_at < received_at` reflects actual request boundary capture and is not assigned only after response construction.
+
+## TST-DATA-006 Bus WAIT Sample Unit
+Given consecutive 20-second `exps1` snapshots for the same vehicle  
+Then they are not counted as independent headway events; event/headway unit is explicit.
+
 ## TST-DIST-001 Flink Kill
 Kill worker, record recovery/loss/duplicate.
 
@@ -261,10 +286,11 @@ Kill worker, record recovery/loss/duplicate.
 # Release Blocking
 
 Critical block:
-- AC-DATA-003/004
-- AC-DATA-006 or explicit subway fallback claim downgrade approved
+- AC-DATA-003/004/017
+- AC-DATA-006/018 or explicit subway fallback claim downgrade approved
 - AC-DATA-014/015 for Route A time-boundary integrity
 - AC-DATA-016 or Recommended Departure unavailable policy
+- AC-DATA-019/020 before architecture latency/quota decisions
 - AC-PROB-003~008
 - AC-PROD-001~007
 - AC-SEC-001/002

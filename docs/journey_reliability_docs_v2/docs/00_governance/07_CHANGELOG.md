@@ -40,3 +40,18 @@ supersedes: []
 - Collector가 Kafka와 별개로 immutable Bronze Raw를 보존하도록 architecture를 정정했다.
 - `08_IMPLEMENTATION_STATUS.md`, `09_PHASE1_EVIDENCE_EXECUTION.md`를 추가해 구현 상태와 Agent 실증 작업을 canonical하게 관리하도록 했다.
 - package manifest와 validation report를 최종 생성 순서에 맞춰 재구축한다.
+
+## 2026-08-22 — Phase 1 Evidence Reconciliation
+
+- `PHASE1_EVIDENCE_VALIDATION_REPORT.md`와 `evidence/phase1/` raw/derived artifact를 정본에 반영.
+- Route B realtime station/route/stop/WAIT source interoperability를 `EVD-CROSS-002 VERIFIED`로 승격. Reforecast product implementation은 별도 유지.
+- ACCESS 297 m/245 s, BUS→SUBWAY street 143 m/101 s, FINAL STATION_CENTER→POI 329 m/300 s를 각각 source/coordinate role과 함께 반영.
+- 교대 3→2 두 공식 source의 144 s vs 63 s 충돌을 기록하고 `PD-031`로 OA-22521 144 s를 Tier-0 reference로 선택.
+- Route A 4 station×line train join을 live larger sample에서 100% 재확인. 교대 multi-line name-search 분석은 `subwayId` 분리 rule을 추가.
+- Subway Actual은 실제 interval을 확보했으나 quota로 usable 22~33분, 역삼 0건이라 CONDITIONAL 유지.
+- 01A target leg 11 traverse samples를 새 `EVD-BUS-010`으로 기록하되 residual로 오인하지 않도록 `PD-036` 추가.
+- 01A/147 future BUS_WAIT source feasibility를 VERIFIED로 올렸지만 serial polling snapshots를 iid sample로 사용하지 않는 `PD-034` 추가.
+- OA-22522 timetable ingest는 가능하나 2025-09-30 dated file의 current validity가 미검증이라 CONDITIONAL 유지.
+- Phase 0 SpikeResult의 requested/received timestamp가 HTTP 이후 함께 찍힌다는 결함을 반영해 true latency/lateness를 NOT_AVAILABLE로 유지하고 `PD-037` 추가.
+- realtime subway 1,000 calls/day shared quota가 실제 `ERROR-337`로 소진됨을 `EVD-OPS-001`로 등록하고 shared-budget 정책 `PD-033` 추가.
+- Phase 1 execution contract는 완료되어 `SUPERSEDED`; 다음 work-order `10_PHASE2_EVIDENCE_EXECUTION.md` 추가.

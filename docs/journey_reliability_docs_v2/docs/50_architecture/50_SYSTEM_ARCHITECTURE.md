@@ -1,7 +1,7 @@
 ---
 doc_id: JR-DOC-050
 title: System Architecture
-version: 1.1
+version: 1.2
 status: REVIEW
 owner: Infra/Backend
 last_updated: 2026-08-22
