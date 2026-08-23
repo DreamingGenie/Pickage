@@ -1,5 +1,10 @@
 # Seoul Bus/Subway Evidence Runbook
 
+> **2026-08-23 정정:** "Kakao alternate boarding"으로 표기됐던 항목은 실제로는
+> 서울시 data.go.kr mixed-route(`getPathInfoByBusNSub`) 응답의 대안 후보다 — Kakao는
+> 이 프로젝트의 provider가 아니다. 근거: `03_SEOUL_MIXED_ROUTE_AND_WALK_RUNBOOK.md` 상단,
+> `docs/history/transit_journey_handoff_FINAL_v3/docs/05_DECISION_LOG.md`(D-024/D-043/D-045).
+
 ## 1. 공통 원칙
 
 - 실제 approved limit·remaining을 확인한 뒤 시작한다.
@@ -20,9 +25,9 @@ Route A 핵심 identity:
 | busRouteId | `100100001` |
 | approved boarding | 춘추문 `stId=100000417`, `staOrd=19` |
 | target alight | 안국역6번출구 `stId=100000104`, `staOrd=21` |
-| Kakao alternate boarding | 경복궁.국립민속박물관 `stId=100000418`, `staOrd=20` |
+| Mixed-route(data.go.kr) alternate boarding | 경복궁.국립민속박물관 `stId=100000418`, `staOrd=20` |
 
-Kakao alternate와 approved Route A의 event/residual을 합치지 않는다.
+Mixed-route alternate와 approved Route A의 event/residual을 합치지 않는다.
 
 ## 3. Bus Run B1 — Credential/quota preflight
 
@@ -216,6 +221,6 @@ API window 사이에는 기존 파일만으로 다음을 확인한다. 새 코�
 - Phase 1/2 Bus traverse-time와 ResidualEvent가 분리되는지
 - Bus WAIT snapshot 181개를 181 independent event로 세지 않는지
 - failed vertical-slice numeric result가 demo/user-facing으로 승격되지 않는지
-- Kakao/TMAP WALK의 좌표쌍·provider·version이 동일하게 추적되는지
+- TMAP WALK의 좌표쌍·provider·version이 동일하게 추적되는지
 
 이 점검은 source semantics를 확정할 수 있지만 새로운 실제 운행 outcome이나 확률 calibration evidence를 만들지는 않는다.
