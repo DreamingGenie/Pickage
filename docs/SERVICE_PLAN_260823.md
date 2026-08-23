@@ -189,8 +189,25 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 ### 5.1 In Scope
 
 - Mobile-first PWA(설치 없이 이용 가능한 responsive mobile Web 포함), 서울 행정구역
-- `ROUTE_A_ONLY`에서는 승인된 Route A structural manifest 한 개를 분석하고, 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
+- 사용자는 서울 안에서 임의의 출발지·도착지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, §5.1.1). 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
+- 확률 계산은 canonical mapping과 model coverage가 충족된 leg/route에만 수행하며(`canonicalMappingCoverage`/`reliabilityModelCoverage`), Route A는 이 전체 흐름이 end-to-end로 검증된 우선 검증·최종 시연 대상이다(`validationAndDemoScope`)
 - BUS + SUBWAY mixed journey
+
+### 5.1.1 Coverage 5축
+
+`ROUTE_A_ONLY` 한 단어는 제품 coverage, 모델 coverage, validation/demo scope를 동시에 뜻하지 않는다. 아래 5축으로 분리해서 관리한다.
+
+| 축 | Minimum Release 정책 |
+|---|---|
+| `geographyCoverage` | 서울특별시 안의 임의 origin/destination을 입력받는다 |
+| `routeSearchCoverage` | 서울 내 임의 OD에 대해 route discovery provider로 구조 경로 후보를 생성한다 |
+| `canonicalMappingCoverage` | 후보의 stop·line·direction을 공식 정류장·노선 master와 대조해 `EXACT/UNAMBIGUOUS/PARTIAL/FAILED` mapping status와 provenance를 부여한다 |
+| `reliabilityModelCoverage` | canonical mapping과 구성요소 Evidence가 충족된 leg/route만 P50/P90/P(on_time)/Recommended Departure를 계산한다. 부족하면 경로 구조는 보여주되 확률은 `PARTIAL` 또는 `NOT_COMPUTED` 사유와 함께 미계산한다 |
+| `validationAndDemoScope` | Route A는 이 흐름 전체가 end-to-end로 검증된 protected demo fixture로 우선 검증·최종 시연에 사용한다. Route B는 개발·QA 내부 검증 전용이며 사용자 데모에 노출하지 않는다 |
+
+구현 계약 순서: ① 서울 범위 안에서 위치를 실제 좌표로 해석 → ② route discovery provider로 임의 OD의 구조 경로 후보를 얻음 → ③ canonicalization layer가 정류장·역·노선 master와 대조 → ④ 후보별 mapping status/provenance 부여 → ⑤ 정책상 충분히 식별된 leg/route에만 Journey Reliability 계산 → ⑥ mapping/모델 coverage가 부족하면 경로 후보는 표시하되 확률은 만들지 않고 이유를 명시 → ⑦ Route A는 이 흐름이 end-to-end로 검증된 fixture로 별도 관리.
+
+현재 Kakao publictraffic은 route discovery source 후보로는 기각되지 않았으나(§6.1), canonical route truth의 단독 source로는 REJECTED다. 임의 OD의 route discovery를 위해서는 canonicalization 계약이나 대체 route provider를 별도로 확정해야 하며, 확정 전까지 route discovery 결과는 구조만 제공하고 확률 계산에는 사용하지 않는다.
 - `ACCESS_WALK / WAIT / TRANSIT_RIDE / TRANSFER / FINAL_WALK`
 - `BUS_TO_SUBWAY / SUBWAY_TO_SUBWAY / SUBWAY_TO_BUS`
 - Pre-trip analysis, Journey Start, In-trip Reforecast
@@ -213,7 +230,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 - 외부 utility를 transit ground truth로 사용하는 것
 - 검증되지 않은 support threshold, stale threshold, latency SLO, partition, watermark, TTL 수치
 - Kakao/TMAP 등 route provider의 후보 순서를 reliability ranking으로 재해석하는 것
-- Kakao publictraffic 후보를 Minimum Release의 selected route 또는 자동 OD route provider로 사용하는 것
+- Kakao publictraffic 후보를 canonical route truth, selected route, WAIT/RIDE/TRANSFER 시간, probability 근거로 사용하는 것(§5.1.1 `canonicalMappingCoverage`/`reliabilityModelCoverage` Gate 통과 전)
 
 ### 5.3 향후 확장
 
@@ -288,7 +305,9 @@ Provider registry는 route provider와 WALK provider를 분리해 관리한다. 
 3. `totalTime`, step time, 접근·환승·대기·마지막 도보의 포함 관계를 raw response로 규명한다. → **`PARTIAL`** (BUS_AND_SUBWAY 후보는 15초 이내로 거의 explained, 순수 SUBWAY 후보는 58초 잔차가 남아 완전히 규명되지 않음)
 4. 동일 OD 반복 호출의 candidate order·구조 안정성과 mapping failure rate를 검증한다. → **`PASS`** (같은 window 반복 및 전날 대비 재호출에서 15개 후보 signature 완전 일치)
 
-entitlement가 `CONFIRMED`로 바뀌었더라도 mapping 조건이 구조적으로 `REJECTED`이므로 Kakao publictraffic route-provider 승격은 보류한다. 공개 범위는 승인된 Route A로 제한되고 Kakao는 WALK provider 또는 internal comparison/reference 범위만 유지한다.
+entitlement가 `CONFIRMED`로 바뀌었더라도 mapping 조건이 구조적으로 `REJECTED`이므로 Kakao publictraffic route-provider 승격은 보류한다. Kakao는 `KAKAO_MAP_WALK` provider 또는 internal comparison/reference 범위만 유지하며, canonical route truth·selected route로는 사용하지 않는다.
+
+이 절은 Route A 자체의 selected-route 정책을 규정하며, 서울 임의 OD 검색·경로 후보 생성은 §5.1.1 coverage 5축(`routeSearchCoverage`/`canonicalMappingCoverage`/`reliabilityModelCoverage`)을 따른다. 즉 사용자는 서울 어디든 입력할 수 있고 서비스는 구조 경로 후보를 보여주지만, canonical mapping과 model coverage가 부족한 OD는 확률을 계산하지 않는다. Route A는 이 전체 흐름이 end-to-end로 검증된 우선 검증·최종 시연 대상일 뿐, 서비스가 지원하는 유일한 경로라는 뜻이 아니다.
 
 경로가 바뀌거나 해석할 수 없으면 조용히 다른 확률을 재사용하지 않고 다시 분석하거나 `UNSUPPORTED/ROUTE_MAPPING_INCOMPLETE`로 종료한다.
 
@@ -487,6 +506,23 @@ Result Eligibility는 “숫자를 계산·표시할 수 있는가”, Confidenc
 `required time-bearing leg`는 최종 도착시각에 시간을 더하는 ACCESS_WALK, WAIT, TRANSIT_RIDE, TRANSFER, FINAL_WALK이다. 각 leg에는 empirical distribution이 없더라도 출처와 의미가 검증된 deterministic/static reference가 있을 수 있다. 이 경우 전체 숫자는 표시할 수 있으나 `PARTIAL_MODEL/UNMODELED_UNCERTAINTY`를 숨기지 않는다. 시간 입력 자체가 없으면 해당 leg를 0이나 placeholder로 채우지 않고 core result를 `NOT_COMPUTED`로 둔다.
 
 Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족해도 core P50/P90/P(on_time)을 자동 무효화하지 않는다. Recommended Departure는 별도 Claim Gate이며 unavailable이 core result와 Start를 막지 않는다.
+
+### 11.6 Per-metric Claim Eligibility
+
+§11.5의 `resultEligibility`(`USER_FACING/ENGINE_FIXTURE_ONLY/NOT_COMPUTED`)는 "화면에 숫자를 표시해도 되는가"를 answer하는 전역 gate다. 하지만 Journey는 성숙도가 서로 다른 BUS/SUBWAY/WALK/TRANSFER/WAIT leg를 포함하므로, `USER_FACING`이라는 한 값만으로는 P50/P90/P(on_time)/Recommended Departure가 서로 얼마나 다른 통계적 근거를 가지는지 구분하지 못한다. 전역 gate 아래에 metric별 claim eligibility를 추가로 둔다.
+
+| 자격 | 허용 표현 |
+|---|---|
+| `STRUCTURE_ONLY` | 경로 구조·reference time만 표시, 확률 미표시 |
+| `DISTRIBUTION_AVAILABLE` | P50/P90을 모델 출력으로 표시, calibration claim 금지 |
+| `PROBABILITY_AVAILABLE` | P(on_time) 표시 가능, observation/coverage 경고 필수 |
+| `CALIBRATED_CLAIM` | 정해진 validation scope(V3, §11.4) 안에서만 신뢰도 claim 가능 |
+
+- P50, P90, P(on_time), Recommended Departure는 각각 이 4단계 중 하나로 독립 판정한다. 하나의 metric이 `PROBABILITY_AVAILABLE`이어도 다른 metric은 `STRUCTURE_ONLY`일 수 있다.
+- 어떤 required leg가 point reference인지, unmodeled인지, fallback인지는 결과 payload(`metricEligibility`)에 노출한다.
+- V3 calibration이 없으면 "실험 모델 출력" 또는 demo/replay 범위로 정직하게 위치시키고 `CALIBRATED_CLAIM`을 주장하지 않는다.
+- 계약 완성도(§11.5 `resultEligibility`)와 통계적 claim 가능성(§11.6 metric eligibility)을 같은 값으로 합치지 않는다.
+- 최종 데모는 `D0 계약/상태`(구조·오류·partial 상태만), `D1 component/replay`(실험 출력 P50/P90/P(on_time)), `D2 calibrated`(V3 통과 후 신뢰도 claim)처럼 gate에 따라 narrative를 달리한다.
 
 ---
 
