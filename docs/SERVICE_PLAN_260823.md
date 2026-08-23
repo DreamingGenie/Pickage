@@ -192,6 +192,16 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 - 사용자는 서울 안에서 임의의 출발지·도착지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, §5.1.1). 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
 - 확률 계산은 canonical mapping과 model coverage가 충족된 leg/route에만 수행하며(`canonicalMappingCoverage`/`reliabilityModelCoverage`), Route A는 이 전체 흐름이 end-to-end로 검증된 우선 검증·최종 시연 대상이다(`validationAndDemoScope`)
 - BUS + SUBWAY mixed journey
+- `ACCESS_WALK / WAIT / TRANSIT_RIDE / TRANSFER / FINAL_WALK`
+- `BUS_TO_SUBWAY / SUBWAY_TO_SUBWAY / SUBWAY_TO_BUS`
+- Pre-trip analysis, Journey Start, In-trip Reforecast
+- P50, P90, `P(on_time)`, Planned Connection Success, Final On-time
+- 목표 reliability 기본값 90%, 사용자 변경 가능
+- 계산 Gate 통과 시 Recommended Departure
+- support, fallback, freshness, limitation, validation scope
+- `BUS_SKIPPED`, `BOARD_CONFIRMED`, `TRANSFER_MISSED`
+- Evidence Detail
+- Share Snapshot은 일정·보안 Gate에 따른 Should
 
 ### 5.1.1 Coverage 5축
 
@@ -208,16 +218,6 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 구현 계약 순서: ① 서울 범위 안에서 위치를 실제 좌표로 해석 → ② route discovery provider로 임의 OD의 구조 경로 후보를 얻음 → ③ canonicalization layer가 정류장·역·노선 master와 대조 → ④ 후보별 mapping status/provenance 부여 → ⑤ 정책상 충분히 식별된 leg/route에만 Journey Reliability 계산 → ⑥ mapping/모델 coverage가 부족하면 경로 후보는 표시하되 확률은 만들지 않고 이유를 명시 → ⑦ Route A는 이 흐름이 end-to-end로 검증된 fixture로 별도 관리.
 
 현재 Kakao publictraffic은 route discovery source 후보로는 기각되지 않았으나(§6.1), canonical route truth의 단독 source로는 REJECTED다. 임의 OD의 route discovery를 위해서는 canonicalization 계약이나 대체 route provider를 별도로 확정해야 하며, 확정 전까지 route discovery 결과는 구조만 제공하고 확률 계산에는 사용하지 않는다.
-- `ACCESS_WALK / WAIT / TRANSIT_RIDE / TRANSFER / FINAL_WALK`
-- `BUS_TO_SUBWAY / SUBWAY_TO_SUBWAY / SUBWAY_TO_BUS`
-- Pre-trip analysis, Journey Start, In-trip Reforecast
-- P50, P90, `P(on_time)`, Planned Connection Success, Final On-time
-- 목표 reliability 기본값 90%, 사용자 변경 가능
-- 계산 Gate 통과 시 Recommended Departure
-- support, fallback, freshness, limitation, validation scope
-- `BUS_SKIPPED`, `BOARD_CONFIRMED`, `TRANSFER_MISSED`
-- Evidence Detail
-- Share Snapshot은 일정·보안 Gate에 따른 Should
 
 ### 5.2 Explicit Out
 

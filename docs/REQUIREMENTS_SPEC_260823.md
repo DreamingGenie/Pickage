@@ -408,15 +408,15 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 | ID | Method/Path | Purpose | Request core | Response core | Errors | Owner |
 |---|---|---|---|---|---|---|
 | API-000 | POST `/api/v1/locations/search` | 장소 후보 resolve | query 또는 foreground coordinate(body; 좌표를 URL query에 싣지 않음) | label,GeoPoint,role,source,provider,quotaState | invalid,no result,provider,quota,permission은 client 처리 | Backend/Location |
-| API-001 | POST `/api/v1/route-candidates` | Route A manifest 조회/선택(MR), future provider route 조회 | origin,destination | routeManifest,walkProvider,adapterVersion,coverageMode,selectionPolicy,selectedCandidate,futureCandidates,mappingStatus/support | geography,not found,provider entitlement/quota,mapping | Backend/Route |
-| API-002 | POST `/api/v1/journeys/analyze` | pre-trip 계산+owner 발급 | input+target+route | journey/result/resultEligibility/startEligibility,routeManifest,walkProvider,coverageMode,selectionPolicy,futureRouteProviderStatus,mappingStatus,sourceFreshness,evidenceSummary; owner capability는 secure channel | insufficient,unsupported,analysis/provider | Backend/Engine |
+| API-001 | POST `/api/v1/route-candidates` | Route A manifest 조회/선택(MR), future provider route 조회 | origin,destination | routeManifest,walkProvider,adapterVersion,routeCoverageMode,walkProviderMode,selectionPolicy,selectedCandidate,futureCandidates,mappingStatus/support | geography,not found,provider entitlement/quota,mapping | Backend/Route |
+| API-002 | POST `/api/v1/journeys/analyze` | pre-trip 계산+owner 발급 | input+target+route | journey/result/resultEligibility/startEligibility,routeManifest,walkProvider,routeCoverageMode,walkProviderMode,selectionPolicy,futureRouteProviderStatus,mappingStatus,sourceFreshness,evidenceSummary; owner capability는 secure channel | insufficient,unsupported,analysis/provider | Backend/Engine |
 | API-003 | POST `/api/v1/journeys/{id}/start` | live 시작 | owner capability+expected result/state version | JourneyLifecycleState | unauthorized는 not-found와 동일, invalid state,already started | Backend |
 | API-004 | GET `/api/v1/journeys/{id}` | state 복구 | owner capability+id | lifecycle/reforecast/active leg/result/Journey+source freshness/candidate | unauthorized/not found 동일,provider | Backend |
 | API-005 | POST `/api/v1/journeys/{id}/events` | user event+reforecast | owner capability+eventType,time,target,idempotency | lifecycle/reforecast state+result/status/reason | unauthorized/not found 동일,not allowed,already,mismatch,reforecast | Backend/Engine |
 | API-006 | GET `/api/v1/journeys/{id}/evidence` | evidence detail | owner capability+id/result version optional | Route A manifest/selection, WALK provider/adapter, future route provider/crosswalk, leg/source/support/fallback/validation | unauthorized/not found 동일,unavailable | Backend/Data |
 | API-007 | POST `/api/v1/journeys/{id}/share` | snapshot 생성 | owner capability+resultVersion | opaque token,url,expiresAt | unauthorized/not found 동일,not shareable/security | Backend |
 | API-008 | GET `/api/v1/share/{token}` | public snapshot | token | privacy-safe snapshot | expired/not found | Backend |
-| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/future route-provider Gate(REJECTED — mapping 구조적 한계, §AC-055)/coverageMode/artifact summary | partial | Ops |
+| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/future route-provider Gate(REJECTED — mapping 구조적 한계, §AC-055)/routeCoverageMode/walkProviderMode/artifact summary | partial | Ops |
 | API-010 | POST `/api/v1/journeys/{id}/abort` | 사용자 여정 종료(REQ-102) | owner capability+idempotency | JourneyLifecycleState=ABORTED | unauthorized는 not-found와 동일, already ARRIVED/ABORTED | Backend |
 
 모든 response는 schemaVersion, requestId, generatedAt을 가진다. Result null을 placeholder로 채우지 않는다. owner API는 network-first이며 Service Worker가 Start/Event/Share mutation을 offline success로 변환하거나 stale API response를 current로 cache하지 않는다. GET offline projection은 ENT-021로 별도 생성하며 API response 원문 cache와 구분한다.
@@ -428,7 +428,7 @@ API-000은 route provider(API-001)와 별도의 location provider adapter를 사
 | ID | Interface | Input→Output | Contract |
 |---|---|---|---|
 | SYS-001 | Location/WALK Adapter | place query→resolved GeoPoint; points→walk point | Kakao/TMAP 등 provider별 query/result/provenance/quota/empty/error/retry를 구분; point/reference이며 transit GT 금지; provider 간 평균 금지 |
-| SYS-002 | Route/WALK Provider Registry/Normalizer | Route A manifest 또는 future provider route→RouteCandidate/JourneyLeg | adapter/version/coverageMode/selection, provider order, namespace, crosswalk, time semantics; Kakao WALK contract와 future route-provider Gate 분리 |
+| SYS-002 | Route/WALK Provider Registry/Normalizer | Route A manifest 또는 future provider route→RouteCandidate/JourneyLeg | adapter/version/routeCoverageMode/walkProviderMode/selection, provider order, namespace, crosswalk, time semantics; Kakao WALK contract와 future route-provider Gate 분리 |
 | SYS-003 | Journey Probability Engine | route+state+distribution→run/result | value semantics, connection, benchmarked N, no placeholder |
 | SYS-004 | Collector | external API→Bronze Observation | request-boundary timestamps, quota, raw/error/hash |
 | SYS-005 | Actual/Residual Builder | ordered observations→Actual/Residual | interval, identity, sign, receive-order quality |
@@ -459,6 +459,8 @@ framework·tool 교체는 허용하지만 API semantics, entity provenance, stat
 | EC2-B | Collector, Quota Coordinator, Kafka, Flink JobManager, Flink TaskManager B, MinIO | offline Python artifact builder | Kafka/Flink/MinIO internal 접근; raw/object/DB backup과 restart order 필요 |
 
 Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아니다. profile에서 serving 또는 processing 보호 workload가 공존하지 못하면 이를 먼저 제거하고, processing time separation 또는 추가 자원을 검토한다. 두 worker correctness proof 자체는 제거하지 않는다.
+
+EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskManager 2개를 모두 EC2-B에 배치해 NFR-081/082의 worker correctness proof는 유지하되 NFR-083의 물리적 2-node 분산 claim은 하지 않는다(deployment manifest에 명시). serving/processing 노드 분리 자체는 이 경우에도 유지한다.
 
 ---
 
@@ -493,7 +495,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 ### 8.1 Identity rules
 
 - Bus: route+vehicle join은 verified 범위에서 사용하되 target stop/section mapping은 별도 Gate.
-- Subway: `subwayId×statnId×trainNo`, station name만 join 금지.
+- Subway: `subwayId×statnId×trainNo`는 동일 service day(REQ-073) 안에서만 unique하다고 가정한다. trainNo는 자정 rollover 이후 재사용될 수 있으므로 실제 identity key는 `subwayId×statnId×trainNo×serviceDate`이며, station name만 join 금지.
 - Mixed route/timetable/realtime ID는 explicit versioned crosswalk, 산술 추론 금지.
 - 모든 datetime timezone-aware, KST display/UTC storage 가능하나 semantics 명시.
 
@@ -607,7 +609,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | NFR-080 Real vs Amplified | MUST for proof | replay multiplier·purpose 표시, amplified는 training support 금지 | run manifest |
 | NFR-081 Worker Participation/Failure | MUST | Kafka partition input을 Flink의 2개 이상 worker task가 실제 처리하고 worker 종료 후 checkpoint/restart 또는 replay 복구 | participation/recovery evidence |
 | NFR-082 Correctness | MUST | single-worker와 multi-worker의 input/output count·checksum 일치, duplicate/loss 0, keyed identity state 중복 없음 | correctness manifest |
-| NFR-083 Two-node Deployment | MUST/G6 | EC2-A serving, EC2-B processing 기본 배치와 TaskManager A/B 참여; 사양 profile, public/internal port, backup/restart/rollback ADR | AC-048, deployment manifest |
+| NFR-083 Two-node Deployment | MUST/G6 | EC2-A serving, EC2-B processing 기본 배치. 분산 correctness(NFR-081/082)를 위해 물리적으로 독립된 Flink TaskManager 프로세스 2개 이상이 실제로 참여해야 하며, 기본 배치는 노드당 1개(TaskManager A/B)다. §7.3.1에 따라 EC2-A 자원 profile이 TaskManager A를 감당하지 못하면 두 TaskManager 모두 EC2-B에 배치할 수 있으나, 이 경우 "물리적 2-node 분산" claim은 하지 않고 "worker-level correctness/failure recovery proof"로 범위를 좁혀 deployment manifest에 명시한다. 어느 배치든 NFR-081/082는 동일하게 통과해야 한다 | AC-048, deployment manifest |
 | NFR-084 Quota Budget v1 | MUST/G3 | source별 approved status·reservation·forecast·degradation이 ENT-023에 있고 UNCONFIRMED는 bounded dry run만 | AC-049, quota manifest |
 | NFR-085 PWA Compatibility Matrix | MUST/G4 | iOS/Android Mobile Web·standalone과 desktop secondary run에 device/OS/browser/app/cache version 기록 | AC-050, UI-AC-031 |
 | NFR-086 Route A Demo/Protected E2E | MUST/G6 | Route A actual product flow manifest와 Protected E2E lane; Route B·mock replacement 금지 | AC-051,052, UI-AC-032 |
@@ -620,7 +622,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 
 | AC | Type | Scenario / Preconditions | Steps | Expected | Related |
 |---|---|---|---|---|---|
-| AC-001 | E2E | coverageMode에 맞는 valid input | SCR-01 입력→analyze | Minimum Release는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`로 manifest Route A와 WALK provider provenance를 반환; future `PROVIDER_SUPPORTED`는 first canonical-supported; SCR-02 eligible/not-computed, duplicate 0 | F001~003, REQ-001~010 |
+| AC-001 | E2E | routeCoverageMode/walkProviderMode에 맞는 valid input | SCR-01 입력→analyze | Minimum Release는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`로 manifest Route A와 WALK provider provenance를 반환; future `PROVIDER_SUPPORTED`는 first canonical-supported; SCR-02 eligible/not-computed, duplicate 0 | F001~003, REQ-001~010 |
 | AC-002 | Product | 서울 외/route mapping fail | analyze | 0%가 아닌 unsupported/mapping copy, input edit | REQ-005,054 |
 | AC-003 | Probability | critical source 없음 | real analysis | placeholder 0, eligibility NOT_COMPUTED, start disabled | REQ-010,016,055 |
 | AC-004 | Route | provider candidates mixed | selection | provider order 유지한 첫 supported, reliability reorder 0 | REQ-005,006 |
@@ -667,7 +669,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | AC-045 | Service Worker Update | active event/reforecast와 waiting worker | update activation/rollback/reload 반복 | mutation 손실·중복·reload loop 0; safe activation과 version 관측 | REQ-097; NFR-078 |
 | AC-046 | Geolocation Permission | allow/deny/timeout/unsupported | 현재 위치 CTA 실행 후 수동 입력 | click 전 prompt 0; 허용 시 ORIGIN_POINT provenance; 모든 실패에서 수동 입력 가능 | REQ-098; BR-070; NFR-079 |
 | AC-047 | Device Share | Web Share 지원/취소/실패/미지원 | Share CTA | 가능 시 OS sheet, 그 외 copy fallback; token analytics/log 0 | REQ-098; NFR-079,054 |
-| AC-048 | Deployment | 실제 EC2 사양과 2-node manifest | deploy→port scan→serving/processing smoke→worker kill→rollback | public/internal boundary, 보호 workload 기동, backup/restart, TaskManager A/B 참여; 사양 미충족 시 optional process cut | NFR-083,081,082 |
+| AC-048 | Deployment | 실제 EC2 사양과 2-node manifest | deploy→port scan→serving/processing smoke→worker kill→rollback | public/internal boundary, 보호 workload 기동, backup/restart, 독립된 TaskManager 프로세스 2개 이상 참여(기본은 노드당 1개); EC2-A가 TaskManager A를 감당 못하면 2개 모두 EC2-B에 배치하고 물리적 2-node 분산 claim 대신 worker correctness proof로 manifest에 명시 | NFR-083,081,082 |
 | AC-049 | Quota Budget | subway/bus/Kakao/TMAP credential 상태 조합 | ledger 입력→reservation→exhaustion forecast→degradation | subway 1,000/day(계정 공유, CONFIRMED), bus Arrival/Position 각 1,000/day(서비스별 독립, CONFIRMED), Kakao WALK 1,000/day runtime budget CONFIRMED, Kakao publictraffic 1,000/day는 reference budget으로만 CONFIRMED, TMAP transit 10과 project entitlement를 구분; UNCONFIRMED 무제한 schedule 0; active Route A 우선; config version trace | NFR-060,067~069,084,087,088; ENT-023 |
 | AC-050 | PWA Compatibility | iOS/Android browser·standalone, desktop secondary | SCR-01→05+offline+foreground+update+permission+share | 각 device/OS/browser/app/cache version과 pass/fail 기록; 미검증 환경 support claim 0 | NFR-074~079,085; REQ-093~098 |
 | AC-051 | Route A Demo Manifest | final rehearsal input과 provider live/recorded variants | manifest 검증→SCR flow→provenance trace→rollback | route/data/engine/PWA/quota/distributed/claim/recovery field complete; Route B·mock probability 0 | REQ-090~092; NFR-065,086 |
@@ -792,7 +794,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 - [ ] Route A Demo Run Manifest와 Protected E2E AC-051~052가 통과했다.
 - [ ] Kakao WALK provider는 AC-053, AC-056, quota evidence가 통과했고 raw evidence가 저장됐다.
 - [ ] Kakao publictraffic을 Primary route provider로 사용할 경우 AC-053~055와 `KAKAO_ROUTE_PROVIDER_GATE`가 통과했다.
-- [ ] Minimum Release 배포는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`이며 UI/API/manifest의 coverageMode가 일치한다.
+- [ ] Minimum Release 배포는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`(Route A 우선순위·WALK provider 범위)이며 UI/API/manifest의 `routeCoverageMode`/`walkProviderMode`가 일치한다.
 - [ ] 2-node proof를 HA·무중단·SLA로 표현하지 않는다.
 
 ---

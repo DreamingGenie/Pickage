@@ -344,7 +344,7 @@ SCR-01
 │  ├─ Target Arrival Date/Time
 │  └─ Target Reliability Control
 ├─ Scope Notice
-│  ├─ coverageMode
+│  ├─ routeCoverageMode / walkProviderMode
 │  └─ provider-supported limitation
 └─ Primary CTA
 ```
@@ -357,7 +357,7 @@ SCR-01
 | destination label+coordinate | yes | resolve 성공, role=POI/입력 provenance | exact coordinate 저장 금지 |
 | targetArrivalAt | yes | timezone-aware, 과거 금지 | time bucket만 가능 |
 | targetReliability | yes | 기본 0.90; UI 옵션은 구현 config | 값 저장 가능 |
-| coverageMode | yes | server deployment config; UI가 임의 추론 금지 | mode만 가능 |
+| routeCoverageMode / walkProviderMode | yes | server deployment config; UI가 임의 추론 금지 | mode만 가능 |
 
 `현재 위치 사용`은 origin field의 보조 action이다. click 전 권한을 요청하지 않으며, 허용되면 foreground one-shot coordinate를 `ORIGIN_POINT` provenance와 함께 resolver에 전달한다. 거부·timeout·미지원은 field 오류가 아니라 안내 후 수동 입력을 유지한다.
 
@@ -648,7 +648,7 @@ ARRIVED는 FINAL_WALK 완료 뒤에만 표시한다. ABORTED는 실패가 아니
 
 ### 9.10 Analytics·Acceptance
 
-Events: `live_journey_view`, `board_confirmed`, `bus_skipped`, `transfer_missed`, `live_provider_stale`, `journey_arrived`, `event_rejected`.
+Events: `live_journey_view`, `board_confirmed`, `bus_skipped`, `transfer_missed`, `ride_completed`, `journey_aborted`, `live_provider_stale`, `journey_arrived`, `event_rejected`.
 
 Acceptance:
 
@@ -1008,6 +1008,8 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 | journey_start_success | 03 | state active | state_version |
 | bus_skipped | 03 | user submit | target_service_id_exists |
 | board_confirmed | 03 | user submit | mode, target_service_id_exists |
+| ride_completed | 03 | user submit | mode, next_leg_type |
+| journey_aborted | 03 | user confirm 후 성공 | state_version |
 | reforecast_success | 04 | new result | reason_code, probability_delta_pp_nullable, result_version |
 | reforecast_failed | 04 | failure/unavailable | reason_code, retryable |
 | evidence_open | 05 | open | confidence, model_coverage, fallback_exists |
@@ -1093,7 +1095,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 - [ ] 실제 PWA Compatibility Matrix run과 device/OS/browser/app/cache version이 기록된다.
 - [ ] Route A Demo 화면이 product flow와 동일하고 manifest version·live/recorded 상태를 추적할 수 있다.
 - [ ] Protected E2E인 SCR-01→02→Start→03→BUS_SKIPPED→04/Unavailable→05가 다른 polish보다 먼저 통과한다.
-- [ ] coverageMode와 route manifest/WALK provider/selection/mapping field가 배포 config 및 화면 copy와 일치한다.
+- [ ] `routeCoverageMode`/`walkProviderMode`/`modelCoverage`와 route manifest/WALK provider/selection/mapping field가 배포 config 및 화면 copy와 일치한다.
 - [ ] Kakao WALK 호출 성공을 publictraffic canonical mapping 성공이나 Route A 선택으로 재해석하지 않는다.
 
 ### Backend/API
@@ -1182,8 +1184,8 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | analytics retention | raw ID/token 금지; pseudonymous key만 | G5 Privacy Review |
 | offline snapshot storage lifetime | server retention과 별도 policy; savedAt·clear path 제공 | G5 Privacy/Security Review |
 | Service Worker activation timing | active mutation 안전성 우선 | PWA integration test |
-| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: mapping `REJECTED`(payload에 canonical ID 없음)로 route-provider 승격 미통과 확정 — UI는 계속 `ROUTE_A_ONLY + KAKAO_WALK_ONLY` 기준 copy를 사용 | `KAKAO_ROUTE_PROVIDER_GATE` |
-| deployment coverage mode | Minimum Release는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`; future Gate 통과 시에만 `PROVIDER_SUPPORTED` 검토 | Release manifest |
+| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: mapping `REJECTED`(payload에 canonical ID 없음)로 route-provider 승격 미통과 확정 — canonical route truth·selected route 승격은 계속 보류되지만, 서울 임의 OD의 route discovery 입력 자체는 이 Gate와 무관하게 항상 허용된다(§1 IA-025/IA-026, §7.3) | `KAKAO_ROUTE_PROVIDER_GATE` |
+| deployment coverage mode | Minimum Release의 `routeCoverageMode`는 서울 임의 OD 입력·route discovery를 항상 허용하고, Route A만 `ROUTE_A_PRIORITY`(승인된 우선 검증·데모 경로)로 표시한다; canonical route truth를 provider 후보에서 자동 선택하는 `PROVIDER_SUPPORTED`는 future Gate 통과 후에만 검토 | Release manifest |
 
 ---
 
@@ -1201,7 +1203,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 - Mobile Web·standalone·offline·foreground·update 상태를 product state와 혼합하지 않는다.
 - Route B는 내부 개발·QA 범위이며 사용자 IA와 최종 데모에 노출하지 않는다.
 - Kakao/TMAP/서울 provider 이름과 값의 provenance를 바꾸거나 서로 평균하지 않는다.
-- `ROUTE_A_ONLY + KAKAO_WALK_ONLY`와 future `PROVIDER_SUPPORTED`의 화면 고지·입력 허용범위·선택 정책을 혼합하지 않는다.
+- `routeCoverageMode`(서울 임의 입력·Route A 우선순위), `walkProviderMode`(`KAKAO_MAP_WALK`), `modelCoverage`(leg/route별 확률 계산 가능 여부)와 future `PROVIDER_SUPPORTED`의 화면 고지·입력 허용범위·선택 정책을 혼합하지 않는다.
 
 ---
 
