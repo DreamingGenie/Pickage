@@ -48,7 +48,7 @@
 
 **Planning feasibility: GO. Development: GO. 사용자-facing 확률 성숙도와 Recommended Departure: Claim Gate 적용.**
 
-실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). 그러나 같은 실험에서 `KAKAO_ROUTE_GATE`의 canonical mapping 조건은 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. 즉 이 API 응답만으로는 결정적 crosswalk를 만들 수 없고, 별도의 외부 crosswalk 없이는 이 조건이 앞으로도 통과하기 어렵다. total-step 시간 포함관계도 candidate에 따라 다르다: BUS_AND_SUBWAY 후보는 경계 WALK 합이 gap과 15초 이내로 거의 일치했지만(`HIDDEN_WALK_STRONGLY_SUPPORTED`), 첫 번째 SUBWAY 후보는 58초의 잔차가 남았다(`PARTIALLY_EXPLAINED`). 앱 entitlement·일일 quota·billing은 2026-08-23 콘솔 스크린샷 기준 `CONFIRMED`로 갱신됐지만, mapping 조건이 `REJECTED`이고 time semantics가 `PARTIAL`이므로 `KAKAO_ROUTE_GATE`는 통과하지 못했고 `ROUTE_A_ONLY` 정책이 유지된다. 다음은 아직 사용자 capability로 증명되지 않았다.
+실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). Minimum Release에서 Kakao Map의 runtime 역할은 `KAKAO_MAP_WALK` provider로 한정한다. 즉 `ACCESS_WALK`, `FINAL_WALK`, 필요한 경우 도보 환승 구간의 거리·시간 측정에는 Kakao WALK를 사용할 수 있지만, Kakao publictraffic 후보를 사용자-facing selected route, WAIT/RIDE/TRANSFER 시간, probability 산식의 근거로 사용하지 않는다. 같은 실험에서 대중교통 route-provider 승격 조건은 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. total-step 시간 포함관계도 candidate에 따라 다르다. 따라서 canonical mapping 실패는 WALK-only 사용의 blocker가 아니며, publictraffic evidence는 future route-provider 승격 검토용 reference로만 보존한다. 다음은 아직 사용자 capability로 증명되지 않았다.
 
 - 성숙한 01A target-stop Prediction→Actual residual distribution
 - 충분한 subway station×line multi-window residual distribution
@@ -77,7 +77,7 @@
 
 ### 2.2 제품이 선택한 해결 방식
 
-1. Route provider의 structural route를 받아 지원 가능한 한 경로를 고른다.
+1. Minimum Release에서는 승인된 Route A structural manifest를 분석 대상으로 고정하고, 도보 구간만 `KAKAO_MAP_WALK`로 측정한다.
 2. WALK, WAIT, TRANSIT_RIDE, TRANSFER를 중복 없이 분리한다.
 3. 원천 Prediction과 이후 Actual 관측을 구분하고 Residual을 만든다.
 4. leg별 distribution/reference와 근거 수준을 보존한다.
@@ -111,7 +111,7 @@ Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용
 
 | 비교 기준 | 일반 지도·교통 서비스의 중심 가치 | Journey Reliability의 역할 |
 |---|---|---|
-| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | 활성 provider의 first canonical-supported route 또는 승인된 Demo Route A 하나를 조건으로 분석 |
+| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | Minimum Release는 승인된 Demo Route A 하나를 조건으로 분석하고, future provider mode에서만 first canonical-supported route를 검토 |
 | 도착 정보 | ETA·예상 소요시간 중심 | P50/P90와 목표시각 내 도착확률을 분리 |
 | 환승 | 계획 경로와 다음 이동 안내 | planned connection 유지와 실패 후 최종 정시 도착을 분리 |
 | 출발 판단 | 출발·도착 예상시각 제공 | 선택 경로와 목표 reliability 조건부 Recommended Departure |
@@ -125,7 +125,7 @@ Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용
 
 | Benchmark | 공식 확인 범위 | Journey Reliability가 별도로 책임지는 범위 | 비교 제한 |
 |---|---|---|---|
-| Kakao Map REST API | 2026-07-21 공개된 대중교통·도보·자전거 경로 조회. 2026-08-22 프로젝트 키로 WALK와 대중교통 실제 호출 성공 | candidate route를 canonical Journey로 변환하고 selected-route reliability·evidence·Reforecast를 별도 책임 | 접근 성공을 ID crosswalk·시간 의미·Reliability 검증 성공으로 승격하지 않음 |
+| Kakao Map REST API | 2026-07-21 공개된 대중교통·도보·자전거 경로 조회. 2026-08-22 프로젝트 키로 WALK와 대중교통 실제 호출 성공 | Minimum Release에서는 `KAKAO_MAP_WALK` point provider로 도보 거리·시간과 provenance만 책임진다. publictraffic 후보의 canonical Journey 변환과 selected-route reliability는 future route-provider Gate 통과 후 별도 검토 | 접근 성공을 ID crosswalk·시간 의미·Reliability 검증 성공으로 승격하지 않음 |
 | TMAP 대중교통 API | Web/Mobile 대중교통 경로탐색과 전체 보행자 이동 경로; 공식 무료체험은 각 대중교통 API 일 10건 | 제한된 비교·검증 후보. TMAP point·route 결과에 임의 probability distribution을 부여하지 않음 | 일 10건 무료체험을 일반 사용자용 운영 예산으로 간주하지 않음 |
 | 서울 TOPIS | 서울 교통정보 열람, 버스·정류소 정보, Open API 접근 | 여러 source를 Journey 단위의 deadline decision과 provenance로 결합 | 공식 운영정보 자체를 개인 Journey ground truth로 과장하지 않음 |
 
@@ -189,7 +189,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 ### 5.1 In Scope
 
 - Mobile-first PWA(설치 없이 이용 가능한 responsive mobile Web 포함), 서울 행정구역
-- `PROVIDER_SUPPORTED`에서는 활성 Route Provider order를 유지한 first canonical-supported route, `ROUTE_A_ONLY`에서는 승인된 Route A 한 개 분석
+- `ROUTE_A_ONLY`에서는 승인된 Route A structural manifest 한 개를 분석하고, 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
 - BUS + SUBWAY mixed journey
 - `ACCESS_WALK / WAIT / TRANSIT_RIDE / TRANSFER / FINAL_WALK`
 - `BUS_TO_SUBWAY / SUBWAY_TO_SUBWAY / SUBWAY_TO_BUS`
@@ -213,6 +213,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 - 외부 utility를 transit ground truth로 사용하는 것
 - 검증되지 않은 support threshold, stale threshold, latency SLO, partition, watermark, TTL 수치
 - Kakao/TMAP 등 route provider의 후보 순서를 reliability ranking으로 재해석하는 것
+- Kakao publictraffic 후보를 Minimum Release의 selected route 또는 자동 OD route provider로 사용하는 것
 
 ### 5.3 향후 확장
 
@@ -270,24 +271,24 @@ PWA 설치 여부가 권한·기능·결과 품질을 바꾸지 않는다. 브�
 
 ### 6.1 Selected-route 정책
 
-Minimum Release는 route optimizer가 아니다. Route provider의 후보 목록에서:
+Minimum Release는 route optimizer가 아니다. 현재 selected route는 provider 후보 목록에서 고르는 값이 아니라 승인된 Route A structural manifest다. Route A manifest는 다음 조건을 만족해야 한다.
 
-1. provider order를 유지한다.
-2. 서울 범위와 지원 mode인지 확인한다.
-3. ID와 leg를 canonical structure로 해석할 수 있는 첫 candidate를 선택한다.
-4. 결과 전체에 `SELECTED_ROUTE` 조건부임을 표시한다.
-5. provider rank를 reliability rank로 해석하지 않는다.
+1. 서울 범위와 지원 mode에 해당한다.
+2. bus route/stop, station×line, leg boundary를 canonical structure로 해석할 수 있다.
+3. 결과 전체에 `APPROVED_DEMO_ROUTE` 조건부임을 표시한다.
+4. 외부 route provider의 후보 순서를 reliability rank로 해석하지 않는다.
+5. provider 후보와 Route A의 시간·구간 값을 조용히 혼합하지 않는다.
 
-Route Provider는 versioned registry로 관리한다. Kakao Map은 실제 WALK·대중교통 호출이 성공했지만, 사용자 입력용 Primary로 승격하려면 `KAKAO_ROUTE_GATE`를 통과해야 한다. Gate 전에는 Route A의 검증된 structural route를 승인된 manifest로 고정할 수 있으며, Kakao 후보가 Route A와 다르다고 조용히 Route A로 바꾸거나 서로의 시간값을 혼합하지 않는다.
+Provider registry는 route provider와 WALK provider를 분리해 관리한다. Minimum Release의 Kakao Map runtime scope는 `KAKAO_WALK_ONLY`다. Kakao WALK는 좌표쌍 기반 `ACCESS_WALK`, `FINAL_WALK`, 필요 시 도보 환승 구간의 거리·시간 측정에 사용할 수 있지만, Kakao publictraffic 후보는 selected route, WAIT/RIDE/TRANSFER 시간, probability eligibility 근거로 사용하지 않는다.
 
-`KAKAO_ROUTE_GATE`는 다음 네 항목이다. **2026-08-23 재실험 결과 아래와 같이 판정됐다 — Gate는 통과하지 못했다.**
+`KAKAO_ROUTE_PROVIDER_GATE`는 Kakao publictraffic을 future Primary route provider로 승격할 때만 필요한 조건이다. **2026-08-23 재실험 결과 아래와 같이 판정됐고, Minimum Release의 WALK-only 사용을 차단하지 않는다.**
 
 1. 실제 앱의 무료/유료 entitlement와 일일 quota 상태를 콘솔에서 기록한다. → **`CONFIRMED`** (2026-08-23 15:16 KST 콘솔 스크린샷: `publictraffic.json` 9/1,000, `walk.json` 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치. 2026-08-23 15:23 KST "유료 사용량" 콘솔 스크린샷으로 이번 달 유료 호출 0건도 확인 — 과금 발생 없음)
 2. Kakao stop·vehicle·coordinate를 서울시 bus route/stop 및 station×line identity에 결정적으로 연결한다. → **`REJECTED`** (topology 3종 후보 전부 stop=`name`만, vehicle=`name`/`type`만 확인 — busRouteId/stId/stationId에 해당하는 필드가 응답 스키마에 없어 API 응답만으로는 구조적으로 불가능)
 3. `totalTime`, step time, 접근·환승·대기·마지막 도보의 포함 관계를 raw response로 규명한다. → **`PARTIAL`** (BUS_AND_SUBWAY 후보는 15초 이내로 거의 explained, 순수 SUBWAY 후보는 58초 잔차가 남아 완전히 규명되지 않음)
 4. 동일 OD 반복 호출의 candidate order·구조 안정성과 mapping failure rate를 검증한다. → **`PASS`** (같은 window 반복 및 전날 대비 재호출에서 15개 후보 signature 완전 일치)
 
-entitlement가 `CONFIRMED`로 바뀌었더라도 mapping 조건이 구조적으로 `REJECTED`이므로 Gate는 전체적으로 미통과다. 공개 범위는 승인된 Route A로 제한되고 Kakao는 WALK 또는 internal comparison 범위만 유지한다.
+entitlement가 `CONFIRMED`로 바뀌었더라도 mapping 조건이 구조적으로 `REJECTED`이므로 Kakao publictraffic route-provider 승격은 보류한다. 공개 범위는 승인된 Route A로 제한되고 Kakao는 WALK provider 또는 internal comparison/reference 범위만 유지한다.
 
 경로가 바뀌거나 해석할 수 없으면 조용히 다른 확률을 재사용하지 않고 다시 분석하거나 `UNSUPPORTED/ROUTE_MAPPING_INCOMPLETE`로 종료한다.
 
@@ -329,7 +330,7 @@ Reforecast는 `P(final arrival | observed history, current state)`를 다시 계
 | 기능 영역 | 핵심 정책 | 사용자 가치 | 하위 계약 연결 |
 |---|---|---|---|
 | Journey Input | 실제 목적지와 목표시각을 받음 | deadline 기준 판단 | REQ-001~004 / SCR-01 |
-| Structural Route | coverage mode에 따른 first-supported 또는 approved Route A 선택 | 분석 대상이 명확함 | REQ-005~009 |
+| Structural Route | Minimum Release는 approved Route A manifest 선택; future provider mode에서만 first-supported candidate 검토 | 분석 대상이 명확함 | REQ-005~009 |
 | Pre-trip Result | 서로 다른 4개 결과와 근거 표시 | 평균·보수·정시·환승 위험 이해 | REQ-010~016 / SCR-02 |
 | Live Journey | 현재 leg와 freshness 표시 | 이동 중 상태 이해 | REQ-020~022 / SCR-03 |
 | Reforecast | 실제 사건 이후 남은 여정만 갱신 | 변화가 최종 도착에 미치는 영향 확인 | REQ-023~026 / SCR-04 |
@@ -501,9 +502,9 @@ Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족
 | Coordinate | 역 중심·출구·승강장·POI는 서로 다른 위치 역할이다. | 모든 endpoint에 coordinate role/source를 기록하고 station center를 exit로 표현하지 않는다. |
 | Subway identity | 같은 역명이 여러 호선에 존재해 name-only join이 관측을 혼합할 수 있다. | `subwayId×statnId×trainNo`를 기본 identity로 사용한다. |
 | Simulation | placeholder, residual-as-duration, topology 삭제는 그럴듯한 숫자를 만들지만 제품 의미를 훼손한다. | required input이 없으면 `NOT_COMPUTED`, synthetic run은 `ENGINE_FIXTURE_ONLY`, residual과 duration을 분리한다. |
-| Kakao Map 신규 Route/WALK | 2026-08-22 WALK 295m/323s, public transit 15개 후보가 HTTP 200/`OK`로 반환됐다. 첫 대중교통 후보는 total 2,651초인데 출력 step 합은 1,764초로 887초 차이가 있었다. 2026-08-23 같은 OD를 재호출해 15개 후보 signature가 완전히 동일함을 확인했다(`BURST_STABLE_FOR_TESTED_OD`, cross-day). | API 접근·반복 안정성은 VERIFIED다. 887초 gap은 후보 유형에 따라 다르게 설명된다 — 아래 행 참조. canonical ID mapping은 `KAKAO_ROUTE_GATE`에서 REJECTED로 판정됐다(다음 행 참조). |
+| Kakao Map WALK / publictraffic reference | 2026-08-22 WALK 295m/323s, public transit 15개 후보가 HTTP 200/`OK`로 반환됐다. 2026-08-23 같은 OD를 재호출해 15개 후보 signature가 완전히 동일했고 ACCESS WALK 295m/323s point도 완전 재현됐다. | `KAKAO_MAP_WALK`는 Minimum Release의 WALK provider로 사용할 수 있다. publictraffic은 route-provider reference evidence로만 보존하며 selected route나 transit time 근거로 사용하지 않는다. |
 | Kakao total/step gap 분해 (2026-08-23) | 후보 index 0(SUBWAY): gap 919m/887s, 경계 WALK(origin→첫 지점 918m/825s + 마지막 지점→destination 5m/4s) 합 923m/829s → 거리는 4m 차이로 거의 일치하지만 시간은 58초 잔차가 남음(`PARTIALLY_EXPLAINED`). 후보 index 2(BUS_AND_SUBWAY): gap 468m/422s, 경계 WALK 합 481m/437s → 13m/15s 차이(`HIDDEN_WALK_STRONGLY_SUPPORTED`). | 58초 잔차를 WAIT나 환승 대기로 임의 확정하지 않고 `PARTIALLY_EXPLAINED`로 유지한다. 후보 유형(순수 지하철 vs 버스+지하철)에 따라 설명 정도가 다르다는 사실 자체를 기록하고 일반화하지 않는다. |
-| Kakao canonical ID mapping (2026-08-23, `KAKAO_ROUTE_GATE` 조건 2) | 대중교통 응답의 stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 가지고 있다. busRouteId·stId·stationId에 해당하는 필드가 응답 스키마에 존재하지 않는다(3개 topology 후보 전부 동일 구조 확인). | 이 API 응답만으로는 결정적 crosswalk가 불가능하다 — `REJECTED`(payload 자체 한계). 별도의 외부 name-based crosswalk 없이는 Primary 승격 조건을 만족할 수 없다. |
+| Kakao canonical ID mapping (2026-08-23, future route-provider 조건) | 대중교통 응답의 stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 가지고 있다. busRouteId·stId·stationId에 해당하는 필드가 응답 스키마에 존재하지 않는다(3개 topology 후보 전부 동일 구조 확인). | 이 API 응답만으로는 결정적 crosswalk가 불가능하다 — `REJECTED`(payload 자체 한계). 별도의 외부 name-based crosswalk 없이는 publictraffic을 Primary route provider로 승격할 수 없다. 이 조건은 WALK-only 사용에는 필요하지 않다. |
 | Kakao 지리 범위 (2026-08-23) | 서울이 아닌 부산 좌표(129.0756,35.1796 → 129.0800,35.1850)로 publictraffic을 호출한 결과 정상적으로 3개 후보(버스 2, 지하철 1)를 반환했다. 동일 지점/매우 짧은 거리는 각각 `EQUAL_POINTS`/`NO_RESULTS` business status로 명확히 구분됐다. | Kakao publictraffic은 서울 범위를 스스로 제한하지 않는다 — "서울시 데이터만" 원칙은 product 입력단에서 강제해야 하며 provider 응답 성공 여부로 지역 범위를 판단하지 않는다. |
 | Kakao source 구분 | 기존 package의 403은 Kakao Mobility walking endpoint와 일반 REST key 조합에서 발생했고, 이번 성공은 2026-07-21 공개된 Kakao Map `dapi.kakao.com/v2/routing/*` endpoint다. | 기존 BLOCKED evidence를 삭제하지 않고 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`를 서로 다른 providerKey로 관리한다. |
 | WALK provider 차이 | 동일 Route A 접근 pair에서 기존 TMAP은 297m/245s, 신규 Kakao는 295m/323s를 반환했다. 2026-08-23 Kakao 재호출도 295m/323s로 완전히 동일했다. | provider별 point estimate와 version을 보존하고 평균하거나 empirical distribution으로 변환하지 않는다. 동일 provider의 재현성은 개인 variance 없는 deterministic point라는 근거를 강화할 뿐 distribution 근거는 아니다. |
@@ -692,7 +693,7 @@ EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cach
 | 그룹 | 기본 endpoint | 책임 |
 |---|---|---|
 | Location | `GET /api/v1/locations/search` | 장소 후보와 coordinate provenance; provider namespace 포함 |
-| Route | `POST /api/v1/route-candidates` | versioned provider의 structural 후보 조회, canonical mapping과 first-supported 선택 |
+| Route | `POST /api/v1/route-candidates` | Minimum Release는 승인 Route A manifest 조회/선택, future provider mode에서만 canonical mapping과 first-supported 선택 |
 | Analysis | `POST /api/v1/journeys/analyze` | Journey 생성, eligibility, result snapshot |
 | Journey | `GET /api/v1/journeys/{id}` | foreground 복구와 최신 state/result |
 | Start | `POST /api/v1/journeys/{id}/start` | PRE_TRIP_READY→ACTIVE idempotent 전이 |
@@ -840,8 +841,8 @@ DailyCalls = \sum_{source,cohort,window}
 | 서울 실시간 지하철 | 2026-08-23 서울 열린데이터광장 "인증키 안내" 공식 정책 텍스트로 확인: **1일 1,000회/키**(활용사례 갤러리 등록·승인 시 무제한 전환 가능하나 이 프로젝트는 미등록). 이 1,000회는 station×line 쿼리 종류와 무관하게 지하철인증키 하나에 걸리는 계정 단위 공유 한도다 | `CONFIRMED / GALLERY_NOT_REGISTERED` | 활용사례 갤러리 등록 시 무제한 전환 가능(release 전 검토); 현재는 KST-day ledger로 225/1,000(2026-08-23 실사용) 정도의 여유를 관리 | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
 | 서울 버스 Arrival | 2026-08-23 data.go.kr 마이페이지 확인: `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 등록 단위, data.go.kr 계정 키는 공유하지만 quota는 서비스마다 독립) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | 서울 버스 Position | 2026-08-23 data.go.kr 마이페이지 확인: `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도 quota) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | `KAKAO_ROUTE_GATE`는 mapping 조건 REJECTED로 여전히 미통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
-| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
+| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | runtime route provider로 사용하지 않음. `KAKAO_ROUTE_PROVIDER_GATE`는 future 승격 조건 | 사용자 신규 OD 분석 budget 0, reference evidence만 보존 |
+| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | runtime WALK provider로 사용. route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
 | TMAP 대중교통 | 공식 무료체험 일 10회 | `KNOWN_BASE / VALIDATION_ONLY` | 사용자 runtime 기본 provider에서 제외하고 golden-route 비교 budget만 예약 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
 | TMAP pedestrian | project credential 실제 승인량 미확정; 과거 실제 호출 성공 | `API_VERIFIED / LIMIT_UNCONFIRMED` | Kakao와 별도 quota·cache·provenance 유지 | Kakao 값을 TMAP provenance로 표시하지 않음 |
 
@@ -941,7 +942,7 @@ baseline, cohort, evaluation window, pass threshold는 해당 evidence가 생긴
 6. **Security/Ops**: secret critical 0, frontend key 0, HTTPS, backup/restore/rollback.
 7. **Distributed proof**: agreed minimum worker/failure/correctness set.
 8. **Access/Eligibility contract**: anonymous owner capability, Share 권한 분리, criticality matrix, Start gate, mixed freshness QA 통과.
-9. **Provider contract**: Kakao를 사용자 입력용 Primary로 사용할 경우 entitlement·canonical ID·시간 분해·반복 안정성의 `KAKAO_ROUTE_GATE` 통과. 미통과 시 공개 범위를 승인된 Route A로 제한.
+9. **Provider contract**: Minimum Release는 승인된 Route A manifest와 `KAKAO_MAP_WALK` provider contract를 충족해야 한다. Kakao publictraffic을 사용자 입력용 Primary route provider로 승격할 경우에만 entitlement·canonical ID·시간 분해·반복 안정성의 `KAKAO_ROUTE_PROVIDER_GATE`를 별도로 통과해야 한다.
 
 ### 20.2 Capability Claim Gate
 
@@ -1011,7 +1012,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 | Probability calibration 실패 | V1~V3 미완료 | baseline-first temporal validation | confidence/claim 축소; ML 억지 도입 금지 |
 | Architecture scope overrun | target stack 다수 | vertical slice first | core E2E 보호, optional stack 범위 축소 |
 | Provider outage/demo failure | 외부 API 의존 | quota/health preflight, recorded evidence | live unavailable를 정직하게 표시 |
-| Kakao canonical mapping 불가 | 2026-08-23 재실험으로 `KAKAO_ROUTE_GATE` 조건 2(canonical mapping)가 payload 자체 한계로 `REJECTED` 확정 — 외부 crosswalk 없이는 향후에도 통과 어려움 | 별도 name-based crosswalk 설계가 필요하면 그 자체를 새 evidence 항목으로 관리 | 승인 Route A 고정; Kakao는 WALK/internal comparison으로 축소(정책 변경 없음, 근거만 강화) |
+| Kakao publictraffic route-provider 미승격 | 2026-08-23 재실험으로 future route-provider 조건 2(canonical mapping)가 payload 자체 한계로 `REJECTED` 확정 — 외부 crosswalk 없이는 publictraffic을 Primary route provider로 승격하기 어려움 | 별도 name-based crosswalk 설계가 필요하면 그 자체를 새 evidence 항목으로 관리 | 승인 Route A 고정; Kakao는 WALK provider/internal reference로 사용. WALK-only 정책에는 blocker 아님 |
 | Contract drift | vertical-slice 산출물에서 실제 위반 발견 | traceability+automated contract tests | merge freeze 후 reconcile |
 
 ---
@@ -1024,6 +1025,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 신규 Kakao Map REST WALK·public-transit endpoint가 프로젝트 키로 HTTP 200/`OK`를 반환함
 - Kakao WALK는 Route A 접근 pair에서 295m/323s point를 반환했으며 기존 TMAP 297m/245s와 source별 차이가 존재함
 - Kakao public transit은 테스트 OD에서 15개 후보를 반환함(버스 8, 지하철 3, 복합 4)
+- Kakao publictraffic 후보는 Minimum Release selected route, WAIT/RIDE/TRANSFER 시간, probability 산식의 근거가 아니라 future route-provider reference evidence임
 - Bus Arrival↔Position vehicle join과 route-level `stopFlag 0→1` 관측 가능
 - Route A station×line 4개에서 Subway train join corridor-scoped 재확인
 - ACCESS WALK 297m/245s, BUS_TO_SUBWAY street 143m/101s, FINAL WALK 329m/300s point/reference evidence 존재
@@ -1040,7 +1042,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 2026-08-23 45분 지속 수집에서 Route A station×line 4개 중 2개(안국 3호선, 교대 3호선측)는 다수의 유효 `arvlCd=1` Actual event를 확보함
 - 2026-08-23 좌표 대조 결과, 오늘 호출한 Kakao publictraffic 8건의 어떤 candidate·step도 승인 Route A 탑승점(춘추문) 반경 100m 이내를 지나지 않음 — Kakao 후보와 Route A는 이 OD 범위에서 구조적으로 다른 경로임을 좌표로 재확인
 - 2026-08-23 안국역(3호선) 열차 1대(3166)에 대해 Prediction→Actual signed residual 계산 사례 1건 확보(L/M/U = −40s/−12.5s/+15s) — builder mechanism 자체는 정상 동작하나 표본 1건으로 support나 distribution을 주장하지 않음
-- collector(`bus_*_spike.py`/`subway_*_spike.py`)의 `requested_at`/`received_at`이 실제로는 응답 수신 후 거의 동시에 stamping되어 request-boundary latency를 측정하지 못한다는 tooling 한계를 확인함(오늘 240건 전부 0.00~0.001s로 기록) — 이번 세션은 코드 수정 금지 규칙에 따라 고치지 않고 사실만 기록
+- collector(`bus_*_spike.py`/`subway_*_spike.py`)의 `requested_at`/`received_at`이 실제로는 응답 수신 후 거의 동시에 stamping되어 request-boundary latency를 측정하지 못한다는 tooling 한계를 확인함(오늘 240건 전부 0.00~0.001s로 기록) — collector timestamp capture 수정은 별도 개발 이슈로 이관
 - Kakao entitlement는 2026-08-23 콘솔 스크린샷으로 `CONFIRMED`됨(publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치)
 - Bus(non-target stop) Prediction→Actual signed residual 계산 사례 1건 확보(vehId=106024177, L/M/U = −17s/−3s/+11s) — target 정류장(staOrd=21)은 여전히 표본 0건
 - data.go.kr 마이페이지 콘솔로 Bus Arrival/Position 각 endpoint군의 승인 한도가 서비스별로 독립적인 1,000/day임을 확인함(공유 풀 아님)
@@ -1061,9 +1063,10 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 계약 위반 vertical-slice 숫자가 real product probability라는 주장
 - amplified replay가 실제 서울 traffic이라는 주장
 - 특정 partition/watermark/TTL/SLO 숫자가 검증됐다는 주장
-- Kakao API 성공·candidate 안정성 확인만으로 canonical ID mapping이나 total/step 시간 구성까지 검증됐다는 주장(candidate 안정성은 확인됐으나 mapping은 `REJECTED`, 시간 구성은 candidate별로 `PARTIAL`)
+- Kakao API 성공·candidate 안정성 확인만으로 publictraffic route-provider 지원, canonical ID mapping, total/step 시간 구성이 검증됐다는 주장(candidate 안정성은 확인됐으나 mapping은 `REJECTED`, 시간 구성은 candidate별로 `PARTIAL`)
 - Kakao 대중교통 응답에 provider ID가 없다는 사실을 "언젠가 채워질 수 있다"고 가정하는 것 — 별도 외부 crosswalk 없이는 이 API 자체 데이터로 해결되지 않는 구조적 한계임
-- entitlement가 `CONFIRMED`(1,000/day, 2026-08-23 콘솔 스크린샷)됐다고 해서 mapping `REJECTED`나 Gate 전체 통과로 확대 해석하는 것
+- entitlement가 `CONFIRMED`(1,000/day, 2026-08-23 콘솔 스크린샷)됐다고 해서 publictraffic route-provider 승격이나 Gate 전체 통과로 확대 해석하는 것
+- Kakao WALK 측정 성공을 Kakao publictraffic selected route 지원으로 확대 해석하는 것
 - 신규 Kakao Map 성공이 기존 Kakao Mobility 403 evidence를 오류로 만든다는 주장
 - Kakao publictraffic이 서울 밖에서도 응답한다는 사실을 서울시 데이터 사용 원칙 위반이나 예외로 확대 해석하는 것(product 입력단 제한과는 별개 사실)
 
@@ -1073,7 +1076,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 
 1. **문제 제시**: “총 50분”은 약속시각을 지킬 위험을 설명하지 못한다.
 2. **Route A 입력**: 삼청동→멀티캠퍼스, 목표 도착시각과 reliability를 입력한다.
-3. **선택 경로 고지**: Route A는 승인된 Demo Run Manifest의 selected structural route이며 route optimizer 결과가 아니다. Kakao live 후보를 사용한 경우 provider와 mapping version을 별도로 고지한다.
+3. **선택 경로 고지**: Route A는 승인된 Demo Run Manifest의 selected structural route이며 route optimizer 결과가 아니다. Kakao WALK를 사용한 경우 도보 provider와 version을 별도로 고지한다.
 4. **결과 의미**: P50, P90, `P(on_time)`, Planned Connection, 가능할 때만 Recommended Departure를 서로 다르게 설명한다.
 5. **근거와 한계**: point WALK, 교대 reference, BUS_TO_SUBWAY internal gap, support/validation scope를 숨기지 않는다.
 6. **이동 시작**: 완료 구간과 현재 leg를 보여준다.
@@ -1090,7 +1093,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 | 용어 | 정본 의미 | 권장 문구 |
 |---|---|---|
 | Journey Reliability | 선택 경로의 deadline-oriented uncertainty layer | “선택한 경로의 도착 가능성을 분석” |
-| Selected Route | 활성 provider order에서 canonical mapping 가능한 첫 candidate 또는 승인된 Demo Route A | “이 경로 기준” |
+| Selected Route | Minimum Release에서는 승인된 Demo Route A. Future provider mode에서만 활성 provider order의 canonical-supported candidate | “이 경로 기준” |
 | P50 | final arrival 50th percentile | “모델 도착분포의 중앙값 시각” |
 | P90 | final arrival 90th percentile | “모델 도착분포의 90번째 백분위 시각” + scope |
 | `P(on_time)` | target까지 final arrival 누적확률 | “목표시각까지 도착할 가능성” |
