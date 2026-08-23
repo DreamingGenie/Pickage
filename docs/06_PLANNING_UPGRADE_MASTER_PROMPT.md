@@ -87,9 +87,12 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 
 각 provider의 approved limit, used, remaining, reset evidence를 ledger에 입력한다.
 
-- **data.go.kr 공용 키**(Bus Arrival+Position+Mixed-route+Route/Station-master, D-046
-  통합)는 portal에서 승인 한도를 확인하기 전까지 sustained run을 시작하지 않는다.
-- 서울 Subway remaining이 확인되지 않거나 최소 reserve를 보장하지 못하면 window를 축소한다.
+- **data.go.kr**: Bus Arrival·Bus Position·Mixed-route는 계정 키 문자열은 같지만(D-046)
+  마이페이지 확인 결과 **서비스×상세기능마다 독립적으로 1,000/day**다 — 서로 공유 풀이
+  아니므로 차감 계산하지 않는다(`02_API_BUDGET_AND_DAY_SCHEDULE.md` 1절, 2026-08-23
+  포털 확인).
+- **서울 열린데이터광장 지하철인증키**: 포털 공식 안내상 1,000/day(활용사례 갤러리 미등록).
+  사용량 대시보드가 없으므로 business error 발생 자체를 중단 신호로 삼는다.
 - TMAP pedestrian은 project credential(구독 기반) 값을 확인한 뒤 진행한다.
 - Kakao Mobility 도보 API는 오늘 실험에 포함하지 않는다(BLOCKED, D-043).
 

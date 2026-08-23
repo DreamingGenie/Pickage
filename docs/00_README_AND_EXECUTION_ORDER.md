@@ -38,10 +38,13 @@
 - 가능하면 data.go.kr(서비스 15000314/15000332/15000414)와 서울 열린데이터광장(지하철
   realtime) 마이페이지의 승인 한도/사용량 캡처 2개 이상
 
-data.go.kr 공용 키(`DATA_GO_BUS_API_KEY`, Bus Arrival+Position+Mixed-route+Route-master+
-Station-master 공유)와 지하철 realtime 키(`SEOUL_SUBWAY_REALTIME_KEY`)의 **승인 일일
-한도·remaining은 아직 포털에서 확인되지 않았다** — `02_API_BUDGET_AND_DAY_SCHEDULE.md`의
-ledger를 채우기 전에는 sustained 수집을 시작하지 않는다.
+**2026-08-23 포털 직접 확인 결과(2차 정정):** `DATA_GO_BUS_API_KEY`는 계정 전체에서
+값이 같은 키이지만(D-013/D-046), data.go.kr 마이페이지 확인 결과 **일일 트래픽 한도는
+Bus Arrival·Bus Position·Mixed-route 각 서비스×상세기능마다 독립적으로 1,000/day씩**
+부여된다 — 하나의 공유 풀이 아니다. 서울 열린데이터광장은 일반인증키(`SEOUL_OPEN_API_KEY`)
+는 호출 "횟수" 제한이 없고(1회당 최대 1,000건 조회 page cap만 존재), 지하철인증키
+(`SEOUL_SUBWAY_REALTIME_KEY`)는 포털 공식 안내대로 1일 1,000회/키다(활용사례 갤러리
+미등록). 자세한 근거와 오늘 실제 사용량 상태는 `02_API_BUDGET_AND_DAY_SCHEDULE.md` 1절 참조.
 
 초과 billing·결제수단·정확한 reset 시각도 포털 화면만으로 확정하지 않는다.
 
