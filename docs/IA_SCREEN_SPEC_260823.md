@@ -74,6 +74,7 @@
 | IA-024 | WALK provider 접근과 Journey route 지원 가능성을 분리 | Kakao WALK 호출 성공은 도보 거리·시간 provider evidence로만 사용한다. Kakao publictraffic 후보는 D2 canonical mapping·시간 의미·model Gate 통과 전까지 결과 숫자나 selected route로 승격하지 않는다 |
 | IA-025 | 공개 coverage 축을 숨기지 않음 | `geographyCoverage`(`SEOUL_ONLY`), `routeSearchCoverage`(`ARBITRARY_OD_DISCOVERY`), D2 target `selectedRoutePolicy`(`PROVIDER_FIRST_SUPPORTED`), demo/fallback `selectedRoutePolicy`(`APPROVED_ROUTE_A_ONLY`), `walkProviderMode`(`KAKAO_MAP_WALK`), `validationAndDemoScope`(`ROUTE_A_DEMO_ONLY`), `reliabilityModelCoverage`(leg/route별 확률 계산 가능 여부)를 서로 다른 축으로 입력/결과/Evidence에 보존. 여러 축을 하나의 enum으로 합치지 않는다 |
 | IA-026 | canonical mapping 실패는 통신 오류가 아니라 별도 상태 | 임의 route candidate의 `canonicalMappingStatus`가 `PARTIAL/FAILED`이면 경로 구조는 표시하되 확률·추천 출발은 `NOT_COMPUTED`+사유로 표시하고 재시도 유도 문구를 쓰지 않는다. name-only/거리-only/다중 후보 매칭은 안전한 자동 매칭이 아니므로 supported로 보여주지 않는다. 이는 D2 미달 fallback이지 통신 실패가 아니다 |
+| IA-027 | AI는 leg-level uncertainty source로 표시 | `JR_TEMPORAL_QUANTILE_MODEL`은 전체 도착확률을 직접 생성한 것으로 표현하지 않는다. Evidence에는 modelVersion/hash/evaluation scope/fallback 여부를 표시하고, H100/Jupyter training plane은 production source처럼 노출하지 않는다 |
 
 ---
 
@@ -743,7 +744,8 @@ SCR-05
 │  ├─ Selected route / corridor
 │  ├─ Calculated at / freshness
 │  ├─ Validation scope
-│  └─ Model coverage
+│  ├─ Model coverage
+│  └─ AI model provenance when used
 ├─ User-facing Limitation Summary
 ├─ Leg Evidence List
 │  └─ source / semantics / support / fallback / coordinate role
@@ -767,6 +769,7 @@ SCR-05
 | confidence | required | `SUPPORT_RULE_V1` 전 INSUFFICIENT |
 | uncertainty coverage | required | MODELED/PARTIAL/UNMODELED |
 | validation scope | required result-level, optional leg-level | component와 E2E 분리 |
+| AI model provenance | required when ML used | `JR_TEMPORAL_QUANTILE_MODEL` 또는 fallback model key, modelVersion, artifact hash, evaluation scope, fallbackUsed 표시; H100/Jupyter endpoint나 학습 credential 노출 금지 |
 | coordinate role/source | WALK/TRANSFER required | STATION_CENTER를 EXIT로 번역 금지 |
 | artifact/rule version | dev/demo only | 일반 사용자는 생략 가능 |
 
@@ -1174,6 +1177,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | UI-AC-038 | 임의 서울 OD mapping PARTIAL/FAILED | 경로 구조는 표시하되 확률·추천 출발 카드 숨김+사유 표시, 재시도 유도 문구 없음. D2 미달이어도 structure-only 결과는 유지 |
 | UI-AC-039 | metric별 claim eligibility | 같은 결과 안에서 P50/P90/on-time/Recommended가 서로 다른 `metricEligibility` 문구를 가질 수 있음을 확인 |
 | UI-AC-040 | ACCESS_WALK boarding point 도착 CTA | walk provider 예상시간이 경과해도 사용자가 `정류장/역에 도착했어요`를 누르기 전에는 ACCESS_WALK가 자동으로 COMPLETED되지 않음을 확인 |
+| UI-AC-041 | AI model provenance | AI가 사용된 결과에서 Evidence Detail은 modelKey/modelVersion/artifact hash/evaluation scope/fallbackUsed를 표시하고, 화면 copy는 AI가 최종 확률을 직접 예측했다고 표현하지 않는다. H100/Jupyter 학습 환경 URL·credential·runtime 연결 문구 0 |
 
 ---
 
@@ -1197,6 +1201,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | Service Worker activation timing | active mutation 안전성 우선 | PWA integration test |
 | Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·external ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: payload mapping `REJECTED`(canonical ID 없음)라서 D2 target은 REQ-105 external crosswalk가 필요하다. Gate 통과 candidate에만 확률·추천 출발을 계산하고, 나머지는 구조만 표시한다(§1 IA-025/IA-026, §7.3) | `KAKAO_ROUTE_PROVIDER_GATE` + REQ-105 |
 | deployment coverage fields | Minimum Release D2 target은 `geographyCoverage=SEOUL_ONLY`, `routeSearchCoverage=ARBITRARY_OD_DISCOVERY`, `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, `walkProviderMode=KAKAO_MAP_WALK`, `validationAndDemoScope=ROUTE_A_DEMO_ONLY`를 별도 필드로 표시한다. Gate 미달 fallback은 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`로 분리 표시한다 | Release manifest |
+| AI model serving | `JR_TEMPORAL_QUANTILE_MODEL`은 leg-level residual/WAIT quantile source로만 표시한다. Gate 미달 시 `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable/reference fallback으로 표시하고 AI serving claim을 축소한다 | REQ-106 + CG-008 |
 
 ---
 
@@ -1240,4 +1245,6 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 - `실시간` — stale/recorded/cached snapshot일 때
 - `지원 확률 0%` — unsupported/not-computed일 때
 - `카카오 경로이므로 분석 가능` — publictraffic canonical mapping/route-provider Gate 미확인일 때
+- `AI가 도착확률을 계산했어요` — AI가 최종 Journey probability의 직접 source처럼 보일 때
+- `H100으로 실시간 예측해요` — H100/Jupyter가 production serving plane처럼 보일 때
 - `10번 중 9번 도착` — end-to-end calibration Gate 미통과일 때

@@ -14,16 +14,16 @@
 | 정의 단위 | 수량 | ID 범위 |
 |---|---:|---|
 | Feature | 18 | F001~F018 |
-| Functional Requirement | 73 | REQ-001~105, 영역별 비연속 번호 유지 |
-| Business Rule | 55 | BR-001~086, 영역별 비연속 번호 유지 |
+| Functional Requirement | 74 | REQ-001~106, 영역별 비연속 번호 유지 |
+| Business Rule | 57 | BR-001~088, 영역별 비연속 번호 유지 |
 | State Transition Rule | 29 | ST-001~029 |
-| API/System Interface | 18 | API-000~010, SYS-001~007 |
-| Canonical Entity | 24 | ENT-001~024 |
-| NFR | 55 | NFR-001~094, 영역별 비연속 번호 유지 |
-| Acceptance Scenario | 64 | AC-001~064 |
-| Claim Gate | 7 | CG-001~007 |
+| API/System Interface | 19 | API-000~010, SYS-001~008 |
+| Canonical Entity | 26 | ENT-001~026 |
+| NFR | 57 | NFR-001~096, 영역별 비연속 번호 유지 |
+| Acceptance Scenario | 66 | AC-001~066 |
+| Claim Gate | 8 | CG-001~008 |
 
-수량은 문서 행 기준이며 구현 task 수와 동일하지 않다. 2026-08-23 외부 전문가 검토(`JR_FINAL_SET_EXPERT_REVIEW_260823.md`) 반영으로 REQ-100~104, BR-080~084, ST-023~026, API-010, NFR-090~093, AC-058~061, UI-AC-036~039(IA)가 추가됐다. 2026-08-23 정책 확정 지시서(`JR_POLICY_DECISIONS_AGENT_HANDOFF_260823.md`) 반영으로 REQ-105, BR-085~086, ENT-024, NFR-094, AC-062~064, UI-AC-040(IA)이 추가됐고, 본 정합성 조정으로 ST-027~029가 추가됐다.
+수량은 문서 행 기준이며 구현 task 수와 동일하지 않다. 2026-08-23 외부 전문가 검토(`JR_FINAL_SET_EXPERT_REVIEW_260823.md`) 반영으로 REQ-100~104, BR-080~084, ST-023~026, API-010, NFR-090~093, AC-058~061, UI-AC-036~039(IA)가 추가됐다. 2026-08-23 정책 확정 지시서(`JR_POLICY_DECISIONS_AGENT_HANDOFF_260823.md`) 반영으로 REQ-105, BR-085~086, ENT-024, NFR-094, AC-062~064, UI-AC-040(IA)이 추가됐고, 본 정합성 조정으로 ST-027~029가 추가됐다. AI 포인트 강화 반영으로 REQ-106, BR-087~088, SYS-008, ENT-025~026, NFR-095~096, AC-065~066, CG-008, UI-AC-041(IA)이 추가됐다.
 
 ### 0.2 Priority와 상태
 
@@ -79,7 +79,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 - citywide accuracy/coverage/SLA, 전국/수도권 자동 지원
 - 개인 boarding-failure probability, 미래 사고 발생확률
 - BUS_TO_BUS, native app store package, 계정 personalization, push notification, background 위치 추적
-- mandatory ML/AI와 생성형 AI probability
+- 생성형 AI probability, black-box AI final probability, production service의 H100/Jupyter 직접 연결
 - 임의 WALK/transfer variance 또는 missing leg placeholder
 - profile 전 stale/support/SLO/partition/watermark/TTL 수치
 
@@ -105,7 +105,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | F014 | Result Traceability / Internal QA | 결과 추적과 격리된 Route B 구조 검증 | SCR-05/Internal | 090~092 |
 | F015 | Security/Privacy | secret·좌표·retention·access 보호 | Global | NFR-040~052 |
 | F016 | Operations/Observability | provider/stream/API/artifact 관측, quota/entitlement, 2-node 복구, demo manifest | Ops | 008~009, NFR-030~069,083~088 |
-| F017 | Distributed/ML Proof | scale/failure/correctness와 ML promotion | Internal | NFR-080~083,086, CG-006~007 |
+| F017 | Distributed/ML / AI Serving Proof | scale/failure/correctness, model promotion guard, H100 training-plane 분리와 runtime inference | Internal/SCR-02/05 | 106, NFR-080~083,086,095~096, CG-006~008 |
 | F018 | Mobile-first PWA Runtime | 설치 여부와 무관한 mobile flow, offline honesty, foreground recovery | Global/SCR-01~05 | 093~098, NFR-074~079,085~086 |
 
 ---
@@ -237,6 +237,12 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-097 Service Worker Update | F018 / SCR-01~06/Runtime | MUST | waiting worker를 감지하고 active mutation이 없을 때만 사용자 제어 또는 안전한 정책으로 activate; cache version과 runtime version 관측 | event/reforecast 중 강제 reload·중복 reload loop·구 schema API cache resurrection 금지 | SYS-001 / ENT-022 | BR-069; NFR-078 / AC-045 |
 | REQ-098 Device Capability | F018 / SCR-01/02/03 | MUST | `현재 위치 사용` click 후 foreground one-shot geolocation; 거부 시 수동 입력. Web Share 가능 시 OS sheet, 실패/미지원 시 copy fallback | page load 권한 선요청·continuous/background GPS 금지; share token analytics/log 금지 | API-000/007, ENT-016,019 | BR-070; NFR-050,079 / AC-046,047 |
 
+### 3.11 AI / ML Training and Serving
+
+| REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
+|---|---|---|---|---|---|---|
+| REQ-106 JR Temporal Quantile Model Serving | F017/F003 / SCR-02/05/Internal | D2_TARGET/CLAIM_GATE | 제1 AI capability는 `JR_TEMPORAL_QUANTILE_MODEL`이다. H100/Jupyter Lab 등 별도 GPU 환경은 training plane으로만 사용하고 production service와 직접 연결하지 않는다. 학습 완료 후 검증된 artifact(model file, feature schema, calibration report, model card, hash)만 `ModelArtifactManifest`로 반입한다. Runtime에서는 `SYS-008` inference adapter가 leg별 residual/WAIT quantile(Q10/Q50/Q90), uncertainty width, low-support flag, modelVersion을 반환하고 Journey Engine(SYS-003)은 이를 leg distribution 입력으로만 사용한다 | 모델이 latency/calibration/artifact portability/ops cost Gate를 통과하지 못하면 같은 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소한다. 둘 다 미달하면 empirical/timetable/reference fallback을 사용하고 AI serving claim 금지. AI output이 최종 `P(on_time)`/Recommended Departure를 직접 생성하거나 provider evidence·canonical mapping·reason code를 대체하는 것 금지 | SYS-003, SYS-006, SYS-008 / ENT-010, ENT-014, ENT-015, ENT-025, ENT-026 | BR-087, BR-088; NFR-095, NFR-096; CG-008 / AC-065, AC-066 |
+
 ---
 
 ## 4. Business Rules
@@ -320,6 +326,8 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | BR-084 | canonical mapping 또는 model coverage가 부족한 route candidate는 구조만 표시하고 확률·추천 출발시각은 `NOT_COMPUTED`로 처리하며, 0%나 임의 값으로 채우지 않는다. |
 | BR-085 | canonicalization crosswalk(REQ-105)는 D2 임의 OD probability/Recommended Departure의 필수 Gate다. name-only, 거리-only, 다중 후보 매칭은 안전한 자동 매칭이 아니므로 `EXACT/UNAMBIGUOUS`로 승격하지 않는다. 2026-09-14 팀 회의에서 일정상 crosswalk가 미달한다고 판단되면 D2 claim을 하지 않고 probability/Recommended Departure는 Route A D1 fallback으로 scope-down한다. mapping 미완성 candidate는 침묵 실패가 아니라 정직한 `PARTIAL/FAILED`+확률·추천 출발 `NOT_COMPUTED`로 처리하되 임의 OD structure-only는 유지한다. |
 | BR-086 | API 호출 권한, 화면 표시 권한, cache 권한, raw 장기보존 권한, derived data 보존 권한, Share/재배포 권한은 서로 다른 Gate다. 하나의 승인(예: quota/rate-limit 확인)이 다른 Gate(예: raw 장기보존)의 승인을 자동으로 포함하지 않는다. |
+| BR-087 | H100/Jupyter 학습 환경은 production serving plane과 분리한다. 외부 GPU endpoint, notebook runtime, 학습 credential을 사용자 API, Journey Engine, collector runtime에 직접 연결하지 않는다. |
+| BR-088 | AI/ML 모델은 leg-level residual/WAIT distribution source다. 전체 Journey 확률, Recommended Departure, canonical mapping, provider evidence, Reforecast reason code를 black-box AI output으로 대체하지 않는다. |
 
 ---
 
@@ -444,6 +452,7 @@ API-000은 route provider(API-001)와 별도의 location provider adapter를 사
 | SYS-005 | Actual/Residual Builder | ordered observations→Actual/Residual | interval, identity, sign, receive-order quality |
 | SYS-006 | Artifact/Replay Pipeline | Gold/fixture→distribution/validation/benchmark | version/provenance; amplified not support |
 | SYS-007 | Quota Coordinator | consumer reservation+provider budget→permit/degradation | credential alias×KST-day ledger, priority, retry cost, projected exhaustion, no bypass |
+| SYS-008 | AI Model Artifact / Inference Adapter | ModelArtifactManifest+leg feature vector→ModelInferenceTrace+quantiles | training plane artifact만 load; H100/notebook direct call 금지; timeout/error/calibration miss 시 declared fallback으로 전환 |
 
 ### 7.3 기준 기술과 배포 경계
 
@@ -502,6 +511,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | ENT-022 | PwaRuntimeManifest | appVersion,cacheVersion,workerState,installedDisplayMode,updatedAt | 093,094,097 | product result와 분리; rollback 가능한 version |
 | ENT-023 | QuotaLedger | provider,credentialAlias,kstDay,approvedLimit,approvedStatus,reservation,priority,used,retry,businessError,remaining,resetAt,projectedExhaustion,yield,configVersion | NFR-060,067~069,084 | credential raw value 없음; 모든 consumer 합산; append/audit 가능한 변경 이력 |
 | ENT-024 | ProviderPolicyRegistry | providerKey,endpointCategory,termsUrl,policyVersionOrReviewedAt,runtimeUseStatus,rawRetentionStatus,derivedRetentionStatus,cacheStatus,redistributionStatus,requiredAttribution,allowedPurpose,deletionOwner,decisionEvidenceRef,reviewOwner | NFR-094 | 상태값은 `ALLOWED/CONDITIONAL/PROHIBITED/UNVERIFIED`; `UNVERIFIED`는 persistent raw storage·cross-session cache·redistribution에서 default deny; termsUrl/reviewedAt 없이 `ALLOWED`로 승격 금지 |
+| ENT-025 | ModelArtifactManifest | modelKey,modelVersion,artifactType,artifactPath,artifactHash,featureSchemaVersion,trainingDatasetRef,evaluationReportRef,modelCardRef,trainingPlane,approvedForRuntime,createdAt | 106 | H100/Jupyter는 trainingPlane으로만 기록; runtime에는 artifact와 schema만 반입; hash/eval 없으면 approvedForRuntime=false |
+| ENT-026 | ModelInferenceTrace | modelKey,modelVersion,featureSchemaVersion,inputScope,legId,quantiles,uncertaintyWidth,lowSupportFlag,latencyMs,fallbackUsed,generatedAt | 106 | JourneyResultSnapshot에는 model output 자체가 아니라 distribution provenance로 연결; timeout/error 시 fallbackUsed 필수 |
 
 ### 8.1 Identity rules
 
@@ -628,6 +639,13 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-087 Kakao WALK / Route Provider Contract | MUST for WALK, D2_TARGET before route Primary | `KAKAO_MAP_WALK`는 WALK point provider로 entitlement·quota·cache·providerVersion·rawRetentionStatus/provenance를 보존한다. raw payload 보존은 ENT-024/NFR-094 default-deny를 따른다. publictraffic HTTP 200/OK evidence는 D2 route-provider 검토용으로 보존하되 canonical ID·time semantics·model Gate 전에는 Journey route support로 승격 금지 | AC-053~056, UI-AC-033~034 |
 | NFR-088 Provider Provenance/Cache | MUST | provider+endpoint+adapter/crosswalk/version+request/result hash를 보존; 동일 normalized OD cache만 승인 policy로 재사용; target/reliability 변경만으로 route 재호출 금지; cross-provider cache 대체 금지 | AC-054~056, provider contract tests |
 
+### 9.7 AI / ML Serving Boundary
+
+| NFR | Priority | Requirement | Acceptance |
+|---|---|---|---|
+| NFR-095 Training/Serving Plane Separation | MUST/CLAIM_GATE | H100/Jupyter/Notebook은 모델 학습과 offline evaluation에만 사용한다. production API/collector/Journey Engine은 해당 GPU 환경을 직접 호출하지 않고 versioned artifact만 사용한다. 학습 credential, notebook URL, raw training workspace path는 runtime config와 log에 노출하지 않는다 | AC-065, model manifest review |
+| NFR-096 Inference Latency/Fallback | D2_TARGET/CLAIM_GATE | `JR_TEMPORAL_QUANTILE_MODEL` inference는 profile 전 수치를 hard-code하지 않되, Journey analysis timeout 안에서 bounded call로 동작해야 한다. timeout/error/calibration miss 발생 시 `QUANTILE_GBDT_BASELINE`, 그 다음 empirical/timetable/reference fallback 순으로 전환하고 AI claim을 축소한다 | AC-066, latency/fallback drill |
+
 ---
 
 ## 10. Acceptance Test Scenarios
@@ -698,6 +716,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | AC-062 | Arbitrary OD Runtime Discovery | 서울 임의 OD 연속 제출(동시/중복 포함) | SCR-01 submit→API-001 실제 Kakao publictraffic 호출 | 실제 provider 호출 발생 확인(mock 아님); 동일 정규화 입력의 동시 요청은 in-flight coalescing으로 1회만 provider 호출(NFR-091); client/session admission control과 concurrency cap 적용(NFR-090,092); quota 소진 시 `PROVIDER_QUOTA_EXCEEDED`, Route A로 silent substitution 0 | REQ-104; NFR-090~092 |
 | AC-063 | Provider Policy Default-Deny | Kakao WALK/publictraffic 응답 수신 직후 storage/cache 검사 | collector 실행→MinIO/DB/repository/log 검사 | raw response가 어디에도 persistent 저장되지 않음; provenance에 `rawRetentionStatus=UNVERIFIED`/`NOT_RETAINED_BY_POLICY` 기록; cross-session cache 0건 | NFR-094; ENT-024 |
 | AC-064 | Boarding Point Arrival CTA | Route A ACCESS_WALK 진행 중, walk provider 예상 도착시간 경과 | 시간 경과만 발생시키고 사용자 CTA는 누르지 않음 → 이후 CTA 클릭 | 시간 경과만으로는 ACCESS_WALK가 COMPLETED되지 않음(state 유지 확인); CTA 클릭 후에만 ST-023 전이 발생 | REQ-101; ST-023 |
+| AC-065 | H100 Training Plane Isolation | H100/Jupyter 학습 완료 artifact 존재 | artifact export→runtime config/log/repository 검사 | runtime service는 notebook/GPU endpoint를 호출하지 않고 `ModelArtifactManifest`의 artifact hash·feature schema·evaluation report만 참조; 학습 credential/log secret 0; approvedForRuntime=false artifact는 load 거부 | REQ-106; BR-087; NFR-095; ENT-025 |
+| AC-066 | AI Inference Fallback / Evidence | model artifact load 또는 inference timeout/calibration miss | analyze→SYS-008 failure injection→render Evidence | `JR_TEMPORAL_QUANTILE_MODEL` 성공 시 leg-level quantile provenance와 modelVersion 표시; 실패 시 `QUANTILE_GBDT_BASELINE`, 그 다음 empirical/timetable/reference fallback으로 전환; 최종 probability 직접 AI 생성 0; Evidence에 fallbackUsed와 claim 축소 표시 | REQ-106; BR-088; NFR-096; ENT-026; CG-008 |
 
 ---
 
@@ -711,7 +731,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | CG-004 | Recommended Departure AVAILABLE | 서울 임의 OD selected candidate의 future subway/bus prior+passenger-relevant WAIT+5분 grid/coarse-to-fine candidate re-evaluation+component/replay validation | D2_TARGET_PENDING; 현재 Gate evidence 없음 | Gate 통과 전 `INSUFFICIENT_DATA/NOT_COMPUTED`, 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback |
 | CG-005 | HIGH/MEDIUM/LOW support / empirical Bus WAIT | independent event unit, down-sample/bootstrap/coverage, SUPPORT_RULE_V1 | NOT_STARTED; raw dependence 0.77 | INSUFFICIENT |
 | CG-006 | Distributed performance/recovery | real volume baseline, replay manifest, multi-worker, failure, correctness, A/B | NOT_STARTED | 기술 사용 claim 축소 |
-| CG-007 | ML promotion | temporal hold-out vs B0/B1/B2, pinball/coverage/calibration/low-support/ops cost | HOLD | empirical baseline 유지 |
+| CG-007 | General Model Promotion Guard | temporal hold-out vs B0/B1/B2, pinball/coverage/calibration/low-support/ops cost | HOLD; current AI serving claim은 CG-008에서 별도 판정 | empirical baseline 유지 |
+| CG-008 | JR Temporal Quantile Model serving | H100 training artifact manifest, temporal hold-out, pinball loss, empirical coverage, calibration, low-support value-add, bounded runtime inference, fallback drill | D2_TARGET_PENDING; current artifact evidence 없음 | `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable/reference fallback, AI serving claim 축소 |
 
 ### 11.1 Evidence guardrails
 
@@ -747,7 +768,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | F014 | SCR-05/Internal QA | 090~092 | BR-050~053,062,065; NFR-020,022,063,065,066 | API-006, SYS-002/003/006 | 001~015 | AC-034,040 |
 | F015 | Global | 007,080~082,100; NFR-040~054,093,094 | BR-004,060~062,086 | API all | 019,020,024, privacy fields | AC-025,029,034~036,039,063 |
 | F016 | Ops | 008~009; NFR-030~069,083~088,090~092 | BR-050~053,071~074 | API-001/006/009, SYS-001/002/004~007 | 001,005,010,014,015,017,023 | AC-026,028,029,034,048,049,051~057; CG-006 |
-| F017 | Internal | NFR-080~083,086 | BR-015,016,053 | SYS-003/006 | 010,014,015 | AC-021,034,048,051,052; CG-006,007 |
+| F017 | Internal/SCR-02/05 | 106; NFR-080~083,086,095,096 | BR-015,016,053,087,088 | SYS-003/006/008 | 010,014,015,025,026 | AC-021,034,048,051,052,065,066; CG-006~008 |
 | F018 | Global/SCR-01~05 | 093~098 | BR-066~070; NFR-041,050,070,074~079,085,086 | API-000,004,006,007; SYS-001 | 012,015,016,019~022 | AC-041~047,050~052 |
 
 ### 12.1 Traceability completeness rules
@@ -774,7 +795,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | BUS_TO_SUBWAY internal time | INSUFFICIENT_SOURCE | depth만 있고 시간 source 없음 | Evidence/PM Decision | UNMODELED/PARTIAL |
 | Recommended Departure | D2_TARGET_PENDING | 서울 임의 OD selected candidate에 제공해야 하나 WAIT/residual/replay Gate evidence는 아직 없음. 계산 방식은 후보 출발시각 5분 grid/coarse-to-fine 재평가 | CG-004 result | Gate 전 unavailable, 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback |
 | exact infrastructure sizing/Redis | REVIEW/OPTIONAL | EC2 profile 미확정 | deployment ADR | core contract와 분리 |
-| LightGBM/Generative AI | HOLD/OPTIONAL | baseline Gate·scope cut | CG-007/feature flag | baseline/reason code 유지 |
+| `JR_TEMPORAL_QUANTILE_MODEL` serving | D2_TARGET_PENDING | H100 training artifact와 runtime inference Gate evidence 없음 | REQ-106/CG-008 | 미달 시 `QUANTILE_GBDT_BASELINE`, 그 다음 empirical/timetable/reference fallback |
+| 생성형 AI 설명 | OPTIONAL | reason code/evidence 기반 설명만 허용 | feature flag | 확률·ETA·support·reason code 생성 금지 |
 | offline projection retention | G5 | server retention과 별도 client privacy review 필요 | PWA Privacy Decision | savedAt 표시, secret/exact origin 저장 금지 |
 | Service Worker activation policy | integration Gate | active mutation·rollback 검증 필요 | PWA ADR | mutation 중 activation defer |
 | exact iOS/Android support versions | G4 | 보유 기기·배포 시점 확인 필요 | PWA Compatibility Matrix | 미검증 환경 support claim 금지 |
@@ -815,6 +837,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - [ ] `ProviderPolicyRegistry`(ENT-024)에 termsUrl/policyVersionOrReviewedAt 없이 `ALLOWED`로 표기된 provider가 없다.
 - [ ] `UNVERIFIED` provider raw가 MinIO/DB/repository/log에 persistent 저장되지 않는다(NFR-094, AC-063).
 - [ ] ACCESS_WALK가 walk provider ETA 경과만으로 자동 COMPLETED되지 않고 사용자 CTA로만 전이된다(ST-023, AC-064).
+- [ ] H100/Jupyter 학습 환경은 production service와 직접 연결되지 않으며, runtime은 hash/evaluation이 있는 `ModelArtifactManifest`만 load한다(NFR-095, AC-065).
+- [ ] AI inference 실패·timeout·calibration miss 시 `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable/reference fallback으로 전환하고 AI serving claim을 축소한다(NFR-096, AC-066).
 - [ ] 2-node proof를 HA·무중단·SLA로 표현하지 않는다.
 
 ---
@@ -827,6 +851,8 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - placeholder, residual-as-duration, BUS_SKIPPED topology 삭제, target mapping 오류, leakage, out-of-order를 acceptance로 차단한다.
 - component validation과 END_TO_END calibration을 분리한다.
 - Recommended Departure AVAILABLE은 D2 target이며 service candidate 재평가 Gate 통과 전에는 `INSUFFICIENT_DATA/NOT_COMPUTED`로 표시한다.
+- AI/ML은 leg-level residual/WAIT distribution source로만 사용하며, 최종 Journey probability·Recommended Departure·mapping·reason code를 black-box AI output으로 대체하지 않는다.
+- H100/Jupyter는 training plane이다. production serving은 versioned model artifact와 `SYS-008` inference adapter만 사용한다.
 - evidence 없는 SLA/support/partition/watermark/TTL 숫자를 만들지 않는다.
 - access/eligibility/freshness/PWA/demo 정책과 IA의 guard/CTA/runtime state를 동일 계약으로 유지한다.
 - provider access/WALK/mapping/eligibility, D2 target `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, demo/fallback `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`, `walkProviderMode=KAKAO_MAP_WALK`, Kakao quota entitlement와 IA의 scope/error copy를 동일 계약으로 유지한다.

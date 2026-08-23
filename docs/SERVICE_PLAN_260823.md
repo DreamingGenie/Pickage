@@ -227,7 +227,7 @@ Kakao publictraffic은 서울 임의 OD의 `routeDiscoveryProvider`로 runtime�
 - BUS_TO_BUS transfer
 - 로그인·회원 personalization, 장기 이동 history, native app, push notification
 - 개인 boarding failure probability, 미래 희귀사고 발생확률
-- mandatory LightGBM/생성형 AI
+- 생성형 AI가 확률·ETA·support 숫자를 생성하는 것, H100/Jupyter 학습 환경을 production service에 직접 연결하는 것
 - 외부 utility를 transit ground truth로 사용하는 것
 - 검증되지 않은 support threshold, stale threshold, latency SLO, partition, watermark, TTL 수치
 - Kakao/TMAP 등 route provider의 후보 순서를 reliability ranking으로 재해석하는 것
@@ -241,13 +241,13 @@ Claim Gate와 핵심 E2E가 안정된 뒤에만 검토한다.
 - 다중 경로 reliability comparison
 - empirical WALK/transfer uncertainty
 - event-level headway와 advanced correlation model
-- 검증을 통과한 quantile ML
+- `JR_TEMPORAL_QUANTILE_MODEL` 기반 leg-level residual/WAIT quantile serving
 - evidence-grounded 자연어 설명
 - Share 고도화·개인화·알림
 
 ### 5.4 Scope Cut 순서
 
-일정 위험 시 `AI 설명 → LightGBM → Share polish/SCR-06 → Route B 장기 maturity → 부가 dashboard → citywide → advanced model` 순으로 제거한다.
+일정 위험 시 `생성형 AI 설명 → JR_TEMPORAL_QUANTILE_MODEL serving claim → Share polish/SCR-06 → Route B 장기 maturity → 부가 dashboard → citywide` 순으로 제거한다. 제1 AI 후보가 Gate를 통과하지 못하면 같은 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소하고, 그마저 미달하면 empirical/timetable/reference fallback으로 돌아가며 AI serving claim을 하지 않는다.
 
 canonicalization crosswalk(REQ-105)와 Recommended Departure는 D2 목표에 포함된다. 2026-09-14 팀 회의에서 남은 일정상 D2 Gate 통과가 불가능하다고 판단되면 D2 claim을 하지 않고 probability/Recommended Departure는 Route A D1 fallback으로 scope-down한다. 이 경우에도 임의 OD route discovery 자체(routeSearchCoverage, 구조 후보 표시)는 유지하며, 임의 OD 확률·추천 출발 capability만 달성한 것으로 주장하지 않는다.
 
@@ -721,6 +721,7 @@ Product request path와 reliability data path를 분리한다. PWA 요청이 외
 | Mobile/PWA | Next.js + TypeScript | mobile-first UI, manifest, service worker, foreground recovery, installability |
 | Journey API | Java 21 + Spring Boot | user API, owner access, Journey state, idempotency, Share, quota-aware serving |
 | Journey Engine | Java module | route composition, Monte Carlo, connection, Recommended Departure, Reforecast |
+| AI Inference Adapter | Java/Python internal service or embedded runtime | `JR_TEMPORAL_QUANTILE_MODEL` artifact를 load해 leg-level residual/WAIT quantile 반환; H100/Jupyter 직접 호출 금지 |
 | Provider Adapters/Collector | Java worker | Kakao/Seoul/TMAP adapter, polling, request-boundary time, quota reservation, raw write, Kafka publish |
 | Event Backbone | Kafka | collector/processor decoupling과 replayable input |
 | Stream Processing | Flink Java | canonical normalize, keyed vehicle/train state, Actual/Residual, online aggregate |
@@ -742,6 +743,7 @@ Product request path와 reliability data path를 분리한다. PWA 요청이 외
 | MinIO | 운영 안정성 또는 disk 제약 | S3-compatible object storage로 교체 |
 | GitLab CI | runner/권한 제약 | Jenkins pipeline로 전환 |
 | Next.js PWA | service worker integration이 일정 blocker | installability·manifest 유지, 제한된 custom service worker와 network-first API 정책 적용 |
+| `JR_TEMPORAL_QUANTILE_MODEL` serving | temporal hold-out, calibration, latency, artifact portability, ops cost 중 하나라도 Gate 미달 | 동일 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소; 둘 다 미달하면 empirical/timetable/reference fallback으로 복귀하고 AI claim 금지 |
 
 EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cache TTL과 SLO는 profile 전 임의 숫자로 고정하지 않는다. 기술명은 확정하되 운영 파라미터는 ADR과 benchmark로 결정한다.
 
@@ -751,10 +753,10 @@ EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cach
 
 | Node | 보호 workload | 조건부 workload | 금지/전환 조건 |
 |---|---|---|---|
-| EC2-A · Public/Serving | Nginx, Next.js PWA, Spring Boot Journey API, PostgreSQL | Flink TaskManager 1개 | public port 최소화; serving 안정성을 침해하면 worker를 EC2-B 또는 별도 자원으로 이동 |
-| EC2-B · Data/Processing | Java Collector, Quota Coordinator, Kafka, Flink JobManager+TaskManager, MinIO/Parquet | offline artifact builder | Spark 상시 daemon·AI serving·중복 dashboard는 기본 배치하지 않음 |
+| EC2-A · Public/Serving | Nginx, Next.js PWA, Spring Boot Journey API, PostgreSQL | AI Inference Adapter(artifact-only, bounded call), Flink TaskManager 1개 | public port 최소화; serving 안정성을 침해하면 AI adapter와 worker를 EC2-B 또는 별도 자원으로 이동 |
+| EC2-B · Data/Processing | Java Collector, Quota Coordinator, Kafka, Flink JobManager+TaskManager, MinIO/Parquet | offline artifact builder, AI Inference Adapter 대체 배치 | Spark 상시 daemon·중복 dashboard는 기본 배치하지 않음. H100/Jupyter training plane은 어떤 경우에도 production runtime으로 연결하지 않음 |
 
-분산 증명 시 두 node의 TaskManager가 동일 Kafka input의 서로 다른 partitioned task에 실제 참여하는 구성을 우선 검증한다. 단일 node 장애가 public API와 evidence pipeline을 동시에 영구 손상하지 않도록 raw/object/DB backup과 restart 순서를 ADR에 포함한다. CPU/RAM/disk profile에서 보호 workload가 공존하지 못하면 `Spark·Redis·AI·Share polish 제거 → processing 시간분리 → 추가 자원 검토` 순으로 대응하며 correctness Gate는 제거하지 않는다.
+분산 증명 시 두 node의 TaskManager가 동일 Kafka input의 서로 다른 partitioned task에 실제 참여하는 구성을 우선 검증한다. 단일 node 장애가 public API와 evidence pipeline을 동시에 영구 손상하지 않도록 raw/object/DB backup과 restart 순서를 ADR에 포함한다. CPU/RAM/disk profile에서 보호 workload가 공존하지 못하면 `생성형 AI 설명·JR_TEMPORAL_QUANTILE_MODEL serving claim → Redis·Share polish → processing 시간분리 → 추가 자원 검토` 순으로 대응하며 correctness Gate는 제거하지 않는다. Runtime AI adapter는 model artifact만 load하며 H100 학습 plane을 직접 호출하지 않는다.
 
 이 2-node 구성은 분산 task 참여·replay·correctness를 증명하는 제출 구조이지 high availability나 무중단 failover를 보장하는 구조가 아니다. node·broker·JobManager·database의 단일 장애점을 실제로 제거하고 failover를 검증하기 전에는 HA·SLA 근거로 사용하지 않는다.
 
@@ -822,17 +824,25 @@ Acceptance는 다음을 포함한다.
 
 ## 17. ML/AI 적용 및 비적용 기준
 
-### 17.1 Baseline First
+### 17.1 Primary AI Capability
 
-Provider point baseline, empirical residual/duration baseline, hierarchical fallback을 먼저 검증한다. LightGBM Quantile은 동일 temporal hold-out에서 pinball loss, empirical coverage, calibration guardrail, low-support 추가가치, serving complexity를 모두 만족할 때만 승격한다. 최종 `P(on_time)`을 black-box AI output으로 대체하지 않는다.
+제1 AI 후보는 `JR_TEMPORAL_QUANTILE_MODEL`이다. 이 모델은 전체 Journey 확률을 직접 출력하지 않고, BUS/SUBWAY leg의 residual과 WAIT에 대해 Q10/Q50/Q90, uncertainty width, low-support flag를 산출한다. Journey Engine은 이 leg-level distribution source를 timetable, realtime source, empirical/reference fallback과 함께 Monte Carlo에 넣어 P50/P90/`P(on_time)`/Recommended Departure를 계산한다. 즉 AI는 deadline probability의 입력 품질을 높이는 역할이지, 최종 사용자 숫자를 black-box로 생성하는 역할이 아니다.
 
-### 17.2 생성형 AI
+### 17.2 H100 Training Plane과 Runtime Serving Plane
+
+H100급 GPU, Jupyter Lab, 별도 notebook 환경은 모델 학습과 offline evaluation에만 사용한다. production PWA/API/collector/Journey Engine은 학습 환경을 직접 호출하지 않는다. 학습 완료 후에는 model file, feature schema, calibration report, model card, artifact hash를 포함한 `ModelArtifactManifest`만 서비스 환경에 반입한다. Runtime은 `SYS-008` AI Inference Adapter가 versioned artifact를 load해 bounded inference를 수행하고, Evidence에는 modelKey/modelVersion/hash/evaluation scope/fallback 여부를 남긴다.
+
+### 17.3 Back-up Plan
+
+`JR_TEMPORAL_QUANTILE_MODEL`이 temporal hold-out의 pinball loss, empirical coverage, calibration guardrail, low-support 추가가치, artifact portability, runtime latency/ops cost 중 하나라도 통과하지 못하면 같은 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소한다. 이 backup도 실패하면 empirical residual/duration baseline, timetable prior, deterministic/reference input으로 돌아가며 AI serving claim을 하지 않는다. 어떤 경우에도 AI output을 canonical mapping, provider evidence, Reforecast reason code, 최종 `P(on_time)`의 단독 source로 쓰지 않는다.
+
+### 17.4 생성형 AI
 
 허용: reason code와 evidence를 바탕으로 “왜 확률이 바뀌었는지” 설명, limitation 요약.  
 금지: 확률·ETA·support 숫자 생성, provider evidence 대체, 정책 reason code 대체.  
 AI 실패는 핵심 분석·Reforecast를 막지 않으며 가장 먼저 scope cut한다.
 
-H100이나 특정 모델은 제품 성공조건이 아니다.
+H100은 학습 자원일 뿐 production dependency가 아니다. 제품 성공조건은 model artifact의 검증 가능성, serving plane 분리, fallback 정직성, Evidence traceability다.
 
 ---
 
@@ -1040,7 +1050,7 @@ Service Plan이 상위 제품 정책을 고정한다. IA는 화면·route·entry
 | 역할 | 책임 |
 |---|---|
 | PM / Team Lead | scope, decision, product/probability contract, integration, QA, claim 승인 |
-| UI/UX + AI | IA, 상태·evidence UX, optional explanation |
+| UI/UX + AI | IA, 상태·evidence UX, `JR_TEMPORAL_QUANTILE_MODEL` 학습/evaluation artifact와 optional explanation |
 | Full-stack / FE | Mobile-first PWA, responsive state, Service Worker lifecycle, API integration, Share |
 | BE-1 Bus | bus collector, identity, Actual/Residual, distribution |
 | BE-2 Subway/Journey | subway collector/crosswalk, Actual/Residual, Journey Engine |
@@ -1069,8 +1079,8 @@ Journey probability는 PM·BE-1·BE-2 공동 review다.
 |---|---|---|
 | Protected E2E | Route A Mobile Web/PWA 입력→분석→Start→`BUS_SKIPPED`→Reforecast/Unavailable→Evidence | 제거 금지; 실패 시 다른 기능보다 먼저 복구 |
 | Release Blocking | owner capability, quota degradation, PWA foreground/offline/update, raw→result provenance, distributed correctness/recovery | 미통과 시 release/demo claim 차단 |
-| Claim Gate | 서울 임의 OD crosswalk, mature Bus/Subway residual, empirical WAIT, Recommended Departure, whole-Journey calibration | evidence 미충족 시 D2 claim 금지, 임의 OD structure-only 유지, probability/Recommended Departure는 Route A D1 fallback 또는 `INSUFFICIENT/NOT_COMPUTED` |
-| Cuttable | Share polish, AI 설명, LightGBM, Spark 별도 운영, Redis, citywide 확대, 부가 dashboard | protected lane 일정 또는 2-node 안정성을 침해하는 즉시 제거 |
+| Claim Gate | 서울 임의 OD crosswalk, mature Bus/Subway residual, empirical WAIT, `JR_TEMPORAL_QUANTILE_MODEL` serving, Recommended Departure, whole-Journey calibration | evidence 미충족 시 D2/AI claim 금지, 임의 OD structure-only 유지, probability/Recommended Departure는 Route A D1 fallback 또는 `INSUFFICIENT/NOT_COMPUTED` |
+| Cuttable | Share polish, 생성형 AI 설명, `JR_TEMPORAL_QUANTILE_MODEL` serving claim, Spark 별도 운영, Redis, citywide 확대, 부가 dashboard | protected lane 일정 또는 2-node 안정성을 침해하면 `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable fallback으로 축소 |
 
 Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용자 결과로 승격하는 수단이 아니다.
 
