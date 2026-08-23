@@ -448,6 +448,7 @@ SCR-02
 │  ├─ Model Coverage
 │  ├─ Validation Scope
 │  └─ Limitation Preview
+├─ Source Attribution Footer(서울시 공공데이터 출처표시, §15.4)
 └─ Action Bar
 ```
 
@@ -578,6 +579,7 @@ SCR-03
 │  ├─ Active
 │  └─ Future
 ├─ Limitation/Evidence Link
+├─ Source Attribution Entry(서울시 공공데이터 출처표시 진입부, §15.4)
 └─ Terminal Action (conditional)
 ```
 
@@ -610,6 +612,7 @@ Transfer와 Wait는 별도 row다. `BUS_TO_SUBWAY` transfer 뒤에 `SUBWAY_WAIT`
 
 | Active state | CTA | Preconditions | 결과 |
 |---|---|---|---|
+| ACCESS_WALK | `버스 정류장에 도착했어요`/`지하철역에 도착했어요`(첫 leg mode에 따라 label) | active leg ACCESS_WALK | ACCESS_WALK_COMPLETED, 다음 BUS_WAIT/SUBWAY_WAIT 진입 |
 | BUS_WAIT | `탑승했어요` | identifiable candidate | BOARD_CONFIRMED |
 | BUS_WAIT | `이번 버스는 보내요` | candidateServiceId 존재, FRESH/정책상 valid | BUS_SKIPPED |
 | SUBWAY_WAIT | `탑승했어요` | identifiable candidate | BOARD_CONFIRMED |
@@ -620,6 +623,8 @@ Transfer와 Wait는 별도 row다. `BUS_TO_SUBWAY` transfer 뒤에 `SUBWAY_WAIT`
 | ANY ACTIVE | `여정 종료` | owner capability valid, user confirmation | ABORTED(API-010) |
 
 BUS_SKIPPED copy는 개인의 탑승 실패를 추론하지 않는다. candidate가 없거나 stale/provider error면 hidden/disabled하고 이유를 보여준다. 모든 mutation CTA는 idempotency key를 포함하고 in-flight 동안 전체 event CTA를 disable한다. `여정 종료`는 실수 클릭을 막기 위해 confirm dialog를 거친 뒤에만 API-010을 호출한다.
+
+ACCESS_WALK 완료는 Kakao WALK 예상시간 경과, background GPS, provider ETA만으로 자동 확정하지 않는다. 사용자가 `정류장/역에 도착했어요`를 직접 눌러야만 ACCESS_WALK가 COMPLETED되고 다음 WAIT가 활성화된다(ST-023). CTA 주변에는 `실제로 도착했을 때 눌러 주세요.`를 안내한다.
 
 ### 9.6 Freshness/Provider failure
 
@@ -741,6 +746,7 @@ SCR-05
 ├─ Leg Evidence List
 │  └─ source / semantics / support / fallback / coordinate role
 ├─ Probability Meaning
+├─ Source Attribution(서울시 공공데이터 출처표시, §15.4)
 └─ Developer/Demo Detail (environment/permission conditional)
 ```
 
@@ -850,6 +856,7 @@ SCR-06
 ├─ Selected-route Scope
 ├─ Limitation Summary
 ├─ Calculated Time
+├─ Source Attribution(서울시 기반 metric 포함 시, §15.4)
 └─ CTA: 내 여정 계산하기 → SCR-01
 ```
 
@@ -1006,6 +1013,7 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 | pretrip_result_view | 02 | eligible/failed result view | eligibility, freshness |
 | journey_start_click | 02 | click | result_version |
 | journey_start_success | 03 | state active | state_version |
+| access_walk_completed | 03 | user submit | next_leg_type |
 | bus_skipped | 03 | user submit | target_service_id_exists |
 | board_confirmed | 03 | user submit | mode, target_service_id_exists |
 | ride_completed | 03 | user submit | mode, next_leg_type |
@@ -1163,6 +1171,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | UI-AC-037 | 여정 종료(ABORT) | confirm dialog 통과 후 API-010 호출, ABORTED terminal, live polling/event CTA 중지, 완료 이력 보존 |
 | UI-AC-038 | 임의 서울 OD mapping PARTIAL/FAILED | 경로 구조는 표시하되 확률 카드 숨김+사유 표시, 재시도 유도 문구 없음 |
 | UI-AC-039 | metric별 claim eligibility | 같은 결과 안에서 P50/P90/on-time/Recommended가 서로 다른 `metricEligibility` 문구를 가질 수 있음을 확인 |
+| UI-AC-040 | ACCESS_WALK boarding point 도착 CTA | walk provider 예상시간이 경과해도 사용자가 `정류장/역에 도착했어요`를 누르기 전에는 ACCESS_WALK가 자동으로 COMPLETED되지 않음을 확인 |
 
 ---
 
@@ -1184,8 +1193,8 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | analytics retention | raw ID/token 금지; pseudonymous key만 | G5 Privacy Review |
 | offline snapshot storage lifetime | server retention과 별도 policy; savedAt·clear path 제공 | G5 Privacy/Security Review |
 | Service Worker activation timing | active mutation 안전성 우선 | PWA integration test |
-| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: mapping `REJECTED`(payload에 canonical ID 없음)로 route-provider 승격 미통과 확정 — canonical route truth·selected route 승격은 계속 보류되지만, 서울 임의 OD의 route discovery 입력 자체는 이 Gate와 무관하게 항상 허용된다(§1 IA-025/IA-026, §7.3) | `KAKAO_ROUTE_PROVIDER_GATE` |
-| deployment coverage mode | Minimum Release의 `routeCoverageMode`는 서울 임의 OD 입력·route discovery를 항상 허용하고, Route A만 `ROUTE_A_PRIORITY`(승인된 우선 검증·데모 경로)로 표시한다; canonical route truth를 provider 후보에서 자동 선택하는 `PROVIDER_SUPPORTED`는 future Gate 통과 후에만 검토 | Release manifest |
+| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: mapping `REJECTED`(payload에 canonical ID 없음)로 route-provider 승격 미통과 확정 — canonical route truth·selected route 승격은 계속 보류된다. 이와 별개로 서울 임의 OD의 route discovery는 이 Gate와 무관하게 실제 runtime capability로 활성화되어 있다(REQ-104) — canonicalization crosswalk(REQ-105)가 완성된 candidate에만 확률을 계산하고, 나머지는 구조만 표시한다(§1 IA-025/IA-026, §7.3) | `KAKAO_ROUTE_PROVIDER_GATE`(canonical 승격용, discovery-only 사용과는 별개) |
+| deployment coverage mode | Minimum Release의 `routeCoverageMode`는 서울 임의 OD 입력·route discovery를 실제로 runtime에서 수행하고, Route A만 `ROUTE_A_PRIORITY`(승인된 우선 검증·데모 경로)로 표시한다; canonical route truth를 provider 후보에서 자동 선택하는 `PROVIDER_SUPPORTED`는 future Gate 통과 후에만 검토 | Release manifest |
 
 ---
 
