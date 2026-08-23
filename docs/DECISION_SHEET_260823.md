@@ -31,13 +31,23 @@ data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세
 | Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | §21.3 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
 | Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
 | data.go.kr collector 인코딩 | 알려지지 않음 | `mixed_route_spike.py` 저장 raw의 한글 필드(정류장/노선명)가 mojibake; 숫자/ID/좌표 필드는 정상 | `NEW_FACT` (DQ 발견) | 오늘 호출분 전체 | — | — | — | collector encoding 수정은 이번 세션 범위 밖(개발 코드 변경 금지) — 별도 작업으로 이관 |
+| Route A ↔ Kakao 후보 구조 차이 | 서술만 있고 좌표 대조 없음 | 오늘 호출한 Kakao publictraffic 8건의 모든 candidate·모든 step의 path point를 검사한 결과, 승인 Route A 탑승점(춘추문, 126.97965,37.58308) 반경 100m 이내를 지나는 step이 0건 | `FIXED` — Kakao 응답은 승인 Route A 구조를 아예 후보로 제시하지 않음(우연 일치 불가능) | 오늘 호출한 8개 publictraffic 응답 | §22.1 | — | — | 없음(이 OD 범위에서는 충분히 확정적) |
+| Collector round-trip latency 계측 | 확인 안 됨 | `bus_*_spike.py`/`subway_*_spike.py`의 `requested_at`/`received_at`은 둘 다 HTTP 응답을 받은 뒤 `storage.SpikeResult()` 생성 시점에 동시 stamping됨(dataclass default_factory 2회 호출이 거의 같은 시각) → 오늘 수집된 240건 전부 latency=0.00~0.001s로 기록되어 있어 실제 request-boundary latency로 볼 수 없음. 임시로 작성한 Kakao 호출 스크립트도 응답 전/후 시각을 분리 기록하지 않아 동일한 한계를 가짐 | `BLOCKED_TOOLING`(collector 자체의 timestamp 설계 한계, 이번 세션에서 코드 수정 금지 규칙과 충돌해 고치지 않음) | 오늘 사용한 모든 collector | — | — | — | collector가 `requested_at`을 호출 직전, `received_at`을 응답 직후로 분리 기록하도록 고치는 것 자체가 후속 작업(코드 변경 필요) |
+| Out-of-order (source-time reversal) | 확인 안 됨 | receive 순서 기준 source timestamp 단조성 검사: bus position 13개 차량 계열, subway arrival 82개 station×train 계열 전부 역전 0건 | `NO_REVERSAL_OBSERVED`(이번 window) | 오늘 수집한 bus position + subway arrival 전체 | — | — | — | 표본이 늘어나면 재확인 필요(하루 한 window로 일반화 금지) |
+| Subway Prediction→Actual Residual 실측 예시 | 미계산 | 안국(3호선) 열차 3166: 13:31:20 관측 시점 `barvlDt=210s` 예측(예상 도착 13:34:50) vs 실제 Actual interval (13:34:10, 13:35:05], mid=13:34:37.5, width=55s → signed residual L/M/U = −40s/−12.5s/+15s | `FIXED`(builder correctness 시연, 1개 사례) | 안국역 3호선, train 3166, 2026-08-23 13:31~13:35 KST | — | — | AC 없음(오늘 신규 발견, REQUIREMENTS에 반영 안 함) | 표본 1건 — support 주장 금지, 여러 window·여러 train으로 확대 필요 |
+| Bus Prediction→Actual Residual 실측 예시 | 미계산 | staOrd=21(target) 예측은 60건 존재했으나(예: vehId=106024511, traTime 152s→105s) 대응하는 Actual event가 이번 window에 없어(위 표 참조) residual 계산 불가. 다른 vehicle/stop 조합으로 general 예시를 시도했으나 sectOrd 연속성이 끊겨 이번 세션 시간 내에 깔끔한 사례를 확정하지 못함 | `INCONCLUSIVE`(target은 no-event, general 예시는 미완성) | busRouteId=100100001 | — | — | — | 다음 세션에서 sectOrd↔staOrd 매핑을 먼저 확정한 뒤 재시도 |
+| Bus WAIT raw row 특성 | 미확인 | position raw 673행, 고유 차량 13대, 동일 차량 dataTm 중복 190행(28.2%) — snapshot 상당수가 신규 source 갱신 없이 반복됨 | `NEW_FACT`(dependence 근거) | busRouteId=100100001, 2026-08-23 30분 window | — | — | — | raw row를 independent support로 쓰지 않는다는 기존 정책의 실측 근거로만 사용; event-unit dependence 정량화(자기상관 등)는 미실시 |
+| Kakao entitlement/billing 콘솔 | 미확인 | 이번 세션은 실 API 호출에 집중했고 developers.kakao.com 콘솔 로그인/캡처는 하지 않음 | `UNCONFIRMED`(변경 없음) | — | §18.4(무변경) | — | AC-057 | 콘솔 확인은 다음 단계에서 즉시 가능 |
 
 ## 아직 하루로 해소할 수 없었던 항목과 이유
 
-- Kakao entitlement/billing 콘솔 확인: 포털 로그인·화면 캡처가 필요한 작업이며 이번 세션은 실 API 호출에 집중함(`MULTI_DAY_REQUIRED`가 아니라 단순 미실행 — 다음 세션에서 즉시 가능)
-- Bus/Subway 승인 일일 한도의 포털 재확인: 지난 세션(08-23 앞선 대화)에서 이미 확인했으나 이번 Decision Sheet 작성 시점에 재검증하지 않음
-- Bus target-stop Actual 표본 부족: 한 창(30분)의 우연 공백일 수 있어 `MULTI_DAY_REQUIRED`
-- Subway 2호선 두 역의 낮은 이벤트 포착률 원인: 이번 데이터만으로는 원인 특정 불가(`MULTI_DAY_REQUIRED` 또는 poll interval 조정 후 재시도)
+- **Kakao entitlement/billing 콘솔 확인**: 포털 로그인·화면 캡처가 필요한 작업이며 이번 세션은 실 API 호출에 집중함 — `MULTI_DAY_REQUIRED`가 아니라 단순 미실행. 다음 세션에서 바로 가능
+- **Bus/Subway 승인 일일 한도의 포털 재확인**: 이번 Decision Sheet 작성 세션에서는 재검증하지 않음(과거 세션에서 확인한 적 있으나 그 결과물은 이후 되돌려짐 — 사실상 미확인 상태로 취급해야 함)
+- **Bus target-stop Actual 표본 부족**: 한 창(30분)의 우연 공백일 수 있어 `MULTI_DAY_REQUIRED`
+- **Bus Prediction→Actual Residual**: target은 no-event, general 예시도 이번 세션에서 완성하지 못함 — 다음 세션 최우선 항목
+- **Collector round-trip latency**: collector의 `requested_at`/`received_at` 설계 자체가 실제 latency를 담지 못함 — 코드 수정이 필요한 `BLOCKED_TOOLING`이며 이번 세션의 "코드 수정 금지" 규칙과 충돌해 고치지 않음
+- **Subway 2호선 두 역의 낮은 이벤트 포착률 원인**: 이번 데이터만으로는 원인 특정 불가(`MULTI_DAY_REQUIRED` 또는 poll interval 조정 후 재시도)
+- **Bus WAIT event-unit dependence 정량화**: raw row 중복률(28.2%)만 확인했고 자기상관 등 정량 dependence 분석은 하지 않음
 - 표준 검증 사다리(V1~V3) 관련 항목 전부: 오늘 하루로 승격 불가, `MULTI_DAY_REQUIRED` 유지
 
 ## 문서 확인
