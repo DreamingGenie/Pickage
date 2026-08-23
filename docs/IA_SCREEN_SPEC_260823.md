@@ -10,9 +10,123 @@
 
 ---
 
-## 0. 문서 사용법과 IA 단위
+## 문서 네비게이션
 
-### 0.1 IA가 정의하는 것
+**정본 문서 바로가기**
+
+- [Service Plan](SERVICE_PLAN_260823.md)
+- **IA / Screen Spec**
+- [Requirements Spec](REQUIREMENTS_SPEC_260823.md)
+- [Decision Sheet](DECISION_SHEET_260823.md)
+
+**이 문서 안에서 이동**
+
+- [문서 사용법과 IA 단위](#문서-사용법과-ia-단위)
+  - [IA가 정의하는 것](#ia가-정의하는-것)
+  - [화면 ID 정책](#화면-id-정책)
+  - [Source-of-truth 경계](#source-of-truth-경계)
+- [IA 핵심 결정](#ia-핵심-결정)
+- [전체 Information Architecture](#전체-information-architecture)
+  - [Main Journey 전이](#main-journey-전이)
+- [Route Inventory와 Guard](#route-inventory와-guard)
+  - [Guard 우선순위](#guard-우선순위)
+  - [URL과 개인정보](#url과-개인정보)
+- [Global Shell과 Navigation](#global-shell과-navigation)
+  - [Shell hierarchy](#shell-hierarchy)
+  - [Header](#header)
+  - [Navigation 정책](#navigation-정책)
+  - [Global feedback](#global-feedback)
+- [공통 데이터·표시 계약](#공통-데이터표시-계약)
+  - [화면 공통 Result View Model](#화면-공통-result-view-model)
+  - [숫자 formatting](#숫자-formatting)
+  - [공통 probability copy](#공통-probability-copy)
+- [Global State Matrix](#global-state-matrix)
+  - [상태 합성 우선순위](#상태-합성-우선순위)
+  - [Source freshness → Journey freshness](#source-freshness-journey-freshness)
+- [SCR-01 — Journey Input](#scr-01-journey-input)
+  - [목적·접근·종료](#목적접근종료)
+  - [Component hierarchy](#component-hierarchy)
+  - [Data dependencies](#data-dependencies)
+  - [입력·CTA 계약](#입력cta-계약)
+  - [Validation과 상태](#validation과-상태)
+  - [Responsive·Accessibility](#responsiveaccessibility)
+  - [Analytics](#analytics)
+  - [Acceptance](#acceptance)
+- [SCR-02 — Pre-trip Result](#scr-02-pre-trip-result)
+  - [목적·접근·종료](#목적접근종료-1)
+  - [Component hierarchy](#component-hierarchy-1)
+  - [정보 우선순위](#정보-우선순위)
+  - [Result eligibility별 렌더링](#result-eligibility별-렌더링)
+  - [Metric별 Claim Eligibility](#metric별-claim-eligibility)
+  - [Recommended Departure](#recommended-departure)
+  - [Route Timeline](#route-timeline)
+  - [Connection Card](#connection-card)
+  - [CTA 계약](#cta-계약)
+  - [상태별 Copy](#상태별-copy)
+  - [Responsive·Accessibility](#responsiveaccessibility-1)
+  - [Analytics·Acceptance](#analyticsacceptance)
+- [SCR-03 — Live Journey](#scr-03-live-journey)
+  - [목적·접근·종료](#목적접근종료-2)
+  - [Component hierarchy](#component-hierarchy-2)
+  - [Live data dependencies](#live-data-dependencies)
+  - [Timeline 상태](#timeline-상태)
+  - [Contextual CTA](#contextual-cta)
+  - [Freshness/Provider failure](#freshness-provider-failure)
+  - [Journey recovery](#journey-recovery)
+  - [Terminal variants](#terminal-variants)
+  - [Responsive·Accessibility](#responsiveaccessibility-2)
+  - [Analytics·Acceptance](#analyticsacceptance-1)
+- [SCR-04 — Reforecast Result Overlay](#scr-04-reforecast-result-overlay)
+  - [목적·형태](#목적형태)
+  - [Trigger와 lifecycle](#trigger와-lifecycle)
+  - [Data contract](#data-contract)
+  - [Before/After 표시](#before-after-표시)
+  - [Reason copy](#reason-copy)
+  - [CTA](#cta)
+  - [Accessibility·Acceptance](#accessibilityacceptance)
+- [SCR-05 — Evidence Detail](#scr-05-evidence-detail)
+  - [목적·접근](#목적접근)
+  - [Information hierarchy](#information-hierarchy)
+  - [Leg evidence required/nullable](#leg-evidence-required-nullable)
+  - [User-facing leg copy 예](#user-facing-leg-copy-예)
+  - [상태별 UX](#상태별-ux)
+  - [Developer/Demo Mode](#developer-demo-mode)
+  - [CTA·Responsive·Accessibility](#ctaresponsiveaccessibility)
+- [SCR-06 — Share Snapshot](#scr-06-share-snapshot)
+  - [목적·범위](#목적범위)
+  - [Access variants](#access-variants)
+  - [Included/Excluded data](#included-excluded-data)
+  - [Component hierarchy](#component-hierarchy-3)
+  - [Share creation contract](#share-creation-contract)
+  - [Responsive·Accessibility·Analytics](#responsiveaccessibilityanalytics)
+- [State namespace × Screen State](#state-namespace-screen-state)
+  - [Leg state × rendering](#leg-state-rendering)
+- [Error Taxonomy와 Recovery UX](#error-taxonomy와-recovery-ux)
+- [Mobile-first PWA Contract](#mobile-first-pwa-contract)
+  - [PWA Compatibility Matrix](#pwa-compatibility-matrix)
+- [Accessibility Contract](#accessibility-contract)
+- [Analytics Contract](#analytics-contract)
+  - [공통 원칙](#공통-원칙)
+  - [Minimum dictionary](#minimum-dictionary)
+  - [Internal QA event](#internal-qa-event)
+  - [Route A Demo 화면 계약](#route-a-demo-화면-계약)
+- [Screen ↔ Feature ↔ REQ/BR Traceability](#screen-feature-req-br-traceability)
+  - [주요 정책 추적](#주요-정책-추적)
+- [Development Handoff Checklist](#development-handoff-checklist)
+  - [Frontend](#frontend)
+  - [Backend/API](#backend-api)
+  - [Data/Probability](#data-probability)
+- [QA Acceptance Scenarios](#qa-acceptance-scenarios)
+- [Open Implementation Decisions](#open-implementation-decisions)
+- [정본 정합성 규칙](#정본-정합성-규칙)
+- [Appendix — Screen 완료 정의](#appendix-screen-완료-정의)
+- [Appendix — 금지 표현](#appendix-금지-표현)
+
+---
+
+## 문서 사용법과 IA 단위
+
+### IA가 정의하는 것
 
 이 문서는 사용자가 인지하는 화면과 화면 안의 상태, URL 진입점, overlay, 시스템 처리 상태를 분리한다. 화면 수와 route 수, domain state 수를 같은 개념으로 세지 않는다.
 
@@ -25,7 +139,7 @@
 | System state | 별도 화면이 아니라 현재 화면을 대체/보강하는 처리 상태 | ANALYZING, REFORECASTING, ERROR 등 |
 | Journey domain state | Backend가 보존하는 여정/leg 상태 | PRE_TRIP_READY, ACTIVE, ARRIVED 등 |
 
-### 0.2 화면 ID 정책
+### 화면 ID 정책
 
 - `SCR-01~06`은 기능명이 바뀌어도 추적성을 위해 유지한다.
 - SCR-04는 독립 URL이 아니라 SCR-03의 결과 sheet/panel이다.
@@ -33,7 +147,7 @@
 - `Analyzing`, `Unsupported`, `Provider Error`, `Expired`를 임의 신규 SCR로 만들지 않는다.
 - route path는 제안이며 Backend/Frontend convention 변경 시 ID·의미·guard·trace를 보존한다.
 
-### 0.3 Source-of-truth 경계
+### Source-of-truth 경계
 
 | 질문 | 정본 |
 |---|---|
@@ -44,7 +158,7 @@
 
 ---
 
-## 1. IA 핵심 결정
+## IA 핵심 결정
 
 | ID | 결정 | 구현 결과 |
 |---|---|---|
@@ -78,7 +192,7 @@
 
 ---
 
-## 2. 전체 Information Architecture
+## 전체 Information Architecture
 
 ```text
 SCR-01 Journey Input  /
@@ -114,7 +228,7 @@ SCR-06 Share Snapshot  /share/{token}
   └─ INVALID / NOT_FOUND
 ```
 
-### 2.1 Main Journey 전이
+### Main Journey 전이
 
 | From | Trigger | Preconditions | To | 실패 시 |
 |---|---|---|---|---|
@@ -131,7 +245,7 @@ SCR-06 Share Snapshot  /share/{token}
 
 ---
 
-## 3. Route Inventory와 Guard
+## Route Inventory와 Guard
 
 | Route | Screen | 접근 조건 | 직접 접근/새로고침 | 실패 Redirect/처리 |
 |---|---|---|---|---|
@@ -143,7 +257,7 @@ SCR-06 Share Snapshot  /share/{token}
 
 PWA standalone display mode에서도 URL 의미와 guard는 동일하다. 앱 아이콘 진입은 `/`을 기본 entry로 사용하며, owner capability가 확인된 active Journey가 있을 때만 “현재 여정 계속” entry를 제안한다. Service Worker navigation fallback은 권한 오류나 API 오류를 HTML shell 성공으로 숨기지 않는다.
 
-### 3.1 Guard 우선순위
+### Guard 우선순위
 
 1. route parameter 형식 검증
 2. owner capability 검증(`/share` 제외)
@@ -154,7 +268,7 @@ PWA standalone display mode에서도 URL 의미와 guard는 동일하다. 앱 �
 
 `UNSUPPORTED`와 `INSUFFICIENT`는 redirect가 아니라 현재 화면의 의미 있는 상태다. Browser back은 mutation을 되돌리지 않는다. event 적용 뒤 back으로 SCR-03에 복귀하면 server의 최신 `stateVersion/resultVersion`을 다시 읽는다.
 
-### 3.2 URL과 개인정보
+### URL과 개인정보
 
 - URL에 exact origin/destination coordinate, target service ID, probability를 넣지 않는다.
 - Share URL에는 opaque token만 사용한다.
@@ -166,9 +280,9 @@ PWA standalone display mode에서도 URL 의미와 guard는 동일하다. 앱 �
 
 ---
 
-## 4. Global Shell과 Navigation
+## Global Shell과 Navigation
 
-### 4.1 Shell hierarchy
+### Shell hierarchy
 
 ```text
 AppShell
@@ -183,7 +297,7 @@ AppShell
 └─ Footer / policy links (선택)
 ```
 
-### 4.2 Header
+### Header
 
 | 요소 | SCR-01 | SCR-02 | SCR-03 | SCR-05 | SCR-06 |
 |---|---|---|---|---|---|
@@ -196,7 +310,7 @@ AppShell
 
 “Live”는 `FRESH`이고 live source가 실제 사용된 경우에만 쓴다. recorded/cached result에는 쓰지 않는다.
 
-### 4.3 Navigation 정책
+### Navigation 정책
 
 로그인과 계정이 없으므로 복잡한 전역 메뉴는 두지 않는다. 핵심 이동은 `새 여정`, `현재 여정`, `근거 보기`, `공유`다. active Journey 이탈 시:
 
@@ -206,7 +320,7 @@ AppShell
 - 설치 유도는 첫 task를 가리거나 필수 단계처럼 보이지 않게 하며, dismiss 후 반복 노출을 제한한다.
 - OS 공유가 가능하면 native share sheet를 사용하고, 불가능하거나 실패하면 링크 복사를 제공한다.
 
-### 4.4 Global feedback
+### Global feedback
 
 - field error는 해당 field에 연결한다.
 - page-level error는 main heading 직후 배치한다.
@@ -217,9 +331,9 @@ AppShell
 
 ---
 
-## 5. 공통 데이터·표시 계약
+## 공통 데이터·표시 계약
 
-### 5.1 화면 공통 Result View Model
+### 화면 공통 Result View Model
 
 | Field | Required/Nullable | 사용 화면 | null/부재 처리 |
 |---|---|---|---|
@@ -243,7 +357,7 @@ AppShell
 | `recommendedDeparture.status` | required | SCR-02/06 | AVAILABLE/INSUFFICIENT_DATA/NOT_COMPUTED; D2 Gate 통과 시 서울 임의 OD에도 AVAILABLE 가능 |
 | `recommendedDeparture.at` | nullable | SCR-02/06 | AVAILABLE일 때만 required |
 | `resultEligibility` | required | SCR-02~05 | USER_FACING 아니면 일반 결과 숫자 금지 |
-| `metricEligibility` | required | SCR-02/05/06 | P50/P90/onTime/recommended 각각 `STRUCTURE_ONLY/DISTRIBUTION_AVAILABLE/PROBABILITY_AVAILABLE/CALIBRATED_CLAIM`; `resultEligibility`와 별도 축(§8.4.1) |
+| `metricEligibility` | required | SCR-02/05/06 | P50/P90/onTime/recommended 각각 `STRUCTURE_ONLY/DISTRIBUTION_AVAILABLE/PROBABILITY_AVAILABLE/CALIBRATED_CLAIM`; `resultEligibility`와 별도 축(「Metric별 Claim Eligibility」) |
 | `startEligibility` | required on SCR-02 | SCR-02 | ELIGIBLE/REFRESH_REQUIRED/BLOCKED + reasonCodes |
 | `validationScope` | required | SCR-02/05/06 | end-to-end로 자동 번역 금지 |
 | `confidence.label` | required | SCR-02/03/05 | rule 전 기본 INSUFFICIENT |
@@ -257,7 +371,7 @@ AppShell
 
 Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 서로 다른 providerKey로 Evidence Detail과 내부 QA에 전달한다. 일반 결과에는 읽기 쉬운 provider label을 병기할 수 있으나 원래 key·endpoint category·adapter version을 바꾸지 않는다. Kakao publictraffic은 서울 임의 OD의 route discovery provider(REQ-104)이며, D2 사용자 결과로 승격하려면 external crosswalk와 model Gate를 통과해야 한다.
 
-### 5.2 숫자 formatting
+### 숫자 formatting
 
 - probability는 0~1 source를 whole percent로 표시하되 API 값과 rounding policy를 한 곳에서 통일한다.
 - `0%`는 계산된 0일 때만 표시한다. null/unsupported/insufficient를 0%로 바꾸지 않는다.
@@ -265,7 +379,7 @@ Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO
 - 날짜가 다음 날로 넘어가면 `다음 날` label을 붙인다.
 - illustration 숫자는 디자인 fixture임을 별도 표시하며 production/demo와 혼합하지 않는다.
 
-### 5.3 공통 probability copy
+### 공통 probability copy
 
 | Metric | Label | 도움말 |
 |---|---|---|
@@ -281,7 +395,7 @@ Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO
 
 ---
 
-## 6. Global State Matrix
+## Global State Matrix
 
 | State | 숫자 | Banner/본문 | Primary CTA | Retry/이탈 |
 |---|---|---|---|---|
@@ -301,7 +415,7 @@ Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO
 | RECONNECTING | 이전 값 dim+저장/계산시각 | `최신 이동 상태를 확인하고 있어요.` | Start/Event/Share disabled | 성공 시 server version, 실패 시 offline/error |
 | UPDATE_AVAILABLE | 현재 값 유지 | 안전한 업데이트 가능 시만 안내 | `나중에` 기본, 안전할 때 `업데이트` | active mutation 중 activation 금지 |
 
-### 6.1 상태 합성 우선순위
+### 상태 합성 우선순위
 
 상태가 동시에 존재할 때 우선 표시한다.
 
@@ -309,7 +423,7 @@ Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO
 
 이 순서는 core display state projection에만 적용한다. Confidence(`INSUFFICIENT/LOW/MEDIUM/HIGH`)와 Validation Scope는 별도 영역에 항상 유지한다. `PARTIAL_MODEL`과 `INSUFFICIENT`가 동시에 존재할 수 있으며 하나의 색 배지로 덮지 않는다.
 
-### 6.2 Source freshness → Journey freshness
+### Source freshness → Journey freshness
 
 | Critical source 상태 | Journey projection | Metric | Start/Event |
 |---|---|---|---|
@@ -323,9 +437,9 @@ Criticality는 Backend가 `CRITICAL_CALCULATION/NON_CRITICAL_CONTEXT`로 제공�
 
 ---
 
-## 7. SCR-01 — Journey Input
+## SCR-01 — Journey Input
 
-### 7.1 목적·접근·종료
+### 목적·접근·종료
 
 | 항목 | 계약 |
 |---|---|
@@ -335,7 +449,7 @@ Criticality는 Backend가 `CRITICAL_CALCULATION/NON_CRITICAL_CONTEXT`로 제공�
 | Success Exit | SCR-02 |
 | Failure Exit | 없음; SCR-01에서 오류 해결 |
 
-### 7.2 Component hierarchy
+### Component hierarchy
 
 ```text
 SCR-01
@@ -352,7 +466,7 @@ SCR-01
 └─ Primary CTA
 ```
 
-### 7.3 Data dependencies
+### Data dependencies
 
 | Field | Required | 상태/검증 | Analytics 제한 |
 |---|---|---|---|
@@ -366,7 +480,7 @@ SCR-01
 
 사용자는 서울 안에서 임의의 출발지·목적지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, REQ-104). 입력 전에 “서울 안 어디든 검색할 수 있고, 검증된 경로는 도착 가능성과 권장 출발시각까지 계산해요.”를 안내한다. `검증 완료된 데모 경로` badge가 붙은 Route A는 별도 preset/shortcut으로 제공할 수 있으나 입력 자체를 Route A로 제한하지 않는다. 임의 후보의 canonical mapping이 `EXACT/UNAMBIGUOUS`이고 model Gate가 통과하면 SCR-02에서 확률과 Recommended Departure를 표시한다. `PARTIAL/FAILED` 또는 model 미달이면 경로 구조는 보여주되 확률·추천 출발은 계산하지 않고 사유를 함께 표시한다(REQ-104/105, AC-061). name-only/거리-only 매칭이나 같은 이름 후보가 여러 개인 경우는 supported로 표시하지 않는다. 도보 구간은 Kakao WALK provider로 측정될 수 있음을 Evidence에 남긴다. Kakao 등 provider 호출 성공과 canonical mapping 성공은 항상 분리하며, mapping 실패를 일반 통신 오류로 바꾸지 않는다.
 
-### 7.4 입력·CTA 계약
+### 입력·CTA 계약
 
 Primary CTA: `도착 가능성 계산`
 
@@ -379,7 +493,7 @@ Enabled 조건:
 
 Click 시 입력 snapshot을 고정하고 중복 submit을 막는다. CTA가 disabled인 이유는 field-level로 알 수 있어야 한다.
 
-### 7.5 Validation과 상태
+### Validation과 상태
 
 | Condition | Copy | CTA |
 |---|---|---|
@@ -395,14 +509,14 @@ Click 시 입력 snapshot을 고정하고 중복 submit을 막는다. CTA가 dis
 
 ANALYZING 중 probability, 임시 route, 가짜 progress %, 예상 완료시간을 표시하지 않는다.
 
-### 7.6 Responsive·Accessibility
+### Responsive·Accessibility
 
 - Mobile: one-column, keyboard가 CTA/오류를 가리지 않음, sticky CTA는 safe-area 반영.
 - Tablet/Desktop: form 최대 폭을 제한하고 scope notice를 인접 배치.
 - 장소 suggestion은 keyboard 탐색, active descendant, loading/no-result를 지원한다.
 - 날짜/시간 field는 label과 timezone context를 제공한다.
 
-### 7.7 Analytics
+### Analytics
 
 | Event | Trigger | Required properties |
 |---|---|---|
@@ -411,7 +525,7 @@ ANALYZING 중 probability, 임시 route, 가짜 progress %, 예상 완료시간�
 | `journey_input_validation_error` | submit/blur error | field, reason_code |
 | `journey_analysis_failed` | API/domain failure | reason_code, retryable |
 
-### 7.8 Acceptance
+### Acceptance
 
 - 잘못된 입력이 API submit되지 않는다.
 - unsupported와 route/provider error가 다른 copy/CTA를 쓴다.
@@ -420,9 +534,9 @@ ANALYZING 중 probability, 임시 route, 가짜 progress %, 예상 완료시간�
 
 ---
 
-## 8. SCR-02 — Pre-trip Result
+## SCR-02 — Pre-trip Result
 
-### 8.1 목적·접근·종료
+### 목적·접근·종료
 
 | 항목 | 계약 |
 |---|---|
@@ -432,7 +546,7 @@ ANALYZING 중 probability, 임시 route, 가짜 progress %, 예상 완료시간�
 | Success Exit | Journey Start→SCR-03 |
 | Other Exit | 입력 수정→SCR-01, Evidence→SCR-05, Share 생성 |
 
-### 8.2 Component hierarchy
+### Component hierarchy
 
 ```text
 SCR-02
@@ -451,11 +565,11 @@ SCR-02
 │  ├─ Model Coverage
 │  ├─ Validation Scope
 │  └─ Limitation Preview
-├─ Source Attribution Footer(서울시 공공데이터 출처표시, §15.4)
+├─ Source Attribution Footer(서울시 공공데이터 출처표시, Service Plan 「서울시 공공데이터 출처표시」)
 └─ Action Bar
 ```
 
-### 8.3 정보 우선순위
+### 정보 우선순위
 
 1. 목표 도착시각
 2. `P(on_time)` 또는 계산불가 상태
@@ -465,7 +579,7 @@ SCR-02
 6. Planned Connection Success
 7. evidence sufficiency·coverage·validation
 
-### 8.4 Result eligibility별 렌더링
+### Result eligibility별 렌더링
 
 | Eligibility/State | Metric Card | Route | Evidence | Journey Start |
 |---|---|---|---|---|
@@ -477,7 +591,7 @@ SCR-02
 | NOT_COMPUTED + INSUFFICIENT | 확률 숨김/미계산 문구 | 표시 가능 | missing input+support reason | disabled |
 | STALE | stale container에 이전 값 | 표시 | calculatedAt/freshness | 새로 계산 전 disabled 가능 |
 
-### 8.4.1 Metric별 Claim Eligibility
+### Metric별 Claim Eligibility
 
 `resultEligibility`가 `USER_FACING`이어도 P50/P90/`P(on_time)`/Recommended Departure는 서로 다른 `metricEligibility`를 가질 수 있다. metric card는 값 표시 여부뿐 아니라 아래 자격에 따라 문구를 달리한다.
 
@@ -490,7 +604,7 @@ SCR-02
 
 같은 결과 안에서 P50은 `DISTRIBUTION_AVAILABLE`, Recommended Departure는 `STRUCTURE_ONLY`처럼 metric마다 다를 수 있으며, 한 metric의 등급을 다른 metric에 전이하지 않는다.
 
-### 8.5 Recommended Departure
+### Recommended Departure
 
 | Status | UI |
 |---|---|
@@ -500,7 +614,7 @@ SCR-02
 
 AVAILABLE인데 `at=null`이면 contract error로 전체 시간을 숨기고 오류를 계측한다. D2 Gate가 통과하지 않았으면 UI fixture라도 AVAILABLE로 기본 설정하지 않는다. AVAILABLE copy는 후보 출발시각 grid/coarse-to-fine 재평가를 통과한 결과에만 사용하며, 목표시각에서 평균 소요시간을 단순 차감한 값은 표시하지 않는다.
 
-### 8.6 Route Timeline
+### Route Timeline
 
 Leg sequence를 다음 label로 구분한다.
 
@@ -512,11 +626,11 @@ Leg sequence를 다음 label로 구분한다.
 
 각 leg는 source/reference가 있더라도 일반 timeline에서 raw sample count를 강제 노출하지 않는다. `STATION_CENTER` 기반 final walk이면 “역 출구 기준”으로 쓰지 않는다.
 
-### 8.7 Connection Card
+### Connection Card
 
 환승이 하나 이상 있고 field가 계산된 경우만 표시한다. null일 때 `0%`로 렌더하지 않는다. `계획한 환승 유지 가능성`과 `최종 정시 도착 가능성`을 나란히 보여주되 설명 tooltips를 분리한다.
 
-### 8.8 CTA 계약
+### CTA 계약
 
 | CTA | Preconditions | Disabled/Hidden |
 |---|---|---|
@@ -526,7 +640,7 @@ Leg sequence를 다음 label로 구분한다.
 | `입력 수정` | 항상 | 없음 |
 | `공유` | feature enabled, snapshot eligible, security Gate 통과 | Should cut 시 hidden |
 
-### 8.9 상태별 Copy
+### 상태별 Copy
 
 - PARTIAL: `일부 구간은 기준 소요시간을 사용했고 변동성이 포함되지 않았어요.`
 - USER_FACING + INSUFFICIENT: `현재 근거 수준은 충분하지 않지만, 사용 가능한 입력으로 계산한 결과예요. 한계를 확인하고 이동을 시작할 수 있어요.`
@@ -534,14 +648,14 @@ Leg sequence를 다음 label로 구분한다.
 - STALE: `이 결과는 {calculatedAt} 기준이에요. 최신 교통정보로 다시 계산해 주세요.`
 - PROVIDER_ERROR with prior result: `교통정보를 새로 불러오지 못했어요. 아래 값은 마지막 계산 결과예요.`
 
-### 8.10 Responsive·Accessibility
+### Responsive·Accessibility
 
 - Mobile first viewport: target, on-time state/value, P50/P90, Recommended status, critical limitation, primary CTA.
 - Desktop: left decision/result, right route/evidence; reading order는 DOM에서 decision→route→evidence.
 - probability change/importance를 색과 animation만으로 표현하지 않는다.
 - metric abbreviation에는 accessible description을 연결한다.
 
-### 8.11 Analytics·Acceptance
+### Analytics·Acceptance
 
 Events: `pretrip_result_view`, `journey_start_click`, `evidence_open`, `share_click`, `recommended_departure_unavailable`, `result_refresh_click`.
 
@@ -554,9 +668,9 @@ Acceptance:
 
 ---
 
-## 9. SCR-03 — Live Journey
+## SCR-03 — Live Journey
 
-### 9.1 목적·접근·종료
+### 목적·접근·종료
 
 | 항목 | 계약 |
 |---|---|
@@ -565,7 +679,7 @@ Acceptance:
 | Access | ACTIVE/REFORECASTING/ARRIVED/ABORTED |
 | Exit | ARRIVED/ABORTED, 새 여정, Evidence/Share |
 
-### 9.2 Component hierarchy
+### Component hierarchy
 
 ```text
 SCR-03
@@ -582,11 +696,11 @@ SCR-03
 │  ├─ Active
 │  └─ Future
 ├─ Limitation/Evidence Link
-├─ Source Attribution Entry(서울시 공공데이터 출처표시 진입부, §15.4)
+├─ Source Attribution Entry(서울시 공공데이터 출처표시 진입부, Service Plan 「서울시 공공데이터 출처표시」)
 └─ Terminal Action (conditional)
 ```
 
-### 9.3 Live data dependencies
+### Live data dependencies
 
 | Field | Required/Nullable | 규칙 |
 |---|---|---|
@@ -598,7 +712,7 @@ SCR-03
 | freshness/lastSuccessfulAt | required | live label과 CTA 결정 |
 | current result snapshot | nullable in reforecast failure | previous/current version 구분 |
 
-### 9.4 Timeline 상태
+### Timeline 상태
 
 | Domain state | UI |
 |---|---|
@@ -611,7 +725,7 @@ SCR-03
 
 Transfer와 Wait는 별도 row다. `BUS_TO_SUBWAY` transfer 뒤에 `SUBWAY_WAIT`, `SUBWAY_TO_BUS` transfer 뒤에 `BUS_WAIT`가 이어진다.
 
-### 9.5 Contextual CTA
+### Contextual CTA
 
 | Active state | CTA | Preconditions | 결과 |
 |---|---|---|---|
@@ -629,7 +743,7 @@ BUS_SKIPPED copy는 개인의 탑승 실패를 추론하지 않는다. candidate
 
 ACCESS_WALK 완료는 Kakao WALK 예상시간 경과, background GPS, provider ETA만으로 자동 확정하지 않는다. 사용자가 `정류장/역에 도착했어요`를 직접 눌러야만 ACCESS_WALK가 COMPLETED되고 다음 WAIT가 활성화된다(ST-023). CTA 주변에는 `실제로 도착했을 때 눌러 주세요.`를 안내한다.
 
-### 9.6 Freshness/Provider failure
+### Freshness/Provider failure
 
 - FRESH: source update 시각과 현재 계산시각을 구분해 제공.
 - AGING: 현재 값은 표시하되 update notice.
@@ -637,24 +751,24 @@ ACCESS_WALK 완료는 Kakao WALK 예상시간 경과, background GPS, provider E
 - PROVIDER_ERROR: 마지막 결과가 있어도 “현재”처럼 유지하지 않음. retry 가능 여부 표시.
 - NO_DATA: 현재 candidate를 만들지 않으며 user event CTA 숨김.
 
-### 9.7 Journey recovery
+### Journey recovery
 
 새로고침·다른 탭 재진입 시 server state를 복구한다. local optimistic state와 server `stateVersion`이 다르면 server를 우선하고 사용자에게 `여정 상태가 업데이트되었어요.`를 알린다. 같은 event의 재시도는 중복 result를 만들지 않는다.
 
 화면이 background에서 foreground로 돌아오면 즉시 `RECONNECTING`으로 전환해 Journey와 result version을 재조회한다. 동기화가 끝나기 전 `BOARD_CONFIRMED`, `BUS_SKIPPED`, `TRANSFER_MISSED`, Share 생성은 잠근다. 네트워크가 없으면 privacy-safe last snapshot을 `OFFLINE_SNAPSHOT`으로만 보여주며, offline 상태에서 발생한 mutation을 성공한 것처럼 queue하지 않는다.
 
-### 9.8 Terminal variants
+### Terminal variants
 
 ARRIVED는 FINAL_WALK 완료 뒤에만 표시한다. ABORTED는 실패가 아니라 사용자가 여정을 종료한 상태일 수 있으므로 중립적으로 설명한다. terminal에서는 live polling과 event CTA를 중지한다.
 
-### 9.9 Responsive·Accessibility
+### Responsive·Accessibility
 
 - Mobile: active leg와 CTA를 먼저, vertical timeline, sticky event action은 두 개를 넘지 않음.
 - Tablet/Desktop: current summary+active card와 timeline 2-column 가능.
 - status 변화는 focus를 강제로 이동시키지 않고 aria-live로 알림.
 - CTA label은 mode/candidate context를 accessible name에 포함.
 
-### 9.10 Analytics·Acceptance
+### Analytics·Acceptance
 
 Events: `live_journey_view`, `access_walk_completed`, `board_confirmed`, `bus_skipped`, `transfer_missed`, `ride_completed`, `journey_aborted`, `live_provider_stale`, `journey_arrived`, `event_rejected`.
 
@@ -668,13 +782,13 @@ Acceptance:
 
 ---
 
-## 10. SCR-04 — Reforecast Result Overlay
+## SCR-04 — Reforecast Result Overlay
 
-### 10.1 목적·형태
+### 목적·형태
 
 사용자 사건 또는 source state 변화가 남은 Journey에 어떤 영향을 주었는지 before/after와 reason으로 설명한다. Mobile은 bottom sheet/full-height sheet, desktop은 side panel/modal을 사용한다. 독립 history page가 아니다.
 
-### 10.2 Trigger와 lifecycle
+### Trigger와 lifecycle
 
 `Event submit → REFORECASTING → success/unavailable/error → SCR-04 → continue → SCR-03`
 
@@ -684,7 +798,7 @@ REFORECASTING 중:
 - 모든 event CTA와 overlay dismiss를 정책상 제한한다.
 - 가짜 progress와 임시 delta를 표시하지 않는다.
 
-### 10.3 Data contract
+### Data contract
 
 | Field | Required | 규칙 |
 |---|---|---|
@@ -697,11 +811,11 @@ REFORECASTING 중:
 | reforecastStatus | yes | SUCCESS/UNAVAILABLE/FAILED |
 | limitations | array | 새 결과의 한계 |
 
-### 10.4 Before/After 표시
+### Before/After 표시
 
 같은 metric이 양쪽에 존재할 때만 arrow/delta를 표시한다. 한쪽 null이면 `이전/새 결과 없음`으로 설명한다. probability delta는 percentage point로 정의하고 percent change와 혼동하지 않는다.
 
-### 10.5 Reason copy
+### Reason copy
 
 | Reason | 기본 문구 |
 |---|---|
@@ -713,13 +827,13 @@ REFORECASTING 중:
 
 `BUS_SKIPPED` 후 required bus ride가 사라졌다고 암시하는 copy를 쓰지 않는다. 생성형 AI 설명은 reason code와 result metadata를 보조할 뿐 대체하지 않는다.
 
-### 10.6 CTA
+### CTA
 
 - SUCCESS: `계속 이동하기` → SCR-03 current state.
 - UNAVAILABLE: `현재 여정으로 돌아가기`, retryable이면 `다시 계산`.
 - FAILED: retryable에 따라 `다시 시도`; event가 적용됐는지 불명확하면 state를 먼저 refetch.
 
-### 10.7 Accessibility·Acceptance
+### Accessibility·Acceptance
 
 - overlay open 시 heading으로 focus, close 후 trigger/active card로 복귀.
 - ESC/back 동작은 mutation 진행 중 차단 이유를 알림.
@@ -730,13 +844,13 @@ Events: `reforecast_started`, `reforecast_success`, `reforecast_unavailable`, `r
 
 ---
 
-## 11. SCR-05 — Evidence Detail
+## SCR-05 — Evidence Detail
 
-### 11.1 목적·접근
+### 목적·접근
 
 사용자가 result를 맹신하지 않고 어떤 구간이 실측·reference·fallback·unmodeled인지 이해하도록 한다. SCR-02/03에서 열며 route 직접 접근도 가능하다. Evidence가 없다는 사실도 의미 있는 상태로 표시한다.
 
-### 11.2 Information hierarchy
+### Information hierarchy
 
 ```text
 SCR-05
@@ -750,11 +864,11 @@ SCR-05
 ├─ Leg Evidence List
 │  └─ source / semantics / support / fallback / coordinate role
 ├─ Probability Meaning
-├─ Source Attribution(서울시 공공데이터 출처표시, §15.4)
+├─ Source Attribution(서울시 공공데이터 출처표시, Service Plan 「서울시 공공데이터 출처표시」)
 └─ Developer/Demo Detail (environment/permission conditional)
 ```
 
-### 11.3 Leg evidence required/nullable
+### Leg evidence required/nullable
 
 | Field | Required/Nullable | 표시 원칙 |
 |---|---|---|
@@ -773,7 +887,7 @@ SCR-05
 | coordinate role/source | WALK/TRANSFER required | STATION_CENTER를 EXIT로 번역 금지 |
 | artifact/rule version | dev/demo only | 일반 사용자는 생략 가능 |
 
-### 11.4 User-facing leg copy 예
+### User-facing leg copy 예
 
 | 구간 | 표시 |
 |---|---|
@@ -783,7 +897,7 @@ SCR-05
 | 교대 3→2 | `공식 환승 기준시간을 사용했으며 개인별 변동성은 포함되지 않았어요.` |
 | FINAL WALK | `역삼역 중심 참조지점에서 목적지까지의 보행 기준값이에요. 출구 기준은 아니에요.` |
 
-### 11.5 상태별 UX
+### 상태별 UX
 
 - PARTIAL_MODEL: 모델링되지 않은 leg 수/목록 제공.
 - LOW_SUPPORT: calibrated rule이 있을 때 표본 단위·기간을 함께 제공.
@@ -792,14 +906,14 @@ SCR-05
 - PROVIDER_ERROR: raw error body 대신 provider category, last success, retryability.
 - Evidence endpoint failure: parent result는 유지하고 `근거 상세를 불러오지 못했어요.` + retry.
 
-### 11.6 Developer/Demo Mode
+### Developer/Demo Mode
 
 허용: sample unit/count, observation window, fallback/rule/artifact/distribution version, simulation run ID, seed/N, validation scope, coordinate provenance, raw reference ID.  
 금지: API key, auth header, exact private origin, provider raw payload 전체, production internal topology.
 
 Developer mode가 없어도 사용자-facing limitations는 항상 접근 가능해야 한다.
 
-### 11.7 CTA·Responsive·Accessibility
+### CTA·Responsive·Accessibility
 
 - CTA: `결과로 돌아가기`, `상세 다시 시도`.
 - Mobile: sections accordion/bottom sheet; critical limitation은 collapsed 안쪽에만 숨기지 않음.
@@ -817,13 +931,13 @@ Acceptance:
 
 ---
 
-## 12. SCR-06 — Share Snapshot
+## SCR-06 — Share Snapshot
 
-### 12.1 목적·범위
+### 목적·범위
 
 동행/약속 상대에게 계산 당시의 축약된 도착 전망을 전달한다. live tracking page가 아니며 원본 Journey의 변화를 자동 반영하지 않는 immutable snapshot이다.
 
-### 12.2 Access variants
+### Access variants
 
 | Variant | 조건 | UI |
 |---|---|---|
@@ -832,7 +946,7 @@ Acceptance:
 | INVALID/NOT_FOUND | token invalid/삭제 | `공유 결과를 찾을 수 없어요.` |
 | PROVIDER-independent | 원본 provider 현재 장애 | snapshot은 calculatedAt와 함께 표시; live라고 표현 금지 |
 
-### 12.3 Included/Excluded data
+### Included/Excluded data
 
 포함:
 
@@ -851,7 +965,7 @@ Acceptance:
 - evidence debug, sample raw reference
 - secret, Journey mutation CTA
 
-### 12.4 Component hierarchy
+### Component hierarchy
 
 ```text
 SCR-06
@@ -861,11 +975,11 @@ SCR-06
 ├─ Selected-route Scope
 ├─ Limitation Summary
 ├─ Calculated Time
-├─ Source Attribution(서울시 기반 metric 포함 시, §15.4)
+├─ Source Attribution(서울시 기반 metric 포함 시, Service Plan 「서울시 공공데이터 출처표시」)
 └─ CTA: 내 여정 계산하기 → SCR-01
 ```
 
-### 12.5 Share creation contract
+### Share creation contract
 
 SCR-02/03의 `공유` CTA는 feature flag와 G5 security Gate가 통과하고 shareable result가 있을 때만 노출한다. create 중 중복 요청을 막는다. exact TTL 숫자는 확정 전 UI copy에 박지 않고 API `expiresAt`을 formatting한다.
 
@@ -875,7 +989,7 @@ SCR-02/03의 `공유` CTA는 feature flag와 G5 security Gate가 통과하고 sh
 - revoke/expire 후에는 snapshot을 cache에서 복원해 표시하지 않는다.
 - cookie 기반 owner mutation(Start/Event/Share 생성)은 CSRF token 또는 strict Origin/SameSite 검증을 통과해야 한다(NFR-093).
 
-### 12.6 Responsive·Accessibility·Analytics
+### Responsive·Accessibility·Analytics
 
 - public page는 최소 shell, no private navigation.
 - copy URL 결과는 toast뿐 아니라 inline confirmation 또는 accessible live region으로 알림.
@@ -890,7 +1004,7 @@ Acceptance:
 
 ---
 
-## 13. State namespace × Screen State
+## State namespace × Screen State
 
 서로 다른 상태축을 하나의 Domain enum으로 합치지 않는다.
 
@@ -905,7 +1019,7 @@ Acceptance:
 | JourneyLifecycleState | ARRIVED | SCR-03 terminal | evidence/share/new journey | live event/polling |
 | JourneyLifecycleState | ABORTED | SCR-03 terminal | evidence/new journey | live event |
 
-### 13.1 Leg state × rendering
+### Leg state × rendering
 
 | Leg state | Icon/Label | 시간 | CTA |
 |---|---|---|---|
@@ -919,7 +1033,7 @@ Acceptance:
 
 ---
 
-## 14. Error Taxonomy와 Recovery UX
+## Error Taxonomy와 Recovery UX
 
 | Error/State | 소유 화면 | 사용자 문구 방향 | Retry | 보존 |
 |---|---|---|---|---|
@@ -944,7 +1058,7 @@ Retry는 동일 입력/이벤트를 무한 반복하지 않는다. API `retryabl
 
 ---
 
-## 15. Mobile-first PWA Contract
+## Mobile-first PWA Contract
 
 | 영역 | Mobile | Tablet | Desktop |
 |---|---|---|---|
@@ -969,7 +1083,7 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 | Location | 사용자 CTA 후 foreground one-shot 권한 요청; 거부·오류 시 수동 입력 유지 |
 | Share | Web Share API 가능 시 OS sheet, 그 외 copy fallback; token을 analytics/log에 남기지 않음 |
 
-### 15.1 PWA Compatibility Matrix
+### PWA Compatibility Matrix
 
 | Test profile | Required flow | Runtime variants | Acceptance |
 |---|---|---|---|
@@ -983,7 +1097,7 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 
 ---
 
-## 16. Accessibility Contract
+## Accessibility Contract
 
 - WCAG 수준 목표와 자동/수동 테스트 범위는 NFR에서 확정하되 다음은 Minimum 필수다.
 - heading hierarchy와 landmark, skip link, logical DOM/focus order.
@@ -997,9 +1111,9 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 
 ---
 
-## 17. Analytics Contract
+## Analytics Contract
 
-### 17.1 공통 원칙
+### 공통 원칙
 
 - exact origin/destination coordinate, API secret, raw provider ID를 property로 저장하지 않는다.
 - raw `journeyId`와 public Share token은 analytics에 저장하지 않는다. Journey 단위 분석이 필요하면 analytics 전용 pseudonymous key를 사용하며 owner capability와 상호 변환할 수 없어야 한다.
@@ -1007,7 +1121,7 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 - event success/failure는 reason code와 version을 구분한다.
 - UI view와 실제 domain mutation success를 같은 event로 세지 않는다.
 
-### 17.2 Minimum dictionary
+### Minimum dictionary
 
 | Event | Screen | Trigger | Required properties |
 |---|---|---|---|
@@ -1036,11 +1150,11 @@ Breakpoints는 design system에서 고정하며 이 문서가 임의 px를 만�
 
 event dictionary 변경은 Privacy review를 거치며 각 property에 목적·owner·retention class를 부여한다. 정확 retention 기간은 G5에서 정하고, 미정 상태에서는 새 식별성 property를 추가하지 않는다.
 
-### 17.3 Internal QA event
+### Internal QA event
 
 `internal_route_fixture_loaded`는 일반 product analytics가 아닌 격리된 development/QA log에서만 허용한다. Route B는 내부 topology·interoperability 검증에만 사용하며 사용자 화면과 최종 발표 narrative에는 나타나지 않는다. production 또는 public demo build에서 fixture entry가 발견되면 release-blocking configuration error다.
 
-### 17.4 Route A Demo 화면 계약
+### Route A Demo 화면 계약
 
 - 발표용 별도 mock screen을 만들지 않고 SCR-01→05의 실제 product flow를 사용한다.
 - result에는 Route A scope, calculatedAt, live/recorded 상태, eligibility, validation scope와 critical limitation을 유지한다.
@@ -1051,7 +1165,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 ---
 
-## 18. Screen ↔ Feature ↔ REQ/BR Traceability
+## Screen ↔ Feature ↔ REQ/BR Traceability
 
 | Screen | Product Feature | REQ | BR/NFR | 핵심 AC |
 |---|---|---|---|---|
@@ -1062,16 +1176,16 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097,103 | BR-005,012~017,050~053,061~074,082; NFR-087,088 | UI-AC-013,019,022~029,034~035,039; AC-018~021,027,034~045,053~057 |
 | SCR-06 | Share | REQ-080~082,098,103 | NFR-050~054,079,093 | UI-AC-014,023,039,047; AC-025,039,047 |
 
-### 18.1 주요 정책 추적
+### 주요 정책 추적
 
 | 정책 | 화면 적용 |
 |---|---|
 | Selected route conditional | SCR-02/06 scope label, alternatives ranking 없음 |
 | Provider access ≠ supported Journey | SCR-01 WALK/route mapping/entitlement 상태, SCR-02 scope, SCR-05 WALK provider·future route crosswalk detail |
 | Coverage/selected-route 분리 | SCR-01 사전 고지(서울 임의 입력 + mapping/model coverage에 따른 결과 차등), SCR-02/05 `geographyCoverage`/`routeSearchCoverage`/`selectedRoutePolicy`/`walkProviderMode`/`reliabilityModelCoverage`, Demo Route A manifest |
-| Per-metric claim eligibility | SCR-02 §8.4.1 metric card별 문구, SCR-05 leg detail, SCR-06 snapshot |
+| Per-metric claim eligibility | SCR-02 「Metric별 Claim Eligibility」 metric card별 문구, SCR-05 leg detail, SCR-06 snapshot |
 | P90 ≠ 90% accuracy | SCR-02/04/05/06 copy guard |
-| 정상 leg 전이/ABORT | SCR-03 §9.5 정류장/역 도착·하차·환승 완료·여정 종료 CTA |
+| 정상 leg 전이/ABORT | SCR-03 「Contextual CTA」 정류장/역 도착·하차·환승 완료·여정 종료 CTA |
 | Recommended Departure service re-evaluation | SCR-02 AVAILABLE Gate/copy; 계산 로직은 REQ/API |
 | Transfer ≠ Wait | SCR-02/03 timeline separate rows |
 | BUS_SKIPPED user-confirmed | SCR-03 CTA precondition, SCR-04 reason/topology |
@@ -1089,7 +1203,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 ---
 
-## 19. Development Handoff Checklist
+## Development Handoff Checklist
 
 ### Frontend
 
@@ -1133,7 +1247,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 ---
 
-## 20. QA Acceptance Scenarios
+## QA Acceptance Scenarios
 
 | ID | Scenario | Expected |
 |---|---|---|
@@ -1181,7 +1295,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 ---
 
-## 21. Open Implementation Decisions
+## Open Implementation Decisions
 
 다음은 IA 누락이 아니라 측정·보안·하위 계약 Gate가 필요한 값이다.
 
@@ -1199,13 +1313,13 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | analytics retention | raw ID/token 금지; pseudonymous key만 | G5 Privacy Review |
 | offline snapshot storage lifetime | server retention과 별도 policy; savedAt·clear path 제공 | G5 Privacy/Security Review |
 | Service Worker activation timing | active mutation 안전성 우선 | PWA integration test |
-| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·external ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: payload mapping `REJECTED`(canonical ID 없음)라서 D2 target은 REQ-105 external crosswalk가 필요하다. Gate 통과 candidate에만 확률·추천 출발을 계산하고, 나머지는 구조만 표시한다(§1 IA-025/IA-026, §7.3) | `KAKAO_ROUTE_PROVIDER_GATE` + REQ-105 |
+| Kakao publictraffic Primary 승격 | 호출 성공만으로 승격하지 않고 entitlement·external ID mapping·시간 분해·반복 안정성 Gate. 2026-08-23 판정: payload mapping `REJECTED`(canonical ID 없음)라서 D2 target은 REQ-105 external crosswalk가 필요하다. Gate 통과 candidate에만 확률·추천 출발을 계산하고, 나머지는 구조만 표시한다(「IA 핵심 결정」 IA-025/IA-026, 「Data dependencies」) | `KAKAO_ROUTE_PROVIDER_GATE` + REQ-105 |
 | deployment coverage fields | Minimum Release D2 target은 `geographyCoverage=SEOUL_ONLY`, `routeSearchCoverage=ARBITRARY_OD_DISCOVERY`, `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, `walkProviderMode=KAKAO_MAP_WALK`, `validationAndDemoScope=ROUTE_A_DEMO_ONLY`를 별도 필드로 표시한다. Gate 미달 fallback은 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`로 분리 표시한다 | Release manifest |
 | AI model serving | `JR_TEMPORAL_QUANTILE_MODEL`은 leg-level residual/WAIT quantile source로만 표시한다. Gate 미달 시 `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable/reference fallback으로 표시하고 AI serving claim을 축소한다 | REQ-106 + CG-008 |
 
 ---
 
-## 22. 정본 정합성 규칙
+## 정본 정합성 규칙
 
 - Service Plan의 selected-route, probability, Reforecast, honesty 정책을 보존한다.
 - Requirements의 SCR-01~06, REQ·BR 의미와 동일한 용어를 쓴다.
@@ -1223,7 +1337,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 ---
 
-## Appendix A. Screen 완료 정의
+## Appendix — Screen 완료 정의
 
 | Screen | Done |
 |---|---|
@@ -1234,7 +1348,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | SCR-05 | leg별 source/support/fallback/uncertainty/validation/coordinate provenance 확인 가능 |
 | SCR-06 | privacy-safe immutable snapshot을 valid/expired/invalid로 제공 |
 
-## Appendix B. 금지 표현
+## Appendix — 금지 표현
 
 - `정확도 90%`
 - `P90 시각에 정확히 도착`

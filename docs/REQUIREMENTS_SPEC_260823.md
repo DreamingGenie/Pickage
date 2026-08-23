@@ -7,9 +7,81 @@
 > **상위 기준**: `SERVICE_PLAN_260823.md`, `IA_SCREEN_SPEC_260823.md`  
 > **적용 원칙**: Evidence에 없는 수치로 빈 셀을 채우지 않는다. 측정이 필요한 값은 상태와 해소 Gate를 명시한다.
 
-## 0. 문서 정보와 규모
+## 문서 네비게이션
 
-### 0.1 정의 규모
+**정본 문서 바로가기**
+
+- [Service Plan](SERVICE_PLAN_260823.md)
+- [IA / Screen Spec](IA_SCREEN_SPEC_260823.md)
+- **Requirements Spec**
+- [Decision Sheet](DECISION_SHEET_260823.md)
+
+**이 문서 안에서 이동**
+
+- [문서 정보와 규모](#문서-정보와-규모)
+  - [정의 규모](#정의-규모)
+  - [Priority와 상태](#priority와-상태)
+  - [승인 Gate](#승인-gate)
+- [범위](#범위)
+  - [포함](#포함)
+  - [Explicit Out](#explicit-out)
+- [Feature Dictionary](#feature-dictionary)
+- [Functional Requirements](#functional-requirements)
+  - [Journey Input / Route](#journey-input-route)
+  - [Pre-trip Analysis](#pre-trip-analysis)
+  - [Journey Start / State / Reforecast](#journey-start-state-reforecast)
+  - [WALK / Transfer / Coordinate](#walk-transfer-coordinate)
+  - [Evidence / Support / Confidence](#evidence-support-confidence)
+  - [Freshness / Error / Unsupported](#freshness-error-unsupported)
+  - [Prediction / Actual / Residual](#prediction-actual-residual)
+  - [WAIT / Candidate Service](#wait-candidate-service)
+  - [Share / Trace / Demo](#share-trace-demo)
+  - [Mobile-first PWA Runtime](#mobile-first-pwa-runtime)
+  - [AI / ML Training and Serving](#ai-ml-training-and-serving)
+- [Business Rules](#business-rules)
+  - [Scope / Route](#scope-route)
+  - [Probability / Result](#probability-result)
+  - [Recommended Departure](#recommended-departure)
+  - [Domain / Reforecast](#domain-reforecast)
+  - [Evidence / UX](#evidence-ux)
+- [State Transition Rules](#state-transition-rules)
+  - [State enums](#state-enums)
+  - [Transitions](#transitions)
+- [Error Taxonomy](#error-taxonomy)
+- [API / System Interface Dictionary](#api-system-interface-dictionary)
+  - [User-facing API](#user-facing-api)
+  - [Internal interfaces](#internal-interfaces)
+  - [기준 기술과 배포 경계](#기준-기술과-배포-경계)
+    - [2-node provisional deployment contract](#2-node-provisional-deployment-contract)
+- [Entity / Data Dictionary](#entity-data-dictionary)
+  - [Identity rules](#identity-rules)
+  - [Data Quality minimum flags](#data-quality-minimum-flags)
+- [Non-functional Requirements](#non-functional-requirements)
+  - [Performance / Correctness](#performance-correctness)
+  - [Freshness / Availability / Recovery](#freshness-availability-recovery)
+  - [Security / Privacy](#security-privacy)
+  - [Observability / Operations](#observability-operations)
+    - [Quota Budget v1 contract](#quota-budget-v1-contract)
+    - [Public API Admission Control (신규)](#public-api-admission-control-신규)
+  - [Responsive / Accessibility](#responsive-accessibility)
+  - [Distributed Proof](#distributed-proof)
+  - [AI / ML Serving Boundary](#ai-ml-serving-boundary)
+- [Acceptance Test Scenarios](#acceptance-test-scenarios)
+- [Claim Gates와 Evidence Dependency](#claim-gates와-evidence-dependency)
+  - [Evidence guardrails](#evidence-guardrails)
+- [End-to-End Traceability Matrix](#end-to-end-traceability-matrix)
+  - [Traceability completeness rules](#traceability-completeness-rules)
+- [Development-only Decisions / TBD Register](#development-only-decisions-tbd-register)
+- [Security / Operations Release Checklist](#security-operations-release-checklist)
+- [정본 정합성 규칙](#정본-정합성-규칙)
+- [Appendix — Claim wording guardrail](#appendix-claim-wording-guardrail)
+- [Appendix — Definition of Done](#appendix-definition-of-done)
+
+---
+
+## 문서 정보와 규모
+
+### 정의 규모
 
 | 정의 단위 | 수량 | ID 범위 |
 |---|---:|---|
@@ -25,7 +97,7 @@
 
 수량은 문서 행 기준이며 구현 task 수와 동일하지 않다. 2026-08-23 외부 전문가 검토(`JR_FINAL_SET_EXPERT_REVIEW_260823.md`) 반영으로 REQ-100~104, BR-080~084, ST-023~026, API-010, NFR-090~093, AC-058~061, UI-AC-036~039(IA)가 추가됐다. 2026-08-23 정책 확정 지시서(`JR_POLICY_DECISIONS_AGENT_HANDOFF_260823.md`) 반영으로 REQ-105, BR-085~086, ENT-024, NFR-094, AC-062~064, UI-AC-040(IA)이 추가됐고, 본 정합성 조정으로 ST-027~029가 추가됐다. AI 포인트 강화 반영으로 REQ-106, BR-087~088, SYS-008, ENT-025~026, NFR-095~096, AC-065~066, CG-008, UI-AC-041(IA)이 추가됐다.
 
-### 0.2 Priority와 상태
+### Priority와 상태
 
 | 값 | 의미 |
 |---|---|
@@ -40,7 +112,7 @@
 
 구현 상태(`PLANNED/IMPLEMENTED/TESTED/RELEASED`)는 별도 backlog에서 관리한다. 이 문서의 Priority를 구현 완료 상태로 해석하지 않는다.
 
-### 0.3 승인 Gate
+### 승인 Gate
 
 | Gate | 승인 기준 |
 |---|---|
@@ -54,9 +126,9 @@
 
 ---
 
-## 1. 범위
+## 범위
 
-### 1.1 포함
+### 포함
 
 - 서울 행정구역, 임의 OD의 BUS+SUBWAY mixed route discovery와 first-supported reliability/Recommended Departure D2 목표(REQ-104/105/015), Route A는 우선 검증·최종 시연 대상 및 D1 fallback
 - Pre-trip analysis, Journey Start, Live state, UserEvent, Reforecast
@@ -73,7 +145,7 @@
 
 Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 임의 OD의 first-supported selected route, probability, Recommended Departure까지 통과한 상태다. **D1-fallback**은 D2 Gate 미통과 시 Route A 중심 probability vertical slice를 보호하고, Route A Recommended Departure도 REQ-015 candidate 재평가 Gate evidence가 있을 때만 표시하는 상태다. **Contract-complete**는 모든 정상·부족·실패 상태와 provenance가 구현된 상태다. 근거 없는 확률 숫자를 만들지 않으며 D2/Claim-capable 미달은 임의 OD structure-only+`NOT_COMPUTED/INSUFFICIENT` 또는 Route A D1 probability/Recommended Departure fallback으로 정상 처리한다.
 
-### 1.2 Explicit Out
+### Explicit Out
 
 - route optimizer, 다중 경로 reliability ranking, “가장 안전한 경로”
 - citywide accuracy/coverage/SLA, 전국/수도권 자동 지원
@@ -85,7 +157,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 
 ---
 
-## 2. Feature Dictionary
+## Feature Dictionary
 
 | F-ID | Feature | 사용자 결과 | Primary SCR | Core REQ |
 |---|---|---|---|---|
@@ -110,11 +182,11 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 
 ---
 
-## 3. Functional Requirements
+## Functional Requirements
 
 > 각 행은 `상세조건 → 정상 처리 → 예외·오류 → Interface/Entity → Rule/Acceptance`가 닫힌 구현 계약이다. API path의 최종 naming은 API Contract를 따르되 semantics와 ID는 고정한다.
 
-### 3.1 Journey Input / Route
+### Journey Input / Route
 
 | REQ | F / SCR / Route | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -129,9 +201,9 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-009 Kakao Route Provider Promotion Gate | F002/F016 / SCR-01/05/Internal | D2_TARGET/CLAIM_GATE | `KAKAO_ROUTE_PROVIDER_GATE`: Kakao publictraffic 기반 candidate를 D2 selected route 계산 대상으로 쓰려면 앱 entitlement, external canonical bus/stop·station×line crosswalk, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증한다. **2026-08-23 판정: entitlement CONFIRMED(콘솔, publictraffic 9/1,000·walk 4/1,000) / API payload 자체 mapping REJECTED / 시간 포함관계 PARTIAL / 반복 안정성 PASS.** 따라서 D2는 REQ-105 안전한 자동 crosswalk를 추가로 요구한다. `KAKAO_MAP_WALK` 사용은 REQ-031과 AC-056의 WALK provider contract를 따른다 | Gate 실패 시 서울 임의 OD 후보는 구조 표시+`NOT_COMPUTED`, 최종 시연과 사용자-facing probability/Recommended Departure는 Route A D1 fallback; HTTP 200만으로 USER_FACING route 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
 | REQ-100 Location Provider Contract | F001/F016 / SCR-01 | MUST | 위치 검색·현재 위치 resolve provider는 route discovery provider(API-001)와 별도 providerKey·quota counter로 관리하고, provider명·quota state·business error·cache freshness를 API-000 response에 포함한다 | provider entitlement/quota 소진 시 `PROVIDER_ENTITLEMENT_UNAVAILABLE`/`PROVIDER_QUOTA_EXCEEDED`로 분리; 좌표·검색어는 POST body로만 전달하고 URL query·access log·reverse proxy log에 평문 노출 금지(log redaction) | API-000, SYS-001 / ENT-016,017 | BR-005 / AC-001,046 |
 | REQ-104 Coverage / Selected-route Fields / Arbitrary OD Route Discovery | F002 / SCR-01/02 | MUST | 서울 내 임의 OD 제출마다 `KAKAO_MAP_PUBLIC_TRANSIT`를 route discovery provider로 runtime에 실제 호출해 구조 경로 후보를 얻는다(NFR-090~092 admission control/dedup/concurrency cap 적용). canonicalization crosswalk(REQ-105)가 정류장·역·노선 master와 대조해 candidate마다 `canonicalMappingStatus ∈ {EXACT,UNAMBIGUOUS,PARTIAL,FAILED}`와 provenance를 부여한다. D2 목표에서는 `EXACT/UNAMBIGUOUS`이고 `reliabilityModelCoverage`가 충족된 첫 candidate를 REQ-010/015 계산 대상으로 선택한다 | mapping이 `PARTIAL/FAILED`이거나 model coverage 부족(crosswalk 미완성 포함)→경로 구조는 표시하되 확률·추천 출발은 `NOT_COMPUTED`(사유 포함), placeholder 금지; provider quota 소진 시 `PROVIDER_QUOTA_EXCEEDED`로 실패하고 Route A로 silent substitution 금지; D2 Gate 실패 시 임의 OD structure-only 유지, probability/Recommended Departure는 Route A D1 fallback | API-001, SYS-002, SYS-007 / ENT-005 | BR-083,084 / AC-002,004,057,062 |
-| REQ-105 Canonicalization Crosswalk | F002 / SCR-01/02/Internal | D2_TARGET/CLAIM_GATE | Kakao publictraffic 구조 후보(name-only stop/vehicle)를 서울 공식 정류장·노선·역 master와 안전하게 대조해 `canonicalMappingStatus`를 판정하는 crosswalk 레이어를 구축한다. `UNAMBIGUOUS` 이상은 name normalization, 좌표 근접성, 버스 노선/지하철 line, 방향·순서 조건을 모두 통과하고 후보가 하나로 좁혀질 때만 부여한다. name-only 또는 거리-only 매칭은 `PARTIAL/FAILED`다. Route A 자체의 canonical mapping(§6.1, `EXACT`)과는 별개로, 임의 OD candidate 전체에 적용되는 신규 매칭 로직이며 D2 임의 OD probability/Recommended Departure의 필수 Gate다 | crosswalk 미완성이거나 매칭 실패 candidate는 `canonicalMappingStatus=FAILED`로 정직하게 남기고 확률·추천 출발을 만들지 않음(BR-085); crosswalk 완성도를 과장해 `EXACT/UNAMBIGUOUS`를 임의로 부여 금지; 2026-09-14 팀 회의에서 남은 일정상 불가능하면 probability/Recommended Departure는 Route A D1 fallback | SYS-002 / ENT-005 | BR-085 / AC-062 |
+| REQ-105 Canonicalization Crosswalk | F002 / SCR-01/02/Internal | D2_TARGET/CLAIM_GATE | Kakao publictraffic 구조 후보(name-only stop/vehicle)를 서울 공식 정류장·노선·역 master와 안전하게 대조해 `canonicalMappingStatus`를 판정하는 crosswalk 레이어를 구축한다. `UNAMBIGUOUS` 이상은 name normalization, 좌표 근접성, 버스 노선/지하철 line, 방향·순서 조건을 모두 통과하고 후보가 하나로 좁혀질 때만 부여한다. name-only 또는 거리-only 매칭은 `PARTIAL/FAILED`다. Route A 자체의 canonical mapping(Service Plan 「Selected-route 정책」, `EXACT`)과는 별개로, 임의 OD candidate 전체에 적용되는 신규 매칭 로직이며 D2 임의 OD probability/Recommended Departure의 필수 Gate다 | crosswalk 미완성이거나 매칭 실패 candidate는 `canonicalMappingStatus=FAILED`로 정직하게 남기고 확률·추천 출발을 만들지 않음(BR-085); crosswalk 완성도를 과장해 `EXACT/UNAMBIGUOUS`를 임의로 부여 금지; 2026-09-14 팀 회의에서 남은 일정상 불가능하면 probability/Recommended Departure는 Route A D1 fallback | SYS-002 / ENT-005 | BR-085 / AC-062 |
 
-### 3.2 Pre-trip Analysis
+### Pre-trip Analysis
 
 | REQ | F / SCR / Route | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -145,7 +217,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-017 Eligibility / Start Decision | F003/F004 / SCR-02 | MUST | required time-bearing leg마다 valid distribution 또는 approved deterministic/reference input이 있으면 core 계산 가능. uncertainty만 미모델링이면 `USER_FACING+PARTIAL_MODEL`; input 자체 부재면 `NOT_COMPUTED`. `startEligibility=ELIGIBLE/REFRESH_REQUIRED/BLOCKED`와 reasonCodes 반환 | confidence `INSUFFICIENT`만으로 Start 차단 금지; optional connection/recommended 부재로 core 자동 무효화 금지 | API-002/003 / ENT-006~010,015 | BR-014,017,045 / AC-003,020,036,037 |
 | REQ-103 Per-metric Claim Eligibility | F003 / SCR-02/05/06 | MUST | P50, P90, P(on_time), Recommended Departure 각각을 `STRUCTURE_ONLY/DISTRIBUTION_AVAILABLE/PROBABILITY_AVAILABLE/CALIBRATED_CLAIM` 중 하나로 독립 판정해 `metricEligibility`로 반환. `resultEligibility`(REQ-016)는 표시 가능 여부, 이 필드는 어느 수준의 claim이 가능한지를 답함 | `CALIBRATED_CLAIM`은 V3 END_TO_END validation scope 없이 부여 금지; 한 metric의 등급을 다른 metric에 전이 금지 | API-002 / ENT-015 | BR-082; CG-001 / AC-020,021,057 |
 
-### 3.3 Journey Start / State / Reforecast
+### Journey Start / State / Reforecast
 
 | REQ | F / SCR / Route | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -159,7 +231,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-101 Normal Leg Transition | F004/F005 / SCR-03 | MUST | 각 leg type(ACCESS_WALK/WAIT/RIDE/TRANSFER/FINAL_WALK)의 정상 `ENTERED/COMPLETED` 사건을 canonical transition table(ST-023~026)로 정의: ACCESS_WALK 완료→첫 WAIT 진입, RIDE 정상 하차→다음 TRANSFER 또는 WAIT 또는 FINAL_WALK 진입, TRANSFER 정상 완료→다음 WAIT 진입, `UNAVAILABLE` leg가 새 source 관측 시 회복. 사용자 입력 사건(CTA)과 provider/source 자동 사건을 분리 | 정의되지 않은 leg 전이 요청→`EVENT_NOT_ALLOWED_IN_STATE`; 정상 전이도 idempotency key 필수, 완료 이력 재샘플링 금지 | API-005 / ENT-006,012,013 | BR-080; NFR-023 / AC-058,059 |
 | REQ-102 Journey Abort | F004 / SCR-03 | MUST | owner capability 확인된 사용자가 진행 중인 Journey를 `ABORTED`로 종료; live polling/event 중지, 완료 이력·result provenance는 보존(ST-013) | 이미 ARRIVED/ABORTED에서 재요청→`EVENT_ALREADY_APPLIED`; owner capability 불일치는 not-found와 동일 응답 | API-010 / ENT-012,020 | BR-081; NFR-023,053 / AC-060 |
 
-### 3.4 WALK / Transfer / Coordinate
+### WALK / Transfer / Coordinate
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -170,7 +242,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-034 SUBWAY_TO_SUBWAY | F008 / SCR-02/03/05 | MUST | official reference 사용 가능; Route A Tier-0 OA-22521 144s, uncertainty UNMODELED | OA-13290 63s와 평균/혼합 금지; 개인 분포로 표현 금지 | SYS-002 / ENT-007,010 | BR-030~034,052 / AC-017,027 |
 | REQ-035 SUBWAY_TO_BUS | F008 / SCR-02/03/05 | MUST | platform→exit internal + exit→bus stop street, 이후 BUS_WAIT 별도 | structural interoperability를 product E2E로 승격 금지; component 부족 시 limitation | SYS-002 / ENT-007,008,016,017 | BR-030~032,051 / AC-017,CG-003 |
 
-### 3.5 Evidence / Support / Confidence
+### Evidence / Support / Confidence
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -181,7 +253,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-044 Validation Scope | F009 / SCR-02/05/06 | MUST | V0 UNVALIDATED, V1 COMPONENT_ONLY, V2 CORRIDOR_REPLAY, V3 END_TO_END 매핑 | component→E2E 승격 금지; 계약 실패 fixture를 COMPONENT_ONLY로 승격 금지 | API-002/006/008 / ENT-010,014,015 | BR-050,051; CG-001 / AC-020,021 |
 | REQ-045 Evidence Detail | F009 / SCR-05 | MUST | result/leg scope, source semantics, support, fallback, freshness, limitation, validation, coordinate provenance 제공 | endpoint failure가 parent result를 삭제하지 않음; raw secret/private coordinate 미노출 | API-006 / ENT-001~018 | BR-050~053,061 / AC-018,025 |
 
-### 3.6 Freshness / Error / Unsupported
+### Freshness / Error / Unsupported
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -193,7 +265,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-055 No Fake Fallback | F010 / SCR-02~05/Global | MUST | real path missing input→NOT_COMPUTED; synthetic fixture→ENGINE_FIXTURE_ONLY | arbitrary 400/600s/variance, mixed placeholder, fixture demo 금지 | SYS-003 / ENT-010,014,015 | BR-013,014,062 / AC-003,021,034 |
 | REQ-056 Journey Freshness Aggregation | F010 / SCR-02/03/05 | MUST | source를 `CRITICAL_CALCULATION/NON_CRITICAL_CONTEXT`로 분류. critical usable input 없음→NOT_COMPUTED/PROVIDER_ERROR; critical 중 STALE 존재→STALE; 그 외 AGING 존재→AGING; 모두 FRESH→FRESH. non-critical failure는 core state 유지 | Frontend source-name 추론 금지; last success와 current input 혼합 금지; PARTIAL/confidence/validation과 단일 enum으로 합치지 않음 | API-002/004/006 / ENT-001,010,015 | BR-064; NFR-011,030 / AC-038 |
 
-### 3.7 Prediction / Actual / Residual
+### Prediction / Actual / Residual
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -206,7 +278,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-066 Prediction Horizon | F011 / SCR-05/Internal Data/ML | MUST | prediction 시점 observable ETA/horizon을 conditioning에 사용; realized outcome 별도 저장 | actual-derived time-to-event feature leakage 금지 | SYS-005 / ENT-004 | CG-007 / AC-033 |
 | REQ-067 Out-of-order Detection | F011 / SCR-05/Internal Data | MUST | collector receive order에서 source-time reversal 측정 후 canonical sort | source-time sort 후 비교해 evidence 제거 금지; threshold TBD | SYS-004/005 / ENT-001 | NFR-010,061 / AC-026,031 |
 
-### 3.8 WAIT / Candidate Service
+### WAIT / Candidate Service
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -215,7 +287,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-072 Subway WAIT Source | F012 / SCR-03/05 | MUST | realtime exact candidate, verified timetable, empirical headway 중 source/version 저장 | timetable prior를 exact current guarantee로 표현 금지; source 없음→unavailable | SYS-004/003 / ENT-008,010 | BR-024,050 / AC-023,032 |
 | REQ-073 Service Day | F012 / SCR-02/03/05/Engine | MUST | DAY/SAT/END, direction, service date, `>=24:00` rollover, encoding/source version 처리 | naive date split/24:00 parse failure→WAIT unavailable+quality flag | SYS-003/006 / ENT-008,010 | NFR-021,022 / AC-023 |
 
-### 3.9 Share / Trace / Demo
+### Share / Trace / Demo
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -226,7 +298,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-091 No Mock Final Result | F014 / SCR-02/Demo | MUST | final user result는 real pipeline output+eligible metadata만 | hard-coded·illustrative·계약 실패 fixture·amplified training support 금지 | SYS-003/006 / ENT-014,015 | BR-053,062 / AC-034 |
 | REQ-092 Route B Internal QA Isolation | F014 / SCR-03/04/Internal QA | MUST | Route B structural fixture는 격리된 development/QA runner에서 topology·realtime ID interoperability·BUS_SKIPPED invariant 검증에만 사용하고 provenance/run manifest를 남김 | 사용자 UI, public demo build/narrative, product analytics, production route selector에 노출 금지 | SYS-002/003/006 / ENT-005,014,015 | BR-053,062,065; NFR-066 / AC-040 |
 
-### 3.10 Mobile-first PWA Runtime
+### Mobile-first PWA Runtime
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -237,7 +309,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | REQ-097 Service Worker Update | F018 / SCR-01~06/Runtime | MUST | waiting worker를 감지하고 active mutation이 없을 때만 사용자 제어 또는 안전한 정책으로 activate; cache version과 runtime version 관측 | event/reforecast 중 강제 reload·중복 reload loop·구 schema API cache resurrection 금지 | SYS-001 / ENT-022 | BR-069; NFR-078 / AC-045 |
 | REQ-098 Device Capability | F018 / SCR-01/02/03 | MUST | `현재 위치 사용` click 후 foreground one-shot geolocation; 거부 시 수동 입력. Web Share 가능 시 OS sheet, 실패/미지원 시 copy fallback | page load 권한 선요청·continuous/background GPS 금지; share token analytics/log 금지 | API-000/007, ENT-016,019 | BR-070; NFR-050,079 / AC-046,047 |
 
-### 3.11 AI / ML Training and Serving
+### AI / ML Training and Serving
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
@@ -245,9 +317,9 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 
 ---
 
-## 4. Business Rules
+## Business Rules
 
-### 4.1 Scope / Route
+### Scope / Route
 
 | BR | Rule |
 |---|---|
@@ -257,7 +329,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | BR-004 | `journeyId`는 authorization credential이 아니며 owner capability와 Share read token은 상호 대체·승격할 수 없다. |
 | BR-005 | provider HTTP 성공, Kakao WALK point 측정, canonical mapping 성공, Journey probability eligibility는 서로 다른 Gate다. WALK point 측정에는 route canonical mapping을 요구하지 않는다. |
 
-### 4.2 Probability / Result
+### Probability / Result
 
 | BR | Rule |
 |---|---|
@@ -270,7 +342,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | BR-016 | finite-N sampling error를 model/data uncertainty나 calibration confidence로 설명하지 않는다. |
 | BR-017 | required leg의 valid time input 부재와 uncertainty 미모델링을 구분한다. 전자는 NOT_COMPUTED, 후자는 USER_FACING+PARTIAL_MODEL이 될 수 있다. |
 
-### 4.3 Recommended Departure
+### Recommended Departure
 
 | BR | Rule |
 |---|---|
@@ -280,7 +352,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | BR-023 | monotonicity 미검증 binary search를 correctness 전제로 쓰지 않는다. |
 | BR-024 | future candidate source가 없으면 unavailable이다. Recommended Departure는 목표시각에서 총소요시간을 단순 차감하지 않고 후보 출발시각마다 service set을 다시 평가한다. |
 
-### 4.4 Domain / Reforecast
+### Domain / Reforecast
 
 | BR | Rule |
 |---|---|
@@ -296,7 +368,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | BR-044 | Reforecast는 새 immutable result snapshot을 만든다. |
 | BR-045 | Start gate는 resultEligibility·startEligibility·freshness·owner access로 결정하며 confidence label만으로 차단하지 않는다. |
 
-### 4.5 Evidence / UX
+### Evidence / UX
 
 | BR | Rule |
 |---|---|
@@ -331,9 +403,9 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 
 ---
 
-## 5. State Transition Rules
+## State Transition Rules
 
-### 5.1 State enums
+### State enums
 
 | Domain | Values |
 |---|---|
@@ -349,7 +421,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 | Start Eligibility | ELIGIBLE / REFRESH_REQUIRED / BLOCKED |
 | PWA Runtime | ONLINE / RECONNECTING / OFFLINE_SNAPSHOT / UPDATE_AVAILABLE |
 
-### 5.2 Transitions
+### Transitions
 
 | ST | Current | Event | Preconditions | Next | Side Effect / Invariant | REQ / AC |
 |---|---|---|---|---|---|---|
@@ -385,7 +457,7 @@ Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 �
 
 ---
 
-## 6. Error Taxonomy
+## Error Taxonomy
 
 | Code | Layer | Retry | User handling | Must preserve |
 |---|---|---:|---|---|
@@ -419,9 +491,9 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 
 ---
 
-## 7. API / System Interface Dictionary
+## API / System Interface Dictionary
 
-### 7.1 User-facing API
+### User-facing API
 
 | ID | Method/Path | Purpose | Request core | Response core | Errors | Owner |
 |---|---|---|---|---|---|---|
@@ -434,14 +506,14 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 | API-006 | GET `/api/v1/journeys/{id}/evidence` | evidence detail | owner capability+id/result version optional | Route A manifest/selection, WALK provider/adapter, D2 route provider/crosswalk, leg/source/support/fallback/validation | unauthorized/not found 동일,unavailable | Backend/Data |
 | API-007 | POST `/api/v1/journeys/{id}/share` | snapshot 생성 | owner capability+resultVersion | opaque token,url,expiresAt | unauthorized/not found 동일,not shareable/security | Backend |
 | API-008 | GET `/api/v1/share/{token}` | public snapshot | token | privacy-safe snapshot | expired/not found | Backend |
-| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/route-provider Gate(REJECTED — payload-only mapping 구조적 한계, §AC-055)/coverage fields/walkProviderMode/manifest artifact summary | partial | Ops |
+| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/route-provider Gate(REJECTED — payload-only mapping 구조적 한계, AC-055)/coverage fields/walkProviderMode/manifest artifact summary | partial | Ops |
 | API-010 | POST `/api/v1/journeys/{id}/abort` | 사용자 여정 종료(REQ-102) | owner capability+idempotency | JourneyLifecycleState=ABORTED | unauthorized는 not-found와 동일, already ARRIVED/ABORTED | Backend |
 
 모든 response는 schemaVersion, requestId, generatedAt을 가진다. Result null을 placeholder로 채우지 않는다. owner API는 network-first이며 Service Worker가 Start/Event/Share mutation을 offline success로 변환하거나 stale API response를 current로 cache하지 않는다. GET offline projection은 ENT-021로 별도 생성하며 API response 원문 cache와 구분한다.
 
 API-000은 route provider(API-001)와 별도의 location provider adapter를 사용한다. provider명·quota·business error·cache 정책은 SYS-001에서 route provider와 분리해서 관리하며, 검색어/좌표를 reverse proxy나 access log에 평문으로 남기지 않도록 POST body 전달과 log redaction을 적용한다(REQ-100).
 
-### 7.2 Internal interfaces
+### Internal interfaces
 
 | ID | Interface | Input→Output | Contract |
 |---|---|---|---|
@@ -454,7 +526,7 @@ API-000은 route provider(API-001)와 별도의 location provider adapter를 사
 | SYS-007 | Quota Coordinator | consumer reservation+provider budget→permit/degradation | credential alias×KST-day ledger, priority, retry cost, projected exhaustion, no bypass |
 | SYS-008 | AI Model Artifact / Inference Adapter | ModelArtifactManifest+leg feature vector→ModelInferenceTrace+quantiles | training plane artifact만 load; H100/notebook direct call 금지; timeout/error/calibration miss 시 declared fallback으로 전환 |
 
-### 7.3 기준 기술과 배포 경계
+### 기준 기술과 배포 경계
 
 | 영역 | 기준 기술 | 구현 경계 | 대안 전환 조건 |
 |---|---|---|---|
@@ -470,7 +542,7 @@ framework·tool 교체는 허용하지만 API semantics, entity provenance, stat
 
 2-node 배치는 분산 task 참여·replay·correctness를 증명하기 위한 구조다. Kafka·JobManager·object store 등이 EC2-B에 집중된 현재 가설은 high availability가 아니며, 무중단 failover 또는 SLA 근거로 사용하지 않는다.
 
-#### 7.3.1 2-node provisional deployment contract
+#### 2-node provisional deployment contract
 
 | Node | MUST process | CONDITIONAL process | Isolation/Recovery |
 |---|---|---|---|
@@ -483,7 +555,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 8. Entity / Data Dictionary
+## Entity / Data Dictionary
 
 | ENT | Entity | 핵심 필드/의미 | 주요 REQ | Invariant |
 |---|---|---|---|---|
@@ -514,14 +586,14 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | ENT-025 | ModelArtifactManifest | modelKey,modelVersion,artifactType,artifactPath,artifactHash,featureSchemaVersion,trainingDatasetRef,evaluationReportRef,modelCardRef,trainingPlane,approvedForRuntime,createdAt | 106 | H100/Jupyter는 trainingPlane으로만 기록; runtime에는 artifact와 schema만 반입; hash/eval 없으면 approvedForRuntime=false |
 | ENT-026 | ModelInferenceTrace | modelKey,modelVersion,featureSchemaVersion,inputScope,legId,quantiles,uncertaintyWidth,lowSupportFlag,latencyMs,fallbackUsed,generatedAt | 106 | JourneyResultSnapshot에는 model output 자체가 아니라 distribution provenance로 연결; timeout/error 시 fallbackUsed 필수 |
 
-### 8.1 Identity rules
+### Identity rules
 
 - Bus: route+vehicle join은 verified 범위에서 사용하되 target stop/section mapping은 별도 Gate.
 - Subway: `subwayId×statnId×trainNo`는 동일 service day(REQ-073) 안에서만 unique하다고 가정한다. trainNo는 자정 rollover 이후 재사용될 수 있으므로 실제 identity key는 `subwayId×statnId×trainNo×serviceDate`이며, station name만 join 금지.
 - Mixed route/timetable/realtime ID는 explicit versioned crosswalk, 산술 추론 금지.
 - 모든 datetime timezone-aware, KST display/UTC storage 가능하나 semantics 명시.
 
-### 8.2 Data Quality minimum flags
+### Data Quality minimum flags
 
 `SOURCE_TIME_MISSING`, `DUPLICATE_SOURCE_EVENT`, `OUT_OF_ORDER_EVENT`, `UNMATCHED_VEHICLE`, `UNMATCHED_TRAIN`, `CROSSWALK_MISSING`, `ROUTE_TIME_SEMANTICS_UNRESOLVED`, `PROVIDER_ENTITLEMENT_UNCONFIRMED`, `STALE_OBSERVATION`, `PROVIDER_ERROR`, `PROVIDER_QUOTA_EXCEEDED`, `LOW_SUPPORT`, `FALLBACK_USED`, `UNMODELED_UNCERTAINTY`, `PARTIAL_MODEL`, `COORDINATE_ROLE_UNKNOWN`, `WAIT_SOURCE_MISSING`, `VALIDATION_SCOPE_LIMITED`, `MULTILINE_STATION_NOT_SPLIT`, `TIMESTAMP_INSTRUMENTATION_INVALID`.
 
@@ -529,9 +601,9 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 9. Non-functional Requirements
+## Non-functional Requirements
 
-### 9.1 Performance / Correctness
+### Performance / Correctness
 
 | NFR | Priority | Requirement | Measurement / Gate |
 |---|---|---|---|
@@ -543,7 +615,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-022 Schema/Version | MUST | breaking change version, rule/artifact/engine/mapping versions | contract tests |
 | NFR-023 Idempotency | MUST | retry가 UserEvent/Residual/Result 중복을 만들지 않음 | duplicate request tests |
 
-### 9.2 Freshness / Availability / Recovery
+### Freshness / Availability / Recovery
 
 | NFR | Priority | Requirement | Measurement / Gate |
 |---|---|---|---|
@@ -553,7 +625,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-031 Restart Recovery | MUST | Journey state/raw/artifact reload, unfinished mutation consistency | restart/restore smoke |
 | NFR-032 Rollback | MUST | engine/artifact/rule/code version rollback과 provenance 유지 | release drill |
 
-### 9.3 Security / Privacy
+### Security / Privacy
 
 | NFR | Priority | Requirement | Acceptance |
 |---|---|---|---|
@@ -569,7 +641,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-093 CSRF/Referrer/Cache | MUST/G5 | cookie 기반 owner mutation(API-003/005/007)에 CSRF token 또는 strict Origin/SameSite 검증; owner·Share 응답에 `Cache-Control: no-store`; Share 접근 경로에 `Referrer-Policy: no-referrer` 적용해 token이 Referer 헤더로 유출되지 않게 함 | AC-035,036,039 + security review |
 | NFR-094 Provider Policy Default-Deny | MUST/G5 | `ProviderPolicyRegistry`(ENT-024)에서 `rawRetentionStatus`가 `ALLOWED/CONDITIONAL`+`termsUrl`+`policyVersionOrReviewedAt`으로 확정되기 전까지 persistent raw storage·cross-session cache·redistribution을 default deny. Kakao WALK/publictraffic은 현재 `UNVERIFIED`이므로 raw를 MinIO/DB/repository/log에 저장하지 않음 | AC-063 + registry review |
 
-### 9.4 Observability / Operations
+### Observability / Operations
 
 | NFR | Priority | Requirement | Required signals |
 |---|---|---|---|
@@ -610,7 +682,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-091 Request Dedup/Coalescing | MUST | 동일 정규화 입력(origin/destination/target)의 동시 요청은 in-flight coalescing으로 provider 중복 호출을 만들지 않음; 동일 snapshot은 승인 cache로 재사용 | duplicate call ratio |
 | NFR-092 Concurrency Cap | MUST | provider별 concurrency cap과 circuit breaker로 공개 API 방향의 과다 동시 요청이 quota를 일시에 소진하지 못하게 함; quota-exhausted 응답과 재시도 가능 시점을 사용자에게 표현 | concurrency injection test |
 
-### 9.5 Responsive / Accessibility
+### Responsive / Accessibility
 
 | NFR | Priority | Requirement | Acceptance |
 |---|---|---|---|
@@ -625,21 +697,21 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-078 Update Safety | MUST | worker/cache/app version 관측, active mutation 중 activation defer, rollback 가능 | update/rollback matrix, AC-045 |
 | NFR-079 Device Permission/Share | MUST | geolocation은 explicit one-shot, permission denied fallback; OS share 실패 시 copy | real-device permission/share test |
 
-### 9.6 Distributed Proof
+### Distributed Proof
 
 | NFR | Priority | Requirement | Acceptance |
 |---|---|---|---|
 | NFR-080 Real vs Amplified | MUST for proof | replay multiplier·purpose 표시, amplified는 training support 금지 | run manifest |
 | NFR-081 Worker Participation/Failure | MUST | Kafka partition input을 Flink의 2개 이상 worker task가 실제 처리하고 worker 종료 후 checkpoint/restart 또는 replay 복구 | participation/recovery evidence |
 | NFR-082 Correctness | MUST | single-worker와 multi-worker의 input/output count·checksum 일치, duplicate/loss 0, keyed identity state 중복 없음 | correctness manifest |
-| NFR-083 Two-node Deployment | MUST/G6 | EC2-A serving, EC2-B processing 기본 배치. 분산 correctness(NFR-081/082)를 위해 물리적으로 독립된 Flink TaskManager 프로세스 2개 이상이 실제로 참여해야 하며, 기본 배치는 노드당 1개(TaskManager A/B)다. §7.3.1에 따라 EC2-A 자원 profile이 TaskManager A를 감당하지 못하면 두 TaskManager 모두 EC2-B에 배치할 수 있으나, 이 경우 "물리적 2-node 분산" claim은 하지 않고 "worker-level correctness/failure recovery proof"로 범위를 좁혀 deployment manifest에 명시한다. 어느 배치든 NFR-081/082는 동일하게 통과해야 한다 | AC-048, deployment manifest |
+| NFR-083 Two-node Deployment | MUST/G6 | EC2-A serving, EC2-B processing 기본 배치. 분산 correctness(NFR-081/082)를 위해 물리적으로 독립된 Flink TaskManager 프로세스 2개 이상이 실제로 참여해야 하며, 기본 배치는 노드당 1개(TaskManager A/B)다. 「2-node provisional deployment contract」에 따라 EC2-A 자원 profile이 TaskManager A를 감당하지 못하면 두 TaskManager 모두 EC2-B에 배치할 수 있으나, 이 경우 "물리적 2-node 분산" claim은 하지 않고 "worker-level correctness/failure recovery proof"로 범위를 좁혀 deployment manifest에 명시한다. 어느 배치든 NFR-081/082는 동일하게 통과해야 한다 | AC-048, deployment manifest |
 | NFR-084 Quota Budget v1 | MUST/G3 | source별 approved status·reservation·forecast·degradation이 ENT-023에 있고 UNCONFIRMED는 bounded dry run만 | AC-049, quota manifest |
 | NFR-085 PWA Compatibility Matrix | MUST/G4 | iOS/Android Mobile Web·standalone과 desktop secondary run에 device/OS/browser/app/cache version 기록 | AC-050, UI-AC-031 |
 | NFR-086 Route A Demo/Protected E2E | MUST/G6 | Route A actual product flow manifest와 Protected E2E lane; Route B·mock replacement 금지 | AC-051,052, UI-AC-032 |
 | NFR-087 Kakao WALK / Route Provider Contract | MUST for WALK, D2_TARGET before route Primary | `KAKAO_MAP_WALK`는 WALK point provider로 entitlement·quota·cache·providerVersion·rawRetentionStatus/provenance를 보존한다. raw payload 보존은 ENT-024/NFR-094 default-deny를 따른다. publictraffic HTTP 200/OK evidence는 D2 route-provider 검토용으로 보존하되 canonical ID·time semantics·model Gate 전에는 Journey route support로 승격 금지 | AC-053~056, UI-AC-033~034 |
 | NFR-088 Provider Provenance/Cache | MUST | provider+endpoint+adapter/crosswalk/version+request/result hash를 보존; 동일 normalized OD cache만 승인 policy로 재사용; target/reliability 변경만으로 route 재호출 금지; cross-provider cache 대체 금지 | AC-054~056, provider contract tests |
 
-### 9.7 AI / ML Serving Boundary
+### AI / ML Serving Boundary
 
 | NFR | Priority | Requirement | Acceptance |
 |---|---|---|---|
@@ -648,7 +720,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 10. Acceptance Test Scenarios
+## Acceptance Test Scenarios
 
 | AC | Type | Scenario / Preconditions | Steps | Expected | Related |
 |---|---|---|---|---|---|
@@ -721,7 +793,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 11. Claim Gates와 Evidence Dependency
+## Claim Gates와 Evidence Dependency
 
 | CG | Claim | Required Evidence / Validation | Current | User-facing fallback |
 |---|---|---|---|---|
@@ -734,7 +806,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | CG-007 | General Model Promotion Guard | temporal hold-out vs B0/B1/B2, pinball/coverage/calibration/low-support/ops cost | HOLD; current AI serving claim은 CG-008에서 별도 판정 | empirical baseline 유지 |
 | CG-008 | JR Temporal Quantile Model serving | H100 training artifact manifest, temporal hold-out, pinball loss, empirical coverage, calibration, low-support value-add, bounded runtime inference, fallback drill | D2_TARGET_PENDING; current artifact evidence 없음 | `QUANTILE_GBDT_BASELINE` 또는 empirical/timetable/reference fallback, AI serving claim 축소 |
 
-### 11.1 Evidence guardrails
+### Evidence guardrails
 
 - EVD-BUS-010 11건은 traverse duration이며 residual support가 아니다.
 - EVD-WAIT-001의 181 snapshots는 181 independent events가 아니다.
@@ -748,7 +820,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 12. End-to-End Traceability Matrix
+## End-to-End Traceability Matrix
 
 | F | SCR | REQ | BR/NFR | API/SYS | ENT | AC/CG |
 |---|---|---|---|---|---|---|
@@ -771,7 +843,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | F017 | Internal/SCR-02/05 | 106; NFR-080~083,086,095,096 | BR-015,016,053,087,088 | SYS-003/006/008 | 010,014,015,025,026 | AC-021,034,048,051,052,065,066; CG-006~008 |
 | F018 | Global/SCR-01~05 | 093~098 | BR-066~070; NFR-041,050,070,074~079,085,086 | API-000,004,006,007; SYS-001 | 012,015,016,019~022 | AC-041~047,050~052 |
 
-### 12.1 Traceability completeness rules
+### Traceability completeness rules
 
 - 모든 MUST/CLAIM_GATE REQ는 최소 하나의 AC 또는 CG를 가진다.
 - 사용자 화면이 있는 REQ는 SCR과 route가 일치해야 한다.
@@ -780,7 +852,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 13. Development-only Decisions / TBD Register
+## Development-only Decisions / TBD Register
 
 | Item | Status | Why not fixed | Resolution artifact | Safe behavior until resolved |
 |---|---|---|---|---|
@@ -812,7 +884,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 14. Security / Operations Release Checklist
+## Security / Operations Release Checklist
 
 - [ ] repo secret scan critical 0, frontend bundle key 0, logs masked.
 - [ ] HTTPS/CORS/internal admin access가 검증됐다.
@@ -843,7 +915,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## 15. 정본 정합성 규칙
+## 정본 정합성 규칙
 
 - Service Plan의 selected-route, Route A/B 역할, probability 의미, domain boundary, claim wording을 유지한다.
 - IA의 SCR-01~06, route guard, required/nullable result, CTA precondition, state priority를 REQ/API/AC로 연결한다.
@@ -859,7 +931,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 ---
 
-## Appendix A. Claim wording guardrail
+## Appendix — Claim wording guardrail
 
 | 금지 | 허용 |
 |---|---|
@@ -872,6 +944,6 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | `전체 Journey calibrated` | 실제 `validationScope` 명칭 |
 | `실제 서울 20x traffic` | `amplified benchmark replay` |
 
-## Appendix B. Definition of Done
+## Appendix — Definition of Done
 
 **G2 DONE**: 모든 F가 승인 IA 화면 또는 명시적 internal capability에 연결되고, 모든 MUST/CLAIM_GATE REQ가 정상·예외·API/SYS·ENT·BR/NFR·AC/CG를 가지며, 실제 evidence가 부족한 capability는 임의 숫자 없이 HOLD/INSUFFICIENT/NOT_COMPUTED/UNMODELED로 안전하게 실패한다.

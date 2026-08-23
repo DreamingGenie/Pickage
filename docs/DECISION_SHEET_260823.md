@@ -2,6 +2,26 @@
 
 > Journey Reliability Evidence Resolution Pack(`docs/history/0823_plan_fix/00~07`) 실행 결과. Sunday `END` service day 기준. 모든 항목은 `provider×endpoint×OD/corridor×window×service day×adapter version` 범위로만 유효하다.
 
+## 문서 네비게이션
+
+**정본 문서 바로가기**
+
+- [Service Plan](SERVICE_PLAN_260823.md)
+- [IA / Screen Spec](IA_SCREEN_SPEC_260823.md)
+- [Requirements Spec](REQUIREMENTS_SPEC_260823.md)
+- **Decision Sheet**
+
+**이 문서 안에서 이동**
+
+- [실행한 API calls](#실행한-api-calls)
+- [Decision Sheet](#decision-sheet)
+- [아직 하루로 해소할 수 없었던 항목과 이유](#아직-하루로-해소할-수-없었던-항목과-이유)
+- [Evidence Manifest (신규, M-04 반영)](#evidence-manifest-신규-m-04-반영)
+- [문서 확인](#문서-확인)
+- [Post-decision Reconciliation](#post-decision-reconciliation)
+
+---
+
 ## 실행한 API calls
 
 | Provider | Endpoint | 호출 수 | 결과 |
@@ -36,21 +56,21 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 
 | Item | Before | Evidence | Decision | Scope | Service Plan | IA | Requirements | Remaining gate |
 |---|---|---|---|---|---|---|---|---|
-| Kakao candidate 반복 안정성 | UNVERIFIED | 동일 window 2회 + 전날(08-22) 대비 재호출, 15개 후보 signature 완전 일치 | `FIXED` (tested OD 범위, reference evidence) | Demo Corridor OD, 2026-08-22~23 publictraffic | §1.4, §12 | — | AC-053 PASS | 다른 OD/corridor는 미검증; selected route 근거로 사용하지 않음 |
-| Kakao WALK point 재현성 | CONDITIONAL | ACCESS leg 295m/323s가 전날과 완전 동일 | `FIXED` (tested pair 범위, WALK provider evidence) | Route A ACCESS pair | §12 | — | AC-056 PASS | 다른 pair는 미검증 |
-| Kakao canonical mapping | CONDITIONAL | bus/subway/mixed 3개 topology candidate 전부 stop=name만, vehicle=name/type만; ID 필드 없음 | `REJECTED` (future route-provider payload 구조적 한계) | Kakao publictraffic 응답 스키마 전체 | §6.1, §12, §21.3, §22.2 | Open Decisions | AC-055 REJECTED, REQ-009 | 외부 name-based crosswalk 별도 설계 전에는 route-provider 재시도 무의미. WALK-only 사용에는 blocker 아님 |
-| Kakao total/step 시간 포함관계 | CONDITIONAL | candidate 0(SUBWAY) gap 887s vs 경계WALK 829s(58s 잔차); candidate 2(BUS_AND_SUBWAY) gap 422s vs 437s(15s 이내) | `CONDITIONAL` 유지, candidate 0은 `PARTIALLY_EXPLAINED`, candidate 2는 `HIDDEN_WALK_STRONGLY_SUPPORTED` | 테스트한 2개 publictraffic candidate만 | §6.1, §12 | — | AC-054 PARTIAL | 58s 잔차의 원인(WAIT/환승/속도가정 차이) 미상. Minimum Release 결과 시간에 배분 금지 |
-| Kakao 지리 범위 | 암묵적으로 서울 한정 가정 | 부산 좌표에서도 정상 200/OK, 3개 후보 반환 | `NEW_FACT` — Kakao는 서울 경계를 스스로 제한하지 않음 | publictraffic 전체 | §12 | — | REQ-001, BR-001 | product 입력단 지역 제한은 Requirements/IA에 반영됨. 구현·테스트에서 `UNSUPPORTED_GEOGRAPHY` 처리 확인 필요 |
-| Kakao entitlement/quota | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:16 KST): publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치 | `CONFIRMED` | Kakao Map REST API 앱 전체, 2026-08-23 | §18.4, §6.1 | — | AC-057 | billing usage history와 공식 overage 정책은 아래 별도 행에서 분리 관리 |
-| Kakao billing usage history | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:23 KST, "유료 사용량" 화면, app `pjt_map` ID 1471189): 이번 달 유료 호출 0건(성공 0/실패 0), 무료 호출만 15건 — 2026-08-23 무료 13건(=publictraffic 9+walk 4), 2026-08-22 무료 2건(=baseline 1+1)과 정확히 일치 | `CONFIRMED` — 과금 발생 이력 없음 | Kakao Map REST API 앱 전체, 2026-08-01~08-23 | §18.4 | — | — | 과금 발생 이력 0건은 overage 단가·정책 확인과 별도 사실 |
-| Kakao official overage policy | 별도 사실 | Kakao 공식 쿼터 문서: 첫 활성화 앱 무료 일 1,000회, 초과 10원/건 | `VERIFIED_OFFICIAL` | Kakao Map REST API | §18.4 | — | — | 콘솔 스크린샷 근거가 아니라 공식 문서 근거. 실제 billing history와 분리 |
-| Seoul data.go.kr Bus Arrival/Position 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:30 KST): `[개발계정]서울특별시_버스도착정보조회 서비스`의 `getArrInfoByRouteAllList` 등 4개 상세기능 각각 1,000/day, `[개발계정]서울특별시_버스위치정보조회 서비스`의 `getBusPosByRouteStList` 등 5개 상세기능 각각 1,000/day. 오늘 각각 60회씩만 사용(6%) | `CONFIRMED` — 서비스별 독립 1,000/day, 공유 풀 아님 | data.go.kr 계정, 활용기간 2026-08-21~2028-08-21 | §18.4 | — | AC-049 | 상세기능별 독립 pool이라는 판정은 콘솔 화면 판독에 근거하며, 원본 스크린샷을 보관하지 않아 제3자가 동일 결론을 재검증할 수 없다(M-04와 동일 사유) |
-| Seoul 열린데이터광장 지하철 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:31 KST, "인증키 안내"): 공식 정책 텍스트로 "실시간 지하철 오픈API는 1일 1,000회만 호출 가능(인증키 1개당)" 확인, 지하철인증키 상태 "정상". 일반인증키(Seoul Open Data 나머지 API)는 호출 "횟수" 제한 없음(1회당 최대 1,000건 조회 page cap만) | `CONFIRMED` | 서울 열린데이터광장 계정 전체 | §18.4 | — | AC-049 | 활용사례 갤러리 등록 여부(현재 미등록) — 등록 시 지하철도 무제한 전환 가능, release 전 검토 대상 |
-| `KAKAO_ROUTE_PROVIDER_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | future Kakao publictraffic Primary route-provider 승격 | §6.1 | — | REQ-009 | mapping crosswalk 재설계 전에는 route-provider Gate 재도전 무의미. 당시 snapshot wording은 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`였으며, 현재 활성 필드와의 관계는 아래 Post-decision Reconciliation을 따른다 |
-| Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | §21.3 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
-| Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
+| Kakao candidate 반복 안정성 | UNVERIFIED | 동일 window 2회 + 전날(08-22) 대비 재호출, 15개 후보 signature 완전 일치 | `FIXED` (tested OD 범위, reference evidence) | Demo Corridor OD, 2026-08-22~23 publictraffic | Service Plan 「제품 범위와 현재 확인 수준」, Service Plan 「핵심 설계 근거」 | — | AC-053 PASS | 다른 OD/corridor는 미검증; selected route 근거로 사용하지 않음 |
+| Kakao WALK point 재현성 | CONDITIONAL | ACCESS leg 295m/323s가 전날과 완전 동일 | `FIXED` (tested pair 범위, WALK provider evidence) | Route A ACCESS pair | Service Plan 「핵심 설계 근거」 | — | AC-056 PASS | 다른 pair는 미검증 |
+| Kakao canonical mapping | CONDITIONAL | bus/subway/mixed 3개 topology candidate 전부 stop=name만, vehicle=name/type만; ID 필드 없음 | `REJECTED` (future route-provider payload 구조적 한계) | Kakao publictraffic 응답 스키마 전체 | Service Plan 「Selected-route 정책」, Service Plan 「핵심 설계 근거」, Service Plan 「Top Risks」, Service Plan 「아직 Claim하면 안 되는 것」 | Open Decisions | AC-055 REJECTED, REQ-009 | 외부 name-based crosswalk 별도 설계 전에는 route-provider 재시도 무의미. WALK-only 사용에는 blocker 아님 |
+| Kakao total/step 시간 포함관계 | CONDITIONAL | candidate 0(SUBWAY) gap 887s vs 경계WALK 829s(58s 잔차); candidate 2(BUS_AND_SUBWAY) gap 422s vs 437s(15s 이내) | `CONDITIONAL` 유지, candidate 0은 `PARTIALLY_EXPLAINED`, candidate 2는 `HIDDEN_WALK_STRONGLY_SUPPORTED` | 테스트한 2개 publictraffic candidate만 | Service Plan 「Selected-route 정책」, Service Plan 「핵심 설계 근거」 | — | AC-054 PARTIAL | 58s 잔차의 원인(WAIT/환승/속도가정 차이) 미상. Minimum Release 결과 시간에 배분 금지 |
+| Kakao 지리 범위 | 암묵적으로 서울 한정 가정 | 부산 좌표에서도 정상 200/OK, 3개 후보 반환 | `NEW_FACT` — Kakao는 서울 경계를 스스로 제한하지 않음 | publictraffic 전체 | Service Plan 「핵심 설계 근거」 | — | REQ-001, BR-001 | product 입력단 지역 제한은 Requirements/IA에 반영됨. 구현·테스트에서 `UNSUPPORTED_GEOGRAPHY` 처리 확인 필요 |
+| Kakao entitlement/quota | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:16 KST): publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치 | `CONFIRMED` | Kakao Map REST API 앱 전체, 2026-08-23 | Service Plan 「API quota와 수집 예산」, Service Plan 「Selected-route 정책」 | — | AC-057 | billing usage history와 공식 overage 정책은 아래 별도 행에서 분리 관리 |
+| Kakao billing usage history | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:23 KST, "유료 사용량" 화면, app `pjt_map` ID 1471189): 이번 달 유료 호출 0건(성공 0/실패 0), 무료 호출만 15건 — 2026-08-23 무료 13건(=publictraffic 9+walk 4), 2026-08-22 무료 2건(=baseline 1+1)과 정확히 일치 | `CONFIRMED` — 과금 발생 이력 없음 | Kakao Map REST API 앱 전체, 2026-08-01~08-23 | Service Plan 「API quota와 수집 예산」 | — | — | 과금 발생 이력 0건은 overage 단가·정책 확인과 별도 사실 |
+| Kakao official overage policy | 별도 사실 | Kakao 공식 쿼터 문서: 첫 활성화 앱 무료 일 1,000회, 초과 10원/건 | `VERIFIED_OFFICIAL` | Kakao Map REST API | Service Plan 「API quota와 수집 예산」 | — | — | 콘솔 스크린샷 근거가 아니라 공식 문서 근거. 실제 billing history와 분리 |
+| Seoul data.go.kr Bus Arrival/Position 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:30 KST): `[개발계정]서울특별시_버스도착정보조회 서비스`의 `getArrInfoByRouteAllList` 등 4개 상세기능 각각 1,000/day, `[개발계정]서울특별시_버스위치정보조회 서비스`의 `getBusPosByRouteStList` 등 5개 상세기능 각각 1,000/day. 오늘 각각 60회씩만 사용(6%) | `CONFIRMED` — 서비스별 독립 1,000/day, 공유 풀 아님 | data.go.kr 계정, 활용기간 2026-08-21~2028-08-21 | Service Plan 「API quota와 수집 예산」 | — | AC-049 | 상세기능별 독립 pool이라는 판정은 콘솔 화면 판독에 근거하며, 원본 스크린샷을 보관하지 않아 제3자가 동일 결론을 재검증할 수 없다(M-04와 동일 사유) |
+| Seoul 열린데이터광장 지하철 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:31 KST, "인증키 안내"): 공식 정책 텍스트로 "실시간 지하철 오픈API는 1일 1,000회만 호출 가능(인증키 1개당)" 확인, 지하철인증키 상태 "정상". 일반인증키(Seoul Open Data 나머지 API)는 호출 "횟수" 제한 없음(1회당 최대 1,000건 조회 page cap만) | `CONFIRMED` | 서울 열린데이터광장 계정 전체 | Service Plan 「API quota와 수집 예산」 | — | AC-049 | 활용사례 갤러리 등록 여부(현재 미등록) — 등록 시 지하철도 무제한 전환 가능, release 전 검토 대상 |
+| `KAKAO_ROUTE_PROVIDER_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | future Kakao publictraffic Primary route-provider 승격 | Service Plan 「Selected-route 정책」 | — | REQ-009 | mapping crosswalk 재설계 전에는 route-provider Gate 재도전 무의미. 당시 snapshot wording은 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`였으며, 현재 활성 필드와의 관계는 아래 Post-decision Reconciliation을 따른다 |
+| Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | Service Plan 「Top Risks」 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
+| Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | Service Plan 「Top Risks」 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
 | data.go.kr collector 인코딩 | 알려지지 않음 | `mixed_route_spike.py` 저장 raw의 한글 필드(정류장/노선명)가 mojibake; 숫자/ID/좌표 필드는 정상 | `NEW_FACT` (DQ 발견) | 오늘 호출분 전체 | — | — | — | collector encoding 수정은 별도 개발 작업으로 이관 |
-| Route A ↔ Kakao 후보 구조 차이 | 서술만 있고 좌표 대조 없음 | 오늘 호출한 Kakao publictraffic 8건의 모든 candidate·모든 step의 path point를 검사한 결과, 승인 Route A 탑승점(춘추문, 126.97965,37.58308) 반경 100m 이내를 지나는 step이 0건 | `FIXED` — Kakao 응답은 승인 Route A 구조를 아예 후보로 제시하지 않음(우연 일치 불가능) | 오늘 호출한 8개 publictraffic 응답 | §22.1 | — | — | 없음(이 OD 범위에서는 충분히 확정적) |
+| Route A ↔ Kakao 후보 구조 차이 | 서술만 있고 좌표 대조 없음 | 오늘 호출한 Kakao publictraffic 8건의 모든 candidate·모든 step의 path point를 검사한 결과, 승인 Route A 탑승점(춘추문, 126.97965,37.58308) 반경 100m 이내를 지나는 step이 0건 | `FIXED` — Kakao 응답은 승인 Route A 구조를 아예 후보로 제시하지 않음(우연 일치 불가능) | 오늘 호출한 8개 publictraffic 응답 | Service Plan 「현재 확인된 사실」 | — | — | 없음(이 OD 범위에서는 충분히 확정적) |
 | Collector round-trip latency 계측 | 확인 안 됨 | `bus_*_spike.py`/`subway_*_spike.py`의 `requested_at`/`received_at`은 둘 다 HTTP 응답을 받은 뒤 `storage.SpikeResult()` 생성 시점에 동시 stamping됨(dataclass default_factory 2회 호출이 거의 같은 시각) → 오늘 수집된 240건 전부 latency=0.00~0.001s로 기록되어 있어 실제 request-boundary latency로 볼 수 없음. 임시로 작성한 Kakao 호출 스크립트도 응답 전/후 시각을 분리 기록하지 않아 동일한 한계를 가짐 | `BLOCKED_TOOLING`(collector 자체의 timestamp 설계 한계) | 오늘 사용한 모든 collector | — | — | — | collector가 `requested_at`을 호출 직전, `received_at`을 응답 직후로 분리 기록하도록 고치는 후속 작업 필요. **주의**: 과거 Phase 2 EV2-01(`docs/history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/`)에서 이미 `COLLECTOR_VERSION=spike-v1-ev2-01`로 이 문제를 한 번 수정한 이력이 있다. 오늘 사용한 `bus_*_spike.py`/`subway_*_spike.py`가 그 수정본인지, 회귀했는지, 별개 스크립트인지 collector version/commit이 기록되지 않아 구분할 수 없다 — 후속 작업에서 collector version을 명시적으로 남긴다 |
 | Out-of-order (source-time reversal) | 확인 안 됨 | receive 순서 기준 source timestamp 단조성 검사: bus position 13개 차량 계열, subway arrival 82개 station×train 계열 전부 역전 0건 | `NO_REVERSAL_OBSERVED`(이번 window) | 오늘 수집한 bus position + subway arrival 전체 | — | — | — | 표본이 늘어나면 재확인 필요(하루 한 window로 일반화 금지) |
 | Subway Prediction→Actual Residual 실측 예시 | 미계산 | 안국(3호선) 열차 3166: 13:31:20 관측 시점 `barvlDt=210s` 예측(예상 도착 13:34:50) vs 실제 Actual interval (13:34:10, 13:35:05], mid=13:34:37.5, width=55s → signed residual L/M/U = −40s/−12.5s/+15s | `FIXED`(builder correctness 시연, 1개 사례) | 안국역 3호선, train 3166, 2026-08-23 13:31~13:35 KST | — | — | REQ-060~063, AC-030/032 범위에서 일반 capability로 커버 | 표본 1건 — support 주장 금지, 여러 window·여러 train으로 확대 필요 |
@@ -77,7 +97,7 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 | endpoint별 HTTP count / provider business code count | 본문 표에 서술로 존재하나 별도 구조화 필드 없음 |
 | raw/sanitized payload hash | `NOT_CAPTURED` |
 | console screenshot hash / `captured_at` | `NOT_CAPTURED`(PM 제공 스크린샷 3장의 촬영 시각만 본문에 KST로 서술) |
-| 문서가 참조하는 artifact 상대 경로 | `NOT_CAPTURED`(원본 이미지 미보관, 위 §Kakao entitlement/quota 단락 참조) |
+| 문서가 참조하는 artifact 상대 경로 | `NOT_CAPTURED`(원본 이미지 미보관, 위 Kakao entitlement/quota 단락 참조) |
 
 ## 문서 확인
 
