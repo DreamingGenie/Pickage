@@ -124,7 +124,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-006 Route normalization | F002 / SCR-02/03/05 | MUST | provider topology를 ACCESS_WALK/WAIT/TRANSIT_RIDE/TRANSFER/FINAL_WALK과 3 TransferType으로 변환; Transfer와 WAIT 분리 | 필수 node/leg identity 누락→`ROUTE_MAPPING_INCOMPLETE`; 조용한 leg 삭제 금지 | SYS-002 / ENT-005~009,017,018 | BR-030~032 / AC-004,017 |
 | REQ-007 Anonymous Journey Access | F001/F015 / SCR-02~05 | MUST | Journey 생성 시 browser-bound owner capability 발급; `journeyId`는 locator만 사용. 조회·Start·Event·Evidence·Share 생성마다 owner capability 검증 | capability 없음/불일치는 resource 존재를 숨기는 동일 not-found/recovery; cross-device owner 복구 없음 | API-002~007 / ENT-012,020 | BR-004; NFR-041~043,053 / AC-035,036 |
 | REQ-008 Provider Registry / Coverage Mode | F002/F016 / SCR-01/02/05 | MUST | provider·endpoint·adapterVersion·quota policy·selection policy를 versioned registry로 관리하고 deployment는 `ROUTE_A_ONLY` 또는 `PROVIDER_SUPPORTED`를 반환. `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 별도 providerKey | UI와 server mode 불일치, provider silent switch, 구 Kakao Mobility 403과 신규 Kakao Map 성공의 병합, 다른 provider provenance 재사용 금지 | API-001/002/006/009, SYS-001/002/007 / ENT-005,015,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
-| REQ-009 Kakao Route Promotion Gate | F002/F016 / SCR-01/05/Internal | MUST before Kakao Primary | `KAKAO_ROUTE_GATE`: 실제 호출 성공 외에 앱 entitlement, canonical bus/stop·station×line mapping, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증. **2026-08-23 판정: entitlement UNCONFIRMED / mapping REJECTED(구조적 한계) / 시간 포함관계 PARTIAL / 반복 안정성 PASS → Gate 전체 미통과.** 통과 전 Kakao route는 `CONDITIONAL` | Gate 실패→`ROUTE_A_ONLY`, Kakao는 WALK/internal comparison으로 축소; HTTP 200만으로 USER_FACING 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
+| REQ-009 Kakao Route Promotion Gate | F002/F016 / SCR-01/05/Internal | MUST before Kakao Primary | `KAKAO_ROUTE_GATE`: 실제 호출 성공 외에 앱 entitlement, canonical bus/stop·station×line mapping, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증. **2026-08-23 판정: entitlement CONFIRMED(콘솔, publictraffic 9/1,000·walk 4/1,000) / mapping REJECTED(구조적 한계) / 시간 포함관계 PARTIAL / 반복 안정성 PASS → mapping 조건 실패로 Gate 전체 미통과.** 통과 전 Kakao route는 `CONDITIONAL` | Gate 실패→`ROUTE_A_ONLY`, Kakao는 WALK/internal comparison으로 축소; HTTP 200만으로 USER_FACING 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
 
 ### 3.2 Pre-trip Analysis
 
@@ -548,8 +548,8 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 |---|---|---|---|---|
 | Seoul realtime subway | official base 1,000/day; increase status 별도 | `KNOWN_BASE/INCREASE_UNCONFIRMED` | KST-day ledger+reservation+resetAt 입력 | low-priority collection stop→stale/not-computed |
 | Seoul bus Arrival/Position | project credential portal value | `UNCONFIRMED` | 승인 화면 값을 ENT-023에 기록하고 endpoint dry run 통과 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_STATUS_UNCONFIRMED` | 실제 콘솔 badge·billing·remaining 기록 + REQ-009 Gate | 신규 OD 중단, 승인 Route A만 허용 |
-| Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_STATUS_UNCONFIRMED` | route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
+| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000) | billing 단가 화면 별도 확인 + REQ-009 Gate(mapping REJECTED로 미통과) | 신규 OD 중단, 승인 Route A만 허용 |
+| Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 4/1,000) | route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
 | TMAP public transit | official free trial 10/day | `KNOWN_BASE/VALIDATION_ONLY` | runtime primary 제외, golden-route 비교 예약만 | 호출 중단 |
 | TMAP pedestrian | project credential limit | `API_VERIFIED/LIMIT_UNCONFIRMED` | 별도 ledger와 point provenance | Kakao silent substitution 금지 |
 
@@ -646,7 +646,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | AC-054 | Kakao Time Semantics | publictraffic total 2,651s/step sum 1,764s(887s gap, candidate 0); candidate 2는 gap 422s | raw field decomposition+contract test | **PARTIAL** — candidate 0(SUBWAY)은 경계 WALK 합(829s)과 58s 잔차(`PARTIALLY_EXPLAINED`); candidate 2(BUS_AND_SUBWAY)는 경계 WALK 합(437s)과 15s 이내 일치(`HIDDEN_WALK_STRONGLY_SUPPORTED`). 어느 쪽도 잔차를 WAIT/WALK/transfer에 임의 배분하지 않음; result eligibility 승격 0 | REQ-006,009; BR-005,072; NFR-087 |
 | AC-055 | Kakao Canonical Mapping | bus/subway/mixed 3개 topology candidate(2026-08-23) | provider stop/vehicle/coordinate→서울 bus route/stop·station×line crosswalk | **REJECTED** — stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 존재하고 busRouteId/stId/stationId 필드가 응답 스키마 자체에 없음(3개 candidate 전부 동일 구조). deterministic mapped candidate 0건; 이 API 응답만으로는 향후에도 통과 불가, 별도 외부 crosswalk 필요 | REQ-005,006,009; NFR-087 |
 | AC-056 | WALK Provider Separation | 동일 Route A 접근 pair Kakao 295m/323s(2026-08-22, 2026-08-23 재현), TMAP 297m/245s | adapter/cache/evidence/result 검사 | **PASS** — 각 point와 provider/version 보존, 평균·cross-provider silent fallback·fabricated variance 0; Kakao point는 day-to-day 완전 재현(개인 variance 없는 deterministic point 근거 강화) | REQ-031; BR-052,072; NFR-088 |
-| AC-057 | Coverage/Quota/P90 Contract | Kakao entitlement unconfirmed(2026-08-23 미확인), Gate fail(AC-055 REJECTED), P90 render | analyze→render→quota exhaustion/deployment switch | **HOLD**(Gate 자체는 AC-055 REJECTED로 fail 확정) — mode·selection·provider provenance 일치; Gate fail은 ROUTE_A_ONLY 유지; entitlement 전 1,000 remaining 가정 0; calibration 전 반복빈도 P90 copy 0 | REQ-008,009,012; BR-071~073; NFR-084,087,088 |
+| AC-057 | Coverage/Quota/P90 Contract | Kakao entitlement `CONFIRMED`(2026-08-23 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000), Gate fail(AC-055 REJECTED), P90 render | analyze→render→quota exhaustion/deployment switch | **HOLD**(entitlement는 PASS로 전환됐으나 AC-055 REJECTED로 Gate 종합 fail 유지) — mode·selection·provider provenance 일치; Gate fail은 ROUTE_A_ONLY 유지; calibration 전 반복빈도 P90 copy 0 | REQ-008,009,012; BR-071~073; NFR-084,087,088 |
 
 ---
 
@@ -728,7 +728,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | Service Worker activation policy | integration Gate | active mutation·rollback 검증 필요 | PWA ADR | mutation 중 activation defer |
 | exact iOS/Android support versions | G4 | 보유 기기·배포 시점 확인 필요 | PWA Compatibility Matrix | 미검증 환경 support claim 금지 |
 | 2-node process sizing | G3/G6 | EC2 사양 미확정 | Deployment ADR+AC-048 | optional process cut, correctness 유지 |
-| Kakao project entitlement | UNCONFIRMED | 공식 1,000/day는 첫 활성화 앱 조건이며 콘솔 증거 미수집 | quota manifest+AC-057 | remaining 가정 금지, bounded probe만 |
+| Kakao project entitlement | `CONFIRMED`(2026-08-23) | 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000 — 이 세션 실제 호출 수와 일치 | quota manifest+AC-057 | billing/overage 단가 화면은 별도 확인 필요; entitlement 확정과 mapping Gate 통과는 별개 |
 | Kakao canonical mapping | `REJECTED`(2026-08-23 확정) | stop/vehicle 응답 스키마에 canonical ID 필드 자체가 없음 — 별도 외부 crosswalk 없이는 이 API로 해결 불가 | REQ-009/AC-055 | ROUTE_A_ONLY 유지; 새 crosswalk 설계 없이는 재시도 무의미 |
 | Kakao total/step 시간 포함관계 | `PARTIAL`(2026-08-23) | candidate 유형별로 다름 — BUS_AND_SUBWAY는 15s 이내 explained, SUBWAY는 58s 잔차 | REQ-009/AC-054 | 잔차를 WAIT/WALK에 배분하지 않음; result eligibility 승격 0 |
 | deployment coverage mode | G6 | Kakao Gate 결과에 의존(REQ-009 2026-08-23 판정: 전체 미통과) | release manifest | `ROUTE_A_ONLY` 확정 유지 |

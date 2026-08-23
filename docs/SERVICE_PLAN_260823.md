@@ -282,12 +282,12 @@ Route Provider는 versioned registry로 관리한다. Kakao Map은 실제 WALK·
 
 `KAKAO_ROUTE_GATE`는 다음 네 항목이다. **2026-08-23 재실험 결과 아래와 같이 판정됐다 — Gate는 통과하지 못했다.**
 
-1. 실제 앱의 무료/유료 entitlement와 일일 quota 상태를 콘솔에서 기록한다. → **`UNCONFIRMED`** (이번 실험은 실제 호출만 수행했고 콘솔 entitlement/billing 화면은 확인하지 않음)
+1. 실제 앱의 무료/유료 entitlement와 일일 quota 상태를 콘솔에서 기록한다. → **`CONFIRMED`** (2026-08-23 15:16 KST 콘솔 스크린샷: `publictraffic.json` 9/1,000, `walk.json` 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치. billing/overage 단가 화면은 별도 미확인)
 2. Kakao stop·vehicle·coordinate를 서울시 bus route/stop 및 station×line identity에 결정적으로 연결한다. → **`REJECTED`** (topology 3종 후보 전부 stop=`name`만, vehicle=`name`/`type`만 확인 — busRouteId/stId/stationId에 해당하는 필드가 응답 스키마에 없어 API 응답만으로는 구조적으로 불가능)
 3. `totalTime`, step time, 접근·환승·대기·마지막 도보의 포함 관계를 raw response로 규명한다. → **`PARTIAL`** (BUS_AND_SUBWAY 후보는 15초 이내로 거의 explained, 순수 SUBWAY 후보는 58초 잔차가 남아 완전히 규명되지 않음)
 4. 동일 OD 반복 호출의 candidate order·구조 안정성과 mapping failure rate를 검증한다. → **`PASS`** (같은 window 반복 및 전날 대비 재호출에서 15개 후보 signature 완전 일치)
 
-4개 조건 중 하나(mapping)가 구조적으로 `REJECTED`이므로 Gate는 전체적으로 미통과다. 공개 범위는 승인된 Route A로 제한되고 Kakao는 WALK 또는 internal comparison 범위만 유지한다.
+entitlement가 `CONFIRMED`로 바뀌었더라도 mapping 조건이 구조적으로 `REJECTED`이므로 Gate는 전체적으로 미통과다. 공개 범위는 승인된 Route A로 제한되고 Kakao는 WALK 또는 internal comparison 범위만 유지한다.
 
 경로가 바뀌거나 해석할 수 없으면 조용히 다른 확률을 재사용하지 않고 다시 분석하거나 `UNSUPPORTED/ROUTE_MAPPING_INCOMPLETE`로 종료한다.
 
@@ -839,8 +839,8 @@ DailyCalls = \sum_{source,cohort,window}
 |---|---|---|---|---|
 | 서울 실시간 지하철 | 공식 안내상 기본 일 1,000회 | `KNOWN_BASE / INCREASE_UNCONFIRMED` | 공개 HTTPS PWA 활용사례 등록, KST-day ledger와 Route A 예약량 입력 | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
 | 서울 버스 Arrival/Position | project credential의 실제 승인량 미확정 | `UNCONFIRMED` | 포털 승인 화면의 값을 ledger에 수기 전사하고 endpoint별 호출식을 dry run으로 검증 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_STATUS_UNCONFIRMED` | 콘솔 무료 쿼터 배지·결제 설정·실제 remaining을 ledger에 기록하고 `KAKAO_ROUTE_GATE` 통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
-| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_STATUS_UNCONFIRMED` | route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
+| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용) | 결제 설정·초과 단가 화면은 별도 확인; `KAKAO_ROUTE_GATE`는 mapping 조건 REJECTED로 여전히 미통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
+| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
 | TMAP 대중교통 | 공식 무료체험 일 10회 | `KNOWN_BASE / VALIDATION_ONLY` | 사용자 runtime 기본 provider에서 제외하고 golden-route 비교 budget만 예약 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
 | TMAP pedestrian | project credential 실제 승인량 미확정; 과거 실제 호출 성공 | `API_VERIFIED / LIMIT_UNCONFIRMED` | Kakao와 별도 quota·cache·provenance 유지 | Kakao 값을 TMAP provenance로 표시하지 않음 |
 
@@ -1040,6 +1040,8 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 2026-08-23 좌표 대조 결과, 오늘 호출한 Kakao publictraffic 8건의 어떤 candidate·step도 승인 Route A 탑승점(춘추문) 반경 100m 이내를 지나지 않음 — Kakao 후보와 Route A는 이 OD 범위에서 구조적으로 다른 경로임을 좌표로 재확인
 - 2026-08-23 안국역(3호선) 열차 1대(3166)에 대해 Prediction→Actual signed residual 계산 사례 1건 확보(L/M/U = −40s/−12.5s/+15s) — builder mechanism 자체는 정상 동작하나 표본 1건으로 support나 distribution을 주장하지 않음
 - collector(`bus_*_spike.py`/`subway_*_spike.py`)의 `requested_at`/`received_at`이 실제로는 응답 수신 후 거의 동시에 stamping되어 request-boundary latency를 측정하지 못한다는 tooling 한계를 확인함(오늘 240건 전부 0.00~0.001s로 기록) — 이번 세션은 코드 수정 금지 규칙에 따라 고치지 않고 사실만 기록
+- Kakao entitlement는 2026-08-23 콘솔 스크린샷으로 `CONFIRMED`됨(publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치)
+- Bus(non-target stop) Prediction→Actual signed residual 계산 사례 1건 확보(vehId=106024177, L/M/U = −17s/−3s/+11s) — target 정류장(staOrd=21)은 여전히 표본 0건
 
 ### 22.2 아직 Claim하면 안 되는 것
 
@@ -1058,7 +1060,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 특정 partition/watermark/TTL/SLO 숫자가 검증됐다는 주장
 - Kakao API 성공·candidate 안정성 확인만으로 canonical ID mapping이나 total/step 시간 구성까지 검증됐다는 주장(candidate 안정성은 확인됐으나 mapping은 `REJECTED`, 시간 구성은 candidate별로 `PARTIAL`)
 - Kakao 대중교통 응답에 provider ID가 없다는 사실을 "언젠가 채워질 수 있다"고 가정하는 것 — 별도 외부 crosswalk 없이는 이 API 자체 데이터로 해결되지 않는 구조적 한계임
-- 프로젝트 앱에 Kakao 무료 일 1,000회가 실제 부여됐다는 주장(콘솔 entitlement 확인 전)
+- entitlement가 `CONFIRMED`(1,000/day, 2026-08-23 콘솔 스크린샷)됐다고 해서 mapping `REJECTED`나 Gate 전체 통과로 확대 해석하는 것
 - 신규 Kakao Map 성공이 기존 Kakao Mobility 403 evidence를 오류로 만든다는 주장
 - Kakao publictraffic이 서울 밖에서도 응답한다는 사실을 서울시 데이터 사용 원칙 위반이나 예외로 확대 해석하는 것(product 입력단 제한과는 별개 사실)
 

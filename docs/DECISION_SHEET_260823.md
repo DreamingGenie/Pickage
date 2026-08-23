@@ -6,8 +6,8 @@
 
 | Provider | Endpoint | 호출 수 | 결과 |
 |---|---:|---:|---|
-| Kakao Map REST API | publictraffic | 8 | 전부 HTTP 200; business status OK×6, EQUAL_POINTS×1, NO_RESULTS×1 |
-| Kakao Map REST API | walk | 5 | 전부 HTTP 200 OK |
+| Kakao Map REST API | publictraffic | 9(HTTP 400 검증 실패 1건 포함) | HTTP 200×8(business status OK×6, EQUAL_POINTS×1, NO_RESULTS×1), HTTP 400×1(param 이름 오류로 재시도 전 실패, Kakao 콘솔 사용량에는 포함됨) |
+| Kakao Map REST API | walk | 4 | 전부 HTTP 200 OK |
 | data.go.kr | getPathInfoByBusNSub(mixed-route) | 8 | 참고용 부가 evidence(오늘 실행 계획에는 없었으나 provider 확인 과정에서 수집됨) — 본 Decision Sheet의 정책 결정에는 반영하지 않음 |
 | TMAP pedestrian | routes/pedestrian | 5 | 참고용 부가 evidence(위와 동일한 사유) |
 | Seoul Bus Arrival(`getArrInfoByRouteAll`) | busRouteId=100100001 | 60 | 정상 완료 |
@@ -15,7 +15,16 @@
 | Seoul Subway Arrival(`realtimeStationArrival`) | 안국/교대/역삼 개별 | 45×3=135 | 정상 완료(최초 시도의 `"역명1\|역명2\|역명3"` 파이프 결합 문법은 무효 — 45+45=90건 낭비 후 개별 호출로 재실행) |
 | Seoul Subway Position(`realtimePosition`) | 3호선/2호선 개별 | 90×2=180 | 정상 완료(동일 사유로 최초 90건 낭비 후 재실행) |
 
-data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세션에서 포털 콘솔로 확인하지 않았다(계정 자체 로그인·화면 확인 없이 실 호출만 수행). Kakao 키의 entitlement/billing 콘솔도 확인하지 않았다.
+data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세션에서 포털 콘솔로 확인하지 않았다(계정 자체 로그인·화면 확인 없이 실 호출만 수행).
+
+**Kakao entitlement/quota — PM이 제공한 콘솔 스크린샷 2장(2026-08-23 15:16 KST)으로 확인 완료.** "일간 쿼터 사용량 > 오늘" 화면 기준:
+
+| Endpoint | 오늘 사용량 | Limit |
+|---|---:|---:|
+| `/route-open/openapi/v1/publictraffic.json` | 9 | 1,000 |
+| `/route-open/openapi/v1/walk.json` | 4 | 1,000 |
+
+이 세션이 실제로 호출한 수(publictraffic 9건 — HTTP 400 실패 1건 포함, walk 4건)와 정확히 일치한다. 두 endpoint 모두 프로젝트 앱에 1,000/day entitlement가 실제로 부여되어 있음이 콘솔로 직접 확인됐다(`KAKAO_ROUTE_GATE` 조건 1 = **`CONFIRMED`**). billing/overage 단가나 초과 정책 화면은 이번 스크린샷에 없어 별도 사실로 남긴다.
 
 ## Decision Sheet
 
@@ -26,7 +35,7 @@ data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세
 | Kakao canonical mapping | CONDITIONAL | bus/subway/mixed 3개 topology candidate 전부 stop=name만, vehicle=name/type만; ID 필드 없음 | `REJECTED` (payload 구조적 한계) | Kakao publictraffic 응답 스키마 전체 | §6.1, §12, §21.3, §22.2 | 1156행 | AC-055 REJECTED, REQ-009 | 외부 name-based crosswalk 별도 설계 전에는 재시도 무의미 |
 | Kakao total/step 시간 포함관계 | CONDITIONAL | candidate 0(SUBWAY) gap 887s vs 경계WALK 829s(58s 잔차); candidate 2(BUS_AND_SUBWAY) gap 422s vs 437s(15s 이내) | `CONDITIONAL` 유지, candidate 0은 `PARTIALLY_EXPLAINED`, candidate 2는 `HIDDEN_WALK_STRONGLY_SUPPORTED` | 테스트한 2개 candidate만 | §6.1, §12 | — | AC-054 PARTIAL | 58s 잔차의 원인(WAIT/환승/속도가정 차이) 미상 |
 | Kakao 지리 범위 | 암묵적으로 서울 한정 가정 | 부산 좌표에서도 정상 200/OK, 3개 후보 반환 | `NEW_FACT` — Kakao는 서울 경계를 스스로 제한하지 않음 | publictraffic 전체 | §12 | — | — | product 입력단 지역 제한 설계 필요(REQ 미반영, 후속 검토) |
-| Kakao entitlement/quota | UNCONFIRMED | 콘솔 미확인(오늘 범위 밖) | `NO_CHANGE` (여전히 UNCONFIRMED) | — | §18.4(무변경) | — | AC-057 HOLD | 콘솔 entitlement/billing 확인 필요 |
+| Kakao entitlement/quota | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:16 KST): publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치 | `CONFIRMED` | Kakao Map REST API 앱 전체, 2026-08-23 | §18.4, §6.1 | — | AC-057 | billing/overage 단가·초과 정책 화면은 별도 확인 필요 |
 | `KAKAO_ROUTE_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | — | §6.1 | — | REQ-009 | mapping crosswalk 재설계 전에는 Gate 재도전 무의미; `ROUTE_A_ONLY` 유지 |
 | Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | §21.3 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
 | Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
@@ -35,19 +44,18 @@ data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세
 | Collector round-trip latency 계측 | 확인 안 됨 | `bus_*_spike.py`/`subway_*_spike.py`의 `requested_at`/`received_at`은 둘 다 HTTP 응답을 받은 뒤 `storage.SpikeResult()` 생성 시점에 동시 stamping됨(dataclass default_factory 2회 호출이 거의 같은 시각) → 오늘 수집된 240건 전부 latency=0.00~0.001s로 기록되어 있어 실제 request-boundary latency로 볼 수 없음. 임시로 작성한 Kakao 호출 스크립트도 응답 전/후 시각을 분리 기록하지 않아 동일한 한계를 가짐 | `BLOCKED_TOOLING`(collector 자체의 timestamp 설계 한계, 이번 세션에서 코드 수정 금지 규칙과 충돌해 고치지 않음) | 오늘 사용한 모든 collector | — | — | — | collector가 `requested_at`을 호출 직전, `received_at`을 응답 직후로 분리 기록하도록 고치는 것 자체가 후속 작업(코드 변경 필요) |
 | Out-of-order (source-time reversal) | 확인 안 됨 | receive 순서 기준 source timestamp 단조성 검사: bus position 13개 차량 계열, subway arrival 82개 station×train 계열 전부 역전 0건 | `NO_REVERSAL_OBSERVED`(이번 window) | 오늘 수집한 bus position + subway arrival 전체 | — | — | — | 표본이 늘어나면 재확인 필요(하루 한 window로 일반화 금지) |
 | Subway Prediction→Actual Residual 실측 예시 | 미계산 | 안국(3호선) 열차 3166: 13:31:20 관측 시점 `barvlDt=210s` 예측(예상 도착 13:34:50) vs 실제 Actual interval (13:34:10, 13:35:05], mid=13:34:37.5, width=55s → signed residual L/M/U = −40s/−12.5s/+15s | `FIXED`(builder correctness 시연, 1개 사례) | 안국역 3호선, train 3166, 2026-08-23 13:31~13:35 KST | — | — | AC 없음(오늘 신규 발견, REQUIREMENTS에 반영 안 함) | 표본 1건 — support 주장 금지, 여러 window·여러 train으로 확대 필요 |
-| Bus Prediction→Actual Residual 실측 예시 | 미계산 | staOrd=21(target) 예측은 60건 존재했으나(예: vehId=106024511, traTime 152s→105s) 대응하는 Actual event가 이번 window에 없어(위 표 참조) residual 계산 불가. 다른 vehicle/stop 조합으로 general 예시를 시도했으나 sectOrd 연속성이 끊겨 이번 세션 시간 내에 깔끔한 사례를 확정하지 못함 | `INCONCLUSIVE`(target은 no-event, general 예시는 미완성) | busRouteId=100100001 | — | — | — | 다음 세션에서 sectOrd↔staOrd 매핑을 먼저 확정한 뒤 재시도 |
+| Bus Prediction→Actual Residual 실측 예시 | 미계산 | staOrd=21(target)은 예측 60건 존재했으나 대응하는 Actual event가 이번 window에 없어(위 표 참조) target residual은 여전히 계산 불가. **General 예시(비-target)**: vehId=106024177, 12:54:23 관측 시점 `traTime=58s`(staOrd=13) 예측(예상 도착 12:55:21) vs 관측된 stopFlag `0→1` Actual interval (12:55:04, 12:55:32], mid=12:55:18 → signed residual L/M/U = −17s/−3s/+11s | `FIXED`(builder correctness 시연, target 아닌 1개 general 사례) — target(staOrd=21)은 `NO_VALID_EVENT` 유지 | busRouteId=100100001, non-target stop, 2026-08-23 12:54~12:56 KST | — | — | — | 이 예시의 stop이 staOrd=13과 정확히 일치하는지는 vehId+시간 근접으로만 추정했고 sectOrd로 직접 검증하지 않음 — target-stop 표본 확대가 여전히 필요 |
 | Bus WAIT raw row 특성 | 미확인 | position raw 673행, 고유 차량 13대, 동일 차량 dataTm 중복 190행(28.2%) — snapshot 상당수가 신규 source 갱신 없이 반복됨 | `NEW_FACT`(dependence 근거) | busRouteId=100100001, 2026-08-23 30분 window | — | — | — | raw row를 independent support로 쓰지 않는다는 기존 정책의 실측 근거로만 사용; event-unit dependence 정량화(자기상관 등)는 미실시 |
 | Kakao entitlement/billing 콘솔 | 미확인 | 이번 세션은 실 API 호출에 집중했고 developers.kakao.com 콘솔 로그인/캡처는 하지 않음 | `UNCONFIRMED`(변경 없음) | — | §18.4(무변경) | — | AC-057 | 콘솔 확인은 다음 단계에서 즉시 가능 |
 
 ## 아직 하루로 해소할 수 없었던 항목과 이유
 
-- **Kakao entitlement/billing 콘솔 확인**: 포털 로그인·화면 캡처가 필요한 작업이며 이번 세션은 실 API 호출에 집중함 — `MULTI_DAY_REQUIRED`가 아니라 단순 미실행. 다음 세션에서 바로 가능
 - **Bus/Subway 승인 일일 한도의 포털 재확인**: 이번 Decision Sheet 작성 세션에서는 재검증하지 않음(과거 세션에서 확인한 적 있으나 그 결과물은 이후 되돌려짐 — 사실상 미확인 상태로 취급해야 함)
-- **Bus target-stop Actual 표본 부족**: 한 창(30분)의 우연 공백일 수 있어 `MULTI_DAY_REQUIRED`
-- **Bus Prediction→Actual Residual**: target은 no-event, general 예시도 이번 세션에서 완성하지 못함 — 다음 세션 최우선 항목
+- **Bus target-stop(staOrd=21) Actual 표본 부족**: 한 창(30분)의 우연 공백일 수 있어 `MULTI_DAY_REQUIRED`. General(비-target) residual 예시는 확보했으나 target 표본은 여전히 0건
 - **Collector round-trip latency**: collector의 `requested_at`/`received_at` 설계 자체가 실제 latency를 담지 못함 — 코드 수정이 필요한 `BLOCKED_TOOLING`이며 이번 세션의 "코드 수정 금지" 규칙과 충돌해 고치지 않음
 - **Subway 2호선 두 역의 낮은 이벤트 포착률 원인**: 이번 데이터만으로는 원인 특정 불가(`MULTI_DAY_REQUIRED` 또는 poll interval 조정 후 재시도)
 - **Bus WAIT event-unit dependence 정량화**: raw row 중복률(28.2%)만 확인했고 자기상관 등 정량 dependence 분석은 하지 않음
+- **Kakao billing/overage 단가 정책 화면**: 오늘 제공된 스크린샷은 사용량/limit만 표시하고 초과 과금 화면은 없음
 - 표준 검증 사다리(V1~V3) 관련 항목 전부: 오늘 하루로 승격 불가, `MULTI_DAY_REQUIRED` 유지
 
 ## 문서 확인
