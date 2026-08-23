@@ -239,8 +239,6 @@ AppShell
 | `startEligibility` | required on SCR-02 | SCR-02 | ELIGIBLE/REFRESH_REQUIRED/BLOCKED + reasonCodes |
 | `validationScope` | required | SCR-02/05/06 | end-to-end로 자동 번역 금지 |
 | `confidence.label` | required | SCR-02/03/05 | rule 전 기본 INSUFFICIENT |
-
-Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 서로 다른 providerKey로 Evidence Detail과 내부 QA에 전달한다. 일반 결과에는 읽기 쉬운 provider label을 병기할 수 있으나 원래 key·endpoint category·adapter version을 바꾸지 않는다. Kakao publictraffic은 Minimum Release 사용자 결과의 route provider가 아니라 reference evidence다.
 | `modelCoverage` | required | SCR-02/05/06 | PARTIAL이면 limitation 필수 |
 | `fallbacks` | array, empty 가능 | SCR-05 | 빈 배열은 fallback 없음 |
 | `limitations` | array, empty 가능 | SCR-02/05/06 | PARTIAL인데 비어 있으면 contract error |
@@ -248,6 +246,8 @@ Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO
 | `sourceFreshness[]` | required | SCR-02/03/05 | source/leg, criticality, state, lastSuccessAt; 전체 상태의 근거 |
 | `calculatedAt` | required for result | SCR-02~06 | 없으면 result 표시 금지 |
 | `resultVersion` | required | SCR-02~05 | reforecast 전후 비교·중복 방지 |
+
+Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 서로 다른 providerKey로 Evidence Detail과 내부 QA에 전달한다. 일반 결과에는 읽기 쉬운 provider label을 병기할 수 있으나 원래 key·endpoint category·adapter version을 바꾸지 않는다. Kakao publictraffic은 Minimum Release 사용자 결과의 route provider가 아니라 reference evidence다.
 
 ### 5.2 숫자 formatting
 
@@ -897,9 +897,9 @@ Acceptance:
 | INSUFFICIENT_DATA | SCR-02/05 | 근거 부족 | later retry | structural route/evidence |
 | STALE_DATA | SCR-02/03 | last success와 현재 차이 | retry | stale snapshot |
 | PROVIDER_ERROR | SCR-01/02/03 | raw body 없는 provider 실패 | retryable 기준 | 마지막 성공 분리 |
-| PROVIDER_QUOTA_EXHAUSTED | SCR-01/02/03 | 새 조회 제한과 마지막 성공 상태를 분리 | reset/정책상 retry | 승인 cache 또는 입력값 |
+| PROVIDER_QUOTA_EXCEEDED | SCR-01/02/03 | 새 조회 제한과 마지막 성공 상태를 분리 | reset/정책상 retry | 승인 cache 또는 입력값 |
 | PROVIDER_ENTITLEMENT_UNAVAILABLE | SCR-01 | 앱 권한·요금제 상태로 새 경로 조회 불가 | 운영 확인 후 | 입력값; probability 없음 |
-| EVENT_NOT_ALLOWED | SCR-03 | 현재 상태에서 수행 불가 | state refetch | current server state |
+| EVENT_NOT_ALLOWED_IN_STATE | SCR-03 | 현재 상태에서 수행 불가 | state refetch | current server state |
 | EVENT_ALREADY_APPLIED | SCR-03 | 이미 반영된 상태로 동기화 | retry 금지 | latest state/result |
 | TARGET_SERVICE_MISMATCH | SCR-03 | 이동편이 바뀌었음 | refresh | user event 미적용 |
 | REFORECAST_FAILED | SCR-04 | 적용/미적용 상태 확인 후 안내 | 조건부 | completed history |
@@ -907,7 +907,7 @@ Acceptance:
 
 Retry는 동일 입력/이벤트를 무한 반복하지 않는다. API `retryable`과 idempotency를 반영하고 provider quota error에는 즉시 재시도를 기본 CTA로 강요하지 않는다.
 
-`FREE_QUOTA_STATUS_UNCONFIRMED`는 특정 provider credential의 무료 제공 조건이나 승인량이 아직 콘솔·공식 evidence로 확인되지 않은 운영 상태다. 2026-08-23 Kakao Map publictraffic/WALK는 콘솔 기준 `CONFIRMED`로 갱신됐지만, 다른 provider나 새 credential에는 이 상태가 남을 수 있다. 사용자에게 “1,000회 남음” 같은 내부 quota 잔량을 직접 표시하지 않는다. entitlement 미확인 때문에 새 조회가 차단된 경우에만 `PROVIDER_ENTITLEMENT_UNAVAILABLE`로 투영하고, quota 소진은 `PROVIDER_QUOTA_EXHAUSTED`로 분리한다.
+`FREE_QUOTA_STATUS_UNCONFIRMED`는 특정 provider credential의 무료 제공 조건이나 승인량이 아직 콘솔·공식 evidence로 확인되지 않은 운영 상태다. 2026-08-23 Kakao Map publictraffic/WALK는 콘솔 기준 `CONFIRMED`로 갱신됐지만, 다른 provider나 새 credential에는 이 상태가 남을 수 있다. 사용자에게 “1,000회 남음” 같은 내부 quota 잔량을 직접 표시하지 않는다. entitlement 미확인 때문에 새 조회가 차단된 경우에만 `PROVIDER_ENTITLEMENT_UNAVAILABLE`로 투영하고, quota 소진은 `PROVIDER_QUOTA_EXCEEDED`로 분리한다.
 
 ---
 

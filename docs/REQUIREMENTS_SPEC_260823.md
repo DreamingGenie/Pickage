@@ -546,7 +546,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 
 | Source | Approved-limit input | Initial status | Collector start condition | Degradation |
 |---|---|---|---|---|
-| Seoul realtime subway | 서울 열린데이터광장 공식 정책(2026-08-23 확인): **1,000/day per key**, station×line 쿼리 종류와 무관한 계정 단위 공유 한도(활용사례 갤러리 등록 시 무제한) | `CONFIRMED/GALLERY_NOT_REGISTERED` | KST-day ledger 관리; 2026-08-23 실사용 225/1,000 | low-priority collection stop→stale/not-computed |
+| Seoul realtime subway | 서울 열린데이터광장 공식 정책(2026-08-23 확인): **1,000/day per key**, station×line 쿼리 종류와 무관한 계정 단위 공유 한도(활용사례 갤러리 등록 시 무제한) | `CONFIRMED/GALLERY_NOT_REGISTERED` | KST-day ledger 관리; 2026-08-23 실사용량은 `PENDING_RECONCILIATION`(Decision Sheet 호출표 기준 성공 호출만 135+180=315건 확인, 이전 기록 225/1,000과 불일치 — raw request log 재대사 필요) | low-priority collection stop→stale/not-computed |
 | Seoul bus Arrival | data.go.kr 마이페이지(2026-08-23 확인): `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 단위 독립) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Seoul bus Position | data.go.kr 마이페이지(2026-08-23 확인): `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | runtime route provider 미사용; REQ-009는 future 승격 Gate | 사용자 신규 OD route 분석 budget 0, reference evidence만 보존 |
