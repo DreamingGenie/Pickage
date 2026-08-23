@@ -46,7 +46,7 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 | Kakao official overage policy | 별도 사실 | Kakao 공식 쿼터 문서: 첫 활성화 앱 무료 일 1,000회, 초과 10원/건 | `VERIFIED_OFFICIAL` | Kakao Map REST API | §18.4 | — | — | 콘솔 스크린샷 근거가 아니라 공식 문서 근거. 실제 billing history와 분리 |
 | Seoul data.go.kr Bus Arrival/Position 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:30 KST): `[개발계정]서울특별시_버스도착정보조회 서비스`의 `getArrInfoByRouteAllList` 등 4개 상세기능 각각 1,000/day, `[개발계정]서울특별시_버스위치정보조회 서비스`의 `getBusPosByRouteStList` 등 5개 상세기능 각각 1,000/day. 오늘 각각 60회씩만 사용(6%) | `CONFIRMED` — 서비스별 독립 1,000/day, 공유 풀 아님 | data.go.kr 계정, 활용기간 2026-08-21~2028-08-21 | §18.4 | — | AC-049 | 상세기능별 독립 pool이라는 판정은 콘솔 화면 판독에 근거하며, 원본 스크린샷을 보관하지 않아 제3자가 동일 결론을 재검증할 수 없다(M-04와 동일 사유) |
 | Seoul 열린데이터광장 지하철 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:31 KST, "인증키 안내"): 공식 정책 텍스트로 "실시간 지하철 오픈API는 1일 1,000회만 호출 가능(인증키 1개당)" 확인, 지하철인증키 상태 "정상". 일반인증키(Seoul Open Data 나머지 API)는 호출 "횟수" 제한 없음(1회당 최대 1,000건 조회 page cap만) | `CONFIRMED` | 서울 열린데이터광장 계정 전체 | §18.4 | — | AC-049 | 활용사례 갤러리 등록 여부(현재 미등록) — 등록 시 지하철도 무제한 전환 가능, release 전 검토 대상 |
-| `KAKAO_ROUTE_PROVIDER_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | future Kakao publictraffic Primary route-provider 승격 | §6.1 | — | REQ-009 | mapping crosswalk 재설계 전에는 route-provider Gate 재도전 무의미; Minimum Release는 `ROUTE_A_ONLY + KAKAO_WALK_ONLY` 유지 |
+| `KAKAO_ROUTE_PROVIDER_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | future Kakao publictraffic Primary route-provider 승격 | §6.1 | — | REQ-009 | mapping crosswalk 재설계 전에는 route-provider Gate 재도전 무의미. 당시 snapshot wording은 `ROUTE_A_ONLY + KAKAO_WALK_ONLY`였으며, 현재 활성 필드와의 관계는 아래 Post-decision Reconciliation을 따른다 |
 | Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | §21.3 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
 | Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
 | data.go.kr collector 인코딩 | 알려지지 않음 | `mixed_route_spike.py` 저장 raw의 한글 필드(정류장/노선명)가 mojibake; 숫자/ID/좌표 필드는 정상 | `NEW_FACT` (DQ 발견) | 오늘 호출분 전체 | — | — | — | collector encoding 수정은 별도 개발 작업으로 이관 |
@@ -84,3 +84,15 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 - 현행 root 기획 문서는 `SERVICE_PLAN_260823.md`, `REQUIREMENTS_SPEC_260823.md`, `IA_SCREEN_SPEC_260823.md`, `DECISION_SHEET_260823.md` 4개다. 260822 정본과 실행 지시/증거 파일은 `docs/history/0823_plan_fix/`에 보존한다.
 - 2026-08-23 Decision Sheet 작성 이후 신규 API 호출 없음. 이후 변경은 문서 정합성 정리와 검수 반영에 한정한다.
 - production code·개발 설정·배포 변경 없음 확인: docs 기획 문서와 docs 예시 설정 외 파일은 수정하지 않는다. 실제 secret은 Git 추적 대상에 포함하지 않는다.
+
+## Post-decision Reconciliation
+
+이 Decision Sheet의 Evidence 행은 2026-08-23 당시 관측과 PM 콘솔 snapshot을 보존한다. 따라서 `REJECTED`, `CONFIRMED`, `PENDING_RECONCILIATION`, `NOT_CAPTURED` 같은 과거 판정과 수집 사실은 소급 변경하지 않는다.
+
+현재 정본 정책은 coverage와 selected route를 분리한다. PM 확정 후 Minimum Release의 목표 snapshot은 `geographyCoverage=SEOUL_ONLY`, `routeSearchCoverage=ARBITRARY_OD_DISCOVERY`, `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, `walkProviderMode=KAKAO_MAP_WALK`, `validationAndDemoScope=ROUTE_A_DEMO_ONLY`이다. 최종 시연은 Route A만 사용한다. 2026-09-14 팀 회의에서 남은 일정상 D2 Gate가 불가능하다고 판단하면 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`의 Route A D1 fallback으로 probability/Recommended Departure claim을 축소하되, 서울 임의 OD structure-only 결과는 유지한다. Kakao publictraffic의 2026-08-23 payload-only route-provider 승격은 여전히 `KAKAO_ROUTE_PROVIDER_GATE`에서 `REJECTED`이며, D2 목표 달성에는 REQ-105 안전한 자동 canonicalization crosswalk가 필요하다.
+
+과거 행의 `ROUTE_A_ONLY + KAKAO_WALK_ONLY` wording은 deprecated composite snapshot이다. 이를 현재 API/UI/manifest 필드로 기록할 때는 위 필드들로 분해한다. `PROVIDER_FIRST_SUPPORTED`는 이제 future 문구가 아니라 D2 목표 selected-route 정책이며, `APPROVED_ROUTE_A_ONLY`는 demo/fallback 정책으로만 사용한다.
+
+Kakao publictraffic 후보의 canonical mapping이 `EXACT/UNAMBIGUOUS`이고 model Gate가 통과하면 서울 임의 OD에서도 probability와 Recommended Departure를 계산한다. `UNAMBIGUOUS` 이상은 name normalization, 좌표 근접성, 버스 노선/지하철 line, 방향·순서 조건으로 후보가 하나로 좁혀질 때만 인정한다. Recommended Departure는 후보 출발시각 5분 grid/coarse-to-fine 재평가를 통과한 경우에만 표시한다. `PARTIAL/FAILED` 또는 model 미달이면 SCR-02 structure-only fallback 결과로 표시하고 probability/Recommended Departure는 `NOT_COMPUTED`로 유지한다. 승인된 Route A manifest/hash/topology가 깨진 경우만 `ROUTE_MANIFEST_INVALID`로 분리한다.
+
+Kakao raw artifact, screenshot hash, collector version/commit, raw/sanitized payload hash, artifact path는 이 저장소에서 확정 근거를 확인하지 못했으므로 `NOT_CAPTURED/UNVERIFIED` 상태를 유지한다. Kakao WALK/publictraffic raw retention은 Provider Policy Registry 검토 전까지 default-deny이며 persistent raw storage·cross-session cache·redistribution에 사용하지 않는다.
