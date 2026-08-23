@@ -837,8 +837,9 @@ DailyCalls = \sum_{source,cohort,window}
 
 | Source | 현재 확인된 기준 | Budget 상태 | Release 전 필수 조치 | 고갈 시 |
 |---|---|---|---|---|
-| 서울 실시간 지하철 | 공식 안내상 기본 일 1,000회 | `KNOWN_BASE / INCREASE_UNCONFIRMED` | 공개 HTTPS PWA 활용사례 등록, KST-day ledger와 Route A 예약량 입력 | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
-| 서울 버스 Arrival/Position | project credential의 실제 승인량 미확정 | `UNCONFIRMED` | 포털 승인 화면의 값을 ledger에 수기 전사하고 endpoint별 호출식을 dry run으로 검증 | Route A active/demo 보호, evidence window 축소 |
+| 서울 실시간 지하철 | 2026-08-23 서울 열린데이터광장 "인증키 안내" 공식 정책 텍스트로 확인: **1일 1,000회/키**(활용사례 갤러리 등록·승인 시 무제한 전환 가능하나 이 프로젝트는 미등록). 이 1,000회는 station×line 쿼리 종류와 무관하게 지하철인증키 하나에 걸리는 계정 단위 공유 한도다 | `CONFIRMED / GALLERY_NOT_REGISTERED` | 활용사례 갤러리 등록 시 무제한 전환 가능(release 전 검토); 현재는 KST-day ledger로 225/1,000(2026-08-23 실사용) 정도의 여유를 관리 | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
+| 서울 버스 Arrival | 2026-08-23 data.go.kr 마이페이지 확인: `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 등록 단위, data.go.kr 계정 키는 공유하지만 quota는 서비스마다 독립) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
+| 서울 버스 Position | 2026-08-23 data.go.kr 마이페이지 확인: `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도 quota) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | `KAKAO_ROUTE_GATE`는 mapping 조건 REJECTED로 여전히 미통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
 | Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
 | TMAP 대중교통 | 공식 무료체험 일 10회 | `KNOWN_BASE / VALIDATION_ONLY` | 사용자 runtime 기본 provider에서 제외하고 golden-route 비교 budget만 예약 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
@@ -1042,6 +1043,8 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - collector(`bus_*_spike.py`/`subway_*_spike.py`)의 `requested_at`/`received_at`이 실제로는 응답 수신 후 거의 동시에 stamping되어 request-boundary latency를 측정하지 못한다는 tooling 한계를 확인함(오늘 240건 전부 0.00~0.001s로 기록) — 이번 세션은 코드 수정 금지 규칙에 따라 고치지 않고 사실만 기록
 - Kakao entitlement는 2026-08-23 콘솔 스크린샷으로 `CONFIRMED`됨(publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치)
 - Bus(non-target stop) Prediction→Actual signed residual 계산 사례 1건 확보(vehId=106024177, L/M/U = −17s/−3s/+11s) — target 정류장(staOrd=21)은 여전히 표본 0건
+- data.go.kr 마이페이지 콘솔로 Bus Arrival/Position 각 endpoint군의 승인 한도가 서비스별로 독립적인 1,000/day임을 확인함(공유 풀 아님)
+- 서울 열린데이터광장 콘솔로 지하철 실시간 API의 승인 한도가 계정(키) 단위 공유 1,000/day이며 활용사례 갤러리 미등록 상태임을 확인함; 일반 API는 호출 횟수 제한이 없음(1회당 최대 1,000건 조회 cap만)
 
 ### 22.2 아직 Claim하면 안 되는 것
 

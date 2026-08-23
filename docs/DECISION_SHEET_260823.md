@@ -15,7 +15,7 @@
 | Seoul Subway Arrival(`realtimeStationArrival`) | 안국/교대/역삼 개별 | 45×3=135 | 정상 완료(최초 시도의 `"역명1\|역명2\|역명3"` 파이프 결합 문법은 무효 — 45+45=90건 낭비 후 개별 호출로 재실행) |
 | Seoul Subway Position(`realtimePosition`) | 3호선/2호선 개별 | 90×2=180 | 정상 완료(동일 사유로 최초 90건 낭비 후 재실행) |
 
-data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세션에서 포털 콘솔로 확인하지 않았다(계정 자체 로그인·화면 확인 없이 실 호출만 수행).
+data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 PM이 제공한 콘솔 스크린샷 3장(2026-08-23 15:30~15:31 KST)으로 확인 완료 — 아래 Decision Sheet 참조.
 
 **Kakao entitlement/quota — PM이 제공한 콘솔 스크린샷 2장(2026-08-23 15:16 KST)으로 확인 완료.** "일간 쿼터 사용량 > 오늘" 화면 기준:
 
@@ -37,6 +37,8 @@ data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세
 | Kakao 지리 범위 | 암묵적으로 서울 한정 가정 | 부산 좌표에서도 정상 200/OK, 3개 후보 반환 | `NEW_FACT` — Kakao는 서울 경계를 스스로 제한하지 않음 | publictraffic 전체 | §12 | — | — | product 입력단 지역 제한 설계 필요(REQ 미반영, 후속 검토) |
 | Kakao entitlement/quota | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:16 KST): publictraffic 9/1,000, walk 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치 | `CONFIRMED` | Kakao Map REST API 앱 전체, 2026-08-23 | §18.4, §6.1 | — | AC-057 | 없음 — billing도 아래 행에서 확정됨 |
 | Kakao billing/overage | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:23 KST, "유료 사용량" 화면, app `pjt_map` ID 1471189): 이번 달 유료 호출 0건(성공 0/실패 0), 무료 호출만 15건 — 2026-08-23 무료 13건(=publictraffic 9+walk 4), 2026-08-22 무료 2건(=baseline 1+1)과 정확히 일치 | `CONFIRMED` — 과금 발생 이력 없음 | Kakao Map REST API 앱 전체, 2026-08-01~08-23 | §18.4 | — | — | 없음 |
+| Seoul data.go.kr Bus Arrival/Position 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:30 KST): `[개발계정]서울특별시_버스도착정보조회 서비스`의 `getArrInfoByRouteAllList` 등 4개 상세기능 각각 1,000/day, `[개발계정]서울특별시_버스위치정보조회 서비스`의 `getBusPosByRouteStList` 등 5개 상세기능 각각 1,000/day. 오늘 각각 60회씩만 사용(6%) | `CONFIRMED` — 서비스별 독립 1,000/day, 공유 풀 아님 | data.go.kr 계정, 활용기간 2026-08-21~2028-08-21 | §18.4 | — | AC-049 | 없음 |
+| Seoul 열린데이터광장 지하철 승인 한도 | UNCONFIRMED | PM 제공 콘솔 스크린샷(2026-08-23 15:31 KST, "인증키 안내"): 공식 정책 텍스트로 "실시간 지하철 오픈API는 1일 1,000회만 호출 가능(인증키 1개당)" 확인, 지하철인증키 상태 "정상". 일반인증키(Seoul Open Data 나머지 API)는 호출 "횟수" 제한 없음(1회당 최대 1,000건 조회 page cap만) | `CONFIRMED` | 서울 열린데이터광장 계정 전체 | §18.4 | — | AC-049 | 활용사례 갤러리 등록 여부(현재 미등록) — 등록 시 지하철도 무제한 전환 가능, release 전 검토 대상 |
 | `KAKAO_ROUTE_GATE` 종합 | 4개 조건 중 반복안정성만 부분 확인 | 위 4개 항목 판정 종합 | `REJECTED` 종합(mapping 조건 구조적 실패) | — | §6.1 | — | REQ-009 | mapping crosswalk 재설계 전에는 Gate 재도전 무의미; `ROUTE_A_ONLY` 유지 |
 | Bus target-stop(안국역6번출구, ord=21) Actual | IMMATURE | 2026-08-23 30분 window, sectOrd=21 필터링 결과 유효 `0→1` 전이 0건(다른 정류장에서는 93건) | `NO_VALID_EVENT` (이번 window) | busRouteId=100100001, 2026-08-23 12:47~13:17 KST | §21.3 | — | — | 더 길거나 여러 window로 재시도; sectOrd↔staOrd 대응 자체도 재검증 필요 |
 | Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
@@ -51,7 +53,6 @@ data.go.kr(Bus 계열)과 Seoul Subway 키의 승인 일일 한도는 이번 세
 
 ## 아직 하루로 해소할 수 없었던 항목과 이유
 
-- **Bus/Subway 승인 일일 한도의 포털 재확인**: 이번 Decision Sheet 작성 세션에서는 재검증하지 않음(과거 세션에서 확인한 적 있으나 그 결과물은 이후 되돌려짐 — 사실상 미확인 상태로 취급해야 함)
 - **Bus target-stop(staOrd=21) Actual 표본 부족**: 한 창(30분)의 우연 공백일 수 있어 `MULTI_DAY_REQUIRED`. General(비-target) residual 예시는 확보했으나 target 표본은 여전히 0건
 - **Collector round-trip latency**: collector의 `requested_at`/`received_at` 설계 자체가 실제 latency를 담지 못함 — 코드 수정이 필요한 `BLOCKED_TOOLING`이며 이번 세션의 "코드 수정 금지" 규칙과 충돌해 고치지 않음
 - **Subway 2호선 두 역의 낮은 이벤트 포착률 원인**: 이번 데이터만으로는 원인 특정 불가(`MULTI_DAY_REQUIRED` 또는 poll interval 조정 후 재시도)
