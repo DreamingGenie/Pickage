@@ -16,14 +16,14 @@
 | Feature | 18 | F001~F018 |
 | Functional Requirement | 73 | REQ-001~105, 영역별 비연속 번호 유지 |
 | Business Rule | 55 | BR-001~086, 영역별 비연속 번호 유지 |
-| State Transition Rule | 26 | ST-001~026 |
+| State Transition Rule | 29 | ST-001~029 |
 | API/System Interface | 18 | API-000~010, SYS-001~007 |
 | Canonical Entity | 24 | ENT-001~024 |
 | NFR | 55 | NFR-001~094, 영역별 비연속 번호 유지 |
 | Acceptance Scenario | 64 | AC-001~064 |
 | Claim Gate | 7 | CG-001~007 |
 
-수량은 문서 행 기준이며 구현 task 수와 동일하지 않다. 2026-08-23 외부 전문가 검토(`JR_FINAL_SET_EXPERT_REVIEW_260823.md`) 반영으로 REQ-100~104, BR-080~084, ST-023~026, API-010, NFR-090~093, AC-058~061, UI-AC-036~039(IA)가 추가됐다. 2026-08-23 정책 확정 지시서(`JR_POLICY_DECISIONS_AGENT_HANDOFF_260823.md`) 반영으로 REQ-105, BR-085~086, ENT-024, NFR-094, AC-062~064, UI-AC-040(IA)이 추가됐다.
+수량은 문서 행 기준이며 구현 task 수와 동일하지 않다. 2026-08-23 외부 전문가 검토(`JR_FINAL_SET_EXPERT_REVIEW_260823.md`) 반영으로 REQ-100~104, BR-080~084, ST-023~026, API-010, NFR-090~093, AC-058~061, UI-AC-036~039(IA)가 추가됐다. 2026-08-23 정책 확정 지시서(`JR_POLICY_DECISIONS_AGENT_HANDOFF_260823.md`) 반영으로 REQ-105, BR-085~086, ENT-024, NFR-094, AC-062~064, UI-AC-040(IA)이 추가됐고, 본 정합성 조정으로 ST-027~029가 추가됐다.
 
 ### 0.2 Priority와 상태
 
@@ -31,6 +31,7 @@
 |---|---|
 | MUST | Minimum Release 필수 |
 | CLAIM_GATE | 구현 가능성과 별개로 사용자/발표 claim 승격에 필요한 조건 |
+| D2_TARGET | 이번 PM 목표 capability. 2026-09-14 팀 회의에서 남은 일정상 불가능하다고 판단되면 probability/Recommended Departure는 D1/Route A fallback으로 scope-down하며 D2 claim 금지. 임의 OD structure-only는 유지 |
 | SHOULD | 핵심 E2E를 막지 않는 후순위; 일정 시 cut 가능 |
 | COULD | 여유 시 선택 |
 | TBD_AFTER_PROFILE | 실제 profile·benchmark 후 수치 결정 |
@@ -57,20 +58,20 @@
 
 ### 1.1 포함
 
-- 서울 행정구역, 임의 OD의 BUS+SUBWAY mixed structural route discovery(REQ-104), Route A는 end-to-end 검증된 우선 검증·최종 시연 대상
+- 서울 행정구역, 임의 OD의 BUS+SUBWAY mixed route discovery와 first-supported reliability/Recommended Departure D2 목표(REQ-104/105/015), Route A는 우선 검증·최종 시연 대상 및 D1 fallback
 - Pre-trip analysis, Journey Start, Live state, UserEvent, Reforecast
 - P50, P90, `P(on_time)`, Planned Connection Success, Final On-time
-- Claim Gate 통과 시 Recommended Departure
+- D2 Gate 통과 시 서울 임의 OD Recommended Departure
 - WALK/WAIT/TRANSIT_RIDE/TRANSFER/FINAL_WALK 경계
 - support/fallback/confidence/freshness/validation/coordinate provenance
 - Evidence Detail, optional Share Snapshot
 - Raw→Observation→Actual→Residual→Distribution→Result 추적
 - 보안, 개인정보 최소화, 운영·관측성, 분산 correctness proof
 - Mobile-first PWA, non-install/standalone 동등성, offline read-only snapshot, foreground recovery, 안전한 update lifecycle
-- versioned Route/WALK provider registry, 서울 임의 OD discovery-only route provider(Kakao publictraffic, REQ-104)와 canonicalization crosswalk(REQ-105), Route A `ROUTE_A_PRIORITY`+`KAKAO_MAP_WALK` coverage mode, future `PROVIDER_SUPPORTED` promotion Gate
+- versioned Route/WALK provider registry, 서울 임의 OD route discovery provider(Kakao publictraffic, REQ-104)와 canonicalization crosswalk(REQ-105), D2 target `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, demo/fallback `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`, `walkProviderMode=KAKAO_MAP_WALK`
 - Provider Policy Registry(ENT-024)와 default-deny raw retention 원칙(NFR-094)
 
-Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 모든 정상·부족·실패 상태와 provenance가 구현된 상태이고, **Claim-capable**은 실제 Route A probability가 해당 Claim Gate를 통과한 상태다. Contract-complete를 위해 근거 없는 확률 숫자를 만들지 않으며 Claim-capable 미달은 `NOT_COMPUTED/INSUFFICIENT/HOLD`로 정상 처리한다.
+Minimum Release 완료는 세 층으로 판정한다. **D2-target**은 서울 임의 OD의 first-supported selected route, probability, Recommended Departure까지 통과한 상태다. **D1-fallback**은 D2 Gate 미통과 시 Route A 중심 probability vertical slice를 보호하고, Route A Recommended Departure도 REQ-015 candidate 재평가 Gate evidence가 있을 때만 표시하는 상태다. **Contract-complete**는 모든 정상·부족·실패 상태와 provenance가 구현된 상태다. 근거 없는 확률 숫자를 만들지 않으며 D2/Claim-capable 미달은 임의 OD structure-only+`NOT_COMPUTED/INSUFFICIENT` 또는 Route A D1 probability/Recommended Departure fallback으로 정상 처리한다.
 
 ### 1.2 Explicit Out
 
@@ -89,7 +90,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | F-ID | Feature | 사용자 결과 | Primary SCR | Core REQ |
 |---|---|---|---|---|
 | F001 | Journey Input / Anonymous Access | 입력과 owner capability 발급 | SCR-01 | 001~004,007 |
-| F002 | Structural Route / Provider Gate | Route A manifest 선택과 WALK provider provenance; 서울 임의 OD discovery-only route provider 호출과 canonicalization crosswalk mapping; future route-provider Gate의 first canonical-supported candidate 선택·정규화 | SCR-01/02/05 | 005~006,008~009,104,105 |
+| F002 | Structural Route / Provider Gate | Route A manifest 선택과 WALK provider provenance; 서울 임의 OD route provider 호출과 canonicalization crosswalk mapping; D2 Gate 통과 시 first canonical-supported candidate 선택·정규화 | SCR-01/02/05 | 005~006,008~009,104,105 |
 | F003 | Pre-trip Analysis | selected route의 도착분포·eligibility 계산 | SCR-02 | 010~017 |
 | F004 | Journey Start/State | 분석 snapshot으로 live Journey 시작·복구 | SCR-02/03 | 020~021 |
 | F005 | User Event | BOARD/BUS_SKIPPED/TRANSFER_MISSED | SCR-03 | 022~024 |
@@ -121,14 +122,14 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-002 목적지 입력 | F001 / SCR-01 / `/` | MUST | POI까지 표현하며 final boundary는 마지막 WALK 완료. destination label+coordinate provenance 저장 | 출발지와 동일/resolve 실패/서울 외면 submit 차단 | SYS-001, API-000/002 / ENT-016,017,011 | BR-001 / AC-001,025 |
 | REQ-003 목표 도착시각 | F001 / SCR-01 | MUST | future timezone-aware datetime, Asia/Seoul 표시·rollover 지원; provider/timetable/artifact가 실제로 지원하는 `supportedAnalysisHorizon`(버전 설정, 숫자는 `TBD_AFTER_PROFILE`) 이내로 제한 | 과거/invalid/naive datetime → `INPUT_INVALID`; horizon 밖 미래 → `TARGET_BEYOND_SUPPORTED_HORIZON`(구체적 사유 표시, 조용한 clamp 금지) | API-002 / ENT-011 | BR-010 / AC-001,026 |
 | REQ-004 목표 reliability | F001 / SCR-01 | MUST | 미지정 0.90, UI percent와 내부 0~1 분리 | 허용범위 밖→`INPUT_INVALID`; 90%를 SLA/accuracy로 설명 금지 | API-002 / ENT-011 | BR-003,060 / AC-001,003 |
-| REQ-005 Structural Route 조회·선택 | F002 / SCR-01→02 | MUST | Minimum Release에서는 manifest hash가 일치하는 Route A와 `APPROVED_DEMO_ROUTE`를 기록한다. `PROVIDER_SUPPORTED`는 future mode이며, 활성화 시 provider order를 유지해 서울·mixed mode·ID/leg가 해석 가능한 첫 candidate와 `PROVIDER_FIRST_SUPPORTED`를 기록한다 | route 없음, provider error, mapping incomplete, unsupported, manifest mismatch를 구분; mode 간 silent switch 금지. Kakao publictraffic 후보를 Route A로 대체하거나 시간값을 혼합 금지 | API-001, SYS-002 / ENT-005 | BR-001~003,071 / AC-001,002,004,057 |
-| REQ-006 Route normalization | F002 / SCR-02/03/05 | MUST | provider topology를 ACCESS_WALK/WAIT/TRANSIT_RIDE/TRANSFER/FINAL_WALK과 3 TransferType으로 변환; Transfer와 WAIT 분리 | 필수 node/leg identity 누락→`ROUTE_MAPPING_INCOMPLETE`; 조용한 leg 삭제 금지 | SYS-002 / ENT-005~009,017,018 | BR-030~032 / AC-004,017 |
+| REQ-005 Structural Route 조회·선택 | F002 / SCR-01→02 | MUST | D2 목표에서는 provider order를 유지해 서울·mixed mode·ID/leg가 해석 가능한 첫 candidate와 `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`를 기록한다. 최종 시연과 D2 Gate 미통과 fallback은 manifest hash가 일치하는 Route A와 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`를 기록한다 | route 없음, provider error, arbitrary OD mapping `PARTIAL/FAILED`, unsupported geography, `ROUTE_MANIFEST_INVALID`를 구분; mode 간 silent switch 금지. Kakao publictraffic 후보를 Route A로 대체하거나 시간값을 혼합 금지 | API-001, SYS-002 / ENT-005 | BR-001~003,071 / AC-001,002,004,057 |
+| REQ-006 Route normalization | F002 / SCR-02/03/05 | MUST | provider topology를 ACCESS_WALK/WAIT/TRANSIT_RIDE/TRANSFER/FINAL_WALK과 3 TransferType으로 변환; Transfer와 WAIT 분리 | 승인 Route A manifest의 필수 topology 누락→`ROUTE_MANIFEST_INVALID`; 임의 OD candidate의 canonical mapping 부족은 `PARTIAL/FAILED`+structure-only로 처리; 조용한 leg 삭제 금지 | SYS-002 / ENT-005~009,017,018 | BR-030~032 / AC-004,017 |
 | REQ-007 Anonymous Journey Access | F001/F015 / SCR-02~05 | MUST | Journey 생성 시 browser-bound owner capability 발급; `journeyId`는 locator만 사용. 조회·Start·Event·Evidence·Share 생성마다 owner capability 검증 | capability 없음/불일치는 resource 존재를 숨기는 동일 not-found/recovery; cross-device owner 복구 없음 | API-002~007 / ENT-012,020 | BR-004; NFR-041~043,053 / AC-035,036 |
-| REQ-008 Provider Registry / Coverage Mode | F002/F016 / SCR-01/02/05 | MUST | provider·endpoint·adapterVersion·quota policy·selection policy를 versioned registry로 관리하고 Minimum Release deployment는 `ROUTE_A_ONLY` + `KAKAO_WALK_ONLY`를 반환. **`ROUTE_A_ONLY`는 selected/canonical route 승격 정책(`validationAndDemoScope`)만 뜻하며 입력 geography나 route discovery(REQ-104)를 제한하지 않는다** — 서울 임의 OD 검색·구조 후보 표시는 이 mode에서도 항상 가능하다. `PROVIDER_SUPPORTED`는 canonical route truth를 provider 후보에서 자동 선택하는 future route-provider mode다. `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 별도 providerKey | UI와 server mode 불일치, provider silent switch, 구 Kakao Mobility 403과 신규 Kakao Map 성공의 병합, 다른 provider provenance 재사용 금지. publictraffic reference evidence를 selected route로 승격 금지 | API-001/002/006/009, SYS-001/002/007 / ENT-005,015,017,023 | BR-005,071~074,083; NFR-087,088 / AC-053~057,061 |
-| REQ-009 Kakao Route Provider Promotion Gate | F002/F016 / SCR-01/05/Internal | FUTURE_OPTIONAL / NOT_REQUIRED_FOR_WALK_ONLY | `KAKAO_ROUTE_PROVIDER_GATE`: Kakao publictraffic을 Primary route provider로 승격할 때만 앱 entitlement, canonical bus/stop·station×line mapping, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증. **2026-08-23 판정: entitlement CONFIRMED(콘솔, publictraffic 9/1,000·walk 4/1,000) / mapping REJECTED(구조적 한계) / 시간 포함관계 PARTIAL / 반복 안정성 PASS → route-provider 승격 미통과.** `KAKAO_MAP_WALK` 사용은 REQ-031과 AC-056의 WALK provider contract를 따른다 | Kakao publictraffic route-provider 승격 실패→`ROUTE_A_ONLY + KAKAO_WALK_ONLY`; HTTP 200만으로 USER_FACING route 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
+| REQ-008 Provider Registry / Coverage / Selected-route Fields | F002/F016 / SCR-01/02/05 | MUST | provider·endpoint·adapterVersion·quota policy·selection policy를 versioned registry로 관리하고 D2 target deployment는 `geographyCoverage=SEOUL_ONLY`, `routeSearchCoverage=ARBITRARY_OD_DISCOVERY`, `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, `walkProviderMode=KAKAO_MAP_WALK`, `validationAndDemoScope=ROUTE_A_DEMO_ONLY`를 별도 필드로 반환한다. D2 Gate 미통과 fallback은 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`로 명시한다. `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 별도 providerKey | UI와 server field 불일치, provider silent switch, 구 Kakao Mobility 403과 신규 Kakao Map 성공의 병합, 다른 provider provenance 재사용 금지. publictraffic access evidence만으로 selected route 계산 승격 금지 | API-001/002/006/009, SYS-001/002/007 / ENT-005,015,017,023 | BR-005,071~074,083; NFR-087,088 / AC-053~057,061 |
+| REQ-009 Kakao Route Provider Promotion Gate | F002/F016 / SCR-01/05/Internal | D2_TARGET/CLAIM_GATE | `KAKAO_ROUTE_PROVIDER_GATE`: Kakao publictraffic 기반 candidate를 D2 selected route 계산 대상으로 쓰려면 앱 entitlement, external canonical bus/stop·station×line crosswalk, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증한다. **2026-08-23 판정: entitlement CONFIRMED(콘솔, publictraffic 9/1,000·walk 4/1,000) / API payload 자체 mapping REJECTED / 시간 포함관계 PARTIAL / 반복 안정성 PASS.** 따라서 D2는 REQ-105 안전한 자동 crosswalk를 추가로 요구한다. `KAKAO_MAP_WALK` 사용은 REQ-031과 AC-056의 WALK provider contract를 따른다 | Gate 실패 시 서울 임의 OD 후보는 구조 표시+`NOT_COMPUTED`, 최종 시연과 사용자-facing probability/Recommended Departure는 Route A D1 fallback; HTTP 200만으로 USER_FACING route 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
 | REQ-100 Location Provider Contract | F001/F016 / SCR-01 | MUST | 위치 검색·현재 위치 resolve provider는 route discovery provider(API-001)와 별도 providerKey·quota counter로 관리하고, provider명·quota state·business error·cache freshness를 API-000 response에 포함한다 | provider entitlement/quota 소진 시 `PROVIDER_ENTITLEMENT_UNAVAILABLE`/`PROVIDER_QUOTA_EXCEEDED`로 분리; 좌표·검색어는 POST body로만 전달하고 URL query·access log·reverse proxy log에 평문 노출 금지(log redaction) | API-000, SYS-001 / ENT-016,017 | BR-005 / AC-001,046 |
-| REQ-104 Coverage 5축 / Arbitrary OD Route Discovery | F002 / SCR-01/02 | MUST | 서울 내 임의 OD 제출마다 `KAKAO_MAP_PUBLIC_TRANSIT`를 discovery-only route provider로 runtime에 실제 호출해 구조 경로 후보를 얻는다(NFR-090~092 admission control/dedup/concurrency cap 적용). canonicalization crosswalk(REQ-105)가 정류장·역·노선 master와 대조해 candidate마다 `mappingStatus ∈ {EXACT,UNAMBIGUOUS,PARTIAL,FAILED}`와 provenance를 부여한다. `reliabilityModelCoverage`가 충족된 candidate만 REQ-010 확률 계산 대상이 된다 | mapping이 `PARTIAL/FAILED`이거나 model coverage 부족(crosswalk 미완성 포함)→경로 구조는 표시하되 확률은 `NOT_COMPUTED`(사유 포함), placeholder 금지; provider quota 소진 시 `PROVIDER_QUOTA_EXCEEDED`로 실패하고 Route A로 silent substitution 금지; Kakao publictraffic candidate를 canonical route truth로 승격 금지(REQ-009 Gate와 분리) | API-001, SYS-002, SYS-007 / ENT-005 | BR-083,084 / AC-002,004,057,062 |
-| REQ-105 Canonicalization Crosswalk | F002 / SCR-01/02/Internal | MUST/CUTTABLE_EXPANSION | Kakao publictraffic 구조 후보(name-only stop/vehicle)를 서울 공식 정류장·노선·역 master와 name/좌표 기반으로 대조해 `mappingStatus`를 판정하는 crosswalk 레이어를 구축한다. Route A 자체의 canonical mapping(§6.1, 이미 MAPPED)과는 별개로, 임의 OD candidate 전체에 적용되는 신규 매칭 로직이다 | crosswalk 미완성이거나 매칭 실패 candidate는 `mappingStatus=FAILED`로 정직하게 남기고 확률을 만들지 않음(BR-085); crosswalk 완성도를 과장해 `EXACT/UNAMBIGUOUS`를 임의로 부여 금지 | SYS-002 / ENT-005 | BR-085 / AC-062 |
+| REQ-104 Coverage / Selected-route Fields / Arbitrary OD Route Discovery | F002 / SCR-01/02 | MUST | 서울 내 임의 OD 제출마다 `KAKAO_MAP_PUBLIC_TRANSIT`를 route discovery provider로 runtime에 실제 호출해 구조 경로 후보를 얻는다(NFR-090~092 admission control/dedup/concurrency cap 적용). canonicalization crosswalk(REQ-105)가 정류장·역·노선 master와 대조해 candidate마다 `canonicalMappingStatus ∈ {EXACT,UNAMBIGUOUS,PARTIAL,FAILED}`와 provenance를 부여한다. D2 목표에서는 `EXACT/UNAMBIGUOUS`이고 `reliabilityModelCoverage`가 충족된 첫 candidate를 REQ-010/015 계산 대상으로 선택한다 | mapping이 `PARTIAL/FAILED`이거나 model coverage 부족(crosswalk 미완성 포함)→경로 구조는 표시하되 확률·추천 출발은 `NOT_COMPUTED`(사유 포함), placeholder 금지; provider quota 소진 시 `PROVIDER_QUOTA_EXCEEDED`로 실패하고 Route A로 silent substitution 금지; D2 Gate 실패 시 임의 OD structure-only 유지, probability/Recommended Departure는 Route A D1 fallback | API-001, SYS-002, SYS-007 / ENT-005 | BR-083,084 / AC-002,004,057,062 |
+| REQ-105 Canonicalization Crosswalk | F002 / SCR-01/02/Internal | D2_TARGET/CLAIM_GATE | Kakao publictraffic 구조 후보(name-only stop/vehicle)를 서울 공식 정류장·노선·역 master와 안전하게 대조해 `canonicalMappingStatus`를 판정하는 crosswalk 레이어를 구축한다. `UNAMBIGUOUS` 이상은 name normalization, 좌표 근접성, 버스 노선/지하철 line, 방향·순서 조건을 모두 통과하고 후보가 하나로 좁혀질 때만 부여한다. name-only 또는 거리-only 매칭은 `PARTIAL/FAILED`다. Route A 자체의 canonical mapping(§6.1, `EXACT`)과는 별개로, 임의 OD candidate 전체에 적용되는 신규 매칭 로직이며 D2 임의 OD probability/Recommended Departure의 필수 Gate다 | crosswalk 미완성이거나 매칭 실패 candidate는 `canonicalMappingStatus=FAILED`로 정직하게 남기고 확률·추천 출발을 만들지 않음(BR-085); crosswalk 완성도를 과장해 `EXACT/UNAMBIGUOUS`를 임의로 부여 금지; 2026-09-14 팀 회의에서 남은 일정상 불가능하면 probability/Recommended Departure는 Route A D1 fallback | SYS-002 / ENT-005 | BR-085 / AC-062 |
 
 ### 3.2 Pre-trip Analysis
 
@@ -139,7 +140,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-012 P90 | F003 / SCR-02/04/06 | MUST | final arrival samples의 Q0.90; 기본 copy는 모델 도착분포의 90번째 백분위 | `90% 정확도`/exact arrival 표현 금지; E2E calibration 전 반복빈도 copy 금지; partial uncertainty limitation 전달 | SYS-003, API-002 / ENT-015 | BR-010,052,060,063 / AC-005,027,057 |
 | REQ-013 On-time Probability | F003 / SCR-02/03/04/06 | MUST | `ΣI(finalArrival≤target)/N`; 0~1 저장, UI whole percent formatting | null≠0; low support/partial/validation scope 숨김 금지 | SYS-003, API-002/004 / ENT-014,015 | BR-010,012,016 / AC-005,021 |
 | REQ-014 Planned Connection Success | F003 / SCR-02/04 | MUST when connection | 처음 계획한 candidate connection을 모두 지킨 simulation 비율; Final On-time과 별도 | 환승 없음/미계산을 0으로 채우지 않음; 두 metric 단순 대소 규칙 강제 금지 | SYS-003 / ENT-014,015 | BR-011 / AC-006,022 |
-| REQ-015 Recommended Departure | F003 / SCR-02/06 | CLAIM_GATE/HOLD | route R, target T, p* 조건을 만족하는 가장 늦은 candidate. 각 d마다 WAIT/service/context/connection 재평가, grid/coarse-to-fine | future source/critical input/feasible candidate 없음→INSUFFICIENT_DATA/NOT_COMPUTED; simple shift·미검증 binary search 금지 | SYS-003, API-002 / ENT-008~015 | BR-020~024 / AC-007,023, CG-004 |
+| REQ-015 Recommended Departure | F003 / SCR-02/06 | D2_TARGET/CLAIM_GATE | route R, target T, p* 조건을 만족하는 가장 늦은 candidate. D2 목표에서는 서울 임의 OD의 `PROVIDER_FIRST_SUPPORTED` selected candidate에도 제공한다. 목표시각 이전 후보 출발시각을 기본 5분 grid로 평가하고 필요 시 coarse-to-fine으로 좁히며, 각 d마다 route/service set, WAIT, context, connection feasibility를 재평가한다 | future source/critical input/feasible candidate 없음→INSUFFICIENT_DATA/NOT_COMPUTED; simple shift·미검증 binary search 금지; Gate 미통과 시 임의 OD에서는 unavailable, probability/Recommended Departure claim은 Route A D1 fallback | SYS-003, API-002 / ENT-008~015 | BR-020~024 / AC-007,023, CG-004 |
 | REQ-016 Result Eligibility | F003 / SCR-02~05 | MUST | `USER_FACING/ENGINE_FIXTURE_ONLY/NOT_COMPUTED`, validationScope, provenance를 함께 반환 | real input missing에 fabricated numeric result 금지; V0 fixture user 화면 금지 | API-002 / ENT-014,015 | BR-013,014,062 / AC-003,008,021 |
 | REQ-017 Eligibility / Start Decision | F003/F004 / SCR-02 | MUST | required time-bearing leg마다 valid distribution 또는 approved deterministic/reference input이 있으면 core 계산 가능. uncertainty만 미모델링이면 `USER_FACING+PARTIAL_MODEL`; input 자체 부재면 `NOT_COMPUTED`. `startEligibility=ELIGIBLE/REFRESH_REQUIRED/BLOCKED`와 reasonCodes 반환 | confidence `INSUFFICIENT`만으로 Start 차단 금지; optional connection/recommended 부재로 core 자동 무효화 금지 | API-002/003 / ENT-006~010,015 | BR-014,017,045 / AC-003,020,036,037 |
 | REQ-103 Per-metric Claim Eligibility | F003 / SCR-02/05/06 | MUST | P50, P90, P(on_time), Recommended Departure 각각을 `STRUCTURE_ONLY/DISTRIBUTION_AVAILABLE/PROBABILITY_AVAILABLE/CALIBRATED_CLAIM` 중 하나로 독립 판정해 `metricEligibility`로 반환. `resultEligibility`(REQ-016)는 표시 가능 여부, 이 필드는 어느 수준의 claim이 가능한지를 답함 | `CALIBRATED_CLAIM`은 V3 END_TO_END validation scope 없이 부여 금지; 한 metric의 등급을 다른 metric에 전이 금지 | API-002 / ENT-015 | BR-082; CG-001 / AC-020,021,057 |
@@ -154,7 +155,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-023 BUS_SKIPPED | F005 / SCR-03→04 | MUST | BUS_WAIT+candidate에서 current candidate만 SKIPPED; event time/complete history fixed; next BUS_WAIT+same BUS_RIDE+downstream 유지 | next source 없음→REFORECAST_UNAVAILABLE; bus ride 삭제 금지; boarding probability로 생성 금지 | API-005, SYS-003 / ENT-006,008,009,012,013 | BR-040~044 / AC-011~013 |
 | REQ-024 TRANSFER_MISSED | F005 / SCR-03→04 | SHOULD | versioned Tier-0 feasibility rule 또는 user confirmation으로 planned candidate MISSED, next candidate 탐색 | rule/UI 미활성 시 CTA 없음; next source 없으면 unavailable | API-005 / ENT-007,008,012,013 | BR-030~034,041 / AC-014 |
 | REQ-025 Reforecast | F006 / SCR-03/04 | MUST | current state에서 completed history/user facts/current time 고정, future만 재계산; new result version과 before/after 반환 | required source 없음→UNAVAILABLE, internal failure→FAILED; 이전 result를 새 current처럼 표시 금지 | API-005, SYS-003 / ENT-012~015 | BR-040~044; NFR-002,023 / AC-012~015 |
-| REQ-026 Reforecast Reason | F006 / SCR-04 | MUST | deterministic reasonCode(`BUS_SKIPPED_NEXT_SERVICE`, `BOARD_CONFIRMED`, `TRANSFER_MISSED`, `SOURCE_STATE_UPDATE`, `REFORECAST_UNAVAILABLE`) 반환 | unknown reason→generic+logging; AI는 code 대체 금지 | API-005 / ENT-013,015 | BR-044 / AC-015 |
+| REQ-026 Reforecast Reason | F006 / SCR-04 | MUST | deterministic reasonCode(`BUS_SKIPPED_NEXT_SERVICE`, `BOARD_CONFIRMED`, `TRANSFER_MISSED`, `CRITICAL_INPUT_CHANGED`, `REFORECAST_UNAVAILABLE`) 반환. polling row마다 만들지 않고 critical input fingerprint가 실제 변경될 때만 `CRITICAL_INPUT_CHANGED`를 생성한다 | unknown reason→generic+logging; AI는 code 대체 금지 | API-005 / ENT-013,015 | BR-044 / AC-015 |
 | REQ-101 Normal Leg Transition | F004/F005 / SCR-03 | MUST | 각 leg type(ACCESS_WALK/WAIT/RIDE/TRANSFER/FINAL_WALK)의 정상 `ENTERED/COMPLETED` 사건을 canonical transition table(ST-023~026)로 정의: ACCESS_WALK 완료→첫 WAIT 진입, RIDE 정상 하차→다음 TRANSFER 또는 WAIT 또는 FINAL_WALK 진입, TRANSFER 정상 완료→다음 WAIT 진입, `UNAVAILABLE` leg가 새 source 관측 시 회복. 사용자 입력 사건(CTA)과 provider/source 자동 사건을 분리 | 정의되지 않은 leg 전이 요청→`EVENT_NOT_ALLOWED_IN_STATE`; 정상 전이도 idempotency key 필수, 완료 이력 재샘플링 금지 | API-005 / ENT-006,012,013 | BR-080; NFR-023 / AC-058,059 |
 | REQ-102 Journey Abort | F004 / SCR-03 | MUST | owner capability 확인된 사용자가 진행 중인 Journey를 `ABORTED`로 종료; live polling/event 중지, 완료 이력·result provenance는 보존(ST-013) | 이미 ARRIVED/ABORTED에서 재요청→`EVENT_ALREADY_APPLIED`; owner capability 불일치는 not-found와 동일 응답 | API-010 / ENT-012,020 | BR-081; NFR-023,053 / AC-060 |
 
@@ -189,7 +190,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-052 Provider Error | F010 / SCR-01/02/03 | MUST | transport와 business/quota error를 taxonomy로 변환; retryable/last success 제공 | raw error body/key 노출 금지; HTTP 200 quota payload success 처리 금지 | SYS-004, API-001~005 / ENT-001 | NFR-030,040,060 / AC-028,029 |
 | REQ-053 Partial Data | F010 / SCR-02/05 | MUST | 일부 leg/reference만 usable일 때 eligibility policy가 허용하면 PARTIAL+limitation | critical input missing을 PARTIAL로 과승격 금지 | API-002/006 / ENT-010,015 | BR-012~014,061 / AC-003,027 |
 | REQ-054 Unsupported | F010 / SCR-01/02 | MUST | geography/mode/route mapping 범위 밖이면 explicit unsupported | probability=0 또는 stale result로 대체 금지 | API-001/002 / ENT-005,015 | BR-001,060 / AC-002 |
-| REQ-055 No Fake Fallback | F010 / Global | MUST | real path missing input→NOT_COMPUTED; synthetic fixture→ENGINE_FIXTURE_ONLY | arbitrary 400/600s/variance, mixed placeholder, fixture demo 금지 | SYS-003 / ENT-010,014,015 | BR-013,014,062 / AC-003,021,034 |
+| REQ-055 No Fake Fallback | F010 / SCR-02~05/Global | MUST | real path missing input→NOT_COMPUTED; synthetic fixture→ENGINE_FIXTURE_ONLY | arbitrary 400/600s/variance, mixed placeholder, fixture demo 금지 | SYS-003 / ENT-010,014,015 | BR-013,014,062 / AC-003,021,034 |
 | REQ-056 Journey Freshness Aggregation | F010 / SCR-02/03/05 | MUST | source를 `CRITICAL_CALCULATION/NON_CRITICAL_CONTEXT`로 분류. critical usable input 없음→NOT_COMPUTED/PROVIDER_ERROR; critical 중 STALE 존재→STALE; 그 외 AGING 존재→AGING; 모두 FRESH→FRESH. non-critical failure는 core state 유지 | Frontend source-name 추론 금지; last success와 current input 혼합 금지; PARTIAL/confidence/validation과 단일 enum으로 합치지 않음 | API-002/004/006 / ENT-001,010,015 | BR-064; NFR-011,030 / AC-038 |
 
 ### 3.7 Prediction / Actual / Residual
@@ -198,21 +199,21 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 |---|---|---|---|---|---|---|
 | REQ-060 Prediction Snapshot | F011 / SCR-05 dev | MUST | mode/route/vehicle-or-train/target/predictedAt/ETA/source/received/observation ID 보존 | vehId=0/no candidate를 real vehicle prediction으로 생성 금지 | SYS-004 / ENT-001,002 | BR-050 / AC-030 |
 | REQ-061 Actual Arrival Interval | F011 / SCR-05 dev | MUST | polling exact time 불명 시 `(lower exclusive, upper inclusive]`, midpoint,width,rule,source IDs 저장 | midpoint만 보존하거나 invalid interval 생성 금지 | SYS-005 / ENT-003 | BR-050 / AC-030 |
-| REQ-062 Bus Actual | F011 / Data | CLAIM_GATE | same route/vehicle/validated target context의 `stopFlag 0→1`; nondecreasing source time, dedupe | `1→0` departure를 arrival로 사용 금지; target identity 미검증 match는 diagnostic | SYS-005 / ENT-001~004,017 | CG-002 / AC-030,031 |
-| REQ-063 Subway Actual | F011 / Data | CLAIM_GATE | `(subwayId,statnId,trainNo)`에서 `arvlCd!=1→1` 최초 transition | station name 혼합/line 누락/citywide 승격 금지 | SYS-005 / ENT-001~004 | CG-003 / AC-030,032 |
-| REQ-064 Residual | F011 / Data | MUST | predictedArrival과 Actual interval로 signed lower/mid/upper 생성 | sign 제거/interval 파괴 금지 | SYS-005 / ENT-002~004 | BR-010,050 / AC-030,033 |
-| REQ-065 Residual Semantics | F011 / Engine | MUST | `PREDICTION_RESIDUAL_SECONDS`는 provider prediction에 더함; duration/wait/transfer와 type 분리 | `abs(residual)`/residual-as-duration 금지 | SYS-003/005 / ENT-004,010 | BR-013 / AC-021,033 |
-| REQ-066 Prediction Horizon | F011 / Data/ML | MUST | prediction 시점 observable ETA/horizon을 conditioning에 사용; realized outcome 별도 저장 | actual-derived time-to-event feature leakage 금지 | SYS-005 / ENT-004 | CG-007 / AC-033 |
-| REQ-067 Out-of-order Detection | F011 / Data | MUST | collector receive order에서 source-time reversal 측정 후 canonical sort | source-time sort 후 비교해 evidence 제거 금지; threshold TBD | SYS-004/005 / ENT-001 | NFR-010,061 / AC-026,031 |
+| REQ-062 Bus Actual | F011 / SCR-05/Internal Data | CLAIM_GATE | same route/vehicle/validated target context의 `stopFlag 0→1`; nondecreasing source time, dedupe | `1→0` departure를 arrival로 사용 금지; target identity 미검증 match는 diagnostic | SYS-005 / ENT-001~004,017 | CG-002 / AC-030,031 |
+| REQ-063 Subway Actual | F011 / SCR-05/Internal Data | CLAIM_GATE | `(subwayId,statnId,trainNo)`에서 `arvlCd!=1→1` 최초 transition | station name 혼합/line 누락/citywide 승격 금지 | SYS-005 / ENT-001~004 | CG-003 / AC-030,032 |
+| REQ-064 Residual | F011 / SCR-02/05/Internal Data | MUST | predictedArrival과 Actual interval로 signed lower/mid/upper 생성 | sign 제거/interval 파괴 금지 | SYS-005 / ENT-002~004 | BR-010,050 / AC-030,033 |
+| REQ-065 Residual Semantics | F011 / SCR-02/05/Engine | MUST | `PREDICTION_RESIDUAL_SECONDS`는 provider prediction에 더함; duration/wait/transfer와 type 분리 | `abs(residual)`/residual-as-duration 금지 | SYS-003/005 / ENT-004,010 | BR-013 / AC-021,033 |
+| REQ-066 Prediction Horizon | F011 / SCR-05/Internal Data/ML | MUST | prediction 시점 observable ETA/horizon을 conditioning에 사용; realized outcome 별도 저장 | actual-derived time-to-event feature leakage 금지 | SYS-005 / ENT-004 | CG-007 / AC-033 |
+| REQ-067 Out-of-order Detection | F011 / SCR-05/Internal Data | MUST | collector receive order에서 source-time reversal 측정 후 canonical sort | source-time sort 후 비교해 evidence 제거 금지; threshold TBD | SYS-004/005 / ENT-001 | NFR-010,061 / AC-026,031 |
 
 ### 3.8 WAIT / Candidate Service
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
 | REQ-070 Bus WAIT Source | F012 / SCR-03/05 | MUST | near-now realtime candidate; future는 time-conditioned empirical wait/headway. sampleUnit·dependence 저장 | polling snapshot count를 iid support로 사용 금지; future exact vehId 필수 가정 금지 | SYS-004/003 / ENT-008,010 | BR-024,031,050 / AC-019,023 |
-| REQ-071 Bus Event Unit | F012 / Data | CLAIM_GATE | previous candidate progression/near-zero·Actual 가능성/stop topology를 만족한 passenger-relevant event 또는 dependence-aware sampling | simple vehId turnover·near-terminal dispatch churn을 headway로 해석 금지 | SYS-005 / ENT-008,010 | CG-005 / AC-019 |
+| REQ-071 Bus Event Unit | F012 / SCR-03/05/Internal Data | CLAIM_GATE | previous candidate progression/near-zero·Actual 가능성/stop topology를 만족한 passenger-relevant event 또는 dependence-aware sampling | simple vehId turnover·near-terminal dispatch churn을 headway로 해석 금지 | SYS-005 / ENT-008,010 | CG-005 / AC-019 |
 | REQ-072 Subway WAIT Source | F012 / SCR-03/05 | MUST | realtime exact candidate, verified timetable, empirical headway 중 source/version 저장 | timetable prior를 exact current guarantee로 표현 금지; source 없음→unavailable | SYS-004/003 / ENT-008,010 | BR-024,050 / AC-023,032 |
-| REQ-073 Service Day | F012 / Engine | MUST | DAY/SAT/END, direction, service date, `>=24:00` rollover, encoding/source version 처리 | naive date split/24:00 parse failure→WAIT unavailable+quality flag | SYS-003/006 / ENT-008,010 | NFR-021,022 / AC-023 |
+| REQ-073 Service Day | F012 / SCR-02/03/05/Engine | MUST | DAY/SAT/END, direction, service date, `>=24:00` rollover, encoding/source version 처리 | naive date split/24:00 parse failure→WAIT unavailable+quality flag | SYS-003/006 / ENT-008,010 | NFR-021,022 / AC-023 |
 
 ### 3.9 Share / Trace / Demo
 
@@ -222,18 +223,18 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | REQ-081 Share Expiry | F013 / SCR-06 | SHOULD | opaque unpredictable token, 서버에는 digest+expiry+revocation status 저장, valid/expired/invalid variants | exact TTL은 G5 전 hard-code 금지; token logging/analytics/cache resurrection 금지 | API-007/008 / ENT-019 | NFR-051~054 / AC-025,039 |
 | REQ-082 Share Authorization Boundary | F013/F015 / SCR-06 | SHOULD/G5 | Share token은 ENT-019 snapshot read만 허용하며 원본 Journey/Evidence/Start/Event/재공유 권한이 없다 | Share token을 owner capability로 교환·승격 금지; revoke/expire 후 read 금지 | API-007/008 / ENT-019,020 | BR-004; NFR-051~054 / AC-039 |
 | REQ-090 Result Traceability | F014 / SCR-05/Demo | MUST final | result→run→distribution/wait/route/rule/source/raw ref와 version 역추적; fixed seed/N/state version | missing provenance result는 final demo eligibility 없음; raw handoff partial 표시 | API-006 / ENT-001~015 | BR-050,062; NFR-020,022,063 / AC-018,034 |
-| REQ-091 No Mock Final Result | F014 / Demo | MUST | final user result는 real pipeline output+eligible metadata만 | hard-coded·illustrative·계약 실패 fixture·amplified training support 금지 | SYS-003/006 / ENT-014,015 | BR-053,062 / AC-034 |
-| REQ-092 Route B Internal QA Isolation | F014 / Internal QA | MUST | Route B structural fixture는 격리된 development/QA runner에서 topology·realtime ID interoperability·BUS_SKIPPED invariant 검증에만 사용하고 provenance/run manifest를 남김 | 사용자 UI, public demo build/narrative, product analytics, production route selector에 노출 금지 | SYS-002/003/006 / ENT-005,014,015 | BR-053,062,065; NFR-066 / AC-040 |
+| REQ-091 No Mock Final Result | F014 / SCR-02/Demo | MUST | final user result는 real pipeline output+eligible metadata만 | hard-coded·illustrative·계약 실패 fixture·amplified training support 금지 | SYS-003/006 / ENT-014,015 | BR-053,062 / AC-034 |
+| REQ-092 Route B Internal QA Isolation | F014 / SCR-03/04/Internal QA | MUST | Route B structural fixture는 격리된 development/QA runner에서 topology·realtime ID interoperability·BUS_SKIPPED invariant 검증에만 사용하고 provenance/run manifest를 남김 | 사용자 UI, public demo build/narrative, product analytics, production route selector에 노출 금지 | SYS-002/003/006 / ENT-005,014,015 | BR-053,062,065; NFR-066 / AC-040 |
 
 ### 3.10 Mobile-first PWA Runtime
 
 | REQ | F / SCR | Priority | 상세조건·정상 처리 | 예외·오류 | Interface / Entity | BR·NFR / AC |
 |---|---|---|---|---|---|---|
-| REQ-093 Mobile Web/PWA Parity | F018 / SCR-01~05 | MUST | 설치하지 않은 mobile browser와 standalone display mode에서 동일 route guard, result semantics, CTA, error, accessibility 제공 | install 여부를 capability/claim gate로 사용 금지; unsupported browser는 mobile Web으로 계속 | API all / ENT-012,015,020 | BR-066; NFR-070,074 / AC-041,042 |
-| REQ-094 Manifest/Installability | F018 / Global | MUST | HTTPS, manifest, icons, app name, start URL, standalone display와 installability smoke 제공; 설치 유도는 task를 차단하지 않음 | install prompt 미지원·거부는 오류가 아니며 반복 강요 금지 | SYS-001 / N/A client metadata | BR-066; NFR-041,075 / AC-042 |
+| REQ-093 Mobile Web/PWA Parity | F018 / SCR-01~05 | MUST | 설치하지 않은 mobile browser와 standalone display mode에서 동일 route guard, result semantics, CTA, error, accessibility 제공 | install 여부를 capability/claim gate로 사용 금지; unsupported browser는 mobile Web으로 계속 | API-000~010 / ENT-012,015,020 | BR-066; NFR-070,074 / AC-041,042 |
+| REQ-094 Manifest/Installability | F018 / SCR-01~06/Runtime | MUST | HTTPS, manifest, icons, app name, start URL, standalone display와 installability smoke 제공; 설치 유도는 task를 차단하지 않음 | install prompt 미지원·거부는 오류가 아니며 반복 강요 금지 | SYS-001 / ENT-022 | BR-066; NFR-041,075 / AC-042 |
 | REQ-095 Offline Snapshot | F018 / SCR-02~05 | MUST | 마지막 eligible result의 privacy-safe projection만 device storage에 저장하고 `OFFLINE_SNAPSHOT`, savedAt, read-only로 표시 | snapshot 없음→offline empty; Start/Event/Share/새 분석을 성공처럼 queue 금지; fresh/live 표현 금지 | API-004/006, ENT-021 | BR-067; NFR-076 / AC-043 |
 | REQ-096 Foreground Recovery | F018 / SCR-02~05 | MUST | visibility/pageshow 복귀 시 `RECONNECTING`, owner API로 최신 state/result version 재조회 후 server 정본 반영 | 완료 전 mutation 잠금; network 실패 시 offline/error; local optimistic state를 server 위에 유지 금지 | API-004, ENT-012,015,021 | BR-068; NFR-077 / AC-044 |
-| REQ-097 Service Worker Update | F018 / Global | MUST | waiting worker를 감지하고 active mutation이 없을 때만 사용자 제어 또는 안전한 정책으로 activate; cache version과 runtime version 관측 | event/reforecast 중 강제 reload·중복 reload loop·구 schema API cache resurrection 금지 | SYS-001, ENT-022 | BR-069; NFR-078 / AC-045 |
+| REQ-097 Service Worker Update | F018 / SCR-01~06/Runtime | MUST | waiting worker를 감지하고 active mutation이 없을 때만 사용자 제어 또는 안전한 정책으로 activate; cache version과 runtime version 관측 | event/reforecast 중 강제 reload·중복 reload loop·구 schema API cache resurrection 금지 | SYS-001 / ENT-022 | BR-069; NFR-078 / AC-045 |
 | REQ-098 Device Capability | F018 / SCR-01/02/03 | MUST | `현재 위치 사용` click 후 foreground one-shot geolocation; 거부 시 수동 입력. Web Share 가능 시 OS sheet, 실패/미지원 시 copy fallback | page load 권한 선요청·continuous/background GPS 금지; share token analytics/log 금지 | API-000/007, ENT-016,019 | BR-070; NFR-050,079 / AC-046,047 |
 
 ---
@@ -271,7 +272,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | BR-021 | 출발 후보마다 service/WAIT/context/connection을 재평가한다. |
 | BR-022 | 동일 distribution 단순 time shift를 금지한다. |
 | BR-023 | monotonicity 미검증 binary search를 correctness 전제로 쓰지 않는다. |
-| BR-024 | future candidate source가 없으면 unavailable이다. |
+| BR-024 | future candidate source가 없으면 unavailable이다. Recommended Departure는 목표시각에서 총소요시간을 단순 차감하지 않고 후보 출발시각마다 service set을 다시 평가한다. |
 
 ### 4.4 Domain / Reforecast
 
@@ -308,7 +309,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | BR-068 | foreground 복귀 뒤 server state/result version 동기화가 끝나기 전 mutation을 허용하지 않는다. |
 | BR-069 | Service Worker update는 active Journey mutation의 손실·중복보다 우선할 수 없다. |
 | BR-070 | 위치 권한은 명시적 action 뒤 one-shot으로만 요청하고 권한 거부가 수동 입력을 막지 않는다. |
-| BR-071 | `geographyCoverage`/`routeSearchCoverage`는 서울 내 임의 OD를 허용한다. Route A는 이 흐름이 end-to-end로 검증된 `APPROVED_DEMO_ROUTE`이며 서비스가 지원하는 유일한 경로라는 뜻이 아니다. `PROVIDER_SUPPORTED`는 canonical route truth를 provider 후보에서 자동 선택하는 future mode이며 REQ-104의 route discovery/canonicalization과는 별개 Gate다. |
+| BR-071 | `geographyCoverage`/`routeSearchCoverage`는 서울 내 임의 OD를 허용한다. D2 목표 selected route는 `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`로 표현한다. Route A는 최종 시연과 D2 Gate 미통과 fallback이며 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`로 표현한다. |
 | BR-072 | provider별 route/WALK point·시간·namespace·version을 보존하며 평균·silent substitution·provenance 변경을 금지한다. |
 | BR-073 | Kakao의 공식 무료 1,000회는 첫 번째 활성화 앱 조건이다. 프로젝트 앱의 entitlement 확인 전 remaining을 1,000으로 가정하지 않는다. |
 | BR-074 | 2-node distributed correctness proof는 high availability나 무중단 failover claim이 아니다. |
@@ -316,8 +317,8 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | BR-081 | Journey Abort는 idempotent하며, abort 이후 이전 완료 이력과 result provenance를 삭제하지 않는다. |
 | BR-082 | metric별 claim eligibility(P50/P90/P(on_time)/Recommended Departure)는 서로 독립적으로 판정하며 하나의 `resultEligibility` 값으로 합치지 않는다. |
 | BR-083 | route coverage(서울 임의 OD 검색)와 WALK provider coverage(`KAKAO_MAP_WALK`)는 직교하는 축이며 하나의 enum으로 합치지 않는다. |
-| BR-084 | canonical mapping 또는 model coverage가 부족한 route candidate는 구조만 표시하고 확률은 `NOT_COMPUTED`로 처리하며, 0%나 임의 값으로 채우지 않는다. |
-| BR-085 | canonicalization crosswalk(REQ-105)는 Cuttable Expansion이다. 일정상 crosswalk 확장을 축소·중단해도 임의 OD route discovery(구조 표시)는 유지하며, mapping 미완성 candidate는 침묵 실패가 아니라 정직한 `PARTIAL/FAILED`+확률 `NOT_COMPUTED`로 처리한다. |
+| BR-084 | canonical mapping 또는 model coverage가 부족한 route candidate는 구조만 표시하고 확률·추천 출발시각은 `NOT_COMPUTED`로 처리하며, 0%나 임의 값으로 채우지 않는다. |
+| BR-085 | canonicalization crosswalk(REQ-105)는 D2 임의 OD probability/Recommended Departure의 필수 Gate다. name-only, 거리-only, 다중 후보 매칭은 안전한 자동 매칭이 아니므로 `EXACT/UNAMBIGUOUS`로 승격하지 않는다. 2026-09-14 팀 회의에서 일정상 crosswalk가 미달한다고 판단되면 D2 claim을 하지 않고 probability/Recommended Departure는 Route A D1 fallback으로 scope-down한다. mapping 미완성 candidate는 침묵 실패가 아니라 정직한 `PARTIAL/FAILED`+확률·추천 출발 `NOT_COMPUTED`로 처리하되 임의 OD structure-only는 유지한다. |
 | BR-086 | API 호출 권한, 화면 표시 권한, cache 권한, raw 장기보존 권한, derived data 보존 권한, Share/재배포 권한은 서로 다른 Gate다. 하나의 승인(예: quota/rate-limit 확인)이 다른 Gate(예: raw 장기보존)의 승인을 자동으로 포함하지 않는다. |
 
 ---
@@ -349,6 +350,9 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | ST-003 | Analysis.ANALYZING | ANALYSIS_FAILED | error taxonomy | Analysis.FAILED | input preserved; retry/edit 가능 | 050~056 / AC-002 |
 | ST-004 | Journey.PRE_TRIP_READY | START | owner valid+USER_FACING+start ELIGIBLE | Journey.ACTIVE | stateVersion increment, active leg | 007,017,020 / AC-009,035~037 |
 | ST-005 | ACTIVE WAIT | BOARD_CONFIRMED | candidate match | ACTIVE RIDE | WAIT complete, RIDE active | 022 / AC-010 |
+| ST-027 | ACTIVE RIDE | BOARD_CONFIRMED_REFORECAST | ST-005 side effect complete | Journey.ACTIVE + Reforecast.PROCESSING | RIDE state retained while new result computes; previous result is not current | 022,025 / AC-010,015 |
+| ST-028 | Journey.ACTIVE | CRITICAL_INPUT_CHANGED | critical input fingerprint changed and not duplicate | Journey.ACTIVE + Reforecast.PROCESSING | source polling rows are deduped before event creation | 025,026 / AC-015 |
+| ST-029 | Reforecast.PROCESSING | INPUTS_INSUFFICIENT | no computable next result | Journey.ACTIVE + Reforecast.UNAVAILABLE | current domain state/topology retained; previous result is reference-only | 025,026 / AC-012,015 |
 | ST-006 | Journey.ACTIVE + BUS_WAIT | BUS_SKIPPED | candidate match | Journey.ACTIVE + Reforecast.PROCESSING | only candidate SKIPPED, event fixed | 023 / AC-011 |
 | ST-007 | Reforecast.PROCESSING | NEXT_SERVICE_FOUND | source valid | Journey.ACTIVE + Reforecast.APPLIED + BUS_WAIT | next WAIT+same BUS_RIDE retained | 023,025 / AC-012 |
 | ST-008 | Reforecast.PROCESSING | NEXT_SERVICE_MISSING | no source | Journey.ACTIVE + Reforecast.UNAVAILABLE + Leg.UNAVAILABLE | new probability absent, topology retained | 023,025 / AC-013 |
@@ -383,7 +387,9 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | UNSUPPORTED_GEOGRAPHY | Product | N | input edit | input |
 | ROUTE_NOT_FOUND | Provider/Product | maybe | retry/edit | input |
 | ROUTE_PROVIDER_ERROR | Provider | Y | retry, no fake route | input |
-| ROUTE_MAPPING_INCOMPLETE | Mapping | N until data fix | unsupported explanation | raw route evidence |
+| ROUTE_MANIFEST_INVALID | Contract/Manifest | Y after manifest/preflight fix | no probability; operation recovery | manifest path/hash/preflight evidence |
+| ROUTE_MAPPING_PARTIAL | Mapping | N for probability/Recommended Departure; result still renderable | SCR-02 structure-only with `NOT_COMPUTED` reason | route structure/provenance |
+| ROUTE_MAPPING_FAILED | Mapping | N for probability/Recommended Departure; result still renderable | SCR-02 structure-only with `NOT_COMPUTED` reason | route structure/provenance |
 | INSUFFICIENT_DATA | Data/Probability | later | evidence/retry later | route/evidence |
 | ANALYSIS_FAILED | Engine | maybe | retry | request/provenance |
 | PROVIDER_ERROR | Provider | Y/policy | last success separate | stale snapshot |
@@ -412,15 +418,15 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 | ID | Method/Path | Purpose | Request core | Response core | Errors | Owner |
 |---|---|---|---|---|---|---|
 | API-000 | POST `/api/v1/locations/search` | 장소 후보 resolve | query 또는 foreground coordinate(body; 좌표를 URL query에 싣지 않음) | label,GeoPoint,role,source,provider,quotaState | invalid,no result,provider,quota,permission은 client 처리 | Backend/Location |
-| API-001 | POST `/api/v1/route-candidates` | Route A manifest 조회/선택(MR), future provider route 조회 | origin,destination | routeManifest,walkProvider,adapterVersion,routeCoverageMode,walkProviderMode,selectionPolicy,selectedCandidate,futureCandidates,mappingStatus/support | geography,not found,provider entitlement/quota,mapping | Backend/Route |
-| API-002 | POST `/api/v1/journeys/analyze` | pre-trip 계산+owner 발급 | input+target+route | journey/result/resultEligibility/startEligibility,routeManifest,walkProvider,routeCoverageMode,walkProviderMode,selectionPolicy,futureRouteProviderStatus,mappingStatus,sourceFreshness,evidenceSummary; owner capability는 secure channel | insufficient,unsupported,analysis/provider | Backend/Engine |
+| API-001 | POST `/api/v1/route-candidates` | Route A manifest 조회/선택(MR), 임의 OD discovery 후보 조회 | origin,destination | routeManifest,walkProvider,adapterVersion,geographyCoverage,routeSearchCoverage,selectedRoutePolicy,walkProviderMode,selectedCandidate,discoveryCandidates,canonicalMappingStatus/support | geography,not found,provider entitlement/quota,manifest invalid,mapping partial/failed | Backend/Route |
+| API-002 | POST `/api/v1/journeys/analyze` | pre-trip 계산+owner 발급 | input+target+route | journey/result/resultEligibility/startEligibility,routeManifest,walkProvider,geographyCoverage,routeSearchCoverage,selectedRoutePolicy,walkProviderMode,reliabilityModelCoverage,routeProviderGateStatus,canonicalMappingStatus,sourceFreshness,evidenceSummary; owner capability는 secure channel | insufficient,unsupported,analysis/provider,manifest invalid | Backend/Engine |
 | API-003 | POST `/api/v1/journeys/{id}/start` | live 시작 | owner capability+expected result/state version | JourneyLifecycleState | unauthorized는 not-found와 동일, invalid state,already started | Backend |
 | API-004 | GET `/api/v1/journeys/{id}` | state 복구 | owner capability+id | lifecycle/reforecast/active leg/result/Journey+source freshness/candidate | unauthorized/not found 동일,provider | Backend |
 | API-005 | POST `/api/v1/journeys/{id}/events` | user event+reforecast | owner capability+eventType,time,target,idempotency | lifecycle/reforecast state+result/status/reason | unauthorized/not found 동일,not allowed,already,mismatch,reforecast | Backend/Engine |
-| API-006 | GET `/api/v1/journeys/{id}/evidence` | evidence detail | owner capability+id/result version optional | Route A manifest/selection, WALK provider/adapter, future route provider/crosswalk, leg/source/support/fallback/validation | unauthorized/not found 동일,unavailable | Backend/Data |
+| API-006 | GET `/api/v1/journeys/{id}/evidence` | evidence detail | owner capability+id/result version optional | Route A manifest/selection, WALK provider/adapter, D2 route provider/crosswalk, leg/source/support/fallback/validation | unauthorized/not found 동일,unavailable | Backend/Data |
 | API-007 | POST `/api/v1/journeys/{id}/share` | snapshot 생성 | owner capability+resultVersion | opaque token,url,expiresAt | unauthorized/not found 동일,not shareable/security | Backend |
 | API-008 | GET `/api/v1/share/{token}` | public snapshot | token | privacy-safe snapshot | expired/not found | Backend |
-| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/future route-provider Gate(REJECTED — mapping 구조적 한계, §AC-055)/routeCoverageMode/walkProviderMode/artifact summary | partial | Ops |
+| API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/route-provider Gate(REJECTED — payload-only mapping 구조적 한계, §AC-055)/coverage fields/walkProviderMode/manifest artifact summary | partial | Ops |
 | API-010 | POST `/api/v1/journeys/{id}/abort` | 사용자 여정 종료(REQ-102) | owner capability+idempotency | JourneyLifecycleState=ABORTED | unauthorized는 not-found와 동일, already ARRIVED/ABORTED | Backend |
 
 모든 response는 schemaVersion, requestId, generatedAt을 가진다. Result null을 placeholder로 채우지 않는다. owner API는 network-first이며 Service Worker가 Start/Event/Share mutation을 offline success로 변환하거나 stale API response를 current로 cache하지 않는다. GET offline projection은 ENT-021로 별도 생성하며 API response 원문 cache와 구분한다.
@@ -432,7 +438,7 @@ API-000은 route provider(API-001)와 별도의 location provider adapter를 사
 | ID | Interface | Input→Output | Contract |
 |---|---|---|---|
 | SYS-001 | Location/WALK Adapter | place query→resolved GeoPoint; points→walk point | Kakao/TMAP 등 provider별 query/result/provenance/quota/empty/error/retry를 구분; point/reference이며 transit GT 금지; provider 간 평균 금지 |
-| SYS-002 | Route/WALK Provider Registry/Normalizer | Route A manifest 또는 future provider route→RouteCandidate/JourneyLeg | adapter/version/routeCoverageMode/walkProviderMode/selection, provider order, namespace, crosswalk, time semantics; Kakao WALK contract와 future route-provider Gate 분리 |
+| SYS-002 | Route/WALK Provider Registry/Normalizer | Route A manifest 또는 D2 route provider candidate→RouteCandidate/JourneyLeg | adapter/version/geographyCoverage/routeSearchCoverage/selectedRoutePolicy/walkProviderMode, provider order, namespace, crosswalk, time semantics; Kakao WALK contract와 route-provider Gate 분리 |
 | SYS-003 | Journey Probability Engine | route+state+distribution→run/result | value semantics, connection, benchmarked N, no placeholder |
 | SYS-004 | Collector | external API→Bronze Observation | request-boundary timestamps, quota, raw/error/hash |
 | SYS-005 | Actual/Residual Builder | ordered observations→Actual/Residual | interval, identity, sign, receive-order quality |
@@ -476,7 +482,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | ENT-002 | PredictionSnapshot | mode,route,service,target,predictedAt,ETA,source,observation | 060,064~066 | prediction-time observable |
 | ENT-003 | ActualArrivalInterval | service,node,lower,upper,mid,width,rule,source IDs | 061~064 | lower<upper, interval 보존 |
 | ENT-004 | ResidualEvent | prediction/actual,horizon,realized,residual L/M/U,context | 064~066 | signed error, duration 아님 |
-| ENT-005 | RouteCandidate | provider,adapterVersion,routeCoverageMode,rank,selectionPolicy,status,origin,destination,legs,rawRef,mappingStatus(`EXACT/UNAMBIGUOUS/PARTIAL/FAILED`),crosswalk,timeSemantics | 005,006,008,009,104 | provider rank≠reliability rank; `mappingStatus` FAILED/PARTIAL이면 확률 계산 금지(구조만 표시) |
+| ENT-005 | RouteCandidate | provider,adapterVersion,geographyCoverage,routeSearchCoverage,selectedRoutePolicy,rank,status,origin,destination,legs,rawRef,canonicalMappingStatus(`EXACT/UNAMBIGUOUS/PARTIAL/FAILED`),crosswalk,timeSemantics | 005,006,008,009,104 | provider rank≠reliability rank; `canonicalMappingStatus` FAILED/PARTIAL이면 확률·추천 출발시각 계산 금지(구조만 표시) |
 | ENT-006 | JourneyLeg | sequence,type,mode,nodes,planned,state | 006,021~035 | topology 순서 불변 |
 | ENT-007 | TransferLeg | type,components,sources,point,uncertainty,fallback | 033~035 | WAIT 미포함 |
 | ENT-008 | WaitLeg | mode,node,candidate,source,distribution,sampleUnit,dependence | 022~024,070~073 | snapshot≠iid event |
@@ -576,7 +582,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | Seoul realtime subway | 서울 열린데이터광장 공식 정책(2026-08-23 확인): **1,000/day per key**, station×line 쿼리 종류와 무관한 계정 단위 공유 한도(활용사례 갤러리 등록 시 무제한) | `CONFIRMED/GALLERY_NOT_REGISTERED` | KST-day ledger 관리; 2026-08-23 실사용량은 `PENDING_RECONCILIATION`(Decision Sheet 호출표 기준 성공 호출만 135+180=315건 확인, 이전 기록 225/1,000과 불일치 — raw request log 재대사 필요) | low-priority collection stop→stale/not-computed |
 | Seoul bus Arrival | data.go.kr 마이페이지(2026-08-23 확인): `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 단위 독립) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Seoul bus Position | data.go.kr 마이페이지(2026-08-23 확인): `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | discovery-only route provider로 runtime 사용(REQ-104); NFR-090~092(admission control/dedup/concurrency cap) 없이는 시작하지 않음; REQ-009(canonical 승격)는 별개 future Gate | 낮은 우선순위 discovery부터 중단, `PROVIDER_QUOTA_EXCEEDED`로 실패; Route A active/demo와 진행 중 분석 우선 보호 |
+| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | 서울 임의 OD route discovery provider로 runtime 사용(REQ-104); NFR-090~092(admission control/dedup/concurrency cap) 없이는 시작하지 않음; REQ-009/105 Gate 통과 candidate만 D2 selected route로 승격 | 낮은 우선순위 discovery부터 중단, `PROVIDER_QUOTA_EXCEEDED`로 실패; Route A active/demo와 진행 중 분석 우선 보호 |
 | Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 4/1,000) | runtime WALK provider; route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
 | TMAP public transit | official free trial 10/day | `DISABLED_BY_DEFAULT / KNOWN_BASE / VALIDATION_ONLY` | 운영자·데모 관리자가 제한된 단건 확인에만 명시적으로 활성화; 자동 runtime fallback 아님; raw/result는 공식 허용 기간(24시간) 안에 만료, 장기 Evidence store 미보관 | 호출 중단 |
 | TMAP pedestrian | project credential limit | `DISABLED_BY_DEFAULT / API_VERIFIED / LIMIT_UNCONFIRMED` | 별도 ledger와 point provenance; 동일하게 수동 단건 reference로만 사용, 24시간 초과 저장 금지 | Kakao silent substitution 금지 |
@@ -619,7 +625,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | NFR-084 Quota Budget v1 | MUST/G3 | source별 approved status·reservation·forecast·degradation이 ENT-023에 있고 UNCONFIRMED는 bounded dry run만 | AC-049, quota manifest |
 | NFR-085 PWA Compatibility Matrix | MUST/G4 | iOS/Android Mobile Web·standalone과 desktop secondary run에 device/OS/browser/app/cache version 기록 | AC-050, UI-AC-031 |
 | NFR-086 Route A Demo/Protected E2E | MUST/G6 | Route A actual product flow manifest와 Protected E2E lane; Route B·mock replacement 금지 | AC-051,052, UI-AC-032 |
-| NFR-087 Kakao WALK / Route Provider Contract | MUST for WALK, FUTURE_OPTIONAL before route Primary | `KAKAO_MAP_WALK`는 WALK point provider로 entitlement·quota·cache·providerVersion·raw evidence를 보존한다. publictraffic HTTP 200/OK evidence는 future route-provider 검토용으로 보존하되 canonical ID·time semantics Gate 전에는 Journey route support로 승격 금지 | AC-053~056, UI-AC-033~034 |
+| NFR-087 Kakao WALK / Route Provider Contract | MUST for WALK, D2_TARGET before route Primary | `KAKAO_MAP_WALK`는 WALK point provider로 entitlement·quota·cache·providerVersion·rawRetentionStatus/provenance를 보존한다. raw payload 보존은 ENT-024/NFR-094 default-deny를 따른다. publictraffic HTTP 200/OK evidence는 D2 route-provider 검토용으로 보존하되 canonical ID·time semantics·model Gate 전에는 Journey route support로 승격 금지 | AC-053~056, UI-AC-033~034 |
 | NFR-088 Provider Provenance/Cache | MUST | provider+endpoint+adapter/crosswalk/version+request/result hash를 보존; 동일 normalized OD cache만 승인 policy로 재사용; target/reliability 변경만으로 route 재호출 금지; cross-provider cache 대체 금지 | AC-054~056, provider contract tests |
 
 ---
@@ -628,13 +634,13 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 | AC | Type | Scenario / Preconditions | Steps | Expected | Related |
 |---|---|---|---|---|---|
-| AC-001 | E2E | routeCoverageMode/walkProviderMode에 맞는 valid input | SCR-01 입력→analyze | Route A 자체 OD 또는 demo preset 입력이면 승인된 Route A manifest와 WALK provider provenance를 반환; 그 외 서울 임의 OD는 REQ-104/AC-061 경로(Kakao publictraffic discovery+crosswalk mapping)를 따름; future `PROVIDER_SUPPORTED`는 first canonical-supported; SCR-02 eligible/not-computed, duplicate 0 | F001~003, REQ-001~010,104 |
+| AC-001 | E2E | coverage/selected-route fields에 맞는 valid input | SCR-01 입력→analyze | D2 target이면 서울 임의 OD에서 `PROVIDER_FIRST_SUPPORTED` first canonical-supported candidate와 probability/Recommended Departure를 반환; Route A 자체 OD 또는 demo preset은 승인된 Route A manifest와 WALK provider provenance를 반환; Gate 미달이면 임의 OD structure-only+SCR-02 not-computed 사유를 유지하고 probability/Recommended Departure는 Route A D1 fallback, duplicate 0 | F001~003, REQ-001~010,104,105 |
 | AC-002 | Product | 서울 외/route mapping fail | analyze | 0%가 아닌 unsupported/mapping copy, input edit | REQ-005,054 |
 | AC-003 | Probability | critical source 없음 | real analysis | placeholder 0, eligibility NOT_COMPUTED, start disabled | REQ-010,016,055 |
 | AC-004 | Route | provider candidates mixed | selection | provider order 유지한 첫 supported, reliability reorder 0 | REQ-005,006 |
 | AC-005 | UI/Math | eligible result | render | P50/P90/on-time label·null·copy 분리 | REQ-011~013 |
 | AC-006 | Probability | connection miss+recovery fixture | simulate | planned success와 final on-time 별도 | REQ-014 |
-| AC-007 | Claim | departure 후보별 service set 변화 | calculate | 각 후보 재평가, simple shift/binary-only 없음; Gate 미통과면 unavailable | REQ-015 |
+| AC-007 | Claim | departure 후보별 service set 변화 | calculate | 기본 5분 grid/coarse-to-fine 후보마다 service set·WAIT·connection 재평가, simple shift/binary-only 없음; Gate 미통과면 unavailable | REQ-015 |
 | AC-008 | Security/Product | V0 synthetic fixture | user API/UI 요청 | ENGINE_FIXTURE_ONLY, user-facing 숫자 없음 | REQ-016,055 |
 | AC-009 | E2E | eligible PRE_TRIP_READY | start+refresh | ACTIVE, state 복구, 중복 start mutation 0 | REQ-020,021 |
 | AC-010 | State | WAIT candidate | BOARD_CONFIRMED | WAIT complete, RIDE active, event once | REQ-022 |
@@ -680,15 +686,15 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | AC-050 | PWA Compatibility | iOS/Android browser·standalone, desktop secondary | SCR-01→05+offline+foreground+update+permission+share | 각 device/OS/browser/app/cache version과 pass/fail 기록; 미검증 환경 support claim 0 | NFR-074~079,085; REQ-093~098 |
 | AC-051 | Route A Demo Manifest | final rehearsal input과 provider live/recorded variants | manifest 검증→SCR flow→provenance trace→rollback | route/data/engine/PWA/quota/distributed/claim/recovery field complete; Route B·mock probability 0 | REQ-090~092; NFR-065,086 |
 | AC-052 | Protected E2E Scope Cut | 일정/자원 failure injection | cut trigger 적용 후 build/demo | Route A input→analysis→Start→BUS_SKIPPED→Reforecast/Unavailable→Evidence, quota, security, distributed proof 유지; Share/AI/ML/Spark/Redis polish cut 가능 | NFR-086; BR-013,042,053,065~069 |
-| AC-053 | Kakao API Access Evidence | 2026-08-22 WALK/publictraffic response + 2026-08-23 동일 OD 재호출(15개 candidate 완전 일치) | sanitized raw ingest+schema parse | **PASS for access** — 두 endpoint HTTP 200/OK, secret 0, request/result hash와 adapter version 기록, raw ingest 완료(`RECEIVED_HASH_VERIFIED`); WALK는 runtime point provider evidence, publictraffic은 discovery-only route provider evidence(REQ-104) — 이 access evidence 자체는 canonical route-provider 승격(REQ-009)을 증명하지 않음 | REQ-008,009,104; NFR-087 |
+| AC-053 | Kakao API Access Evidence | 2026-08-22 WALK/publictraffic response + 2026-08-23 동일 OD 재호출(15개 candidate 완전 일치) | sanitized parse + artifact reconciliation | **PASS for access / UNVERIFIED for artifact replay** — 두 endpoint HTTP 200/OK와 secret 미노출은 확인됐으나, 이 저장소에서 raw/sanitized payload path·hash·collector version은 확정하지 못했으므로 `NOT_CAPTURED/UNVERIFIED`로 둔다. WALK는 runtime point provider evidence, publictraffic은 route discovery provider evidence(REQ-104) — 이 access evidence 자체는 selected route 승격(REQ-009/105)을 증명하지 않음 | REQ-008,009,104; NFR-087 |
 | AC-054 | Kakao Time Semantics | publictraffic total 2,651s/step sum 1,764s(887s gap, candidate 0); candidate 2는 gap 422s | raw field decomposition+contract test | **PARTIAL** — candidate 0(SUBWAY)은 경계 WALK 합(829s)과 58s 잔차(`PARTIALLY_EXPLAINED`); candidate 2(BUS_AND_SUBWAY)는 경계 WALK 합(437s)과 15s 이내 일치(`HIDDEN_WALK_STRONGLY_SUPPORTED`). 어느 쪽도 잔차를 WAIT/WALK/transfer에 임의 배분하지 않음; result eligibility 승격 0 | REQ-006,009; BR-005,072; NFR-087 |
 | AC-055 | Kakao Canonical Mapping | bus/subway/mixed 3개 topology candidate(2026-08-23) | provider stop/vehicle/coordinate→서울 bus route/stop·station×line crosswalk | **REJECTED** — stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 존재하고 busRouteId/stId/stationId 필드가 응답 스키마 자체에 없음(3개 candidate 전부 동일 구조). deterministic mapped candidate 0건; 이 API 응답만으로는 향후에도 통과 불가, 별도 외부 crosswalk 필요 | REQ-005,006,009; NFR-087 |
 | AC-056 | WALK Provider Separation | 동일 Route A 접근 pair Kakao 295m/323s(2026-08-22, 2026-08-23 재현), TMAP 297m/245s | adapter/cache/evidence/result 검사 | **PASS** — 각 point와 provider/version 보존, 평균·cross-provider silent fallback·fabricated variance 0; Kakao point는 day-to-day 완전 재현(개인 variance 없는 deterministic point 근거 강화) | REQ-031; BR-052,072; NFR-088 |
-| AC-057 | Coverage/Quota/P90 Contract | Kakao entitlement `CONFIRMED`(2026-08-23 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000), publictraffic route-provider Gate fail(AC-055 REJECTED), P90 render | analyze→render→quota exhaustion/deployment switch | **PASS for coverage contract / HOLD for probability claim** — canonical route truth·selected route는 Route A `ROUTE_A_PRIORITY`+`KAKAO_MAP_WALK` 유지; publictraffic Gate fail은 future route-provider(canonical) 승격만 막고 임의 OD discovery-only 사용(REQ-104)은 막지 않음; calibration 전 반복빈도 P90 copy 0 | REQ-008,009,012,104; BR-071~073; NFR-084,087,088 |
+| AC-057 | Coverage/Quota/P90 Contract | Kakao entitlement `CONFIRMED`(2026-08-23 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000), publictraffic payload mapping Gate fail(AC-055 REJECTED), P90 render | analyze→render→quota exhaustion/deployment switch | **PASS for access/coverage contract / D2 pending for probability claim** — D2 selected route는 `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`와 `walkProviderMode=KAKAO_MAP_WALK`를 요구하되, publictraffic payload만으로는 부족하므로 REQ-105 external crosswalk와 model Gate가 필요하다; 미통과 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback, calibration 전 반복빈도 P90 copy 0 | REQ-008,009,012,104,105; BR-071~073; NFR-084,087,088 |
 | AC-058 | Protected E2E | Route A 정상 흐름 | Start→ACCESS_WALK 완료→BUS_WAIT→BOARD_CONFIRMED→BUS_RIDE 정상 하차→TRANSFER 정상 완료→SUBWAY_WAIT→SUBWAY_RIDE 하차→FINAL_WALK→ARRIVED | 모든 leg가 UI-API-state-entity-AC로 완주됨; SKIPPED/MISSED 없이도 정상 진행 가능 | REQ-101; ST-023~025 |
 | AC-059 | Recovery | UNAVAILABLE leg + 새 source 관측 | 데이터 부족으로 UNAVAILABLE 후 다음 service candidate 관측 | Leg.AVAILABLE로 회복, reforecast 시도, topology 삭제 0 | REQ-101; ST-026 |
 | AC-060 | Terminal | 사용자 여정 종료 요청 | API-010 abort 호출, 중복 요청 | ABORTED, events 중지, 완료 이력/provenance 보존, 중복 요청은 `EVENT_ALREADY_APPLIED` | REQ-102; ST-013 |
-| AC-061 | Arbitrary OD Discovery | Route A 밖의 서울 임의 OD | route discovery→canonicalization→mapping PARTIAL/FAILED | 경로 구조는 표시, 확률은 `NOT_COMPUTED`+사유; Kakao publictraffic이 canonical route truth로 승격되지 않음 | REQ-104; BR-083,084 |
+| AC-061 | Arbitrary OD D2/Fallback | Route A 밖의 서울 임의 OD | route discovery→canonicalization→model gate→calculate | `EXACT/UNAMBIGUOUS`+model coverage 통과 candidate는 P50/P90/P(on_time)/Recommended Departure 표시; `PARTIAL/FAILED` 또는 model 미달 candidate는 구조 표시+확률·추천 출발 `NOT_COMPUTED`; Gate 미달 시 임의 OD structure-only 유지, probability/Recommended Departure는 Route A D1 fallback, silent substitution 0 | REQ-104,105,015; BR-083~085 |
 | AC-062 | Arbitrary OD Runtime Discovery | 서울 임의 OD 연속 제출(동시/중복 포함) | SCR-01 submit→API-001 실제 Kakao publictraffic 호출 | 실제 provider 호출 발생 확인(mock 아님); 동일 정규화 입력의 동시 요청은 in-flight coalescing으로 1회만 provider 호출(NFR-091); client/session admission control과 concurrency cap 적용(NFR-090,092); quota 소진 시 `PROVIDER_QUOTA_EXCEEDED`, Route A로 silent substitution 0 | REQ-104; NFR-090~092 |
 | AC-063 | Provider Policy Default-Deny | Kakao WALK/publictraffic 응답 수신 직후 storage/cache 검사 | collector 실행→MinIO/DB/repository/log 검사 | raw response가 어디에도 persistent 저장되지 않음; provenance에 `rawRetentionStatus=UNVERIFIED`/`NOT_RETAINED_BY_POLICY` 기록; cross-session cache 0건 | NFR-094; ENT-024 |
 | AC-064 | Boarding Point Arrival CTA | Route A ACCESS_WALK 진행 중, walk provider 예상 도착시간 경과 | 시간 경과만 발생시키고 사용자 CTA는 누르지 않음 → 이후 CTA 클릭 | 시간 경과만으로는 ACCESS_WALK가 COMPLETED되지 않음(state 유지 확인); CTA 클릭 후에만 ST-023 전이 발생 | REQ-101; ST-023 |
@@ -699,10 +705,10 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 
 | CG | Claim | Required Evidence / Validation | Current | User-facing fallback |
 |---|---|---|---|---|
-| CG-001 | Whole-Journey calibrated | independent Journey outcomes, V3 calibration metrics | NOT_STARTED | validationScope를 실제 단계로 표시, calibrated claim 금지 |
+| CG-001 | Whole-Journey calibrated | independent Journey outcomes, V3 calibration metrics | D2_TARGET_PENDING; 현재 검증 evidence는 NOT_STARTED | validationScope를 실제 단계로 표시, calibrated claim 금지; 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure claim은 Route A D1 fallback |
 | CG-002 | Mature Bus Reliability | validated target-node mapping, multi-window Prediction→Actual residual, interval/support/hold-out | INSUFFICIENT; 수용 가능한 target-stop Actual/Residual 표본 미확보 | INSUFFICIENT/NOT_COMPUTED/claim 축소 |
 | CG-003 | Mature Subway Reliability / S2B component | fresh-quota station×line residual/hold-out; Route B internal interoperability run | CONDITIONAL; structural interoperability만 verified | component/corridor scope 표시 |
-| CG-004 | Recommended Departure AVAILABLE | Route A future subway prior+passenger-relevant bus WAIT+candidate re-evaluation+component/replay validation | HOLD | INSUFFICIENT_DATA/NOT_COMPUTED |
+| CG-004 | Recommended Departure AVAILABLE | 서울 임의 OD selected candidate의 future subway/bus prior+passenger-relevant WAIT+5분 grid/coarse-to-fine candidate re-evaluation+component/replay validation | D2_TARGET_PENDING; 현재 Gate evidence 없음 | Gate 통과 전 `INSUFFICIENT_DATA/NOT_COMPUTED`, 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback |
 | CG-005 | HIGH/MEDIUM/LOW support / empirical Bus WAIT | independent event unit, down-sample/bootstrap/coverage, SUPPORT_RULE_V1 | NOT_STARTED; raw dependence 0.77 | INSUFFICIENT |
 | CG-006 | Distributed performance/recovery | real volume baseline, replay manifest, multi-worker, failure, correctness, A/B | NOT_STARTED | 기술 사용 claim 축소 |
 | CG-007 | ML promotion | temporal hold-out vs B0/B1/B2, pinball/coverage/calibration/low-support/ops cost | HOLD | empirical baseline 유지 |
@@ -715,7 +721,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - EVD-SCHED-002는 Route A two-snapshot static prior evidence이며 exact current/citywide guarantee가 아니다.
 - EVD-VSLICE-001 numeric result는 FAILED이며 acceptance/demo에 사용하지 않는다.
 - 일부 live raw는 전달 package에 없어 artifact completeness PARTIAL이다.
-- 2026-08-22 Kakao WALK/publictraffic raw JSON은 2026-08-23 `docs/`에 실제로 ingest·hash 검증됐다(`RECEIVED_HASH_VERIFIED`). 같은 날 동일 OD 재호출로 후보 안정성도 확인됐다. WALK는 runtime point provider evidence로 사용할 수 있다. publictraffic의 ID mapping은 검증이 아니라 `REJECTED`로 판정됐고(payload 자체에 canonical ID 없음), 시간 의미는 candidate별 `PARTIAL`이다 — 이 두 항목은 future route-provider 승격 대상이며 WALK-only release blocker가 아니다.
+- 2026-08-22 Kakao WALK/publictraffic 호출과 2026-08-23 동일 OD 재호출로 endpoint access와 테스트 OD 후보 안정성은 확인됐다. 그러나 이 저장소에서 raw/sanitized payload path·hash·collector version은 확정하지 못했으므로 artifact replay evidence는 `NOT_CAPTURED/UNVERIFIED`로 유지한다. WALK는 runtime point provider evidence로 사용할 수 있다. publictraffic의 ID mapping은 검증이 아니라 `REJECTED`로 판정됐고(payload 자체에 canonical ID 없음), 시간 의미는 candidate별 `PARTIAL`이다 — 이 두 항목은 D2 route-provider 승격 Gate이며 WALK-only release blocker가 아니다.
 - Kakao WALK 295m/323s와 기존 TMAP 297m/245s는 서로 다른 provider point estimate다. 2026-08-23 Kakao 재호출도 295m/323s로 동일해 provider point의 day-to-day 재현성은 강화됐지만, 두 값의 차이를 표본 분포로 세거나 평균하지 않는다.
 - 기존 `SRC-KAKAO-001`의 Kakao Mobility 403/BLOCKED evidence와 신규 Kakao Map route endpoint 성공은 서로 다른 제품·endpoint 계약이다. 어느 한쪽으로 다른 쪽을 덮어쓰지 않는다.
 
@@ -766,7 +772,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | anonymous capability expiry/revocation | G5 | threat/retention/operational review 필요 | Security Decision | owner API는 capability 필수; cross-device 복구 없음 |
 | analytics retention | G5 | property 목적·법적/운영 검토 필요 | Privacy Decision | raw journeyId/token/location label 수집 금지 |
 | BUS_TO_SUBWAY internal time | INSUFFICIENT_SOURCE | depth만 있고 시간 source 없음 | Evidence/PM Decision | UNMODELED/PARTIAL |
-| Recommended Departure | HOLD | WAIT/residual/replay Gate 미통과 | CG-004 result | unavailable |
+| Recommended Departure | D2_TARGET_PENDING | 서울 임의 OD selected candidate에 제공해야 하나 WAIT/residual/replay Gate evidence는 아직 없음. 계산 방식은 후보 출발시각 5분 grid/coarse-to-fine 재평가 | CG-004 result | Gate 전 unavailable, 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback |
 | exact infrastructure sizing/Redis | REVIEW/OPTIONAL | EC2 profile 미확정 | deployment ADR | core contract와 분리 |
 | LightGBM/Generative AI | HOLD/OPTIONAL | baseline Gate·scope cut | CG-007/feature flag | baseline/reason code 유지 |
 | offline projection retention | G5 | server retention과 별도 client privacy review 필요 | PWA Privacy Decision | savedAt 표시, secret/exact origin 저장 금지 |
@@ -774,10 +780,10 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | exact iOS/Android support versions | G4 | 보유 기기·배포 시점 확인 필요 | PWA Compatibility Matrix | 미검증 환경 support claim 금지 |
 | 2-node process sizing | G3/G6 | EC2 사양 미확정 | Deployment ADR+AC-048 | optional process cut, correctness 유지 |
 | Kakao project entitlement | `CONFIRMED`(2026-08-23) | 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000(quota) + 이번 달 유료 호출 0건(billing) — 이 세션 실제 호출 수와 일치 | quota manifest+AC-057 | WALK runtime budget은 확정. publictraffic route-provider 승격 Gate와는 별개 |
-| Kakao canonical mapping | `REJECTED`(2026-08-23 확정) | stop/vehicle 응답 스키마에 canonical ID 필드 자체가 없음 — 별도 외부 crosswalk 없이는 이 API로 해결 불가 | REQ-009/AC-055 | publictraffic route-provider 승격 보류. `ROUTE_A_ONLY + KAKAO_WALK_ONLY`에는 blocker 아님 |
+| Kakao canonical mapping | `REJECTED`(2026-08-23 확정) | stop/vehicle 응답 스키마에 canonical ID 필드 자체가 없음 — 별도 외부 crosswalk 없이는 이 API로 해결 불가 | REQ-009/AC-055 | D2 target `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`의 blocker이므로 REQ-105 external crosswalk 필요. 미달 시 임의 OD structure-only 유지 및 `APPROVED_ROUTE_A_ONLY` Route A D1 probability/Recommended Departure fallback |
 | Kakao total/step 시간 포함관계 | `PARTIAL`(2026-08-23) | candidate 유형별로 다름 — BUS_AND_SUBWAY는 15s 이내 explained, SUBWAY는 58s 잔차 | REQ-009/AC-054 | publictraffic 잔차를 WAIT/WALK에 배분하지 않음; result eligibility 승격 0 |
-| deployment coverage mode | G6 | Minimum Release는 approved Route A·Kakao WALK provider·Kakao publictraffic discovery(REQ-104)로 구성됨. publictraffic의 canonical route truth 승격(REQ-009) Gate만 future-only | release manifest | Route A는 protected demo/contingency, 임의 OD discovery는 runtime 활성, canonical 승격은 보류 |
-| canonicalization crosswalk 완성도 | CUTTABLE_EXPANSION | 09-25 마감까지 신규 구축하는 매칭 레이어라 완성도가 evidence로 아직 없음 | REQ-105/WBS checkpoint(09-14) | 미완성 candidate는 `mappingStatus=PARTIAL/FAILED`+확률 `NOT_COMPUTED` 유지(BR-085) |
+| deployment coverage/selected-route fields | G6 | Minimum Release D2 target은 approved Route A demo, Kakao WALK provider, Kakao publictraffic discovery(REQ-104), external crosswalk(REQ-105), `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`를 분리 필드로 구성함 | release manifest | Route A는 protected demo/fallback, 임의 OD D2는 runtime 활성 목표, Gate 미달 시 structure-only 유지 및 probability/Recommended Departure D1 fallback |
+| canonicalization crosswalk 완성도 | D2_TARGET_PENDING | 09-25 마감까지 신규 구축하는 매칭 레이어라 완성도가 evidence로 아직 없음. 성공 기준은 name normalization+좌표+노선/line+방향·순서+unique candidate의 안전한 자동 매칭 | REQ-105/WBS checkpoint(2026-09-14 팀 회의) | 미완성 candidate는 `canonicalMappingStatus=PARTIAL/FAILED`+확률·추천 출발 `NOT_COMPUTED`; D2 미달 시 임의 OD structure-only 유지 및 probability/Recommended Departure는 Route A D1 fallback(BR-085) |
 | Provider Policy Registry(Kakao raw retention 등) | G5 | provider별 raw 장기보존·재배포 공식 약관 검토가 아직 없음(quota/rate-limit만 확인됨) | ENT-024 registry review | `UNVERIFIED` source는 persistent storage/cross-session cache/redistribution default deny(NFR-094) |
 
 개발 fixture는 `SYNTHETIC_FIXTURE/ENGINE_FIXTURE_ONLY` provenance로 허용한다. Final runtime result와 같은 endpoint/환경에서 사용자-facing으로 노출하지 않는다.
@@ -793,7 +799,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - [ ] provider outage가 fake fresh result를 만들지 않는다.
 - [ ] backup/restore/restart/rollback smoke가 통과했다.
 - [ ] result/artifact/rule/engine version을 rollback 후에도 추적할 수 있다.
-- [ ] demo 전 eligible artifact, validation scope, Recommended HOLD/AVAILABLE, coordinate limitation을 확인했다.
+- [ ] demo 전 eligible artifact, validation scope, Recommended Departure Gate status/AVAILABLE, coordinate limitation을 확인했다.
 - [ ] amplified replay를 actual traffic/training support로 표현하지 않는다.
 - [ ] anonymous owner capability와 Share token의 권한 분리·enumeration-safe access test가 통과했다.
 - [ ] criticality/eligibility/Start/freshness 조합 AC-037~038이 통과했다.
@@ -803,9 +809,9 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - [ ] Quota Budget v1의 source별 승인 상태·reservation·degradation과 AC-049가 통과했다.
 - [ ] 2-node Deployment ADR, port boundary, backup/restart와 AC-048이 통과했다.
 - [ ] Route A Demo Run Manifest와 Protected E2E AC-051~052가 통과했다.
-- [ ] Kakao WALK provider는 AC-053, AC-056, quota evidence가 통과했고 raw는 `UNVERIFIED` default-deny에 따라 persistent 저장 없이 request/result hash·adapter version만 provenance로 남는다(NFR-094).
-- [ ] Kakao publictraffic을 Primary route provider로 사용할 경우 AC-053~055와 `KAKAO_ROUTE_PROVIDER_GATE`가 통과했다.
-- [ ] Minimum Release 배포는 Route A `ROUTE_A_PRIORITY`(우선순위·WALK provider 범위)와 서울 임의 OD discovery(`PROVIDER_SUPPORTED` 미승격, discovery-only)를 함께 반영하며 UI/API/manifest의 `routeCoverageMode`/`walkProviderMode`가 일치한다.
+- [ ] Kakao WALK provider는 AC-053(access), AC-056, quota evidence가 통과했고 raw는 `UNVERIFIED` default-deny에 따라 persistent 저장하지 않는다. request/result hash·adapter version은 실제 확인된 run에서만 provenance로 남긴다(NFR-094).
+- [ ] Kakao publictraffic 기반 임의 OD selected route를 D2 사용자 결과로 사용할 경우 AC-053~055, REQ-105 안전한 자동 crosswalk(name+좌표+노선/line+방향·순서+unique candidate), model Gate와 `KAKAO_ROUTE_PROVIDER_GATE`가 통과했다.
+- [ ] Minimum Release D2 배포는 `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, `walkProviderMode=KAKAO_MAP_WALK`, `routeSearchCoverage=ARBITRARY_OD_DISCOVERY`, `validationAndDemoScope=ROUTE_A_DEMO_ONLY`를 함께 반영하며 UI/API/manifest의 coverage/selected-route fields가 일치한다. Gate 미달 fallback은 `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`로 분리 표기한다.
 - [ ] `ProviderPolicyRegistry`(ENT-024)에 termsUrl/policyVersionOrReviewedAt 없이 `ALLOWED`로 표기된 provider가 없다.
 - [ ] `UNVERIFIED` provider raw가 MinIO/DB/repository/log에 persistent 저장되지 않는다(NFR-094, AC-063).
 - [ ] ACCESS_WALK가 walk provider ETA 경과만으로 자동 COMPLETED되지 않고 사용자 CTA로만 전이된다(ST-023, AC-064).
@@ -820,10 +826,10 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - Probability/Data contracts의 value semantics, identity, timestamp, validation ladder를 보존한다.
 - placeholder, residual-as-duration, BUS_SKIPPED topology 삭제, target mapping 오류, leakage, out-of-order를 acceptance로 차단한다.
 - component validation과 END_TO_END calibration을 분리한다.
-- Recommended Departure AVAILABLE은 HOLD이며 service candidate 재평가 Gate를 요구한다.
+- Recommended Departure AVAILABLE은 D2 target이며 service candidate 재평가 Gate 통과 전에는 `INSUFFICIENT_DATA/NOT_COMPUTED`로 표시한다.
 - evidence 없는 SLA/support/partition/watermark/TTL 숫자를 만들지 않는다.
 - access/eligibility/freshness/PWA/demo 정책과 IA의 guard/CTA/runtime state를 동일 계약으로 유지한다.
-- provider access/WALK/mapping/eligibility, `ROUTE_A_ONLY/KAKAO_WALK_ONLY/future PROVIDER_SUPPORTED`, Kakao quota entitlement와 IA의 scope/error copy를 동일 계약으로 유지한다.
+- provider access/WALK/mapping/eligibility, D2 target `selectedRoutePolicy=PROVIDER_FIRST_SUPPORTED`, demo/fallback `selectedRoutePolicy=APPROVED_ROUTE_A_ONLY`, `walkProviderMode=KAKAO_MAP_WALK`, Kakao quota entitlement와 IA의 scope/error copy를 동일 계약으로 유지한다.
 
 ---
 
