@@ -905,7 +905,7 @@ Acceptance:
 
 Retry는 동일 입력/이벤트를 무한 반복하지 않는다. API `retryable`과 idempotency를 반영하고 provider quota error에는 즉시 재시도를 기본 CTA로 강요하지 않는다.
 
-`FREE_QUOTA_STATUS_UNCONFIRMED`는 Kakao 공식 무료 제공 조건이 프로젝트 앱에 실제 적용되는지 아직 콘솔에서 확인하지 못한 운영 상태다. 이를 사용자에게 “1,000회 남음”으로 표시하지 않는다. 이 상태 때문에 새 조회가 차단된 경우에만 `PROVIDER_ENTITLEMENT_UNAVAILABLE`로 투영하고, quota 소진은 `PROVIDER_QUOTA_EXHAUSTED`로 분리한다.
+`FREE_QUOTA_STATUS_UNCONFIRMED`는 특정 provider credential의 무료 제공 조건이나 승인량이 아직 콘솔·공식 evidence로 확인되지 않은 운영 상태다. 2026-08-23 Kakao Map publictraffic/WALK는 콘솔 기준 `CONFIRMED`로 갱신됐지만, 다른 provider나 새 credential에는 이 상태가 남을 수 있다. 사용자에게 “1,000회 남음” 같은 내부 quota 잔량을 직접 표시하지 않는다. entitlement 미확인 때문에 새 조회가 차단된 경우에만 `PROVIDER_ENTITLEMENT_UNAVAILABLE`로 투영하고, quota 소진은 `PROVIDER_QUOTA_EXHAUSTED`로 분리한다.
 
 ---
 

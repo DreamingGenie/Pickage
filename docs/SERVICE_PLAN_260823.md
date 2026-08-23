@@ -48,7 +48,7 @@
 
 **Planning feasibility: GO. Development: GO. 사용자-facing 확률 성숙도와 Recommended Departure: Claim Gate 적용.**
 
-실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). 그러나 같은 실험에서 `KAKAO_ROUTE_GATE`의 canonical mapping 조건은 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. 즉 이 API 응답만으로는 결정적 crosswalk를 만들 수 없고, 별도의 외부 crosswalk 없이는 이 조건이 앞으로도 통과하기 어렵다. total-step 시간 포함관계도 candidate에 따라 다르다: BUS_AND_SUBWAY 후보는 경계 WALK 합이 gap과 15초 이내로 거의 일치했지만(`HIDDEN_WALK_STRONGLY_SUPPORTED`), 첫 번째 SUBWAY 후보는 58초의 잔차가 남았다(`PARTIALLY_EXPLAINED`). 앱 entitlement·일일 quota 콘솔 확인은 이번 실험 범위에 포함하지 않아 여전히 미확인이다. 따라서 `KAKAO_ROUTE_GATE`는 아직 통과하지 못했고 `ROUTE_A_ONLY` 정책이 유지된다. 다음은 아직 사용자 capability로 증명되지 않았다.
+실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). 그러나 같은 실험에서 `KAKAO_ROUTE_GATE`의 canonical mapping 조건은 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. 즉 이 API 응답만으로는 결정적 crosswalk를 만들 수 없고, 별도의 외부 crosswalk 없이는 이 조건이 앞으로도 통과하기 어렵다. total-step 시간 포함관계도 candidate에 따라 다르다: BUS_AND_SUBWAY 후보는 경계 WALK 합이 gap과 15초 이내로 거의 일치했지만(`HIDDEN_WALK_STRONGLY_SUPPORTED`), 첫 번째 SUBWAY 후보는 58초의 잔차가 남았다(`PARTIALLY_EXPLAINED`). 앱 entitlement·일일 quota·billing은 2026-08-23 콘솔 스크린샷 기준 `CONFIRMED`로 갱신됐지만, mapping 조건이 `REJECTED`이고 time semantics가 `PARTIAL`이므로 `KAKAO_ROUTE_GATE`는 통과하지 못했고 `ROUTE_A_ONLY` 정책이 유지된다. 다음은 아직 사용자 capability로 증명되지 않았다.
 
 - 성숙한 01A target-stop Prediction→Actual residual distribution
 - 충분한 subway station×line multi-window residual distribution
@@ -981,7 +981,7 @@ Journey probability는 PM·BE-1·BE-2 공동 review다.
 
 - 2026-08-22–08-25: canonical contract, architecture decision, PWA shell
 - 2026-08-26–08-30: provider adapter, Kakao Gate, identity/residual/BUS_SKIPPED foundation, public HTTPS skeleton
-- 2026-08-31–09-03: quota entitlement 확인·ledger·collector dry run
+- 2026-08-31–09-03: quota ledger·collector dry run·증액/대체 source 절차 확인
 - 2026-09-01–09-07: Route A probability vertical slice와 PWA/API vertical slice
 - 2026-09-05–09-14: temporal validation/support, Start·Reforecast·Evidence UX
 - 2026-09-12–09-18: stream/storage integration과 분산 처리 구현
