@@ -548,7 +548,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 |---|---|---|---|---|
 | Seoul realtime subway | official base 1,000/day; increase status 별도 | `KNOWN_BASE/INCREASE_UNCONFIRMED` | KST-day ledger+reservation+resetAt 입력 | low-priority collection stop→stale/not-computed |
 | Seoul bus Arrival/Position | project credential portal value | `UNCONFIRMED` | 승인 화면 값을 ENT-023에 기록하고 endpoint dry run 통과 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000) | billing 단가 화면 별도 확인 + REQ-009 Gate(mapping REJECTED로 미통과) | 신규 OD 중단, 승인 Route A만 허용 |
+| Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | REQ-009 Gate(mapping REJECTED로 미통과) | 신규 OD 중단, 승인 Route A만 허용 |
 | Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 4/1,000) | route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
 | TMAP public transit | official free trial 10/day | `KNOWN_BASE/VALIDATION_ONLY` | runtime primary 제외, golden-route 비교 예약만 | 호출 중단 |
 | TMAP pedestrian | project credential limit | `API_VERIFIED/LIMIT_UNCONFIRMED` | 별도 ledger와 point provenance | Kakao silent substitution 금지 |
@@ -728,7 +728,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | Service Worker activation policy | integration Gate | active mutation·rollback 검증 필요 | PWA ADR | mutation 중 activation defer |
 | exact iOS/Android support versions | G4 | 보유 기기·배포 시점 확인 필요 | PWA Compatibility Matrix | 미검증 환경 support claim 금지 |
 | 2-node process sizing | G3/G6 | EC2 사양 미확정 | Deployment ADR+AC-048 | optional process cut, correctness 유지 |
-| Kakao project entitlement | `CONFIRMED`(2026-08-23) | 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000 — 이 세션 실제 호출 수와 일치 | quota manifest+AC-057 | billing/overage 단가 화면은 별도 확인 필요; entitlement 확정과 mapping Gate 통과는 별개 |
+| Kakao project entitlement | `CONFIRMED`(2026-08-23) | 콘솔 스크린샷: publictraffic 9/1,000, walk 4/1,000(quota) + 이번 달 유료 호출 0건(billing) — 이 세션 실제 호출 수와 일치 | quota manifest+AC-057 | entitlement/billing 확정과 mapping Gate 통과는 별개 — Gate는 여전히 미통과 |
 | Kakao canonical mapping | `REJECTED`(2026-08-23 확정) | stop/vehicle 응답 스키마에 canonical ID 필드 자체가 없음 — 별도 외부 crosswalk 없이는 이 API로 해결 불가 | REQ-009/AC-055 | ROUTE_A_ONLY 유지; 새 crosswalk 설계 없이는 재시도 무의미 |
 | Kakao total/step 시간 포함관계 | `PARTIAL`(2026-08-23) | candidate 유형별로 다름 — BUS_AND_SUBWAY는 15s 이내 explained, SUBWAY는 58s 잔차 | REQ-009/AC-054 | 잔차를 WAIT/WALK에 배분하지 않음; result eligibility 승격 0 |
 | deployment coverage mode | G6 | Kakao Gate 결과에 의존(REQ-009 2026-08-23 판정: 전체 미통과) | release manifest | `ROUTE_A_ONLY` 확정 유지 |

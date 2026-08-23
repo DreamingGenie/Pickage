@@ -282,7 +282,7 @@ Route Provider는 versioned registry로 관리한다. Kakao Map은 실제 WALK·
 
 `KAKAO_ROUTE_GATE`는 다음 네 항목이다. **2026-08-23 재실험 결과 아래와 같이 판정됐다 — Gate는 통과하지 못했다.**
 
-1. 실제 앱의 무료/유료 entitlement와 일일 quota 상태를 콘솔에서 기록한다. → **`CONFIRMED`** (2026-08-23 15:16 KST 콘솔 스크린샷: `publictraffic.json` 9/1,000, `walk.json` 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치. billing/overage 단가 화면은 별도 미확인)
+1. 실제 앱의 무료/유료 entitlement와 일일 quota 상태를 콘솔에서 기록한다. → **`CONFIRMED`** (2026-08-23 15:16 KST 콘솔 스크린샷: `publictraffic.json` 9/1,000, `walk.json` 4/1,000 — 이 세션의 실제 호출 수와 정확히 일치. 2026-08-23 15:23 KST "유료 사용량" 콘솔 스크린샷으로 이번 달 유료 호출 0건도 확인 — 과금 발생 없음)
 2. Kakao stop·vehicle·coordinate를 서울시 bus route/stop 및 station×line identity에 결정적으로 연결한다. → **`REJECTED`** (topology 3종 후보 전부 stop=`name`만, vehicle=`name`/`type`만 확인 — busRouteId/stId/stationId에 해당하는 필드가 응답 스키마에 없어 API 응답만으로는 구조적으로 불가능)
 3. `totalTime`, step time, 접근·환승·대기·마지막 도보의 포함 관계를 raw response로 규명한다. → **`PARTIAL`** (BUS_AND_SUBWAY 후보는 15초 이내로 거의 explained, 순수 SUBWAY 후보는 58초 잔차가 남아 완전히 규명되지 않음)
 4. 동일 OD 반복 호출의 candidate order·구조 안정성과 mapping failure rate를 검증한다. → **`PASS`** (같은 window 반복 및 전날 대비 재호출에서 15개 후보 signature 완전 일치)
@@ -839,7 +839,7 @@ DailyCalls = \sum_{source,cohort,window}
 |---|---|---|---|---|
 | 서울 실시간 지하철 | 공식 안내상 기본 일 1,000회 | `KNOWN_BASE / INCREASE_UNCONFIRMED` | 공개 HTTPS PWA 활용사례 등록, KST-day ledger와 Route A 예약량 입력 | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
 | 서울 버스 Arrival/Position | project credential의 실제 승인량 미확정 | `UNCONFIRMED` | 포털 승인 화면의 값을 ledger에 수기 전사하고 endpoint별 호출식을 dry run으로 검증 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용) | 결제 설정·초과 단가 화면은 별도 확인; `KAKAO_ROUTE_GATE`는 mapping 조건 REJECTED로 여전히 미통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
+| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | `KAKAO_ROUTE_GATE`는 mapping 조건 REJECTED로 여전히 미통과 | 신규 OD 분석 중단, 승인된 Route A manifest만 허용 |
 | Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
 | TMAP 대중교통 | 공식 무료체험 일 10회 | `KNOWN_BASE / VALIDATION_ONLY` | 사용자 runtime 기본 provider에서 제외하고 golden-route 비교 budget만 예약 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
 | TMAP pedestrian | project credential 실제 승인량 미확정; 과거 실제 호출 성공 | `API_VERIFIED / LIMIT_UNCONFIRMED` | Kakao와 별도 quota·cache·provenance 유지 | Kakao 값을 TMAP provenance로 표시하지 않음 |
