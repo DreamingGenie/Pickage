@@ -546,8 +546,9 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 
 | Source | Approved-limit input | Initial status | Collector start condition | Degradation |
 |---|---|---|---|---|
-| Seoul realtime subway | official base 1,000/day; increase status 별도 | `KNOWN_BASE/INCREASE_UNCONFIRMED` | KST-day ledger+reservation+resetAt 입력 | low-priority collection stop→stale/not-computed |
-| Seoul bus Arrival/Position | project credential portal value | `UNCONFIRMED` | 승인 화면 값을 ENT-023에 기록하고 endpoint dry run 통과 | Route A active/demo 보호, evidence window 축소 |
+| Seoul realtime subway | 서울 열린데이터광장 공식 정책(2026-08-23 확인): **1,000/day per key**, station×line 쿼리 종류와 무관한 계정 단위 공유 한도(활용사례 갤러리 등록 시 무제한) | `CONFIRMED/GALLERY_NOT_REGISTERED` | KST-day ledger 관리; 2026-08-23 실사용 225/1,000 | low-priority collection stop→stale/not-computed |
+| Seoul bus Arrival | data.go.kr 마이페이지(2026-08-23 확인): `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 단위 독립) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
+| Seoul bus Position | data.go.kr 마이페이지(2026-08-23 확인): `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | REQ-009 Gate(mapping REJECTED로 미통과) | 신규 OD 중단, 승인 Route A만 허용 |
 | Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 4/1,000) | route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
 | TMAP public transit | official free trial 10/day | `KNOWN_BASE/VALIDATION_ONLY` | runtime primary 제외, golden-route 비교 예약만 | 호출 중단 |
@@ -638,7 +639,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | AC-046 | Geolocation Permission | allow/deny/timeout/unsupported | 현재 위치 CTA 실행 후 수동 입력 | click 전 prompt 0; 허용 시 ORIGIN_POINT provenance; 모든 실패에서 수동 입력 가능 | REQ-098; BR-070; NFR-079 |
 | AC-047 | Device Share | Web Share 지원/취소/실패/미지원 | Share CTA | 가능 시 OS sheet, 그 외 copy fallback; token analytics/log 0 | REQ-098; NFR-079,054 |
 | AC-048 | Deployment | 실제 EC2 사양과 2-node manifest | deploy→port scan→serving/processing smoke→worker kill→rollback | public/internal boundary, 보호 workload 기동, backup/restart, TaskManager A/B 참여; 사양 미충족 시 optional process cut | NFR-083,081,082 |
-| AC-049 | Quota Budget | subway/bus/Kakao/TMAP credential 상태 조합 | ledger 입력→reservation→exhaustion forecast→degradation | subway 1,000 base, Kakao conditional 1,000, TMAP transit 10과 project entitlement를 구분; UNCONFIRMED 무제한 schedule 0; active Route A 우선; config version trace | NFR-060,067~069,084,087,088; ENT-023 |
+| AC-049 | Quota Budget | subway/bus/Kakao/TMAP credential 상태 조합 | ledger 입력→reservation→exhaustion forecast→degradation | subway 1,000/day(계정 공유, CONFIRMED), bus Arrival/Position 각 1,000/day(서비스별 독립, CONFIRMED), Kakao publictraffic/WALK 각 1,000/day(CONFIRMED, entitlement/billing 확인 완료 — Gate 통과 여부와는 별개), TMAP transit 10과 project entitlement를 구분; UNCONFIRMED 무제한 schedule 0; active Route A 우선; config version trace | NFR-060,067~069,084,087,088; ENT-023 |
 | AC-050 | PWA Compatibility | iOS/Android browser·standalone, desktop secondary | SCR-01→05+offline+foreground+update+permission+share | 각 device/OS/browser/app/cache version과 pass/fail 기록; 미검증 환경 support claim 0 | NFR-074~079,085; REQ-093~098 |
 | AC-051 | Route A Demo Manifest | final rehearsal input과 provider live/recorded variants | manifest 검증→SCR flow→provenance trace→rollback | route/data/engine/PWA/quota/distributed/claim/recovery field complete; Route B·mock probability 0 | REQ-090~092; NFR-065,086 |
 | AC-052 | Protected E2E Scope Cut | 일정/자원 failure injection | cut trigger 적용 후 build/demo | Route A input→analysis→Start→BUS_SKIPPED→Reforecast/Unavailable→Evidence, quota, security, distributed proof 유지; Share/AI/ML/Spark/Redis polish cut 가능 | NFR-086; BR-013,042,053,065~069 |
