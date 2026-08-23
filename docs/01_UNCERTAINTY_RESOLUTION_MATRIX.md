@@ -19,7 +19,7 @@
 
 | 미확정 항목 | 오늘 가능성 | 수행 evidence | 오늘 가능한 최종 판정 | 금지되는 일반화 |
 |---|---|---|---|---|
-| data.go.kr 공용 키(Bus+Mixed-route) 일일 승인 한도 | `FULL_TODAY` if portal visible | portal 캡처+전후 counter | `APP_LIMIT_CONFIRMED`(Bus Arrival/Position/Mixed-route/Route-master/Station-master 공유 domain) | 영구 quota·billing 보장 |
+| data.go.kr Bus Arrival/Position/Mixed-route 일일 승인 한도 | `FULL_TODAY`(2026-08-23 포털 확인 완료) | 마이페이지 서비스별 상세기능 "일일 트래픽" 열 확인 | `APP_LIMIT_CONFIRMED`(서비스×기능별 각각 1,000/day, 공유 풀 아님) | 영구 quota·billing 보장 |
 | data.go.kr overage/billing/reset | `DECISION_ONLY` | billing 화면·공식 정책·reset 관측 | 화면이 있으면 각각 별도 상태 | limit 확인만으로 유료 초과 가능 주장 |
 | Mixed-route raw evidence | `FULL_TODAY` | SHA-256, HTTP/business status, secret scan | `RECEIVED_HASH_VERIFIED`; register 등록은 별도 | raw 수신=canonical ingest |
 | Mixed-route candidate 반복 안정성 | `FULL_TODAY` for tested OD/window | 같은 요청 반복 signature | 테스트 OD/window의 stable/variable | 서울 전체 안정성 |
