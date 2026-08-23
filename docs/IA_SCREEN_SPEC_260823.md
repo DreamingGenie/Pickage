@@ -72,7 +72,8 @@
 | IA-022 | Service Worker update가 진행 중 Journey를 훼손하지 않음 | 새 worker는 안전한 activation 시점까지 대기하고 강제 reload로 미전송 event를 잃지 않음 |
 | IA-023 | 위치 권한은 명시적 사용자 행동에만 요청 | 권한 거부 시 수동 장소 입력으로 동일 flow 계속; background GPS 없음 |
 | IA-024 | WALK provider 접근과 Journey route 지원 가능성을 분리 | Kakao WALK 호출 성공은 도보 거리·시간 provider evidence로만 사용한다. Kakao publictraffic 후보는 canonical mapping·시간 의미 Gate 전까지 결과 숫자나 selected route로 승격하지 않는다 |
-| IA-025 | 공개 coverage mode를 숨기지 않음 | `ROUTE_A_ONLY + KAKAO_WALK_ONLY`에서는 승인 Route A 범위와 WALK provider provenance를 입력/결과/Evidence에 보존하고, future `PROVIDER_SUPPORTED`에서는 실제 first-supported candidate와 provider provenance를 별도로 보존 |
+| IA-025 | 공개 coverage 축을 숨기지 않음 | `routeCoverageMode`(서울 임의 OD 검색 가능·Route A는 검증된 우선순위 경로), `walkProviderMode`(`KAKAO_MAP_WALK`), `modelCoverage`(leg/route별 확률 계산 가능 여부)를 서로 다른 축으로 입력/결과/Evidence에 보존. 세 축을 하나의 enum으로 합치지 않는다 |
+| IA-026 | canonical mapping 실패는 통신 오류가 아니라 별도 상태 | 임의 route candidate의 `mappingStatus`가 `PARTIAL/FAILED`이면 경로 구조는 표시하되 확률은 `NOT_COMPUTED`+사유로 표시하고 재시도 유도 문구를 쓰지 않는다 |
 
 ---
 
@@ -159,6 +160,8 @@ PWA standalone display mode에서도 URL 의미와 guard는 동일하다. 앱 �
 - 일반 route의 `{journeyId}`는 locator일 뿐 authorization credential이 아니다. owner capability가 없거나 불일치하면 존재 여부를 구분하지 않는 동일 응답과 복구 UX를 사용한다.
 - owner capability는 URL, DOM, analytics, JavaScript-readable storage에 노출하지 않는다.
 - 다른 브라우저/기기에서 owner Journey를 복구하는 기능은 Minimum Release에 없다. Share는 축약 snapshot 조회만 허용한다.
+- SCR-01 위치 검색·현재 위치 좌표는 API-000(POST) body로만 전달하며 URL query, browser history, reverse-proxy/access log에 평문으로 남기지 않는다(REQ-100).
+- Share 경로에는 `Referrer-Policy: no-referrer`를 적용해 token이 Referer 헤더로 외부에 유출되지 않게 하고, owner/Share 응답에는 `Cache-Control: no-store`를 적용한다.
 
 ---
 
@@ -224,7 +227,8 @@ AppShell
 | `routeManifestProvider` | required | SCR-02~05 | Minimum Release는 approved Route A manifest provider/hash; 없으면 contract error |
 | `walkProvider` | required when WALK measured | SCR-02~05 | providerKey·endpoint category·adapter version·cache key; route provider와 병합 금지 |
 | `routeSelectionPolicy` | required | SCR-02/05/06 | Minimum Release는 `APPROVED_DEMO_ROUTE`; future mode에서만 `PROVIDER_FIRST_SUPPORTED`; reliability ranking으로 번역 금지 |
-| `coverageMode` | required | SCR-01/02/05 | `ROUTE_A_ONLY/KAKAO_WALK_ONLY/future PROVIDER_SUPPORTED`; 화면 copy와 실제 deployment config 불일치 금지 |
+| `routeCoverageMode` | required | SCR-01/02/05 | 서울 임의 OD 검색 가능 여부와 Route A 우선순위 범위(`ROUTE_A_PRIORITY/PROVIDER_SUPPORTED`); 화면 copy와 실제 deployment config 불일치 금지 |
+| `walkProviderMode` | required | SCR-01/02/05 | `KAKAO_MAP_WALK/REFERENCE_ONLY/UNAVAILABLE`; route coverage와 독립(아래 `modelCoverage`와도 별도 축) |
 | `routeMappingStatus` | required | SCR-01→02/05 | Route A manifest는 `MAPPED`; future provider candidate는 `MAPPED/INCOMPLETE/UNSUPPORTED`; MAPPED 외 사용자 probability 표시 금지 |
 | `routeSummary` | required | SCR-02/03/05 | 없으면 `NOT_COMPUTED`가 아니라 analysis failure |
 | `targetArrivalAt` | required | SCR-02/03/04/06 | 화면 성립 불가 |
@@ -236,6 +240,7 @@ AppShell
 | `recommendedDeparture.status` | required | SCR-02/06 | AVAILABLE/INSUFFICIENT_DATA/NOT_COMPUTED |
 | `recommendedDeparture.at` | nullable | SCR-02/06 | AVAILABLE일 때만 required |
 | `resultEligibility` | required | SCR-02~05 | USER_FACING 아니면 일반 결과 숫자 금지 |
+| `metricEligibility` | required | SCR-02/05/06 | P50/P90/onTime/recommended 각각 `STRUCTURE_ONLY/DISTRIBUTION_AVAILABLE/PROBABILITY_AVAILABLE/CALIBRATED_CLAIM`; `resultEligibility`와 별도 축(§8.4.1) |
 | `startEligibility` | required on SCR-02 | SCR-02 | ELIGIBLE/REFRESH_REQUIRED/BLOCKED + reasonCodes |
 | `validationScope` | required | SCR-02/05/06 | end-to-end로 자동 번역 금지 |
 | `confidence.label` | required | SCR-02/03/05 | rule 전 기본 INSUFFICIENT |
@@ -356,7 +361,7 @@ SCR-01
 
 `현재 위치 사용`은 origin field의 보조 action이다. click 전 권한을 요청하지 않으며, 허용되면 foreground one-shot coordinate를 `ORIGIN_POINT` provenance와 함께 resolver에 전달한다. 거부·timeout·미지원은 field 오류가 아니라 안내 후 수동 입력을 유지한다.
 
-`ROUTE_A_ONLY + KAKAO_WALK_ONLY`에서는 “현재 검증된 데모 경로만 분석할 수 있어요.”를 입력 전에 표시하고 Route A preset/지원 범위를 제공한다. 도보 구간은 Kakao WALK provider로 측정될 수 있음을 Evidence에 남긴다. 임의 OD 입력을 받은 뒤에야 제한을 공개하는 방식은 금지한다. future `PROVIDER_SUPPORTED`에서는 서울 내 입력을 허용하되 Kakao 등 provider 호출 성공과 canonical mapping 성공을 분리하며, mapping 실패를 일반 통신 오류로 바꾸지 않는다.
+사용자는 서울 안에서 임의의 출발지·목적지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, REQ-104). 입력 전에 “서울 안 어디든 검색할 수 있지만, 경로에 따라 확률 계산 근거가 아직 부족할 수 있어요.”를 안내해 mapping/model coverage에 따라 결과가 달라질 수 있음을 미리 공개한다. `검증 완료된 데모 경로` badge가 붙은 Route A는 별도 preset/shortcut으로 제공할 수 있으나 입력 자체를 Route A로 제한하지 않는다. 임의 후보의 canonical mapping이 `PARTIAL/FAILED`이면 SCR-02에서 경로 구조는 보여주되 확률은 계산하지 않고 사유를 함께 표시한다(REQ-104, AC-061). 도보 구간은 Kakao WALK provider로 측정될 수 있음을 Evidence에 남긴다. Kakao 등 provider 호출 성공과 canonical mapping 성공은 항상 분리하며, mapping 실패를 일반 통신 오류로 바꾸지 않는다.
 
 ### 7.4 입력·CTA 계약
 
@@ -467,6 +472,19 @@ SCR-02
 | USER_FACING + INSUFFICIENT | 값+근거 부족 경고 | 표시 | support reason prominent | confidence만으로 차단하지 않음 |
 | NOT_COMPUTED + INSUFFICIENT | 확률 숨김/미계산 문구 | 표시 가능 | missing input+support reason | disabled |
 | STALE | stale container에 이전 값 | 표시 | calculatedAt/freshness | 새로 계산 전 disabled 가능 |
+
+### 8.4.1 Metric별 Claim Eligibility
+
+`resultEligibility`가 `USER_FACING`이어도 P50/P90/`P(on_time)`/Recommended Departure는 서로 다른 `metricEligibility`를 가질 수 있다. metric card는 값 표시 여부뿐 아니라 아래 자격에 따라 문구를 달리한다.
+
+| `metricEligibility` | 카드 표시 |
+|---|---|
+| `STRUCTURE_ONLY` | 경로 구조·reference time만 표시, 확률 숨김 |
+| `DISTRIBUTION_AVAILABLE` | P50/P90 표시, "모델 출력" 문구, calibration claim 문구 금지 |
+| `PROBABILITY_AVAILABLE` | `P(on_time)` 표시, observation/coverage 경고 필수 |
+| `CALIBRATED_CLAIM` | validation scope(V3)가 명시된 신뢰도 문구 허용 |
+
+같은 결과 안에서 P50은 `DISTRIBUTION_AVAILABLE`, Recommended Departure는 `STRUCTURE_ONLY`처럼 metric마다 다를 수 있으며, 한 metric의 등급을 다른 metric에 전이하지 않는다.
 
 ### 8.5 Recommended Departure
 
@@ -595,11 +613,13 @@ Transfer와 Wait는 별도 row다. `BUS_TO_SUBWAY` transfer 뒤에 `SUBWAY_WAIT`
 | BUS_WAIT | `탑승했어요` | identifiable candidate | BOARD_CONFIRMED |
 | BUS_WAIT | `이번 버스는 보내요` | candidateServiceId 존재, FRESH/정책상 valid | BUS_SKIPPED |
 | SUBWAY_WAIT | `탑승했어요` | identifiable candidate | BOARD_CONFIRMED |
+| BUS_RIDE/SUBWAY_RIDE | `하차했어요` | active leg RIDE, target node 도달 가능 | RIDE_COMPLETED, 다음 TRANSFER/WAIT/FINAL_WALK 진입 |
 | TRANSFER | `환승 완료` (Should) | user confirmation 정책 enabled | active state 진행 |
 | WAIT/TRANSFER | `환승을 놓쳤어요` | Tier-0 rule/confirmation enabled | TRANSFER_MISSED |
 | FINAL_WALK | `목적지에 도착했어요` | active leg FINAL_WALK | ARRIVED |
+| ANY ACTIVE | `여정 종료` | owner capability valid, user confirmation | ABORTED(API-010) |
 
-BUS_SKIPPED copy는 개인의 탑승 실패를 추론하지 않는다. candidate가 없거나 stale/provider error면 hidden/disabled하고 이유를 보여준다. 모든 mutation CTA는 idempotency key를 포함하고 in-flight 동안 전체 event CTA를 disable한다.
+BUS_SKIPPED copy는 개인의 탑승 실패를 추론하지 않는다. candidate가 없거나 stale/provider error면 hidden/disabled하고 이유를 보여준다. 모든 mutation CTA는 idempotency key를 포함하고 in-flight 동안 전체 event CTA를 disable한다. `여정 종료`는 실수 클릭을 막기 위해 confirm dialog를 거친 뒤에만 API-010을 호출한다.
 
 ### 9.6 Freshness/Provider failure
 
@@ -841,6 +861,7 @@ SCR-02/03의 `공유` CTA는 feature flag와 G5 security Gate가 통과하고 sh
 - public Share token은 snapshot read 권한만 가지며 원본 Journey 조회·Evidence·Start·Event 권한으로 승격되지 않는다.
 - token 원문은 URL 처리에만 사용하고 analytics, error copy, DOM debug attribute, application log에 넣지 않는다.
 - revoke/expire 후에는 snapshot을 cache에서 복원해 표시하지 않는다.
+- cookie 기반 owner mutation(Start/Event/Share 생성)은 CSRF token 또는 strict Origin/SameSite 검증을 통과해야 한다(NFR-093).
 
 ### 12.6 Responsive·Accessibility·Analytics
 
@@ -1019,12 +1040,12 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 | Screen | Product Feature | REQ | BR/NFR | 핵심 AC |
 |---|---|---|---|---|
-| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098 | BR-001~005,060~074; NFR-010,053,054,070,074,075,079,084,087,088 | UI-AC-001~002,015~016,025,030,033~034; AC-001~002,035~036,041~042,046,053~057 |
-| SCR-02 | Pre-trip Result | REQ-005~017,020,030~045,050~056,093~098 | BR-001~005,010~017,020~024,045,050~053,060~074; NFR-084,087,088 | UI-AC-003~008,013,020~023,025~029,034~035; AC-003~008,037~045,047,053~057 |
-| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098 | BR-030~045,060~070; NFR-002,053,074~079 | UI-AC-007~012,015~022,025~030; AC-009~015,024,035~047 |
-| SCR-04 | Reforecast | REQ-023~026 | BR-040~044 | UI-AC-010~012,028~029; AC-011~015,044~045 |
-| SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097 | BR-005,012~017,050~053,061~074; NFR-087,088 | UI-AC-013,019,022~029,034~035; AC-018~021,027,034~045,053~057 |
-| SCR-06 | Share | REQ-080~082,098 | NFR-050~054,079 | UI-AC-014,023,047; AC-025,039,047 |
+| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098,100,104 | BR-001~005,060~074,083,084; NFR-010,053,054,070,074,075,079,084,087,088,090~093 | UI-AC-001~002,015~016,025,030,033~034,038; AC-001~002,035~036,041~042,046,053~057,061 |
+| SCR-02 | Pre-trip Result | REQ-005~017,020,030~045,050~056,093~098,103,104 | BR-001~005,010~017,020~024,045,050~053,060~074,082~084; NFR-084,087,088,093 | UI-AC-003~008,013,020~023,025~029,034~035,039; AC-003~008,037~045,047,053~057,061 |
+| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098,101,102 | BR-030~045,060~070,080,081; NFR-002,053,074~079,093 | UI-AC-007~012,015~022,025~030,036~037; AC-009~015,024,035~047,058~060 |
+| SCR-04 | Reforecast | REQ-023~026,101 | BR-040~044,080 | UI-AC-010~012,028~029; AC-011~015,044~045,058,059 |
+| SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097,103 | BR-005,012~017,050~053,061~074,082; NFR-087,088 | UI-AC-013,019,022~029,034~035,039; AC-018~021,027,034~045,053~057 |
+| SCR-06 | Share | REQ-080~082,098,103 | NFR-050~054,079,093 | UI-AC-014,023,039,047; AC-025,039,047 |
 
 ### 18.1 주요 정책 추적
 
@@ -1032,8 +1053,10 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 |---|---|
 | Selected route conditional | SCR-02/06 scope label, alternatives ranking 없음 |
 | Provider access ≠ supported Journey | SCR-01 WALK/route mapping/entitlement 상태, SCR-02 scope, SCR-05 WALK provider·future route crosswalk detail |
-| Coverage mode | SCR-01 사전 고지, SCR-02/05 selection policy, Demo Route A manifest |
+| Coverage 5축 | SCR-01 사전 고지(서울 임의 입력 + mapping/model coverage에 따른 결과 차등), SCR-02/05 `routeCoverageMode`/`walkProviderMode`/`modelCoverage`, Demo Route A manifest |
+| Per-metric claim eligibility | SCR-02 §8.4.1 metric card별 문구, SCR-05 leg detail, SCR-06 snapshot |
 | P90 ≠ 90% accuracy | SCR-02/04/05/06 copy guard |
+| 정상 leg 전이/ABORT | SCR-03 §9.5 하차·환승 완료·여정 종료 CTA |
 | Recommended Departure service re-evaluation | SCR-02 AVAILABLE Gate/copy; 계산 로직은 REQ/API |
 | Transfer ≠ Wait | SCR-02/03 timeline separate rows |
 | BUS_SKIPPED user-confirmed | SCR-03 CTA precondition, SCR-04 reason/topology |
@@ -1132,8 +1155,12 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | UI-AC-031 | PWA compatibility matrix | iOS/Android browser·standalone 각 run의 device/OS/browser/app/cache version과 결과 기록 |
 | UI-AC-032 | Route A final demo | 실제 SCR flow, Route A scope, live/recorded, eligibility/validation/limitation/version trace; Route B·mock 숫자 0 |
 | UI-AC-033 | Kakao publictraffic reference + mapping incomplete | publictraffic HTTP 성공을 일반 route 결과로 승격하지 않고 SCR-01 mapping copy; probability·Start 0. Kakao WALK 성공은 WALK provenance로만 표시 |
-| UI-AC-034 | coverage mode | `ROUTE_A_ONLY + KAKAO_WALK_ONLY` 제한을 submit 전 고지; future `PROVIDER_SUPPORTED`는 실제 provider/selection/mapping provenance 유지 |
+| UI-AC-034 | coverage 축 | 서울 임의 입력 허용을 submit 전 고지하되 mapping/model coverage에 따라 결과가 달라질 수 있음을 함께 안내; `routeCoverageMode`/`walkProviderMode`/`modelCoverage` provenance 유지 |
 | UI-AC-035 | P90 기본 copy | “모델 도착분포의 90번째 백분위”와 validation scope를 인접 표시; calibration Gate 전 “10번 중 9번” 0 |
+| UI-AC-036 | RIDE 정상 하차 | `하차했어요` CTA로 RIDE_COMPLETED, 다음 TRANSFER/WAIT/FINAL_WALK가 timeline에 AVAILABLE로 나타남 |
+| UI-AC-037 | 여정 종료(ABORT) | confirm dialog 통과 후 API-010 호출, ABORTED terminal, live polling/event CTA 중지, 완료 이력 보존 |
+| UI-AC-038 | 임의 서울 OD mapping PARTIAL/FAILED | 경로 구조는 표시하되 확률 카드 숨김+사유 표시, 재시도 유도 문구 없음 |
+| UI-AC-039 | metric별 claim eligibility | 같은 결과 안에서 P50/P90/on-time/Recommended가 서로 다른 `metricEligibility` 문구를 가질 수 있음을 확인 |
 
 ---
 

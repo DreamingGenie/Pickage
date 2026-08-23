@@ -51,7 +51,7 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 | Subway station×line Actual(4개) | COMPONENT | 45분 window: 안국(3호선) 16건, 교대(3호선측) 16건, 교대(2호선측) 1건, 역삼(2호선) 1건 유효 `arvlCd=1` 확보; trainNo join 전부 100% | `CONDITIONAL` (2개 역은 표본 확대, 2개 역은 표본 부족) | 4개 station×line, 2026-08-23 13:31~14:16 KST | §21.3 | — | — | 2호선 두 역의 낮은 포착률 원인 미상 — window/interval 조정 후 재확인 |
 | data.go.kr collector 인코딩 | 알려지지 않음 | `mixed_route_spike.py` 저장 raw의 한글 필드(정류장/노선명)가 mojibake; 숫자/ID/좌표 필드는 정상 | `NEW_FACT` (DQ 발견) | 오늘 호출분 전체 | — | — | — | collector encoding 수정은 별도 개발 작업으로 이관 |
 | Route A ↔ Kakao 후보 구조 차이 | 서술만 있고 좌표 대조 없음 | 오늘 호출한 Kakao publictraffic 8건의 모든 candidate·모든 step의 path point를 검사한 결과, 승인 Route A 탑승점(춘추문, 126.97965,37.58308) 반경 100m 이내를 지나는 step이 0건 | `FIXED` — Kakao 응답은 승인 Route A 구조를 아예 후보로 제시하지 않음(우연 일치 불가능) | 오늘 호출한 8개 publictraffic 응답 | §22.1 | — | — | 없음(이 OD 범위에서는 충분히 확정적) |
-| Collector round-trip latency 계측 | 확인 안 됨 | `bus_*_spike.py`/`subway_*_spike.py`의 `requested_at`/`received_at`은 둘 다 HTTP 응답을 받은 뒤 `storage.SpikeResult()` 생성 시점에 동시 stamping됨(dataclass default_factory 2회 호출이 거의 같은 시각) → 오늘 수집된 240건 전부 latency=0.00~0.001s로 기록되어 있어 실제 request-boundary latency로 볼 수 없음. 임시로 작성한 Kakao 호출 스크립트도 응답 전/후 시각을 분리 기록하지 않아 동일한 한계를 가짐 | `BLOCKED_TOOLING`(collector 자체의 timestamp 설계 한계) | 오늘 사용한 모든 collector | — | — | — | collector가 `requested_at`을 호출 직전, `received_at`을 응답 직후로 분리 기록하도록 고치는 후속 작업 필요 |
+| Collector round-trip latency 계측 | 확인 안 됨 | `bus_*_spike.py`/`subway_*_spike.py`의 `requested_at`/`received_at`은 둘 다 HTTP 응답을 받은 뒤 `storage.SpikeResult()` 생성 시점에 동시 stamping됨(dataclass default_factory 2회 호출이 거의 같은 시각) → 오늘 수집된 240건 전부 latency=0.00~0.001s로 기록되어 있어 실제 request-boundary latency로 볼 수 없음. 임시로 작성한 Kakao 호출 스크립트도 응답 전/후 시각을 분리 기록하지 않아 동일한 한계를 가짐 | `BLOCKED_TOOLING`(collector 자체의 timestamp 설계 한계) | 오늘 사용한 모든 collector | — | — | — | collector가 `requested_at`을 호출 직전, `received_at`을 응답 직후로 분리 기록하도록 고치는 후속 작업 필요. **주의**: 과거 Phase 2 EV2-01(`docs/history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/`)에서 이미 `COLLECTOR_VERSION=spike-v1-ev2-01`로 이 문제를 한 번 수정한 이력이 있다. 오늘 사용한 `bus_*_spike.py`/`subway_*_spike.py`가 그 수정본인지, 회귀했는지, 별개 스크립트인지 collector version/commit이 기록되지 않아 구분할 수 없다 — 후속 작업에서 collector version을 명시적으로 남긴다 |
 | Out-of-order (source-time reversal) | 확인 안 됨 | receive 순서 기준 source timestamp 단조성 검사: bus position 13개 차량 계열, subway arrival 82개 station×train 계열 전부 역전 0건 | `NO_REVERSAL_OBSERVED`(이번 window) | 오늘 수집한 bus position + subway arrival 전체 | — | — | — | 표본이 늘어나면 재확인 필요(하루 한 window로 일반화 금지) |
 | Subway Prediction→Actual Residual 실측 예시 | 미계산 | 안국(3호선) 열차 3166: 13:31:20 관측 시점 `barvlDt=210s` 예측(예상 도착 13:34:50) vs 실제 Actual interval (13:34:10, 13:35:05], mid=13:34:37.5, width=55s → signed residual L/M/U = −40s/−12.5s/+15s | `FIXED`(builder correctness 시연, 1개 사례) | 안국역 3호선, train 3166, 2026-08-23 13:31~13:35 KST | — | — | REQ-060~063, AC-030/032 범위에서 일반 capability로 커버 | 표본 1건 — support 주장 금지, 여러 window·여러 train으로 확대 필요 |
 | Bus Prediction→Actual Residual 실측 예시 | 미계산 | staOrd=21(target)은 예측 60건 존재했으나 대응하는 Actual event가 이번 window에 없어(위 표 참조) target residual은 여전히 계산 불가. **General 예시(비-target)**: vehId=106024177, 12:54:23 관측 시점 `traTime=58s`(staOrd=13) 예측(예상 도착 12:55:21) vs 관측된 stopFlag `0→1` Actual interval (12:55:04, 12:55:32], mid=12:55:18 → signed residual L/M/U = −17s/−3s/+11s | `FIXED`(builder correctness 시연, target 아닌 1개 general 사례) — target(staOrd=21)은 `NO_VALID_EVENT` 유지 | busRouteId=100100001, non-target stop, 2026-08-23 12:54~12:56 KST | — | — | — | 이 예시의 stop이 staOrd=13과 정확히 일치하는지는 vehId+시간 근접으로만 추정했고 sectOrd로 직접 검증하지 않음 — target-stop 표본 확대가 여전히 필요 |
@@ -64,6 +64,20 @@ PM 콘솔 스크린샷은 프로젝트 의사결정 근거로 사용하지만, �
 - **Subway 2호선 두 역의 낮은 이벤트 포착률 원인**: 이번 데이터만으로는 원인 특정 불가(`MULTI_DAY_REQUIRED` 또는 poll interval 조정 후 재시도)
 - **Bus WAIT event-unit dependence 정량화**: raw row 중복률(28.2%)만 확인했고 자기상관 등 정량 dependence 분석은 하지 않음
 - 표준 검증 사다리(V1~V3) 관련 항목 전부: 오늘 하루로 승격 불가, `MULTI_DAY_REQUIRED` 유지
+
+## Evidence Manifest (신규, M-04 반영)
+
+이번 세션에 사용한 PM 콘솔 스크린샷과 오늘 collector 실행 결과는 아래 필드를 아직 채우지 못했다. 값을 임의로 채우지 않고 `NOT_CAPTURED`로 정직하게 표기하며, 재현 가능한 감사가 필요해지면 이 필드부터 채운다.
+
+| 필드 | 상태 |
+|---|---|
+| `experiment_id` | `NOT_CAPTURED` |
+| collector version/commit | `NOT_CAPTURED`(위 EV2-01 caveat 참조) |
+| `executed_at`(각 collector 실행 시작·종료) | `NOT_CAPTURED`(오늘 실행 시각 범위만 본문에 서술로 존재) |
+| endpoint별 HTTP count / provider business code count | 본문 표에 서술로 존재하나 별도 구조화 필드 없음 |
+| raw/sanitized payload hash | `NOT_CAPTURED` |
+| console screenshot hash / `captured_at` | `NOT_CAPTURED`(PM 제공 스크린샷 3장의 촬영 시각만 본문에 KST로 서술) |
+| 문서가 참조하는 artifact 상대 경로 | `NOT_CAPTURED`(원본 이미지 미보관, 위 §Kakao entitlement/quota 단락 참조) |
 
 ## 문서 확인
 
