@@ -349,9 +349,9 @@ Reforecast는 `P(final arrival | observed history, current state)`를 다시 계
 | 기능 영역 | 핵심 정책 | 사용자 가치 | 하위 계약 연결 |
 |---|---|---|---|
 | Journey Input | 실제 목적지와 목표시각을 받음 | deadline 기준 판단 | REQ-001~004 / SCR-01 |
-| Structural Route | Minimum Release는 approved Route A manifest 선택; future provider mode에서만 first-supported candidate 검토 | 분석 대상이 명확함 | REQ-005~009 |
-| Pre-trip Result | 서로 다른 4개 결과와 근거 표시 | 평균·보수·정시·환승 위험 이해 | REQ-010~016 / SCR-02 |
-| Live Journey | 현재 leg와 freshness 표시 | 이동 중 상태 이해 | REQ-020~022 / SCR-03 |
+| Structural Route | Minimum Release는 approved Route A manifest 선택; 서울 임의 OD의 route discovery/canonicalization은 REQ-104; future provider mode에서만 first-supported candidate 검토 | 분석 대상이 명확함 | REQ-005~009,104 |
+| Pre-trip Result | 서로 다른 4개 결과와 근거, metric별 claim eligibility 표시 | 평균·보수·정시·환승 위험 이해 | REQ-010~016,103 / SCR-02 |
+| Live Journey | 현재 leg와 freshness 표시, 정상 leg 전이·여정 종료 | 이동 중 상태 이해 | REQ-020~022,101,102 / SCR-03 |
 | Reforecast | 실제 사건 이후 남은 여정만 갱신 | 변화가 최종 도착에 미치는 영향 확인 | REQ-023~026 / SCR-04 |
 | Evidence Detail | support/fallback/source/limitation | 숫자를 과신하지 않고 판단 | REQ-040~045 / SCR-05 |
 | Share | 최소화된 result snapshot | 동행/약속 상대에게 상태 전달 | REQ-080~081 / SCR-06 |

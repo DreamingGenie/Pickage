@@ -1040,12 +1040,12 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 | Screen | Product Feature | REQ | BR/NFR | 핵심 AC |
 |---|---|---|---|---|
-| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098 | BR-001~005,060~074; NFR-010,053,054,070,074,075,079,084,087,088 | UI-AC-001~002,015~016,025,030,033~034; AC-001~002,035~036,041~042,046,053~057 |
-| SCR-02 | Pre-trip Result | REQ-005~017,020,030~045,050~056,093~098 | BR-001~005,010~017,020~024,045,050~053,060~074; NFR-084,087,088 | UI-AC-003~008,013,020~023,025~029,034~035; AC-003~008,037~045,047,053~057 |
-| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098 | BR-030~045,060~070; NFR-002,053,074~079 | UI-AC-007~012,015~022,025~030; AC-009~015,024,035~047 |
-| SCR-04 | Reforecast | REQ-023~026 | BR-040~044 | UI-AC-010~012,028~029; AC-011~015,044~045 |
-| SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097 | BR-005,012~017,050~053,061~074; NFR-087,088 | UI-AC-013,019,022~029,034~035; AC-018~021,027,034~045,053~057 |
-| SCR-06 | Share | REQ-080~082,098 | NFR-050~054,079 | UI-AC-014,023,047; AC-025,039,047 |
+| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098,100,104 | BR-001~005,060~074,083,084; NFR-010,053,054,070,074,075,079,084,087,088,090~093 | UI-AC-001~002,015~016,025,030,033~034,038; AC-001~002,035~036,041~042,046,053~057,061 |
+| SCR-02 | Pre-trip Result | REQ-005~017,020,030~045,050~056,093~098,103,104 | BR-001~005,010~017,020~024,045,050~053,060~074,082~084; NFR-084,087,088,093 | UI-AC-003~008,013,020~023,025~029,034~035,039; AC-003~008,037~045,047,053~057,061 |
+| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098,101,102 | BR-030~045,060~070,080,081; NFR-002,053,074~079,093 | UI-AC-007~012,015~022,025~030,036~037; AC-009~015,024,035~047,058~060 |
+| SCR-04 | Reforecast | REQ-023~026,101 | BR-040~044,080 | UI-AC-010~012,028~029; AC-011~015,044~045,058,059 |
+| SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097,103 | BR-005,012~017,050~053,061~074,082; NFR-087,088 | UI-AC-013,019,022~029,034~035,039; AC-018~021,027,034~045,053~057 |
+| SCR-06 | Share | REQ-080~082,098,103 | NFR-050~054,079,093 | UI-AC-014,023,039,047; AC-025,039,047 |
 
 ### 18.1 주요 정책 추적
 
@@ -1053,8 +1053,10 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 |---|---|
 | Selected route conditional | SCR-02/06 scope label, alternatives ranking 없음 |
 | Provider access ≠ supported Journey | SCR-01 WALK/route mapping/entitlement 상태, SCR-02 scope, SCR-05 WALK provider·future route crosswalk detail |
-| Coverage mode | SCR-01 사전 고지, SCR-02/05 selection policy, Demo Route A manifest |
+| Coverage 5축 | SCR-01 사전 고지(서울 임의 입력 + mapping/model coverage에 따른 결과 차등), SCR-02/05 `routeCoverageMode`/`walkProviderMode`/`modelCoverage`, Demo Route A manifest |
+| Per-metric claim eligibility | SCR-02 §8.4.1 metric card별 문구, SCR-05 leg detail, SCR-06 snapshot |
 | P90 ≠ 90% accuracy | SCR-02/04/05/06 copy guard |
+| 정상 leg 전이/ABORT | SCR-03 §9.5 하차·환승 완료·여정 종료 CTA |
 | Recommended Departure service re-evaluation | SCR-02 AVAILABLE Gate/copy; 계산 로직은 REQ/API |
 | Transfer ≠ Wait | SCR-02/03 timeline separate rows |
 | BUS_SKIPPED user-confirmed | SCR-03 CTA precondition, SCR-04 reason/topology |
