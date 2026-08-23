@@ -1,0 +1,144 @@
+{
+  "observedAtUtc": "2026-08-22T10:05:23.346285+00:00",
+  "provider": "Kakao Map REST API",
+  "endpoint": "https://dapi.kakao.com/v2/routing/walk",
+  "httpStatus": 200,
+  "responseHeaders": {
+    "Date": "Sat, 22 Aug 2026 10:05:23 GMT",
+    "Content-Type": "application/json",
+    "x-request-id": "b127e0c2b1a6be31917b782d2462fa22"
+  },
+  "responseBody": {
+    "route": {
+      "legs": [
+        {
+          "properties": {
+            "distance": 295,
+            "time": 323
+          },
+          "steps": [
+            {
+              "path": {
+                "points": [
+                  [
+                    126.9808753,
+                    37.58251162
+                  ],
+                  [
+                    126.98064491,
+                    37.58220149
+                  ],
+                  [
+                    126.98046215,
+                    37.58208765
+                  ],
+                  [
+                    126.98036597,
+                    37.58201729
+                  ]
+                ]
+              },
+              "properties": {
+                "distance": 74,
+                "guidance": "74m 이동(팔판길)",
+                "time": 66,
+                "x": 126.9808753,
+                "y": 37.58251162
+              }
+            },
+            {
+              "path": {
+                "points": [
+                  [
+                    126.98036597,
+                    37.58201729
+                  ],
+                  [
+                    126.9803645,
+                    37.58224819
+                  ],
+                  [
+                    126.98033001,
+                    37.58248894
+                  ],
+                  [
+                    126.98021685,
+                    37.58277895
+                  ],
+                  [
+                    126.98011279,
+                    37.58296026
+                  ],
+                  [
+                    126.97996202,
+                    37.58315338
+                  ],
+                  [
+                    126.97968335,
+                    37.58340657
+                  ]
+                ]
+              },
+              "properties": {
+                "distance": 170,
+                "guidance": "오른쪽길로 170m 이동(청와대로)",
+                "time": 185,
+                "x": 126.98036597,
+                "y": 37.58201729
+              }
+            },
+            {
+              "path": {
+                "points": [
+                  [
+                    126.97968335,
+                    37.58340657
+                  ],
+                  [
+                    126.97951781,
+                    37.5832759
+                  ]
+                ]
+              },
+              "properties": {
+                "distance": 20,
+                "guidance": "횡단보도 이용",
+                "time": 48,
+                "x": 126.97968335,
+                "y": 37.58340657
+              }
+            },
+            {
+              "path": {
+                "points": [
+                  [
+                    126.97951781,
+                    37.5832759
+                  ],
+                  [
+                    126.97969446,
+                    37.58311003
+                  ]
+                ]
+              },
+              "properties": {
+                "distance": 28,
+                "guidance": "28m 이동(청와대로)",
+                "time": 22,
+                "x": 126.97951781,
+                "y": 37.5832759
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "landingUrl": "https://map.kakao.com/link/by/walk/Route+A+%EC%A0%91%EA%B7%BC+%EB%8F%84%EB%B3%B4+%EC%B6%9C%EB%B0%9C%EC%A0%90,37.5825,126.9809/%EC%B6%98%EC%B6%94%EB%AC%B8+%EC%A0%95%EB%A5%98%EC%9E%A5,37.58308213227146,126.97965309715137",
+        "totalDistance": 295,
+        "totalTime": 323
+      }
+    },
+    "status": "OK"
+  },
+  "secretIncluded": false
+}

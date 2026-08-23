@@ -1,12 +1,5 @@
 # Planning Upgrade Master Prompt
 
-> **2026-08-23 정정:** 아래 본문은 초판에서 "Kakao"를 provider로 전제했던 부분을
-> 실제 provider(Seoul data.go.kr mixed-route `getPathInfoByBusNSub`, TMAP pedestrian
-> walk)로 교체한 버전이다. Kakao Mobility 도보 API는 partner-only로 BLOCKED
-> 확정(D-043)이며, 이 프로젝트에 "Kakao 대중교통 길찾기"라는 provider는 존재한 적이
-> 없다. 근거: `docs/history/transit_journey_handoff_FINAL_v3/docs/05_DECISION_LOG.md`
-> (D-013·D-019·D-024·D-042~D-050).
-
 아래 본문 전체를 VS Code의 Codex 또는 Claude Agent에 입력한다.
 
 ---
@@ -23,24 +16,17 @@
 - `IA_SCREEN_SPEC_260822.md`
 - `REQUIREMENTS_SPEC_260822.md`
 
-Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다 — "Kakao"를 다시 가정하지 않는다):
+기준 Kakao raw:
 
-- `docs/history/transit_journey_handoff_FINAL_v3/docs/05_DECISION_LOG.md`(D-013·D-019·
-  D-024·D-042~D-050)
-- `docs/history/transit_journey_handoff_FINAL_v3/docs/01_PROJECT_HANDOFF.md` §6~7
-
-기존 mixed-route/WALK raw:
-
-- `docs/history/transit_journey_handoff_FINAL_v3/data/samples/seoul_bus/getPathInfoByBusNSub/2026-08-21/233739_ee60791ea53d.json`
-- `docs/history/transit_journey_handoff_FINAL_v3/data/samples/tmap/routes_pedestrian/**`
-- (오늘 재확인 호출본이 있다면) `docs/history/transit_journey_handoff_FINAL_v3/data/samples/seoul_bus/getPathInfoByBusNSub/2026-08-23/**`
+- `kakao_map_publictraffic_20260822T100523Z.json`
+- `kakao_map_walk_20260822T100523Z.json`
 
 실험 지침:
 
 - `JR_EXPERIMENT_PACK_260823/00_README_AND_EXECUTION_ORDER.md`
 - `JR_EXPERIMENT_PACK_260823/01_UNCERTAINTY_RESOLUTION_MATRIX.md`
 - `JR_EXPERIMENT_PACK_260823/02_API_BUDGET_AND_DAY_SCHEDULE.md`
-- `JR_EXPERIMENT_PACK_260823/03_SEOUL_MIXED_ROUTE_AND_WALK_RUNBOOK.md`
+- `JR_EXPERIMENT_PACK_260823/03_KAKAO_ROUTE_WALK_RUNBOOK.md`
 - `JR_EXPERIMENT_PACK_260823/04_SEOUL_BUS_SUBWAY_RUNBOOK.md`
 - `JR_EXPERIMENT_PACK_260823/05_EVIDENCE_RECORD_AND_DECISION_RULES.md`
 
@@ -50,7 +36,7 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 
 허용:
 
-- 기존 probe/collector 실행 (`docs/history/transit_journey_handoff_FINAL_v3/scripts/spikes/*.py`)
+- 기존 probe/collector 실행
 - 사전 확정된 API budget 안에서 evidence 수집
 - sanitized raw JSON/CSV/log/hash/manifest/Markdown evidence 저장
 - read-only/transient 분석 명령
@@ -59,8 +45,7 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 금지:
 
 - Java/Python/JavaScript production code 생성·수정
-- 기존 collector/probe 코드 수정(발견한 버그—예: `mixed_route_spike.py`의 한글 필드
-  encoding 문제—도 여기서 고치지 않고 evidence에만 기록한다)
+- 기존 collector/probe 코드 수정
 - 신규 adapter/API/DB/UI 구현
 - package 설치
 - Docker/CI/CD/Terraform/배포 변경
@@ -68,7 +53,6 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 - API key 추가 발급·rotation·quota 우회
 - quota exhaustion을 위한 고의 소진
 - 세 기획 문서와 evidence 기록 외 개발 파일 변경
-- BLOCKED로 확인된 Kakao Mobility 도보 API를 provider로 다시 채택하는 것
 
 필요한 실험이 기존 도구로 불가능하면 새로 개발하지 말고 `BLOCKED_TOOLING`으로 기록한다. 실험 실행은 evidence acquisition이지 서비스 개발이 아니다.
 
@@ -77,9 +61,8 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 ### Step 1 — Read and Diagnose
 
 1. 세 기획 문서를 완전히 읽는다.
-2. Pack 00~05와 Decision Log(D-013~D-050)를 읽는다.
-3. Mixed-route JSON을 전체 dump하지 말고 schema·keys·aggregate 중심으로 분석한다(한글
-   필드가 mojibake일 수 있음을 감안해 ID/좌표/숫자 필드 위주로 판정한다).
+2. Pack 00~05를 읽는다.
+3. Kakao JSON을 전체 dump하지 말고 schema·keys·aggregate 중심으로 분석한다.
 4. 현재 TBD/Claim Gate를 `FULL_TODAY/PARTIAL_TODAY/DECISION_ONLY/IMPLEMENTATION_LATER/MULTI_DAY_REQUIRED`로 대조한다.
 5. 수정 전 15줄 이내 진단과 당일 호출 예산을 제시한다.
 
@@ -87,14 +70,12 @@ Provider 확정 근거(실제 provider가 무엇인지는 여기서 확인한다
 
 각 provider의 approved limit, used, remaining, reset evidence를 ledger에 입력한다.
 
-- **data.go.kr**: Bus Arrival·Bus Position·Mixed-route는 계정 키 문자열은 같지만(D-046)
-  마이페이지 확인 결과 **서비스×상세기능마다 독립적으로 1,000/day**다 — 서로 공유 풀이
-  아니므로 차감 계산하지 않는다(`02_API_BUDGET_AND_DAY_SCHEDULE.md` 1절, 2026-08-23
-  포털 확인).
-- **서울 열린데이터광장 지하철인증키**: 포털 공식 안내상 1,000/day(활용사례 갤러리 미등록).
-  사용량 대시보드가 없으므로 business error 발생 자체를 중단 신호로 삼는다.
-- TMAP pedestrian은 project credential(구독 기반) 값을 확인한 뒤 진행한다.
-- Kakao Mobility 도보 API는 오늘 실험에 포함하지 않는다(BLOCKED, D-043).
+- Kakao console 사용자 확인: publictraffic 1/1,000, WALK 1/1,000, endpoint별 별도 집계
+- 이 사실은 project app daily limit 근거다.
+- overage billing·결제·reset은 별도 evidence 없으면 미확정이다.
+- 서울 Bus limit가 확인되지 않으면 sustained bus run을 시작하지 않는다.
+- 서울 Subway remaining이 확인되지 않거나 최소 reserve를 보장하지 못하면 window를 축소한다.
+- TMAP public transit은 최대 3/10회다.
 
 Preflight 결과와 실제 예산을 사용자에게 보여준 뒤 Pack의 cap 안에서 진행한다. 여러 번 승인 질문을 반복하지 말고 quota·secret·scope 문제가 발생할 때만 멈춘다.
 
@@ -102,22 +83,21 @@ Preflight 결과와 실제 예산을 사용자에게 보여준 뒤 Pack의 cap �
 
 Pack 03·04에 따라 다음을 실행한다.
 
-1. Mixed-route(data.go.kr) same-OD burst/time-window stability
-2. Mixed-route topology 다변화
-3. Mixed-route total/step 필드가 있다면 gap 분석, 없다면 leg 합 검증(NOT_APPLICABLE 가능)
-4. TMAP WALK contract와 provider-specific point 보존
-5. Mixed-route↔서울 canonical crosswalk의 topology 확장 가능성(Demo Corridor 4-node는 D-047 기 완료)
-6. Route A와 mixed-route 01A boarding mismatch 검증
-7. Bus quota preflight(mixed-route와 공유 키임을 감안)
+1. Kakao same-OD burst/time-window stability
+2. Kakao topology matrix
+3. publictraffic hidden access/final gap WALK 비교
+4. Kakao WALK contract와 provider-specific point 보존
+5. Kakao→서울 canonical crosswalk 가능성
+6. Route A와 Kakao 01A boarding mismatch 검증
+7. Bus quota preflight
 8. Route A 01A coordinated Arrival+Position windows
 9. Bus Actual interval·Prediction→Actual residual builder 검증
 10. Bus WAIT event unit·dependence 재검증
 11. Subway quota/reset preflight
-12. Route A station×line coordinated windows(D-048 후속, window를 45분으로 확장)
+12. Route A station×line coordinated windows
 13. Subway Actual interval·residual·out-of-order 검증
 14. Sunday `END` service-day 처리 확인
-15. TMAP golden validation은 budget과 기존 evidence가 허용할 때만 최대 범위 수행(TMAP
-    대중교통 상품은 미구독이므로 pedestrian 범위 안에서만 수행)
+15. TMAP golden validation은 budget과 기존 evidence가 허용할 때만 최대 범위 수행
 
 모든 run은 Pack 05의 manifest와 call ledger를 사용한다. raw 저장 또는 secret scan이 실패하면 그 run을 claim evidence로 사용하지 않는다.
 
@@ -134,10 +114,10 @@ Pack 03·04에 따라 다음을 실행한다.
 
 특히 다음을 지킨다.
 
-- mixed-route total/step gap을 WAIT·WALK·Transfer에 임의 배분하지 않는다.
-- mixed-route payload의 name-only(또는 mojibake) stop을 검증 없이 canonical ID로 자동 승격하지 않는다 — 다만 `fid`/`tid`가 이미 존재하므로(D-047) "provider ID 부재"를 전제하지 않는다.
-- approved Route A 춘추문(19)→안국(21)과 mixed-route 경복궁.국립민속박물관(20)→안국(21)을 동일시하지 않는다.
-- TMAP WALK point를 다른 provider와 평균하지 않는다(Kakao WALK는 BLOCKED이므로 비교 대상 자체가 없다).
+- publictraffic gap을 WAIT·WALK·Transfer에 임의 배분하지 않는다.
+- Kakao payload의 name-only stop을 canonical ID로 자동 승격하지 않는다.
+- approved Route A 춘추문(19)→안국(21)과 Kakao 경복궁.국립민속박물관(20)→안국(21)을 동일시하지 않는다.
+- Kakao/TMAP WALK point를 평균하지 않는다.
 - Bus snapshot count를 independent WAIT support로 세지 않는다.
 - traverse duration을 residual로 바꾸지 않는다.
 - `BUS_SKIPPED`를 개인 boarding failure probability로 만들지 않는다.
@@ -157,11 +137,10 @@ Pack 03·04에 따라 다음을 실행한다.
 
 Service Plan:
 
-- 실험으로 확정된 제품·provider(Seoul data.go.kr mixed-route, TMAP walk)·quota·data
-  boundary와 rationale
-- selected route·coverage mode·Mixed-route Gate 정책
+- 실험으로 확정된 제품·provider·quota·data boundary와 rationale
+- selected route·coverage mode·Kakao Gate 정책
 - Bus/Subway maturity와 WAIT dependence의 현재 범위
-- 운영 degradation과 quota collector 원칙(data.go.kr 공용 키 공유 사실 포함)
+- 운영 degradation과 quota collector 원칙
 - 확정 사실과 claim 금지 항목
 
 IA:
@@ -175,14 +154,13 @@ IA:
 Requirements:
 
 - REQ/BR/NFR/API/ENT/AC/TBD/Claim Gate의 testable 계약
-- quota limit와 billing/reset 상태 분리(data.go.kr 공용 키가 여러 endpoint에 걸쳐
-  있다는 사실을 명시)
+- quota limit와 billing/reset 상태 분리
 - mapping·time semantics·Actual/Residual·WAIT event unit acceptance
 - day-specific scope와 남은 Gate
 - ID 추가보다 기존 항목 보강 우선
 - ID 변경 시 정의 수량과 Traceability 재계산
 
-문서 안에 변경 요약, v2.0, "기존에는/이번에는" 같은 버전 비교 문구를 넣지 않는다. 세 문서는 처음부터 현재 정책으로 작성된 정본처럼 읽혀야 한다.
+문서 안에 변경 요약, v2.0, “기존에는/이번에는” 같은 버전 비교 문구를 넣지 않는다. 세 문서는 처음부터 현재 정책으로 작성된 정본처럼 읽혀야 한다.
 
 ### Step 6 — Self Audit
 
@@ -190,7 +168,7 @@ Requirements:
 
 - evidence scope와 claim 일치
 - fact/inference/decision 분리
-- quota·provider·route·identity·time semantics 정확성(provider 이름이 실제와 일치하는지 — "Kakao"가 남아있지 않은지 포함)
+- quota·provider·route·identity·time semantics 정확성
 - 제품기획서/IA/요구사항 역할 경계
 - Markdown heading/table/fence
 - Requirements ID 실제 수량과 선언 수량
@@ -198,9 +176,9 @@ Requirements:
 세 문서 간 다음을 교차 검수한다.
 
 - `ROUTE_A_ONLY/PROVIDER_SUPPORTED`
-- Mixed-route Provider Gate
-- quota limit/billing/reset(data.go.kr 공유 키 포함)
-- Route A와 mixed-route candidate
+- `KAKAO_ROUTE_GATE`
+- quota limit/billing/reset
+- Route A와 Kakao candidate
 - P50/P90/P(on_time)/Planned Connection/Recommended Departure
 - Prediction/Actual/Residual
 - BUS_SKIPPED
@@ -223,3 +201,4 @@ Requirements:
 7. production code·개발 설정·배포를 변경하지 않았다는 확인
 
 세 기획 문서를 완성한 뒤 멈춘다. 실제 개발 작업으로 자동 진행하지 않는다.
+

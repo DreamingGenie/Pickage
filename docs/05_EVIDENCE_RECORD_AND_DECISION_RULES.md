@@ -1,9 +1,5 @@
 # Evidence Record and Decision Rules
 
-> **2026-08-23 정정:** "Kakao"로 표기됐던 항목을 실제 provider(Seoul data.go.kr
-> mixed-route, TMAP walk)로 교체했다 — 근거는 `00_README_AND_EXECUTION_ORDER.md`
-> 상단 정정 노트 참조.
-
 ## 1. Experiment manifest template
 
 ```yaml
@@ -94,7 +90,7 @@ retry도 별도 call row다. 동일 call을 성공·실패 두 건으로 중복 
 | Derived fact | `totalTime - stepTime = 887s` | 산식과 함께 사용 |
 | Inference | distance/time gap이 hidden walk일 가능성 | limitation과 함께 사용 |
 | Decision | gap을 WAIT에 배분하지 않음 | 제품 정책 |
-| Claim | Mixed-route(data.go.kr)가 서울 전체 route를 지원 | 별도 coverage evidence 전 금지 |
+| Claim | Kakao가 서울 전체 route를 지원 | 별도 coverage evidence 전 금지 |
 
 Inference를 Fact로, component evidence를 Claim으로 승격하지 않는다.
 
@@ -102,7 +98,7 @@ Inference를 Fact로, component evidence를 Claim으로 승격하지 않는다.
 
 | 현재 항목 | 변경 가능 조건 | 가능한 상태 | 변경 금지 조건 |
 |---|---|---|---|
-| data.go.kr 공용 키 app limit | portal endpoint별 limit/counter 캡처 | `APP_LIMIT_CONFIRMED` | 공식 문서만 있고 portal 화면 없음 |
+| Kakao app limit | console endpoint별 limit/counter 캡처 | `APP_LIMIT_CONFIRMED` | 공식 문서만 있고 app 화면 없음 |
 | billing/reset | billing/reset 직접 evidence | CONFIRMED 또는 UNCONFIRMED 분리 | limit에서 추론 |
 | raw pending | file hash+secret scan+manifest | `RECEIVED_HASH_VERIFIED`; register 등록 시 INGESTED | 파일 경로·hash 누락 |
 | time semantics | explicit field/docs 또는 boundary WALK comparison | EXPLICIT/SUPPORTED/PARTIAL/AMBIGUOUS | gap 임의 분배 |
@@ -128,10 +124,10 @@ Inference를 Fact로, component evidence를 Claim으로 승격하지 않는다.
 
 | Item | Before | Evidence | Decision | Scope | Service Plan | IA | Requirements | Remaining gate |
 |---|---|---|---|---|---|---|---|---|
-| data.go.kr 공용 키 limit | UNCONFIRMED |  |  |  |  |  |  |  |
-| Mixed-route raw | RECEIVED_HASH_VERIFIED(오늘 1건) |  |  |  |  |  |  |  |
-| Mixed-route time semantics | CONDITIONAL |  |  |  |  |  |  |  |
-| Mixed-route mapping | Demo Corridor MAPPED(D-047), 그 외 CONDITIONAL |  |  |  |  |  |  |  |
+| Kakao limit | UNCONFIRMED |  |  |  |  |  |  |  |
+| Kakao raw | RAW_PENDING |  |  |  |  |  |  |  |
+| Kakao time semantics | CONDITIONAL |  |  |  |  |  |  |  |
+| Kakao mapping | CONDITIONAL |  |  |  |  |  |  |  |
 | Candidate stability | UNVERIFIED |  |  |  |  |  |  |  |
 | Bus Actual/Residual | IMMATURE |  |  |  |  |  |  |  |
 | Bus WAIT | HOLD |  |  |  |  |  |  |  |
@@ -145,8 +141,8 @@ Inference를 Fact로, component evidence를 Claim으로 승격하지 않는다.
 - [ ] snapshot row를 independent support로 세지 않았다.
 - [ ] `BUS_SKIPPED`를 개인 boarding failure probability로 만들지 않았다.
 - [ ] `P90`을 accuracy 또는 guarantee로 설명하지 않았다.
-- [ ] Mixed-route/TMAP/서울시 값을 provenance 변경 없이 유지했다.
-- [ ] Mixed-route candidate와 approved Route A를 혼합하지 않았다.
+- [ ] Kakao/TMAP/서울시 값을 provenance 변경 없이 유지했다.
+- [ ] Kakao candidate와 approved Route A를 혼합하지 않았다.
 - [ ] component validation과 Journey calibration을 분리했다.
 - [ ] Sunday `END` 결과를 DAY/SAT로 일반화하지 않았다.
 - [ ] quota·billing·reset을 별도 사실로 관리했다.
