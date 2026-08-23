@@ -11,9 +11,139 @@
 
 ---
 
-## 1. Executive Summary
+## 문서 네비게이션
 
-### 1.1 한 줄 정의
+**정본 문서 바로가기**
+
+- **Service Plan**
+- [IA / Screen Spec](IA_SCREEN_SPEC_260823.md)
+- [Requirements Spec](REQUIREMENTS_SPEC_260823.md)
+- [Decision Sheet](DECISION_SHEET_260823.md)
+
+**이 문서 안에서 이동**
+
+- [Executive Summary](#executive-summary)
+  - [한 줄 정의](#한-줄-정의)
+  - [제품의 핵심 약속](#제품의-핵심-약속)
+  - [서비스 컨셉](#서비스-컨셉)
+  - [제품 범위와 현재 확인 수준](#제품-범위와-현재-확인-수준)
+- [서비스 배경과 문제 구조](#서비스-배경과-문제-구조)
+  - [해결하려는 문제](#해결하려는-문제)
+  - [제품이 선택한 해결 방식](#제품이-선택한-해결-방식)
+  - [제품이 해결하지 않는 문제](#제품이-해결하지-않는-문제)
+  - [서비스가 필요한 순간](#서비스가-필요한-순간)
+  - [상용·공식 서비스와의 비교 기준](#상용공식-서비스와의-비교-기준)
+    - [Benchmark Register — 검증된 비교 범위](#benchmark-register-검증된-비교-범위)
+  - [차별화 문장](#차별화-문장)
+- [Primary User, Persona, JTBD](#primary-user-persona-jtbd)
+  - [Primary User](#primary-user)
+  - [핵심 Persona](#핵심-persona)
+  - [JTBD](#jtbd)
+- [Value Proposition과 차별점](#value-proposition과-차별점)
+- [Minimum Release 범위](#minimum-release-범위)
+  - [In Scope](#in-scope)
+  - [Coverage / Selected-route 분리 축](#coverage-selected-route-분리-축)
+  - [Explicit Out](#explicit-out)
+  - [향후 확장](#향후-확장)
+  - [Scope Cut 순서](#scope-cut-순서)
+  - [Mobile-first PWA 범위](#mobile-first-pwa-범위)
+    - [PWA Compatibility Matrix](#pwa-compatibility-matrix)
+- [Route 정책과 Main Journey](#route-정책과-main-journey)
+  - [Selected-route 정책](#selected-route-정책)
+  - [Route A와 Route B의 역할](#route-a와-route-b의-역할)
+  - [Pre-trip Main Journey](#pre-trip-main-journey)
+  - [In-trip / Reforecast Journey](#in-trip-reforecast-journey)
+- [핵심 기능과 사용자 가치](#핵심-기능과-사용자-가치)
+- [확률 결과의 의미와 표시 원칙](#확률-결과의-의미와-표시-원칙)
+  - [결과 정의](#결과-정의)
+  - [P50/P90와 P(on_time)의 관계](#p50-p90와-pon_time의-관계)
+  - [Monte Carlo 정책](#monte-carlo-정책)
+  - [Recommended Departure 정책](#recommended-departure-정책)
+- [Journey Domain Boundary](#journey-domain-boundary)
+  - [Canonical composition](#canonical-composition)
+  - [Leg별 경계](#leg별-경계)
+  - [Transfer 세부 경계](#transfer-세부-경계)
+- [Prediction, Actual, Residual, Observation Uncertainty](#prediction-actual-residual-observation-uncertainty)
+  - [분리해야 하는 개념](#분리해야-하는-개념)
+  - [Bus 규칙](#bus-규칙)
+  - [Subway 규칙](#subway-규칙)
+  - [Timestamp와 좌표 provenance](#timestamp와-좌표-provenance)
+- [Support, Fallback, Confidence, Validation Scope](#support-fallback-confidence-validation-scope)
+  - [네 개념의 분리](#네-개념의-분리)
+  - [Support 정책](#support-정책)
+  - [Fallback 정책](#fallback-정책)
+  - [Validation ladder](#validation-ladder)
+  - [Result Eligibility와 Start Eligibility](#result-eligibility와-start-eligibility)
+  - [Per-metric Claim Eligibility](#per-metric-claim-eligibility)
+- [핵심 설계 근거](#핵심-설계-근거)
+- [상태·오류·데이터 부족 UX 원칙](#상태오류데이터-부족-ux-원칙)
+  - [상태 모델](#상태-모델)
+  - [실패 원칙](#실패-원칙)
+  - [Freshness 합성 정책](#freshness-합성-정책)
+- [데이터 Lifecycle과 Provenance](#데이터-lifecycle과-provenance)
+  - [Provider Policy Registry와 Default-deny 원칙](#provider-policy-registry와-default-deny-원칙)
+  - [활성 Provider별 Retention/Redistribution Matrix](#활성-provider별-retention-redistribution-matrix)
+- [개인정보·보안·Share 원칙](#개인정보보안share-원칙)
+  - [개인정보 최소화](#개인정보-최소화)
+  - [Secret과 접근](#secret과-접근)
+  - [Share](#share)
+  - [서울시 공공데이터 출처표시](#서울시-공공데이터-출처표시)
+- [Logical Architecture, ERD, API와 기술 선택](#logical-architecture-erd-api와-기술-선택)
+  - [시스템 아키텍처](#시스템-아키텍처)
+  - [구성요소 책임](#구성요소-책임)
+  - [기술 대안과 전환 조건](#기술-대안과-전환-조건)
+    - [2-node EC2 임시 배치안](#2-node-ec2-임시-배치안)
+  - [API 기본 틀](#api-기본-틀)
+  - [논리 ERD](#논리-erd)
+  - [분산처리 필수 증명](#분산처리-필수-증명)
+- [ML/AI 적용 및 비적용 기준](#ml-ai-적용-및-비적용-기준)
+  - [Primary AI Capability](#primary-ai-capability)
+  - [H100 Training Plane과 Runtime Serving Plane](#h100-training-plane과-runtime-serving-plane)
+  - [Back-up Plan](#back-up-plan)
+  - [생성형 AI](#생성형-ai)
+- [운영·관측성·데모 정책](#운영관측성데모-정책)
+  - [운영 관측 항목](#운영-관측-항목)
+  - [Provider failure 운영](#provider-failure-운영)
+  - [데모 정직성](#데모-정직성)
+    - [Route A Demo Run Manifest](#route-a-demo-run-manifest)
+  - [API quota와 수집 예산](#api-quota와-수집-예산)
+    - [Quota Budget v1](#quota-budget-v1)
+  - [호출 효율화와 degradation](#호출-효율화와-degradation)
+  - [데이터 확장·Fixture·Replay 정책](#데이터-확장fixturereplay-정책)
+  - [quota 증액과 대체 source](#quota-증액과-대체-source)
+- [성공 기준과 평가 체계](#성공-기준과-평가-체계)
+  - [Product Outcome](#product-outcome)
+  - [Data/Probability Evaluation](#data-probability-evaluation)
+  - [측정 거버넌스](#측정-거버넌스)
+- [QA와 Release Gate](#qa와-release-gate)
+  - [Release-blocking Gate](#release-blocking-gate)
+  - [Capability Claim Gate](#capability-claim-gate)
+  - [문서 Gate](#문서-gate)
+- [팀, WBS, 리스크](#팀-wbs-리스크)
+  - [역할](#역할)
+  - [Critical Path와 Gate](#critical-path와-gate)
+    - [Protected E2E 실행 Lane](#protected-e2e-실행-lane)
+  - [Top Risks](#top-risks)
+- [확인된 사실과 Claim하면 안 되는 항목](#확인된-사실과-claim하면-안-되는-항목)
+  - [현재 확인된 사실](#현재-확인된-사실)
+  - [아직 Claim하면 안 되는 것](#아직-claim하면-안-되는-것)
+- [Final Demo Narrative](#final-demo-narrative)
+- [핵심 용어와 Claim Wording Guardrail](#핵심-용어와-claim-wording-guardrail)
+  - [금지 Claim](#금지-claim)
+- [문서 경계와 변경 규칙](#문서-경계와-변경-규칙)
+  - [Service Plan에 유지하는 것](#service-plan에-유지하는-것)
+  - [IA로 내려가는 것](#ia로-내려가는-것)
+  - [Requirements/Supporting Contract로 내려가는 것](#requirements-supporting-contract로-내려가는-것)
+  - [변경 절차](#변경-절차)
+- [정본 품질 기준](#정본-품질-기준)
+- [Appendix — 설계 근거 인덱스](#appendix-설계-근거-인덱스)
+- [Appendix — 한 문장 완료 정의](#appendix-한-문장-완료-정의)
+
+---
+
+## Executive Summary
+
+### 한 줄 정의
 
 **Journey Reliability는 서울 버스·지하철 여정에서 하나의 예상 소요시간만 보여주는 대신, 선택한 경로로 목표시각까지 도착할 가능성과 늦을 수 있는 범위, 출발해야 할 시점을 알려주는 독립형 대중교통 의사결정 서비스다.**
 
@@ -24,7 +154,7 @@
 - 출발 전: “이 경로로 약속시간에 도착하려면 언제 출발해야 하는가?”
 - 이동 중: “지금까지 실제로 일어난 일을 반영하면 제시간에 도착할 가능성은 어떻게 달라졌는가?”
 
-### 1.2 제품의 핵심 약속
+### 제품의 핵심 약속
 
 | 사용자 질문 | 제품 답변 | 답할 수 없을 때 |
 |---|---|---|
@@ -35,7 +165,7 @@
 | 몇 시에 나가야 하는가 | 선택 경로 기준 Recommended Departure | `INSUFFICIENT_DATA` 또는 `NOT_COMPUTED` |
 | 상황이 바뀌면 어떻게 되는가 | 완료 이력 고정 후 남은 여정 Reforecast | 다음 service를 구성할 수 없으면 `REFORECAST_UNAVAILABLE` |
 
-### 1.3 서비스 컨셉
+### 서비스 컨셉
 
 | 컨셉 | 의미 | 사용자 결과 |
 |---|---|---|
@@ -44,11 +174,11 @@
 | From Static Plan to Reforecast | 이동 중 확인된 사실을 반영해 남은 여정만 재계산 | before/after probability와 reason |
 | Evidence-aware Decision | 결과값과 근거 수준을 분리하지 않음 | support, freshness, fallback, limitation, validation scope |
 
-### 1.4 제품 범위와 현재 확인 수준
+### 제품 범위와 현재 확인 수준
 
 **Planning feasibility: GO. Development: GO. 사용자-facing 확률 성숙도와 Recommended Departure: Claim Gate 적용.**
 
-실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). Minimum Release에서 Kakao Map의 runtime 역할은 두 가지다. `KAKAO_MAP_WALK`는 `ACCESS_WALK`, `FINAL_WALK`, 필요한 경우 도보 환승 구간의 거리·시간 측정에 사용한다. `KAKAO_MAP_PUBLIC_TRANSIT`는 서울 임의 OD 입력의 구조 경로 후보를 실시간으로 조회하는 route discovery provider로 사용한다(`routeSearchCoverage`, §5.1.1). D2 목표에서는 external canonicalization crosswalk(REQ-105)와 model Gate가 통과한 first supported candidate를 사용자-facing selected route와 probability/Recommended Departure 계산 대상으로 삼는다. 같은 실험에서 Kakao payload 자체만으로는 canonical mapping 승격 조건을 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. total-step 시간 포함관계도 candidate에 따라 다르다. 따라서 D2 목표에는 별도 crosswalk가 필요하며, Gate 전 후보는 구조만 표시하고 확률·추천 출발은 `NOT_COMPUTED`로 둔다. 다음은 아직 사용자 capability로 증명되지 않았다.
+실제 서울 버스·지하철 API, 공식 파일과 WALK utility를 통해 Route A/B 구조, 핵심 ID 연결, Actual 후보 규칙, WALK/transfer 경계, timetable prior와 운영 quota 위험을 확인했다. 또한 2026-08-22 신규 Kakao Map REST endpoint에서 WALK와 대중교통 경로가 모두 HTTP 200/`OK`로 반환됨을 확인했으며, 2026-08-23 재현 실험으로 이 접근 가능성이 하루 이상 간격을 두고도 안정적임을 추가로 확인했다(동일 OD candidate 15개 signature 완전 일치, ACCESS WALK 295m/323s point 완전 재현). Minimum Release에서 Kakao Map의 runtime 역할은 두 가지다. `KAKAO_MAP_WALK`는 `ACCESS_WALK`, `FINAL_WALK`, 필요한 경우 도보 환승 구간의 거리·시간 측정에 사용한다. `KAKAO_MAP_PUBLIC_TRANSIT`는 서울 임의 OD 입력의 구조 경로 후보를 실시간으로 조회하는 route discovery provider로 사용한다(`routeSearchCoverage`, 「Coverage / Selected-route 분리 축」). D2 목표에서는 external canonicalization crosswalk(REQ-105)와 model Gate가 통과한 first supported candidate를 사용자-facing selected route와 probability/Recommended Departure 계산 대상으로 삼는다. 같은 실험에서 Kakao payload 자체만으로는 canonical mapping 승격 조건을 통과하지 못했다 — Kakao 대중교통 응답의 stop/vehicle 객체는 `name`(과 vehicle의 `type`)만 가지고 있으며 서울시 stId/busRouteId/statnId에 해당하는 필드가 구조적으로 없다. total-step 시간 포함관계도 candidate에 따라 다르다. 따라서 D2 목표에는 별도 crosswalk가 필요하며, Gate 전 후보는 구조만 표시하고 확률·추천 출발은 `NOT_COMPUTED`로 둔다. 다음은 아직 사용자 capability로 증명되지 않았다.
 
 - 성숙한 01A target-stop Prediction→Actual residual distribution
 - 충분한 subway station×line multi-window residual distribution
@@ -62,9 +192,9 @@
 
 ---
 
-## 2. 서비스 배경과 문제 구조
+## 서비스 배경과 문제 구조
 
-### 2.1 해결하려는 문제
+### 해결하려는 문제
 
 대중교통 사용자는 평균 이동시간만으로 중요한 약속을 결정하기 어렵다. 버스 도착 오차, 차량·열차 대기, 환승 이동, 계획한 연결편의 실패, 마지막 도보가 연결되면서 같은 “50분 경로”도 결과 범위가 달라진다. 기존 point ETA는 다음 질문을 직접 답하지 못한다.
 
@@ -75,9 +205,9 @@
 
 핵심 문제는 **ETA가 없어서가 아니라, 분절된 예측과 관측을 전체 Journey의 deadline decision으로 변환하지 못하는 것**이다.
 
-### 2.2 제품이 선택한 해결 방식
+### 제품이 선택한 해결 방식
 
-1. Minimum Release는 서울 임의 OD의 구조 경로 후보를 실시간으로 탐색하고(§5.1.1), 그중 canonical mapping과 model coverage가 충족된 leg/route에만 확률·추천 출발시각을 계산한다. 승인된 Route A structural manifest는 이 흐름 전체의 우선 검증·최종 시연 대상이다. 도보 구간은 `KAKAO_MAP_WALK`로 측정한다.
+1. Minimum Release는 서울 임의 OD의 구조 경로 후보를 실시간으로 탐색하고(「Coverage / Selected-route 분리 축」), 그중 canonical mapping과 model coverage가 충족된 leg/route에만 확률·추천 출발시각을 계산한다. 승인된 Route A structural manifest는 이 흐름 전체의 우선 검증·최종 시연 대상이다. 도보 구간은 `KAKAO_MAP_WALK`로 측정한다.
 2. WALK, WAIT, TRANSIT_RIDE, TRANSFER를 중복 없이 분리한다.
 3. 원천 Prediction과 이후 Actual 관측을 구분하고 Residual을 만든다.
 4. leg별 distribution/reference와 근거 수준을 보존한다.
@@ -85,13 +215,13 @@
 6. 결과값과 함께 support, fallback, freshness, validation scope, limitation을 전달한다.
 7. 이동 중 실제 사건은 과거를 다시 추정하지 않고 남은 구간만 Reforecast한다.
 
-### 2.3 제품이 해결하지 않는 문제
+### 제품이 해결하지 않는 문제
 
 - 가장 빠른/안전한 경로의 자동 선택
 - 서울 전체 노선 최적화 또는 coverage 보장
 - 미래 사고 발생확률 예측
 
-### 2.4 서비스가 필요한 순간
+### 서비스가 필요한 순간
 
 Journey Reliability는 모든 이동을 위한 범용 지도보다 **늦었을 때 비용이 큰 이동**에 집중한다.
 
@@ -105,13 +235,13 @@ Journey Reliability는 모든 이동을 위한 범용 지도보다 **늦었을 �
 
 이동 중에는 노트북을 사용할 수 없으므로 모바일 경험이 부가 채널이면 안 된다. 입력은 출발 전 데스크톱에서도 가능하지만 Journey Start 이후의 상태 확인, `BUS_SKIPPED`, Evidence 확인과 Reforecast는 한 손으로 조작 가능한 모바일 화면을 기준으로 설계한다.
 
-### 2.5 상용·공식 서비스와의 비교 기준
+### 상용·공식 서비스와의 비교 기준
 
 Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용 서비스를 대체하지 않는다. 차별점은 기존에 제공되는 route·ETA를 목표시각 중심의 uncertainty decision으로 변환하는 데 있다. 경쟁 비교는 서비스의 현재 공식 기능을 기준일과 출처와 함께 검증하며, 확인하지 않은 부재를 단정하지 않는다.
 
 | 비교 기준 | 일반 지도·교통 서비스의 중심 가치 | Journey Reliability의 역할 |
 |---|---|---|
-| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | Minimum Release D2는 서울 임의 OD의 구조 경로 후보를 runtime provider로 탐색하며(§5.1.1), 확률·추천 출발은 승인된 Demo Route A와 canonical mapping/model Gate가 충족된 first supported candidate에 계산한다. 다중 경로 reliability ranking은 제외한다 |
+| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | Minimum Release D2는 서울 임의 OD의 구조 경로 후보를 runtime provider로 탐색하며(「Coverage / Selected-route 분리 축」), 확률·추천 출발은 승인된 Demo Route A와 canonical mapping/model Gate가 충족된 first supported candidate에 계산한다. 다중 경로 reliability ranking은 제외한다 |
 | 도착 정보 | ETA·예상 소요시간 중심 | P50/P90와 목표시각 내 도착확률을 분리 |
 | 환승 | 계획 경로와 다음 이동 안내 | planned connection 유지와 실패 후 최종 정시 도착을 분리 |
 | 출발 판단 | 출발·도착 예상시각 제공 | 선택 경로와 목표 reliability 조건부 Recommended Departure |
@@ -133,7 +263,7 @@ Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용
 
 네이버지도 등 추가 benchmark는 공식 기능·화면을 직접 검증한 뒤 같은 register에 추가한다. 발표자료는 검증일·출처 없이 “경쟁 서비스에는 없다”는 문구를 사용하지 않는다.
 
-### 2.6 차별화 문장
+### 차별화 문장
 
 **Journey Reliability는 “어떤 경로가 가장 빠른가”보다 “이 경로로 목표시각을 지킬 가능성이 얼마이며, 상황이 달라지면 판단이 어떻게 바뀌는가”를 답한다.**
 
@@ -145,13 +275,13 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 
 ---
 
-## 3. Primary User, Persona, JTBD
+## Primary User, Persona, JTBD
 
-### 3.1 Primary User
+### Primary User
 
 서울에서 버스와 지하철을 조합해 이동하며, 단순 최단시간보다 **정해진 시각을 지킬 가능성**이 중요한 사용자다. 출근·면접·시험·공연·병원·예약·약속처럼 지각 비용이 있는 이동이 핵심 상황이다.
 
-### 3.2 핵심 Persona
+### 핵심 Persona
 
 | Persona | 상황 | 현재 불편 | 기대 결과 |
 |---|---|---|---|
@@ -160,7 +290,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 | In-trip Replanner | 이동 중 버스를 보내거나 환승을 놓침 | 이전 ETA가 즉시 무의미해짐 | 실제 사건 이후 남은 여정의 확률과 도착시각 변화를 확인 |
 | Evidence-conscious User | 확률 숫자를 그대로 믿기 어려움 | 데이터가 오래됐거나 부족한지 알 수 없음 | support·freshness·fallback·미모델링 구간을 확인 |
 
-### 3.3 JTBD
+### JTBD
 
 - 중요한 일정에 맞춰 출발을 준비할 때, 선택한 경로의 늦을 위험을 알고 합리적인 출발시각을 정하고 싶다.
 - 환승이 포함된 경로를 볼 때, 계획한 연결편을 지킬 가능성과 놓친 뒤에도 제시간에 도착할 가능성을 구분하고 싶다.
@@ -169,7 +299,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 
 ---
 
-## 4. Value Proposition과 차별점
+## Value Proposition과 차별점
 
 | 기존 정보의 한계 | Journey Reliability의 가치 |
 |---|---|
@@ -184,12 +314,12 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 
 ---
 
-## 5. Minimum Release 범위
+## Minimum Release 범위
 
-### 5.1 In Scope
+### In Scope
 
 - Mobile-first PWA(설치 없이 이용 가능한 responsive mobile Web 포함), 서울 행정구역
-- 사용자는 서울 안에서 임의의 출발지·도착지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, §5.1.1). 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
+- 사용자는 서울 안에서 임의의 출발지·도착지를 입력할 수 있다(`geographyCoverage`/`routeSearchCoverage`, 「Coverage / Selected-route 분리 축」). 도보 구간은 `KAKAO_MAP_WALK` provider로 측정 가능
 - 확률·추천 출발시각 계산은 canonical mapping과 model coverage가 충족된 leg/route에만 수행하며(`canonicalMappingStatus`/`reliabilityModelCoverage`), Route A는 이 전체 흐름의 우선 검증·최종 시연 대상이다(`validationAndDemoScope`)
 - BUS + SUBWAY mixed journey
 - `ACCESS_WALK / WAIT / TRANSIT_RIDE / TRANSFER / FINAL_WALK`
@@ -203,7 +333,7 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 - Evidence Detail
 - Share Snapshot은 일정·보안 Gate에 따른 Should
 
-### 5.1.1 Coverage / Selected-route 분리 축
+### Coverage / Selected-route 분리 축
 
 과거 composite term인 `ROUTE_A_ONLY` 한 단어는 제품 coverage, 모델 coverage, selected-route policy, validation/demo scope를 동시에 뜻하지 않는다. 활성 계약에서는 아래 축으로 분리해서 관리한다.
 
@@ -218,9 +348,9 @@ Journey Reliability가 하지 않는 것은 다음과 같다.
 
 구현 계약 순서: ① 서울 범위 안에서 위치를 실제 좌표로 해석 → ② route discovery provider로 임의 OD의 구조 경로 후보를 얻음 → ③ canonicalization layer가 정류장·역·노선 master와 대조 → ④ name normalization, 좌표 근접성, 버스 노선/지하철 line, 방향·순서 조건으로 후보가 하나로 좁혀질 때만 `EXACT/UNAMBIGUOUS` 부여 → ⑤ `EXACT/UNAMBIGUOUS` mapping과 모델 coverage가 충족된 첫 candidate를 `PROVIDER_FIRST_SUPPORTED`로 선택 → ⑥ Journey Reliability와 Recommended Departure 계산 → ⑦ mapping/모델 coverage가 부족하면 후보 구조는 표시하되 확률·추천 출발은 만들지 않고 이유를 명시 → ⑧ 최종 시연은 이 흐름의 E2E 검증 대상인 Route A fixture로 별도 관리.
 
-Kakao publictraffic은 서울 임의 OD의 `routeDiscoveryProvider`로 runtime에 실제 호출된다(REQ-104). canonical route truth의 단독 source로는 여전히 REJECTED다(§6.1) — 임의 OD의 D2 목표를 달성하려면 외부 official master 기반 canonicalization crosswalk(REQ-105)가 `EXACT/UNAMBIGUOUS` candidate를 만들어야 한다. crosswalk·시간 의미·모델 coverage가 통과한 candidate만 확률과 Recommended Departure를 계산한다. Gate가 미완성인 candidate는 구조만 표시하고 확률·추천 출발은 `NOT_COMPUTED`로 남긴다. 이는 D2 미달 fallback 동작이지, D2 목표 자체를 structure-only로 낮춘다는 뜻이 아니다.
+Kakao publictraffic은 서울 임의 OD의 `routeDiscoveryProvider`로 runtime에 실제 호출된다(REQ-104). canonical route truth의 단독 source로는 여전히 REJECTED다(「Selected-route 정책」) — 임의 OD의 D2 목표를 달성하려면 외부 official master 기반 canonicalization crosswalk(REQ-105)가 `EXACT/UNAMBIGUOUS` candidate를 만들어야 한다. crosswalk·시간 의미·모델 coverage가 통과한 candidate만 확률과 Recommended Departure를 계산한다. Gate가 미완성인 candidate는 구조만 표시하고 확률·추천 출발은 `NOT_COMPUTED`로 남긴다. 이는 D2 미달 fallback 동작이지, D2 목표 자체를 structure-only로 낮춘다는 뜻이 아니다.
 
-### 5.2 Explicit Out
+### Explicit Out
 
 - 전국/수도권 전체 자동 지원, citywide 정확도·SLA
 - 다중 경로 reliability ranking, fastest-vs-safest 추천, route optimizer
@@ -231,9 +361,9 @@ Kakao publictraffic은 서울 임의 OD의 `routeDiscoveryProvider`로 runtime�
 - 외부 utility를 transit ground truth로 사용하는 것
 - 검증되지 않은 support threshold, stale threshold, latency SLO, partition, watermark, TTL 수치
 - Kakao/TMAP 등 route provider의 후보 순서를 reliability ranking으로 재해석하는 것
-- Kakao publictraffic 후보를 canonical route truth, selected route, WAIT/RIDE/TRANSFER 시간, probability/Recommended Departure 근거로 사용하는 것(§5.1.1 `canonicalMappingStatus`/`reliabilityModelCoverage` Gate 통과 전)
+- Kakao publictraffic 후보를 canonical route truth, selected route, WAIT/RIDE/TRANSFER 시간, probability/Recommended Departure 근거로 사용하는 것(「Coverage / Selected-route 분리 축」의 `canonicalMappingStatus`/`reliabilityModelCoverage` Gate 통과 전)
 
-### 5.3 향후 확장
+### 향후 확장
 
 Claim Gate와 핵심 E2E가 안정된 뒤에만 검토한다.
 
@@ -245,7 +375,7 @@ Claim Gate와 핵심 E2E가 안정된 뒤에만 검토한다.
 - evidence-grounded 자연어 설명
 - Share 고도화·개인화·알림
 
-### 5.4 Scope Cut 순서
+### Scope Cut 순서
 
 일정 위험 시 `생성형 AI 설명 → JR_TEMPORAL_QUANTILE_MODEL serving claim → Share polish/SCR-06 → Route B 장기 maturity → 부가 dashboard → citywide` 순으로 제거한다. 제1 AI 후보가 Gate를 통과하지 못하면 같은 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소하고, 그마저 미달하면 empirical/timetable/reference fallback으로 돌아가며 AI serving claim을 하지 않는다.
 
@@ -253,7 +383,7 @@ canonicalization crosswalk(REQ-105)와 Recommended Departure는 D2 목표에 포
 
 다음은 보호한다: provenance, Actual/Residual correctness, Route A core, 서울 임의 OD route discovery(구조 표시), D2 목표의 임의 OD probability/Recommended Departure Gate, BUS_SKIPPED topology, 부족한 근거의 정직한 처리, Mobile/PWA core E2E, 최소 distributed correctness proof.
 
-### 5.5 Mobile-first PWA 범위
+### Mobile-first PWA 범위
 
 PWA는 native app의 임시 대체물이 아니라 Minimum Release의 기본 delivery model이다.
 
@@ -287,9 +417,9 @@ PWA 설치 여부가 권한·기능·결과 품질을 바꾸지 않는다. 브�
 
 ---
 
-## 6. Route 정책과 Main Journey
+## Route 정책과 Main Journey
 
-### 6.1 Selected-route 정책
+### Selected-route 정책
 
 Minimum Release는 route optimizer가 아니다. D2 selected route는 reliability ranking이 아니라 provider order에서 canonical mapping과 model coverage가 충족된 첫 supported candidate다. 최종 시연과 D2 Gate 미통과 fallback은 승인된 Route A structural manifest로 고정한다. Route A manifest는 다음 조건을 만족해야 한다.
 
@@ -308,13 +438,13 @@ Provider registry는 route provider와 WALK provider를 분리해 관리한다. 
 3. `totalTime`, step time, 접근·환승·대기·마지막 도보의 포함 관계를 raw response로 규명한다. → **`PARTIAL`** (BUS_AND_SUBWAY 후보는 15초 이내로 거의 explained, 순수 SUBWAY 후보는 58초 잔차가 남아 완전히 규명되지 않음)
 4. 동일 OD 반복 호출의 candidate order·구조 안정성과 mapping failure rate를 검증한다. → **`PASS`** (같은 window 반복 및 전날 대비 재호출에서 15개 후보 signature 완전 일치)
 
-entitlement가 `CONFIRMED`로 바뀌었더라도 Kakao payload 자체의 mapping 조건은 구조적으로 `REJECTED`다. 따라서 D2 selected-route 사용은 REQ-105 external crosswalk와 model Gate 통과가 필요하다. `KAKAO_MAP_WALK` provider 사용과 서울 임의 OD route discovery(§5.1.1 routeSearchCoverage)는 이 보류와 무관하게 계속 유효하다.
+entitlement가 `CONFIRMED`로 바뀌었더라도 Kakao payload 자체의 mapping 조건은 구조적으로 `REJECTED`다. 따라서 D2 selected-route 사용은 REQ-105 external crosswalk와 model Gate 통과가 필요하다. `KAKAO_MAP_WALK` provider 사용과 서울 임의 OD route discovery(「Coverage / Selected-route 분리 축」의 routeSearchCoverage)는 이 보류와 무관하게 계속 유효하다.
 
-이 절은 Route A 자체의 selected-route 정책을 규정하며, 서울 임의 OD 검색·경로 후보 생성은 §5.1.1 coverage/selected-route 분리 축(`routeSearchCoverage`/`canonicalMappingStatus`/`reliabilityModelCoverage`)을 따른다. 즉 사용자는 서울 어디든 입력할 수 있고 서비스는 구조 경로 후보를 보여주지만, canonical mapping과 model coverage가 부족한 OD는 확률·추천 출발시각을 계산하지 않는다. Route A는 이 전체 흐름의 우선 검증·최종 시연 대상일 뿐, 서비스가 지원하는 유일한 경로라는 뜻이 아니다.
+이 절은 Route A 자체의 selected-route 정책을 규정하며, 서울 임의 OD 검색·경로 후보 생성은 「Coverage / Selected-route 분리 축」(`routeSearchCoverage`/`canonicalMappingStatus`/`reliabilityModelCoverage`)을 따른다. 즉 사용자는 서울 어디든 입력할 수 있고 서비스는 구조 경로 후보를 보여주지만, canonical mapping과 model coverage가 부족한 OD는 확률·추천 출발시각을 계산하지 않는다. Route A는 이 전체 흐름의 우선 검증·최종 시연 대상일 뿐, 서비스가 지원하는 유일한 경로라는 뜻이 아니다.
 
 승인된 Route A manifest/hash/topology가 깨지면 조용히 다른 확률·추천 출발시각을 재사용하지 않고 `ROUTE_MANIFEST_INVALID`로 분리해 운영 복구 또는 조건부 retry로 처리한다. 서울 임의 OD 후보의 canonical mapping이 `PARTIAL/FAILED`인 경우는 분석 오류가 아니라 SCR-02 structure-only 정상 결과이며 probability/Recommended Departure는 `NOT_COMPUTED`로 남긴다.
 
-### 6.2 Route A와 Route B의 역할
+### Route A와 Route B의 역할
 
 | Route | 구조 | 제품 역할 | 현재 주장 가능 범위 |
 |---|---|---|---|
@@ -323,7 +453,7 @@ entitlement가 `CONFIRMED`로 바뀌었더라도 Kakao payload 자체의 mapping
 
 Route B를 Route A보다 “더 좋은 경로”로 추천하지 않으며 최종 사용자 데모에 포함하지 않는다. 내부 test fixture와 QA run에서만 사용하고 실제 product probability와 fixture provenance를 분리한다.
 
-### 6.3 Pre-trip Main Journey
+### Pre-trip Main Journey
 
 | 단계 | 사용자 행동 | 서비스 처리 | 실패/제한 처리 |
 |---|---|---|---|
@@ -335,7 +465,7 @@ Route B를 Route A보다 “더 좋은 경로”로 추천하지 않으며 최�
 | 6 | 근거 확인 | leg별 source/fallback/freshness/limitation 제공 | raw payload·secret은 일반 UI에 미노출 |
 | 7 | 이동 시작 | 분석 snapshot으로 Journey state 생성 | 중복 start는 idempotent 처리 |
 
-### 6.4 In-trip / Reforecast Journey
+### In-trip / Reforecast Journey
 
 Reforecast는 `P(final arrival | observed history, current state)`를 다시 계산한다.
 
@@ -347,7 +477,7 @@ Reforecast는 `P(final arrival | observed history, current state)`를 다시 계
 
 ---
 
-## 7. 핵심 기능과 사용자 가치
+## 핵심 기능과 사용자 가치
 
 | 기능 영역 | 핵심 정책 | 사용자 가치 | 하위 계약 연결 |
 |---|---|---|---|
@@ -361,9 +491,9 @@ Reforecast는 `P(final arrival | observed history, current state)`를 다시 계
 
 ---
 
-## 8. 확률 결과의 의미와 표시 원칙
+## 확률 결과의 의미와 표시 원칙
 
-### 8.1 결과 정의
+### 결과 정의
 
 | 결과 | 제품 의미 | 사용자 표현 | 금지 표현 |
 |---|---|---|---|
@@ -376,15 +506,15 @@ Reforecast는 `P(final arrival | observed history, current state)`를 다시 계
 
 \* 실제 calibration scope와 support가 함께 표시되어야 하며, component-only 결과를 end-to-end 보장처럼 표현하지 않는다. “10번 중 약 9번” 같은 반복빈도 표현은 해당 범위의 end-to-end calibration이 통과한 뒤에만 허용한다.
 
-### 8.2 P50/P90와 P(on_time)의 관계
+### P50/P90와 P(on_time)의 관계
 
 P50/P90는 도착분포의 시간 분위수이고 `P(on_time)`은 사용자가 정한 목표시각을 기준으로 한 누적확률이다. 목표시각이 바뀌면 `P(on_time)`은 바뀌지만 같은 계산 snapshot의 P50/P90가 반드시 바뀌는 것은 아니다.
 
-### 8.3 Monte Carlo 정책
+### Monte Carlo 정책
 
 전체 Journey는 leg 확률의 단순 합·곱이 아니라 service candidate와 연결 실패/회복을 포함해 simulation한다. 운영 N은 미리 숫자로 고정하지 않는다. 대표 fixture와 Route A artifact에서 P50/P90/`P(on_time)`의 수렴, fixed-seed 재현성, 응답시간과 자원 profile을 비교해 조건을 만족하는 최소 N을 versioned benchmark로 정한다. Wilson interval을 사용할 경우 finite-N sampling noise에만 적용하며 모델·데이터 uncertainty나 calibration confidence interval로 설명하지 않는다.
 
-### 8.4 Recommended Departure 정책
+### Recommended Departure 정책
 
 정의는 다음과 같다.
 
@@ -396,13 +526,13 @@ Recommended Departure는 D2 목표 capability다. 서울 임의 OD에서도 sele
 
 ---
 
-## 9. Journey Domain Boundary
+## Journey Domain Boundary
 
-### 9.1 Canonical composition
+### Canonical composition
 
 `ACCESS_WALK + WAIT(mode) + TRANSIT_RIDE(mode) + TRANSFER(mode→mode) + WAIT(next mode) + … + FINAL_WALK`
 
-### 9.2 Leg별 경계
+### Leg별 경계
 
 | Leg | 시작–종료 경계 | 시간 의미 | 불확실성 정책 |
 |---|---|---|---|
@@ -413,7 +543,7 @@ Recommended Departure는 D2 목표 capability다. 서울 임의 OD에서도 sele
 | TRANSFER | 이전 mode 하차→다음 boarding point 도착 | street + station internal component | 다음 service WAIT 포함 금지 |
 | FINAL_WALK | 최종 하차점→실제 목적지 | versioned WALK provider point/reference | 목적 역 도착을 Journey 완료로 보지 않음 |
 
-### 9.3 Transfer 세부 경계
+### Transfer 세부 경계
 
 - `BUS_TO_SUBWAY`: bus stop→station entrance/참조 node street component + entrance→platform internal component
 - `SUBWAY_TO_BUS`: platform→exit internal component + exit→bus stop street component
@@ -427,9 +557,9 @@ Route A FINAL WALK는 역삼 `STATION_CENTER` candidate→POI entrance 329m/300s
 
 ---
 
-## 10. Prediction, Actual, Residual, Observation Uncertainty
+## Prediction, Actual, Residual, Observation Uncertainty
 
-### 10.1 분리해야 하는 개념
+### 분리해야 하는 개념
 
 이 절의 `Actual`은 항상 provider가 관측한 차량·열차 도착 사건(`ActualArrivalInterval`)만을 가리킨다. Live Journey에서 사용자가 확인하는 탑승·미탑승·환승 실패 같은 사건은 별도 개념인 `UserEvent`이며 이 절의 `Actual`과 혼용하지 않는다.
 
@@ -440,7 +570,7 @@ Route A FINAL WALK는 역삼 `STATION_CENTER` candidate→POI entrance 329m/300s
 
 Actual이 `(이전 관측시각, 최초 도착상태 관측시각]`이면 residual도 lower/mid/upper 범위를 유지한다. midpoint 하나로 observation uncertainty를 숨기지 않는다. `abs(residual)` 또는 residual 자체를 ride duration으로 사용하지 않는다. prediction horizon은 prediction 시점에 알 수 있는 ETA를 사용하고, outcome 이후 알게 된 realized time-to-event를 feature로 사용하지 않는다.
 
-### 10.2 Bus 규칙
+### Bus 규칙
 
 - Arrival `vehId1/2`와 Position `vehId`를 연결한다.
 - 현재 Actual candidate는 동일 vehicle의 `stopFlag 0→1`이다.
@@ -448,14 +578,14 @@ Actual이 `(이전 관측시각, 최초 도착상태 관측시각]`이면 residu
 - vehicle ID+시간창만으로 만든 match는 diagnostic이며 target-stop residual acceptance가 아니다.
 - `congetion`은 관측 context일 수 있으나 개인 boarding success ground truth가 아니다.
 
-### 10.3 Subway 규칙
+### Subway 규칙
 
 - 최소 identity는 `subwayId × statnId × trainNo`다.
 - station name만으로 multi-line 역을 합치지 않는다.
 - 현재 Actual candidate는 동일 station×line×train에서 `arvlCd != 1 → 1` 최초 transition이다.
 - mixed-route code, timetable `SI_ID`, realtime `statnId` 사이의 산술 패턴을 일반화하지 않고 versioned explicit crosswalk를 쓴다.
 
-### 10.4 Timestamp와 좌표 provenance
+### Timestamp와 좌표 provenance
 
 `source_generated_at`, HTTP 직전 `requested_at`, 응답 직후 `received_at`, 계산시각 `calculated_at`을 분리한다. 기준 timezone은 Asia/Seoul이다. 실호출 646건에서 request-boundary timestamp 기록의 일관성은 확인했지만 provider clock 기반 lateness는 아직 측정하지 않았다. 따라서 provider 생성시각이 없는 payload에 임의의 source timestamp를 부여하지 않는다.
 
@@ -463,9 +593,9 @@ Actual이 `(이전 관측시각, 최초 도착상태 관측시각]`이면 residu
 
 ---
 
-## 11. Support, Fallback, Confidence, Validation Scope
+## Support, Fallback, Confidence, Validation Scope
 
-### 11.1 네 개념의 분리
+### 네 개념의 분리
 
 | 개념 | 답하는 질문 |
 |---|---|
@@ -476,15 +606,15 @@ Actual이 `(이전 관측시각, 최초 도착상태 관측시각]`이면 residu
 
 확률값이 높다고 confidence가 높은 것이 아니며, sample count만 크다고 validation scope가 높아지는 것도 아니다.
 
-### 11.2 Support 정책
+### Support 정책
 
 `SUPPORT_RULE_V1` 전에는 5/20/30/100 같은 임의 sample threshold로 HIGH/MEDIUM/LOW를 자동 생성하지 않는다. empirical artifact의 기본 confidence는 `INSUFFICIENT`다. Threshold는 independent sample unit을 먼저 정의한 뒤 down-sampling, bootstrap, hold-out coverage 안정성으로 정한다.
 
-### 11.3 Fallback 정책
+### Fallback 정책
 
 exact route×pair×time 조건이 부족할 때 broader supported pool을 사용할 수 있으나, 사용한 계층과 support를 결과에 남긴다. source가 없는 required leg에는 placeholder 시간을 넣지 않는다. 실제 결과는 `NOT_COMPUTED`, synthetic logic fixture는 `ENGINE_FIXTURE_ONLY`로 분리한다.
 
-### 11.4 Validation ladder
+### Validation ladder
 
 | 단계 | 의미 | 결과 metadata |
 |---|---|---|
@@ -495,7 +625,7 @@ exact route×pair×time 조건이 부족할 때 broader supported pool을 사용
 
 Component validation을 whole-Journey calibration으로 승격하지 않는다. 계약 위반이 확인된 vertical-slice 산출값은 제품 확률·Demo 근거로 사용하지 않는다.
 
-### 11.5 Result Eligibility와 Start Eligibility
+### Result Eligibility와 Start Eligibility
 
 Result Eligibility는 “숫자를 계산·표시할 수 있는가”, Confidence는 “그 결과의 empirical evidence가 얼마나 충분한가”, Start Eligibility는 “현재 snapshot으로 live Journey를 시작해도 되는가”를 답한다. 세 축을 합치지 않는다.
 
@@ -510,26 +640,26 @@ Result Eligibility는 “숫자를 계산·표시할 수 있는가”, Confidenc
 
 Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족해도 core P50/P90/P(on_time)을 자동 무효화하지 않는다. Recommended Departure는 별도 Claim Gate이며 unavailable이 core result와 Start를 막지 않는다.
 
-### 11.6 Per-metric Claim Eligibility
+### Per-metric Claim Eligibility
 
-§11.5의 `resultEligibility`(`USER_FACING/ENGINE_FIXTURE_ONLY/NOT_COMPUTED`)는 "화면에 숫자를 표시해도 되는가"를 answer하는 전역 gate다. 하지만 Journey는 성숙도가 서로 다른 BUS/SUBWAY/WALK/TRANSFER/WAIT leg를 포함하므로, `USER_FACING`이라는 한 값만으로는 P50/P90/P(on_time)/Recommended Departure가 서로 얼마나 다른 통계적 근거를 가지는지 구분하지 못한다. 전역 gate 아래에 metric별 claim eligibility를 추가로 둔다.
+「Result Eligibility와 Start Eligibility」의 `resultEligibility`(`USER_FACING/ENGINE_FIXTURE_ONLY/NOT_COMPUTED`)는 "화면에 숫자를 표시해도 되는가"를 answer하는 전역 gate다. 하지만 Journey는 성숙도가 서로 다른 BUS/SUBWAY/WALK/TRANSFER/WAIT leg를 포함하므로, `USER_FACING`이라는 한 값만으로는 P50/P90/P(on_time)/Recommended Departure가 서로 얼마나 다른 통계적 근거를 가지는지 구분하지 못한다. 전역 gate 아래에 metric별 claim eligibility를 추가로 둔다.
 
 | 자격 | 허용 표현 |
 |---|---|
 | `STRUCTURE_ONLY` | 경로 구조·reference time만 표시, 확률 미표시 |
 | `DISTRIBUTION_AVAILABLE` | P50/P90을 모델 출력으로 표시, calibration claim 금지 |
 | `PROBABILITY_AVAILABLE` | P(on_time) 표시 가능, observation/coverage 경고 필수 |
-| `CALIBRATED_CLAIM` | 정해진 validation scope(V3, §11.4) 안에서만 신뢰도 claim 가능 |
+| `CALIBRATED_CLAIM` | 정해진 validation scope(V3, 「Validation ladder」) 안에서만 신뢰도 claim 가능 |
 
 - P50, P90, P(on_time), Recommended Departure는 각각 이 4단계 중 하나로 독립 판정한다. 하나의 metric이 `PROBABILITY_AVAILABLE`이어도 다른 metric은 `STRUCTURE_ONLY`일 수 있다.
 - 어떤 required leg가 point reference인지, unmodeled인지, fallback인지는 결과 payload(`metricEligibility`)에 노출한다.
 - V3 calibration이 없으면 "실험 모델 출력" 또는 demo/replay 범위로 정직하게 위치시키고 `CALIBRATED_CLAIM`을 주장하지 않는다.
-- 계약 완성도(§11.5 `resultEligibility`)와 통계적 claim 가능성(§11.6 metric eligibility)을 같은 값으로 합치지 않는다.
+- 계약 완성도(「Result Eligibility와 Start Eligibility」 `resultEligibility`)와 통계적 claim 가능성(「Per-metric Claim Eligibility」 metric eligibility)을 같은 값으로 합치지 않는다.
 - 최종 데모는 `D0 계약/상태`(구조·오류·partial 상태만), `D1 component/replay`(실험 출력 P50/P90/P(on_time)), `D2 calibrated`(V3 통과 후 신뢰도 claim)처럼 gate에 따라 narrative를 달리한다.
 
 ---
 
-## 12. 핵심 설계 근거
+## 핵심 설계 근거
 
 | 설계 대상 | 확인된 사실 | 적용 정책 |
 |---|---|---|
@@ -554,9 +684,9 @@ Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족
 
 ---
 
-## 13. 상태·오류·데이터 부족 UX 원칙
+## 상태·오류·데이터 부족 UX 원칙
 
-### 13.1 상태 모델
+### 상태 모델
 
 아래는 사용자에게 보이는 상태 언어다. 구현에서는 `AnalysisState`, `JourneyLifecycleState`, `ReforecastState`, `LegState`, `Freshness`를 별도 namespace로 보존한다. `REFORECASTING`이나 `UNAVAILABLE`을 Journey lifecycle enum에 합치지 않는다.
 
@@ -576,7 +706,7 @@ Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족
 | RECONNECTING | 앱이 foreground로 돌아와 최신 상태를 확인 중 | 이전 snapshot을 live로 승격하지 않음 | 완료까지 mutation 대기 |
 | REFORECAST_UNAVAILABLE | 다음 service를 구성할 근거 없음 | 버스 leg 삭제 금지 | 현재 상태 유지/수동 판단 |
 
-### 13.2 실패 원칙
+### 실패 원칙
 
 - provider HTTP 성공 안의 business error도 성공으로 세지 않는다.
 - provider raw error/secret/internal ID를 일반 UI에 노출하지 않는다.
@@ -585,7 +715,7 @@ Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족
 - recorded evidence/replay는 “기록된 근거”라고 표시하며 live로 표현하지 않는다.
 - 색상만으로 상태를 구분하지 않고 label, icon, copy를 함께 사용한다.
 
-### 13.3 Freshness 합성 정책
+### Freshness 합성 정책
 
 Freshness는 provider/source별 원상태를 보존하고, 사용자 행동을 위해 Journey-level projection을 별도로 만든다. 합성 전에 각 source를 다음처럼 분류한다.
 
@@ -604,9 +734,9 @@ Journey-level projection은 다음 순서를 따른다.
 
 ---
 
-## 14. 데이터 Lifecycle과 Provenance
+## 데이터 Lifecycle과 Provenance
 
-### 14.0 Provider Policy Registry와 Default-deny 원칙
+### Provider Policy Registry와 Default-deny 원칙
 
 API 호출 권한, 사용자 화면 표시 권한, cache 권한, raw 장기보존 권한, derived data 보존 권한, Share/재배포 권한은 서로 다른 Gate다(BR-086). `HTTP 200`, sanitized 처리, secret 제거 중 어느 것도 장기보존·재배포 허가를 자동으로 의미하지 않는다. 이 프로젝트가 지금까지 확인한 것은 대부분 quota/rate-limit과 runtime 호출 성공이며, raw response의 장기보존·재배포 권한에 대한 공식 약관 검토는 provider별로 별도로 필요하다.
 
@@ -626,9 +756,9 @@ Collector는 수집 직후 registry를 조회해 `rawRetentionStatus=ALLOWED`인
 
 재계산은 기존 Actual/Residual/Distribution/Result를 덮어쓰지 않고 새 version을 만든다. Amplified replay 복제본은 benchmark에만 사용하며 training support나 실제 서울 traffic으로 세지 않는다. 위 표의 `immutable`은 "삭제하지 않는다"가 아니라 "허용 보관 기간 동안 원본을 변조하지 않는다"는 뜻이며, 기간 만료 후 삭제는 아래 matrix의 deletion owner가 수행한다.
 
-### 14.1 활성 Provider별 Retention/Redistribution Matrix
+### 활성 Provider별 Retention/Redistribution Matrix
 
-실제 Runtime과 Evidence에 사용하는 provider(Kakao WALK, Kakao publictraffic, 서울 버스 Arrival/Position, 서울 지하철 Arrival/Position)에는 아래 matrix를 적용한다. 기본 비활성화된 TMAP은 이 깊이로 설계하지 않고 §18.4의 `DISABLED_BY_DEFAULT`·24시간 만료 정책만 따른다. Kakao 두 endpoint는 quota/rate-limit만 공식 확인됐고 raw 장기보존·재배포 권한에 대한 별도 약관 검토가 없으므로 `rawRetentionStatus=UNVERIFIED`(default deny, §14.0)를 적용한다. 서울 버스/지하철은 열린데이터광장/data.go.kr의 공식 이용조건상 재이용이 폭넓게 허용되나, 제3자 권리가 있는 개별 dataset/API는 그 권리자의 조건을 따른다(§3.4 원칙과 동일하게 적용).
+실제 Runtime과 Evidence에 사용하는 provider(Kakao WALK, Kakao publictraffic, 서울 버스 Arrival/Position, 서울 지하철 Arrival/Position)에는 아래 matrix를 적용한다. 기본 비활성화된 TMAP은 이 깊이로 설계하지 않고 「API quota와 수집 예산」의 `DISABLED_BY_DEFAULT`·24시간 만료 정책만 따른다. Kakao 두 endpoint는 quota/rate-limit만 공식 확인됐고 raw 장기보존·재배포 권한에 대한 별도 약관 검토가 없으므로 `rawRetentionStatus=UNVERIFIED`(default deny, 「Provider Policy Registry와 Default-deny 원칙」)를 적용한다. 서울 버스/지하철은 열린데이터광장/data.go.kr의 공식 이용조건상 재이용이 폭넓게 허용되나, 제3자 권리가 있는 개별 dataset/API는 그 권리자의 조건을 따른다(공식 데이터 재이용 원칙과 동일하게 적용).
 
 | 항목 | Kakao WALK | Kakao publictraffic | 서울 버스 Arrival/Position | 서울 지하철 Arrival/Position |
 |---|---|---|---|---|
@@ -641,16 +771,16 @@ Collector는 수집 직후 registry를 조회해 `rawRetentionStatus=ALLOWED`인
 
 ---
 
-## 15. 개인정보·보안·Share 원칙
+## 개인정보·보안·Share 원칙
 
-### 15.1 개인정보 최소화
+### 개인정보 최소화
 
 - Minimum Release는 계정이 없다.
 - 계산에는 origin/destination/target이 필요하지만 analytics에는 exact coordinate를 기본 저장하지 않는다.
 - active Journey state와 result snapshot만 최소 보존하며 장기 이동 history를 만들지 않는다.
 - Journey retention TTL은 G5 Security Review에서 확정한다. 근거 없이 수치를 만들지 않는다.
 
-### 15.2 Secret과 접근
+### Secret과 접근
 
 - API key는 frontend bundle, repo, README, CI log, error body에 포함하지 않는다.
 - HTTPS, CORS allow-list, internal admin/stream UI 접근 제한을 적용한다.
@@ -669,7 +799,7 @@ Minimum Release의 일반 Journey는 계정 대신 **browser-bound owner capabil
 - 사용자가 브라우저 데이터를 지워 local snapshot을 잃어도 서버의 owner capability가 자동 폐기됐다고 가정하지 않는다. 서버 만료·폐기 정책이 권한 수명을 통제한다.
 - 위치 권한은 사용자가 “현재 위치 사용”을 선택할 때만 요청하고, 연속 background GPS tracking은 하지 않는다.
 
-### 15.3 Share
+### Share
 
 Share는 원본 Journey가 아니라 축약된 immutable snapshot이다.
 
@@ -679,19 +809,19 @@ Token은 opaque·unpredictable하고 만료가 필수다. 정확 TTL이 G5까지
 
 Share token은 owner capability와 별도 권한이며 원본 Journey API나 mutation에 사용할 수 없다. 서버에는 token 원문이 아니라 검증 가능한 digest와 expiry/revocation 상태를 보존하고, Share payload는 생성 당시의 immutable snapshot으로 고정한다. URL·analytics·application log에 token 원문을 남기지 않는다.
 
-### 15.4 서울시 공공데이터 출처표시
+### 서울시 공공데이터 출처표시
 
 서울 버스/지하철 realtime·timetable 등 서울특별시 공공데이터를 활용해 계산된 결과를 노출하는 화면에는 출처를 표시한다. 기본 문구는 다음과 같다.
 
 > 이 결과는 서울특별시 공공데이터를 활용해 계산되었습니다.
 
-적용 위치: SCR-02 Pre-trip Result의 source/footer 영역, SCR-03 Live Journey의 Evidence/source 진입부, SCR-05 Evidence Detail, 서울시 기반 metric이 포함된 SCR-06 Share Snapshot(IA §8.2/§9.2/§11.2/§12.4). 서울시 API key는 raw payload·frontend·Share·public repo에 포함하지 않으며, `vehId`/`trainNo` 등 운영상 필요한 identifier도 사용자 Share에는 포함하지 않는다.
+적용 위치: SCR-02 Pre-trip Result의 source/footer 영역, SCR-03 Live Journey의 Evidence/source 진입부, SCR-05 Evidence Detail, 서울시 기반 metric이 포함된 SCR-06 Share Snapshot(IA 「SCR-02 — Pre-trip Result」/「SCR-03 — Live Journey」/「SCR-05 — Evidence Detail」/「SCR-06 — Share Snapshot」의 「Component hierarchy」와 「Information hierarchy」). 서울시 API key는 raw payload·frontend·Share·public repo에 포함하지 않으며, `vehId`/`trainNo` 등 운영상 필요한 identifier도 사용자 Share에는 포함하지 않는다.
 
 ---
 
-## 16. Logical Architecture, ERD, API와 기술 선택
+## Logical Architecture, ERD, API와 기술 선택
 
-### 16.1 시스템 아키텍처
+### 시스템 아키텍처
 
 ```mermaid
 flowchart TB
@@ -714,7 +844,7 @@ flowchart TB
 
 Product request path와 reliability data path를 분리한다. PWA 요청이 외부 provider를 무제한 직접 호출하지 않으며, Backend가 quota·freshness·cache·eligibility를 통제한다. Raw response는 사후 재파싱과 replay를 위해 canonical transform과 분리해 먼저 또는 동시에 보존한다.
 
-### 16.2 구성요소 책임
+### 구성요소 책임
 
 | 구성 | 기준 기술 | 책임 |
 |---|---|---|
@@ -732,7 +862,7 @@ Product request path와 reliability data path를 분리한다. PWA 요청이 외
 | Deployment | Docker Compose, Nginx, EC2 2대 | HTTPS public PWA/API와 internal processing surface 분리 |
 | CI/CD | GitLab CI 우선, Jenkins 대안 | build, test, schema/secret scan, deploy, rollback |
 
-### 16.3 기술 대안과 전환 조건
+### 기술 대안과 전환 조건
 
 | 기준 선택 | 한계 신호 | 대안 |
 |---|---|---|
@@ -760,7 +890,7 @@ EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cach
 
 이 2-node 구성은 분산 task 참여·replay·correctness를 증명하는 제출 구조이지 high availability나 무중단 failover를 보장하는 구조가 아니다. node·broker·JobManager·database의 단일 장애점을 실제로 제거하고 failover를 검증하기 전에는 HA·SLA 근거로 사용하지 않는다.
 
-### 16.4 API 기본 틀
+### API 기본 틀
 
 | 그룹 | 기본 endpoint | 책임 |
 |---|---|---|
@@ -776,7 +906,7 @@ EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cach
 
 모든 API는 `/api/v1`, request ID, schema version, timezone-aware datetime, null semantics와 공통 error envelope를 사용한다. owner capability는 secure cookie로 검증하고 mutation은 idempotency key와 expected state/result version을 요구한다. PWA의 service worker는 analysis/state/event 응답을 무조건 cache-first하지 않으며 offline mutation을 성공처럼 queue하지 않는다.
 
-### 16.5 논리 ERD
+### 논리 ERD
 
 ```mermaid
 erDiagram
@@ -804,7 +934,7 @@ erDiagram
 
 운영 Journey lifecycle과 reliability lineage를 별도 관계로 유지한다. Requirements에서는 각 entity의 PK/FK, unique key, immutable 여부, lifecycle, privacy class, provenance와 retention owner를 정의한다.
 
-### 16.6 분산처리 필수 증명
+### 분산처리 필수 증명
 
 분산처리는 제출 목적의 선택 기능이 아니라 Release Gate다. 데이터양이 작아도 실제 또는 recorded input을 Kafka에 적재하고 Flink의 두 개 이상 worker가 partitioned task에 참여해야 한다.
 
@@ -822,21 +952,21 @@ Acceptance는 다음을 포함한다.
 
 ---
 
-## 17. ML/AI 적용 및 비적용 기준
+## ML/AI 적용 및 비적용 기준
 
-### 17.1 Primary AI Capability
+### Primary AI Capability
 
 제1 AI 후보는 `JR_TEMPORAL_QUANTILE_MODEL`이다. 이 모델은 전체 Journey 확률을 직접 출력하지 않고, BUS/SUBWAY leg의 residual과 WAIT에 대해 Q10/Q50/Q90, uncertainty width, low-support flag를 산출한다. Journey Engine은 이 leg-level distribution source를 timetable, realtime source, empirical/reference fallback과 함께 Monte Carlo에 넣어 P50/P90/`P(on_time)`/Recommended Departure를 계산한다. 즉 AI는 deadline probability의 입력 품질을 높이는 역할이지, 최종 사용자 숫자를 black-box로 생성하는 역할이 아니다.
 
-### 17.2 H100 Training Plane과 Runtime Serving Plane
+### H100 Training Plane과 Runtime Serving Plane
 
 H100급 GPU, Jupyter Lab, 별도 notebook 환경은 모델 학습과 offline evaluation에만 사용한다. production PWA/API/collector/Journey Engine은 학습 환경을 직접 호출하지 않는다. 학습 완료 후에는 model file, feature schema, calibration report, model card, artifact hash를 포함한 `ModelArtifactManifest`만 서비스 환경에 반입한다. Runtime은 `SYS-008` AI Inference Adapter가 versioned artifact를 load해 bounded inference를 수행하고, Evidence에는 modelKey/modelVersion/hash/evaluation scope/fallback 여부를 남긴다.
 
-### 17.3 Back-up Plan
+### Back-up Plan
 
 `JR_TEMPORAL_QUANTILE_MODEL`이 temporal hold-out의 pinball loss, empirical coverage, calibration guardrail, low-support 추가가치, artifact portability, runtime latency/ops cost 중 하나라도 통과하지 못하면 같은 feature schema의 `QUANTILE_GBDT_BASELINE`으로 축소한다. 이 backup도 실패하면 empirical residual/duration baseline, timetable prior, deterministic/reference input으로 돌아가며 AI serving claim을 하지 않는다. 어떤 경우에도 AI output을 canonical mapping, provider evidence, Reforecast reason code, 최종 `P(on_time)`의 단독 source로 쓰지 않는다.
 
-### 17.4 생성형 AI
+### 생성형 AI
 
 허용: reason code와 evidence를 바탕으로 “왜 확률이 바뀌었는지” 설명, limitation 요약.  
 금지: 확률·ETA·support 숫자 생성, provider evidence 대체, 정책 reason code 대체.  
@@ -846,9 +976,9 @@ H100은 학습 자원일 뿐 production dependency가 아니다. 제품 성공�
 
 ---
 
-## 18. 운영·관측성·데모 정책
+## 운영·관측성·데모 정책
 
-### 18.1 운영 관측 항목
+### 운영 관측 항목
 
 - Collector: provider별 last success/error, calls, quota ledger, business error, round-trip latency
 - Data: join/dedupe/out-of-order, Actual/Residual 생성, interval width, artifact age
@@ -859,11 +989,11 @@ H100은 학습 자원일 뿐 production dependency가 아니다. 제품 성공�
 
 Threshold 숫자는 profile 후 정하며 근거·version을 남긴다.
 
-### 18.2 Provider failure 운영
+### Provider failure 운영
 
 Route provider failure 시 새 route analysis를 만들지 않는다. Realtime failure 시 마지막 성공이 freshness policy 안인지 확인하고 아니면 stale/provider error로 전환한다. Kakao/TMAP WALK 실패 시 임의 직선거리·속도나 다른 provider 시간을 출처 변경 없이 대입하지 않으며, 동일 provider/version의 승인된 cached pair가 없으면 해당 결과를 unavailable 처리한다.
 
-### 18.3 데모 정직성
+### 데모 정직성
 
 - final probability는 실제 pipeline output만 사용한다.
 - hard-coded·illustrative·failed fixture 숫자를 actual result로 사용하지 않는다.
@@ -890,7 +1020,7 @@ Route provider failure 시 새 route analysis를 만들지 않는다. Realtime f
 
 manifest 누락, fixture provenance 혼합 또는 preflight 실패 시 숫자를 대체하지 않고 해당 scene을 제거한다.
 
-### 18.4 API quota와 수집 예산
+### API quota와 수집 예산
 
 외부 API 호출 예산은 컴퓨팅 자원보다 희소한 핵심 운영 자원이다. 실시간 Prediction은 과거 시점을 사후 조회할 수 없는 경우가 많아 필요한 Evidence를 직접 축적해야 하지만, 짧은 주기의 무제한 polling은 동일 snapshot을 반복 수집하면서 quota만 소모할 수 있다.
 
@@ -930,7 +1060,7 @@ DailyCalls = \sum_{source,cohort,window}
 
 위 quota 방어는 collector→provider 방향(중앙 quota coordinator)만 다룬다. 익명 사용자가 공개 endpoint를 직접 반복 호출해 provider quota를 소진하는 것을 막는 client/session 단위 admission control, 동일 요청 dedup/in-flight coalescing, concurrency cap은 Requirements NFR-090~092에서 별도로 정의한다.
 
-### 18.5 호출 효율화와 degradation
+### 호출 효율화와 degradation
 
 - route-wide/bulk endpoint를 station별 반복 호출보다 우선한다.
 - 동일 OD·provider·normalization version의 structural route는 승인된 cache policy 안에서 재사용하고, 목표시각·목표 reliability 변경만으로 route를 재조회하지 않는다.
@@ -951,7 +1081,7 @@ DailyCalls = \sum_{source,cohort,window}
 | critical input 없음 | `NOT_COMPUTED` |
 | quota business error | `PROVIDER_ERROR/QUOTA_EXHAUSTED`, 즉시 반복 retry 제한 |
 
-### 18.6 데이터 확장·Fixture·Replay 정책
+### 데이터 확장·Fixture·Replay 정책
 
 | 방법 | 목적 | Probability support/calibration 사용 |
 |---|---|---|
@@ -965,7 +1095,7 @@ DailyCalls = \sum_{source,cohort,window}
 
 가짜 Ground Truth로 표본 수를 늘리지 않는다. Fixture와 replay는 별도 provenance, namespace, environment를 사용하고 product support count에 합산하지 않는다.
 
-### 18.7 quota 증액과 대체 source
+### quota 증액과 대체 source
 
 실시간 지하철은 외부에서 접속 가능한 실제 Web URL을 조기에 배포하고 공식 활용사례 절차를 신청한다. 서울 버스의 증액 절차는 지하철과 동일하다고 가정하지 않고 포털·운영기관에서 별도로 확인한다. 화면 캡처·로컬 URL·소스 저장소만으로 승인을 가정하지 않는다. 승인량·처리시점은 제품이 통제할 수 없으므로 증액 전제를 release blocker로 두지 않는다. 신청 시 서비스 URL, PWA 주요 화면, 사용 endpoint·목적, 예상 호출식, 중앙 quota 통제와 개인정보 최소화 정책을 함께 제출한다.
 
@@ -973,9 +1103,9 @@ DailyCalls = \sum_{source,cohort,window}
 
 ---
 
-## 19. 성공 기준과 평가 체계
+## 성공 기준과 평가 체계
 
-### 19.1 Product Outcome
+### Product Outcome
 
 | 기준 | 성공 정의 |
 |---|---|
@@ -987,7 +1117,7 @@ DailyCalls = \sum_{source,cohort,window}
 | Failure usability | stale/provider error/unsupported/insufficient가 0%나 fake value로 보이지 않음 |
 | Mobile continuity | 설치 여부와 무관하게 모바일 핵심 flow가 동작하고 foreground 복귀·네트워크 단절에서 상태를 오인하지 않음 |
 
-### 19.2 Data/Probability Evaluation
+### Data/Probability Evaluation
 
 - identity correctness, Actual/Residual validity, duplicate/out-of-order profile
 - P50/P90 temporal hold-out pinball loss, empirical coverage, sharpness
@@ -998,7 +1128,7 @@ DailyCalls = \sum_{source,cohort,window}
 
 Minimum Release에서 목표 metric 수치가 아직 evidence로 정해지지 않은 경우 pass/fail 숫자를 만들지 않고 Gate 산출물과 상태로 관리한다.
 
-### 19.3 측정 거버넌스
+### 측정 거버넌스
 
 | 평가군 | Owner | Measurement source | 판정 시점 |
 |---|---|---|---|
@@ -1012,9 +1142,9 @@ baseline, cohort, evaluation window, pass threshold는 해당 evidence가 생긴
 
 ---
 
-## 20. QA와 Release Gate
+## QA와 Release Gate
 
-### 20.1 Release-blocking Gate
+### Release-blocking Gate
 
 1. **Data correctness**: Bus/Subway identity, Actual interval, signed Residual, target-node mapping, timestamp, quota, receive-order out-of-order.
 2. **Probability correctness**: no placeholder, value semantics, P50/P90/P(on_time), connection separation, MC regression/convergence.
@@ -1026,7 +1156,7 @@ baseline, cohort, evaluation window, pass threshold는 해당 evidence가 생긴
 8. **Access/Eligibility contract**: anonymous owner capability, Share 권한 분리, criticality matrix, Start gate, mixed freshness QA 통과.
 9. **Provider contract**: Minimum Release D2 목표는 서울 임의 OD discovery, canonicalization crosswalk, first-supported selected route, P50/P90/P(on_time), Recommended Departure를 같은 사용자 flow에서 충족해야 한다(REQ-104/105/015). 최종 시연과 D2 Gate 미통과 fallback은 승인된 Route A manifest와 `KAKAO_MAP_WALK` provider contract를 보호한다. Kakao publictraffic 호출 성공은 discovery/access evidence일 뿐이고, selected route 계산에는 external crosswalk·시간 의미·model coverage Gate가 별도로 필요하다.
 
-### 20.2 Capability Claim Gate
+### Capability Claim Gate
 
 | Claim | 필요한 Gate | 미통과 시 |
 |---|---|---|
@@ -1037,15 +1167,15 @@ baseline, cohort, evaluation window, pass threshold는 해당 evidence가 생긴
 | Whole-Journey calibrated | independent Journey outcomes, V3 calibration | D2 미달 시 임의 OD structure-only는 유지하고 calibrated claim은 금지; `COMPONENT_ONLY/CORRIDOR_REPLAY` 또는 Route A D1 fallback |
 | Citywide accuracy/SLA | 별도 citywide validation | claim 금지 |
 
-### 20.3 문서 Gate
+### 문서 Gate
 
 Service Plan이 상위 제품 정책을 고정한다. IA는 화면·route·entry/exit·state·CTA·copy를, Requirements는 REQ/BR/NFR/API/ENT/AC를 구현 계약으로 상세화한다. 하위 문서가 상위 정책을 암묵 변경할 수 없다.
 
 ---
 
-## 21. 팀, WBS, 리스크
+## 팀, WBS, 리스크
 
-### 21.1 역할
+### 역할
 
 | 역할 | 책임 |
 |---|---|
@@ -1058,13 +1188,13 @@ Service Plan이 상위 제품 정책을 고정한다. IA는 화면·route·entry
 
 Journey probability는 PM·BE-1·BE-2 공동 review다.
 
-### 21.2 Critical Path와 Gate
+### Critical Path와 Gate
 
 `Planning Freeze → Contract-safe Foundation → Probability Vertical Slice → PWA/API Vertical Slice → Validation/Support → Recommended Departure Gate → Streaming Integration → Distributed Proof → Integration Freeze → Final`
 
 - 2026-08-22–08-25: canonical contract, architecture decision, PWA shell
 - 2026-08-26–08-30: provider adapter, Kakao Gate, identity/residual/BUS_SKIPPED foundation, public HTTPS skeleton
-- 2026-08-26–09-14: canonicalization crosswalk(REQ-105, D2 target) — Kakao publictraffic 구조 후보를 서울 공식 stop/route master와 대조하는 안전한 자동 매칭 레이어 구축; 2026-09-14 팀 회의에서 남은 일정상 D2 가능성을 판단하고, 불가능하면 probability/Recommended Departure는 Route A D1 fallback으로 축소하되 임의 OD structure-only는 유지(§5.4)
+- 2026-08-26–09-14: canonicalization crosswalk(REQ-105, D2 target) — Kakao publictraffic 구조 후보를 서울 공식 stop/route master와 대조하는 안전한 자동 매칭 레이어 구축; 2026-09-14 팀 회의에서 남은 일정상 D2 가능성을 판단하고, 불가능하면 probability/Recommended Departure는 Route A D1 fallback으로 축소하되 임의 OD structure-only는 유지(「Scope Cut 순서」)
 - 2026-08-31–09-03: quota ledger·collector dry run·증액/대체 source 절차 확인
 - 2026-09-01–09-07: Route A probability/Recommended Departure Gate vertical slice와 PWA/API vertical slice
 - 2026-09-05–09-14: temporal validation/support, Start·Reforecast·Evidence UX
@@ -1084,7 +1214,7 @@ Journey probability는 PM·BE-1·BE-2 공동 review다.
 
 Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용자 결과로 승격하는 수단이 아니다.
 
-### 21.3 Top Risks
+### Top Risks
 
 | 리스크 | 현재 근거 | 예방 | Fallback/Scope Cut |
 |---|---|---|---|
@@ -1101,9 +1231,9 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 
 ---
 
-## 22. 확인된 사실과 Claim하면 안 되는 항목
+## 확인된 사실과 Claim하면 안 되는 항목
 
-### 22.1 현재 확인된 사실
+### 현재 확인된 사실
 
 - Route A/B structural route와 demo corridor 핵심 realtime ID 연결 가능
 - 신규 Kakao Map REST WALK·public-transit endpoint가 프로젝트 키로 HTTP 200/`OK`를 반환함
@@ -1132,7 +1262,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - data.go.kr 마이페이지 콘솔로 Bus Arrival/Position 각 endpoint군의 승인 한도가 서비스별로 독립적인 1,000/day임을 확인함(공유 풀 아님)
 - 서울 열린데이터광장 콘솔로 지하철 실시간 API의 승인 한도가 계정(키) 단위 공유 1,000/day이며 활용사례 갤러리 미등록 상태임을 확인함; 일반 API는 호출 횟수 제한이 없음(1회당 최대 1,000건 조회 cap만)
 
-### 22.2 아직 Claim하면 안 되는 것
+### 아직 Claim하면 안 되는 것
 
 - 서울 전체 정확도, coverage, SLA
 - “P90=90% 정확도” 또는 특정 시각 도착 보장
@@ -1157,7 +1287,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 
 ---
 
-## 23. Final Demo Narrative
+## Final Demo Narrative
 
 1. **문제 제시**: “총 50분”은 약속시각을 지킬 위험을 설명하지 못한다.
 2. **Route A 입력**: 삼청동→멀티캠퍼스, 목표 도착시각과 reliability를 입력한다.
@@ -1173,7 +1303,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 
 ---
 
-## 24. 핵심 용어와 Claim Wording Guardrail
+## 핵심 용어와 Claim Wording Guardrail
 
 | 용어 | 정본 의미 | 권장 문구 |
 |---|---|---|
@@ -1203,7 +1333,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 
 ---
 
-## 25. 문서 경계와 변경 규칙
+## 문서 경계와 변경 규칙
 
 ### Service Plan에 유지하는 것
 
@@ -1227,7 +1357,7 @@ anonymous access, eligibility/Start, freshness aggregation, demo entry 정책을
 
 ---
 
-## 26. 정본 품질 기준
+## 정본 품질 기준
 
 - 실제 evidence의 corridor·window·support·artifact completeness를 넘어 일반화하지 않는다.
 - WAIT dependence, quota, timestamp, transfer, coordinate, 제외된 산출값의 이유를 관련 정책 옆에서 설명한다.
@@ -1238,7 +1368,7 @@ anonymous access, eligibility/Start, freshness aggregation, demo entry 정책을
 
 ---
 
-## Appendix A. 설계 근거 인덱스
+## Appendix — 설계 근거 인덱스
 
 | 영역 | 우선 근거 |
 |---|---|
@@ -1251,6 +1381,6 @@ anonymous access, eligibility/Start, freshness aggregation, demo entry 정책을
 | QA/출시/일정 | `60_WBS_RISK.md`, `61_QA_ACCEPTANCE.md`, `62_DEMO_RELEASE.md` |
 | 하위 제품 계약 | `IA_SCREEN_SPEC_260823.md`, `REQUIREMENTS_SPEC_260823.md` |
 
-## Appendix B. 한 문장 완료 정의
+## Appendix — 한 문장 완료 정의
 
 **사용자는 서울 범위의 선택된 버스·지하철 복합 경로에 대해 목표 도착시각을 입력하고, 실제 근거가 허용하는 범위에서 P50·P90·정시 도착가능성·계획 환승가능성·조건부 권장 출발시각과 그 근거를 확인하며, 이동 중 확정한 사건 이후에는 완료 이력을 보존한 남은 여정 Reforecast 또는 정직한 unavailable 상태를 Mobile-first PWA에서 받을 수 있다.**
