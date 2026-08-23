@@ -118,13 +118,14 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 |---|---|---|---|---|---|---|
 | REQ-001 출발지 입력 | F001 / SCR-01 / `/` | MUST | 장소명·주소 또는 명시적 one-shot 현재 위치를 label+coordinate로 resolve하고 `ORIGIN_POINT` role/source 저장. resolve 완료 전 분석 금지 | `LOCATION_NOT_RESOLVED`, `UNSUPPORTED_GEOGRAPHY`; 권한 거부 시 수동 입력 유지; raw response/secret 미노출 | SYS-001, API-000/002 / ENT-016,017,011 | BR-001,060,070 / AC-001,002,025,046 |
 | REQ-002 목적지 입력 | F001 / SCR-01 / `/` | MUST | POI까지 표현하며 final boundary는 마지막 WALK 완료. destination label+coordinate provenance 저장 | 출발지와 동일/resolve 실패/서울 외면 submit 차단 | SYS-001, API-000/002 / ENT-016,017,011 | BR-001 / AC-001,025 |
-| REQ-003 목표 도착시각 | F001 / SCR-01 | MUST | future timezone-aware datetime, Asia/Seoul 표시·rollover 지원 | 과거/invalid/naive datetime → `INPUT_INVALID` | API-002 / ENT-011 | BR-010 / AC-001,026 |
+| REQ-003 목표 도착시각 | F001 / SCR-01 | MUST | future timezone-aware datetime, Asia/Seoul 표시·rollover 지원; provider/timetable/artifact가 실제로 지원하는 `supportedAnalysisHorizon`(버전 설정, 숫자는 `TBD_AFTER_PROFILE`) 이내로 제한 | 과거/invalid/naive datetime → `INPUT_INVALID`; horizon 밖 미래 → `TARGET_BEYOND_SUPPORTED_HORIZON`(구체적 사유 표시, 조용한 clamp 금지) | API-002 / ENT-011 | BR-010 / AC-001,026 |
 | REQ-004 목표 reliability | F001 / SCR-01 | MUST | 미지정 0.90, UI percent와 내부 0~1 분리 | 허용범위 밖→`INPUT_INVALID`; 90%를 SLA/accuracy로 설명 금지 | API-002 / ENT-011 | BR-003,060 / AC-001,003 |
 | REQ-005 Structural Route 조회·선택 | F002 / SCR-01→02 | MUST | Minimum Release에서는 manifest hash가 일치하는 Route A와 `APPROVED_DEMO_ROUTE`를 기록한다. `PROVIDER_SUPPORTED`는 future mode이며, 활성화 시 provider order를 유지해 서울·mixed mode·ID/leg가 해석 가능한 첫 candidate와 `PROVIDER_FIRST_SUPPORTED`를 기록한다 | route 없음, provider error, mapping incomplete, unsupported, manifest mismatch를 구분; mode 간 silent switch 금지. Kakao publictraffic 후보를 Route A로 대체하거나 시간값을 혼합 금지 | API-001, SYS-002 / ENT-005 | BR-001~003,071 / AC-001,002,004,057 |
 | REQ-006 Route normalization | F002 / SCR-02/03/05 | MUST | provider topology를 ACCESS_WALK/WAIT/TRANSIT_RIDE/TRANSFER/FINAL_WALK과 3 TransferType으로 변환; Transfer와 WAIT 분리 | 필수 node/leg identity 누락→`ROUTE_MAPPING_INCOMPLETE`; 조용한 leg 삭제 금지 | SYS-002 / ENT-005~009,017,018 | BR-030~032 / AC-004,017 |
 | REQ-007 Anonymous Journey Access | F001/F015 / SCR-02~05 | MUST | Journey 생성 시 browser-bound owner capability 발급; `journeyId`는 locator만 사용. 조회·Start·Event·Evidence·Share 생성마다 owner capability 검증 | capability 없음/불일치는 resource 존재를 숨기는 동일 not-found/recovery; cross-device owner 복구 없음 | API-002~007 / ENT-012,020 | BR-004; NFR-041~043,053 / AC-035,036 |
 | REQ-008 Provider Registry / Coverage Mode | F002/F016 / SCR-01/02/05 | MUST | provider·endpoint·adapterVersion·quota policy·selection policy를 versioned registry로 관리하고 Minimum Release deployment는 `ROUTE_A_ONLY` + `KAKAO_WALK_ONLY`를 반환. `PROVIDER_SUPPORTED`는 future route-provider mode다. `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 별도 providerKey | UI와 server mode 불일치, provider silent switch, 구 Kakao Mobility 403과 신규 Kakao Map 성공의 병합, 다른 provider provenance 재사용 금지. publictraffic reference evidence를 selected route로 승격 금지 | API-001/002/006/009, SYS-001/002/007 / ENT-005,015,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
 | REQ-009 Kakao Route Provider Promotion Gate | F002/F016 / SCR-01/05/Internal | FUTURE_OPTIONAL / NOT_REQUIRED_FOR_WALK_ONLY | `KAKAO_ROUTE_PROVIDER_GATE`: Kakao publictraffic을 Primary route provider로 승격할 때만 앱 entitlement, canonical bus/stop·station×line mapping, total/step/WAIT/WALK 시간 포함관계, 동일 OD 반복 안정성을 검증. **2026-08-23 판정: entitlement CONFIRMED(콘솔, publictraffic 9/1,000·walk 4/1,000) / mapping REJECTED(구조적 한계) / 시간 포함관계 PARTIAL / 반복 안정성 PASS → route-provider 승격 미통과.** `KAKAO_MAP_WALK` 사용은 REQ-031과 AC-056의 WALK provider contract를 따른다 | Kakao publictraffic route-provider 승격 실패→`ROUTE_A_ONLY + KAKAO_WALK_ONLY`; HTTP 200만으로 USER_FACING route 승격 금지 | SYS-001/002/007 / ENT-001,005,017,023 | BR-005,071~074; NFR-087,088 / AC-053~057 |
+| REQ-100 Location Provider Contract | F001/F016 / SCR-01 | MUST | 위치 검색·현재 위치 resolve provider는 route discovery provider(API-001)와 별도 providerKey·quota counter로 관리하고, provider명·quota state·business error·cache freshness를 API-000 response에 포함한다 | provider entitlement/quota 소진 시 `PROVIDER_ENTITLEMENT_UNAVAILABLE`/`PROVIDER_QUOTA_EXCEEDED`로 분리; 좌표·검색어는 POST body로만 전달하고 URL query·access log·reverse proxy log에 평문 노출 금지(log redaction) | API-000, SYS-001 / ENT-016,017 | BR-005 / AC-001,046 |
 
 ### 3.2 Pre-trip Analysis
 
@@ -360,6 +361,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | Code | Layer | Retry | User handling | Must preserve |
 |---|---|---:|---|---|
 | INPUT_INVALID | Client/API | N after edit | field error | input |
+| TARGET_BEYOND_SUPPORTED_HORIZON | Client/API | N after edit | 지원 가능한 분석 시간 범위 안내 | input |
 | LOCATION_NOT_RESOLVED | Provider/Client | Y | re-search location | text input |
 | UNSUPPORTED_GEOGRAPHY | Product | N | input edit | input |
 | ROUTE_NOT_FOUND | Provider/Product | maybe | retry/edit | input |
@@ -392,7 +394,7 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 
 | ID | Method/Path | Purpose | Request core | Response core | Errors | Owner |
 |---|---|---|---|---|---|---|
-| API-000 | GET `/api/v1/locations/search` | 장소 후보 resolve | query 또는 foreground coordinate | label,GeoPoint,role,source | invalid,no result,provider,permission은 client 처리 | Backend/Location |
+| API-000 | POST `/api/v1/locations/search` | 장소 후보 resolve | query 또는 foreground coordinate(body; 좌표를 URL query에 싣지 않음) | label,GeoPoint,role,source,provider,quotaState | invalid,no result,provider,quota,permission은 client 처리 | Backend/Location |
 | API-001 | POST `/api/v1/route-candidates` | Route A manifest 조회/선택(MR), future provider route 조회 | origin,destination | routeManifest,walkProvider,adapterVersion,coverageMode,selectionPolicy,selectedCandidate,futureCandidates,mappingStatus/support | geography,not found,provider entitlement/quota,mapping | Backend/Route |
 | API-002 | POST `/api/v1/journeys/analyze` | pre-trip 계산+owner 발급 | input+target+route | journey/result/resultEligibility/startEligibility,routeManifest,walkProvider,coverageMode,selectionPolicy,futureRouteProviderStatus,mappingStatus,sourceFreshness,evidenceSummary; owner capability는 secure channel | insufficient,unsupported,analysis/provider | Backend/Engine |
 | API-003 | POST `/api/v1/journeys/{id}/start` | live 시작 | owner capability+expected result/state version | JourneyLifecycleState | unauthorized는 not-found와 동일, invalid state,already started | Backend |
@@ -404,6 +406,8 @@ Provider raw error body를 그대로 반환하지 않는다. HTTP status exact m
 | API-009 | GET `/api/v1/health/summary` | preflight | internal auth policy | component/provider entitlement/quota/Kakao WALK health/future route-provider Gate(REJECTED — mapping 구조적 한계, §AC-055)/coverageMode/artifact summary | partial | Ops |
 
 모든 response는 schemaVersion, requestId, generatedAt을 가진다. Result null을 placeholder로 채우지 않는다. owner API는 network-first이며 Service Worker가 Start/Event/Share mutation을 offline success로 변환하거나 stale API response를 current로 cache하지 않는다. GET offline projection은 ENT-021로 별도 생성하며 API response 원문 cache와 구분한다.
+
+API-000은 route provider(API-001)와 별도의 location provider adapter를 사용한다. provider명·quota·business error·cache 정책은 SYS-001에서 route provider와 분리해서 관리하며, 검색어/좌표를 reverse proxy나 access log에 평문으로 남기지 않도록 POST body 전달과 log redaction을 적용한다(REQ-100).
 
 ### 7.2 Internal interfaces
 
@@ -458,7 +462,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | ENT-008 | WaitLeg | mode,node,candidate,source,distribution,sampleUnit,dependence | 022~024,070~073 | snapshot≠iid event |
 | ENT-009 | TransitRideLeg | mode,route,pair,candidate,distribution | 023,035 | BUS_SKIPPED 후 required ride 유지 |
 | ENT-010 | LegDistribution | kind,semantics,n,window,quantiles,samples,fallback,confidence,coverage,validation,versions | 010,040~044 | semantics별 계산 분리 |
-| ENT-011 | JourneyRequest | origin,destination,target,reliability,requestedAt | 001~004 | timezone-aware |
+| ENT-011 | JourneyRequest | origin,destination,target,reliability,requestedAt,supportedAnalysisHorizonVersion | 001~004 | timezone-aware; target은 horizon 버전 이내 |
 | ENT-012 | JourneyState | route,active,state,completed,events,stateVersion,updated | 020~025 | mutation version 증가 |
 | ENT-013 | UserEvent | journey,type,time,target,idempotency,source | 022~026 | unique idempotency |
 | ENT-014 | JourneySimulationRun | route,state,seed,N,versions,provenance,validation,times | 010~016,025,090 | reproducible, provenance 명시 |
@@ -524,6 +528,7 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | NFR-052 Retention | MUST/TBD_AFTER_PROFILE | Journey/share TTL을 G5에서 확정, 그 전 임의 기간 금지 | security decision+expiry test |
 | NFR-053 Anonymous Authorization | MUST/G5 | owner capability는 HttpOnly/Secure/적절한 SameSite channel, URL·JS·DOM·analytics 미노출; 모든 owner API server-side 검증; enumeration-safe response | AC-035,036 + security review |
 | NFR-054 Analytics Privacy | MUST/G5 | raw journeyId/token/free-text location 금지; 필요 시 비가역 analytics 전용 pseudonymous key, property별 purpose/owner/retention class | payload/event/log review + AC-039 |
+| NFR-093 CSRF/Referrer/Cache | MUST/G5 | cookie 기반 owner mutation(API-003/005/007)에 CSRF token 또는 strict Origin/SameSite 검증; owner·Share 응답에 `Cache-Control: no-store`; Share 접근 경로에 `Referrer-Policy: no-referrer` 적용해 token이 Referer 헤더로 유출되지 않게 함 | AC-035,036,039 + security review |
 
 ### 9.4 Observability / Operations
 
@@ -551,10 +556,20 @@ Spark daemon, Redis, AI serving과 부가 dashboard는 기본 placement가 아�
 | Seoul bus Position | data.go.kr 마이페이지(2026-08-23 확인): `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도) | `CONFIRMED` | 없음 — 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | Kakao Map public transit | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 9/1,000; billing 콘솔 확인 결과 이번 달 유료 호출 0건) | runtime route provider 미사용; REQ-009는 future 승격 Gate | 사용자 신규 OD route 분석 budget 0, reference evidence만 보존 |
 | Kakao Map WALK | official first-enabled-app 1,000/day, overage 10원/건 | `API_VERIFIED/FREE_QUOTA_CONFIRMED`(2026-08-23: 4/1,000) | runtime WALK provider; route와 별도 counter·cache/providerVersion | 동일 provider 승인 cache 외 unavailable |
-| TMAP public transit | official free trial 10/day | `KNOWN_BASE/VALIDATION_ONLY` | runtime primary 제외, golden-route 비교 예약만 | 호출 중단 |
-| TMAP pedestrian | project credential limit | `API_VERIFIED/LIMIT_UNCONFIRMED` | 별도 ledger와 point provenance | Kakao silent substitution 금지 |
+| TMAP public transit | official free trial 10/day | `DISABLED_BY_DEFAULT / KNOWN_BASE / VALIDATION_ONLY` | 운영자·데모 관리자가 제한된 단건 확인에만 명시적으로 활성화; 자동 runtime fallback 아님; raw/result는 공식 허용 기간(24시간) 안에 만료, 장기 Evidence store 미보관 | 호출 중단 |
+| TMAP pedestrian | project credential limit | `DISABLED_BY_DEFAULT / API_VERIFIED / LIMIT_UNCONFIRMED` | 별도 ledger와 point provenance; 동일하게 수동 단건 reference로만 사용, 24시간 초과 저장 금지 | Kakao silent substitution 금지 |
 
 `UNCONFIRMED` credential은 무제한 scheduler를 시작하지 않는다. Kakao 공식 1,000/day를 프로젝트 앱 `remaining`으로 입력하려면 첫 활성화 앱 무료 배지 또는 실제 billing entitlement 증거가 필요하다. 수동 preflight reservation을 넘는 dry run을 금지하며, 승인량 변경은 product probability semantics가 아니라 collector configuration version을 변경한다.
+
+#### Public API Admission Control (신규)
+
+위 quota 방어는 collector→provider 방향(SYS-007)만 다룬다. 익명 사용자가 공개 endpoint(`/locations/search`, `/route-candidates`, `/analyze`)를 반복 호출해 scarce provider quota를 직접 소진하는 경로는 별도로 방어해야 한다.
+
+| NFR | Priority | Requirement | Measurement / Gate |
+|---|---|---|---|
+| NFR-090 Client/Session Admission Control | MUST | client/session 단위로 `/locations/search`,`/route-candidates`,`/analyze` 호출 빈도를 제한; threshold 수치는 profile 전 `TBD_AFTER_PROFILE` | rate-limit rejection test |
+| NFR-091 Request Dedup/Coalescing | MUST | 동일 정규화 입력(origin/destination/target)의 동시 요청은 in-flight coalescing으로 provider 중복 호출을 만들지 않음; 동일 snapshot은 승인 cache로 재사용 | duplicate call ratio |
+| NFR-092 Concurrency Cap | MUST | provider별 concurrency cap과 circuit breaker로 공개 API 방향의 과다 동시 요청이 quota를 일시에 소진하지 못하게 함; quota-exhausted 응답과 재시도 가능 시점을 사용자에게 표현 | concurrency injection test |
 
 ### 9.5 Responsive / Accessibility
 

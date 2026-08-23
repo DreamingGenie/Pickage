@@ -159,6 +159,8 @@ PWA standalone display mode에서도 URL 의미와 guard는 동일하다. 앱 �
 - 일반 route의 `{journeyId}`는 locator일 뿐 authorization credential이 아니다. owner capability가 없거나 불일치하면 존재 여부를 구분하지 않는 동일 응답과 복구 UX를 사용한다.
 - owner capability는 URL, DOM, analytics, JavaScript-readable storage에 노출하지 않는다.
 - 다른 브라우저/기기에서 owner Journey를 복구하는 기능은 Minimum Release에 없다. Share는 축약 snapshot 조회만 허용한다.
+- SCR-01 위치 검색·현재 위치 좌표는 API-000(POST) body로만 전달하며 URL query, browser history, reverse-proxy/access log에 평문으로 남기지 않는다(REQ-100).
+- Share 경로에는 `Referrer-Policy: no-referrer`를 적용해 token이 Referer 헤더로 외부에 유출되지 않게 하고, owner/Share 응답에는 `Cache-Control: no-store`를 적용한다.
 
 ---
 
@@ -841,6 +843,7 @@ SCR-02/03의 `공유` CTA는 feature flag와 G5 security Gate가 통과하고 sh
 - public Share token은 snapshot read 권한만 가지며 원본 Journey 조회·Evidence·Start·Event 권한으로 승격되지 않는다.
 - token 원문은 URL 처리에만 사용하고 analytics, error copy, DOM debug attribute, application log에 넣지 않는다.
 - revoke/expire 후에는 snapshot을 cache에서 복원해 표시하지 않는다.
+- cookie 기반 owner mutation(Start/Event/Share 생성)은 CSRF token 또는 strict Origin/SameSite 검증을 통과해야 한다(NFR-093).
 
 ### 12.6 Responsive·Accessibility·Analytics
 

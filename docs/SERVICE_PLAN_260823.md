@@ -577,7 +577,20 @@ Journey-level projection은 다음 순서를 따른다.
 | Reforecast | 새 user/source event로 새 version 생성 | 이전 result/state version, event idempotency, 고정 이력 |
 | Replay/Audit | 실제/증폭 replay로 기능·성능·복구 검증 | replay purpose, multiplier, original/replay event time, correctness manifest |
 
-재계산은 기존 Actual/Residual/Distribution/Result를 덮어쓰지 않고 새 version을 만든다. Amplified replay 복제본은 benchmark에만 사용하며 training support나 실제 서울 traffic으로 세지 않는다.
+재계산은 기존 Actual/Residual/Distribution/Result를 덮어쓰지 않고 새 version을 만든다. Amplified replay 복제본은 benchmark에만 사용하며 training support나 실제 서울 traffic으로 세지 않는다. 위 표의 `immutable`은 "삭제하지 않는다"가 아니라 "허용 보관 기간 동안 원본을 변조하지 않는다"는 뜻이며, 기간 만료 후 삭제는 아래 matrix의 deletion owner가 수행한다.
+
+### 14.1 활성 Provider별 Retention/Redistribution Matrix
+
+실제 Runtime과 Evidence에 사용하는 provider(Kakao WALK, 서울 버스 Arrival/Position, 서울 지하철 Arrival/Position)에는 아래 matrix를 적용한다. 기본 비활성화된 TMAP은 이 깊이로 설계하지 않고 §18.4의 `DISABLED_BY_DEFAULT`·24시간 만료 정책만 따른다.
+
+| 항목 | Kakao WALK | 서울 버스 Arrival/Position | 서울 지하철 Arrival/Position |
+|---|---|---|---|
+| Raw retention | sanitized raw 보관 가능; 원문 secret 제외 | sanitized raw 보관 가능 | sanitized raw 보관 가능 |
+| Derived retention | ACCESS/FINAL WALK point·provenance 보관 | Actual/Residual/Distribution 보관 | Actual/Residual/Distribution 보관 |
+| Cache | 동일 정규화 OD 승인 cache만 재사용, 좌표·목표시각 변경만으로 재호출 금지 | 동일 route/window 승인 cache 정책 적용 | 동일 station×line/window 승인 cache 정책 적용 |
+| Share/redistribution | Share snapshot에 point/provenance만 포함, raw payload 제외 | Share snapshot에 결과 metric만 포함, raw/vehId 제외 | Share snapshot에 결과 metric만 포함, raw/trainNo 제외 |
+| Deletion owner | Bronze/Silver retention job(TTL은 G5에서 확정) | 동일 | 동일 |
+| Evidence exception | 없음 | 없음 | 없음(연구 목적 예외 필요 시 별도 허가·증빙 필수) |
 
 ---
 
@@ -843,12 +856,14 @@ DailyCalls = \sum_{source,cohort,window}
 | 서울 실시간 지하철 | 2026-08-23 서울 열린데이터광장 "인증키 안내" 공식 정책 텍스트로 확인: **1일 1,000회/키**(활용사례 갤러리 등록 시 무제한 전환 가능하나 이 프로젝트는 미등록). 이 1,000회는 station×line 쿼리 종류와 무관하게 지하철인증키 하나에 걸리는 계정 단위 공유 한도다 | `CONFIRMED / GALLERY_NOT_REGISTERED` | 활용사례 갤러리 등록 시 무제한 전환 가능(release 전 검토); 2026-08-23 실사용량은 `PENDING_RECONCILIATION`(Decision Sheet 호출표 기준 성공 호출만 135+180=315건이 확인되어 이전 기록 225/1,000과 산술이 맞지 않음 — raw request log 재대사 후 확정) | 낮은 우선순위 수집 중단, stale/not-computed 처리 |
 | 서울 버스 Arrival | 2026-08-23 data.go.kr 마이페이지 확인: `getArrInfoByRouteAllList` 등 4개 상세기능 각각 **1,000/day**(서비스 등록 단위, data.go.kr 계정 키는 공유하지만 quota는 서비스마다 독립) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
 | 서울 버스 Position | 2026-08-23 data.go.kr 마이페이지 확인: `getBusPosByRouteStList` 등 5개 상세기능 각각 **1,000/day**(Arrival과 별도 quota) | `CONFIRMED` | 없음 — 이미 확인 완료 | Route A active/demo 보호, evidence window 축소 |
-| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | runtime route provider로 사용하지 않음. `KAKAO_ROUTE_PROVIDER_GATE`는 future 승격 조건 | 사용자 신규 OD 분석 budget 0, reference evidence만 보존 |
-| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건 | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | runtime WALK provider로 사용. route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
-| TMAP 대중교통 | 공식 무료체험 일 10회 | `KNOWN_BASE / VALIDATION_ONLY` | 사용자 runtime 기본 provider에서 제외하고 golden-route 비교 budget만 예약 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
-| TMAP pedestrian | project credential 실제 승인량 미확정; 과거 실제 호출 성공 | `API_VERIFIED / LIMIT_UNCONFIRMED` | Kakao와 별도 quota·cache·provenance 유지 | Kakao 값을 TMAP provenance로 표시하지 않음 |
+| Kakao Map public transit | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건(Bizwallet 연결과 유료 API 사용 설정이 선행돼야 하며, 설정하지 않으면 quota 소진 후 429) | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 9/1,000 사용; billing 콘솔: 이번 달 유료 호출 0건, 과금 없음) | runtime route provider로 사용하지 않음. `KAKAO_ROUTE_PROVIDER_GATE`는 future 승격 조건 | 사용자 신규 OD 분석 budget 0, reference evidence만 보존 |
+| Kakao Map WALK | 첫 활성화 앱 공식 무료 일 1,000회, 초과 10원/건(Bizwallet 연결과 유료 API 사용 설정이 선행돼야 하며, 설정하지 않으면 quota 소진 후 429) | `API_VERIFIED / FREE_QUOTA_CONFIRMED`(2026-08-23 콘솔: 4/1,000 사용) | runtime WALK provider로 사용. route와 별도 counter·cache key·provider version 기록 | 동일 provider 승인 cache 외 WALK 미계산 |
+| TMAP 대중교통 | 공식 무료체험 일 10회 | `DISABLED_BY_DEFAULT / KNOWN_BASE / VALIDATION_ONLY` | 운영자·데모 관리자가 제한된 단건 확인에만 명시적으로 활성화하는 수동 비상 reference/diagnostic 수단; 사용자 runtime 기본 provider에서 제외하고 골든-route 비교 budget만 예약; 자동 failover 아님; raw/result는 공식 약관상 24시간 초과 저장·사용 금지 | 호출 중단; Kakao/승인 Route A 의미를 변경하지 않음 |
+| TMAP pedestrian | project credential 실제 승인량 미확정; 과거 실제 호출 성공 | `DISABLED_BY_DEFAULT / API_VERIFIED / LIMIT_UNCONFIRMED` | Kakao와 별도 quota·cache·provenance 유지; 동일하게 수동 단건 reference로만 사용, 24시간 초과 보관 금지 | Kakao 값을 TMAP provenance로 표시하지 않음 |
 
 `UNCONFIRMED`를 0이나 임의 quota로 채우지 않는다. Kakao의 공식 1,000회는 첫 번째 활성화 앱 조건이며 프로젝트 앱 entitlement가 확인되기 전 `remaining=1,000`으로 가정하지 않는다. collector는 approved limit/status가 입력되지 않은 credential로 무제한 schedule을 시작하지 않으며, 수동 preflight budget 안에서만 dry run한다. 서울 실시간 지하철 기본 한도와 활용사례 등록 절차는 [서울 열린데이터광장 인증키 안내](https://data.seoul.go.kr/together/mypage/actkeyMain.do)를, Kakao 한도와 초과 요금은 [Kakao 공식 쿼터 문서](https://developers.kakao.com/docs/ko/getting-started/quota)를 기준으로 관리한다.
+
+위 quota 방어는 collector→provider 방향(중앙 quota coordinator)만 다룬다. 익명 사용자가 공개 endpoint를 직접 반복 호출해 provider quota를 소진하는 것을 막는 client/session 단위 admission control, 동일 요청 dedup/in-flight coalescing, concurrency cap은 Requirements NFR-090~092에서 별도로 정의한다.
 
 ### 18.5 호출 효율화와 degradation
 
