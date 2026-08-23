@@ -1037,6 +1037,9 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - Kakao publictraffic total/step gap은 후보 유형에 따라 설명 정도가 다름(BUS_AND_SUBWAY는 15초 이내 explained, 순수 SUBWAY는 58초 잔차)
 - Kakao publictraffic은 서울시 경계에 국한되지 않고 응답함(부산 좌표로도 정상 200/OK)
 - 2026-08-23 45분 지속 수집에서 Route A station×line 4개 중 2개(안국 3호선, 교대 3호선측)는 다수의 유효 `arvlCd=1` Actual event를 확보함
+- 2026-08-23 좌표 대조 결과, 오늘 호출한 Kakao publictraffic 8건의 어떤 candidate·step도 승인 Route A 탑승점(춘추문) 반경 100m 이내를 지나지 않음 — Kakao 후보와 Route A는 이 OD 범위에서 구조적으로 다른 경로임을 좌표로 재확인
+- 2026-08-23 안국역(3호선) 열차 1대(3166)에 대해 Prediction→Actual signed residual 계산 사례 1건 확보(L/M/U = −40s/−12.5s/+15s) — builder mechanism 자체는 정상 동작하나 표본 1건으로 support나 distribution을 주장하지 않음
+- collector(`bus_*_spike.py`/`subway_*_spike.py`)의 `requested_at`/`received_at`이 실제로는 응답 수신 후 거의 동시에 stamping되어 request-boundary latency를 측정하지 못한다는 tooling 한계를 확인함(오늘 240건 전부 0.00~0.001s로 기록) — 이번 세션은 코드 수정 금지 규칙에 따라 고치지 않고 사실만 기록
 
 ### 22.2 아직 Claim하면 안 되는 것
 
