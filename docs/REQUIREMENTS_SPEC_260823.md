@@ -57,7 +57,7 @@
 
 ### 1.1 포함
 
-- 서울 행정구역, supported BUS+SUBWAY mixed structural route 하나
+- 서울 행정구역, 임의 OD의 BUS+SUBWAY mixed structural route discovery(REQ-104), Route A는 end-to-end 검증된 우선 검증·최종 시연 대상
 - Pre-trip analysis, Journey Start, Live state, UserEvent, Reforecast
 - P50, P90, `P(on_time)`, Planned Connection Success, Final On-time
 - Claim Gate 통과 시 Recommended Departure
@@ -67,7 +67,8 @@
 - Raw→Observation→Actual→Residual→Distribution→Result 추적
 - 보안, 개인정보 최소화, 운영·관측성, 분산 correctness proof
 - Mobile-first PWA, non-install/standalone 동등성, offline read-only snapshot, foreground recovery, 안전한 update lifecycle
-- versioned Route/WALK provider registry, `ROUTE_A_ONLY/KAKAO_WALK_ONLY` Minimum Release coverage mode, future `PROVIDER_SUPPORTED` promotion Gate
+- versioned Route/WALK provider registry, 서울 임의 OD discovery-only route provider(Kakao publictraffic, REQ-104)와 canonicalization crosswalk(REQ-105), Route A `ROUTE_A_PRIORITY`+`KAKAO_MAP_WALK` coverage mode, future `PROVIDER_SUPPORTED` promotion Gate
+- Provider Policy Registry(ENT-024)와 default-deny raw retention 원칙(NFR-094)
 
 Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 모든 정상·부족·실패 상태와 provenance가 구현된 상태이고, **Claim-capable**은 실제 Route A probability가 해당 Claim Gate를 통과한 상태다. Contract-complete를 위해 근거 없는 확률 숫자를 만들지 않으며 Claim-capable 미달은 `NOT_COMPUTED/INSUFFICIENT/HOLD`로 정상 처리한다.
 
@@ -88,7 +89,7 @@ Minimum Release 완료는 두 층으로 판정한다. **Contract-complete**는 �
 | F-ID | Feature | 사용자 결과 | Primary SCR | Core REQ |
 |---|---|---|---|---|
 | F001 | Journey Input / Anonymous Access | 입력과 owner capability 발급 | SCR-01 | 001~004,007 |
-| F002 | Structural Route / Provider Gate | Minimum Release의 Route A manifest 선택과 WALK provider provenance; future route-provider Gate의 first canonical-supported candidate 선택·정규화 | SCR-01/02/05 | 005~006,008~009 |
+| F002 | Structural Route / Provider Gate | Route A manifest 선택과 WALK provider provenance; 서울 임의 OD discovery-only route provider 호출과 canonicalization crosswalk mapping; future route-provider Gate의 first canonical-supported candidate 선택·정규화 | SCR-01/02/05 | 005~006,008~009,104,105 |
 | F003 | Pre-trip Analysis | selected route의 도착분포·eligibility 계산 | SCR-02 | 010~017 |
 | F004 | Journey Start/State | 분석 snapshot으로 live Journey 시작·복구 | SCR-02/03 | 020~021 |
 | F005 | User Event | BOARD/BUS_SKIPPED/TRANSFER_MISSED | SCR-03 | 022~024 |
@@ -679,7 +680,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 | AC-050 | PWA Compatibility | iOS/Android browser·standalone, desktop secondary | SCR-01→05+offline+foreground+update+permission+share | 각 device/OS/browser/app/cache version과 pass/fail 기록; 미검증 환경 support claim 0 | NFR-074~079,085; REQ-093~098 |
 | AC-051 | Route A Demo Manifest | final rehearsal input과 provider live/recorded variants | manifest 검증→SCR flow→provenance trace→rollback | route/data/engine/PWA/quota/distributed/claim/recovery field complete; Route B·mock probability 0 | REQ-090~092; NFR-065,086 |
 | AC-052 | Protected E2E Scope Cut | 일정/자원 failure injection | cut trigger 적용 후 build/demo | Route A input→analysis→Start→BUS_SKIPPED→Reforecast/Unavailable→Evidence, quota, security, distributed proof 유지; Share/AI/ML/Spark/Redis polish cut 가능 | NFR-086; BR-013,042,053,065~069 |
-| AC-053 | Kakao API Access Evidence | 2026-08-22 WALK/publictraffic response + 2026-08-23 동일 OD 재호출(15개 candidate 완전 일치) | sanitized raw ingest+schema parse | **PASS for access/reference** — 두 endpoint HTTP 200/OK, secret 0, request/result hash와 adapter version 기록, raw ingest 완료(`RECEIVED_HASH_VERIFIED`); WALK는 runtime point provider evidence, publictraffic은 future route-provider reference evidence | REQ-008,009; NFR-087 |
+| AC-053 | Kakao API Access Evidence | 2026-08-22 WALK/publictraffic response + 2026-08-23 동일 OD 재호출(15개 candidate 완전 일치) | sanitized raw ingest+schema parse | **PASS for access** — 두 endpoint HTTP 200/OK, secret 0, request/result hash와 adapter version 기록, raw ingest 완료(`RECEIVED_HASH_VERIFIED`); WALK는 runtime point provider evidence, publictraffic은 discovery-only route provider evidence(REQ-104) — 이 access evidence 자체는 canonical route-provider 승격(REQ-009)을 증명하지 않음 | REQ-008,009,104; NFR-087 |
 | AC-054 | Kakao Time Semantics | publictraffic total 2,651s/step sum 1,764s(887s gap, candidate 0); candidate 2는 gap 422s | raw field decomposition+contract test | **PARTIAL** — candidate 0(SUBWAY)은 경계 WALK 합(829s)과 58s 잔차(`PARTIALLY_EXPLAINED`); candidate 2(BUS_AND_SUBWAY)는 경계 WALK 합(437s)과 15s 이내 일치(`HIDDEN_WALK_STRONGLY_SUPPORTED`). 어느 쪽도 잔차를 WAIT/WALK/transfer에 임의 배분하지 않음; result eligibility 승격 0 | REQ-006,009; BR-005,072; NFR-087 |
 | AC-055 | Kakao Canonical Mapping | bus/subway/mixed 3개 topology candidate(2026-08-23) | provider stop/vehicle/coordinate→서울 bus route/stop·station×line crosswalk | **REJECTED** — stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 존재하고 busRouteId/stId/stationId 필드가 응답 스키마 자체에 없음(3개 candidate 전부 동일 구조). deterministic mapped candidate 0건; 이 API 응답만으로는 향후에도 통과 불가, 별도 외부 crosswalk 필요 | REQ-005,006,009; NFR-087 |
 | AC-056 | WALK Provider Separation | 동일 Route A 접근 pair Kakao 295m/323s(2026-08-22, 2026-08-23 재현), TMAP 297m/245s | adapter/cache/evidence/result 검사 | **PASS** — 각 point와 provider/version 보존, 평균·cross-provider silent fallback·fabricated variance 0; Kakao point는 day-to-day 완전 재현(개인 variance 없는 deterministic point 근거 강화) | REQ-031; BR-052,072; NFR-088 |
@@ -802,7 +803,7 @@ EC2-A가 TaskManager A(CONDITIONAL)를 감당하지 못해 제거하면, TaskMan
 - [ ] Quota Budget v1의 source별 승인 상태·reservation·degradation과 AC-049가 통과했다.
 - [ ] 2-node Deployment ADR, port boundary, backup/restart와 AC-048이 통과했다.
 - [ ] Route A Demo Run Manifest와 Protected E2E AC-051~052가 통과했다.
-- [ ] Kakao WALK provider는 AC-053, AC-056, quota evidence가 통과했고 raw evidence가 저장됐다.
+- [ ] Kakao WALK provider는 AC-053, AC-056, quota evidence가 통과했고 raw는 `UNVERIFIED` default-deny에 따라 persistent 저장 없이 request/result hash·adapter version만 provenance로 남는다(NFR-094).
 - [ ] Kakao publictraffic을 Primary route provider로 사용할 경우 AC-053~055와 `KAKAO_ROUTE_PROVIDER_GATE`가 통과했다.
 - [ ] Minimum Release 배포는 Route A `ROUTE_A_PRIORITY`(우선순위·WALK provider 범위)와 서울 임의 OD discovery(`PROVIDER_SUPPORTED` 미승격, discovery-only)를 함께 반영하며 UI/API/manifest의 `routeCoverageMode`/`walkProviderMode`가 일치한다.
 - [ ] `ProviderPolicyRegistry`(ENT-024)에 termsUrl/policyVersionOrReviewedAt 없이 `ALLOWED`로 표기된 provider가 없다.

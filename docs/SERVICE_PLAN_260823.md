@@ -77,7 +77,7 @@
 
 ### 2.2 제품이 선택한 해결 방식
 
-1. Minimum Release에서는 승인된 Route A structural manifest를 분석 대상으로 고정하고, 도보 구간만 `KAKAO_MAP_WALK`로 측정한다.
+1. Minimum Release는 서울 임의 OD의 구조 경로 후보를 실시간으로 탐색하고(§5.1.1), 그중 canonical mapping과 model coverage가 충족된 leg/route에만 확률을 계산한다. 승인된 Route A structural manifest는 이 흐름 전체가 end-to-end로 검증된 우선 검증·최종 시연 대상이다. 도보 구간은 `KAKAO_MAP_WALK`로 측정한다.
 2. WALK, WAIT, TRANSIT_RIDE, TRANSFER를 중복 없이 분리한다.
 3. 원천 Prediction과 이후 Actual 관측을 구분하고 Residual을 만든다.
 4. leg별 distribution/reference와 근거 수준을 보존한다.
@@ -111,7 +111,7 @@ Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용
 
 | 비교 기준 | 일반 지도·교통 서비스의 중심 가치 | Journey Reliability의 역할 |
 |---|---|---|
-| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | Minimum Release는 승인된 Demo Route A 하나를 조건으로 분석하고, future provider mode에서만 first canonical-supported route를 검토 |
+| 경로 탐색 | 빠른/적은 환승 등 다중 경로 탐색 | Minimum Release는 서울 임의 OD의 구조 경로 후보를 discovery-only provider로 탐색하며(§5.1.1), 확률은 승인된 Demo Route A와 canonical mapping이 충족된 candidate에만 계산한다. 다중 경로 reliability ranking과 canonical route truth 자동 선택은 future provider mode에서만 검토 |
 | 도착 정보 | ETA·예상 소요시간 중심 | P50/P90와 목표시각 내 도착확률을 분리 |
 | 환승 | 계획 경로와 다음 이동 안내 | planned connection 유지와 실패 후 최종 정시 도착을 분리 |
 | 출발 판단 | 출발·도착 예상시각 제공 | 선택 경로와 목표 reliability 조건부 Recommended Departure |
@@ -125,7 +125,7 @@ Journey Reliability는 경로 검색의 폭이나 지도 품질로 기존 상용
 
 | Benchmark | 공식 확인 범위 | Journey Reliability가 별도로 책임지는 범위 | 비교 제한 |
 |---|---|---|---|
-| Kakao Map REST API | 2026-07-21 공개된 대중교통·도보·자전거 경로 조회. 2026-08-22 프로젝트 키로 WALK와 대중교통 실제 호출 성공 | Minimum Release에서는 `KAKAO_MAP_WALK` point provider로 도보 거리·시간과 provenance만 책임진다. publictraffic 후보의 canonical Journey 변환과 selected-route reliability는 future route-provider Gate 통과 후 별도 검토 | 접근 성공을 ID crosswalk·시간 의미·Reliability 검증 성공으로 승격하지 않음 |
+| Kakao Map REST API | 2026-07-21 공개된 대중교통·도보·자전거 경로 조회. 2026-08-22 프로젝트 키로 WALK와 대중교통 실제 호출 성공 | Minimum Release는 `KAKAO_MAP_WALK` point provider로 도보 거리·시간과 provenance를, `KAKAO_MAP_PUBLIC_TRANSIT`는 서울 임의 OD의 discovery-only 구조 후보 provider로 책임진다(REQ-104). publictraffic 후보의 canonical Journey 변환과 selected-route reliability는 future route-provider Gate 통과 후 별도 검토 | 접근 성공을 ID crosswalk·시간 의미·Reliability 검증 성공으로 승격하지 않음 |
 | TMAP 대중교통 API | Web/Mobile 대중교통 경로탐색과 전체 보행자 이동 경로; 공식 무료체험은 각 대중교통 API 일 10건 | 제한된 비교·검증 후보. TMAP point·route 결과에 임의 probability distribution을 부여하지 않음 | 일 10건 무료체험을 일반 사용자용 운영 예산으로 간주하지 않음 |
 | 서울 TOPIS | 서울 교통정보 열람, 버스·정류소 정보, Open API 접근 | 여러 source를 Journey 단위의 deadline decision과 provenance로 결합 | 공식 운영정보 자체를 개인 Journey ground truth로 과장하지 않음 |
 
@@ -542,7 +542,7 @@ Planned Connection Success는 환승이 없거나 해당 연결 입력이 부족
 | Coordinate | 역 중심·출구·승강장·POI는 서로 다른 위치 역할이다. | 모든 endpoint에 coordinate role/source를 기록하고 station center를 exit로 표현하지 않는다. |
 | Subway identity | 같은 역명이 여러 호선에 존재해 name-only join이 관측을 혼합할 수 있다. | `subwayId×statnId×trainNo`를 기본 identity로 사용한다. |
 | Simulation | placeholder, residual-as-duration, topology 삭제는 그럴듯한 숫자를 만들지만 제품 의미를 훼손한다. | required input이 없으면 `NOT_COMPUTED`, synthetic run은 `ENGINE_FIXTURE_ONLY`, residual과 duration을 분리한다. |
-| Kakao Map WALK / publictraffic reference | 2026-08-22 WALK 295m/323s, public transit 15개 후보가 HTTP 200/`OK`로 반환됐다. 2026-08-23 같은 OD를 재호출해 15개 후보 signature가 완전히 동일했고 ACCESS WALK 295m/323s point도 완전 재현됐다. | `KAKAO_MAP_WALK`는 Minimum Release의 WALK provider로 사용할 수 있다. publictraffic은 route-provider reference evidence로만 보존하며 selected route나 transit time 근거로 사용하지 않는다. |
+| Kakao Map WALK / publictraffic | 2026-08-22 WALK 295m/323s, public transit 15개 후보가 HTTP 200/`OK`로 반환됐다. 2026-08-23 같은 OD를 재호출해 15개 후보 signature가 완전히 동일했고 ACCESS WALK 295m/323s point도 완전 재현됐다. | `KAKAO_MAP_WALK`는 Minimum Release의 WALK provider로 사용할 수 있다. publictraffic은 서울 임의 OD의 discovery-only route provider로 runtime에 실제 호출되지만(REQ-104), canonical mapping이 REJECTED이므로 selected route나 transit time 근거로는 사용하지 않는다. |
 | Kakao total/step gap 분해 (2026-08-23) | 후보 index 0(SUBWAY): gap 919m/887s, 경계 WALK(origin→첫 지점 918m/825s + 마지막 지점→destination 5m/4s) 합 923m/829s → 거리는 4m 차이로 거의 일치하지만 시간은 58초 잔차가 남음(`PARTIALLY_EXPLAINED`). 후보 index 2(BUS_AND_SUBWAY): gap 468m/422s, 경계 WALK 합 481m/437s → 13m/15s 차이(`HIDDEN_WALK_STRONGLY_SUPPORTED`). | 58초 잔차를 WAIT나 환승 대기로 임의 확정하지 않고 `PARTIALLY_EXPLAINED`로 유지한다. 후보 유형(순수 지하철 vs 버스+지하철)에 따라 설명 정도가 다르다는 사실 자체를 기록하고 일반화하지 않는다. |
 | Kakao canonical ID mapping (2026-08-23, future route-provider 조건) | 대중교통 응답의 stop 객체는 `name`만, vehicle 객체는 `name`/`type`만 가지고 있다. busRouteId·stId·stationId에 해당하는 필드가 응답 스키마에 존재하지 않는다(3개 topology 후보 전부 동일 구조 확인). | 이 API 응답만으로는 결정적 crosswalk가 불가능하다 — `REJECTED`(payload 자체 한계). 별도의 외부 name-based crosswalk 없이는 publictraffic을 Primary route provider로 승격할 수 없다. 이 조건은 WALK-only 사용에는 필요하지 않다. |
 | Kakao 지리 범위 (2026-08-23) | 서울이 아닌 부산 좌표(129.0756,35.1796 → 129.0800,35.1850)로 publictraffic을 호출한 결과 정상적으로 3개 후보(버스 2, 지하철 1)를 반환했다. 동일 지점/매우 짧은 거리는 각각 `EQUAL_POINTS`/`NO_RESULTS` business status로 명확히 구분됐다. | Kakao publictraffic은 서울 범위를 스스로 제한하지 않는다 — "서울시 데이터만" 원칙은 product 입력단에서 강제해야 하며 provider 응답 성공 여부로 지역 범위를 판단하지 않는다. |
@@ -762,7 +762,7 @@ EC2 CPU/RAM/disk, partition 수, watermark, state TTL, checkpoint interval, cach
 | 그룹 | 기본 endpoint | 책임 |
 |---|---|---|
 | Location | `GET /api/v1/locations/search` | 장소 후보와 coordinate provenance; provider namespace 포함 |
-| Route | `POST /api/v1/route-candidates` | Minimum Release는 승인 Route A manifest 조회/선택, future provider mode에서만 canonical mapping과 first-supported 선택 |
+| Route | `POST /api/v1/route-candidates` | Route A 자체 OD는 승인 Route A manifest 조회/선택; 그 외 서울 임의 OD는 Kakao publictraffic discovery-only 호출과 canonicalization crosswalk mapping status 반환(REQ-104/105); future provider mode에서만 canonical mapping과 first-supported 선택 |
 | Analysis | `POST /api/v1/journeys/analyze` | Journey 생성, eligibility, result snapshot |
 | Journey | `GET /api/v1/journeys/{id}` | foreground 복구와 최신 state/result |
 | Start | `POST /api/v1/journeys/{id}/start` | PRE_TRIP_READY→ACTIVE idempotent 전이 |
@@ -1098,7 +1098,7 @@ Scope Cut은 기능 수를 줄이는 결정이지 placeholder·fixture를 사용
 - 신규 Kakao Map REST WALK·public-transit endpoint가 프로젝트 키로 HTTP 200/`OK`를 반환함
 - Kakao WALK는 Route A 접근 pair에서 295m/323s point를 반환했으며 기존 TMAP 297m/245s와 source별 차이가 존재함
 - Kakao public transit은 테스트 OD에서 15개 후보를 반환함(버스 8, 지하철 3, 복합 4)
-- Kakao publictraffic 후보는 Minimum Release selected route, WAIT/RIDE/TRANSFER 시간, probability 산식의 근거가 아니라 future route-provider reference evidence임
+- Kakao publictraffic 후보는 서울 임의 OD의 discovery-only route provider로 runtime에 실제 사용되지만, Minimum Release selected route, WAIT/RIDE/TRANSFER 시간, probability 산식의 근거로는 사용하지 않음(canonical route truth 승격은 future route-provider Gate 별도)
 - Bus Arrival↔Position vehicle join과 route-level `stopFlag 0→1` 관측 가능
 - Route A station×line 4개에서 Subway train join corridor-scoped 재확인
 - ACCESS WALK 297m/245s, BUS_TO_SUBWAY street 143m/101s, FINAL WALK 329m/300s point/reference evidence 존재

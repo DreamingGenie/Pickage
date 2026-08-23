@@ -252,7 +252,7 @@ AppShell
 | `calculatedAt` | required for result | SCR-02~06 | 없으면 result 표시 금지 |
 | `resultVersion` | required | SCR-02~05 | reforecast 전후 비교·중복 방지 |
 
-Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 서로 다른 providerKey로 Evidence Detail과 내부 QA에 전달한다. 일반 결과에는 읽기 쉬운 provider label을 병기할 수 있으나 원래 key·endpoint category·adapter version을 바꾸지 않는다. Kakao publictraffic은 Minimum Release 사용자 결과의 route provider가 아니라 reference evidence다.
+Provider provenance는 화면용 이름으로 합치지 않는다. 특히 `KAKAO_MOBILITY_WALK_LEGACY`, `KAKAO_MAP_WALK`, `KAKAO_MAP_PUBLIC_TRANSIT`는 서로 다른 providerKey로 Evidence Detail과 내부 QA에 전달한다. 일반 결과에는 읽기 쉬운 provider label을 병기할 수 있으나 원래 key·endpoint category·adapter version을 바꾸지 않는다. Kakao publictraffic은 서울 임의 OD의 discovery-only route provider(REQ-104)이지만, Minimum Release의 canonical route truth·selected route provider는 아니다.
 
 ### 5.2 숫자 formatting
 
@@ -653,7 +653,7 @@ ARRIVED는 FINAL_WALK 완료 뒤에만 표시한다. ABORTED는 실패가 아니
 
 ### 9.10 Analytics·Acceptance
 
-Events: `live_journey_view`, `board_confirmed`, `bus_skipped`, `transfer_missed`, `ride_completed`, `journey_aborted`, `live_provider_stale`, `journey_arrived`, `event_rejected`.
+Events: `live_journey_view`, `access_walk_completed`, `board_confirmed`, `bus_skipped`, `transfer_missed`, `ride_completed`, `journey_aborted`, `live_provider_stale`, `journey_arrived`, `event_rejected`.
 
 Acceptance:
 
@@ -1050,9 +1050,9 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 
 | Screen | Product Feature | REQ | BR/NFR | 핵심 AC |
 |---|---|---|---|---|
-| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098,100,104 | BR-001~005,060~074,083,084; NFR-010,053,054,070,074,075,079,084,087,088,090~093 | UI-AC-001~002,015~016,025,030,033~034,038; AC-001~002,035~036,041~042,046,053~057,061 |
+| SCR-01 | Input/Location/Route | REQ-001~009,050~056,093~094,098,100,104,105 | BR-001~005,060~074,083~085; NFR-010,053,054,070,074,075,079,084,087,088,090~093 | UI-AC-001~002,015~016,025,030,033~034,038; AC-001~002,035~036,041~042,046,053~057,061,062 |
 | SCR-02 | Pre-trip Result | REQ-005~017,020,030~045,050~056,093~098,103,104 | BR-001~005,010~017,020~024,045,050~053,060~074,082~084; NFR-084,087,088,093 | UI-AC-003~008,013,020~023,025~029,034~035,039; AC-003~008,037~045,047,053~057,061 |
-| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098,101,102 | BR-030~045,060~070,080,081; NFR-002,053,074~079,093 | UI-AC-007~012,015~022,025~030,036~037; AC-009~015,024,035~047,058~060 |
+| SCR-03 | Live Journey/User Event | REQ-007,020~025,030~035,050~056,070~073,093,095~098,101,102 | BR-030~045,060~070,080,081; NFR-002,053,074~079,093 | UI-AC-007~012,015~022,025~030,036~037,040; AC-009~015,024,035~047,058~060,064 |
 | SCR-04 | Reforecast | REQ-023~026,101 | BR-040~044,080 | UI-AC-010~012,028~029; AC-011~015,044~045,058,059 |
 | SCR-05 | Evidence | REQ-007~009,040~045,060~073,090~092,093,095~097,103 | BR-005,012~017,050~053,061~074,082; NFR-087,088 | UI-AC-013,019,022~029,034~035,039; AC-018~021,027,034~045,053~057 |
 | SCR-06 | Share | REQ-080~082,098,103 | NFR-050~054,079,093 | UI-AC-014,023,039,047; AC-025,039,047 |
@@ -1066,7 +1066,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | Coverage 5축 | SCR-01 사전 고지(서울 임의 입력 + mapping/model coverage에 따른 결과 차등), SCR-02/05 `routeCoverageMode`/`walkProviderMode`/`modelCoverage`, Demo Route A manifest |
 | Per-metric claim eligibility | SCR-02 §8.4.1 metric card별 문구, SCR-05 leg detail, SCR-06 snapshot |
 | P90 ≠ 90% accuracy | SCR-02/04/05/06 copy guard |
-| 정상 leg 전이/ABORT | SCR-03 §9.5 하차·환승 완료·여정 종료 CTA |
+| 정상 leg 전이/ABORT | SCR-03 §9.5 정류장/역 도착·하차·환승 완료·여정 종료 CTA |
 | Recommended Departure service re-evaluation | SCR-02 AVAILABLE Gate/copy; 계산 로직은 REQ/API |
 | Transfer ≠ Wait | SCR-02/03 timeline separate rows |
 | BUS_SKIPPED user-confirmed | SCR-03 CTA precondition, SCR-04 reason/topology |
@@ -1164,7 +1164,7 @@ event dictionary 변경은 Privacy review를 거치며 각 property에 목적·o
 | UI-AC-030 | 위치 권한 거부 | 수동 입력으로 전체 flow 계속, 반복 강제 prompt·background tracking 0 |
 | UI-AC-031 | PWA compatibility matrix | iOS/Android browser·standalone 각 run의 device/OS/browser/app/cache version과 결과 기록 |
 | UI-AC-032 | Route A final demo | 실제 SCR flow, Route A scope, live/recorded, eligibility/validation/limitation/version trace; Route B·mock 숫자 0 |
-| UI-AC-033 | Kakao publictraffic reference + mapping incomplete | publictraffic HTTP 성공을 일반 route 결과로 승격하지 않고 SCR-01 mapping copy; probability·Start 0. Kakao WALK 성공은 WALK provenance로만 표시 |
+| UI-AC-033 | Kakao publictraffic discovery + mapping incomplete | publictraffic 실 호출 성공을 canonical route truth로 승격하지 않고 SCR-01 mapping copy(구조만 표시); probability·Start 0. Kakao WALK 성공은 WALK provenance로만 표시 |
 | UI-AC-034 | coverage 축 | 서울 임의 입력 허용을 submit 전 고지하되 mapping/model coverage에 따라 결과가 달라질 수 있음을 함께 안내; `routeCoverageMode`/`walkProviderMode`/`modelCoverage` provenance 유지 |
 | UI-AC-035 | P90 기본 copy | “모델 도착분포의 90번째 백분위”와 validation scope를 인접 표시; calibration Gate 전 “10번 중 9번” 0 |
 | UI-AC-036 | RIDE 정상 하차 | `하차했어요` CTA로 RIDE_COMPLETED, 다음 TRANSFER/WAIT/FINAL_WALK가 timeline에 AVAILABLE로 나타남 |
