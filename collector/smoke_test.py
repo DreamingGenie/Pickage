@@ -19,11 +19,31 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import json
+
 from .common import service_day, storage
-from .common.storage import BUSINESS_ERROR, OK, TRANSPORT_ERROR
-from .sources import seoul_subway
+from .common.storage import BUSINESS_ERROR, HTTP_ERROR, OK, TRANSPORT_ERROR
+from .sources import seoul_bus, seoul_subway
 
 SAMPLE_KEY = "sample"
+
+# 과거 스파이크가 보존한 실제 버스 응답. 키 없이 파서를 검증하는 데 쓴다.
+_FIXTURE_ROOT = (
+    Path(__file__).resolve().parent.parent
+    / "docs" / "history" / "journey_reliability_docs_v2" / "baseline" / "phase0"
+    / "data" / "samples" / "examples" / "seoul_bus"
+)
+
+
+def _bus_fixtures(api_name: str) -> list[bytes]:
+    """보존된 샘플에서 해당 API의 원문 payload만 뽑아낸다."""
+    out: list[bytes] = []
+    for path in sorted(_FIXTURE_ROOT.glob(f"{api_name}/*.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        raw = record.get("raw_payload")
+        if raw:
+            out.append(raw.encode("utf-8"))
+    return out
 
 
 def _check(label: str, passed: bool, detail: str = "") -> bool:
@@ -74,6 +94,47 @@ def run(bronze_dir: Path) -> bool:
         r3b.outcome == OK,
         f"code={r3b.business_code}, rows={r3b.row_count}, {len(r3b.payload or b''):,} bytes",
     ))
+
+    print("\n3-3. 버스 — 인증 실패 경로 (실제 키 없이 확인 가능한 범위)")
+    rb = seoul_bus.position("INVALID+TEST/KEY==", "100100118", start_ord=1, end_ord=110)
+    storage.record(rb, bronze_dir)
+    results.append(_check(
+        "무효 키 → HTTP_ERROR",
+        rb.http_status == 401 and rb.outcome == HTTP_ERROR,
+        f"http={rb.http_status}, outcome={rb.outcome}",
+    ))
+    results.append(_check(
+        "URL 인코딩된 키도 마스킹됨",
+        "INVALID" not in rb.request_url_masked and "serviceKey=***" in rb.request_url_masked,
+        rb.request_url_masked.split("?")[1][:48] + "...",
+    ))
+
+    print("\n3-4. 버스 — 보존된 실제 응답으로 파싱 검증")
+    for name, expect_code, min_rows in [
+        ("getBusPosByRouteSt", "0", 1),
+        ("getArrInfoByRouteAll", "0", 1),
+    ]:
+        for raw in _bus_fixtures(name):
+            v = seoul_bus.judge(raw)
+            results.append(_check(
+                f"{name} ({len(raw):,}b) → code={v.business_code}, rows={v.row_count}",
+                v.ok and v.business_code == expect_code and (v.row_count or 0) >= min_rows,
+            ))
+
+    for raw in _bus_fixtures("getPathInfoByBusNSubList"):
+        v = seoul_bus.judge(raw)
+        results.append(_check(
+            "인증 실패 JSON을 업무 성공으로 오판하지 않음",
+            not v.ok,
+            f"ok={v.ok}, code={v.business_code}",
+        ))
+
+    print("\n3-5. 버스 업무코드 재시도 판정")
+    for code, expected in [("0", False), ("1", True), ("2", False), ("6", True), ("8", False)]:
+        results.append(_check(
+            f"headerCd={code} 재시도={expected}",
+            seoul_bus.is_retryable(code) is expected,
+        ))
 
     print("\n4. 전송 실패 경로 — 존재하지 않는 호스트")
     from .common.http_client import fetch

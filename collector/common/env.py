@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import urllib.parse
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -51,9 +52,22 @@ def redact(value: str, keep: int = 4) -> str:
 def mask_in_text(text: str, secret: str) -> str:
     """URL 등 임의 문자열에 섞인 secret을 마스킹한다.
 
-    서울 열린데이터광장 계열은 인증키가 URL path에 들어가므로
-    query param 제거만으로는 마스킹되지 않는다.
+    두 가지 형태를 모두 지운다.
+
+    1. 원문 그대로 — 서울 열린데이터광장 계열은 인증키가 URL **path**에
+       들어가므로 query param을 제거하는 것만으로는 마스킹되지 않는다.
+    2. URL 인코딩된 형태 — data.go.kr 계열은 키가 query string에 들어가며
+       `+`나 `%2F` 같은 문자를 포함해 퍼센트 인코딩된다. 원문만 치환하면
+       인코딩된 키가 그대로 메타에 남는다.
     """
     if not secret or not text:
         return text
-    return text.replace(secret, "***")
+    masked = text.replace(secret, "***")
+    encoded = urllib.parse.quote(secret, safe="")
+    if encoded != secret:
+        masked = masked.replace(encoded, "***")
+    # urlencode는 공백을 '+'로 바꾸므로 quote_plus 형태도 함께 지운다.
+    plus_encoded = urllib.parse.quote_plus(secret)
+    if plus_encoded not in (secret, encoded):
+        masked = masked.replace(plus_encoded, "***")
+    return masked
