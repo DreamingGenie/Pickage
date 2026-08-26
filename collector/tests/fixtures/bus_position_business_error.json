@@ -1,0 +1,6 @@
+{
+  "fixture_version": "1",
+  "http_status": 200,
+  "content_type": "application/json",
+  "body": {"msgHeader": {"headerCd": "30", "headerMsg": "invalid key"}, "msgBody": {"itemList": []}}
+}

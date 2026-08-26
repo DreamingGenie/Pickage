@@ -1,0 +1,12 @@
+{
+  "sources": {
+    "seoul-road-realtime": {
+      "status": "LOCAL_OVERRIDE",
+      "pool": "seoul-open-general-shared",
+      "daily_limit": 1000,
+      "verified_at": "YYYY-MM-DD",
+      "review_ticket": "REPLACE_WITH_APPROVED_DECISION_ID",
+      "evidence": "Portal account/quota screen or approved internal operating cap"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "fixture_version": "1",
+  "http_status": 200,
+  "content_type": "application/json",
+  "body": {
+    "msgHeader": {"headerCd": "0", "headerMsg": "OK"},
+    "msgBody": {"itemList": [
+      {"routeId": "100100001", "vehId": "V-1", "sectOrd": "10", "sectionId": "S-10", "stopFlag": "0", "dataTm": "20260824235900"},
+      {"routeId": "100100001", "vehId": "V-1", "sectOrd": "10", "sectionId": "S-10", "stopFlag": "1", "dataTm": "20260824235930"}
+    ]}
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "fixture_version": "1",
+  "http_status": 200,
+  "content_type": "application/json",
+  "body": {
+    "errorMessage": {"code": "INFO-000", "message": "정상 처리되었습니다.", "total": 1},
+    "realtimeArrivalList": [{"subwayId": "1001", "statnId": "1001000133", "statnNm": "서울", "updnLine": "상행", "btrainNo": "0064", "barvlDt": "30", "arvlCd": "0", "recptnDt": "2026-08-24 23:59:00"}]
+  }
+}

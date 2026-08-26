@@ -13,8 +13,8 @@
 
 ## API Key 발급
 
-각 provider(서울 열린데이터광장, data.go.kr, Kakao Map, TMAP)의 실제 API key를 어디서 어떻게 받는지는 `api & data/API_KEY_발급_가이드_260823.md`에 정리돼 있습니다.
+각 provider(서울 열린데이터광장, data.go.kr, Kakao Map, TMAP)의 실제 API key를 어디서 어떻게 받는지는 [`../collector/docs/api & data/API_KEY_발급_가이드_260823.md`](../collector/docs/api%20%26%20data/API_KEY_발급_가이드_260823.md)에 정리돼 있습니다.
 
 ## Secret Hygiene
 
-실제 API key나 credential 값은 docs root에 두지 않습니다. 필요한 키 이름은 위 API Key 발급 가이드만 참고하고, 실제 값은 Git이 추적하지 않는 로컬 `.env` 또는 실행 환경 secret으로 관리합니다.
+실제 API key나 credential 값은 docs root에 두지 않습니다. 필요한 키 이름은 위 API Key 발급 가이드만 참고하고, 실제 값은 Git이 추적하지 않는 `collector/.env.local` 또는 실행 환경 secret으로 관리합니다.

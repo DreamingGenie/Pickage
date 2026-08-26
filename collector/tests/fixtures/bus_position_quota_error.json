@@ -1,0 +1,9 @@
+{
+  "fixture_version": "1",
+  "http_status": 200,
+  "content_type": "application/json",
+  "body": {
+    "msgHeader": {"headerCd": "22", "headerMsg": "LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR"},
+    "msgBody": {}
+  }
+}

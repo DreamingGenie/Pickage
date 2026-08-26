@@ -1,0 +1,11 @@
+{
+  "sources": {
+    "bus-position": {
+      "raw": "ALLOW_LOCAL_ONLY",
+      "normalized": "ALLOW_LOCAL_ONLY",
+      "reason": "Replace this example with a reviewed project decision; never commit the local override.",
+      "review_ticket": "REPLACE_WITH_APPROVED_DECISION_ID",
+      "reviewed_at": "YYYY-MM-DD"
+    }
+  }
+}
