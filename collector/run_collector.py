@@ -23,14 +23,11 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .common import runner, storage
+from .common import console, runner, storage
 from .common.env import MissingSecretError, require_key, warn_if_encoded
-from .common.quota import DEFAULT_HARD_CAP, Pool, QuotaExceeded, QuotaLedger, key_id
+from .common.quota import DEFAULT_HARD_CAP, QuotaExceeded, QuotaLedger
 from .common.storage import OK, CollectionResult
-from .sources import seoul_bus, seoul_subway
-
-SUBWAY_KEY = "SEOUL_SUBWAY_REALTIME_KEY"
-BUS_KEY = "DATA_GO_BUS_API_KEY"
+from .sources import registry
 
 
 def _resolve_key(explicit: str | None, env_name: str) -> str:
@@ -56,18 +53,41 @@ def _report(result: CollectionResult, meta_path=None) -> None:
         print(f"  저장 : {meta_path}")
 
 
+def _params_from_args(target: str, args, parser) -> dict:
+    """CLI 플래그를 어댑터 키워드 인자로 옮긴다.
+
+    설정 파일(targets.toml)은 어댑터 인자 이름을 그대로 쓰지만, CLI는 이미
+    `--line`·`--route` 같은 짧은 플래그로 문서화돼 있어 여기서만 변환한다.
+    """
+    if target == "subway-arrival-all":
+        return {}
+    if target == "subway-position":
+        params: dict = {"line_name": args.line}
+        if args.start is not None:
+            params["start"] = args.start
+        if args.end is not None:
+            params["end"] = args.end
+        return params
+    if target == "subway-arrival-station":
+        return {
+            "station_name": args.station,
+            "start": args.start or 0,
+            "end": args.end or 20,
+        }
+    if not args.route:
+        parser.error("버스 수집에는 --route(busRouteId)가 필요합니다.")
+    if target == "bus-position":
+        return {
+            "bus_route_id": args.route,
+            "start_ord": args.start or 1,
+            "end_ord": args.end or 200,
+        }
+    return {"bus_route_id": args.route}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Bronze 수집 1회 실행")
-    parser.add_argument(
-        "target",
-        choices=[
-            "subway-arrival-all",
-            "subway-position",
-            "subway-arrival-station",
-            "bus-position",
-            "bus-arrival-all",
-        ],
-    )
+    parser.add_argument("target", choices=registry.names())
     parser.add_argument("--key", help="환경변수 대신 사용할 키. sample 지정 가능")
     parser.add_argument("--line", default="1호선", help="지하철 노선명")
     parser.add_argument("--station", default="서울", help="지하철 역명")
@@ -79,53 +99,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-attempts", type=int, default=3, help="재시도 포함 최대 시도 횟수")
     parser.add_argument("--hard-cap", type=int, default=DEFAULT_HARD_CAP, help="일일 호출 상한")
     args = parser.parse_args(argv)
+    console.use_utf8()
 
     ledger = QuotaLedger()
 
-    try:
-        if args.target.startswith("subway"):
-            key = args.key or _resolve_key(None, SUBWAY_KEY)
-            fmt = args.format or "json"
-            # 지하철 세 API는 인증키 1개의 한도를 공유하므로 풀 이름이 하나다.
-            pool = Pool("seoul_subway_realtime", key_id(key), hard_cap=args.hard_cap)
-            check = seoul_subway.is_retryable
-            if args.target == "subway-arrival-all":
-                fn, fa, fkw = seoul_subway.arrival_all, (key,), {"fmt": fmt}
-            elif args.target == "subway-position":
-                fkw = {"fmt": fmt}
-                if args.start is not None:
-                    fkw["start"] = args.start
-                if args.end is not None:
-                    fkw["end"] = args.end
-                fn, fa = seoul_subway.position, (key, args.line)
-            else:
-                fn, fa = seoul_subway.arrival_station, (key, args.station)
-                fkw = {"start": args.start or 0, "end": args.end or 20, "fmt": fmt}
-        else:
-            if not args.route:
-                parser.error("버스 수집에는 --route(busRouteId)가 필요합니다.")
-            key = _resolve_key(args.key, BUS_KEY)
-            fmt = args.format or "xml"
-            # 버스는 상세기능(엔드포인트)마다 독립 quota다.
-            endpoint = (
-                "getBusPosByRouteSt" if args.target == "bus-position" else "getArrInfoByRouteAll"
-            )
-            pool = Pool(f"data_go_bus::{endpoint}", key_id(key), hard_cap=args.hard_cap)
-            check = seoul_bus.is_retryable
-            if args.target == "bus-position":
-                fn, fa = seoul_bus.position, (key, args.route)
-                fkw = {"start_ord": args.start or 1, "end_ord": args.end or 200, "fmt": fmt}
-            else:
-                fn, fa, fkw = seoul_bus.arrival_all, (key, args.route), {"fmt": fmt}
+    # 어댑터·quota 풀·재시도 판정은 레지스트리가 정본이다. 스케줄러와 같은 정의를 쓴다.
+    spec = registry.get(args.target)
+    params = _params_from_args(args.target, args, parser)
+    registry.validate_params(spec, params)
 
+    try:
+        key = _resolve_key(args.key, spec.key_env)
+        pool = registry.make_pool(spec, key, args.hard_cap)
         result = runner.collect(
-            fn,
-            *fa,
+            spec.fn,
+            key,
             ledger=ledger,
             pool=pool,
-            business_check=check,
+            business_check=spec.business_check,
             max_attempts=args.max_attempts,
-            **fkw,
+            fmt=args.format or spec.default_fmt,
+            **params,
         )
     except MissingSecretError as exc:
         print(f"키 없음: {exc}", file=sys.stderr)

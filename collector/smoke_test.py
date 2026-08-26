@@ -21,7 +21,7 @@ from pathlib import Path
 
 import json
 
-from .common import service_day, storage
+from .common import console, service_day, storage
 from .common.storage import BUSINESS_ERROR, HTTP_ERROR, OK, TRANSPORT_ERROR
 from .sources import seoul_bus, seoul_subway
 
@@ -300,6 +300,7 @@ def run(bronze_dir: Path) -> bool:
 
 
 def main() -> int:
+    console.use_utf8()
     with tempfile.TemporaryDirectory() as tmp:
         ok = run(Path(tmp))
     return 0 if ok else 1
