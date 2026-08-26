@@ -4,12 +4,12 @@
 
 ## Current Planning Set
 
-- `SERVICE_PLAN_260824_v0.2.md`
-- `REQUIREMENTS_SPEC_260824_v0.2.md`
-- `IA_SCREEN_SPEC_260824_v0.2.md`
-- `DECISION_SHEET_260824_v0.2.md`
+- `SERVICE_PLAN_260825_v0.3.md`
+- `REQUIREMENTS_SPEC_260825_v0.3.md`
+- `IA_SCREEN_SPEC_260825_v0.3.md`
+- `DECISION_SHEET_260825_v0.3.md`
 
-`history/` 아래 문서는 과거 작업 산출물과 근거 보존용입니다. 현행 기획 검토는 위 root 문서 4개를 기준으로 시작합니다. 직전 세트(260823)와 그 PDF 해설서는 `history/0824_260823_planning_set_archive/README.md`로 이관했습니다.
+`history/` 아래 문서는 과거 작업 산출물과 근거 보존용입니다. 현행 기획 검토는 위 root 문서 4개를 기준으로 시작합니다. 직전 세트(260824 v0.2)는 `history/0826_260824_v0.2_planning_set_archive/README.md`로, 그 이전 세트(260823)와 PDF 해설서는 `history/0824_260823_planning_set_archive/README.md`로 이관했습니다.
 
 ## API Key 발급
 
