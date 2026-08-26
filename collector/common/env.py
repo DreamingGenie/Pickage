@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import os
+import re
+import sys
 import urllib.parse
 from pathlib import Path
 
@@ -38,6 +40,32 @@ def require_key(name: str) -> str:
 def optional_key(name: str, default: str | None = None) -> str | None:
     """없어도 되는 환경변수. sample 키로 스모크 테스트할 때 사용."""
     return os.environ.get(name) or default
+
+
+_PERCENT_ENCODED = re.compile(r"%[0-9A-Fa-f]{2}")
+
+
+def looks_url_encoded(value: str) -> bool:
+    """이미 퍼센트 인코딩된 키인지 추정한다.
+
+    data.go.kr은 인증키를 `인코딩키`와 `디코딩키` 두 형태로 제공한다.
+    이 수집기는 요청을 만들 때 키를 다시 인코딩하므로 **디코딩키**를 넣어야 한다.
+    인코딩키를 넣으면 이중 인코딩되어 HTTP 401이 나는데, 원인이 키 자체 문제로
+    보여 디버깅에 시간이 걸린다. 그래서 미리 경고한다.
+    """
+    return bool(_PERCENT_ENCODED.search(value))
+
+
+def warn_if_encoded(name: str, value: str) -> None:
+    """인코딩키로 보이면 stderr에 경고한다. 값 자체는 출력하지 않는다."""
+    if looks_url_encoded(value):
+        print(
+            f"[경고] {name}이(가) 이미 URL 인코딩된 값으로 보입니다(%XX 포함). "
+            f"data.go.kr은 인코딩키와 디코딩키를 함께 제공하는데, 이 수집기는 "
+            f"요청 시 키를 다시 인코딩하므로 **디코딩키**를 넣어야 합니다. "
+            f"인코딩키를 쓰면 이중 인코딩으로 HTTP 401이 납니다.",
+            file=sys.stderr,
+        )
 
 
 def redact(value: str, keep: int = 4) -> str:

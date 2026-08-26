@@ -21,7 +21,7 @@ import argparse
 import sys
 
 from .common import storage
-from .common.env import MissingSecretError, optional_key, require_key
+from .common.env import MissingSecretError, require_key, warn_if_encoded
 from .common.storage import OK, CollectionResult
 from .sources import seoul_bus, seoul_subway
 
@@ -32,7 +32,9 @@ BUS_KEY = "DATA_GO_BUS_API_KEY"
 def _resolve_key(explicit: str | None, env_name: str) -> str:
     if explicit:
         return explicit
-    return require_key(env_name)
+    key = require_key(env_name)
+    warn_if_encoded(env_name, key)
+    return key
 
 
 def _report(result: CollectionResult, meta_path=None) -> None:
@@ -74,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.target.startswith("subway"):
-            key = args.key or optional_key(SUBWAY_KEY) or require_key(SUBWAY_KEY)
+            key = args.key or _resolve_key(None, SUBWAY_KEY)
             fmt = args.format or "json"
             if args.target == "subway-arrival-all":
                 result = seoul_subway.arrival_all(key, fmt=fmt)
