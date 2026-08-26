@@ -128,10 +128,72 @@ Register-ScheduledTask -TaskName "JR-Collector" -Action $act -Trigger $trg -Sett
 `-MultipleInstances IgnoreNew`가 중요하다. 이게 없으면 로그인할 때마다 프로세스가
 추가로 떠서 위에서 말한 원장 경쟁이 발생한다.
 
-절전·최대절전에서 복귀하면 수집기가 스스로 다음 슬롯부터 이어간다. 놓친 슬롯을
-몰아서 호출하지는 않는다(실시간은 따라잡기가 불가능하고 quota만 태운다).
-노트북 절전은 그만큼 데이터 공백으로 남으므로, 상시 가동이 목적이면 절전을 끄거나
-홈 서버 쪽을 쓴다.
+### Windows — 관리자 승격이 안 될 때 (시작프로그램 폴더)
+
+`Register-ScheduledTask`와 `schtasks /create`는 모두 **관리자 승격을 요구한다**
+(승격 없이 실행하면 `Access is denied` / `HRESULT 0x80070005`). SSAFY 지급 장비처럼
+승격을 쓸 수 없는 환경에서는 시작프로그램 폴더로 같은 효과를 낸다.
+
+```
+collector/scripts/run_collector_bg.cmd   감시 루프 (죽으면 60초 뒤 재시작)
+collector/scripts/start_collector.vbs    콘솔 창 없이 위 루프를 띄움
+```
+
+시작프로그램 폴더(`shell:startup`)에 위 `start_collector.vbs`를 가리키는 래퍼
+`JR-Collector.vbs`를 두면 로그온 때마다 자동 시작한다. 래퍼만 두는 이유는 저장소를
+업데이트했을 때 자동으로 반영되게 하려는 것이다.
+
+```powershell
+# 등록 확인
+explorer shell:startup
+
+# 지금 바로 시작
+wscript.exe "C:\git\S15P21A506\collector\scripts\start_collector.vbs"
+
+# 돌고 있는지 확인
+Get-Process python -ErrorAction SilentlyContinue | Select-Object Id, StartTime, WorkingSet
+```
+
+정지는 **두 단계를 모두** 해야 한다. 감시 루프가 죽은 프로세스를 되살리기 때문이다.
+
+```powershell
+New-Item -ItemType File "C:\git\S15P21A506\data\STOP_COLLECTOR" -Force   # 1) 재시작 차단
+Get-Process python | Where-Object { $_.Path -like "*Python312*" } | Stop-Process -Force  # 2) 종료
+```
+
+다시 시작할 때는 `data\STOP_COLLECTOR`를 지운다. 자동 시작을 완전히 없애려면
+시작프로그램 폴더의 `JR-Collector.vbs`를 삭제한다.
+
+작업 스케줄러와 비교해 없는 기능은 두 가지다. **놓친 실행 보정**(`StartWhenAvailable`)이
+없어 로그온하지 않은 날은 시작되지 않고, **절전 복귀 후 자동 재시작**이 없다. 로그온
+상태에서 절전에 들었다가 깨어나면 프로세스는 그대로 살아 있으므로 실제로 문제가 되는
+경우는 드물다.
+
+### 절전이 곧 수집 공백이다
+
+노트북에서 가장 큰 손실 원인이다. 현재 설정은 `powercfg`로 확인한다.
+
+```powershell
+powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE
+```
+
+`현재 AC 전원 설정 색인`이 `0x00000708`이면 1800초(30분) 유휴 시 절전이다. 그 상태로
+방치하면 30분마다 수집이 멈춘다. 상시 수집이 목적이면 AC 전원에서 절전을 끈다.
+
+```powershell
+powercfg /change standby-timeout-ac 0
+powercfg /change hibernate-timeout-ac 0
+```
+
+이 명령은 시스템 전원 설정을 바꾸므로 **직접 실행해 판단하고 적용한다.** 되돌릴 때는
+`0` 대신 원래 분 단위 값(예: `30`)을 넣는다.
+
+절전으로 생긴 공백은 로그의 `슬롯 N개를 건너뜁니다`로 확인할 수 있다. `N × 주기`만큼이
+영구 손실이다.
+
+복귀하면 수집기가 스스로 다음 슬롯부터 이어간다. 놓친 슬롯을 몰아서 호출하지는
+않는다 — 실시간 데이터는 지나간 시점을 받을 수 없어 따라잡기가 무의미하고 quota만
+태운다.
 
 ## 정상 동작 확인
 
@@ -166,6 +228,32 @@ cat data/quota_ledger.json
 
 지하철 합산 호출이 950을 넘지 않아야 한다. 넘었다면 프로세스가 두 개 떠 있었다는
 뜻이다.
+
+## 수집 데이터 꺼내기
+
+운행일 단위로 원문·메타를 묶어 내보낸다. 원본은 지우지 않는다(복사다).
+
+```bash
+# 오늘 수집 현황만 확인 (묶지 않음)
+python -m collector.export_bronze --summary
+
+# 오늘 운행일을 zip으로
+python -m collector.export_bronze
+
+# 특정 운행일 / 전체 운행일
+python -m collector.export_bronze --service-date 2026-08-27
+python -m collector.export_bronze --all
+```
+
+산출물은 `data/exports/bronze_<운행일>.zip`이고 안에 `MANIFEST.json`이 들어간다.
+XML/JSON은 압축률이 높아 실측 **8% 수준**으로 줄어든다(187MB/일 → 약 15MB).
+
+**묶기 전에 원문의 sha256을 메타 기록값과 대조한다.** 불일치가 있으면 매니페스트에
+남기고 종료 코드 1을 반환하되 묶기는 계속한다 — 손상된 파일도 증거다. 실시간
+데이터는 다시 받을 수 없으므로 손상 사실을 늦게 아는 것이 가장 나쁘다.
+
+매니페스트의 `key_ids`에 `sample`이 있으면 샘플키 응답이 섞여 있다는 뜻이다. 샘플키는
+반환 행 수가 제한된 잘린 데이터이므로 Silver로 넘기면 안 된다. 요약 출력에서도 경고한다.
 
 ## quota 원장이 깨졌을 때
 

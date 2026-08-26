@@ -55,10 +55,17 @@ def setup_logging(log_path: Path, level: int = logging.INFO) -> None:
     root.handlers.clear()
     fmt = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATEFMT)
 
-    # 지역 이름이 `console` 모듈을 가리지 않게 한다.
-    stream_handler = logging.StreamHandler(sys.stderr)
-    stream_handler.setFormatter(fmt)
-    root.addHandler(stream_handler)
+    # 콘솔 핸들러는 stderr가 있을 때만 붙인다.
+    #
+    # Windows 작업 스케줄러로 백그라운드 구동할 때는 콘솔 창을 띄우지 않으려고
+    # `pythonw.exe`를 쓰는데, 이 실행기에서는 sys.stderr가 None이다.
+    # StreamHandler(None)은 emit 시점에 None.write를 호출해 깨진다. 로그가 안
+    # 남는 정도가 아니라 매 로그마다 예외가 나므로 반드시 걸러야 한다.
+    # (지역 이름이 `console` 모듈을 가리지 않도록 이름을 따로 둔다.)
+    if sys.stderr is not None:
+        stream_handler = logging.StreamHandler(sys.stderr)
+        stream_handler.setFormatter(fmt)
+        root.addHandler(stream_handler)
 
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
