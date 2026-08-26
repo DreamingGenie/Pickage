@@ -2,7 +2,11 @@
 
 > 작성 기준: 2026-08-26 KST
 > 담당 범위: 데이터 수집기, 저장 계층, 스키마, 원천 간 연결
-> 선행 문서: [API 후보 종합 비교표](api%20&%20data/API_후보_종합_비교표_260826.md) · [SERVICE_PLAN v0.2](SERVICE_PLAN_260824_v0.2.md) · [REQUIREMENTS_SPEC v0.2](REQUIREMENTS_SPEC_260824_v0.2.md)
+> 선행 문서: [API 후보 종합 비교표](api%20&%20data/API_후보_종합_비교표_260826.md) · [SERVICE_PLAN v0.2](history/0826_260824_v0.2_planning_set_archive/SERVICE_PLAN_260824_v0.2.md) · [REQUIREMENTS_SPEC v0.2](history/0826_260824_v0.2_planning_set_archive/REQUIREMENTS_SPEC_260824_v0.2.md)
+> 
+> 이 문서가 인용한 기획 근거는 **v0.2 시점**이다. v0.3이 정본이 된 뒤 archive로
+> 이동했으므로 링크는 archive를 가리킨다. v0.3에서 바뀐 결정이 이 계획에 영향을
+> 주는지는 별도 검토 대상이다.
 
 ## 1. 목적과 이 문서가 답하는 질문
 
@@ -276,6 +280,6 @@ Flink가 실제로 필요한 것은 상태 기반 작업 세 가지다 — 중�
 ## 10. 참고
 
 - [API 후보 종합 비교표](api%20&%20data/API_후보_종합_비교표_260826.md) — 수집 대상 선정 근거
-- [SERVICE_PLAN v0.2](SERVICE_PLAN_260824_v0.2.md) — 제품 범위·아키텍처
-- [REQUIREMENTS_SPEC v0.2](REQUIREMENTS_SPEC_260824_v0.2.md) — `NFR-080`~`NFR-084` 분산 증명·quota 요구
-- [DECISION_SHEET v0.2](DECISION_SHEET_260824_v0.2.md) — collector timestamp 사고, provider quota 확인 이력
+- [SERVICE_PLAN v0.2](history/0826_260824_v0.2_planning_set_archive/SERVICE_PLAN_260824_v0.2.md) — 제품 범위·아키텍처
+- [REQUIREMENTS_SPEC v0.2](history/0826_260824_v0.2_planning_set_archive/REQUIREMENTS_SPEC_260824_v0.2.md) — `NFR-080`~`NFR-084` 분산 증명·quota 요구
+- [DECISION_SHEET v0.2](history/0826_260824_v0.2_planning_set_archive/DECISION_SHEET_260824_v0.2.md) — collector timestamp 사고, provider quota 확인 이력
