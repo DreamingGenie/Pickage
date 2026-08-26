@@ -9,6 +9,32 @@
 남겨도 받을 수 없다. **수집기가 멈춘 시간만큼이 영구 손실**이다. 그래서 이
 가이드의 목표는 "정확한 24시간 가동"이 아니라 **"멈추면 알아서 다시 뜨는 것"** 이다.
 
+## 파이썬 경로 확인
+
+자동 재시작 설정에는 **`python` 명령이 아니라 실행 파일의 절대 경로**가 필요하다.
+systemd와 작업 스케줄러는 로그인 셸의 `PATH`를 물려받지 않으므로, `python`이라고만
+적으면 "파일을 찾을 수 없음"으로 조용히 실패한다.
+
+```bash
+python -c "import sys; print(sys.executable)"
+```
+
+아래 예시는 2026-08-26 기준 이 저장소 개발 환경의 실측값이다. 가상환경을 쓰면
+`<repo>/.venv/Scripts/python.exe`(Windows) 또는 `<repo>/.venv/bin/python`(Linux)로
+바꾼다.
+
+| 환경 | 경로 |
+|---|---|
+| Windows (전역 설치) | `C:\Users\<사용자>\AppData\Local\Programs\Python\Python312\python.exe` |
+| Windows (콘솔 창 없이) | 같은 폴더의 `pythonw.exe` |
+
+의존성은 `requests`와 `python-dotenv` 두 개뿐이다. 전역에 이미 있으면 가상환경은
+필요 없다.
+
+```bash
+python -c "import requests, dotenv; print('OK')"
+```
+
 ## 실행 전 확인
 
 ```bash
