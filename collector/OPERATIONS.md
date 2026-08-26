@@ -83,6 +83,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/git/S15P21A506
+# 가상환경이 없으면 `which python3` 결과(예: /usr/bin/python3)를 그대로 쓴다.
 ExecStart=%h/git/S15P21A506/.venv/bin/python -m collector.run_scheduler
 Restart=always
 RestartSec=30
@@ -111,7 +112,8 @@ sudo loginctl enable-linger "$USER"
 `pythonw.exe`로 띄워 콘솔 창이 뜨지 않게 한다.
 
 ```powershell
-$py   = "C:\git\S15P21A506\.venv\Scripts\pythonw.exe"
+# 위 "파이썬 경로 확인"에서 얻은 경로. 콘솔 창을 띄우지 않으려면 pythonw.exe를 쓴다.
+$py   = "$env:LOCALAPPDATA\Programs\Python\Python312\pythonw.exe"
 $act  = New-ScheduledTaskAction -Execute $py -Argument "-m collector.run_scheduler" `
           -WorkingDirectory "C:\git\S15P21A506"
 $trg  = New-ScheduledTaskTrigger -AtLogOn
