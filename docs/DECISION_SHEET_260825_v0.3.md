@@ -1,6 +1,6 @@
 # Journey Reliability Decision Sheet — 2026-08-25 v0.3 정본
 
-> **2026-08-25 v0.3 제품 정본**. 아래 2026-08-23 Evidence Resolution Pack의 관측·판정과 2026-08-24 v0.1/v0.2 product history는 역사 사실로 그대로 보존한다. v0.3은 팀 회의에서 도출된 수정점을 반영해 **Splash→Shared Input Shell 진입, Milestone(경유포인트) Projection, URL public Share 승격, 기능 독립성 강화, Arrival 핵심에서 mandatory targetArrivalAt/P(on_time) 제거**를 신규로 확정한다.
+> **2026-08-25 v0.3 제품 정본**. 아래 2026-08-23 Evidence Resolution Pack의 관측·판정과 2026-08-24 v0.1/v0.2 product history는 역사 사실로 그대로 보존한다. v0.3은 팀 회의에서 도출된 수정점을 반영해 **Splash→Shared Input Shell 진입, Milestone(경유포인트) Projection, URL public Share 승격, 기능 독립성 강화, Arrival 핵심에서 mandatory targetArrivalAt/P(on_time) 제거**를 신규로 확정한다. 2026-08-26에는 backend 담당자가 확정한 시스템 아키텍처(3-node 배치, HDFS 확정, Kafka 토픽 체인, GPU 학습 서버+평가 게이트)를 구조도 기준으로 추가 반영했다.
 >
 > Journey Reliability Evidence Resolution Pack(`docs/history/0823_plan_fix/00~07`) 실행 결과. Sunday `END` service day 기준. 모든 항목은 `provider×endpoint×OD/corridor×window×service day×adapter version` 범위로만 유효하다.
 
@@ -24,6 +24,7 @@
 - [2026-08-24 Product Reframing Decision — v0.1 history](#2026-08-24-product-reframing-decision)
 - [2026-08-24 v0.2 Product Separation Decision](#2026-08-24-v02-product-separation-decision)
 - [2026-08-25 v0.3 Entry / Milestone / URL Share Superseding Decision](#2026-08-25-v03-entry--milestone--url-share-superseding-decision)
+- [2026-08-26 v0.3 Backend Architecture Confirmation Decision](#2026-08-26-v03-backend-architecture-confirmation-decision)
 
 ---
 
@@ -272,3 +273,31 @@ v0.2/v0.3 정본에서 위 표현이 active 정책으로 발견되면 문서 정
 - 경유지 시간을 FE가 leg 평균/P90 단순 합산으로 생성하는 구현
 
 v0.3 정본에서 위 표현이 active 정책으로 발견되면 문서 정합성 오류다.
+
+---
+
+## 2026-08-26 v0.3 Backend Architecture Confirmation Decision
+
+이 절은 backend 담당자가 확정한 실시간 교통 예측 아키텍처(`transit-architecture.pdf`, "ARCHITECTURE · V1.0 확정 · 2026-08")를 반영한다. **근거는 문서의 구조도(컴포넌트 박스·화살표·토픽명)만 채택**했다 — 서술 텍스트는 backend 담당자가 추후 수정할 수 있다고 명시했으므로 참고용으로만 사용하고 결정 근거로 삼지 않았다. 2026-08-23 Evidence, 2026-08-24/25 product decision은 소급 변경하지 않는다. 이 절은 시스템 아키텍처/배포 구조만 다루며 제품 API 계약(analysisId, Departure/Arrival request-result, milestone, Share)에는 영향을 주지 않는다.
+
+| Decision ID | 결정 | 상태 | 영향 문서 |
+|---|---|---|---|
+| D-260826-001 | 실시간 서빙 경로(Fetcher→Kafka `raw.*`→Flink `features`→AI 추론 서버 `predictions`→알고리즘 서버→Redis→WAS→PWA)와 배치·학습 경로(Kafka Connect→HDFS→Spark→GPU 학습 서버→MLflow)를 Kafka 이벤트 백본으로만 연결한다. 서버 간 직접 호출은 없으며, 예외는 모델 승격 시 `model.events`를 통한 AI 추론 서버 핫스왑뿐이다 | FIXED | Service Plan 「Logical Architecture」, Requirements Kafka Topic Contract/SYS-004,006,008,009,011,013,014 |
+| D-260826-002 | 저장소를 MinIO가 아니라 **HDFS(+Hive Metastore)로 확정**한다. IAM 없는 EC2-only 환경에서 관리형 오브젝트 스토리지가 제외됐고, 정통 Hadoop 스택 운영 경험을 우선했다. MapReduce는 사용하지 않고 연산은 Spark가 전담한다 | FIXED | Service Plan/Requirements 「기준 기술과 배포 경계」 |
+| D-260826-003 | 물리 배치를 2-node 잠정안에서 **3-node 확정안**(EC2 #1 실시간 서빙, EC2 #2 데이터·배치, GPU 학습 서버(대여, WireGuard 내부망 편입))으로 갱신한다. GPU 학습 서버에는 영구 데이터를 두지 않는다 | FIXED | Service Plan/Requirements 「3-node 확정/confirmed 배치안」, NFR-083, BR-074 |
+| D-260826-004 | 모델 재학습(PyTorch)은 평가 게이트(기존 프로덕션 모델과 대결해 이길 때만 승격)를 통과해야 MLflow 모델 레지스트리에 반영되며, 그 순간 `model.events`가 발행되어 무중단 핫스왑된다. 학습/게이트 실패는 기존 승격 모델을 그대로 유지해 서비스에 영향을 주지 않는다 | FIXED | Service Plan 「H100 Training Plane」, Requirements SYS-006, ENT-025 |
+| D-260826-005 | 저장 노드가 1대인 현재 단계에서 HDFS는 복제 계수 1(의사분산)로 운영한다. 이는 내구성이 아니라 배치·핫패스 자원 경합 격리를 위한 이주이며, 노드가 늘어나면 복제 계수를 올린다 | FIXED | Service Plan/Requirements 「3-node 배치안」 |
+
+### 채택하지 않은 서술(참고용 텍스트, 근거로 미사용)
+
+- 원문 일부 서술은 "3-node 물리 분리로 자원 경합이 사라지므로 YARN을 생략할 수 있다"고 주장하나, 같은 문서의 구조도(diagram)는 Flink/Spark 박스에 명시적으로 "on YARN"을 표기하고 태그에도 `Hadoop (HDFS + YARN)`을 포함한다. 본 Decision Sheet는 **구조도를 우선 채택**해 YARN을 유지하는 것으로 반영했다. YARN 생략 여부는 backend 담당자의 최종 확인이 필요한 `OPEN` 항목이다.
+- 원문의 "인스턴스가 늘어나면 메시징/Hadoop 마스터/Hadoop 워커×N/서빙·ML 노드로 분리" 구조도(4-role 확장)는 저자 스스로 "확정된 목표 토폴로지는 3-node"라고 명시한 이후의 **선택적 미래 확장**이다. 현재 MR 배치는 3-node 확정안(D-260826-003)까지만 반영하고 4-role 확장은 채택하지 않는다.
+- 원문의 "지급받은 EC2 1대" 구조도는 3-node로 확장되기 전의 **현재 출발점**이며, MR 목표 아키텍처로 채택하지 않았다(D-260826-003의 3-node가 목표).
+
+### Open — 후속 확인 필요
+
+| 항목 | 상태 | 사유 | 미해소 시 처리 |
+|---|---|---|---|
+| PostgreSQL 기반 AnalysisRecord/ShareSnapshot/AnonymousAccessGrant/QuotaLedger와 새 아키텍처의 관계 | `OPEN` | 원문 구조도는 실시간 예측 파이프라인(Fetcher~Redis~WAS)과 배치·학습 경로만 다루며 PostgreSQL/analysisId/Share 저장 계층을 전혀 언급하지 않는다. 두 계층이 공존하는지, 통합되는지 원문만으로 판단할 근거가 없다 | 현재 REQUIREMENTS/SERVICE_PLAN의 PostgreSQL 기반 제품 API 계약(API-011/012/006/007/008, ENT-029~034)은 **변경 없이 유지**한다. backend 담당자 확인 후 필요 시 별도 Decision으로 갱신 |
+| YARN 포함 여부 | `OPEN` | 구조도(포함)와 본문 서술(생략 권장)이 상충 | 구조도를 우선해 YARN 포함으로 유지(위 「채택하지 않은 서술」 참고) |
+| GPU 학습 서버가 기존 `H100`과 동일 자원인지 | `OPEN` | 원문은 "GPU 학습 서버(대여)"라고만 표기하고 H100 여부를 명시하지 않음 | Service Plan은 "H100(GPU 학습 서버, 대여)"로 병기해 기존 trace를 보존하되 신규 하드웨어 확정 사실로 승격하지 않음 |

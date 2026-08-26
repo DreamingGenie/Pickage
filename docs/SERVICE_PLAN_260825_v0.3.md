@@ -671,16 +671,42 @@ flowchart TB
     DPAPI --> PG["PostgreSQL Analysis/Result/Share Store"]
     LNAPI --> PG
     PG --> SHARE["Share API: create URL / public read"]
+
     COL["Collectors + Quota Coordinator"] --> EXT["Seoul + Route/WALK APIs"]
-    COL --> K["Kafka"] --> F["Flink"]
-    F --> LAKE["Silver/Gold Parquet"]
-    F --> RT
-    LAKE --> BATCH["Python/Spark Validation"]
+    EXT --> FETCH
+
+    subgraph EC2_1["EC2 #1 - 실시간 서빙 노드 (핫패스 + Kafka 백본)"]
+        FETCH["Fetcher (5s 폴링/스태거링, mode 정규화)"] --> KAFKA["Kafka 이벤트 백본 raw.*->features->predictions, model.events"]
+        KAFKA --> FLINK["Flink 피처 엔지니어링 (on YARN)"]
+        FLINK --> KAFKA
+        KAFKA --> AIINF["AI 추론 서버 (마이크로배치 50~100ms, p10/50/90)"]
+        AIINF --> KAFKA
+        KAFKA --> ALGO["알고리즘 서버 (도메인 규칙 결합, 확률 합성)"]
+        ALGO --> REDIS["Redis (정류장x노선 최종 상태, TTL 30s)"]
+    end
+    REDIS --> RT
+    FLINK --> RT
+    AIINF --> ML
+
+    subgraph EC2_2["EC2 #2 - 데이터 노드 (레이크 + 야간 배치)"]
+        CONNECT["Kafka Connect (HDFS Sink)"] --> LAKE["HDFS 데이터 레이크 Bronze/Silver/Gold"]
+        LAKE --> SPARKB["Spark 야간 배치 (on YARN)"]
+        SPARKB --> LAKE
+    end
+    KAFKA --> CONNECT
+    LAKE --> HIST
+    SPARKB --> BATCH["Python/Spark Validation"]
     BATCH --> HIST
-    BATCH --> MODEL["Versioned Model Artifact"] --> ML
+
+    subgraph GPUNODE["GPU 학습 서버 (대여, WireGuard 내부망 편입, 영구 데이터 없음)"]
+        TRAIN["Trainer PyTorch/CUDA (분위수 손실 학습)"] --> GATE["평가 게이트 (기존 모델 대비 개선 시만 승격)"]
+    end
+    SPARKB --> TRAIN
+    GATE --> MLREG["MLflow 모델 레지스트리"] --> MODEL["Versioned Model Artifact"] --> ML
+    MLREG -. "모델 핫스왑 (model.events)" .-> AIINF
 ```
 
-**Shared input / split command / shared platform**가 기본 원칙이다. UI shell은 공유하지만 두 API/serving engine의 request/result contract는 분리한다.
+**Shared input / split command / shared platform**가 기본 원칙이다. UI shell은 공유하지만 두 API/serving engine의 request/result contract는 분리한다. 실시간 예측 파이프라인(EC2 #1)과 배치·학습 경로(EC2 #2 + GPU 학습 서버)는 서로 직접 호출하지 않고 Kafka 이벤트 백본으로만 연결된다 — 2026-08월 백엔드 아키텍처 확정(`D-260826-001`, Decision Sheet 참고)에 따른 3-node 구조다.
 
 ### 구성요소 책임
 
@@ -694,19 +720,30 @@ flowchart TB
 | Historical Artifact | 두 engine의 공통 baseline SoT |
 | Realtime Feature Builder | Leave-now에서만 사용하는 immutable current-context snapshot |
 | Milestone Projector | selected route의 의미 있는 checkpoint와 versioned 시간 projection 생성 |
-| AI Inference Adapter | Leave-now leg residual/WAIT quantile 보정; final distribution 직접 대체 금지 |
+| AI Inference Adapter | Leave-now leg residual/WAIT quantile 보정; final distribution 직접 대체 금지 (구현: AI 추론 서버) |
 | Share Service | immutable privacy-safe projection 생성, opaque token URL 발급, public read-only 조회 |
-| Collector/Kafka/Flink | Observation, identity, Actual/Residual, realtime aggregate |
+| Fetcher | 버스·지하철 공공 API를 5초 창 안에 노선 단위로 스태거링 폴링해 표준 Avro 이벤트로 정규화, Kafka `raw.*`에 발행 |
+| Kafka 이벤트 백본 | `raw.*`→`features`→`predictions` 토픽 체인과 `model.events`(모델 승격 제어); 모든 서버는 생산자·소비자로만 존재하고 서버 간 직접 호출은 없음 |
+| Flink 피처 엔지니어링 | `raw.*` 소비, 차량별 상태(직전 위치·구간 소요시간)를 이벤트타임 윈도로 집계해 `features` 발행 (on YARN) |
+| 알고리즘 서버 | `predictions`(도착시간 분위수)에 배차 간격·막차 시각 등 도메인 규칙을 결합해 사용자 대상 확률로 합성 — 이 로직은 Leave-now Forecast Engine의 실제 구현체다 |
+| Redis | 정류장×노선의 최종 상태만 TTL(30s)로 보관하는 실시간 캐시; 변경 시 Pub/Sub으로 WAS에 알림 |
+| Kafka Connect | `raw.*` 스트림 전량을 HDFS 데이터 레이크에 Parquet로 적재(HDFS Sink) |
+| HDFS 데이터 레이크 | Bronze/Silver/Gold 3계층 영구 저장 — 데이터 레이크·Flink 체크포인트·모델 아티팩트를 포함한 영속 데이터의 단일 기반 |
+| Spark 야간 배치 | Bronze 정제(Silver), 학습쌍·구간 통계 프로파일 생성(Gold) (on YARN) |
+| GPU 학습 서버 (대여) | Gold 학습셋으로 모델 재학습(PyTorch); 평가 게이트(기존 모델 대비 지표 개선 시만) 통과 시 승격. WireGuard로 내부망에 편입되며 영구 데이터는 두지 않음(대여 자원 반납 대비) |
+| MLflow 모델 레지스트리 | 모델 버전·승격 관리; 승격되면 `model.events`가 발행되어 AI 추론 서버가 무중단 핫스왑 |
 | Offline Validation | historical artifact build, hold-out, baseline-vs-realtime model 평가 |
-| PostgreSQL | analysisType별 request/result/access/share/quota metadata; live Journey state 없음 |
+| PostgreSQL | analysisType별 request/result/access/share/quota metadata; live Journey state 없음. 위 실시간 예측 파이프라인(Fetcher~Redis)과는 별도 계층으로, 이번 아키텍처 확정 범위에 포함되지 않음 |
 
 ### 기술 대안과 전환 조건
 
-기존 Java/Spring, Kafka/Flink, PostgreSQL, MinIO/Parquet, Python/Spark, 2-worker distributed proof 원칙을 유지한다. realtime ML이 Gate를 통과하지 못해도 Departure Recommendation은 영향 없이 동작해야 하며 Leave-now는 declared historical baseline으로 축소될 수 있다.
+기존 Java/Spring, Kafka/Flink, PostgreSQL, Python/Spark(PyTorch), Docker/Nginx, 3-worker distributed proof 원칙을 유지한다. 저장소는 MinIO가 아니라 **HDFS(Hadoop)로 확정**한다 — IAM 없이 EC2만 제공되는 환경이라 관리형 오브젝트 스토리지가 선택지에서 제외됐고, 자체 운영 저장소 중 정통 Hadoop 스택(HDFS + Hive Metastore) 운영 경험을 우선했다(`D-260826-002`, Decision Sheet 참고). MapReduce는 사용하지 않으며 연산은 Spark가 전담하고, YARN은 Flink/Spark의 공용 자원 관리자로 사용한다. realtime ML이 Gate를 통과하지 못해도 Departure Recommendation은 영향 없이 동작해야 하며 Leave-now는 declared historical baseline으로 축소될 수 있다.
 
-#### 2-node EC2 임시 배치안
+#### 3-node 확정 배치안 (2026-08-26)
 
-2-node는 HA가 아니라 worker participation/replay/correctness proof다. serving 보호 workload는 API-011/API-012, shared route/result/milestone/evidence/share다.
+물리 배치를 2-node 잠정안에서 **3-node 확정안**으로 갱신한다. **EC2 #1**은 실시간 서빙 노드로 Fetcher·Kafka 이벤트 백본·Flink·AI 추론 서버·알고리즘 서버·Redis·WAS를 핫패스로 운용한다. **EC2 #2**는 데이터 노드로 HDFS 레이크(Kafka Connect 적재)와 Spark 야간 배치를 담당한다. **GPU 학습 서버**는 대여 자원이며 WireGuard 터널로 내부망에 편입되어 모델 학습과 평가 게이트에만 사용하고 영구 데이터를 두지 않는다. 노드 간 통신은 전부 Kafka 토픽을 통한 비동기 전달이며(서버 간 직접 호출 없음), 예외는 모델 승격 시 MLflow→AI 추론 서버의 핫스왑 신호뿐이다. 3-node proof는 HA가 아니라 worker participation/replay/correctness proof다. serving 보호 workload는 API-011/API-012, shared route/result/milestone/evidence/share와 `raw.*`/`features`/`predictions`/`model.events` Kafka 토픽 체인이다.
+
+현재 지급된 자원은 EC2 1대뿐이라, 위 3-node 구조는 하나의 호스트 위에서 컨테이너 단위로 먼저 구현하고(Docker 브리지 네트워크로 서비스 경계 유지, 서비스 경계는 물리 머신이 아니라 Kafka 토픽 계약으로 정의) 인스턴스가 추가되는 시점에 역할 단위로 물리 이전한다. 이 단계에서는 HDFS 복제 계수 1의 의사분산(pseudo-distributed) 모드로 운영하며, 저장 노드가 2대 이상이 되는 시점에 복제 계수를 올려 내구성을 확보한다. 인스턴스가 더 늘어나면 메시징/Hadoop 마스터/Hadoop 워커×N/서빙·ML 노드로 역할을 더 세분화할 수 있으나, 이는 3-node 확정안 이후의 선택적 확장이며 현재 MR 배치의 필수 조건은 아니다.
 
 ### API 기본 틀
 
@@ -723,6 +760,8 @@ flowchart TB
 | Operations | internal health/quota/model/artifact endpoints | provider/data/distributed 상태 |
 
 기존 `/api/v1/journeys/analyze` Dual Analysis endpoint는 `RETIRED_FROM_MR`이다. API-012의 내부 path/type 명칭은 compatibility를 위해 유지하지만 user-facing 명칭은 `도착 시간 계산`이다.
+
+위 사용자-facing API 계층 아래에는 Kafka 이벤트 백본(`raw.*`/`features`/`predictions`/`model.events`)이 실시간 예측 파이프라인을 구성한다. 그 상세 계약은 Requirements의 「Kafka Topic Contract」를 정본으로 한다.
 
 ### 논리 ERD
 
@@ -752,7 +791,7 @@ erDiagram
 
 ### 분산처리 필수 증명
 
-Protected data path는 `Raw/Observation→Actual/Residual→Historical Artifact/Realtime Feature→각 독립 Engine→Milestone Projection→각 Result→PWA/Share`다. multi-worker failure/replay/checksum/duplicate-loss correctness를 검증하며 2-node를 HA/SLA라고 표현하지 않는다.
+Protected data path는 `Raw/Observation→Actual/Residual→Historical Artifact/Realtime Feature→각 독립 Engine→Milestone Projection→각 Result→PWA/Share`다. multi-worker failure/replay/checksum/duplicate-loss correctness를 검증하며 3-node(EC2 #1/#2 + GPU 학습 서버)를 HA/SLA라고 표현하지 않는다. HDFS는 저장 노드가 1대인 동안 복제 계수 1(의사분산)로 운영하며, 이는 내구성이 아니라 격리(자원 경합 분리)를 목적으로 한 이주임을 명시한다.
 
 ## ML/AI 적용 및 비적용 기준
 
@@ -770,7 +809,7 @@ Protected data path는 `Raw/Observation→Actual/Residual→Historical Artifact/
 
 ### H100 Training Plane과 Runtime Serving Plane
 
-H100/Jupyter는 offline training/evaluation 전용이다. production PWA/API/collector/engine은 training environment를 직접 호출하지 않고 `ModelArtifactManifest`의 model file, feature schema, evaluation report, model card, hash만 반입한다.
+H100/Jupyter(GPU 학습 서버, 대여)는 offline training/evaluation 전용이다. production PWA/API/collector/engine은 training environment를 직접 호출하지 않고 `ModelArtifactManifest`의 model file, feature schema, evaluation report, model card, hash만 반입한다. GPU 학습 서버는 WireGuard 터널로 EC2 내부망에 편입되어 Kafka·MLflow 포트만 사용하며, HDFS 같은 영구 데이터는 절대 두지 않는다(대여 자원 반납 시 데이터가 인질이 되는 것을 방지). 학습(PyTorch, 분위수 손실)이 끝나면 결과 모델을 평가 게이트에서 기존 프로덕션 모델과 대결시키고, 이겼을 때만 MLflow 모델 레지스트리에 승격한다. 승격 이벤트는 `model.events` 토픽으로 발행되어 AI 추론 서버가 재기동 없이 무중단 핫스왑한다. 학습 잡이 실패하거나 게이트를 통과하지 못해도 어제 승격된 모델이 그대로 유지되어 서비스에는 영향을 주지 않는다.
 
 ### Promotion / Back-up Plan
 

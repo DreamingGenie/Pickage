@@ -31,7 +31,7 @@
 | Functional Requirement | active/retired 분리 + v0.3 entry/milestone/share 계약 | 기존 REQ + REQ-107~123 |
 | Business Rule | active rule + v0.3 UI/data/share rule | BR-001~102 |
 | State Transition Rule | historical IDs 보존 + v0.3 launch/tab/share transitions | ST-001~041 |
-| API/System Interface | 기존 separated API 유지, schema 확장 | API-000~013, SYS-001~012 |
+| API/System Interface | 기존 separated API 유지, schema 확장 + 3-node 아키텍처 확정 반영 | API-000~013, SYS-001~014 |
 | Canonical Entity | 기존 entity + milestone projection | ENT-001~034 |
 | NFR | 기존 + Splash/Milestone correctness | NFR-001~102, 비연속 |
 | Acceptance Scenario | existing relevant AC + v0.3 contract 신규 081~090 | AC-001~090 |
@@ -357,7 +357,7 @@ Future GPS 연구는 이 ID를 자동으로 재활성화하지 않는다. 연구
 | BR-071 | `geographyCoverage`/`routeSearchCoverage`는 서울 임의 OD를 허용한다. D2 selected route는 `PROVIDER_FIRST_SUPPORTED`, demo/fallback은 `APPROVED_ROUTE_A_ONLY`로 분리한다. |
 | BR-072 | provider별 route/WALK point·시간·namespace·version을 보존하고 평균·silent substitution·provenance 변경을 금지한다. |
 | BR-073 | Kakao 공식 무료 1,000회는 첫 활성화 앱 조건이며 프로젝트 entitlement 확인 전 remaining을 임의 가정하지 않는다. |
-| BR-074 | 2-node distributed correctness proof는 HA·무중단·SLA claim이 아니다. |
+| BR-074 | 3-node distributed correctness proof는 HA·무중단·SLA claim이 아니다. |
 | BR-080 | 2026-08-23 manual leg transition contract는 `RETIRED_FROM_MR`이다. Future GPS state machine으로 자동 승계하지 않는다. |
 | BR-081 | 2026-08-23 Journey Abort contract는 `RETIRED_FROM_MR`이다. |
 | BR-082 | metric eligibility는 departureP50At/departureP90At/arrivalP50At/arrivalP90At 및 milestone projection별 독립이다. |
@@ -492,23 +492,36 @@ Future GPS 연구는 이 ID를 자동으로 재활성화하지 않는다. 연구
 | SYS-001 | Location/WALK Adapter | query/points→GeoPoint/WALK point | provenance/quota/error |
 | SYS-002 | Route Registry/Normalizer | provider candidate→RouteCandidate/Leg | shared crosswalk/time semantics |
 | SYS-003 | Shared Reliability Math Library | leg distributions + simulation config→samples/metric primitives | user product result 직접 생성하지 않음 |
-| SYS-004 | Collector | external API→Observation | timestamps/quota/raw policy |
+| SYS-004 | Collector (구현: Fetcher — 5s 폴링/스태거링, mode별 어댑터가 Avro 이벤트로 정규화) | external API→Observation | timestamps/quota/raw policy |
 | SYS-005 | Actual/Residual Builder | observations→Actual/Residual | identity/interval/sign |
-| SYS-006 | Artifact/Validation Pipeline | Gold→historical artifact/model/eval | provenance/hold-out |
+| SYS-006 | Artifact/Validation Pipeline (구현: Spark 야간 배치 → GPU 학습 서버(PyTorch) → 평가 게이트) | Gold→historical artifact/model/eval | provenance/hold-out; 평가 게이트(기존 모델 대비 개선) 통과 시만 MLflow 승격 |
 | SYS-007 | Quota Coordinator | reservation→permit/degradation | shared budget/no bypass |
-| SYS-008 | AI Artifact/Inference Adapter | model+features→leg quantiles | Leave-now only, fallback |
-| SYS-009 | Realtime Feature Builder | current obs→RealtimeFeatureSnapshot | Leave-now only, causality Gate |
+| SYS-008 | AI Artifact/Inference Adapter (구현: AI 추론 서버 — features 마이크로배치 50~100ms) | model+features→leg quantiles | Leave-now only, fallback |
+| SYS-009 | Realtime Feature Builder (구현: Flink 피처 엔지니어링, on YARN) | current obs→RealtimeFeatureSnapshot | Leave-now only, causality Gate |
 | SYS-010 | Departure Recommendation Engine | route+historical artifact+target→DepartureRecommendationResult | realtime input interface 자체 없음 |
-| SYS-011 | Leave-now Forecast Engine | route+historical+optional realtime+now→LeaveNowForecastResult | Departure/P(on_time) metric 생성 금지 |
+| SYS-011 | Leave-now Forecast Engine (구현: 알고리즘 서버 — 도메인 규칙 결합, 확률 합성) | route+historical+optional realtime+now→LeaveNowForecastResult | Departure/P(on_time) metric 생성 금지 |
 | SYS-012 | Milestone Projector | typed simulation/scenario + canonical route→JourneyMilestoneProjection[] | BR-099~101 semantics, raw node 자동노출 금지 |
+| SYS-013 | Realtime State Cache (구현: Redis) | predictions 합성 결과→정류장×노선 최종 상태 | 이력 없이 최종 상태만 TTL(30s) 보관; SET+Pub/Sub으로 WAS에 변경 알림 |
+| SYS-014 | Lake Sink (구현: Kafka Connect → HDFS Sink) | `raw.*` 스트림→HDFS Bronze Parquet | 코드 없이 설정만으로 전량 적재, Hive Metastore 파티션 자동 등록 |
+
+### Kafka Topic Contract
+
+3-node 아키텍처의 서버 간 통신은 전부 아래 Kafka 토픽을 통한 비동기 전달이며, 서버 간 직접 HTTP 호출은 없다(`D-260826-001`).
+
+| 토픽 | 생산자 | 소비자 | 파티션 키 | 계약 |
+|---|---|---|---|---|
+| `raw.*` | SYS-004(Fetcher) | SYS-009(Flink), SYS-014(Kafka Connect) | routeId 해시 | Schema Registry(Avro) 등록, 동일 노선 이벤트는 항상 같은 파티션(순서 보장) |
+| `features` | SYS-009(Flink) | SYS-008(AI 추론 서버) | routeId 해시 | 차량별 상태(직전 위치·구간 소요시간) 기반 파생 피처 |
+| `predictions` | SYS-008(AI 추론 서버) | SYS-011(알고리즘 서버) | routeId 해시 | 도착시간 분위수(p10/p50/p90) |
+| `model.events` | SYS-006(평가 게이트/MLflow) | SYS-008(AI 추론 서버) | — | 모델 승격 시에만 발행; 수신 시 재기동 없이 무중단 핫스왑 |
 
 ### 기준 기술과 배포 경계
 
-기존 Next.js/Java21+Spring/Kafka/Flink/PostgreSQL/MinIO/Python-Spark/Docker/Nginx/EC2 2-node 구조를 유지한다. Operational PostgreSQL은 typed analysis record/result/access/share/quota를 SoT로 둔다. 2-node proof는 HA가 아니라 worker correctness/recovery proof다.
+기존 Next.js/Java21+Spring/Kafka/Flink/PostgreSQL/Python-Spark(PyTorch)/Docker/Nginx/EC2 3-node 구조를 유지한다. 저장소는 MinIO가 아니라 **HDFS(+Hive Metastore)로 확정**한다(`D-260826-002`) — IAM 없이 EC2만 제공되는 환경이라 관리형 오브젝트 스토리지가 제외됐고, 자체 운영 저장소 중 정통 Hadoop 스택을 선택했다. MapReduce는 사용하지 않고 연산은 Spark가 전담하며, YARN은 Flink·Spark의 공용 자원 관리자다. Operational PostgreSQL은 typed analysis record/result/access/share/quota를 SoT로 둔다. 3-node proof는 HA가 아니라 worker correctness/recovery proof다.
 
-#### 2-node provisional deployment contract
+#### 3-node confirmed deployment contract
 
-기존 물리 배치 가설을 유지하되 보호 workload는 API-011/API-012/API-007/API-008, shared data pipeline, SYS-010~012, Historical Artifact, Realtime Feature pipeline이다. manual live state/event service는 배치 대상이 아니다.
+물리 배치는 2-node 잠정안에서 **3-node 확정안**으로 갱신한다. **EC2 #1**(실시간 서빙: Fetcher·Kafka 백본·Flink·AI 추론 서버·알고리즘 서버·Redis·WAS), **EC2 #2**(데이터: HDFS 레이크·Kafka Connect·Spark 야간 배치), **GPU 학습 서버**(대여, WireGuard 내부망 편입, 학습·평가 게이트 전용, 영구 데이터 없음)로 구성한다. 보호 workload는 API-011/API-012/API-007/API-008, shared data pipeline, SYS-010~012, Historical Artifact, Realtime Feature pipeline과 Kafka Topic Contract의 `raw.*`/`features`/`predictions`/`model.events`다. manual live state/event service는 배치 대상이 아니다. HDFS는 저장 노드가 1대인 동안 복제 계수 1(의사분산)이며, 노드가 늘어나면 복제 계수를 올린다.
 
 ## Entity / Data Dictionary
 
@@ -529,7 +542,7 @@ Future GPS 연구는 이 ID를 자동으로 재활성화하지 않는다. 연구
 | ENT-022 | PwaRuntimeManifest | app/cache/worker/displayMode/version | runtime |
 | ENT-023 | QuotaLedger | provider/credential/day/limit/reservation/used/yield | audit |
 | ENT-024 | ProviderPolicyRegistry | terms/retention/cache/redistribution | default-deny |
-| ENT-025 | ModelArtifactManifest | model/version/hash/schema/dataset/eval/modelCard | training-serving boundary |
+| ENT-025 | ModelArtifactManifest | model/version/hash/schema/dataset/eval/modelCard | training-serving boundary; 구현은 MLflow 모델 레지스트리, 평가 게이트 통과 시 `model.events`로 승격 발행 |
 | ENT-026 | ModelInferenceTrace | model/version/schema/leg/quantiles/latency/fallback | Leave-now provenance |
 | ENT-027 | HistoricalReliabilityArtifact | version/window/grouping/distributions/support/fallback/validation | shared baseline SoT |
 | ENT-028 | RealtimeFeatureSnapshot | snapshotId,calculatedAt,categories,identities,observedAt,freshness,coverage,schema,flags | Leave-now only |
@@ -643,7 +656,7 @@ Future GPS 연구는 이 ID를 자동으로 재활성화하지 않는다. 연구
 | NFR-080 Real vs Amplified | MUST for proof | replay multiplier/purpose 표시, amplified는 training support 금지 | run manifest |
 | NFR-081 Worker Participation/Failure | MUST | Kafka partition input을 2개 이상 worker task가 처리하고 worker 종료 후 checkpoint/restart 또는 replay 복구 | participation/recovery evidence |
 | NFR-082 Correctness | MUST | single vs multi-worker input/output count·checksum, duplicate/loss 0, keyed identity state consistency | correctness manifest |
-| NFR-083 Two-node Deployment | MUST/G6 | EC2-A serving, EC2-B processing 기본; resource 부족 시 worker-level proof로 scope 축소 가능, 물리 2-node claim 조건 분리 | deployment manifest |
+| NFR-083 Three-node Deployment | MUST/G6 | EC2 #1 실시간 서빙, EC2 #2 데이터·배치, GPU 학습 서버(대여) 3-node 기본; resource 부족 시 worker-level proof로 scope 축소 가능, 물리 3-node claim 조건 분리 | deployment manifest |
 | NFR-084 Quota Budget | MUST/G3 | source approved status/reservation/forecast/degradation이 ENT-023에 존재 | quota manifest |
 | NFR-085 PWA Compatibility Matrix | MUST/G4 | iOS/Android browser/standalone + desktop secondary run version 기록 | AC-050 |
 | NFR-086 Route A Demo/Protected E2E | MUST/G6 | `APP-SPLASH→Input[Departure]→02→05/Share`와 `APP-SPLASH→Input[Arrival]→08→05/Share`를 실제 product flow로 시연; Route B/mock replacement 금지 | AC-081~090 |
