@@ -287,6 +287,7 @@ v0.3 정본에서 위 표현이 active 정책으로 발견되면 문서 정합�
 | D-260826-003 | 물리 배치를 2-node 잠정안에서 **3-node 확정안**(EC2 #1 실시간 서빙, EC2 #2 데이터·배치, GPU 학습 서버(대여, WireGuard 내부망 편입))으로 갱신한다. GPU 학습 서버에는 영구 데이터를 두지 않는다 | FIXED | Service Plan/Requirements 「3-node 확정/confirmed 배치안」, NFR-083, BR-074 |
 | D-260826-004 | 모델 재학습(PyTorch)은 평가 게이트(기존 프로덕션 모델과 대결해 이길 때만 승격)를 통과해야 MLflow 모델 레지스트리에 반영되며, 그 순간 `model.events`가 발행되어 무중단 핫스왑된다. 학습/게이트 실패는 기존 승격 모델을 그대로 유지해 서비스에 영향을 주지 않는다 | FIXED | Service Plan 「H100 Training Plane」, Requirements SYS-006, ENT-025 |
 | D-260826-005 | 저장 노드가 1대인 현재 단계에서 HDFS는 복제 계수 1(의사분산)로 운영한다. 이는 내구성이 아니라 배치·핫패스 자원 경합 격리를 위한 이주이며, 노드가 늘어나면 복제 계수를 올린다 | FIXED | Service Plan/Requirements 「3-node 배치안」 |
+| D-260826-006 | "GPU 학습 서버(대여)"는 기존 trace의 `H100`과 **동일 자원**이다(2026-08-26 PM 확인) | FIXED | Service Plan 「H100 Training Plane」 |
 
 ### 채택하지 않은 서술(참고용 텍스트, 근거로 미사용)
 
@@ -300,4 +301,3 @@ v0.3 정본에서 위 표현이 active 정책으로 발견되면 문서 정합�
 |---|---|---|---|
 | PostgreSQL 기반 AnalysisRecord/ShareSnapshot/AnonymousAccessGrant/QuotaLedger와 새 아키텍처의 관계 | `OPEN` | 원문 구조도는 실시간 예측 파이프라인(Fetcher~Redis~WAS)과 배치·학습 경로만 다루며 PostgreSQL/analysisId/Share 저장 계층을 전혀 언급하지 않는다. 두 계층이 공존하는지, 통합되는지 원문만으로 판단할 근거가 없다 | 현재 REQUIREMENTS/SERVICE_PLAN의 PostgreSQL 기반 제품 API 계약(API-011/012/006/007/008, ENT-029~034)은 **변경 없이 유지**한다. backend 담당자 확인 후 필요 시 별도 Decision으로 갱신 |
 | YARN 포함 여부 | `OPEN` | 구조도(포함)와 본문 서술(생략 권장)이 상충 | 구조도를 우선해 YARN 포함으로 유지(위 「채택하지 않은 서술」 참고) |
-| GPU 학습 서버가 기존 `H100`과 동일 자원인지 | `OPEN` | 원문은 "GPU 학습 서버(대여)"라고만 표기하고 H100 여부를 명시하지 않음 | Service Plan은 "H100(GPU 학습 서버, 대여)"로 병기해 기존 trace를 보존하되 신규 하드웨어 확정 사실로 승격하지 않음 |

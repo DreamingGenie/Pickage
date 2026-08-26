@@ -809,7 +809,7 @@ Protected data path는 `Raw/Observation→Actual/Residual→Historical Artifact/
 
 ### H100 Training Plane과 Runtime Serving Plane
 
-H100/Jupyter(GPU 학습 서버, 대여)는 offline training/evaluation 전용이다. production PWA/API/collector/engine은 training environment를 직접 호출하지 않고 `ModelArtifactManifest`의 model file, feature schema, evaluation report, model card, hash만 반입한다. GPU 학습 서버는 WireGuard 터널로 EC2 내부망에 편입되어 Kafka·MLflow 포트만 사용하며, HDFS 같은 영구 데이터는 절대 두지 않는다(대여 자원 반납 시 데이터가 인질이 되는 것을 방지). 학습(PyTorch, 분위수 손실)이 끝나면 결과 모델을 평가 게이트에서 기존 프로덕션 모델과 대결시키고, 이겼을 때만 MLflow 모델 레지스트리에 승격한다. 승격 이벤트는 `model.events` 토픽으로 발행되어 AI 추론 서버가 재기동 없이 무중단 핫스왑한다. 학습 잡이 실패하거나 게이트를 통과하지 못해도 어제 승격된 모델이 그대로 유지되어 서비스에는 영향을 주지 않는다.
+H100/Jupyter(= GPU 학습 서버, 대여; `D-260826-006`로 동일 자원 확인)는 offline training/evaluation 전용이다. production PWA/API/collector/engine은 training environment를 직접 호출하지 않고 `ModelArtifactManifest`의 model file, feature schema, evaluation report, model card, hash만 반입한다. GPU 학습 서버는 WireGuard 터널로 EC2 내부망에 편입되어 Kafka·MLflow 포트만 사용하며, HDFS 같은 영구 데이터는 절대 두지 않는다(대여 자원 반납 시 데이터가 인질이 되는 것을 방지). 학습(PyTorch, 분위수 손실)이 끝나면 결과 모델을 평가 게이트에서 기존 프로덕션 모델과 대결시키고, 이겼을 때만 MLflow 모델 레지스트리에 승격한다. 승격 이벤트는 `model.events` 토픽으로 발행되어 AI 추론 서버가 재기동 없이 무중단 핫스왑한다. 학습 잡이 실패하거나 게이트를 통과하지 못해도 어제 승격된 모델이 그대로 유지되어 서비스에는 영향을 주지 않는다.
 
 ### Promotion / Back-up Plan
 
