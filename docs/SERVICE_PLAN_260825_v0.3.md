@@ -717,8 +717,8 @@ flowchart TB
 | Departure Recommendation API/Engine | planning request, historical-only candidate search, Departure P50/P90, Departure milestone scenarios |
 | Leave-now Forecast API/Engine | now request, realtime feature application, Arrival P50/P90, Leave-now milestone quantiles |
 | Shared Route/Canonicalization | 두 기능별 request에서 selected route 확보; 내부 cache 재사용 가능 |
-| Historical Artifact | 두 engine의 공통 baseline SoT |
-| Realtime Feature Builder | Leave-now에서만 사용하는 immutable current-context snapshot |
+| Historical Artifact | 두 engine의 공통 baseline SoT (구현: HDFS 데이터 레이크 Gold + Spark 야간 배치) |
+| Realtime Feature Builder | Leave-now에서만 사용하는 immutable current-context snapshot (구현: Flink 피처 엔지니어링) |
 | Milestone Projector | selected route의 의미 있는 checkpoint와 versioned 시간 projection 생성 |
 | AI Inference Adapter | Leave-now leg residual/WAIT quantile 보정; final distribution 직접 대체 금지 (구현: AI 추론 서버) |
 | Share Service | immutable privacy-safe projection 생성, opaque token URL 발급, public read-only 조회 |
@@ -732,12 +732,12 @@ flowchart TB
 | Spark 야간 배치 | Bronze 정제(Silver), 학습쌍·구간 통계 프로파일 생성(Gold) (on YARN) |
 | GPU 학습 서버 (대여) | Gold 학습셋으로 모델 재학습(PyTorch); 평가 게이트(기존 모델 대비 지표 개선 시만) 통과 시 승격. WireGuard로 내부망에 편입되며 영구 데이터는 두지 않음(대여 자원 반납 대비) |
 | MLflow 모델 레지스트리 | 모델 버전·승격 관리; 승격되면 `model.events`가 발행되어 AI 추론 서버가 무중단 핫스왑 |
-| Offline Validation | historical artifact build, hold-out, baseline-vs-realtime model 평가 |
+| Offline Validation | historical artifact build, hold-out, baseline-vs-realtime model 평가 (구현: Spark 야간 배치 + GPU 학습 서버 평가 게이트) |
 | PostgreSQL | analysisType별 request/result/access/share/quota metadata; live Journey state 없음. 위 실시간 예측 파이프라인(Fetcher~Redis)과는 별도 계층으로, 이번 아키텍처 확정 범위에 포함되지 않음 |
 
 ### 기술 대안과 전환 조건
 
-기존 Java/Spring, Kafka/Flink, PostgreSQL, Python/Spark(PyTorch), Docker/Nginx, 3-worker distributed proof 원칙을 유지한다. 저장소는 MinIO가 아니라 **HDFS(Hadoop)로 확정**한다 — IAM 없이 EC2만 제공되는 환경이라 관리형 오브젝트 스토리지가 선택지에서 제외됐고, 자체 운영 저장소 중 정통 Hadoop 스택(HDFS + Hive Metastore) 운영 경험을 우선했다(`D-260826-002`, Decision Sheet 참고). MapReduce는 사용하지 않으며 연산은 Spark가 전담하고, YARN은 Flink/Spark의 공용 자원 관리자로 사용한다. realtime ML이 Gate를 통과하지 못해도 Departure Recommendation은 영향 없이 동작해야 하며 Leave-now는 declared historical baseline으로 축소될 수 있다.
+기존 Java/Spring, Kafka/Flink, PostgreSQL, Python/Spark(PyTorch), Docker/Nginx, multi-worker(2개 이상) distributed proof 원칙을 3-node 배치에 맞춰 유지한다. 저장소는 MinIO가 아니라 **HDFS(Hadoop)로 확정**한다 — IAM 없이 EC2만 제공되는 환경이라 관리형 오브젝트 스토리지가 선택지에서 제외됐고, 자체 운영 저장소 중 정통 Hadoop 스택(HDFS + Hive Metastore) 운영 경험을 우선했다(`D-260826-002`, Decision Sheet 참고). MapReduce는 사용하지 않으며 연산은 Spark가 전담하고, YARN은 Flink/Spark의 공용 자원 관리자로 사용한다. realtime ML이 Gate를 통과하지 못해도 Departure Recommendation은 영향 없이 동작해야 하며 Leave-now는 declared historical baseline으로 축소될 수 있다.
 
 #### 3-node 확정 배치안 (2026-08-26)
 
@@ -1134,6 +1134,7 @@ typed request/result/API/entity, milestone projection contract, Share create/rea
 
 - 실제 관측·provider/쿼터 사실: `DECISION_SHEET_260825_v0.3.md`의 2026-08-23 Evidence 보존 영역
 - 2026-08-24 v0.1→v0.2 제품 분리 결정: `DECISION_SHEET_260825_v0.3.md`의 Product Separation Decision
+- 2026-08-26 backend 시스템 아키텍처(3-node·HDFS·Kafka 토픽 체인) 확정: `DECISION_SHEET_260825_v0.3.md`의 Backend Architecture Confirmation Decision
 - 화면 계약: `IA_SCREEN_SPEC_260825_v0.3.md`
 - 구현 계약: `REQUIREMENTS_SPEC_260825_v0.3.md`
 
