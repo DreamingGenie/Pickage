@@ -236,7 +236,7 @@ provider/network/input 오류는 현재 기능 context 안에서 처리한다. A
 | `analysisType` | yes | `DEPARTURE_RECOMMENDATION` 또는 `LEAVE_NOW_FORECAST` |
 | `routeCandidateId` | internal | selected route |
 | coverage/selectedRoute/canonicalMapping | yes | 기존 분리 축 유지 |
-| `historicalModelCoverage` | yes | shared baseline coverage |
+| `historicalCoverage` | yes | shared baseline coverage |
 | `validationScope` / `confidence` | yes | 결과 metric과 분리 |
 | `calculatedAt` | yes | result 생성시각 |
 | `limitations[]` | array | 실제 기능 limitation만 |
@@ -251,7 +251,7 @@ provider/network/input 오류는 현재 기능 context 안에서 처리한다. A
 | `targetArrivalAt` | required |
 | `departureP50At` | nullable; Departure metric |
 | `departureP90At` | nullable; Departure metric |
-| `historicalArtifact` | computed 시 required |
+| `historicalCoverage` | computed 시 required |
 | `milestones[]` | P50-plan/P90-plan scenario projection |
 | `metricEligibility.departure*` | 독립 판정 |
 
@@ -265,9 +265,9 @@ provider/network/input 오류는 현재 기능 context 안에서 처리한다. A
 | `arrivalP50At` / `arrivalP90At` | nullable |
 | `milestones[]` | departAt=now checkpoint P50/P90 |
 | `realtimeContextCoverage` | FULL/PARTIAL/NONE |
-| `realtimeFeatureCategories[]` | 실제 사용 category만 |
-| `modelProvenance` | nullable |
 | `metricEligibility.arrival*` | 독립 판정 |
+
+`realtimeFeatureCategories[]`/`modelProvenance` 상세는 SCR-08 자체 필드가 아니라 SCR-05 Evidence Detail의 leg evidence 필드(「Leg evidence required/nullable」 참고)에서만 제공한다.
 
 **금지 필드**: `targetArrivalAt`, `onTimeProbability`, `departureP50At`, `departureP90At`.
 
@@ -282,6 +282,7 @@ provider/network/input 오류는 현재 기능 context 안에서 처리한다. A
 | `bufferedAt` | analysisType별 `여유` semantics |
 | `eligibility` | USER_FACING / NOT_COMPUTED 등 |
 | `limitations[]` | source/support/unmodeled 사유 |
+| `scenario` | Departure는 P50-plan/P90-plan, Arrival은 departAt=now checkpoint 구분 |
 | `semanticsVersion` | projection rule version |
 
 provider raw node 전체를 그대로 렌더링하지 않는다.
@@ -847,7 +848,7 @@ Departure demo와 Arrival demo는 같은 Input Shell을 공유하되 submit/API/
 - Evidence/Share는 한 analysisType만 포함한다.
 - Share Create Overlay와 Public SCR-06은 권한/목적이 다르다.
 - URL Share가 canonical이며 image/Kakao direct-send active CTA가 없다.
-- historicalModelCoverage는 공통, realtimeContextCoverage는 Arrival only다.
+- historicalCoverage는 공통, realtimeContextCoverage는 Arrival only다.
 - unverified realtime feature를 사용했다고 표시하지 않는다.
 - Future GPS/manual tracking은 active MR과 분리한다.
 

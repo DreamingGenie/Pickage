@@ -177,7 +177,7 @@
 | REQ-115 Arrival Time Analysis | F019/SCR-07→08 | MUST | Shared Input Arrival state에서 별도 request/result; server calculatedAt으로 departAt≈now 고정. request core는 origin,destination; response는 Arrival P50/P90만 | Departure metric, mandatory targetArrivalAt, client arbitrary departAt 금지 | API-012,SYS-011 / ENT-030,032,033 | BR-090~098; NFR-098,100 / AC-084 |
 | REQ-011 Arrival P50 | F019/SCR-08/06 | MUST | final-arrival Q0.50 | 평균 동일시 금지 | SYS-011 / ENT-032 | BR-010,090 / AC-069,084 |
 | REQ-012 Arrival P90 | F019/SCR-08/06 | MUST | final-arrival Q0.90 | 90% accuracy 금지 | SYS-011 / ENT-032 | BR-010,063,090 / AC-069,084 |
-| REQ-013 On-time Probability | F019 | RETIRED_FROM_MR_V0.3 | v0.2 `targetArrivalAt` 기반 P(finalArrival≤target) history | active API/UI/share 사용 금지 | historical only | D-260825-005 / AC-090 |
+| REQ-013 On-time Probability | F019 | RETIRED_FROM_MR | v0.2 `targetArrivalAt` 기반 P(finalArrival≤target) history | active API/UI/share 사용 금지 | historical only | D-260825-005 / AC-090 |
 | REQ-110 Realtime Feature Snapshot | F019/F017 | MUST for realtime context | observable-before/at calculatedAt, identity/freshness/coverage immutable snapshot | leakage/stale/unmatched 사용 금지 | SYS-009 / ENT-028 | BR-090,091 / AC-072; CG-009 |
 | REQ-111 Realtime Context Application | F019/F017 | MUST | verified feature만 leg distribution에 추가; FULL/PARTIAL/NONE + historical-only fallback | fabricated realtime 금지 | SYS-008/009/011 / ENT-028,032 | BR-090~093 / AC-069,072 |
 | REQ-112 Optional Traffic Regime | F017/Internal | COULD/CLAIM_GATE | unsupervised regime은 supervised outcome model feature로만 | direct seconds/weight/final time 금지 | SYS-006/008 / ENT-025,026,028 | BR-092,093 / AC-074; CG-010 |
@@ -535,7 +535,7 @@ Future GPS 연구는 이 ID를 자동으로 재활성화하지 않는다. 연구
 | ENT-028 | RealtimeFeatureSnapshot | snapshotId,calculatedAt,categories,identities,observedAt,freshness,coverage,schema,flags | Leave-now only |
 | ENT-029 | DepartureRecommendationRequest | origin,destination,targetArrivalAt,requestedAt,planningHorizonVersion | realtime/departAt field 없음 |
 | ENT-030 | LeaveNowForecastRequest | origin,destination,requestedAt | targetArrivalAt/client departAt 없음 |
-| ENT-031 | DepartureRecommendationResult | analysisId,target,departureP50At,departureP90At,milestones,historicalCoverage,eligibility,calculatedAt,limitations | Arrival/realtime/P(on_time) 없음 |
+| ENT-031 | DepartureRecommendationResult | analysisId,targetArrivalAt,departureP50At,departureP90At,milestones,historicalCoverage,eligibility,calculatedAt,limitations | Arrival/realtime/P(on_time) 없음 |
 | ENT-032 | LeaveNowForecastResult | analysisId,departAt,arrivalP50At,arrivalP90At,milestones,historicalCoverage,realtimeCoverage,eligibility,calculatedAt,limitations | target/P(on_time)/Departure metric 없음 |
 | ENT-033 | AnalysisRecord | analysisId,analysisType,routeCandidateId,status,createdAt,calculatedAt,resultRef | analysisType immutable; exactly one request/result type |
 | ENT-034 | JourneyMilestoneProjection | sequence,milestoneType,label,subLabel,nodeRefInternal,normalAt,bufferedAt,eligibility,limitations,scenario,semanticsVersion | engine-produced; privacy projection separate |

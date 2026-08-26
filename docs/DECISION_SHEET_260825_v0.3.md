@@ -235,7 +235,7 @@ v0.2/v0.3 정본에서 위 표현이 active 정책으로 발견되면 문서 정
 | D-260825-002 | selected route에서 사용자에게 의미 있는 경유포인트(milestone)별 `보통/여유` 시간 projection을 결과에 추가한다. Departure는 P50-plan/P90-plan 조건의 milestone median, Arrival은 departAt=now checkpoint의 Q0.50/Q0.90이다 | FIXED | 신규 계약; Service/IA/REQ ENT-034, SYS-012, REQ-119/120/123, CG-011 |
 | D-260825-003 | 결과 공유를 opaque token 기반 URL create/copy/public read-only로 canonical화한다. 이미지 저장·카카오톡 직접 전송은 canonical Share가 아니다 | FIXED | 신규 MUST 승격; Service/IA/REQ API-007/008, REQ-080~082,121,122 |
 | D-260825-004 | Shared Input Shell 위에서도 두 기능의 submit/API/result isolation을 명시적으로 강화한다 — Tab 전환이 API 호출이나 hidden cross-type field 전송을 만들지 않는다 | FIXED | D-260824-016/017 원칙을 Shared Input Shell 맥락에 재확인; BR-094~098 |
-| D-260825-005 | Leave-now Forecast(Arrival) 핵심 계약에서 mandatory `targetArrivalAt`과 user-facing `P(on_time)`을 제거한다. 과거 trace는 `RETIRED_FROM_MR_V0.3`으로 보존하고 active API/UI/Share에서 사용하지 않는다 | FIXED | v0.2 D-260824-003/D-260824-002 Canonical API Decision의 B 허용 metric 축소; REQ-013,115; ENT-030,032; AC-090 |
+| D-260825-005 | Leave-now Forecast(Arrival) 핵심 계약에서 mandatory `targetArrivalAt`과 user-facing `P(on_time)`을 제거한다. 과거 trace는 `RETIRED_FROM_MR`로 보존하고 active API/UI/Share에서 사용하지 않는다 | FIXED | v0.2 D-260824-003/D-260824-002 Canonical API Decision의 B 허용 metric 축소; REQ-013,115; ENT-030,032; AC-090 |
 
 ### v0.3 Canonical User Journeys
 
