@@ -66,6 +66,15 @@ def run(bronze_dir: Path) -> bool:
     storage.record(r3, bronze_dir)
     results.append(_check("outcome=OK", r3.outcome == OK, f"code={r3.business_code}, rows={r3.row_count}"))
 
+    print("\n3-2. 정상 경로 — 열차 위치 (OA-12601)")
+    r3b = seoul_subway.position(SAMPLE_KEY, "1호선", start=0, end=5)
+    storage.record(r3b, bronze_dir)
+    results.append(_check(
+        "outcome=OK",
+        r3b.outcome == OK,
+        f"code={r3b.business_code}, rows={r3b.row_count}, {len(r3b.payload or b''):,} bytes",
+    ))
+
     print("\n4. 전송 실패 경로 — 존재하지 않는 호스트")
     from .common.http_client import fetch
     r4 = fetch(

@@ -85,9 +85,19 @@ def arrival_all(key: str, fmt: str = "json", **kw) -> CollectionResult:
     )
 
 
-def position(key: str, line_name: str, fmt: str = "json", **kw) -> CollectionResult:
-    """OA-12601 — 노선별 열차 위치."""
-    url = f"{BASE}/{key}/{fmt}/realtimePosition/0/1000/{urllib.parse.quote(line_name)}"
+def position(
+    key: str, line_name: str, start: int = 0, end: int = 1000, fmt: str = "json", **kw
+) -> CollectionResult:
+    """OA-12601 — 노선별 열차 위치.
+
+    조회 범위 기본값은 공식 1회 한도인 0/1000이다. `sample` 키는 반환 행이
+    5건으로 제한되어 0/1000을 `ERROR-336`으로 거절하므로, 스모크 테스트에서는
+    0/5로 호출한다.
+    """
+    url = (
+        f"{BASE}/{key}/{fmt}/realtimePosition/{start}/{end}/"
+        f"{urllib.parse.quote(line_name)}"
+    )
     return fetch(
         source_key="subway_position",
         provider="seoul_open_data",
