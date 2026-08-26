@@ -22,3 +22,6 @@ dist/
 # representative samples belong in data/samples/examples/ instead (tracked).
 docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/*
 !docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/examples/
+
+# 수집 데이터 — 로컬에만 보관, 커밋하지 않음 (Bronze 원문/메타)
+/data/
