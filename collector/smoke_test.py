@@ -52,6 +52,117 @@ def _check(label: str, passed: bool, detail: str = "") -> bool:
     return passed
 
 
+def _quota_checks() -> list[bool]:
+    """quota 원장과 재시도 정책 검증. 네트워크를 쓰지 않는다."""
+    import tempfile
+    from datetime import timedelta, timezone
+
+    from .common.quota import Pool, QuotaExceeded, QuotaLedger, backoff_delay, key_id
+    from .common.runner import collect, should_retry
+    from .common.storage import BUSINESS_ERROR, CollectionResult
+    from .sources import seoul_bus
+
+    out: list[bool] = []
+
+    def mk(outcome: str, code: str | None = None, http: int = 200) -> CollectionResult:
+        n = storage.now_iso()
+        return CollectionResult(
+            source_key="t", provider="t", endpoint="t", requested_at=n, received_at=n,
+            request_url_masked="u", http_status=http, payload=b"x",
+            business_code=code, outcome=outcome,
+        )
+
+    print("\n9. quota 원장")
+    with tempfile.TemporaryDirectory() as tmp:
+        led = QuotaLedger(path=Path(tmp) / "q.json")
+        subway = Pool("seoul_subway_realtime", key_id("KEY-A"), hard_cap=3)
+        out.append(_check("초기 사용량 0", led.used(subway) == 0))
+        led.consume(subway)
+        out.append(_check(
+            "지하철 세 API가 같은 카운터 공유",
+            led.used(Pool("seoul_subway_realtime", key_id("KEY-A"))) == 1,
+        ))
+        out.append(_check(
+            "키가 다르면 독립 카운터",
+            led.used(Pool("seoul_subway_realtime", key_id("KEY-Z"))) == 0,
+        ))
+        out.append(_check(
+            "버스는 엔드포인트별 독립 풀",
+            led.used(Pool("data_go_bus::getBusPosByRouteSt", key_id("KEY-A"))) == 0,
+        ))
+        led.consume(subway)
+        led.consume(subway)
+        try:
+            led.consume(subway)
+            out.append(_check("상한 도달 시 차단", False))
+        except QuotaExceeded:
+            out.append(_check("상한 도달 시 QuotaExceeded", True))
+        out.append(_check(
+            "재시작 후에도 당일 카운트 유지",
+            QuotaLedger(path=Path(tmp) / "q.json").used(subway) == 3,
+        ))
+
+        kst = timezone(timedelta(hours=9))
+        late = datetime(2026, 8, 27, 1, 30, tzinfo=kst)
+        morning = datetime(2026, 8, 27, 9, 0, tzinfo=kst)
+        p = Pool("x", "k")
+        led.consume(p, now=late)
+        out.append(_check("새벽 호출은 전날 운행일 버킷", led.used(p, now=late) == 1))
+        out.append(_check("당일 오전은 새 버킷", led.used(p, now=morning) == 0))
+
+    print("\n10. 재시도 정책")
+    for label, result, check_fn, expected in [
+        ("성공 → 재시도 안 함", mk(OK), None, False),
+        ("전송 실패 → 재시도", mk(TRANSPORT_ERROR), None, True),
+        ("HTTP 503 → 재시도", mk(HTTP_ERROR, http=503), None, True),
+        ("HTTP 401 → 재시도 안 함", mk(HTTP_ERROR, http=401), None, False),
+        ("ERROR-340(권한없음) → 재시도 안 함",
+         mk(BUSINESS_ERROR, "ERROR-340"), seoul_subway.is_retryable, False),
+        ("ERROR-336(건수초과) → 재시도 안 함",
+         mk(BUSINESS_ERROR, "ERROR-336"), seoul_subway.is_retryable, False),
+        ("headerCd=1(시스템오류) → 재시도",
+         mk(BUSINESS_ERROR, "1"), seoul_bus.is_retryable, True),
+        ("headerCd=2(잘못된질의) → 재시도 안 함",
+         mk(BUSINESS_ERROR, "2"), seoul_bus.is_retryable, False),
+    ]:
+        out.append(_check(label, should_retry(result, check_fn) is expected))
+
+    print("\n11. 재시도의 quota 소모")
+    with tempfile.TemporaryDirectory() as tmp:
+        led = QuotaLedger(path=Path(tmp) / "q.json")
+        pool = Pool("t", "k")
+        seen: list[int | None] = []
+
+        def flaky(quota_seq_today=None):
+            seen.append(quota_seq_today)
+            return mk(TRANSPORT_ERROR) if len(seen) < 3 else mk(OK)
+
+        r = collect(flaky, ledger=led, pool=pool, max_attempts=3, sleep=lambda a: 0)
+        out.append(_check("3번째 시도에 성공", r.outcome == OK))
+        out.append(_check("재시도 3회 모두 quota 차감", led.used(pool) == 3, f"seq={seen}"))
+
+        led2 = QuotaLedger(path=Path(tmp) / "q2.json")
+        pool2 = Pool("t2", "k")
+        calls = [0]
+
+        def permanent(quota_seq_today=None):
+            calls[0] += 1
+            return mk(BUSINESS_ERROR, "ERROR-340")
+
+        collect(permanent, ledger=led2, pool=pool2,
+                business_check=seoul_subway.is_retryable, max_attempts=3, sleep=lambda a: 0)
+        out.append(_check("영구 오류는 1회만 호출·차감",
+                          calls[0] == 1 and led2.used(pool2) == 1))
+
+    delays = [backoff_delay(a) for a in (1, 2, 3, 5, 9)]
+    out.append(_check(
+        "백오프는 증가하되 30초 이내",
+        all(0 < d <= 30 for d in delays) and delays[0] < delays[3],
+        " ".join(f"{d:.1f}s" for d in delays),
+    ))
+    return out
+
+
 def run(bronze_dir: Path) -> bool:
     results: list[bool] = []
 
@@ -180,6 +291,8 @@ def run(bronze_dir: Path) -> bool:
     for value, expected in [("25:10:00", (1, 1, 10, 0)), ("23:59:00", (0, 23, 59, 0)), ("24:00", (1, 0, 0, 0))]:
         got = service_day.parse_hhmm_over24(value)
         results.append(_check(f"{value} → {got}", got == expected))
+
+    results.extend(_quota_checks())
 
     passed, total = sum(results), len(results)
     print(f"\n{'=' * 56}\n결과: {passed}/{total} 통과\n{'=' * 56}")
