@@ -67,8 +67,10 @@ data/bronze/subway_arrival_all/service_date=2026-08-26/
   "payload_file": "20260826T015155246Z_8ff4bc3894f1.json",
   "payload_bytes": 2807217,
   "payload_sha256": "…",
-  "collector_version": "bronze-v1",
+  "collector_version": "bronze-v2",
   "quota_seq_today": 137,
+  "key_id": "d137a9cf",
+  "quota_pool": "seoul_subway_realtime",
   "error_code": null,
   "error_body": null
 }
@@ -112,6 +114,35 @@ HTTP 200 + {"status":500,"code":"ERROR-336","message":"데이터요청은 한번
 **5. `collector_version`을 남긴다.**
 
 과거에 timestamp 문제를 한 번 고쳤으나 버전이 기록되지 않아 회귀인지 별개 스크립트인지 구분할 수 없었다. 수집 로직이 바뀌면 버전을 올린다.
+
+| 버전 | 변경 |
+|---|---|
+| `bronze-v1` | 최초 규약 |
+| `bronze-v2` | `key_id`·`quota_pool` 추가 (2026-08-26) |
+
+**6. `key_id`와 `quota_pool`을 남긴다. 인증키 값은 절대 남기지 않는다.**
+
+`key_id`는 인증키의 SHA-256 앞 8자리이며(`quota.key_id`), 샘플키는 `sample`,
+키가 없으면 `none`이다. `quota_pool`은 그 호출이 차감된 원장 풀 이름이고
+`runner`를 경유하지 않은 호출에서는 `null`이다.
+
+두 필드가 필요한 이유는 세 가지다.
+
+1. **원장 복구** — `data/quota_ledger.json`이 유실·손상되면 카운터를 되살릴
+   근거가 필요하다. 카운터가 0으로 돌아가면 일일 상한을 인식하지 못해 그날
+   예산을 모두 태우고, 실시간 데이터는 backfill이 불가능해 하루가 영구
+   손실된다. `quota.counts_from_bronze()`가 `f"{quota_pool}::{key_id}"`로
+   당일 사용량을 재구성한다.
+2. **샘플키 판별** — 샘플키 응답은 반환 행이 제한된 잘린 데이터이므로 Silver로
+   넘기면 안 된다. 이 필드가 없던 시절에는 URL의 조회 범위(`/0/5/`)라는
+   우연한 단서로 구분했는데, 실키로 같은 범위를 호출하면 오판한다.
+3. **다중 키 추적** — `SEOUL_SUBWAY_REALTIME_KEY_2` 등으로 팀원 키를 늘리면
+   어떤 키가 만든 기록인지 알 수 없어, 특정 키만 권한이 빠지는 상황을
+   추적할 수 없다.
+
+복구값은 **하한**이다. 호출은 했으나 저장에 실패한 건은 셀 수 없다. 재시도분은
+`quota_seq_today`의 최댓값으로 보정한다 — 3회 재시도의 마지막 결과에 `seq=3`이
+찍혀 있으므로 기록 1건에서 3회를 복원할 수 있다.
 
 ## 새 수집기 추가하는 법
 

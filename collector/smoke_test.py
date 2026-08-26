@@ -133,7 +133,8 @@ def _quota_checks() -> list[bool]:
         pool = Pool("t", "k")
         seen: list[int | None] = []
 
-        def flaky(quota_seq_today=None):
+        # 실제 어댑터와 같은 계약: runner가 넘기는 quota 메타를 **kw로 흡수한다.
+        def flaky(quota_seq_today=None, **kw):
             seen.append(quota_seq_today)
             return mk(TRANSPORT_ERROR) if len(seen) < 3 else mk(OK)
 
@@ -145,7 +146,7 @@ def _quota_checks() -> list[bool]:
         pool2 = Pool("t2", "k")
         calls = [0]
 
-        def permanent(quota_seq_today=None):
+        def permanent(quota_seq_today=None, **kw):
             calls[0] += 1
             return mk(BUSINESS_ERROR, "ERROR-340")
 

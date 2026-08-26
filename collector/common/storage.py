@@ -35,7 +35,7 @@ from typing import Any
 
 from . import service_day
 
-COLLECTOR_VERSION = "bronze-v1"
+COLLECTOR_VERSION = "bronze-v2"
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BRONZE_DIR = _REPO_ROOT / "data" / "bronze"
@@ -66,6 +66,10 @@ class CollectionResult:
     error_code: str | None = None
     error_body: str | None = None
     quota_seq_today: int | None = None
+    # 어떤 인증키로 호출했는지. 값 자체는 넣지 않는다(quota.key_id 해시 앞 8자리).
+    key_id: str | None = None
+    # 이 호출이 차감된 quota 원장 풀 이름. runner를 경유하지 않으면 None.
+    quota_pool: str | None = None
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
 
     @property
@@ -119,6 +123,8 @@ def record(result: CollectionResult, bronze_dir: Path | None = None) -> Path:
         "payload_sha256": _sha256(result.payload),
         "collector_version": COLLECTOR_VERSION,
         "quota_seq_today": result.quota_seq_today,
+        "key_id": result.key_id,
+        "quota_pool": result.quota_pool,
         "error_code": result.error_code,
         "error_body": result.error_body,
     }

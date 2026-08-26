@@ -46,6 +46,11 @@ def collect(
 ) -> CollectionResult:
     """quota를 소모하며 1회 수집한다. 실패 시 정책에 따라 재시도한다.
 
+    `source_fn`은 `quota_seq_today`와 `quota_pool`을 키워드로 받아야 한다.
+    두 값은 Bronze 메타에 기록되어 원장이 유실됐을 때 카운터를 되살리는
+    근거가 된다(`quota.counts_from_bronze`). 어댑터는 `**kw`로 받아
+    `http_client.fetch()`에 그대로 넘기면 된다.
+
     quota는 **호출 직전에** 기록한다. 응답을 받은 뒤 기록하면 프로세스가
     중간에 죽었을 때 실제로 소모한 호출이 원장에서 누락된다.
 
@@ -62,7 +67,9 @@ def collect(
                 raise
             return last
 
-        result = source_fn(*args, quota_seq_today=seq, **kwargs)
+        result = source_fn(
+            *args, quota_seq_today=seq, quota_pool=pool.name, **kwargs
+        )
         if result.outcome == OK:
             return result
 
