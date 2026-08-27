@@ -71,6 +71,13 @@ class Settings:
         return tuple(t for t in self.targets if t.enabled)
 
 
+def _enabled(entry: dict, name: str) -> bool:
+    value = entry.get("enabled", True)
+    if not isinstance(value, bool):
+        raise ConfigError(f"{name}: enabled는 true/false여야 합니다.")
+    return value
+
+
 def _require_int(table: dict, key: str, default: int, *, where: str) -> int:
     value = table.get(key, default)
     if not isinstance(value, int) or isinstance(value, bool):
@@ -136,11 +143,35 @@ def load(path: Path | None = None) -> Settings:
         params = entry.get("params", {})
         if not isinstance(params, dict):
             raise ConfigError(f"{name}: params는 테이블이어야 합니다.")
-        registry.validate_params(spec, params)
 
-        enabled = entry.get("enabled", True)
-        if not isinstance(enabled, bool):
-            raise ConfigError(f"{name}: enabled는 true/false여야 합니다.")
+        # 버스 노선 fleet 확장: params.bus_route_id에 리스트를 주면 노선마다
+        # 대상 하나로 펼친다. 노선 수십 개를 [[targets]] 블록 수십 개로 손으로
+        # 쓰는 대신 한 줄 리스트로 관리하기 위해서다.
+        route_ids = params.get("bus_route_id")
+        if isinstance(route_ids, list):
+            if not route_ids:
+                raise ConfigError(f"{name}: bus_route_id 리스트가 비어 있습니다.")
+            base_attempts = _require_int(entry, "max_attempts", default_attempts, where=name)
+            base_cap = _require_int(entry, "hard_cap", default_cap, where=name)
+            for rid in route_ids:
+                if not isinstance(rid, str) or not rid:
+                    raise ConfigError(f"{name}: bus_route_id 원소는 비어 있지 않은 문자열이어야 합니다: {rid!r}")
+                one = dict(params, bus_route_id=rid)
+                registry.validate_params(spec, one)
+                sub_name = f"{name}_{rid}"
+                if sub_name in seen:
+                    raise ConfigError(f"대상 이름이 중복됩니다: {sub_name}")
+                seen.add(sub_name)
+                targets.append(
+                    Target(
+                        name=sub_name, spec=spec, interval_seconds=interval,
+                        params=one, enabled=_enabled(entry, name),
+                        max_attempts=base_attempts, hard_cap=base_cap,
+                    )
+                )
+            continue
+
+        registry.validate_params(spec, params)
 
         targets.append(
             Target(
@@ -148,7 +179,7 @@ def load(path: Path | None = None) -> Settings:
                 spec=spec,
                 interval_seconds=interval,
                 params=params,
-                enabled=enabled,
+                enabled=_enabled(entry, name),
                 max_attempts=_require_int(entry, "max_attempts", default_attempts, where=name),
                 hard_cap=_require_int(entry, "hard_cap", default_cap, where=name),
             )
@@ -166,23 +197,34 @@ def load(path: Path | None = None) -> Settings:
     )
 
 
-def budget_report(settings: Settings) -> list[tuple[str, float, int, bool]]:
+def budget_report(
+    settings: Settings, key_counts: dict[str, int] | None = None
+) -> list[tuple[str, float, int, bool]]:
     """활성 대상의 일일 호출 수를 quota 풀 단위로 합산한다.
 
-    반환: (풀 이름, 일일 호출 수, 상한, 초과 여부)
+    반환: (풀 이름, 일일 호출 수, 유효 상한, 초과 여부)
 
     풀 단위로 합산하는 이유는 지하철 세 API가 인증키 1개의 한도를 공유하기
     때문이다. 대상별로 검사하면 합계 초과를 놓친다.
+
+    `key_counts`는 `key_env → 키 개수`다(key rotation). 한 풀을 N개 키가
+    번갈아 쓰면 하루 예산이 `상한 × N`이 되므로 유효 상한을 그만큼 키운다.
+    None이면 키 1개로 본다(기존 동작).
     """
+    key_counts = key_counts or {}
     per_pool: dict[str, float] = {}
     caps: dict[str, int] = {}
+    envs: dict[str, str] = {}
     for target in settings.enabled():
         pool = target.spec.pool_name
         per_pool[pool] = per_pool.get(pool, 0.0) + target.calls_per_day
         # 같은 풀에 다른 상한이 설정되면 더 보수적인 값을 쓴다.
         caps[pool] = min(caps.get(pool, target.hard_cap), target.hard_cap)
+        envs[pool] = target.spec.key_env
 
-    return [
-        (pool, calls, caps[pool], calls > caps[pool])
-        for pool, calls in sorted(per_pool.items())
-    ]
+    out = []
+    for pool, calls in sorted(per_pool.items()):
+        n_keys = max(1, key_counts.get(envs[pool], 1))
+        effective = caps[pool] * n_keys
+        out.append((pool, calls, effective, calls > effective))
+    return out

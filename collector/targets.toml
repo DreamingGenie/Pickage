@@ -79,24 +79,41 @@ enabled = false
 params = {}
 
 
-# ── 버스 ──────────────────────────────────────────────────────────────
-# 상세기능별 독립 quota다. 노선 1개 x 120초 = 720회/일로 각각 상한 이내다.
+# ── 버스 (fleet 확장 + key rotation) ──────────────────────────────────
+# 목표: 서울 중심 사용률 높은 노선을 최대한 많이 수집.
 #
-# busRouteId는 **잠정**이다. 100100118은 스모크에서 정상 응답(위치 17행,
-# 도착 104행)을 확인한 값이며 Route A 확정 후 교체한다.
-# startOrd/endOrd는 선택이 아니라 필수다. 노선의 전체 정류장 수를 모르면
-# 노선 기본정보(OA-15262)로 먼저 확인한다.
+# 버스는 노선 단위 호출(1콜=1노선)이라 노선 수가 곧 호출량이다. 상세기능별
+# 독립 quota이고, key rotation으로 팀원 키를 함께 쓰면 예산이 키 수만큼 배가 된다.
+#
+#   담을 수 있는 노선 수 = (키 수 × 950) ÷ (86400 / 주기)
+#
+#   키 6개 · 위치 300초 → 최대 약 19노선
+#   키 6개 · 위치 600초 → 최대 약 39노선
+#   (도착은 예측값이라 600초로 성기게 둬 예산을 위치에 몰아준다)
+#
+# 기동 시 예산을 자동 검증한다. 초과하면 로그에 ** 초과 ** 가 찍히고, 노선/주기를
+# 줄이거나 키를 늘리라고 안내한다. 그러니 아래 리스트에 노선을 마음껏 추가하고
+# 기동 로그의 예산 줄만 확인하면 된다.
+#
+# ⚠️ busRouteId 목록은 **검증된 실제 ID만** 넣는다. 추측한 ID는 오류 응답을
+#    받으며 quota를 태운다. 아래 3개는 실제 API 응답에서 관측된 값이다:
+#      100100118 (753번), 100100026, 100100001 (01A)
+#    "사용률 높은 노선" 대량 목록은 data.go.kr "노선정보조회 서비스"(getBusRouteList)
+#    활용신청 후 채운다. 현재는 이 3개로 시드만 둔다.
+#
+# bus_route_id에 리스트를 주면 노선마다 대상 하나로 자동 확장된다
+# (이름은 <name>_<route_id>). startOrd/endOrd는 위치 조회에 필수다.
 
 [[targets]]
-name = "bus_position_100100118"
+name = "bus_position"
 source = "bus-position"
-interval_seconds = 120
+interval_seconds = 300
 enabled = true
-params = { bus_route_id = "100100118", start_ord = 1, end_ord = 200 }
+params = { bus_route_id = ["100100118", "100100026", "100100001"], start_ord = 1, end_ord = 200 }
 
 [[targets]]
-name = "bus_arrival_100100118"
+name = "bus_arrival"
 source = "bus-arrival-all"
-interval_seconds = 120
+interval_seconds = 600
 enabled = true
-params = { bus_route_id = "100100118" }
+params = { bus_route_id = ["100100118", "100100026", "100100001"] }

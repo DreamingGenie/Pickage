@@ -37,7 +37,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .common import console, targets as targets_mod
-from .common.env import MissingSecretError, optional_key, warn_if_encoded
+from .common.env import MissingSecretError, list_keys, warn_if_encoded
 from .common.quota import QuotaLedger
 from .common.scheduler import Scheduler
 from .common.targets import ConfigError
@@ -79,22 +79,26 @@ def setup_logging(log_path: Path, level: int = logging.INFO) -> None:
         root.warning("로그 파일을 열 수 없어 콘솔에만 기록합니다: %s", exc)
 
 
-def resolve_keys(settings: targets_mod.Settings) -> dict[str, str]:
-    """활성 대상이 필요로 하는 키만 읽는다.
+def resolve_keys(settings: targets_mod.Settings) -> dict[str, list[str]]:
+    """활성 대상이 필요로 하는 키를 env별로 **목록**으로 읽는다(key rotation).
+
+    `SEOUL_SUBWAY_REALTIME_KEY`, `_2`, `_3` … 를 순서대로 모은다. 팀원 키를
+    함께 쓰면 그 provider의 하루 예산이 키 수만큼 배가 된다.
 
     키가 없으면 예외를 던지지 않는다. 버스 키가 없어도 지하철 수집은 돌아야
     하고, 실시간 데이터는 하루를 멈추면 하루가 영구 손실이기 때문이다.
     없는 키는 스케줄러가 해당 대상만 건너뛰며 경고한다.
     """
-    keys: dict[str, str] = {}
+    keys: dict[str, list[str]] = {}
     for target in settings.enabled():
         env_name = target.spec.key_env
         if env_name in keys:
             continue
-        value = optional_key(env_name)
-        if value:
-            warn_if_encoded(env_name, value)
-            keys[env_name] = value
+        values = list_keys(env_name)
+        for v in values:
+            warn_if_encoded(env_name, v)
+        if values:
+            keys[env_name] = values
     return keys
 
 

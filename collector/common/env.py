@@ -42,6 +42,33 @@ def optional_key(name: str, default: str | None = None) -> str | None:
     return os.environ.get(name) or default
 
 
+def list_keys(base_name: str) -> list[str]:
+    """한 provider의 인증키를 여러 개 읽는다: base, base_2, base_3, ...
+
+    팀원 키를 함께 써서 provider 일일 한도를 배수로 늘리는 key rotation용이다
+    (원장이 `풀::key_id`로 키마다 독립 카운터를 잡으므로, 한 프로세스가 여러
+    키를 순차 사용하면 각 키의 하루치가 그대로 더해진다).
+
+    `base` → `base`, `base_2`, `base_3` … 순으로, **처음 비는 번호에서 멈춘다.**
+    즉 `_2`가 없으면 `_3`이 있어도 읽지 않는다(번호를 건너뛴 설정 실수를 조용히
+    통과시키지 않기 위해서다). 중복 값은 첫 등장만 남긴다 — 같은 키를 두 변수에
+    넣으면 원장에서 같은 카운터라 예산이 늘지 않으므로, 세었을 때 오해가 없도록
+    합친다.
+    """
+    keys: list[str] = []
+    seen: set[str] = set()
+    first = os.environ.get(base_name)
+    index = 2
+    value = first
+    while value:
+        if value not in seen:
+            seen.add(value)
+            keys.append(value)
+        value = os.environ.get(f"{base_name}_{index}")
+        index += 1
+    return keys
+
+
 _PERCENT_ENCODED = re.compile(r"%[0-9A-Fa-f]{2}")
 
 

@@ -52,8 +52,9 @@ class TargetState:
     """대상 1건의 실행 상태와 당일 집계."""
 
     target: Target
-    key: str
-    pool: Pool
+    # key rotation: (인증키, 그 키의 quota 풀) 쌍의 목록. 앞에서부터 잔여가
+    # 남은 키를 골라 쓴다. 한 키가 소진되면 다음 팀원 키로 자동으로 넘어간다.
+    keypools: list[tuple[str, Pool]]
     next_due: float = 0.0
     last_ok_at: float | None = None
     consecutive_permanent: int = 0
@@ -87,7 +88,8 @@ class TargetState:
 class Scheduler:
     settings: Settings
     ledger: QuotaLedger
-    keys: dict[str, str]
+    # key_env → 인증키 목록. 목록이 2개 이상이면 key rotation이 작동한다.
+    keys: dict[str, list[str]]
     dry_run: bool = False
     stop: threading.Event = field(default_factory=threading.Event)
     clock: object = time.monotonic
@@ -99,18 +101,15 @@ class Scheduler:
         self._skipped_no_key: list[str] = []
 
         for target in self.settings.enabled():
-            key = self.keys.get(target.spec.key_env)
-            if not key:
+            keys = self.keys.get(target.spec.key_env) or []
+            if not keys:
                 # 키가 없는 대상만 건너뛴다. 버스 키가 없어도 지하철은 돌아야 한다.
                 self._skipped_no_key.append(f"{target.name}({target.spec.key_env})")
                 continue
-            self.states.append(
-                TargetState(
-                    target=target,
-                    key=key,
-                    pool=registry.make_pool(target.spec, key, target.hard_cap),
-                )
-            )
+            keypools = [
+                (k, registry.make_pool(target.spec, k, target.hard_cap)) for k in keys
+            ]
+            self.states.append(TargetState(target=target, keypools=keypools))
 
     # ── 기동 ──────────────────────────────────────────────────────────
     def log_plan(self) -> None:
@@ -129,16 +128,21 @@ class Scheduler:
         if self._skipped_no_key:
             log.warning("키가 없어 건너뛴 대상: %s", ", ".join(self._skipped_no_key))
 
-        for pool_name, calls, cap, over in budget_report(self.settings):
+        key_counts = {env: len(keys) for env, keys in self.keys.items()}
+        for env, n in sorted(key_counts.items()):
+            if n > 1:
+                log.info("key rotation: %s 키 %d개 → 하루 예산 %d배", env, n, n)
+
+        for pool_name, calls, cap, over in budget_report(self.settings, key_counts):
             used = self._pool_used(pool_name)
             level = log.error if over else log.info
             level(
-                "예산 %-34s %.0f회/일 / 상한 %d (당일 사용 %d)%s",
+                "예산 %-34s %.0f회/일 / 유효상한 %d (당일 사용 %d)%s",
                 pool_name,
                 calls,
                 cap,
                 used,
-                "  ** 초과 **" if over else "",
+                "  ** 초과 — targets.toml 노선/주기를 줄이거나 키를 늘리세요 **" if over else "",
             )
         if self.dry_run:
             log.warning("dry-run: 호출은 하되 Bronze에 기록하지 않습니다(quota는 소모됩니다).")
@@ -216,28 +220,43 @@ class Scheduler:
         )
         return nxt + missed * interval
 
+    def _active_keypool(self, state: TargetState) -> tuple[str, Pool, int] | None:
+        """잔여가 남은 첫 (키, 풀)과 그 잔여를 고른다. 전부 소진이면 None.
+
+        앞 키부터 소진하고 다음 키로 넘어가는 방식이라, 팀원 키가 있어도 내 키를
+        먼저 다 쓴다. 이게 의도다 — 어느 키가 얼마나 쓰였는지 원장에서 명확하고,
+        키 소유자별 사용량을 나중에 정산·설명하기 쉽다.
+        """
+        for key, pool in state.keypools:
+            remaining = self.ledger.remaining(pool)
+            if remaining > 0:
+                return key, pool, remaining
+        return None
+
     def _run_target(self, state: TargetState) -> None:
         target = state.target
         if state.disabled_reason:
             return
 
-        remaining = self.ledger.remaining(state.pool)
-        if remaining <= 0:
+        picked = self._active_keypool(state)
+        if picked is None:
             if not state.quota_warned:
+                pools = ", ".join(p.counter_key for _, p in state.keypools)
                 log.warning(
-                    "%s: 풀 %s 일일 상한 도달. 운행일이 바뀔 때까지 호출을 건너뜁니다.",
+                    "%s: 모든 키의 일일 상한 도달(%s). 운행일이 바뀔 때까지 건너뜁니다.",
                     target.name,
-                    state.pool.counter_key,
+                    pools,
                 )
                 state.quota_warned = True
             return
+        key, pool, remaining = picked
 
         attempts = target.max_attempts
         if remaining <= self.settings.retry_reserve:
             attempts = 1
             if target.max_attempts > 1 and not state.retry_off_warned:
                 log.warning(
-                    "%s: 잔여 %d회가 예비분 %d회 이하입니다. 재시도를 중단하고 1회만 시도합니다.",
+                    "%s: 현재 키 잔여 %d회가 예비분 %d회 이하입니다. 재시도를 중단하고 1회만 시도합니다.",
                     target.name,
                     remaining,
                     self.settings.retry_reserve,
@@ -247,9 +266,9 @@ class Scheduler:
         try:
             result = runner.collect(
                 target.spec.fn,
-                state.key,
+                key,
                 ledger=self.ledger,
-                pool=state.pool,
+                pool=pool,
                 business_check=target.spec.business_check,
                 max_attempts=attempts,
                 **target.call_kwargs(),
