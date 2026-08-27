@@ -29,6 +29,7 @@ from ..common.http_client import Verdict, fetch
 from ..common.storage import CollectionResult
 
 BASE_POSITION = "http://ws.bus.go.kr/api/rest/buspos/getBusPosByRouteSt"
+BASE_POSITION_RTID = "http://ws.bus.go.kr/api/rest/buspos/getBusPosByRtid"
 BASE_ARRIVAL = "http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRouteAll"
 
 SUCCESS_CODE = "0"
@@ -142,6 +143,31 @@ def position(
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"route={bus_route_id}",
+        **kw,
+    )
+
+
+def position_rtid(key: str, bus_route_id: str, fmt: str = "xml", **kw) -> CollectionResult:
+    """15000332 getBusPosByRtid — 노선 전체 차량 위치(구간 지정 없음).
+
+    getBusPosByRouteSt와 같은 위치정보조회 서비스지만 **별도 상세기능**이라
+    quota가 독립이다(각 10,000/일). 그래서 이걸 두 번째 위치 소스로 쓰면
+    위치 수집 노선 수를 배로 늘릴 수 있다. 응답 구조(msgHeader/itemList)는
+    getBusPosByRouteSt와 동일해 같은 judge를 쓴다. `congetion`(혼잡도)도 포함된다.
+
+    startOrd/endOrd가 없어 노선 전체 차량을 한 번에 준다.
+    """
+    url = _build(BASE_POSITION_RTID, key, {"busRouteId": bus_route_id}, fmt)
+    return fetch(
+        source_key="bus_position_rtid",
+        provider="data_go_kr",
+        endpoint="getBusPosByRtid",
+        url=url,
+        secret=key,
+        judge=judge,
+        payload_ext=fmt,
+        partition=f"route={bus_route_id}",
         **kw,
     )
 
@@ -161,5 +187,6 @@ def arrival_all(key: str, bus_route_id: str, fmt: str = "xml", **kw) -> Collecti
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"route={bus_route_id}",
         **kw,
     )

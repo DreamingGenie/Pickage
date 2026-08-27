@@ -71,7 +71,7 @@ def counts_from_bronze(svc_date: str, bronze_dir: Path | None = None) -> dict[st
 
     tally: dict[str, int] = {}
     highest_seq: dict[str, int] = {}
-    for meta_path in base.glob(f"*/service_date={svc_date}/*.meta.json"):
+    for meta_path in base.glob(f"**/service_date={svc_date}/*.meta.json"):
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -239,6 +239,19 @@ class QuotaLedger:
         self._prune(svc)
         self._save()
         return seq
+
+    def exhaust(self, pool: Pool, now: datetime | None = None) -> None:
+        """이 풀을 당일 소진 처리한다(카운트를 상한으로 올린다).
+
+        provider가 "요청제한 초과"(HTTP 401)를 반환하면, 우리 원장이 아직 예산이
+        남았다고 보더라도 그 키는 오늘 더 쓸 수 없다. provider의 일일 리셋 경계가
+        우리 운행일 경계(04:00)와 달라(예: data.go.kr은 자정) 우리가 실제보다 적게
+        세는 경우가 있기 때문이다. 이 표시로 rotation이 다음 키로 넘어간다.
+        운행일이 바뀌면 자연히 리셋된다.
+        """
+        bucket = self._bucket(self._today(now))
+        bucket[pool.counter_key] = max(int(bucket.get(pool.counter_key, 0)), pool.hard_cap)
+        self._save()
 
     def _prune(self, keep: str, days: int = 14) -> None:
         """오래된 운행일 버킷을 정리한다. 원장이 무한히 커지지 않게 한다."""

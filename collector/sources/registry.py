@@ -32,6 +32,8 @@ POOL_SUBWAY = "seoul_subway_realtime"
 POOL_SUBWAY_ARRIVAL_ALL = "seoul_subway_arrival_all"
 # 버스: data.go.kr은 상세기능(엔드포인트)마다 독립 quota다.
 POOL_BUS_POSITION = "data_go_bus::getBusPosByRouteSt"
+# getBusPosByRtid는 위치조회 서비스의 다른 상세기능 → 독립 풀. 위치 2배용 두 번째 소스.
+POOL_BUS_POSITION_RTID = "data_go_bus::getBusPosByRtid"
 POOL_BUS_ARRIVAL = "data_go_bus::getArrInfoByRouteAll"
 
 
@@ -109,6 +111,16 @@ SPECS: dict[str, SourceSpec] = {
         required_params=("bus_route_id",),
         optional_params=("start_ord", "end_ord"),
         note="15000332. stopFlag 0->1 전이의 유일한 원천이다.",
+    ),
+    "bus-position-rtid": SourceSpec(
+        name="bus-position-rtid",
+        key_env=BUS_KEY_ENV,
+        pool_name=POOL_BUS_POSITION_RTID,
+        fn=seoul_bus.position_rtid,
+        business_check=seoul_bus.is_retryable,
+        default_fmt="xml",
+        required_params=("bus_route_id",),
+        note="getBusPosByRtid. getBusPosByRouteSt와 별도 quota라 위치 2배용 두 번째 소스.",
     ),
     "bus-arrival-all": SourceSpec(
         name="bus-arrival-all",

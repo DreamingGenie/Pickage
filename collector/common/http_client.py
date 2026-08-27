@@ -57,6 +57,7 @@ def fetch(
     timeout: float = 20.0,
     quota_seq_today: int | None = None,
     quota_pool: str | None = None,
+    partition: str | None = None,
 ) -> CollectionResult:
     """1회 호출하고 CollectionResult를 만든다. 저장은 호출자가 record()로 한다."""
     judge = judge or _no_judge
@@ -86,6 +87,7 @@ def fetch(
             quota_seq_today=quota_seq_today,
             key_id=kid,
             quota_pool=quota_pool,
+            partition=partition,
         )
 
     payload = resp.content
@@ -107,6 +109,7 @@ def fetch(
             quota_seq_today=quota_seq_today,
             key_id=kid,
             quota_pool=quota_pool,
+            partition=partition,
         )
 
     verdict = judge(payload)
@@ -128,4 +131,5 @@ def fetch(
         quota_seq_today=quota_seq_today,
         key_id=kid,
         quota_pool=quota_pool,
+        partition=partition,
     )

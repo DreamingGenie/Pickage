@@ -129,6 +129,7 @@ def position(
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"line={line_name}",
         **kw,
     )
 
@@ -152,5 +153,6 @@ def arrival_station(
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"station={station_name}",
         **kw,
     )

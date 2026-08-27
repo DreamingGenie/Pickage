@@ -35,7 +35,7 @@ from typing import Any
 
 from . import service_day
 
-COLLECTOR_VERSION = "bronze-v2"
+COLLECTOR_VERSION = "bronze-v3"
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BRONZE_DIR = _REPO_ROOT / "data" / "bronze"
@@ -66,6 +66,9 @@ class CollectionResult:
     error_code: str | None = None
     error_body: str | None = None
     quota_seq_today: int | None = None
+    # 저장 경로 파티션. 노선/호선 단위로 폴더를 나눠 나중에 특정 노선만 쉽게 뽑게 한다.
+    # 예: "route=100100022", "line=1호선". None이면 파티션 없이 source_key 바로 아래.
+    partition: str | None = None
     # 어떤 인증키로 호출했는지. 값 자체는 넣지 않는다(quota.key_id 해시 앞 8자리).
     key_id: str | None = None
     # 이 호출이 차감된 quota 원장 풀 이름. runner를 경유하지 않으면 None.
@@ -96,7 +99,13 @@ def record(result: CollectionResult, bronze_dir: Path | None = None) -> Path:
     stamp = requested_dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")[:-4] + "Z"
     stem = f"{stamp}_{result.request_id}"
 
-    out_dir = base / result.source_key / f"service_date={svc_date}"
+    # 파티션이 있으면 source_key 아래에 한 단계 더 넣는다(노선/호선별 폴더).
+    #   bronze/<source_key>/<partition>/service_date=YYYY-MM-DD/파일
+    # 없으면 기존 그대로: bronze/<source_key>/service_date=.../파일
+    out_dir = base / result.source_key
+    if result.partition:
+        out_dir = out_dir / result.partition
+    out_dir = out_dir / f"service_date={svc_date}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     payload_path: Path | None = None
@@ -123,6 +132,7 @@ def record(result: CollectionResult, bronze_dir: Path | None = None) -> Path:
         "payload_sha256": _sha256(result.payload),
         "collector_version": COLLECTOR_VERSION,
         "quota_seq_today": result.quota_seq_today,
+        "partition": result.partition,
         "key_id": result.key_id,
         "quota_pool": result.quota_pool,
         "error_code": result.error_code,

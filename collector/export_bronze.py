@@ -40,7 +40,7 @@ def service_dates(bronze_dir: Path) -> list[str]:
     """Bronze에 존재하는 운행일 목록."""
     dates = {
         p.name.split("=", 1)[1]
-        for p in bronze_dir.glob("*/service_date=*")
+        for p in bronze_dir.glob("**/service_date=*")
         if p.is_dir() and "=" in p.name
     }
     return sorted(dates)
@@ -49,7 +49,7 @@ def service_dates(bronze_dir: Path) -> list[str]:
 def collect_pairs(bronze_dir: Path, svc_date: str) -> list[tuple[Path, dict]]:
     """(메타 경로, 메타 내용) 목록. 메타가 깨진 파일은 건너뛰고 경고한다."""
     pairs = []
-    for meta_path in sorted(bronze_dir.glob(f"*/service_date={svc_date}/*.meta.json")):
+    for meta_path in sorted(bronze_dir.glob(f"**/service_date={svc_date}/*.meta.json")):
         try:
             pairs.append((meta_path, json.loads(meta_path.read_text(encoding="utf-8"))))
         except (OSError, json.JSONDecodeError) as exc:
@@ -160,7 +160,9 @@ def export(bronze_dir: Path, svc_date: str, out_dir: Path, *, verify: bool = Tru
     # XML/JSON은 압축률이 높다. 저장 공간과 전송량을 줄이려고 DEFLATE를 쓴다.
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for meta_path, meta in collect_pairs(bronze_dir, svc_date):
-            rel_dir = f"{meta_path.parent.parent.name}/{meta_path.parent.name}"
+            # bronze 기준 상대경로를 그대로 zip 안에 재현한다. 파티션(노선/호선)
+            # 폴더가 있든 없든(깊이 무관) 원래 구조가 보존된다.
+            rel_dir = meta_path.parent.relative_to(bronze_dir).as_posix()
             zf.write(meta_path, f"{rel_dir}/{meta_path.name}")
             name = meta.get("payload_file")
             if name and (meta_path.parent / name).exists():

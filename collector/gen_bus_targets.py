@@ -24,9 +24,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from .common import console
+from .common import console, targets as targets_mod
 from .common.env import list_keys
-from .common.quota import DEFAULT_HARD_CAP
 
 _ROOT = Path(__file__).resolve().parent
 PRIORITY_TSV = _ROOT / "config" / "bus_routes_priority.tsv"
@@ -35,27 +34,40 @@ BUS_KEY_ENV = "DATA_GO_BUS_API_KEY"
 
 
 def load_priority(path: Path) -> list[dict]:
-    """순위 TSV를 읽어 busRouteId가 해결된 노선만 순서대로 반환한다."""
+    """순위 TSV를 읽어 busRouteId가 해결된 노선만 순서대로 반환한다.
+
+    TSV 컬럼: rank, route_no, segment, boardings, bus_route_id (5칸).
+    """
     rows: list[dict] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
-        parts = line.split("\t")
-        if len(parts) < 6:
-            continue
-        rank, route_no, name, rtype, boardings, route_id = (p.strip() for p in parts[:6])
-        if not route_id:
-            continue  # 아직 해결 안 된 노선은 건너뛴다
+        parts = [p.strip() for p in line.split("\t")]
+        if len(parts) < 5 or not parts[4]:
+            continue  # 컬럼 부족 또는 아직 해결 안 된 노선은 건너뛴다
         rows.append(
-            {"rank": rank, "route_no": route_no, "name": name,
-             "type": rtype, "boardings": boardings, "route_id": route_id}
+            {"rank": parts[0], "route_no": parts[1], "name": parts[2],
+             "boardings": parts[3], "route_id": parts[4]}
         )
     return rows
 
 
-def max_routes(keys: int, interval: int, hard_cap: int) -> int:
+def bus_budget(n_keys: int, hard_cap_override: int | None) -> int:
+    """버스 풀의 하루 예산 = 키별 한도의 합.
+
+    targets.toml의 [key_caps]에서 운영/개발 계정별 실제 한도를 읽어 합산한다.
+    예전엔 `키수 × 950`(개발계정)으로 고정돼 있어, 운영계정으로 바꾼 뒤 예산을
+    10배 적게 잡았다. 이제 설정과 항상 일치한다. override를 주면 전 키 그 값으로 본다.
+    """
+    if hard_cap_override is not None:
+        return n_keys * hard_cap_override
+    settings = targets_mod.load()
+    return sum(settings.caps_for(BUS_KEY_ENV, n_keys))
+
+
+def max_routes(budget: int, interval: int) -> int:
     calls_per_route = SECONDS_PER_DAY / interval
-    return int((keys * hard_cap) / calls_per_route)
+    return int(budget / calls_per_route)
 
 
 def render_block(routes: list[dict], interval: int, arrival_interval: int) -> str:
@@ -65,7 +77,7 @@ def render_block(routes: list[dict], interval: int, arrival_interval: int) -> st
     lines.append("# ── 버스 fleet (gen_bus_targets.py 생성) ─────────────────────────────")
     lines.append("# 순위 상위부터 예산에 맞춰 자른 목록. 노선번호는 아래 주석 참고.")
     for r in routes:
-        lines.append(f"#   {r['rank']:>2}위 {r['route_no']:>5}번 {r['name']} ({r['type']}, {r['route_id']})")
+        lines.append(f"#   {r['rank']:>2}위 {r['route_no']:>6}번 {r['name']} ({r['route_id']})")
     lines.append("")
     lines.append("[[targets]]")
     lines.append('name = "bus_position"')
@@ -88,7 +100,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--keys", type=int, help="버스 키 수 (기본: .env.local에서 자동 계수)")
     parser.add_argument("--interval", type=int, default=300, help="위치 폴링 주기 초 (기본 300)")
     parser.add_argument("--arrival-interval", type=int, default=600, help="도착 폴링 주기 초 (기본 600)")
-    parser.add_argument("--hard-cap", type=int, default=DEFAULT_HARD_CAP)
+    parser.add_argument("--hard-cap", type=int, default=None,
+                        help="키별 한도 강제(생략 시 targets.toml의 key_caps를 읽음)")
     parser.add_argument("--priority", type=Path, default=PRIORITY_TSV)
     args = parser.parse_args(argv)
     console.use_utf8()
@@ -99,10 +112,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     keys = args.keys if args.keys is not None else max(1, len(list_keys(BUS_KEY_ENV)))
-    cap = max_routes(keys, args.interval, args.hard_cap)
+    budget = bus_budget(keys, args.hard_cap)
+    cap = max_routes(budget, args.interval)
     take = min(cap, len(routes))
 
-    print(f"# 버스 키 {keys}개 · 위치 {args.interval}초 → 예산상 최대 {cap}개 노선")
+    print(f"# 버스 키 {keys}개 · 예산 {budget}/일 · 위치 {args.interval}초 → 최대 {cap}개 노선")
     print(f"# 우선순위 목록 {len(routes)}개 중 상위 {take}개를 넣습니다"
           + (f" (나머지 {len(routes) - take}개는 키·주기 여유 시 확장)" if take < len(routes) else " (전부 수용)"))
     if take == 0:

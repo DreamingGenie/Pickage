@@ -309,6 +309,20 @@ class Scheduler:
             log.exception("%s: 수집 중 예외가 발생했습니다.", target.name)
             return
 
+        # provider가 "요청제한 초과"(HTTP 401)를 반환하면 이 키는 오늘 소진된 것이다.
+        # 우리 원장은 예산이 남았다고 볼 수 있으나(리셋 경계 불일치), provider 신호를
+        # 믿고 이 키의 풀을 소진 처리해 rotation이 다음 키로 넘어가게 한다. 원문은
+        # 아래에서 그대로 저장한다(증거 보존).
+        if result.outcome == HTTP_ERROR and result.http_status == 401:
+            self.ledger.exhaust(pool)
+            if not state.quota_warned:
+                log.warning(
+                    "%s: 키 %s 요청제한 초과(HTTP 401). 이 키를 당일 소진 처리하고 다음 키로 넘어갑니다. "
+                    "(provider 리셋 경계가 운행일 04:00과 다를 수 있음)",
+                    target.name,
+                    pool.counter_key,
+                )
+
         state.calls += 1
         state.rows += result.row_count or 0
         state.payload_bytes += len(result.payload or b"")
@@ -456,7 +470,7 @@ def _bronze_bytes(svc_date: str) -> int | None:
         base: Path = storage.BRONZE_DIR
         return sum(
             p.stat().st_size
-            for p in base.glob(f"*/service_date={svc_date}/*")
+            for p in base.glob(f"**/service_date={svc_date}/*")
             if p.is_file()
         )
     except OSError:
