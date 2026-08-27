@@ -18,13 +18,13 @@
 
 ### 프로젝트 내부 실측·계약 근거
 
-- [API 상세기능·호출량 확인](../../../docs/history/transit_journey_handoff_FINAL_v3/docs/03_API_SPIKE_CHECKLIST.md)
-- [노선 753 정상 호출·중복·상태전이 결정 기록](../../../docs/history/transit_journey_handoff_FINAL_v3/docs/05_DECISION_LOG.md)
-- [수집기 응답시간 실측](../../../docs/history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/README.md)
-- [응답시간 통계 원본](../../../docs/history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/derived/latency_summary.json)
-- [01A 목표 구간 수집 결과](../../../docs/history/journey_reliability_docs_v2/evidence/phase2/BUS_01A_TARGET_LEG/README.md)
-- [실제 관측값·잔차 생성 계약](../../../docs/history/journey_reliability_docs_v2/docs/40_data_probability/41_OBSERVATION_ACTUAL_RESIDUAL.md)
-- [ID 매핑 근거](../../../docs/history/journey_reliability_docs_v2/baseline/phase0/docs/data-contract/ID_MAPPING.md)
+- [API 상세기능·호출량 확인](../history/transit_journey_handoff_FINAL_v3/docs/03_API_SPIKE_CHECKLIST.md)
+- [노선 753 정상 호출·중복·상태전이 결정 기록](../history/transit_journey_handoff_FINAL_v3/docs/05_DECISION_LOG.md)
+- [수집기 응답시간 실측](../history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/README.md)
+- [응답시간 통계 원본](../history/journey_reliability_docs_v2/evidence/phase2/EV2-01_COLLECTOR_TIMESTAMP/derived/latency_summary.json)
+- [01A 목표 구간 수집 결과](../history/journey_reliability_docs_v2/evidence/phase2/BUS_01A_TARGET_LEG/README.md)
+- [실제 관측값·잔차 생성 계약](../history/journey_reliability_docs_v2/docs/40_data_probability/41_OBSERVATION_ACTUAL_RESIDUAL.md)
+- [ID 매핑 근거](../history/journey_reliability_docs_v2/baseline/phase0/docs/data-contract/ID_MAPPING.md)
 
 ### 표기 원칙
 

@@ -1,9 +1,0 @@
-{
-  "version": "1",
-  "default": {
-    "raw": "DENY",
-    "normalized": "DENY",
-    "reason": "ProviderPolicyRegistry is unverified; persistent storage is default-deny."
-  },
-  "sources": {}
-}
