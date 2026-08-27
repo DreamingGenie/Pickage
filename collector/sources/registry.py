@@ -20,11 +20,16 @@ from . import seoul_bus, seoul_subway
 
 # ── 키 환경변수 ────────────────────────────────────────────────────────
 SUBWAY_KEY_ENV = "SEOUL_SUBWAY_REALTIME_KEY"
+# 일괄 도착(OA-15799) 전용 키. 위치와 다른 키를 쓰면 위치 예산과 안 겹친다
+# (한도는 인증키 단위라, 별도 키 = 별도 950/일).
+SUBWAY_ARRIVAL_ALL_KEY_ENV = "SEOUL_SUBWAY_ARRIVAL_ALL_KEY"
 BUS_KEY_ENV = "DATA_GO_BUS_API_KEY"
 
 # ── quota 풀 이름 ─────────────────────────────────────────────────────
-# 지하철: OA-15799·OA-12601·OA-12764가 인증키 1개의 한도를 공유하므로 풀이 하나다.
+# 지하철 위치·역별: 인증키 1개의 한도를 공유하므로 풀이 하나다.
 POOL_SUBWAY = "seoul_subway_realtime"
+# 일괄 도착: 전용 키를 쓰므로 위치와 별개 풀로 집계한다.
+POOL_SUBWAY_ARRIVAL_ALL = "seoul_subway_arrival_all"
 # 버스: data.go.kr은 상세기능(엔드포인트)마다 독립 quota다.
 POOL_BUS_POSITION = "data_go_bus::getBusPosByRouteSt"
 POOL_BUS_ARRIVAL = "data_go_bus::getArrInfoByRouteAll"
@@ -64,12 +69,13 @@ class SourceSpec:
 SPECS: dict[str, SourceSpec] = {
     "subway-arrival-all": SourceSpec(
         name="subway-arrival-all",
-        key_env=SUBWAY_KEY_ENV,
-        pool_name=POOL_SUBWAY,
+        key_env=SUBWAY_ARRIVAL_ALL_KEY_ENV,
+        pool_name=POOL_SUBWAY_ARRIVAL_ALL,
         fn=seoul_subway.arrival_all,
         business_check=seoul_subway.is_retryable,
         default_fmt="json",
-        note="OA-15799. 2026-08-26 현재 발급 키에 권한이 없어 ERROR-340이 반환된다.",
+        note="OA-15799. 1콜에 19노선 전부. arvlCd=1(도착)+recptnDt가 실제 도착 이벤트다. "
+             "전용 키로 위치 예산과 분리. 2026-08-27 권한 활성 확인.",
     ),
     "subway-position": SourceSpec(
         name="subway-position",

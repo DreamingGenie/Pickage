@@ -109,13 +109,18 @@ interval_seconds = 120
 enabled = true
 params = { line_name = "9호선" }
 
-# OA-15799 일괄 도착정보. 2026-08-26 실호출에서 ERROR-340이 확인돼 비활성이다.
-# 활용사례 갤러리 등록 등으로 권한이 열리면 활성화한다.
+# OA-15799 일괄 도착정보. 2026-08-27 권한 활성 확인.
+# 1콜에 19노선 전부. arvlCd=1(도착)+recptnDt가 실제 도착 이벤트다(barvlDt는 예측).
+# 전용 키(SEOUL_SUBWAY_ARRIVAL_ALL_KEY)를 써서 위치 예산과 안 겹친다.
+# 도착 상태는 20~30초만 지속되므로 주기가 짧을수록 이벤트 포착률이 오른다.
+#   키 1개 → 95초(909회/일 ≤ 950) · 3개 → 30초 · 6개 → 20초
+# 팀원 일괄 키를 SEOUL_SUBWAY_ARRIVAL_ALL_KEY_2~ 에 넣고 주기만 낮추면 촘촘해진다.
+# 단, 팀원 키도 '일괄 서비스 권한'이 있어야 한다(없으면 ERROR-340 → 당일 자동 중단).
 [[targets]]
 name = "subway_arrival_all"
 source = "subway-arrival-all"
-interval_seconds = 120
-enabled = false
+interval_seconds = 95
+enabled = true
 params = {}
 
 
