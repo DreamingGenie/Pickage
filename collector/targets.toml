@@ -39,8 +39,9 @@ permanent_error_limit = 3
 
 
 # ── 지하철 (서울 핵심 1~9호선) ────────────────────────────────────────
-# 5키 rotation으로 유효상한 4750. 9노선 x 150초 = 5184회/일 (6키 유효상한 5700 이내).
-# 3노선 300초→9노선 150초로 늘리고 촘촘히 했다(6키 확보 반영). 위치 관측이
+# 5키 rotation으로 유효상한 4750. 9노선 x 120초 = 6480회/일 (6키 유효상한 5700 초과, 의도된 오버구독).
+# 3노선 300초→9노선 120초. 6키 예산을 초과해 낮 관측을 촘촘히 하고
+# 예상 소진 ~01:0x(지하철 막차 이후)까지 그 풀을 굴린다. 늦은 밤 저운행 구간만 포기.. 위치 관측이
 # 조밀할수록 열차 구간 이동·도착 시점 추정이 정확해진다.
 # 16개 전 노선(경의중앙·공항철도 등 포함)은 전부 실호출 검증됐고, 커버리지를
 # 최대화하려면 300초로 16노선까지 넣을 수 있다(4608회).
@@ -48,63 +49,63 @@ permanent_error_limit = 3
 [[targets]]
 name = "subway_position_line1"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "1호선" }
 
 [[targets]]
 name = "subway_position_line2"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "2호선" }
 
 [[targets]]
 name = "subway_position_line3"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "3호선" }
 
 [[targets]]
 name = "subway_position_line4"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "4호선" }
 
 [[targets]]
 name = "subway_position_line5"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "5호선" }
 
 [[targets]]
 name = "subway_position_line6"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "6호선" }
 
 [[targets]]
 name = "subway_position_line7"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "7호선" }
 
 [[targets]]
 name = "subway_position_line8"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "8호선" }
 
 [[targets]]
 name = "subway_position_line9"
 source = "subway-position"
-interval_seconds = 150
+interval_seconds = 120
 enabled = true
 params = { line_name = "9호선" }
 
@@ -113,7 +114,7 @@ params = { line_name = "9호선" }
 [[targets]]
 name = "subway_arrival_all"
 source = "subway-arrival-all"
-interval_seconds = 150
+interval_seconds = 120
 enabled = false
 params = {}
 
@@ -143,7 +144,7 @@ params = {}
 [[targets]]
 name = "bus_position"
 source = "bus-position"
-interval_seconds = 270
+interval_seconds = 216
 enabled = true
 params = { bus_route_id = ["100100022", "100100033", "100100048", "100100047", "100100018", "100100029", "100100031", "100100057", "100100049", "100100026", "100100055", "100100025", "100100021", "100100032", "100100068", "100100019"], start_ord = 1, end_ord = 200 }
 

@@ -135,17 +135,38 @@ class Scheduler:
 
         for pool_name, calls, cap, over in budget_report(self.settings, key_counts):
             used = self._pool_used(pool_name)
-            level = log.error if over else log.info
+            level = log.warning if over else log.info
             level(
                 "예산 %-34s %.0f회/일 / 유효상한 %d (당일 사용 %d)%s",
                 pool_name,
                 calls,
                 cap,
                 used,
-                "  ** 초과 — targets.toml 노선/주기를 줄이거나 키를 늘리세요 **" if over else "",
+                self._oversub_note(calls, cap) if over else "",
             )
         if self.dry_run:
             log.warning("dry-run: 호출은 하되 Bronze에 기록하지 않습니다(quota는 소모됩니다).")
+
+    def _oversub_note(self, calls: float, cap: int) -> str:
+        """유효상한을 넘긴 풀의 예상 소진 시각을 계산해 안내한다.
+
+        폴링은 하루 종일 같은 주기로 돌므로, calls/day가 상한보다 크면 운행일
+        시작(기본 04:00 KST)으로부터 `cap/calls × 24h` 뒤에 소진된다. 이건
+        설정 오류가 아니라 **의도된 오버구독**일 수 있다(늦은 밤 저운행 구간을
+        일부 포기하고 낮 관측을 촘촘히 하는 선택). 그래서 줄이라고 강요하지
+        않고 예상 소진 시각만 알린다.
+
+        실제 소진은 재시도·전송실패가 quota를 먹어 이보다 앞당겨질 수 있다.
+        각 키가 상한에 가까워지면 retry_reserve가 재시도를 끊어 오버슈트를
+        제한하지만, 특정 키가 자주 실패하면 그만큼 일찍 바닥난다.
+        """
+        if calls <= 0:
+            return "  ** 초과 **"
+        hours = cap / calls * 24.0
+        start = service_day.SERVICE_DAY_BOUNDARY_HOUR
+        minute = int((start * 60 + hours * 60) % (24 * 60))
+        clock = f"{minute // 60:02d}:{minute % 60:02d}"
+        return f"  ** 유효상한 초과(오버구독) — 예상 소진 ~{clock} KST, 이후 다음 운행일까지 그 풀은 건너뜀 **"
 
     def _pool_used(self, pool_name: str) -> int:
         return sum(
