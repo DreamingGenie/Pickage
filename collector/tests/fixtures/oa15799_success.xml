@@ -1,7 +1,0 @@
-<root>
-  <RESULT><CODE>INFO-000</CODE><MESSAGE>정상 처리되었습니다.</MESSAGE><total>2</total></RESULT>
-  <realtimeArrivalList>
-    <row><subwayId>1001</subwayId><statnId>1001000133</statnId><statnNm>서울</statnNm><updnLine>상행</updnLine><btrainNo>0064</btrainNo><barvlDt>30</barvlDt><arvlCd>0</arvlCd><recptnDt>2026-08-24 23:59:00</recptnDt></row>
-    <row><subwayId>1001</subwayId><statnId>1001000133</statnId><statnNm>서울</statnNm><updnLine>상행</updnLine><btrainNo>0064</btrainNo><barvlDt>0</barvlDt><arvlCd>1</arvlCd><recptnDt>2026-08-25 00:00:00</recptnDt></row>
-  </realtimeArrivalList>
-</root>
