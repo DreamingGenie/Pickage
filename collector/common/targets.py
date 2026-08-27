@@ -67,10 +67,20 @@ class Settings:
     heartbeat_seconds: float
     stall_factor: float
     permanent_error_limit: int
+    default_hard_cap: int
+    # key_env → 슬롯 순서(base, _2, _3 ...)대로의 키별 일일 한도.
+    # 운영계정 키와 개발계정 키가 섞일 때 키마다 다른 hard_cap을 준다.
+    # 슬롯이 목록보다 많으면 default_hard_cap을 쓴다.
+    key_caps: dict[str, tuple[int, ...]]
     targets: tuple[Target, ...]
 
     def enabled(self) -> tuple[Target, ...]:
         return tuple(t for t in self.targets if t.enabled)
+
+    def caps_for(self, key_env: str, n_keys: int) -> list[int]:
+        """그 env의 키 n개에 대한 키별 hard_cap 목록(슬롯 순서)."""
+        table = self.key_caps.get(key_env, ())
+        return [table[i] if i < len(table) else self.default_hard_cap for i in range(n_keys)]
 
 
 def _enabled(entry: dict, name: str) -> bool:
@@ -187,6 +197,20 @@ def load(path: Path | None = None) -> Settings:
             )
         )
 
+    # [key_caps] — 인증키별 일일 한도(운영/개발 혼용). env → 슬롯 순서 정수 목록.
+    key_caps: dict[str, tuple[int, ...]] = {}
+    caps_table = raw.get("key_caps", {})
+    if not isinstance(caps_table, dict):
+        raise ConfigError("[key_caps]는 테이블이어야 합니다.")
+    for env, values in caps_table.items():
+        if not isinstance(values, list) or not all(
+            isinstance(v, int) and not isinstance(v, bool) for v in values
+        ):
+            raise ConfigError(f"key_caps.{env}는 정수 목록이어야 합니다: {values!r}")
+        if any(v <= 0 for v in values):
+            raise ConfigError(f"key_caps.{env}의 한도는 1 이상이어야 합니다: {values!r}")
+        key_caps[env] = tuple(values)
+
     return Settings(
         retry_reserve=_require_int(defaults, "retry_reserve", 60, where="defaults"),
         stagger_seconds=_require_float(defaults, "stagger_seconds", 7.0, where="defaults"),
@@ -195,6 +219,8 @@ def load(path: Path | None = None) -> Settings:
         permanent_error_limit=_require_int(
             defaults, "permanent_error_limit", 3, where="defaults"
         ),
+        default_hard_cap=default_cap,
+        key_caps=key_caps,
         targets=tuple(targets),
     )
 
@@ -209,24 +235,22 @@ def budget_report(
     풀 단위로 합산하는 이유는 지하철 세 API가 인증키 1개의 한도를 공유하기
     때문이다. 대상별로 검사하면 합계 초과를 놓친다.
 
-    `key_counts`는 `key_env → 키 개수`다(key rotation). 한 풀을 N개 키가
-    번갈아 쓰면 하루 예산이 `상한 × N`이 되므로 유효 상한을 그만큼 키운다.
-    None이면 키 1개로 본다(기존 동작).
+    `key_counts`는 `key_env → 키 개수`다(key rotation). 유효 상한은 그 env의
+    키별 hard_cap(운영/개발 혼용은 `[key_caps]`에서, 미지정은 default_hard_cap)을
+    실제 키 수만큼 더한 값이다. None이면 키 1개로 본다.
     """
     key_counts = key_counts or {}
     per_pool: dict[str, float] = {}
-    caps: dict[str, int] = {}
     envs: dict[str, str] = {}
     for target in settings.enabled():
         pool = target.spec.pool_name
         per_pool[pool] = per_pool.get(pool, 0.0) + target.calls_per_day
-        # 같은 풀에 다른 상한이 설정되면 더 보수적인 값을 쓴다.
-        caps[pool] = min(caps.get(pool, target.hard_cap), target.hard_cap)
         envs[pool] = target.spec.key_env
 
     out = []
     for pool, calls in sorted(per_pool.items()):
-        n_keys = max(1, key_counts.get(envs[pool], 1))
-        effective = caps[pool] * n_keys
+        env = envs[pool]
+        n_keys = max(1, key_counts.get(env, 1))
+        effective = sum(settings.caps_for(env, n_keys))
         out.append((pool, calls, effective, calls > effective))
     return out

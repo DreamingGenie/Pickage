@@ -101,13 +101,17 @@ class Scheduler:
         self._skipped_no_key: list[str] = []
 
         for target in self.settings.enabled():
-            keys = self.keys.get(target.spec.key_env) or []
+            env = target.spec.key_env
+            keys = self.keys.get(env) or []
             if not keys:
                 # 키가 없는 대상만 건너뛴다. 버스 키가 없어도 지하철은 돌아야 한다.
-                self._skipped_no_key.append(f"{target.name}({target.spec.key_env})")
+                self._skipped_no_key.append(f"{target.name}({env})")
                 continue
+            # 키별 hard_cap(운영/개발 혼용). key_caps 미지정이면 default_hard_cap.
+            caps = self.settings.caps_for(env, len(keys))
             keypools = [
-                (k, registry.make_pool(target.spec, k, target.hard_cap)) for k in keys
+                (k, registry.make_pool(target.spec, k, cap))
+                for k, cap in zip(keys, caps)
             ]
             self.states.append(TargetState(target=target, keypools=keypools))
 
