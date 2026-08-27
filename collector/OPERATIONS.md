@@ -107,67 +107,74 @@ sudo loginctl enable-linger "$USER"
 `enable-linger`가 없으면 로그아웃 시 서비스가 함께 죽는다. 홈 서버에서 가장
 흔한 누락 지점이다.
 
-### Windows 노트북 — 작업 스케줄러
+### Windows 노트북 — 포그라운드 실행 (V3 ASD 대응)
 
-`pythonw.exe`로 띄워 콘솔 창이 뜨지 않게 한다.
+이 장비에는 **AhnLab V3 Internet Security**가 있고, 행위기반 진단(ASD)이 다음 패턴을
+악성코드로 보고 수집 프로세스를 중지시킨다(2026-08-26 실제 발생).
+
+```
+시작프로그램 .vbs → 숨김 cmd.exe → 자식 python 이 주기적으로 외부 네트워크 호출
+```
+
+이건 WSH 드로퍼 + 지속성 확보 + 비컨의 전형적 패턴이라 ASD 가 잡는 게 정상이다.
+숨기는 기술로 우회하면 V3 와 계속 싸우게 되므로, **탐지 신호 자체를 없앤다.** 즉
+창을 숨기지 않고, wscript 로 감싸지 않고, 자동시작에 등록하지 않는다. 사용자가 직접
+연 보이는 터미널의 자식 프로세스는 ASD 가 거의 건드리지 않는다.
+
+```
+collector/scripts/run_collector.cmd            보이는 창에서 1회 구동
+collector/scripts/run_collector.cmd --supervise 죽으면 60초 뒤 재시작(창은 계속 보임)
+```
+
+실행은 파일 더블클릭 또는 터미널에서 한다. 창을 최소화해 두면 된다. 정지는 그 창에서
+`Ctrl+C`(진행 중 호출을 마치고 종료). 파이썬 경로가 PATH 에 없으면 `set JR_PYTHON=<절대경로>`
+를 먼저 준다.
+
+배치 파일은 **ASCII 로만** 작성한다. cmd.exe 가 배치를 OEM 코드페이지(cp949)로 읽어
+UTF-8 한글이 명령으로 잘못 파싱되기 때문이다. 사용자용 한글 메시지는 파이썬 로그에 있다.
+
+### V3 (AhnLab) 예외 등록 — 근본 해결
+
+주기적 외부 호출은 성격상 없앨 수 없다. 포그라운드 실행으로 탐지 확률을 크게 낮추지만,
+ASD 가 다시 반응하면 **이 폴더를 V3 예외에 넣는 것이 근본 해결**이다.
+
+예외 등록은 보안 설정 변경이므로 **사용자가 직접 한다.** 대략의 경로는 다음과 같다(9.0 기준,
+버전에 따라 메뉴명이 다를 수 있다).
+
+1. V3 메인 창 → **환경설정**(톱니바퀴) → **PC 보안** → **검사 예외 설정**(또는 **예외 폴더/파일**)
+2. 폴더 예외에 `C:\git\S15P21A506` 추가 (또는 파이썬 경로
+   `C:\Users\<사용자>\AppData\Local\Programs\Python\Python312\` 추가)
+3. ASD(행위기반 진단)에 별도 예외 항목이 있으면 같은 경로를 그쪽에도 추가
+4. 이미 격리(치료)된 항목이 있으면 **격리소**에서 복원
+
+예외를 넣은 뒤에는 어떤 실행 방식이든 안전해지므로, 그때 자동시작(아래)을 붙여도 된다.
+회사 지급 장비라 예외 등록이 정책상 막혀 있으면 IT 담당에게 이 수집기 용도를 설명하고
+요청한다.
+
+### (예외 등록 후) 자동시작 — 최소화 창 바로가기
+
+V3 예외를 넣은 뒤에야 쓴다. 시작프로그램 폴더에 `run_collector.cmd --supervise` 를 가리키는
+**바로가기(.lnk)** 를 두고 실행 속성을 "최소화"로 둔다. 숨김이 아니라 최소화이므로 ASD
+신호가 약하다. 관리자 승격이 필요 없다.
 
 ```powershell
-# 위 "파이썬 경로 확인"에서 얻은 경로. 콘솔 창을 띄우지 않으려면 pythonw.exe를 쓴다.
-$py   = "$env:LOCALAPPDATA\Programs\Python\Python312\pythonw.exe"
-$act  = New-ScheduledTaskAction -Execute $py -Argument "-m collector.run_scheduler" `
-          -WorkingDirectory "C:\git\S15P21A506"
-$trg  = New-ScheduledTaskTrigger -AtLogOn
-# 비정상 종료 시 1분 뒤 재시도를 무제한 반복하고, 실행 시간 제한을 없앤다.
-$set  = New-ScheduledTaskSettingsSet -RestartInterval (New-TimeSpan -Minutes 1) `
-          -RestartCount 9999 -ExecutionTimeLimit ([TimeSpan]::Zero) `
-          -MultipleInstances IgnoreNew -AllowStartIfOnBatteries `
-          -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "JR-Collector" -Action $act -Trigger $trg -Settings $set
+$startup = [Environment]::GetFolderPath('Startup')
+$ws = New-Object -ComObject WScript.Shell
+$lnk = $ws.CreateShortcut("$startup\JR-Collector.lnk")
+$lnk.TargetPath = "$env:SystemRoot\System32\cmd.exe"
+$lnk.Arguments  = '/c "C:\git\S15P21A506\collector\scripts\run_collector.cmd" --supervise'
+$lnk.WorkingDirectory = "C:\git\S15P21A506"
+$lnk.WindowStyle = 7   # 7 = 최소화
+$lnk.Save()
 ```
 
-`-MultipleInstances IgnoreNew`가 중요하다. 이게 없으면 로그인할 때마다 프로세스가
-추가로 떠서 위에서 말한 원장 경쟁이 발생한다.
+제거는 시작프로그램 폴더의 `JR-Collector.lnk` 를 지운다. 정지는 창에서 `Ctrl+C`.
 
-### Windows — 관리자 승격이 안 될 때 (시작프로그램 폴더)
+### 참고 — Linux/서버라면 작업 스케줄러 대신
 
-`Register-ScheduledTask`와 `schtasks /create`는 모두 **관리자 승격을 요구한다**
-(승격 없이 실행하면 `Access is denied` / `HRESULT 0x80070005`). SSAFY 지급 장비처럼
-승격을 쓸 수 없는 환경에서는 시작프로그램 폴더로 같은 효과를 낸다.
-
-```
-collector/scripts/run_collector_bg.cmd   감시 루프 (죽으면 60초 뒤 재시작)
-collector/scripts/start_collector.vbs    콘솔 창 없이 위 루프를 띄움
-```
-
-시작프로그램 폴더(`shell:startup`)에 위 `start_collector.vbs`를 가리키는 래퍼
-`JR-Collector.vbs`를 두면 로그온 때마다 자동 시작한다. 래퍼만 두는 이유는 저장소를
-업데이트했을 때 자동으로 반영되게 하려는 것이다.
-
-```powershell
-# 등록 확인
-explorer shell:startup
-
-# 지금 바로 시작
-wscript.exe "C:\git\S15P21A506\collector\scripts\start_collector.vbs"
-
-# 돌고 있는지 확인
-Get-Process python -ErrorAction SilentlyContinue | Select-Object Id, StartTime, WorkingSet
-```
-
-정지는 **두 단계를 모두** 해야 한다. 감시 루프가 죽은 프로세스를 되살리기 때문이다.
-
-```powershell
-New-Item -ItemType File "C:\git\S15P21A506\data\STOP_COLLECTOR" -Force   # 1) 재시작 차단
-Get-Process python | Where-Object { $_.Path -like "*Python312*" } | Stop-Process -Force  # 2) 종료
-```
-
-다시 시작할 때는 `data\STOP_COLLECTOR`를 지운다. 자동 시작을 완전히 없애려면
-시작프로그램 폴더의 `JR-Collector.vbs`를 삭제한다.
-
-작업 스케줄러와 비교해 없는 기능은 두 가지다. **놓친 실행 보정**(`StartWhenAvailable`)이
-없어 로그온하지 않은 날은 시작되지 않고, **절전 복귀 후 자동 재시작**이 없다. 로그온
-상태에서 절전에 들었다가 깨어나면 프로세스는 그대로 살아 있으므로 실제로 문제가 되는
-경우는 드물다.
+`Register-ScheduledTask`와 `schtasks /create`는 관리자 승격을 요구한다(승격 없이 실행하면
+`Access is denied` / `HRESULT 0x80070005`). 승격이 되는 서버라면 작업 스케줄러가 놓친 실행
+보정과 절전 복귀 재시작까지 해주지만, 이 노트북 시나리오에서는 위 포그라운드 방식을 쓴다.
 
 ### 절전이 곧 수집 공백이다
 
