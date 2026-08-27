@@ -27,8 +27,10 @@ DEFAULT_CONFIG_PATH = _COLLECTOR_ROOT / "targets.toml"
 
 SECONDS_PER_DAY = 86_400
 
-# 이보다 짧은 주기는 설정 오타로 본다. provider 예산을 순식간에 태운다.
-MIN_INTERVAL_SECONDS = 30
+# 이보다 짧은 주기는 설정 오타로 본다. 단자릿수 오타(1~14초)를 막되, 일괄 도착을
+# 다키 rotation으로 촘촘히(예: 4키 20초) 돌리는 의도된 설정은 통과시킨다. 실제
+# 오버구독 방어는 budget_report(유효상한 대비)와 hard_cap이 담당한다.
+MIN_INTERVAL_SECONDS = 15
 
 
 class ConfigError(ValueError):

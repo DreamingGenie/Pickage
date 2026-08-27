@@ -113,13 +113,16 @@ params = { line_name = "9호선" }
 # 1콜에 19노선 전부. arvlCd=1(도착)+recptnDt가 실제 도착 이벤트다(barvlDt는 예측).
 # 전용 키(SEOUL_SUBWAY_ARRIVAL_ALL_KEY)를 써서 위치 예산과 안 겹친다.
 # 도착 상태는 20~30초만 지속되므로 주기가 짧을수록 이벤트 포착률이 오른다.
-#   키 1개 → 95초(909회/일 ≤ 950) · 3개 → 30초 · 6개 → 20초
-# 팀원 일괄 키를 SEOUL_SUBWAY_ARRIVAL_ALL_KEY_2~ 에 넣고 주기만 낮추면 촘촘해진다.
+# 일괄 권한 있는 키 4개 확보(2026-08-27). 20초 = 4320회/일로 4키 예산(3800)을
+# 오버구독해 낮 관측을 촘촘히 하고 ~01:06 소진(지하철 위치와 동일 시각). 그 이후는
+# 저운행 구간이라 포기. 데이터 약 8.2GB/일.
+# 팀원 일괄 키를 SEOUL_SUBWAY_ARRIVAL_ALL_KEY_2~ 에 순서대로 채우면 더 촘촘해진다.
 # 단, 팀원 키도 '일괄 서비스 권한'이 있어야 한다(없으면 ERROR-340 → 당일 자동 중단).
+# 넣기 전 반드시 실호출로 권한 확인 후 되는 키만 앞 슬롯부터 채운다.
 [[targets]]
 name = "subway_arrival_all"
 source = "subway-arrival-all"
-interval_seconds = 95
+interval_seconds = 20
 enabled = true
 params = {}
 
