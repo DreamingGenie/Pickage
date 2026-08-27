@@ -38,45 +38,85 @@ stall_factor = 3.0
 permanent_error_limit = 3
 
 
-# ── 지하철 ────────────────────────────────────────────────────────────
-# 배분안 A(위치 중심): 3 노선 x 300초 = 864회/일. 상한 950 이내.
-#
-# 대상 노선은 **잠정**이다. Route A 경로가 확정되면 교체한다.
-# 1·2호선은 실호출 스모크로 응답을 확인했고(각 70행 26KB / 35행 13KB),
-# 4호선은 OA-22522 시각표에 24시 이상 표기가 몰려 있어 운행일 규칙 검증에
-# 쓸 수 있어 함께 넣었다.
+# ── 지하철 (서울 핵심 1~9호선) ────────────────────────────────────────
+# 5키 rotation으로 유효상한 4750. 9노선 x 180초 = 4320회/일로 상한 이내다.
+# 3노선 300초(864회)에서 노선을 9개로 늘리고 주기도 촘촘히 했다. 위치 관측이
+# 조밀할수록 열차 구간 이동·도착 시점 추정이 정확해진다.
+# 16개 전 노선(경의중앙·공항철도 등 포함)은 전부 실호출 검증됐고, 커버리지를
+# 최대화하려면 300초로 16노선까지 넣을 수 있다(4608회).
 
 [[targets]]
 name = "subway_position_line1"
 source = "subway-position"
-interval_seconds = 300
+interval_seconds = 180
 enabled = true
 params = { line_name = "1호선" }
 
 [[targets]]
 name = "subway_position_line2"
 source = "subway-position"
-interval_seconds = 300
+interval_seconds = 180
 enabled = true
 params = { line_name = "2호선" }
 
 [[targets]]
+name = "subway_position_line3"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "3호선" }
+
+[[targets]]
 name = "subway_position_line4"
 source = "subway-position"
-interval_seconds = 300
+interval_seconds = 180
 enabled = true
 params = { line_name = "4호선" }
 
-# OA-15799 일괄 도착정보. 2026-08-26 실호출에서 ERROR-340("해당 인증키로는
-# 실시간 도착정보(일괄)서비스를 사용할 수 없습니다")이 확인돼 비활성이다.
-# 활성화하면 181바이트 오류 응답을 하루 480회 받으며 예산을 태운다.
-# 활용사례 갤러리 등록 등으로 권한이 열리면 배분안 C로 전환한다.
+[[targets]]
+name = "subway_position_line5"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "5호선" }
+
+[[targets]]
+name = "subway_position_line6"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "6호선" }
+
+[[targets]]
+name = "subway_position_line7"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "7호선" }
+
+[[targets]]
+name = "subway_position_line8"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "8호선" }
+
+[[targets]]
+name = "subway_position_line9"
+source = "subway-position"
+interval_seconds = 180
+enabled = true
+params = { line_name = "9호선" }
+
+# OA-15799 일괄 도착정보. 2026-08-26 실호출에서 ERROR-340이 확인돼 비활성이다.
+# 활용사례 갤러리 등록 등으로 권한이 열리면 활성화한다.
 [[targets]]
 name = "subway_arrival_all"
 source = "subway-arrival-all"
 interval_seconds = 180
 enabled = false
 params = {}
+
 
 # 버스 키 5개 · 위치 300초 → 예산상 최대 16개 노선
 # 우선순위 목록 30개 중 상위 16개를 넣습니다 (나머지 14개는 키·주기 여유 시 확장)
