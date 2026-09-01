@@ -25,3 +25,6 @@ docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/*
 
 # 수집 데이터 — 로컬에만 보관, 커밋하지 않음 (Bronze 원문/메타)
 /data/
+
+# BigQuery 작업용 로컬 venv
+.venv-bq/
