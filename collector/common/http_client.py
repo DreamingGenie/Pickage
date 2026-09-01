@@ -18,6 +18,7 @@ import requests
 
 from . import storage
 from .env import mask_in_text
+from .quota import key_id as compute_key_id
 from .storage import (
     BUSINESS_ERROR,
     HTTP_ERROR,
@@ -55,10 +56,14 @@ def fetch(
     payload_ext: str = "txt",
     timeout: float = 20.0,
     quota_seq_today: int | None = None,
+    quota_pool: str | None = None,
+    partition: str | None = None,
 ) -> CollectionResult:
     """1회 호출하고 CollectionResult를 만든다. 저장은 호출자가 record()로 한다."""
     judge = judge or _no_judge
     masked_url = mask_in_text(url, secret) if secret else url
+    # 어떤 키로 호출했는지를 값 없이 남긴다. 샘플키/실키 구분과 원장 복구에 쓴다.
+    kid = compute_key_id(secret) if secret else None
 
     requested_at = storage.now_iso()
     try:
@@ -80,6 +85,9 @@ def fetch(
             error_code=type(exc).__name__,
             error_body=str(exc),
             quota_seq_today=quota_seq_today,
+            key_id=kid,
+            quota_pool=quota_pool,
+            partition=partition,
         )
 
     payload = resp.content
@@ -99,6 +107,9 @@ def fetch(
             error_code=f"HTTP_{resp.status_code}",
             error_body=resp.reason,
             quota_seq_today=quota_seq_today,
+            key_id=kid,
+            quota_pool=quota_pool,
+            partition=partition,
         )
 
     verdict = judge(payload)
@@ -118,4 +129,7 @@ def fetch(
         error_code=None if verdict.ok else verdict.business_code,
         error_body=None if verdict.ok else verdict.message,
         quota_seq_today=quota_seq_today,
+        key_id=kid,
+        quota_pool=quota_pool,
+        partition=partition,
     )

@@ -26,6 +26,29 @@ _SUCCESS_CODE = "INFO-000"
 # 조건에 맞는 행이 없음. 오류가 아니라 정상적인 빈 결과다.
 _NO_RESULT_CODE = "INFO-200"
 
+# 재시도해도 결과가 달라지지 않는 오류. quota만 소모하므로 즉시 중단한다.
+# ERROR-340은 2026-08-26 실호출에서 처음 관측됐으며 분석 문서의 코드표에 없다.
+# 일괄(ALL) 서비스에 대한 인증키 권한이 없을 때 반환된다.
+PERMANENT_ERRORS = {
+    "ERROR-300",  # 필수값 누락
+    "ERROR-301",  # TYPE 오류
+    "ERROR-310",  # 서비스명 오류
+    "ERROR-331",  # 시작 인덱스 오류
+    "ERROR-332",
+    "ERROR-333",
+    "ERROR-334",  # 종료 인덱스 오류
+    "ERROR-335",  # 샘플 키 제한 초과
+    "ERROR-336",  # 요청 건수 1,000건 초과
+    "ERROR-340",  # 해당 인증키로 사용할 수 없는 서비스
+}
+
+
+def is_retryable(business_code: str | None) -> bool:
+    """재시도가 의미 있는 오류인지. quota 원장(Jira 97)이 참조한다."""
+    if business_code is None:
+        return True  # 파싱 실패 등 원인 불명은 제한적 재시도 허용
+    return business_code not in PERMANENT_ERRORS
+
 _XML_CODE = re.compile(rb"<code>([^<]+)</code>")
 _XML_TOTAL = re.compile(rb"<(?:list_)?total(?:Count)?>(\d+)</(?:list_)?total(?:Count)?>")
 
@@ -106,6 +129,7 @@ def position(
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"line={line_name}",
         **kw,
     )
 
@@ -129,5 +153,6 @@ def arrival_station(
         secret=key,
         judge=judge,
         payload_ext=fmt,
+        partition=f"station={station_name}",
         **kw,
     )

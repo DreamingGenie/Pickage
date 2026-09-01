@@ -9,6 +9,9 @@
 from __future__ import annotations
 
 import os
+import re
+import sys
+import urllib.parse
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -39,6 +42,59 @@ def optional_key(name: str, default: str | None = None) -> str | None:
     return os.environ.get(name) or default
 
 
+def list_keys(base_name: str) -> list[str]:
+    """한 provider의 인증키를 여러 개 읽는다: base, base_2, base_3, ...
+
+    팀원 키를 함께 써서 provider 일일 한도를 배수로 늘리는 key rotation용이다
+    (원장이 `풀::key_id`로 키마다 독립 카운터를 잡으므로, 한 프로세스가 여러
+    키를 순차 사용하면 각 키의 하루치가 그대로 더해진다).
+
+    `base` → `base`, `base_2`, `base_3` … 순으로, **처음 비는 번호에서 멈춘다.**
+    즉 `_2`가 없으면 `_3`이 있어도 읽지 않는다(번호를 건너뛴 설정 실수를 조용히
+    통과시키지 않기 위해서다). 중복 값은 첫 등장만 남긴다 — 같은 키를 두 변수에
+    넣으면 원장에서 같은 카운터라 예산이 늘지 않으므로, 세었을 때 오해가 없도록
+    합친다.
+    """
+    keys: list[str] = []
+    seen: set[str] = set()
+    first = os.environ.get(base_name)
+    index = 2
+    value = first
+    while value:
+        if value not in seen:
+            seen.add(value)
+            keys.append(value)
+        value = os.environ.get(f"{base_name}_{index}")
+        index += 1
+    return keys
+
+
+_PERCENT_ENCODED = re.compile(r"%[0-9A-Fa-f]{2}")
+
+
+def looks_url_encoded(value: str) -> bool:
+    """이미 퍼센트 인코딩된 키인지 추정한다.
+
+    data.go.kr은 인증키를 `인코딩키`와 `디코딩키` 두 형태로 제공한다.
+    이 수집기는 요청을 만들 때 키를 다시 인코딩하므로 **디코딩키**를 넣어야 한다.
+    인코딩키를 넣으면 이중 인코딩되어 HTTP 401이 나는데, 원인이 키 자체 문제로
+    보여 디버깅에 시간이 걸린다. 그래서 미리 경고한다.
+    """
+    return bool(_PERCENT_ENCODED.search(value))
+
+
+def warn_if_encoded(name: str, value: str) -> None:
+    """인코딩키로 보이면 stderr에 경고한다. 값 자체는 출력하지 않는다."""
+    if looks_url_encoded(value):
+        print(
+            f"[경고] {name}이(가) 이미 URL 인코딩된 값으로 보입니다(%XX 포함). "
+            f"data.go.kr은 인코딩키와 디코딩키를 함께 제공하는데, 이 수집기는 "
+            f"요청 시 키를 다시 인코딩하므로 **디코딩키**를 넣어야 합니다. "
+            f"인코딩키를 쓰면 이중 인코딩으로 HTTP 401이 납니다.",
+            file=sys.stderr,
+        )
+
+
 def redact(value: str, keep: int = 4) -> str:
     """앞4...뒤4 형태로 마스킹. 우발적 로깅 대비용."""
     if not value:
@@ -51,9 +107,22 @@ def redact(value: str, keep: int = 4) -> str:
 def mask_in_text(text: str, secret: str) -> str:
     """URL 등 임의 문자열에 섞인 secret을 마스킹한다.
 
-    서울 열린데이터광장 계열은 인증키가 URL path에 들어가므로
-    query param 제거만으로는 마스킹되지 않는다.
+    두 가지 형태를 모두 지운다.
+
+    1. 원문 그대로 — 서울 열린데이터광장 계열은 인증키가 URL **path**에
+       들어가므로 query param을 제거하는 것만으로는 마스킹되지 않는다.
+    2. URL 인코딩된 형태 — data.go.kr 계열은 키가 query string에 들어가며
+       `+`나 `%2F` 같은 문자를 포함해 퍼센트 인코딩된다. 원문만 치환하면
+       인코딩된 키가 그대로 메타에 남는다.
     """
     if not secret or not text:
         return text
-    return text.replace(secret, "***")
+    masked = text.replace(secret, "***")
+    encoded = urllib.parse.quote(secret, safe="")
+    if encoded != secret:
+        masked = masked.replace(encoded, "***")
+    # urlencode는 공백을 '+'로 바꾸므로 quote_plus 형태도 함께 지운다.
+    plus_encoded = urllib.parse.quote_plus(secret)
+    if plus_encoded not in (secret, encoded):
+        masked = masked.replace(plus_encoded, "***")
+    return masked

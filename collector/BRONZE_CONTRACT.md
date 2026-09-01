@@ -16,26 +16,56 @@
 ## 디렉터리와 파일명
 
 ```
-data/bronze/<source_key>/service_date=YYYY-MM-DD/
+data/bronze/<source_key>/[<partition>/]service_date=YYYY-MM-DD/
     <UTC timestamp>_<request_id>.<ext>        원문 그대로 (바이트 무가공)
     <UTC timestamp>_<request_id>.meta.json    수집 메타
 ```
 
-예시
+예시 (파티션 있는 경우 / 없는 경우)
 
 ```
-data/bronze/subway_arrival_all/service_date=2026-08-26/
-    20260826T015155123Z_8ff4bc3894f1.json
-    20260826T015155123Z_8ff4bc3894f1.meta.json
+data/bronze/bus_position/route=100100022/service_date=2026-08-27/
+    20260827T043125443Z_f1b6d6854e6f.xml
+    20260827T043125443Z_f1b6d6854e6f.meta.json
+
+data/bronze/subway_arrival_all/service_date=2026-08-27/     ← 파티션 없음
+    20260827T020253100Z_8ff4bc3894f1.json
+    20260827T020253100Z_8ff4bc3894f1.meta.json
 ```
 
 | 요소 | 규칙 |
 |---|---|
 | `source_key` | 수집 대상 식별자. snake_case. 예: `subway_arrival_all`, `bus_position` |
+| `partition` | **선택.** 호출 파라미터별로 폴더를 나눠 특정 노선/호선만 쉽게 뽑게 한다. 아래 참조 |
 | `service_date` | **운행일**. 달력 날짜가 아니다. 아래 참조 |
 | UTC timestamp | `requested_at` 기준 `YYYYMMDDTHHMMSSmmmZ` |
 | `request_id` | uuid4 앞 12자리. 원문과 메타를 잇는 키 |
 | `ext` | 응답 원문 포맷. `json` / `xml` |
+
+### 파티션 (노선/호선별 폴더 분리)
+
+한 `source_key` 아래에 노선·호선이 수십 개 섞이면, 특정 노선만 뽑을 때 모든 파일의
+메타를 열어 확인해야 한다. 그래서 **호출 파라미터를 폴더 한 단계로 내려** 경로만으로
+식별되게 한다. `2026-08-27`부터 적용한다.
+
+| source_key | 파티션 | 예 |
+|---|---|---|
+| `bus_position` · `bus_position_rtid` · `bus_arrival_all` | `route=<busRouteId>` | `route=100100022` |
+| `subway_position` | `line=<노선명>` | `line=1호선` |
+| `subway_arrival_station` | `station=<역명>` | `station=서울` |
+| `subway_arrival_all` | **없음** (1콜에 전 노선) | — |
+
+- 파티션 값은 `CollectionResult.partition`(어댑터가 채움)에서 오며 메타에도 `partition`으로 남긴다.
+- 파티션이 없는 source는 기존처럼 `source_key/service_date=.../` 바로 아래에 저장한다.
+- Bronze를 읽는 도구는 **깊이 무관 glob(`**/service_date=*/...`)** 을 써서, 파티션 유무가
+  섞여 있어도(예: 규약 적용 전후 데이터) 모두 읽는다.
+
+규약 적용 전(2026-08-27 04:37 UTC 이전) 수집분은 파티션 폴더 없이 쌓여 있었으나,
+2026-08-27에 3,778건(파일 7,556개)을 현행 구조로 일괄 이관했다. 파티션 값은 메타의
+`request_url`에 남은 호출 파라미터에서 역산했고 원문 바이트는 건드리지 않았다.
+이동 전량 매핑은 `data/migrations/bronze_partition_20260827T050614Z.json`에 남아 있다.
+`subway_arrival_all`은 설계상 파티션이 없어 그대로 뒀다. **이제 Bronze에 파티션 없는
+경로는 `subway_arrival_all` 하나뿐이다.** 1회성 작업이라 이관 도구는 남기지 않았다.
 
 ### 파티션 키는 반드시 운행일
 
@@ -67,8 +97,11 @@ data/bronze/subway_arrival_all/service_date=2026-08-26/
   "payload_file": "20260826T015155246Z_8ff4bc3894f1.json",
   "payload_bytes": 2807217,
   "payload_sha256": "…",
-  "collector_version": "bronze-v1",
+  "collector_version": "bronze-v3",
   "quota_seq_today": 137,
+  "key_id": "d137a9cf",
+  "quota_pool": "seoul_subway_realtime",
+  "partition": null,
   "error_code": null,
   "error_body": null
 }
@@ -112,6 +145,36 @@ HTTP 200 + {"status":500,"code":"ERROR-336","message":"데이터요청은 한번
 **5. `collector_version`을 남긴다.**
 
 과거에 timestamp 문제를 한 번 고쳤으나 버전이 기록되지 않아 회귀인지 별개 스크립트인지 구분할 수 없었다. 수집 로직이 바뀌면 버전을 올린다.
+
+| 버전 | 변경 |
+|---|---|
+| `bronze-v1` | 최초 규약 |
+| `bronze-v2` | `key_id`·`quota_pool` 추가 (2026-08-26) |
+| `bronze-v3` | `partition` 추가, 노선/호선별 폴더 분리 (2026-08-27) |
+
+**6. `key_id`와 `quota_pool`을 남긴다. 인증키 값은 절대 남기지 않는다.**
+
+`key_id`는 인증키의 SHA-256 앞 8자리이며(`quota.key_id`), 샘플키는 `sample`,
+키가 없으면 `none`이다. `quota_pool`은 그 호출이 차감된 원장 풀 이름이고
+`runner`를 경유하지 않은 호출에서는 `null`이다.
+
+두 필드가 필요한 이유는 세 가지다.
+
+1. **원장 복구** — `data/quota_ledger.json`이 유실·손상되면 카운터를 되살릴
+   근거가 필요하다. 카운터가 0으로 돌아가면 일일 상한을 인식하지 못해 그날
+   예산을 모두 태우고, 실시간 데이터는 backfill이 불가능해 하루가 영구
+   손실된다. `quota.counts_from_bronze()`가 `f"{quota_pool}::{key_id}"`로
+   당일 사용량을 재구성한다.
+2. **샘플키 판별** — 샘플키 응답은 반환 행이 제한된 잘린 데이터이므로 Silver로
+   넘기면 안 된다. 이 필드가 없던 시절에는 URL의 조회 범위(`/0/5/`)라는
+   우연한 단서로 구분했는데, 실키로 같은 범위를 호출하면 오판한다.
+3. **다중 키 추적** — `SEOUL_SUBWAY_REALTIME_KEY_2` 등으로 팀원 키를 늘리면
+   어떤 키가 만든 기록인지 알 수 없어, 특정 키만 권한이 빠지는 상황을
+   추적할 수 없다.
+
+복구값은 **하한**이다. 호출은 했으나 저장에 실패한 건은 셀 수 없다. 재시도분은
+`quota_seq_today`의 최댓값으로 보정한다 — 3회 재시도의 마지막 결과에 `seq=3`이
+찍혀 있으므로 기록 1건에서 3회를 복원할 수 있다.
 
 ## 새 수집기 추가하는 법
 
