@@ -1,0 +1,17 @@
+[11:12:06] tier=t0 root=gs://oss-shift-a506-raw/raw budget=60.0 GiB mode=EXECUTE
+[11:12:11] 최신 스냅샷 2026-08-31 · 잡 4개
+[11:12:14]   · versions_full 2026-08-31: dry-run 24.508 GiB  (누적 24.508 GiB / 60.0 GiB)
+[11:12:32]   ✓ versions_full 2026-08-31: billed 24.509 GiB · rows 78,559,731 (기대 78,559,731 near)
+[11:12:32]     files 362 · 4,524 MiB · 16.4s · verify=ok · job e0914b11-98ad-44f9-961f-b1101f7c9eba
+[11:12:32]   · requirements 2026-08-31: dry-run 17.508 GiB  (누적 42.016 GiB / 60.0 GiB)
+[11:12:50]   ✓ requirements 2026-08-31: billed 17.509 GiB · rows 78,559,731 (기대 78,559,731 exact)
+[11:12:50]     files 790 · 6,854 MiB · 15.6s · verify=ok · job 6575be00-b1c9-41e6-a6ee-2e118cacbc63
+[11:12:50]   · pkg_project 2026-08-31: dry-run 10.373 GiB  (누적 52.390 GiB / 60.0 GiB)
+[11:13:16]   ✓ pkg_project 2026-08-31: billed 10.374 GiB · rows 106,450,418 (기대 182,110,765 bound)
+[11:13:16]     files 200 · 2,531 MiB · 24.1s · verify=ok · job f07a62d7-25a2-402e-b848-09530742c019
+[11:13:17]   · projects 2026-08-31: dry-run 0.317 GiB  (누적 52.707 GiB / 60.0 GiB)
+[11:13:28]   ✓ projects 2026-08-31: billed 0.317 GiB · rows 5,234,999 (기대 5,234,999 exact)
+[11:13:28]     files 12 · 113 MiB · 10.4s · verify=ok · job 985dbc32-331a-4a96-92a8-7556b7ca11c9
+[11:13:28] ── 요약 ──
+[11:13:28] 잡 4개 · 실행 4개 · dry-run 누적 52.707 GiB · 과금 누적 52.709 GiB
+EXIT=0
