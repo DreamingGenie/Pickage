@@ -110,7 +110,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ResponseBody<Void>> exception(Exception e) {
-		log.error(e.getMessage());
+		log.error("Unexpected server error", e);
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 			.body(ResponseUtil.createFailureResponse(ExceptionType.UNEXPECTED_SERVER_ERROR));
 	}
