@@ -10,12 +10,12 @@ public final class SuccessResponseBody<T> extends ResponseBody<T> {
 	private final T data;
 
 	public SuccessResponseBody() {
+		super(true);
 		data = null;
-		this.setSuccess(true);
 	}
 
 	public SuccessResponseBody(T result) {
+		super(true);
 		this.data = result;
-		this.setSuccess(true);
 	}
 }
