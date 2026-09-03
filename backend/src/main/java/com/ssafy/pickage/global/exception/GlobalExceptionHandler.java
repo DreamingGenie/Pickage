@@ -18,10 +18,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.ssafy.pickage.global.response.ResponseBody;
 import com.ssafy.pickage.global.response.ResponseUtil;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@RequiredArgsConstructor
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
