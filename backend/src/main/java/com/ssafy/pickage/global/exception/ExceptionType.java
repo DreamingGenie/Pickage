@@ -17,6 +17,9 @@ public enum ExceptionType {
 	ESSENTIAL_FIELD_MISSING_ERROR(BAD_REQUEST, "C003", "필수적인 필드 부재"),
 	INVALID_JSON_FORMAT(BAD_REQUEST, "C004", "잘못된 JSON 데이터 형식"),
 	NOT_SUPPORTED_METHOD(METHOD_NOT_ALLOWED, "C005", "허용되지 않은 http method 접근"),
+	RESOURCE_NOT_FOUND(NOT_FOUND, "C006", "요청한 리소스를 찾을 수 없음"),
+	NOT_SUPPORTED_MEDIA_TYPE(UNSUPPORTED_MEDIA_TYPE, "C007", "지원하지 않는 Content-Type"),
+	NOT_ACCEPTABLE_MEDIA_TYPE(NOT_ACCEPTABLE, "C008", "요청한 Accept에 맞는 응답 형식을 제공할 수 없음"),
 
 
 	;

@@ -3,6 +3,8 @@ package com.ssafy.pickage.global.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+// import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.ssafy.pickage.global.response.ResponseBody;
 import com.ssafy.pickage.global.response.ResponseUtil;
@@ -69,6 +73,39 @@ public class GlobalExceptionHandler {
 		String customMessage = e.getAllErrors().getFirst().getDefaultMessage();
 		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
 			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+	}
+
+	// 기본 정적 리소스 매핑이 활성화된 경우 사용하는 404 핸들러.
+	// application.yaml에서 spring.web.resources.add-mappings=false로 설정하고 별도 리소스 핸들러도 없다면,
+	// 이 메서드를 주석 처리하고 아래 handleNoHandlerFoundException 메서드와 해당 import의 주석을 해제한다.
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ResponseBody<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
+		return ResponseEntity.status(ExceptionType.RESOURCE_NOT_FOUND.getStatus())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
+	}
+
+	// 정적 리소스 매핑을 끈 경우 사용하는 404 핸들러.
+	// 기본 매핑을 다시 활성화하면 이 메서드를 주석 처리하고 위 handleNoResourceFoundException을 사용한다.
+	// @ExceptionHandler(NoHandlerFoundException.class)
+	// public ResponseEntity<ResponseBody<Void>> handleNoHandlerFoundException(NoHandlerFoundException e) {
+	// 	return ResponseEntity.status(ExceptionType.RESOURCE_NOT_FOUND.getStatus())
+	// 		.body(ResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
+	// }
+
+	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+	public ResponseEntity<ResponseBody<Void>> handleHttpMediaTypeNotSupportedException(
+		HttpMediaTypeNotSupportedException e) {
+		return ResponseEntity.status(ExceptionType.NOT_SUPPORTED_MEDIA_TYPE.getStatus())
+			.headers(e.getHeaders())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_MEDIA_TYPE));
+	}
+
+	@ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+	public ResponseEntity<ResponseBody<Void>> handleHttpMediaTypeNotAcceptableException(
+		HttpMediaTypeNotAcceptableException e) {
+		return ResponseEntity.status(ExceptionType.NOT_ACCEPTABLE_MEDIA_TYPE.getStatus())
+			.headers(e.getHeaders())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_ACCEPTABLE_MEDIA_TYPE));
 	}
 
 	@ExceptionHandler(Exception.class)
