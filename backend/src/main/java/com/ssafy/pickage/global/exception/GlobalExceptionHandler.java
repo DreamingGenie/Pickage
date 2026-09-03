@@ -15,8 +15,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 // import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import com.ssafy.pickage.global.response.ResponseBody;
-import com.ssafy.pickage.global.response.ResponseUtil;
+import com.ssafy.pickage.global.response.ApiResponseBody;
+import com.ssafy.pickage.global.response.ApiResponseUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,91 +25,91 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(BusinessException.class)
-	public ResponseEntity<ResponseBody<Void>> businessException(BusinessException e) {
+	public ResponseEntity<ApiResponseBody<Void>> businessException(BusinessException e) {
 		ExceptionType exceptionType = e.getExceptionType();
-		return ResponseEntity.status(exceptionType.getStatus()).body(ResponseUtil.createFailureResponse(exceptionType));
+		return ResponseEntity.status(exceptionType.getStatus()).body(ApiResponseUtil.createFailureResponse(exceptionType));
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<ResponseBody<Void>> methodArgumentNotValidException(MethodArgumentNotValidException e) {
+	public ResponseEntity<ApiResponseBody<Void>> methodArgumentNotValidException(MethodArgumentNotValidException e) {
 		String customMessage = e.getBindingResult().getAllErrors().getFirst().getDefaultMessage();
 		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
 	}
 
 	@ExceptionHandler(MissingServletRequestParameterException.class)
-	public ResponseEntity<ResponseBody<Void>> handleMissingServletRequestParameterException(
+	public ResponseEntity<ApiResponseBody<Void>> handleMissingServletRequestParameterException(
 		MissingServletRequestParameterException e) {
 		return ResponseEntity.status(ExceptionType.ESSENTIAL_FIELD_MISSING_ERROR.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.ESSENTIAL_FIELD_MISSING_ERROR));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.ESSENTIAL_FIELD_MISSING_ERROR));
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
-	public ResponseEntity<ResponseBody<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+	public ResponseEntity<ApiResponseBody<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
 		return ResponseEntity.status(ExceptionType.INVALID_JSON_FORMAT.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.INVALID_JSON_FORMAT));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.INVALID_JSON_FORMAT));
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-	public ResponseEntity<ResponseBody<Void>> handleHttpRequestMethodNotSupportedException(
+	public ResponseEntity<ApiResponseBody<Void>> handleHttpRequestMethodNotSupportedException(
 		HttpRequestMethodNotSupportedException e) {
 		return ResponseEntity.status(ExceptionType.NOT_SUPPORTED_METHOD.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_METHOD));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_METHOD));
 	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
-	public ResponseEntity<ResponseBody<Void>> methodArgumentTypeMismatchException(
+	public ResponseEntity<ApiResponseBody<Void>> methodArgumentTypeMismatchException(
 		MethodArgumentTypeMismatchException e) {
 		String customMessage = e.getName() + " 형식이 올바르지 않습니다.";
 		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
 	}
 
 	@ExceptionHandler(HandlerMethodValidationException.class)
-	public ResponseEntity<ResponseBody<Void>> handlerMethodValidationException(
+	public ResponseEntity<ApiResponseBody<Void>> handlerMethodValidationException(
 		HandlerMethodValidationException e) {
 		String customMessage = e.getAllErrors().getFirst().getDefaultMessage();
 		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
 	}
 
 	// 기본 정적 리소스 매핑이 활성화된 경우 사용하는 404 핸들러.
 	// application.yaml에서 spring.web.resources.add-mappings=false로 설정하고 별도 리소스 핸들러도 없다면,
 	// 이 메서드를 주석 처리하고 아래 handleNoHandlerFoundException 메서드와 해당 import의 주석을 해제한다.
 	@ExceptionHandler(NoResourceFoundException.class)
-	public ResponseEntity<ResponseBody<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
+	public ResponseEntity<ApiResponseBody<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
 		return ResponseEntity.status(ExceptionType.RESOURCE_NOT_FOUND.getStatus())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
 	}
 
 	// 정적 리소스 매핑을 끈 경우 사용하는 404 핸들러.
 	// 기본 매핑을 다시 활성화하면 이 메서드를 주석 처리하고 위 handleNoResourceFoundException을 사용한다.
 	// @ExceptionHandler(NoHandlerFoundException.class)
-	// public ResponseEntity<ResponseBody<Void>> handleNoHandlerFoundException(NoHandlerFoundException e) {
+	// public ResponseEntity<ApiResponseBody<Void>> handleNoHandlerFoundException(NoHandlerFoundException e) {
 	// 	return ResponseEntity.status(ExceptionType.RESOURCE_NOT_FOUND.getStatus())
-	// 		.body(ResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
+	// 		.body(ApiResponseUtil.createFailureResponse(ExceptionType.RESOURCE_NOT_FOUND));
 	// }
 
 	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-	public ResponseEntity<ResponseBody<Void>> handleHttpMediaTypeNotSupportedException(
+	public ResponseEntity<ApiResponseBody<Void>> handleHttpMediaTypeNotSupportedException(
 		HttpMediaTypeNotSupportedException e) {
 		return ResponseEntity.status(ExceptionType.NOT_SUPPORTED_MEDIA_TYPE.getStatus())
 			.headers(e.getHeaders())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_MEDIA_TYPE));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_MEDIA_TYPE));
 	}
 
 	@ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
-	public ResponseEntity<ResponseBody<Void>> handleHttpMediaTypeNotAcceptableException(
+	public ResponseEntity<ApiResponseBody<Void>> handleHttpMediaTypeNotAcceptableException(
 		HttpMediaTypeNotAcceptableException e) {
 		return ResponseEntity.status(ExceptionType.NOT_ACCEPTABLE_MEDIA_TYPE.getStatus())
 			.headers(e.getHeaders())
-			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_ACCEPTABLE_MEDIA_TYPE));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.NOT_ACCEPTABLE_MEDIA_TYPE));
 	}
 
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<ResponseBody<Void>> exception(Exception e) {
+	public ResponseEntity<ApiResponseBody<Void>> exception(Exception e) {
 		log.error("Unexpected server error", e);
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-			.body(ResponseUtil.createFailureResponse(ExceptionType.UNEXPECTED_SERVER_ERROR));
+			.body(ApiResponseUtil.createFailureResponse(ExceptionType.UNEXPECTED_SERVER_ERROR));
 	}
 }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 
 @Getter
-public final class SuccessResponseBody<T> extends ResponseBody<T> {
+public final class SuccessResponseBody<T> extends ApiResponseBody<T> {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private final T data;
 
