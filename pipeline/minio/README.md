@@ -29,7 +29,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 | 버킷 | 역할 | 저장 대상 | 현재 상태 |
 | --- | --- | --- | --- |
 | `pickage-raw` | Bronze 원본 보관 | 수집된 Parquet 원본, 원본·검증 manifest, 완료 표시 | deps.dev 데이터 입고 완료 |
-| `pickage-curated` | 정제·가공 데이터 보관 | 향후 `package`·`version` 적재용 Parquet, 집계 결과 등 | 버킷 생성만 완료; 전처리 미구현 |
+| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고 |
 | `pickage-vectors` | 벡터 산출물 보관 | 향후 패키지 임베딩과 패키지·모델 버전 연결 정보 | 버킷 생성만 완료; 벡터 생성·검색 연동 미구현 |
 | `pickage-mlflow-artifacts` | 학습·실험 산출물 보관 | 향후 MLflow의 모델 파일, 평가 보고서 등 | 버킷 생성만 완료; MLflow 연동 미구현 |
 | `pickage-quarantine` | 검증 실패 데이터 격리 | 향후 오류 레코드와 실패 사유 등 조사 대상 | 버킷 생성만 완료; 자동 격리 미구현 |
@@ -49,7 +49,8 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] 원본 사전 검증, 병렬 업로드, 업로드 후 SHA-256 비교 구현
 - [x] 동일 실행 ID 재개 및 기존 객체 내용 불일치 시 실패 처리
 - [x] deps.dev Bronze 데이터 입고 완료
-- [ ] Curated 전처리 및 PostgreSQL 적재
+- [x] `package`·`version` Curated 전처리 구현 및 로컬 전체 데이터 저장·재검증
+- [ ] PostgreSQL 적재
 - [ ] Spark·벡터 생성·MLflow 연동
 - [ ] 서버 배포, 권한 분리, 백업 및 자동 스케줄링
 
@@ -67,6 +68,15 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 
 행 수 합계는 서로 다른 데이터셋의 행을 합한 값이며, 패키지 수를 의미하지 않는다.
 원본 파일과 실제 `.env`는 Git에 포함하지 않는다.
+
+Curated 전처리는 위 Bronze 중 `2026-08-31` 스냅샷의 `versions_full`과
+`requirements`를 입력으로 사용한다. 릴리스·배포일 필터, 패키지 ID 유지,
+대표 저장소 선정, 표시용 의존성 JSON 변환을 수행한다.
+실행 명령과 실제 검증 결과는 [Curated README](../curated/README.md)에 별도로 정리한다.
+품질 사유 파일은 해당 Curated 실행의 `quality/`에 기록하며,
+Bronze 원본을 변경하거나 `pickage-quarantine`으로 이동하지 않는다.
+`curated-20260907-v2`에서 package 11,080,940행과 version 54,188,349행을 생성했고,
+관리·품질 파일을 포함해 Parquet 44개(약 4.85GB)를 저장했다.
 
 ## 로컬 실행
 
