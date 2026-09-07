@@ -31,8 +31,11 @@ dependencies {
 	/* data */
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
+	// Redis 는 현재 아키텍처에서 쓰지 않는다 — 화면이 전부 사전 집계 조회라 캐시 계층이 없다.
+	// 클래스패스에 남겨 두면 Redis 없이 뜰 때 actuator health 가 상시 DOWN 이 되어
+	// 헬스체크를 무의미하게 만든다. 캐시가 실제로 필요해지는 시점에 되살릴 것.
+//	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
 	runtimeOnly 'org.postgresql:postgresql'
 
 	/* actuator */
