@@ -47,15 +47,19 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 - 사용자 요청 시점에는 모델을 호출하지 않고 사전 계산된 후보 결과를 조회한다.
 - 내부 score·계수·필터는 사용자에게 품질 점수로 노출하지 않는다.
 
-**시스템 확정안 — v1 랭커**
+**시스템 확정안 — v1 랭커** (임베딩 유사도 측정 파이프라인 확정, 2026-09-07)
 
 1. 코퍼스 자격 필터: dependents 하한, 최근 12개월 내 릴리스, deprecated 여부 태깅
-2. MLflow `@production` 모델로 변경 description만 ONNX CPU 재임베딩; 전수 재임베딩은 모델 승격 시에만 수행
+2. MLflow `@production` 모델로 `text_hash`가 바뀐 description만 ONNX 재임베딩(주간 변경분 수 %); 전수 재임베딩은 모델 승격 시에만 수행
 3. 정규화 벡터 행렬곱으로 패키지별 top-K 50 후보 생성
-4. `score = 0.7·cos + 0.3·move_lift`를 기본으로 재랭킹
-5. 관측된 대체 이동 쌍·deprecated 지목은 가산, dependents 교집합 `> 0.3`은 보완재 감점, 품질 필터 미통과는 drop
-6. `similar_packages`를 `model_ver` 병렬 적재하고 행수 가드 후 `model_production` 포인터를 전환
+4. cos 유사도를 기본 score로 두고 deprecated 지목 가산·dependents 교집합 `> 0.3`인 보완재 감점·자격 미달 drop을 적용 (`move_lift` 항은 배제 확정 — 대체 이동 쌍 관측 가산은 더 이상 사용하지 않는다)
+5. 채점 게이트: deprecated 51K 홀드아웃으로 Recall@50(임베딩·후보 생성 성적)·Recall@10(파이프라인 전체 성적)을 측정해 직전 운영값과 비교하고, 하락 시 적재를 중단하고 알림을 발생시킨다
+6. 게이트 통과분만 `similar_packages`를 `model_ver` 병렬 적재하고 행수 가드 후 `model_production` 포인터를 전환
 7. 화면에는 최종 유효 후보 최대 3개만 전달하고 상위 2개를 기본 선택
+
+**학습 개시 판정 기준**: Recall@50. 정답이 top-50 후보에 반복적으로 못 들면 score 조정으로 해결할 수 없는 문제이므로 그 시점에 아래 3.5절 학습 트랙을 연다(Recall@10·MRR 기반 승격 게이트와는 별개 판단 시점).
+
+**알려진 한계**: Live 경쟁자(예: express↔fastify)처럼 이미 널리 쓰이는 대안 간 비교 영역은 임베딩 단독 성능에 의존하며, 이 한계는 감춘 채로 보완하려 하지 않고 한계로 명시한다.
 
 신호가 5개 이상으로 늘어나는 고도화 단계에서는 같은 모델 사이클 안에서 GBDT LTR로 교체할 수 있으나 v1 구조 자체는 유지한다.
 
@@ -164,11 +168,14 @@ flowchart LR
 
 ### 3.5 모델 학습·스위칭 사이클
 
+0. **개시 조건**: 1.3절 v1 랭커 채점 게이트에서 Recall@50이 정답을 top-50에 반복적으로 담지 못하는 수준으로 나오면 이 학습 트랙을 연다. score 조정(가산·감점 계수 튜닝)으로는 해결되지 않는 문제라는 뜻이기 때문이다.
 1. S7이 매 Snapshot에서 학습쌍을 갱신한다.
 2. GPU가 `training_pairs`를 pull하여 학습 후 MLflow에 ONNX를 등록한다.
 3. #1 평가 배치가 홀드아웃 `Recall@10`·`MRR` 개선을 확인하면 `@candidate`로 둔다.
 4. candidate로 전수 재임베딩 후 `similar_packages(vN+1)`를 병렬 적재하고 shadow 비교한다.
 5. 승격 시 `@production` alias와 `model_production` 포인터만 전환한다. 서빙 재기동은 필요하지 않으며 롤백도 같은 포인터 전환으로 수행한다.
+
+0번 개시 조건의 Recall@50과 3번 승격 게이트의 `Recall@10`·`MRR`은 서로 다른 판단 시점이다 — 전자는 "학습 트랙을 열지" 여부, 후자는 "이미 학습된 candidate 모델을 승격할지" 여부를 가른다.
 
 ### 3.6 배포 경로
 
@@ -208,24 +215,33 @@ flowchart LR
 후보 생성은 사용자 요청 시 실시간 모델 호출이 아니라 **EC2 #1의 배치 결과**를 사용한다.
 
 1. **후보군 정제**: dependents 하한, 최근 12개월 내 릴리스, deprecated 태깅으로 코퍼스 자격을 판단한다.
-2. **추론**: MLflow `@production` 모델을 pull하고 변경 description만 ONNX CPU 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
+2. **추론**: MLflow `@production` 모델을 pull하고 `text_hash`가 바뀐 description만(주간 변경분 수 %) ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
 3. **top-K 생성**: 정규화 벡터 행렬곱으로 패키지당 50개를 만든다.
-4. **재랭킹**: `0.7·cos + 0.3·move_lift`를 기본 score로 두고 가산·감점·drop 규칙을 적용한다.
-5. **스왑**: `similar_packages`를 `model_ver`별로 병렬 적재하고 행수 가드 통과 후 `model_production` 포인터를 전환한다.
+4. **재랭킹**: cos 유사도를 기본 score로 두고 deprecated 지목 가산, dependents 교집합 `> 0.3`인 보완재 감점, 자격 미달 drop을 적용한다.
+5. **채점 게이트**: deprecated 51K 홀드아웃으로 Recall@50·Recall@10을 측정해 직전 운영값과 비교한다. 하락하면 6번 적재를 중단하고 알림을 발생시킨다.
+6. **스왑**: 게이트를 통과한 결과만 `similar_packages`를 `model_ver`별로 병렬 적재하고 행수 가드 통과 후 `model_production` 포인터를 전환한다.
 
 ### 4.2 v1 재랭킹 규칙
 
 **시스템 확정안**
 
-- 가산: 관측된 대체 이동 쌍, deprecated 지목
+- 가산: deprecated 지목
 - 감점: dependents 교집합 `> 0.3`인 보완재 신호
-- drop: 품질 필터 미통과
-- score: `0.7·cos + 0.3·move_lift`
+- drop: 자격 미달(코퍼스 자격 필터 미통과)
+- score: cos 유사도 기반 (`move_lift` 항 없음 — 배제 확정, 대체 이동 쌍 관측은 가산 신호로 쓰지 않는다)
 - 내부 top-K: 50
 - 사용자 노출 후보: 최대 3
 - 기본 선택: 최종 후보 상위 2개
 
 score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 사람이 이해할 수 있는 관련성 근거와 자료 상태만 제공한다.
+
+### 4.2.1 채점 게이트와 지표 정의
+
+- **Recall@50** = 임베딩(후보 생성) 단계만의 성적. 정답이 top-50 후보 안에 들었는지로 측정한다.
+- **Recall@10** = 재랭킹까지 마친 파이프라인 전체의 성적. 사용자에게 실제 노출되는 순서에 정답이 있는지로 측정한다.
+- 두 지표 모두 deprecated 51K 홀드아웃 셋으로 매 배치 실행마다 측정하고, 직전 운영값 대비 하락하면 해당 배치 결과의 `similar_packages` 적재를 중단하고 알림을 보낸다 — 저품질 결과가 `model_production`으로 스왑되는 것을 막는 안전장치다.
+- Recall@50이 반복적으로 하락하면 3.5절의 모델 학습 트랙을 여는 판단 기준이 된다(재랭킹 계수 튜닝으로 해결 가능한 문제가 아니라는 신호이므로).
+- **알려진 한계**: Live 경쟁자(예: express↔fastify)처럼 이미 널리 쓰이는 대안 간 비교는 임베딩 단독 성능에 의존한다. 이 한계는 보완하지 않고 한계로 명시한다.
 
 신호 수가 5개 이상으로 늘어나는 고도화 단계에서는 재랭킹 4단계를 GBDT LTR로 교체할 수 있다. 이 경우에도 MLflow 모델 사이클과 서빙 조회 구조는 유지한다.
 
@@ -1078,7 +1094,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 | 3 | P1 BigQuery ETL·P2 npm downloads cron | dry-run/max-bytes cap, downloads 독립 실패 처리 |
 | 4 | Spark master + worker①/②와 S1~S7 배치 | 집계·training_pairs·pkg_vectors가 MinIO/PG 계약대로 생성 |
 | 5 | GPU 학습·MLflow 등록·평가/승격 사이클 | GPU 등록과 #1 승격 권한 분리, Recall@10·MRR 평가 |
-| 6 | 유사도 배치 v1 | 필터 → ONNX 추론 → top-K 50 → `0.7cos+0.3move_lift` 재랭킹 → 스왑 |
+| 6 | 유사도 배치 v1 | 필터 → ONNX 추론 → top-K 50 → cos 기반 재랭킹(`move_lift` 배제) → 채점 게이트(Recall@50/10) → 스왑 |
 | 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 서빙 요청에서 PG 외 모델/MinIO 접촉 없음 |
 | 8 | 직접 Dependency·Downloads·Version Share 보고서 | 사전 집계 조회와 화면 상태 일치 |
 | 9 | PDF Snapshot·생성 | 생태계 결과만으로 READY/COMPLETE 가능 |
@@ -1093,21 +1109,22 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 2. 기준 패키지 해제 요청 거부
 3. 네 번째 패키지 추가 차단과 수동 해제
 4. 후보 0개, 의미 retrieval 실패, ranking 처리 실패 상태 분리
-5. 변경 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
-6. 패키지별 top-K 50 생성 후 v1 재랭킹 규칙이 적용되는지 검증
-7. dependents 교집합 `> 0.3` 보완재 감점·대체 이동 쌍 가산·품질 필터 drop이 기대대로 작동하는지 검증
-8. MVP Dependency 응답이 DIRECT로 고정되고 직접/간접 전환 요청이 MVP 계약에 없는지 확인
-9. Dependency 패키지별 Total·특정 버전 독립 변경
-10. 직접 의존 기준 유지·유입·이탈에서 자료 없음·오류 제외
-11. Version Share 응답에 최신 snapshotAt이 있고 시계열 series가 없는지 확인
-12. Version Share 해석 불가 조건을 임의 버전에 포함하지 않는지 확인
-13. 기능 비교 결과가 없어도 MVP 생태계 PDF READY가 가능한지 확인
-14. PDF 부분 결과 생성과 자료 상태 경고
-15. PDF 다운로드 실패 후 동일 파일 재다운로드
-16. Spring Boot 서빙 요청이 PostgreSQL 외 MinIO·MLflow·모델 엔드포인트를 호출하지 않는지 검증
-17. 외부 인바운드가 #2:443 하나이고 내부 포트가 사설 IP/Tailscale에만 열리는지 검증
-18. 새 모델 승격이 `@production` alias + `model_production` 포인터 전환만으로 반영되고 서빙 재기동이 없는지 검증
-19. 두 EC2가 동일 GHCR 이미지 태그로 배포되는지 검증
+5. `text_hash`가 바뀐 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
+6. 패키지별 top-K 50 생성 후 v1 재랭킹 규칙(cos 기반, `move_lift` 미사용)이 적용되는지 검증
+7. dependents 교집합 `> 0.3` 보완재 감점·deprecated 지목 가산·자격 미달 drop이 기대대로 작동하는지 검증
+8. deprecated 51K 홀드아웃 채점 게이트가 Recall@50/Recall@10 하락 시 적재를 중단하고 알림을 발생시키는지 검증
+9. MVP Dependency 응답이 DIRECT로 고정되고 직접/간접 전환 요청이 MVP 계약에 없는지 확인
+10. Dependency 패키지별 Total·특정 버전 독립 변경
+11. 직접 의존 기준 유지·유입·이탈에서 자료 없음·오류 제외
+12. Version Share 응답에 최신 snapshotAt이 있고 시계열 series가 없는지 확인
+13. Version Share 해석 불가 조건을 임의 버전에 포함하지 않는지 확인
+14. 기능 비교 결과가 없어도 MVP 생태계 PDF READY가 가능한지 확인
+15. PDF 부분 결과 생성과 자료 상태 경고
+16. PDF 다운로드 실패 후 동일 파일 재다운로드
+17. Spring Boot 서빙 요청이 PostgreSQL 외 MinIO·MLflow·모델 엔드포인트를 호출하지 않는지 검증
+18. 외부 인바운드가 #2:443 하나이고 내부 포트가 사설 IP/Tailscale에만 열리는지 검증
+19. 새 모델 승격이 `@production` alias + `model_production` 포인터 전환만으로 반영되고 서빙 재기동이 없는지 검증
+20. 두 EC2가 동일 GHCR 이미지 태그로 배포되는지 검증
 
 ### 확장
 
@@ -1136,4 +1153,4 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - Node.js packages: https://nodejs.org/api/packages.html
 - GitHub REST API: https://docs.github.com/en/rest
 
-> **최종 개발 기준** v1은 EC2 #2의 `nginx → Spring Boot → PostgreSQL` 서빙 경로와 EC2 #1의 `cron → Spark → MinIO → Python 유사도 배치 → MLflow → PostgreSQL 스왑` 배치 경로를 분리한다. 후보는 MLflow `@production` 모델의 ONNX 임베딩과 top-K 50·`0.7cos+0.3move_lift` 재랭킹을 거쳐 사전 계산하고, Spring Boot는 PostgreSQL 결과만 조회한다. 외부 GPU는 학습·등록만 담당하고 승격은 #1이 수행한다. GitHub Actions→GHCR→EC2×2 배포, #2:443 단일 외부 인바운드를 유지한다. RAG·외부 LLM·모니터링·Redis 등은 확장이다.
+> **최종 개발 기준** v1은 EC2 #2의 `nginx → Spring Boot → PostgreSQL` 서빙 경로와 EC2 #1의 `cron → Spark → MinIO → Python 유사도 배치 → MLflow → PostgreSQL 스왑` 배치 경로를 분리한다. 후보는 MLflow `@production` 모델의 ONNX 임베딩과 top-K 50·cos 기반 재랭킹(`move_lift` 배제, deprecated 51K 홀드아웃 채점 게이트 통과분만 적재)을 거쳐 사전 계산하고, Spring Boot는 PostgreSQL 결과만 조회한다. 외부 GPU는 학습·등록만 담당하고 승격은 #1이 수행한다. GitHub Actions→GHCR→EC2×2 배포, #2:443 단일 외부 인바운드를 유지한다. RAG·외부 LLM·모니터링·Redis 등은 확장이다.
