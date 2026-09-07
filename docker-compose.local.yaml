@@ -15,5 +15,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+  minio-init:
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./pipeline/minio/.env
+    volumes:
+      - ./pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
 volumes:
   minio-data:
