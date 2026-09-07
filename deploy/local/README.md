@@ -8,6 +8,9 @@ docker compose --profile data up     # minio + spark
 docker compose --profile all  up     # 전부
 ```
 
+DB 는 뜨자마자 스키마가 잡히지만 **테이블은 비어 있다.** 샘플 데이터가 필요하면
+아래 "샘플 데이터 넣기" 의 명령을 한 번 돌린다.
+
 매번 `--profile` 붙이기 번거로우면 `cp .env.example .env` 후 작업에 맞는 프로파일을 적어 두면
 `docker compose up` 만으로 뜬다. (`.env` 는 커밋되지 않으므로 각자 취향대로 두면 된다)
 
@@ -56,6 +59,88 @@ docker volume rm pickage-local_pgdata
 ```
 
 > 스키마 변경은 대부분 이게 필요 없다. 마이그레이션이 자동으로 맞춰 준다.
+
+## 스키마와 샘플 데이터
+
+두 개는 성격이 다르다. **스키마는 앱이 자동으로, 샘플 데이터는 사람이 명령으로** 넣는다.
+
+| | 파일 | 누가 적용하나 |
+| --- | --- | --- |
+| 스키마 (ERD 5개 테이블) | `backend/src/main/resources/db/migration/V1__init.sql` | 앱이 뜰 때 Flyway 가 자동 |
+| 샘플 데이터 | `deploy/local/seed/seed_sample.sql` | **아래 명령으로 직접** |
+
+**테이블은 손으로 만들지 않는다.** 로컬과 운영이 같은 마이그레이션 파일을 쓰므로 스키마가 갈라질 수 없다.
+
+### 샘플 데이터 넣기
+
+```bash
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
+```
+
+몇 번을 돌려도 결과가 같다. `TRUNCATE` 로 비우고 다시 넣으므로 **파일이 곧 시드 상태**다.
+값을 고치고 다시 돌리면 그대로 반영된다.
+
+> ⚠ **이 다섯 테이블은 시드 파일이 소유한다.** 직접 넣은 데이터를 여기 두지 말 것 —
+> 위 명령을 돌리는 순간 사라진다. 살려야 하는 데이터는 다른 곳에 둘 것.
+
+숫자는 전부 지어낸 값이다. 형태만 맞춰 둔 것이므로 분석 근거로 쓰지 말 것.
+
+**경로 앞에 `/` 를 붙이지 말 것.** Git Bash 가 `/seed/...` 를 윈도우 경로로 바꿔서
+`No such file or directory` 가 난다. 컨테이너의 작업 디렉터리가 `/` 라서 상대 경로로도
+같은 파일을 가리키고, 이렇게 쓰면 PowerShell 과 Git Bash 에서 같은 명령이 통한다.
+
+<details>
+<summary>왜 앱이 자동으로 넣지 않나</summary>
+
+Flyway 의 반복 마이그레이션(`R__`)으로 두면 파일이 바뀔 때마다 앱이 알아서 다시 넣는다.
+편하지만 **남이 시드를 고쳐 push 한 것을 내가 pull 한 순간, 내 로컬 데이터가 말없이 사라진다.**
+시드 파일을 건드린 적도 없는 사람에게 그 일이 생긴다. 지우는 시점은 사람이 정해야 한다.
+
+곁따라오는 이득도 있다.
+
+- 시드 파일이 `resources` 밖에 있어 **jar 에 실리지 않는다.** 운영에 들어갈 경로가 아예 없다 —
+  Flyway 설정에 의존해서 막는 것보다 확실하다.
+- 체크섬·적용 이력이 없어서 "시드를 고쳤는데 기동이 막힌다" 류의 함정이 생기지 않는다.
+
+</details>
+
+### 스키마를 바꿀 때
+
+**이미 적용된 `V__` 파일은 고치지 않는다.** 변경은 새 파일로만 한다.
+
+```
+V1__init.sql          ← 고치지 말 것
+V2__add_owner.sql     ← 새로 만든다
+```
+
+Flyway 는 적용한 파일의 체크섬을 `flyway_schema_history` 에 적어 두고 기동할 때마다 대조한다.
+고치면 어긋나서 **기동이 실패한다. 로컬도 예외가 아니다.**
+
+실패 메시지에 안내가 함께 나온다. 둘 중 하나를 고르면 된다.
+
+**1) 파일을 되돌리고 변경을 새 `V__` 로 만든다** — 팀에 이미 공유된 마이그레이션이면 이쪽이다.
+
+**2) 로컬 DB 를 버리고 처음부터 다시 적용한다** — 아직 나만 가진 변경이면 이쪽이다.
+
+```bash
+docker compose --profile api down
+docker volume rm pickage-local_pgdata
+```
+
+> **앱이 DB 를 대신 비워 주지는 않는다.** 검증 실패를 잡아 `clean` 후 재적용하게 만들 수도
+> 있지만, 그건 로컬 DB 의 데이터를 조용히 지우는 경로가 된다. 시드만 있을 때는 손해가 없어
+> 위험이 드러나지 않고, 직접 넣은 데이터나 적재한 수집 결과가 있을 때 처음 드러난다.
+> `spring.flyway.clean-disabled` 를 기본값(비활성)으로 두었으므로 그 경로는 아예 없다.
+
+### 엔티티는 테이블을 따라간다
+
+`spring.jpa.hibernate.ddl-auto: validate` 라서, 엔티티와 실제 테이블이 다르면
+**기동이 실패한다.** 컬럼을 추가하려면 `V__` 마이그레이션을 먼저 쓰고 엔티티를 맞춘다.
+
+**아직 엔티티가 없어서 지금은 검사할 대상도 없다.** 첫 엔티티가 생기는 순간부터 걸린다.
+
+`update` 로 바꾸지 말 것. Hibernate 가 테이블을 말없이 고쳐서 로컬 스키마가 마이그레이션과
+갈라지고, 그 사실은 서버에 올린 뒤에야 드러난다.
 
 ## Spark
 
@@ -122,6 +207,9 @@ s3 = boto3.client(
 | `.env` 에 키를 넣었는데 앱이 못 읽음 | 루트 `.env` 는 compose 파일 해석에만 쓰인다. 컨테이너로 넘기려면 `env_file:` 또는 `environment:` 가 필요하다 |
 | PowerShell 에서 `curl` 이 이상함 | PowerShell 의 `curl` 은 `Invoke-WebRequest` 별칭이다. `curl.exe` 를 쓰거나 Git Bash |
 | Git Bash 에서 `/opt/...` 가 `C:\...` 로 바뀜 | `MSYS_NO_PATHCONV=1` 을 앞에 붙인다 |
+| 기동 실패 — `Validate failed ... checksum mismatch` | 적용된 `V__` 파일을 고쳤다. **정상 동작이다** — 로그의 안내 두 갈래 중 하나를 고를 것 (위 "스키마를 바꿀 때") |
+| 기동 실패 — `SchemaManagementException` / `missing column` | 엔티티와 테이블 불일치. **정상 동작이다** — `V__` 마이그레이션을 먼저 쓸 것 |
+| 시드를 고쳤는데 반영 안 됨 | 시드는 앱이 넣지 않는다. `psql -f seed/seed_sample.sql` 을 다시 돌릴 것 (위 "샘플 데이터 넣기") |
 
 ## 버전을 고정한 이유
 
