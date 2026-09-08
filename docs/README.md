@@ -23,6 +23,10 @@
 - `api & data/depsdev_BigQuery_데이터셋_사용계획_260831.md` — deps.dev BigQuery 데이터셋에서 무엇을 쓸지 확정
 - `api & data/수집계획_BigQuery_Parquet_v2_260902.md` — deps.dev BigQuery → GCS Parquet 수집계획 v2. *확정, T0·T1 수집 완료*
 - `api & data/수집현황_팀공유_260902.md` — 위 수집계획의 팀 공유용 현황 요약
+- `api & data/검증_keywords_수집가능성_260908.md` — AI 유사 패키지 학습용 keywords 수집 가능성·속도 실측 (ecosyste.ms vs npm registry). *권고: ecosyste.ms 상위 100만, 단일 PC 2시간*
+- `api & data/수집결과_keywords_프로파일_260908.md` — 상위 100만 keywords 수집 결과(104분·429 0건)와 결합 전 프로파일: 구간별 보유율, description 결손, tea 스팸 농장, 결합 규칙
+
+수집·계산으로 만든 파생 데이터(폐기→대체 쌍, 마이그레이션 이동쌍, 학습 후보 표본, 수집 대상 목록)는 문서 폴더가 아니라 리포 루트 `../datasets/`에 둡니다. 각 폴더의 README가 열 의미와 생성 스크립트를 설명합니다.
 
 이전 세대였던 0831 서비스 기획 초안 4종(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)은
 `history/0901_260831_oss_shift_초안/` 로 보존했습니다. 그 후속이었던 0901 최종 세트 4종과, 그 세트의

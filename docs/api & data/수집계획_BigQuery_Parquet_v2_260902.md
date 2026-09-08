@@ -182,7 +182,7 @@ BigQuery 온디맨드 단가 $6.25/TiB 기준. 무료분은 실제로는 월 1 T
 - 결과는 **일반 SELECT → 스테이징 테이블(`oss-shift-a506.staging`, 3일 만료) → `extract` 잡 → GCS Parquet** 순으로 쓴다. `EXPORT DATA` 문장은 쓰지 않는다(아래).
 - 실행 전 `--dry_run`으로 §1 수치와 대조. 25% 이상 어긋나면 멈춘다.
 - **`EXPORT DATA`를 쓰지 않는 이유(09-02 리허설 실측)**: EXPORT 문장의 dry-run은 클러스터 프루닝을 추정에 반영하지 않아 PackageVersions가 24.4 → 43.0 GiB로 부풀고 `Name` 필터도 무시된다. `maximum_bytes_billed`는 이 추정치로 검사되므로 실측 기준 상한을 걸면 잡이 거부되고(43 GiB 요구), 상한을 풀면 과금을 보장할 수 없다. 일반 SELECT → 스테이징은 추정·상한·과금이 전부 프루닝을 반영한다(리허설 dry-run 1.325 GiB = 과금 1.326 GiB).
-- 실행 스크립트: `pipeline/bigquery/collect.py` (관문 6개, 매니페스트 멱등성, 원장 `pipeline/bigquery/ledger/ledger.jsonl`). 사용법 `pipeline/bigquery/README.md`. (09-02 `bq_export/`에서 이동)
+- 실행 스크립트: `pipeline/collectors/bigquery/collect.py` (관문 6개, 매니페스트 멱등성, 원장 `pipeline/collectors/bigquery/ledger/ledger.jsonl`). 사용법 `pipeline/collectors/bigquery/README.md`. (09-02 `bq_export/`에서 이동)
 - T1 Projects 백필의 실측 dry-run 합계는 **약 51 GiB**(228 파티션, `SnapshotAt` 열 포함). §1-2의 44.47 GiB는 `SnapshotAt` 없이 잰 값.
 
 경로: `gs://<bucket>/raw/<table>/snapshot=<YYYY-MM-DD>/*.parquet` (T0·T2), `gs://<bucket>/raw/projects/snapshot=<YYYY-MM-DD>/` (T1은 스냅샷별 폴더)
