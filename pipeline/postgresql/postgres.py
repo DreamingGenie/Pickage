@@ -147,18 +147,22 @@ class PgLoader:
         literal = self._literal
         existing = self._send("SELECT row_to_json(e) FROM public.etl_load_execution e "
                               f"WHERE execution_id={literal(execution_id)};")
+        allow_published_contract_change = False
         if existing:
             prior = json.loads(existing[0])
-            identity = {"manifest_sha256": metadata["manifest_sha256"], "contract_sha256": contract_sha256,
-                        "dataset": metadata["dataset"], "snapshot_at": metadata["snapshot"],
+            identity = {"dataset": metadata["dataset"], "snapshot_at": metadata["snapshot"],
+                        "snapshot_timestamp": metadata["snapshot_timestamp"],
                         "curated_run_id": metadata["curated_run_id"], "run_prefix": metadata["run_prefix"],
-                        "expected_counts": metadata["counts"], "input_metadata": metadata["manifest"]}
-            if any(prior[key] != value for key, value in identity.items()):
+                        "manifest_sha256": metadata["manifest_sha256"],
+                        "input_metadata": metadata["manifest"], "expected_counts": metadata["counts"]}
+            same_input = all(prior[key] == value for key, value in identity.items())
+            allow_published_contract_change = prior["status"] == "PUBLISHED" and same_input
+            if not same_input or (prior["contract_sha256"] != contract_sha256 and not allow_published_contract_change):
                 raise ValueError("execution_id already exists with different input or contract")
         published = self._send(
             "SELECT contract_sha256 FROM public.etl_load_execution WHERE dataset='package-version' "
             f"AND manifest_sha256={literal(metadata['manifest_sha256'])} AND status='PUBLISHED' LIMIT 1;")
-        if published and published[0] != contract_sha256:
+        if published and published[0] != contract_sha256 and not allow_published_contract_change:
             raise ValueError("published input has a different load contract; use a new approved input run")
         self._already_published = bool(published)
         values = [execution_id, "package-version", "PREPARING", metadata["snapshot"],
@@ -178,8 +182,9 @@ class PgLoader:
                    "ON CONFLICT (execution_id) DO UPDATE SET "
                    "status=CASE WHEN etl_load_execution.status='PUBLISHED' THEN 'PUBLISHED' ELSE 'PREPARING' END, "
                    "active_attempt_id=EXCLUDED.active_attempt_id,error_message=NULL,updated_at=clock_timestamp(); "
-                   "INSERT INTO public.etl_load_attempt (attempt_id,execution_id,status,phase) VALUES (" +
-                   f"{literal(attempt_id)},{literal(execution_id)},'PREPARING','VALIDATE_INPUT'); COMMIT;")
+                   "INSERT INTO public.etl_load_attempt "
+                   "(attempt_id,execution_id,status,phase,validation_contract_sha256) VALUES (" +
+                   f"{literal(attempt_id)},{literal(execution_id)},'PREPARING','VALIDATE_INPUT',{literal(contract_sha256)}); COMMIT;")
         self._registered = True
         self.phase = "VALIDATE_INPUT"
         return self._already_published

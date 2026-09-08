@@ -32,6 +32,60 @@ manifest의 `table=projects`, `snapshot`, `status=done`, `verify=ok`, 기대 행
 DB 실행 이력이나 지표의 PUBLISHED·서비스 준비 완료를 자동으로 선언하지 않는다.
 SQL 실행 여부·대상 DB·실행 이력 연결은 별도 적재 절차의 책임이다. 검증용 SQL 실행은 아래 테스트로 수행한다.
 
+## `snapshot-reference` 실행 이력 적재
+
+`pipeline.snapshot.load`는 candidate가 고정한 calendar 전체를 하나의 실행으로 등록한다.
+부모 실행의 `snapshot_at`, `snapshot_timestamp`, `curated_run_id`는 NULL이며,
+각 날짜·원천 시각·직전 날짜는 `etl_snapshot_reference`에 기록한다. 부모 `manifest_sha256`은
+candidate 파일의 SHA-256이다. 입력 metadata에는 candidate 원문과 Projects inventory SHA-256을 포함하고, 선택한
+`--prior-receipt`가 있으면 원래 date-only 적재 receipt 원문과 SHA-256도 함께 보존한다.
+
+candidate와 `projects-inventory.json`은 매 실행 다시 읽는다. source footer의 전체 파일 목록,
+크기·mtime·footer 통계·해시·행 수와 inventory를 재검증하고, calendar와 생성 가능한 SQL의
+바이트·SHA가 동일해야 한다. SQL 파일을 실행해 날짜를 추론하지 않으며, 검증된 calendar로만
+SQL을 생성한다. candidate와 source 원본은 변경하지 않는다.
+
+실행 등록과 날짜 적재의 경계는 다음과 같다.
+
+- `PREPARING` 등록은 별도 commit으로 남긴다.
+- 날짜·실행별 날짜 연결 행·execution 및 attempt의 성공 기록을 하나의 트랜잭션으로 확정한다.
+- 실패한 attempt는 `FAILED`가 된다. 처음 적재하다 실패한 execution도 `FAILED`가 되지만,
+  이미 `PUBLISHED`인 실행의 재검증 실패는 최초 성공 상태를 보존한다. 누락된 행을 자동 복구하지 않는다.
+- 같은 execution ID는 동일 input으로 이미 `PUBLISHED`인 경우에만 DB 내용 재검증 후
+  attempt가 `REVERIFIED`가 된다. 신규 ID가 이미 존재하는 날짜만 가리키면 날짜 추가는 0건이고,
+  새 실행의 날짜 연결 행을 생성한다. DB 상태는 `PUBLISHED`, 보고서 action은 `LINKED_EXISTING`이다.
+- `active_attempt_id`는 최신 시도다. 최초 성공 attempt의 완료 시각과 부모의 최초
+  `actual_counts`·`contract_sha256`은 보존하며, 현재 검증 계약은 새 attempt에 기록한다.
+- 현재 포인터는 갱신하지 않는다. 날짜가 준비되었다는 사실은 서비스 준비 완료를 뜻하지 않는다.
+
+V3 스키마는 Flyway가 관리한다. 이 CLI는 자동 migration을 수행하지 않으며, 기존 V1/V2
+migration 파일을 수정하지 않는다.
+
+검증만 수행하려면 PostgreSQL 옵션 없이 다음처럼 실행한다.
+
+```powershell
+.venv-bq\Scripts\python.exe -m pipeline.snapshot.load `
+  --candidate data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json `
+  --execution-id verify-calendar-20260908 `
+  --verify-only
+```
+
+DB에 적재할 때는 대상 database와 Docker container 또는 host `psql`을 명시한다. 이전
+date-only 적재 receipt를 연결할 때만 `--prior-receipt`를 추가한다.
+
+```powershell
+.venv-bq\Scripts\python.exe -m pipeline.snapshot.load `
+  --candidate data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json `
+  --execution-id calendar-20260908 `
+  --docker-container <postgres-container> `
+  --database <validation-database> `
+  --prior-receipt data/snapshot/date-load/receipt.json
+```
+
+전용 advisory lock과 reference table `SHARE ROW EXCLUSIVE` lock을 사용하며,
+트랜잭션의 `lock_timeout`은 2초, `statement_timeout`은 30초다. 후속 서비스 준비 상태와
+공통 readiness 판정은 아직 구현 범위가 아니다.
+
 ## 확정한 269 v1 정책
 
 | 항목 | 적용 규칙 / 의미 |
@@ -61,28 +115,29 @@ SQL 실행 여부·대상 DB·실행 이력 연결은 별도 적재 절차의 �
 
 ## 267 및 후속 작업 연결
 
-- 267의 `etl_load_execution.snapshot_at DATE`와 같은 UTC 기준일 의미를 사용한다.
-- `snapshot_timestamp`의 원천 microseconds를 유지하며 기존 DB TIMESTAMP 저장 시 timezone 표현만 어댑터에서 맞춘다.
+- 267의 단일 스냅샷 실행과 같은 UTC 기준일 의미를 사용하되, calendar 실행의 날짜는 연결 테이블에 저장한다.
+- `etl_snapshot_reference.snapshot_timestamp TIMESTAMPTZ`에 원천 시각과 microseconds를 보존한다.
 - 입력 목록 해시·정책 버전/해시·snapshot별 이전 P·지표별 실제 원천 시각·NULL 사유를 후속 manifest에 전달한다.
 - DB `snapshot` 행 존재와 지표 준비 완료는 별도다. 서비스 완료 판정은 필수 dataset의 동일 snapshot·호환 정책·승인 입력과 PUBLISHED를 확인해야 한다.
-- 공통 준비 상태 저장 위치와 267 loader 연동은 미구현이다.
+- 공통 실행 이력 연결과 package/version의 계약 변경 재검증 호환 처리를 구현했다. 지표별 준비 상태와 서비스 공개 판정은 후속이다.
 - 후속 다운로드 구간 집계·저장소 지표 생성·requirements 대상 버전 해석·버전별 dependents 집계는 같은 candidate의 목록과 `snapshot-time-v1` 정책 버전·해시를 참조하도록 통합해야 한다.
-- V1/V2·기존 loader·267 실행 DB는 이 모듈이 변경하지 않는다.
+- V1/V2 및 서비스 테이블 DDL은 유지한다. V3는 공통 실행 이력과 날짜 연결 구조를 추가하며, 실제 반영 기록은 [269 결과](../../docs/worklogs/S15P21A506-269/05-results.md)에 있다.
 
 ## 검증
 
 ```powershell
-.\.venv-bq\Scripts\python.exe -m unittest pipeline.snapshot.test_policy pipeline.snapshot.test_projects pipeline.snapshot.test_build -v
+.\.venv-bq\Scripts\python.exe -m unittest pipeline.snapshot.test_policy pipeline.snapshot.test_projects pipeline.snapshot.test_build pipeline.snapshot.test_input pipeline.snapshot.test_load -v
 ```
 
-실제 PostgreSQL 테스트는 기존 **검증용** 컨테이너 안에 테스트마다 `pickage_269_test_<uuid>` DB를
-새로 만들고 삭제한다. V1·V2는 읽어서 적용하고, 기존 DB·seed·267 적재 프로세스는 사용하지 않는다.
+실제 PostgreSQL 테스트는 기존 **검증용** 컨테이너 안에 테스트마다 `pickage_269_test_<uuid>` 또는
+`pickage_269_history_test_<uuid>` DB를 새로 만들고 삭제한다. 날짜 전용 테스트는 V1·V2,
+실행 이력 테스트는 V3까지 적용하며 기존 DB·seed·267 적재 프로세스는 사용하지 않는다.
 원천 후보 파일을 지정하면 실제 날짜 전체의 최초 적재·재실행 후 정확한 날짜 집합을 대조한다.
 
 ```powershell
 $env:PICKAGE_SNAPSHOT_TEST_CONTAINER = 'pickage-267-validation'
 $env:PICKAGE_SNAPSHOT_CANDIDATE = (Resolve-Path data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json).Path
-.\.venv-bq\Scripts\python.exe -m unittest pipeline.snapshot.test_integration -v
+.\.venv-bq\Scripts\python.exe -m unittest pipeline.snapshot.test_integration pipeline.snapshot.test_history -v
 ```
 
 컨테이너 또는 실제 candidate를 지정하지 않은 테스트는 skip이며 통과로 합산하지 않는다.

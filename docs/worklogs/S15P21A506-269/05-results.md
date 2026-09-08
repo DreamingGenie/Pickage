@@ -3,7 +3,9 @@
 **Projects에서 추출한 스냅샷 229개를 267 전체 데이터 DB `pickage_267_full_defaulted`에 반영했다.**
 2026-09-08 14:59:39 +09:00 기준 최초 신규 229행, 동일 SQL 재실행 신규 0행이며 전체 날짜 집합이
 입력과 일치한다. 기존 격리 PostgreSQL에서의 적재·재실행·오류 롤백 검증도 통과했다.
-267 공통 실행 이력 및 서비스 준비 상태 연결은 남아 있으므로 **269 전체 티켓은 부분 완료**다.
+2026-09-08 22:02:23 +09:00에는 **공통 실행 이력과 날짜별 계보 229행 연결도 완료**했다.
+첫 이력 연결은 `LINKED_EXISTING`, 동일 실행 재검증은 `REVERIFIED`이며 날짜 추가는 모두 0건이다.
+서비스 준비 상태 연결은 남아 있으므로 **269 전체 티켓은 부분 완료**다.
 
 ## 실제 변경
 
@@ -12,16 +14,22 @@
 | `pipeline/snapshot/policy.py`, `__init__.py` | UTC 시각/날짜 구분, 직전 P, `[P,S)` coverage·NULL 사유, 정확 Projects 관측·같은 snapshot 버전 대상 정책 |
 | `pipeline/snapshot/projects.py` | Projects manifest 및 모든 Parquet의 SnapshotAt footer 통계·행 수 검사, 원천 목록·manifest/footer 해시 |
 | `pipeline/snapshot/build.py` | 고정 calendar·정책/입력 해시·로컬 상태 산출물, 명시적 날짜 INSERT SQL |
+| `pipeline/snapshot/input.py`, `load.py`, `postgres.py` | 후보·원천 재검증, 실행 이력 등록·원자적 날짜 계보 게시·DB 재검증, 기존 날짜 적재 receipt 연결 |
+| `V3__add_snapshot_reference_execution.sql` | calendar 실행과 날짜별 계보 관계, snapshot-reference 전용 부모 NULL 범위, attempt별 검증 계약 해시 |
+| `pipeline/postgresql/postgres.py`, 통합 테스트·README | 동일 게시 입력을 새 계약으로 재검증하는 호환 처리, 최초 계약 해시 보존 |
 | `pipeline/snapshot/test_*.py` | 순수 정책·입력·산출물 테스트 및 새 격리 PostgreSQL 검증 |
 | `pipeline/snapshot/README.md` | 실행 방법, 적용 정책과 공식 계약 구분, 267/후속 연결·제한 |
-| `docs/worklogs/S15P21A506-269/` | 267 형식의 기록 6개 및 검증 증거 |
+| `docs/worklogs/S15P21A506-269/` | 267 형식의 기록 6개, 실행 이력 계약 및 검증 증거 |
 | [267 문서 안내](../S15P21A506-267/README.md), [267 작업 정의](../S15P21A506-267/01-scope.md) | 임시 계획 문서 참조를 커밋에 포함되는 작업 정의·실행 안내로 교체 |
 
-기존 loader·V1/V2 및 267 실행 이력/검증 증거는 보존했으며, 이번에는 문서 참조만 수정했다.
+최초 구현 커밋 `5100c15`에서는 267 문서 참조만 정리했다. 후속 실행 이력 연동에서는
+V3와 스냅샷 적재 경로 및 기존 loader의 재검증 호환 처리를 추가했다.
+V1/V2, 기존 267 실행 이력·검증 증거와 서비스 데이터는 보존했다.
 최초 병행 구현과 DB 적재는 267 브랜치에서 수행했고, 이후 사용자가
 `feat/S15P21A506-269-snapshot-contract-load` 브랜치로 분리했다.
 후속 승인으로 대상 DB의 snapshot 날짜만 추가했으며 실행 증거는 아래 V-004에 보존한다.
-커밋·push·MR·Jira 갱신은 수행하지 않았다.
+사용자가 최초 구현을 `5100c15`로 커밋했다. 이번 실행 이력 연동 변경은 아직 커밋하지 않았고,
+push·MR·Jira 갱신도 수행하지 않았다.
 
 ## 완료 기준별 판정
 
@@ -31,9 +39,10 @@
 | AC-02 순서·중복·P 독립성 | 통과 | V-001. 입력 순서와 무관한 정렬, 중복 instant 제거, 같은 UTC DATE 충돌 거부, P는 고정 목록에서 계산 |
 | AC-03 기간·누락·실제 0 구분 | 통과 | V-001. 14일·인접 경계·최초·범위 밖·missing_dates 검사. 실제 합계 계산은 다운로드 구간 집계 범위 |
 | AC-04 미래 관측·과거 대상 제한 | 통과 | V-001. 미래/이전 Projects 값 자동 선택 없음, 다른 snapshot 버전의 eligible은 미확인 |
-| AC-05 버전·해시·범위 | 통과 | V-002. candidate의 정책/입력/SQL 해시와 목록을 보존. DB 공통 이력 연결은 후속 |
+| AC-05 버전·해시·범위 | 통과 | V-002·006. candidate의 정책/입력/SQL 해시와 목록 보존 및 DB 공통 이력 연결 완료 |
 | AC-06 독립·실제 원천 검증 | 통과 | V-001~003. 17 단위 + 3 실제 PostgreSQL 테스트, skip 0. V-004에서 267 대상 DB의 229개 날짜 반영·재실행 확인 |
-| 269 전체 범위 | 부분 완료 | 날짜 DB 반영 및 시간 정책·후속 통합 요구사항 문서화 완료. 공통 실행 이력·dataset 준비 상태·다운로드 구간 집계·저장소 지표 생성·requirements 대상 버전 해석·버전별 dependents 집계 실행 코드 연결 미구현 |
+| AC-07 실행 이력·원자성·재검증 | 통과 | V-005~006. 한 실행과 229개 날짜 연결, 기존 날짜·package/version 이력 보존, 실패 롤백·재실행·계약 변경 검증 |
+| 269 전체 범위 | 부분 완료 | 날짜·공통 이력 연동 완료. dataset 준비 상태 및 서비스 공개 판정은 미구현. 후속 다운로드·저장소 지표·의존성 계산 코드 연결도 별도 작업 |
 
 ## V-001 — 독립 테스트
 
@@ -95,10 +104,10 @@ Flyway 엔진 기동도 실행하지 않았으며 V1·V2 SQL을 검증 DB에 직
 
 ## 합류 시 남은 작업
 
-1. 267 공통 실행 이력에 snapshot-reference 입력 목록 해시·정책 버전/해시·원천 timestamp를 연결한다.
-2. 날짜 반영은 V-004에서 완료했다. 이번 로컬 실행 증거를 공통 DB 실행 이력과 연결하고, 이후 적재는 날짜와 실행 이력을 함께 확정하도록 통합한다.
-3. snapshot 날짜 등록과 필수 dataset별 준비/PUBLISHED를 구분하고 서비스의 완료 snapshot 선택에 연결한다.
-4. 다운로드 구간 집계·저장소 지표 생성·requirements 대상 버전 해석·버전별 dependents 집계의 후속 실행 코드를 [스냅샷 시간 정책과 연동 기준](../../../pipeline/snapshot/README.md)에 맞춰 연결한다. 동일 후보 목록·정책 버전·해시를 참조하고, 각 과거 시점 package/version 원천 확보 여부는 별도로 판정한다.
+공통 실행 이력과 기존 날짜 적재 receipt 연결, 날짜·계보·성공 기록의 원자적 반영은 V-006에서 완료했다.
+
+1. snapshot 날짜 등록과 필수 dataset별 준비/PUBLISHED를 구분하고 서비스의 완료 snapshot 선택에 연결한다.
+2. 다운로드 구간 집계·저장소 지표 생성·requirements 대상 버전 해석·버전별 dependents 집계의 후속 실행 코드를 [스냅샷 시간 정책과 연동 기준](../../../pipeline/snapshot/README.md)에 맞춰 연결한다. 동일 후보 목록·정책 버전·해시를 참조하고, 각 과거 시점 package/version 원천 확보 여부는 별도로 판정한다.
 
 후속 실행은 현재 후보를 그대로 참조하거나 새 Projects 입력을 새 디렉터리로 생성한다.
 입력 목록 변경으로 P가 달라지면 입력 해시도 달라지므로 기존 기간을 조용히 덮어쓰지 않는다.
@@ -133,6 +142,46 @@ Flyway 엔진 기동도 실행하지 않았으며 V1·V2 SQL을 검증 DB에 직
 이전 candidate는 입력 산출물이므로 `LOCAL_VALIDATED`와 `db_published=false`를 그대로 보존했다.
 실제 DB 날짜 커밋 여부는 별도 실행 기록의 `COMMITTED_AND_VERIFIED`로 구분한다.
 스냅샷 날짜 등록은 모든 지표가 준비됐거나 서비스 snapshot 공개가 완료됐다는 뜻이 아니다.
+
+V-004는 날짜만 반영한 당시 기록으로 보존한다. 해당 receipt는 이후 V-006의 DB 입력 이력에
+원문·SHA로 연결했다. 과거 실행 시각이나 당시 `common_etl_history_written=false`를 바꾸지 않았다.
+
+## V-005 — 실행 이력 및 기존 적재기 회귀 검증
+
+- 단위·입력·CLI 검증 **29개**, 실제 PostgreSQL 통합 검증 **34개** 통과.
+- failures 0, errors 0, skipped 0. 테스트 러너 시간은 각각 0.587초, 133.790초다.
+- PostgreSQL 34개는 스냅샷 이력 13개, 기존 날짜 적재 3개, package/version 회귀 18개다.
+- 날짜/계보/성공 기록 직후 오류 주입의 전체 롤백, 같은 ID 재시도, 다른 ID의 독립 계보,
+  원천 시각 충돌, advisory/table lock, 손상된 게시 계보의 재검증 실패와 기존 성공 상태 보존을 확인했다.
+- V3 이후 package/version은 같은 ID·같은 게시 입력만 새 계약으로 재검증할 수 있고,
+  부모의 과거 계약 해시는 유지된다. 새 검증 해시는 attempt에 기록한다.
+- 테스트마다 만든 DB는 종료 후 삭제했다. 267 전체 데이터 입력 재검증을 다시 실행한 결과로
+  해석하지 않는다. 원래 테스트 17+3개와 이번 63개를 합쳐 별개 테스트 수로 계산하지 않는다.
+
+[실행 도구에서 확인한 결과·모듈 목록·코드 SHA](evidence/history-tests.json).
+전체 콘솔 원문은 별도 파일로 보존하지 않았으며, 해당 JSON은 관측한 실행 결과 요약이다.
+
+## V-006 — 기존 전체 데이터 DB의 실행 이력 연결
+
+실행 ID는 `snapshot-history-269-projects-v1`, DB는 기존 로컬 `pickage_267_full_defaulted`다.
+2026-09-08 22:02:06 +09:00에 V3를 적용하고, 22:02:23 +09:00에 두 시도의 검증을 완료했다.
+이 DB에는 Flyway 이력 테이블이 없어 V3 SQL을 `psql -X -v ON_ERROR_STOP=1 --single-transaction`으로
+직접 적용했다. 애플리케이션 Flyway 기동을 검증한 것은 아니다.
+
+| 항목 | 실제 결과 |
+| --- | --- |
+| 첫 이력 연결 | action `LINKED_EXISTING`, execution/attempt `PUBLISHED`, 날짜 추가 0건·기존 229개·계보 229행 |
+| 동일 실행 재시도 | action/attempt `REVERIFIED`, execution `PUBLISHED`, 날짜 추가 0건·계보 229행 유지 |
+| 정확한 계보 | DB의 날짜·원천 timestamp·직전 날짜·구간 길이 229행을 입력과 전체 대조 |
+| 입력 검증 | 매 실행 Projects 목록·파일 stat/footer·manifest SHA·calendar·정책·SQL 대조 |
+| 과거 실행 연결 | V-004의 날짜 적재 receipt 원문·SHA를 DB `input_metadata.prior_date_load`에 기록 |
+| 기존 상태 보호 | 모든 package/version 실행·attempt의 기존 필드, dataset current, 서비스 컬럼 계약 및 전체 snapshot 날짜 집합이 전후 동일 |
+| 공개 상태 | `etl_dataset_current`는 변경하지 않음. 지표별 서비스 준비 완료는 선언하지 않음 |
+
+[실제 반영·재실행·전후 비교](evidence/history-db-load.json).
+전체 입력을 포함한 상세 실행 보고서는 해당 요약에 로컬 경로·SHA로 연결했다.
+부모 `manifest_sha256`은 candidate 파일 해시, `contract_sha256`은 최초 게시 코드/스키마 계약,
+정책 hash는 입력 candidate에 기록되어 각각의 의미를 구분한다.
 
 ## 검토 및 정적 확인
 

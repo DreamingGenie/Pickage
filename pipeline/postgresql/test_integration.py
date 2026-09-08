@@ -135,6 +135,12 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.publish()
         self.assertEqual(self.sql("SELECT string_agg(status,',' ORDER BY created_at) FROM public.etl_load_attempt;"), "FAILED,PUBLISHED")
 
+    def test_failed_execution_rejects_contract_change(self):
+        with self.assertRaisesRegex(RuntimeError, "failpoint"):
+            self.publish(failpoint="after_package_insert", contract="a" * 64)
+        with self.assertRaisesRegex(ValueError, "different input or contract"):
+            self.publish(contract="b" * 64)
+
     def test_database_copy_error_has_failure_history(self):
         self.versions[0] = (*self.versions[0][:5], "invalid-json", *self.versions[0][6:])
         with self.assertRaises(Exception):
@@ -159,9 +165,20 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.publish()
         with self.assertRaisesRegex(ValueError, "different input or contract"):
             self.publish(self.metadata(run="other"))
-        with self.assertRaisesRegex(ValueError, "different input or contract"):
-            self.publish(contract="b" * 64)
+        with self.assertRaisesRegex(ValueError, "different load contract"):
+            self.publish(execution="other-execution", contract="b" * 64)
         self.assertEqual(self.sql("SELECT status FROM public.etl_load_execution;"), "PUBLISHED")
+
+    def test_published_same_execution_allows_new_contract_and_records_attempt_hash(self):
+        self.publish(contract="a" * 64)
+        result = self.publish(contract="b" * 64)
+        self.assertEqual(result["action"], "REVERIFIED")
+        self.assertEqual(self.sql("SELECT contract_sha256 FROM public.etl_load_execution;"), "a" * 64)
+        self.assertEqual(
+            self.sql("SELECT string_agg(validation_contract_sha256,',' ORDER BY created_at) "
+                     "FROM public.etl_load_attempt;"),
+            "a" * 64 + "," + "b" * 64,
+        )
 
     def test_same_input_retry_records_reverification(self):
         self.publish()

@@ -143,8 +143,10 @@ data/postgresql/{execution_id}/{attempt_id}/
 
 ## 실행 이력과 재실행 계약
 
-Flyway V2가 만든 실행 이력은 `etl_load_execution`, `etl_load_attempt`,
-`etl_dataset_current`에 기록된다.
+Flyway V2가 만든 package-version 실행 이력은 `etl_load_execution`, `etl_load_attempt`,
+`etl_dataset_current`에 기록된다. V3는 `snapshot-reference` 실행 계보와
+`etl_load_attempt.validation_contract_sha256`를 추가한다. V3도 Flyway가 관리하며 loader가
+자동 migration하지 않는다.
 
 | 이력 | 허용 상태 | 의미 |
 | --- | --- | --- |
@@ -154,10 +156,14 @@ Flyway V2가 만든 실행 이력은 `etl_load_execution`, `etl_load_attempt`,
 
 `execution_id`는 입력·적재 계약을 식별하고 `attempt_id`는 각 재시도를 식별한다. 다음 규칙을 지킨다.
 
-- 같은 `execution_id`는 dataset, snapshot, Curated run/prefix, manifest SHA-256, 기대 건수,
-  입력 metadata, contract SHA-256이 모두 같아야 재시도할 수 있다. 하나라도 다르면 거부한다.
+- 같은 `execution_id`는 dataset, snapshot, snapshot timestamp, Curated run/prefix, manifest
+  SHA-256, 기대 건수, 입력 metadata가 같아야 한다. 기존 PUBLISHED 실행이 이 입력 identity와
+  같으면 현재 contract로 `INPUT_ONLY` 재검증할 수 있으며, 새 attempt의
+  `validation_contract_sha256`에 현재 hash를 기록한다. 부모 `contract_sha256`는 최초 게시의
+  역사값으로 보존한다. FAILED/PREPARING 실행이나 입력이 바뀐 실행의 contract 변경은 거부한다.
 - 동일한 manifest를 다른 contract로 재사용할 수 없다. 이미 게시된 입력의 contract가 다르면
-  새 승인 입력 run을 사용한다.
+  새 승인 입력 run을 사용한다. 단, 동일 execution ID의 동일 PUBLISHED input을 재검증하는
+  위의 호환 규칙은 예외다. 신규 execution ID로 우회할 수 없다.
 - 이전 세션이 `PREPARING`으로 남아 있으면 새 세션이 attempt 상태를 `FAILED`, phase를
   `ABANDONED`로 남긴 뒤 새 attempt를 등록한다. 실제 프로세스가 살아 있는 동안에는
   advisory lock 때문에 동시에 시작할 수 없다.
@@ -226,7 +232,8 @@ commit 여부를 확인한다. 확인할 수 없는 동안 수동으로 상태�
 일반 로컬·운영 DB의 스키마는 다음 Flyway 마이그레이션을 애플리케이션 기동 시 적용한다.
 
 - `backend/src/main/resources/db/migration/V1__init.sql`
-- `backend/src/main/resources/db/migration/V2__add_curated_load_execution.sql` — 실행/attempt/current 이력만 추가하며 V1 서비스 5개 테이블과 `dependency` DDL은 변경하지 않는다.
+- `backend/src/main/resources/db/migration/V2__add_curated_load_execution.sql` — package-version 실행/attempt/current 이력만 추가하며 V1 서비스 5개 테이블과 `dependency` DDL은 변경하지 않는다.
+- `backend/src/main/resources/db/migration/V3__add_snapshot_reference_execution.sql` — snapshot-reference 계보와 attempt 검증 contract 해시를 추가한다.
 
 이미 적용한 `V*.sql`을 수정하지 말고 새 버전 migration을 추가한다. 통합 테스트의
 `pipeline/postgresql/test_integration.py`는 격리된 테스트 데이터베이스를 만들고 V1·V2를
