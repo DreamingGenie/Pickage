@@ -1,0 +1,46 @@
+{
+  "snapshot_count": 229,
+  "first_snapshot_at": "2022-05-08",
+  "last_snapshot_at": "2026-08-31",
+  "source_file_count": 1879,
+  "source_rows_from_footer": 834887141,
+  "source_file_bytes": 18858352794,
+  "row_groups": 1879,
+  "interval_days_histogram": {
+    "1": 5,
+    "3": 2,
+    "4": 3,
+    "6": 21,
+    "7": 174,
+    "8": 17,
+    "10": 3,
+    "11": 1,
+    "14": 1,
+    "18": 1
+  },
+  "last_calendar_row": {
+    "download_end_exclusive": "2026-08-31",
+    "download_start_inclusive": "2026-08-24",
+    "interval_days": 7,
+    "interval_reason": null,
+    "previous_snapshot_at": "2026-08-24",
+    "previous_snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+    "snapshot_at": "2026-08-31",
+    "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+    "source_timestamps": [
+      "2026-08-31T21:01:10.517131Z"
+    ]
+  },
+  "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690",
+  "candidate_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+  "inventory_sha256": "edf247908c3e320f4afa41683a720a0757efd070d8b07a703d655804f9d455f0",
+  "sql_sha256": "65b15e40787cc6124413a9cc49bfbcfdc0f7e125f706471deb5bdf79d7e922e9",
+  "source_validation": "PARQUET_FOOTER_TIMESTAMP_CHECKED",
+  "created_at": "2026-09-08T05:34:41.641339+00:00",
+  "db_published": false,
+  "paths": {
+    "snapshot-candidate.json": "data\\snapshot\\S15P21A506-269\\projects-v1\\snapshot-candidate.json",
+    "projects-inventory.json": "data\\snapshot\\S15P21A506-269\\projects-v1\\projects-inventory.json",
+    "snapshot-dates.sql": "data\\snapshot\\S15P21A506-269\\projects-v1\\snapshot-dates.sql"
+  }
+}

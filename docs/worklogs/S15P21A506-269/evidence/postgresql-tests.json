@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-09-08T05:35:30.655394+00:00",
+  "tests_run": 3,
+  "failures": 0,
+  "errors": 0,
+  "skipped": [],
+  "elapsed_seconds": 9.578,
+  "successful": true,
+  "log_sha256": "232bc010a3abed234eb50b3f677202112b8f289283ff16f63270ec3f0895a9fa",
+  "container": "pickage-267-validation",
+  "database_scope": "new pickage_269_test_<uuid> per test, dropped by cleanup",
+  "candidate": "data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json"
+}
