@@ -141,6 +141,10 @@ services:
       - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
       - --memory
       - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 6g}"
+      # master 가 executor 를 띄우라고 이 포트로 되연결한다. 고정하지 않으면
+      # 임의 포트라 방화벽을 통과하지 못하고 job 이 조용히 멈춘다.
+      - --port
+      - "40020"
       - --webui-port
       - "8081"
     environment:
