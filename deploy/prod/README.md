@@ -4,8 +4,8 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker②(배치 시각만) |
-| **`data`** | `j15a506**a**.p.ssafy.io` | [`data/`](data/README.md) | minio · Spark master·worker① (이후 mlflow · 수집 cron) |
+| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker②(배치 시각만) |
+| **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · Spark master·worker① (이후 mlflow · 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
 손으로 띄운 컨테이너에서 넘어오는 절차가 있다) — [data/README.md](data/README.md) 를 볼 것.

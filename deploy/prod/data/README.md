@@ -249,7 +249,7 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 | 증상 | 원인 |
 | --- | --- |
-| worker② 가 master 에 안 붙는다 | 두 노드 사이 **7077 이 안 열렸다.** `python3 -m http.server 7077` 로 맨 포트부터 확인할 것 |
+| worker② 가 master 에 안 붙는다 | 두 노드 사이 7077 이 막혔다. **2026-09-08 에 양방향 200 으로 확인했으므로** 이게 원인이면 그 사이 뭔가 바뀐 것이다. `python3 -m http.server 7077` 로 맨 포트부터 다시 확인할 것 |
 | worker 는 붙었는데 job 이 executor 붙는 데서 멈춘다 | **동적 포트가 막혔다.** master↔worker 만 열려도 driver↔executor 는 임의의 높은 포트를 쓴다 |
 | master 로그의 worker 주소가 `172.17.x.x` 나 `172.19.x.x` | docker0 이나 컨테이너 IP 를 광고했다. `SPARK_LOCAL_IP` 가 사설 IP 로 설정됐는지 볼 것 |
 | executor 만 s3a 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
