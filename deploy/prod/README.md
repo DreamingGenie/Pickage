@@ -4,8 +4,8 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) |
-| **`data`** | `j15a506**a**.p.ssafy.io` | [`data/`](data/README.md) | minio (이후 spark · mlflow · 수집 cron) |
+| **`app`** | `j15a506.p.ssafy.io` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker②(배치 시각만) |
+| **`data`** | `j15a506**a**.p.ssafy.io` | [`data/`](data/README.md) | minio · Spark master·worker① (이후 mlflow · 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
 손으로 띄운 컨테이너에서 넘어오는 절차가 있다) — [data/README.md](data/README.md) 를 볼 것.
@@ -321,12 +321,52 @@ docker rmi pickage-api:<지울 태그>
 | `.env` 를 커밋 | 운영 DB 비밀번호가 GitLab 에 남는다. 지워도 히스토리에 남는다 |
 | 적용된 `V__` 파일 수정 | checksum 불일치로 **운영 앱이 기동에 실패한다** |
 | `API_TAG=latest` | 지금 뜬 게 어느 커밋인지 알 수 없고 롤백할 이름이 없어진다 |
+| 배치 시각에 배포 | 메모리가 캡을 넘긴다. **Swap 0 이라 즉시 OOM Kill** — 커널이 Postgres 를 고를 수도 있다 |
 
 ---
+
+## Spark worker② (배치 시각만)
+
+이 노드는 배치 때 Spark worker 를 겸한다. **평소에는 뜨지 않는다** — `profiles` 에
+들어 있어서 `docker compose up -d` 로는 시작되지 않는다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/app
+docker compose --profile batch up -d spark-worker-2     # 배치 전
+docker compose --profile batch stop spark-worker-2      # 배치 후
+```
+
+master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거기서 돌린다 —
+[data/README.md](data/README.md) 의 "Spark (배치)".
+
+### ⚠ 배치 시각에는 배포하지 말 것
+
+이 노드의 메모리가 이때 가장 빠듯하다.
+
+```
+postgres 2g + api 1.6g + web 0.25g + worker② 6.5g ≈ 10.4g / 15Gi
+```
+
+여기에 **배포가 겹치면 Gradle·npm 빌드가 메모리를 더 먹는다.** 그리고 이 서버는
+**Swap 이 0** 이라 넘기는 순간 완충 없이 OOM Kill 이고, 커널이 무엇을 죽일지 우리가
+고를 수 없다 — **Postgres 를 고를 수도 있다.**
+
+배치와 배포가 겹칠 것 같으면 worker② 를 먼저 멈추고 배포한다.
+
+### `network_mode: host` 인 이유
+
+`spark-worker-2` 는 다른 서비스와 달리 compose 네트워크에 없다. Spark 의 master·driver·
+executor 는 **서로를 되부르는데**, bridge 네트워크에서는 컨테이너가 자기 컨테이너
+IP(172.19.x.x)를 광고하고 상대 호스트는 그 주소로 라우팅할 수 없다. job 이 시작은 하고
+**executor 붙는 데서 조용히 멈춘다.**
+
+대가로 worker 웹 UI(8081)가 `0.0.0.0` 에 붙는다. 막는 것은 보안그룹뿐이다 —
+이 노드는 80·443·22 만 열려 있다. **포트를 더 열게 되면 이 줄을 다시 볼 것.**
 
 ## 아직 없는 것
 
 | | 지금은 어떻게 되어 있나 |
 | --- | --- |
 | CI 자동 배포 | 위 "배포 (손으로)" 를 사람이 실행한다. 붙으면 `main` push 로 자동이 된다 |
-| `data` 노드의 Spark · MLflow · 수집 cron | 없다. [data/README.md](data/README.md) 의 compose 에 서비스로 추가된다 |
+| `data` 노드의 MLflow · 수집 cron | 없다. [data/README.md](data/README.md) 의 compose 에 서비스로 추가된다 |
+| `batch_run_stats` 테이블 | 없다. 분산 증빙은 지금은 스모크 잡의 `EXECUTOR_HOSTS` 출력으로 한다 |

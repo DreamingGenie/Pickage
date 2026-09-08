@@ -190,9 +190,78 @@ Spark 는 `fs.s3a.path.style.access=true`. 버킷별 역할과 경로 규칙은
 | MinIO 버전 올리기 | 콘솔 기능이 축소된 이력이 있다. 백업 → 콘솔 확인 순서로, **이관과 다른 날에** |
 | `ports` 의 `127.0.0.1:` 제거 | 자격증명만 통과하면 버킷 전체를 읽고 쓸 수 있는 문이 열린다 |
 
+## Spark (배치)
+
+이 노드에 master 와 worker① 이 있고, `app` 노드에 worker② 가 있다.
+**두 노드에 나뉘어 있는 것이 요구사항이다** — 분산 처리를 실제로 했다는 증빙이 필요하다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose --profile batch up -d          # master + worker①
+docker compose --profile batch ps
+```
+
+`--profile batch` 가 없으면 **MinIO 만** 뜬다. 일부러 그렇게 뒀다 — 아직 배치를 돌릴
+데이터가 없고, MinIO 만 다룰 때 Spark 가 같이 뜨면 메모리를 괜히 잡는다.
+정기 배치가 시작되면 `profiles:` 를 떼서 상시 기동으로 바꾸는 게 맞다.
+
+`app` 노드에서는 별도로 올려야 한다 (그쪽은 사용자 트래픽을 받으므로 배치 시각만).
+
+```bash
+# app 노드에서
+cd ~/S15P21A506/deploy/prod/app
+docker compose --profile batch up -d spark-worker-2
+```
+
+### 이게 보이면 성공 — worker 가 둘
+
+```bash
+curl -s http://127.0.0.1:8080/json/ | grep -c '"id" : "worker-'
+```
+
+`2` 여야 한다. `1` 이면 `app` 노드의 worker② 가 못 붙은 것이고, **거의 항상 네트워크 문제다**
+(아래 참고).
+
+### 스모크 잡 — 배치보다 먼저 이걸 돌린다
+
+```bash
+docker compose --profile batch exec --user root spark-worker-1 \
+  /opt/spark/bin/spark-submit --master spark://172.26.8.249:7077 \
+  --total-executor-cores 2 --executor-cores 1 --executor-memory 512m \
+  /opt/work/spark/smoke_distribution.py
+```
+
+```
+EXECUTOR_HOSTS: ['j15a506', 'j15a506a']    ← 호스트가 둘이면 분산 성립
+ROWS_READ_BACK: 1000
+SMOKE_OK
+```
+
+**호스트가 하나만 나오면 분산이 안 된 것이다.** 종료 코드도 1 이 된다.
+실제 배치를 먼저 돌리면 실패했을 때 배치 로직인지 클러스터 배선인지 가릴 수 없다.
+
+`--user root` 가 붙는 이유: 이미지는 `spark`(uid 185) 로 도는데 JAR 캐시 볼륨이
+root 소유라 **`spark.jars.ivy` 에 쓸 수 없다.** 제출만 root 로 하면 되고,
+worker 데몬과 executor 는 계속 비루트로 돈다 (`exec spark-worker-1 id` → uid=185).
+compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇게 하지 않았다.
+
+### 막히면 — 거의 다 네트워크다
+
+| 증상 | 원인 |
+| --- | --- |
+| worker② 가 master 에 안 붙는다 | 두 노드 사이 **7077 이 안 열렸다.** `python3 -m http.server 7077` 로 맨 포트부터 확인할 것 |
+| worker 는 붙었는데 job 이 executor 붙는 데서 멈춘다 | **동적 포트가 막혔다.** master↔worker 만 열려도 driver↔executor 는 임의의 높은 포트를 쓴다 |
+| master 로그의 worker 주소가 `172.17.x.x` 나 `172.19.x.x` | docker0 이나 컨테이너 IP 를 광고했다. `SPARK_LOCAL_IP` 가 사설 IP 로 설정됐는지 볼 것 |
+| executor 만 s3a 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
+| `NoSuchMethodError` | `hadoop-aws` 버전이 Spark 내장 Hadoop 과 다르다 ([../spark/README.md](../spark/README.md)) |
+
+> **Windows 에서 `docker compose exec` 를 쓸 때**: Git Bash 가 `/opt/spark/...` 를
+> 윈도우 경로로 바꿔서 `no such file or directory` 가 난다.
+> `MSYS_NO_PATHCONV=1` 을 앞에 붙이거나 서버에 SSH 로 들어가서 실행할 것.
+
 ## 아직 없는 것
 
-Spark master · worker · MLflow · 수집 cron 이 이 노드에 올라올 예정이고,
+MLflow 와 수집 cron 이 이 노드에 올라올 예정이고,
 그때 이 `compose.yaml` 에 서비스로 추가된다.
 
 배포 명령 전반은 [../README.md](../README.md).

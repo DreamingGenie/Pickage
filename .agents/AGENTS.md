@@ -119,6 +119,8 @@ Jira 이슈를 만들 때는 저장소의 템플릿을 기준으로 설명(Descr
 | **MinIO 버전** | `quay.io/minio/minio@sha256:14cea493…` | **`minio/minio:RELEASE.2025-04-22T22-12-26Z`** (더 오래된 것) | 운영 쪽은 **웹 콘솔이 온전한 것을 확인해 고정한 버전**이다. MinIO 는 커뮤니티 빌드의 콘솔 기능을 축소한 이력이 있다. 로컬을 먼저 올린 뒤 운영을 맞추지 않아 벌어진 차이다 |
 | MinIO 데이터 위치 | named volume (`pickage-local_minio-data`) | **`/srv/minio/data` 바인드** | 운영은 손으로 띄운 컨테이너에서 이관했다. 그 디렉터리에 **수집 원본이 들어 있다** |
 | nginx | 없음 (프런트는 `npm run dev`) | **컨테이너 + TLS 종단** | 로컬에서는 프록시를 거치지 않는다 → `X-Forwarded-Proto` 관련 문제는 **로컬에서 재현되지 않는다** |
+| **Spark 구성** | 컨테이너 **하나** (local mode, `exec` 해서 쓴다) | **master + worker 둘, `network_mode: host`** | 로컬은 분산이 아니다. **크로스 호스트 네트워킹은 로컬에서 재현되지 않는다** — worker 가 컨테이너 IP(172.19.x.x)를 광고해 상대 호스트가 못 찾는 문제는 서버에서만 드러난다 |
+| Spark s3a endpoint | `http://minio:9000` (서비스 이름) | `http://172.26.8.249:9000` (사설 IP) | 다른 호스트의 executor 는 compose 네트워크 이름을 못 푼다 |
 | Swap | PC 에 있음 | **양 서버 0 B** | 메모리 상한을 넘기면 완충 없이 즉시 OOM Kill 이다 |
 | 프런트 서빙 | Vite dev server | **정적 파일 + nginx** | SPA 딥링크(`/analyze` 새로고침)는 **`try_files` 가 있어야 200 이다.** dev server 는 알아서 처리해서 로컬에서 안 드러난다 |
 
