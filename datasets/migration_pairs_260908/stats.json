@@ -1,0 +1,37 @@
+{
+  "releases": 47178483,
+  "packages_total": 4065912,
+  "transitions": 39579244,
+  "packages_with_transition": 2494351,
+  "transitions_with_dep_change": 1843563,
+  "transitions_removed_and_added": 266915,
+  "reclassified_to_peer_or_optional": 202554,
+  "removal_events": 657037,
+  "removed_pkgs_distinct": 110131,
+  "dependents_with_event": 174879,
+  "candidate_pairs_all": 1900453,
+  "strict_pairs": 1195,
+  "strict_from_pkgs": 782,
+  "strict_to_pkgs": 554,
+  "strict_adopters_of_from_pkgs": 3565925,
+  "loose_pairs": 16839,
+  "loose_from_pkgs": 7145,
+  "loose_to_pkgs": 5927,
+  "loose_adopters_of_from_pkgs": 5182675,
+  "count_votes5_pm3_pairs": 5921,
+  "count_votes5_pm3_from_pkgs": 2449,
+  "count_votes12_pairs": 2491,
+  "count_votes12_from_pkgs": 1172,
+  "file_bytes": {
+    "migration_pairs_strict.csv": 104067,
+    "migration_pairs_all.csv": 1460217,
+    "migration_events.parquet": 21889078,
+    "migration_events.csv": 119005362,
+    "migration_pairs.duckdb": 10728255488
+  },
+  "input_bytes": {
+    "requirements_parquet": 7187018745,
+    "versions_full_parquet": 4743980087
+  },
+  "elapsed_sec": 1680
+}
