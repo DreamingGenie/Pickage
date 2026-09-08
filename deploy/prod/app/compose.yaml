@@ -1,0 +1,89 @@
+# Pickage 운영 — `app` 노드 (j15a506.p.ssafy.io)
+#
+#   cd deploy/prod/app
+#   docker compose up -d
+#
+# 명령 모음과 배포·롤백 절차: deploy/prod/README.md
+#
+# ⚠ `data` 노드는 j15a506a 다 — 뒤에 a 가 하나 붙는다 (deploy/prod/data/).
+#   붙기 전에 `hostname` 을 한 번 볼 것.
+
+# 로컬은 pickage-local 이다. 이름이 환경을 드러내므로
+# 운영 compose 를 실수로 로컬에서 띄우면 `docker ps` 에서 바로 보인다.
+#
+# ⚠ 이 이름을 바꾸면 볼륨 이름도 같이 바뀌어 운영 DB 가 통째로 고아가 된다.
+name: pickage-app
+
+services:
+  postgres:
+    # 로컬과 같은 메이저 버전. 로컬에서 되는 SQL 이 서버에서 안 되는 일을 막는다.
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?.env 를 만들고 POSTGRES_DB 를 채울 것 (cp .env.example .env)}
+      POSTGRES_USER: ${POSTGRES_USER:?.env 에 POSTGRES_USER 를 채울 것}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 채울 것 — openssl rand -base64 24}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # 호스트에 포트를 열지 않는다 — `ports:` 가 없는 것이 의도다.
+    # api 는 같은 compose 네트워크 안에서 postgres:5432 로 붙으므로 열 이유가 없고,
+    # 127.0.0.1 로라도 열면 서버에 들어온 사람 누구나 붙을 수 있다.
+    # psql 이 필요하면 컨테이너 안으로 들어간다 (README 참고).
+    healthcheck:
+      # 컨테이너 안의 셸이 풀어야 하는 변수라 $ 를 두 번 쓴다.
+      # $POSTGRES_USER 라고 쓰면 compose 가 먼저 먹어 버린다.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: 2g
+
+  api:
+    # 로컬처럼 build: 만 두지 않는다. 운영에서 뜨는 것은 "지금 체크아웃된 소스" 가 아니라
+    # "태그가 가리키는 이미지" 여야 한다. 그래야 롤백이 성립한다.
+    #
+    # build: 를 같이 둔 이유는 레지스트리가 없기 때문이다.
+    # `docker compose build` 가 여기서 만든 이미지에 곧바로 이 태그를 붙인다.
+    image: pickage-api:${API_TAG:?.env 에 API_TAG 를 채울 것 — 배포 job 이 커밋 SHA 로 갈아 끼운다}
+    build:
+      context: ../../../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # "컨테이너가 떴다" 가 아니라 "DB 가 연결을 받는다" 를 기다린다.
+        # 이게 없으면 첫 up 이 항상 실패한다.
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 컨테이너 안에서 localhost 는 컨테이너 자신이다. 호스트가 아니다.
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # 컨테이너 상한의 몇 %를 힙으로 쓸지. 기본값이 25% 라 그냥 두면
+      # 1.6g 중 400MB 만 힙으로 쓰고 나머지를 놀린다.
+      # 100 으로 두지 않는 이유: 힙 밖에도 메타스페이스·스레드 스택·GC 구조가 있고,
+      # 이 서버는 Swap 이 0 이라 상한을 넘기는 순간 완충 없이 즉시 OOM Kill 이다.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70"
+    ports:
+      # 루프백에만 연다. 밖에서 오는 요청은 전부 nginx(443)를 지난다.
+      # 이 줄을 "8080:8080" 으로 쓰면 TLS 도 인증도 없는 문이 하나 열린다.
+      # 여기 남겨 둔 건 nginx 를 건너뛰고 앱만 확인하기 위해서다(장애 구분용).
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      # 베이스 이미지(eclipse-temurin:21-jre)에 curl 이 이미 들어 있다. 확인함.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # 스프링 기동 + Flyway 마이그레이션이 끝나기 전까지는 실패를 세지 않는다.
+      # 이게 짧으면 정상 기동 중인 컨테이너가 unhealthy 로 죽어서 재시작 루프에 빠진다.
+      start_period: 60s
+    mem_limit: 1.6g
+    # ↑ 로컬 compose.yaml 의 api 와 같은 값. 로컬에서 미리 걸리라고 맞춰 둔 것이다.
+
+  # nginx 와 프런트 정적 서빙은 아직 없다. 다음 커밋에서 넣는다.
+
+volumes:
+  # 운영 DB. `down -v` 를 치면 여기가 사라진다 — README 의 경고를 볼 것.
+  pgdata:
