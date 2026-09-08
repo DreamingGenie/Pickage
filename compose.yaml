@@ -35,6 +35,10 @@ services:
       - "127.0.0.1:15432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # 시드 스크립트. psql -f 로 컨테이너 안에서 바로 읽는다.
+      # 호스트에서 파이프로 밀어 넣지 않는 이유: `<` 리다이렉트가 셸마다 달라
+      # PowerShell 과 Git Bash 에서 같은 명령을 쓸 수 없게 된다.
+      - ./deploy/local/seed:/seed:ro
     healthcheck:
       # "컨테이너가 떴다" 와 "DB 가 연결을 받는다" 는 다르다.
       # 아래 api 서비스가 이 판정을 기다린다.

@@ -38,6 +38,17 @@ dependencies {
 //	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
 	runtimeOnly 'org.postgresql:postgresql'
 
+	/* 스키마 마이그레이션 */
+	// 스키마는 db/migration 의 SQL 이 소유한다. 로컬과 운영이 같은 파일을 쓰므로
+	// 구조적으로 갈라질 수 없고, Hibernate 는 ddl-auto: validate 로 검증만 한다.
+	implementation 'org.flywaydb:flyway-core'
+	// Flyway 10 부터 DB 별 지원이 모듈로 분리됐다. 이게 없으면 기동 시
+	// "Unsupported Database: PostgreSQL" 로 죽는다.
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	// Spring Boot 4 는 자동 설정을 모듈로 쪼갰다. flyway-core 만 넣으면
+	// 클래스패스에는 있지만 자동 설정이 붙지 않아 마이그레이션이 조용히 실행되지 않는다.
+	implementation 'org.springframework.boot:spring-boot-flyway'
+
 	/* actuator */
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
@@ -54,4 +65,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	testLogging {
+		// 기본값은 예외의 클래스 이름과 위치만 찍는다. 그래서 기동 실패의 실제 원인이
+		// 콘솔에 안 보이고 HTML 리포트를 열어야 알 수 있다.
+		exceptionFormat = 'full'
+	}
 }
