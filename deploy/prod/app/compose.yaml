@@ -113,6 +113,48 @@ services:
       start_period: 10s
     mem_limit: 256m
 
+  # ── Spark worker② (배치 시각만) ────────────────────────────────
+  #
+  # 이 노드는 사용자 트래픽을 받는 곳이다. 평소에는 뜨지 않는다 —
+  # profiles 에 넣어서 `docker compose up -d` 로는 시작되지 않게 했다.
+  #
+  #   배치 전:  docker compose --profile batch up -d spark-worker-2
+  #   배치 후:  docker compose --profile batch stop spark-worker-2
+  #
+  # ⚠ 이 노드의 여유는 얇다. postgres 2g + api 1.6g + web 0.25g 위에
+  #   worker 6g 를 얹는 것이고 **Swap 이 0** 이다. 배치 중에 배포까지 겹치면
+  #   빌드가 메모리를 더 먹는다 — 배치 시각에는 배포하지 않는 것이 맞다.
+  #
+  # ⚠ network_mode: host 다. 이유는 data 노드 compose 의 같은 주석 참고.
+  #   웹 UI(8081)가 0.0.0.0 에 붙지만 이 노드는 80·443·22 만 열려 있다.
+  spark-worker-2:
+    profiles: ["batch"]
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    # 배치가 끝나면 사람이 멈춘다. 죽었을 때만 되살린다.
+    restart: on-failure
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://${SPARK_MASTER_HOST:?.env 에 data 노드의 사설 IP 를 넣을 것}:7077
+      - --cores
+      - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
+      - --memory
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 6g}"
+      - --webui-port
+      - "8081"
+    environment:
+      # 자동 탐지에 맡기면 docker0(172.17.0.1)를 광고할 수 있다.
+      # 그러면 master 와 driver 가 이 worker 에 되연결하지 못한다.
+      SPARK_LOCAL_IP: ${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것}
+    volumes:
+      # 두 노드가 **같은 설정 파일**을 쓴다. 갈라지면 executor 만 설정이 다른
+      # 상태가 되고, 그건 "일부 파티션만 실패" 로 나타난다.
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+    env_file: ./.env
+    mem_limit: 6.5g
+
 volumes:
   # 운영 DB. `down -v` 를 치면 여기가 사라진다 — README 의 경고를 볼 것.
   pgdata:

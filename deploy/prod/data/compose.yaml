@@ -39,7 +39,11 @@ services:
       #
       # `127.0.0.1:` 접두사를 지우면 0.0.0.0 에 붙어 서버 밖에서 접근 가능해진다.
       # S3 API 는 인증만 통과하면 버킷 전체를 읽고 쓴다 — 자격증명이 새면 수집 데이터가 통째로 나간다.
-      - "127.0.0.1:9000:9000"   # S3 API — 코드가 붙는 곳
+      - "127.0.0.1:9000:9000"   # S3 API — 사람이 터널로 붙는 통로
+      # app 노드의 Spark executor 가 s3a 로 읽으려면 다른 호스트에서 닿아야 한다.
+      # 다른 호스트는 이 노드의 compose 네트워크 이름(minio)을 풀 수 없다.
+      # 사설 IP 라서 VPC 밖에서는 안 보이고 보안그룹도 막고 있다.
+      - "${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것 — hostname -I 의 172.26.x.x}:9000:9000"
       - "127.0.0.1:9001:9001"   # 웹 콘솔 — 브라우저로 확인
     volumes:
       # 이름은 minio-data 지만 실제 데이터는 호스트의 /srv/minio/data 에 있다.
@@ -73,6 +77,76 @@ services:
     volumes:
       - ../../../pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
 
+  # ── Spark (배치) ───────────────────────────────────────────────
+  #
+  # ⚠ network_mode: host 다. 이 셋은 compose 네트워크에 없다.
+  #
+  # 왜: master 와 executor·driver 는 **서로를 되부른다.** bridge 네트워크에서는
+  # 컨테이너가 자기 컨테이너 IP(172.18.x.x)를 광고하는데 상대 호스트는 그 주소로
+  # 라우팅할 수 없다. job 이 시작은 하고 executor 붙는 데서 **조용히 멈춘다.**
+  # 포트를 하나씩 고정해 매핑하는 방법도 있지만 동적 포트가 많아 실패 지점이 늘어난다.
+  #
+  # 대가: 웹 UI 가 0.0.0.0 에 붙는다. 막는 건 보안그룹뿐이다 —
+  # 이 노드는 22 만 열려 있음을 확인했다. 포트를 더 열게 되면 이 줄을 다시 볼 것.
+
+  spark-master:
+    profiles: ["batch", "all"]
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    restart: unless-stopped
+    # sbin/start-master.sh 는 데몬으로 떠서 컨테이너가 바로 끝난다.
+    # spark-class 로 포그라운드 실행해야 컨테이너가 살아 있다.
+    #
+    # --host 를 명시하는 이유: 이 서버에는 docker0(172.17.0.1)도 있어서
+    # Spark 가 자동 탐지하면 그 주소를 광고할 수 있다. 그러면 app 노드의
+    # worker 가 master 를 못 찾는다.
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - ${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것}
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    volumes:
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+    env_file: ./.env
+    mem_limit: 1g
+
+  spark-worker-1:
+    profiles: ["batch", "all"]
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://${PRIVATE_IP:?}:7077
+      - --cores
+      - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
+      - --memory
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 8g}"
+      - --webui-port
+      - "8081"
+    environment:
+      # 자동 탐지에 맡기면 docker0 주소를 광고할 수 있다.
+      SPARK_LOCAL_IP: ${PRIVATE_IP:?}
+    volumes:
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+      # 잡 코드. driver 를 여기서 띄운다.
+      - ../../../pipeline:/opt/work
+      - sparkivy:/opt/work/.ivy2
+    working_dir: /opt/work
+    env_file: ./.env
+    mem_limit: 10g
+    # ↑ worker 데몬(1g) + executor(8g) + 여유. 상한이라 놀 때는 1g 만 쓴다.
+    #   이 노드는 Swap 이 0 이라 넘기면 완충 없이 OOM Kill 이다.
+
 volumes:
   # named volume 이지만 데이터는 Docker 영역이 아니라 호스트 경로에 있다.
   # 손으로 띄운 컨테이너가 쓰던 그 디렉터리를 그대로 가리켜야 **기존 데이터가 보인다.**
@@ -91,3 +165,6 @@ volumes:
       type: none
       device: /srv/minio/data
       o: bind
+
+  # 내려받은 JAR 캐시. 없으면 배치를 돌릴 때마다 Maven 에서 다시 받는다.
+  sparkivy:
