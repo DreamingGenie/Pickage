@@ -37,12 +37,26 @@ INSERT INTO package (package_id, name, repo_url) VALUES
   (2, 'lodash',   'https://github.com/lodash/lodash'),
   (3, 'left-pad', NULL);                                  -- repo_url 이 없는 경우
 
+-- dependency 는 pipeline/curated/transform.py 가 만드는 구조를 그대로 따른다.
+--   json_object('dependencies', …, 'peerDependencies', …, 'optionalDependencies', …)
+--
+-- 의존성이 없는 버전도 세 키를 남기고 각각 {} 를 넣는다. 시드만 최상위에 평평하게 두면
+-- dependency->'dependencies' 를 읽는 코드가 시드에서는 아무것도 못 찾고, 반대로 시드에
+-- 맞춰 구현하면 실제 적재 데이터를 못 읽는다. 로컬에서 되는 것이 서버에서 안 되는 전형이다.
 INSERT INTO version (package_id, version, published_at, ordinal, description, licenses, deprecated, dependency) VALUES
-  (1, '18.3.1',  TIMESTAMP '2024-04-26 00:00:00', 1, 'React is a JavaScript library for building user interfaces.', '["MIT"]',   NULL, '{"loose-envify": "^1.1.0"}'),
-  (1, '19.0.0',  TIMESTAMP '2024-12-05 00:00:00', 2, 'React is a JavaScript library for building user interfaces.', '["MIT"]',   NULL, '{}'),
-  (2, '4.17.21', TIMESTAMP '2021-02-20 00:00:00', 1, 'Lodash modular utilities.',                                   '["MIT"]',   NULL, '{}'),
+  (1, '18.3.1', TIMESTAMP '2024-04-26 00:00:00', 1,
+   'React is a JavaScript library for building user interfaces.', '["MIT"]', NULL,
+   '{"dependencies":{"loose-envify":"^1.1.0"},"peerDependencies":{},"optionalDependencies":{}}'),
+  (1, '19.0.0', TIMESTAMP '2024-12-05 00:00:00', 2,
+   'React is a JavaScript library for building user interfaces.', '["MIT"]', NULL,
+   '{"dependencies":{},"peerDependencies":{},"optionalDependencies":{}}'),
+  (2, '4.17.21', TIMESTAMP '2021-02-20 00:00:00', 1,
+   'Lodash modular utilities.', '["MIT"]', NULL,
+   '{"dependencies":{},"peerDependencies":{},"optionalDependencies":{}}'),
   -- deprecated 가 채워진 행을 하나 둔다. NULL 만 있으면 이 컬럼을 쓰는 코드가 검증되지 않는다.
-  (3, '1.3.0',   TIMESTAMP '2018-05-17 00:00:00', 1, 'String left pad',                                             '["WTFPL"]', 'use String.prototype.padStart() instead', '{}');
+  (3, '1.3.0', TIMESTAMP '2018-05-17 00:00:00', 1,
+   'String left pad', '["WTFPL"]', 'use String.prototype.padStart() instead',
+   '{"dependencies":{},"peerDependencies":{},"optionalDependencies":{}}');
 
 INSERT INTO package_snapshot (package_id, snapshot_at, downloads, stars, open_issues) VALUES
   (1, DATE '2026-08-24', 25100000, 232000, 760),
