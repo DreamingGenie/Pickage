@@ -1,0 +1,93 @@
+# Pickage 운영 — `data` 노드 (j15a506a.p.ssafy.io)
+#
+#   cd deploy/prod/data
+#   docker compose up -d
+#
+# ⚠ 처음 올릴 때는 순서가 있다. 손으로 띄워 둔 컨테이너를 먼저 없애야 한다 —
+#   README.md 의 "손으로 띄운 것에서 넘어오기" 를 볼 것.
+#   두 컨테이너가 같은 데이터 디렉터리를 동시에 쓰면 데이터가 깨진다.
+#
+# ⚠ `app` 노드는 j15a506 이다 — 뒤에 a 가 없다 (deploy/prod/app/).
+
+name: pickage-data
+
+services:
+  minio:
+    # 지금 이 서버에서 돌고 있는 것과 같은 이미지다. 일부러 안 올린다.
+    #
+    # ⚠ 로컬 compose.yaml 의 MinIO 와 **버전이 다르다.** 로컬은 더 새 이미지를
+    #   다이제스트로 고정해 쓴다(quay.io/minio/minio@sha256:14cea493...).
+    #   그래서 **로컬에서 검증한 S3 동작이 여기서 그대로라는 보장이 없다** —
+    #   서버에서만 나는 mc·멀티파트·프리사인 URL 오류는 이 차이를 먼저 의심할 것.
+    #   .agents/AGENTS.md 의 "알려진 환경 차이" 에 정리해 두었다.
+    #
+    # MinIO 는 커뮤니티 빌드의 웹 콘솔 기능을 축소한 이력이 있다. 이 버전은
+    # 콘솔이 온전한 것을 직접 확인하고 고정한 것이다 — `latest` 로 두면
+    # 어느 날 콘솔이 사라져 있을 수 있고, 그러면 팀원이 브라우저로 확인할 길이 없어진다.
+    # 기동 로그에 "You are running an older version" 이 떠도 무시한다.
+    #
+    # 올릴 때는 (1) 백업 먼저 (2) 콘솔이 뜨는지 확인 (3) compose 이관과 같은 날 하지 않는다.
+    # 버전과 감독 방식을 한꺼번에 바꾸면 뭐가 깨졌는지 가릴 수 없다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address :9001
+    restart: unless-stopped
+    env_file: ./.env
+    ports:
+      # 루프백에만 묶는다. 서버 밖에서는 SSH 터널로만 닿는다.
+      #
+      #   ssh -L 9000:localhost:9000 -L 9001:localhost:9001 <user>@j15a506a.p.ssafy.io
+      #
+      # `127.0.0.1:` 접두사를 지우면 0.0.0.0 에 붙어 서버 밖에서 접근 가능해진다.
+      # S3 API 는 인증만 통과하면 버킷 전체를 읽고 쓴다 — 자격증명이 새면 수집 데이터가 통째로 나간다.
+      - "127.0.0.1:9000:9000"   # S3 API — 코드가 붙는 곳
+      - "127.0.0.1:9001:9001"   # 웹 콘솔 — 브라우저로 확인
+    volumes:
+      # 이름은 minio-data 지만 실제 데이터는 호스트의 /srv/minio/data 에 있다.
+      # 경로 정의는 파일 맨 아래 volumes: 블록에 한 군데만 있다.
+      - minio-data:/data
+    healthcheck:
+      # minio 이미지에 mc 가 들어 있다. 별도 이미지가 필요 없다.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 1g
+    # ↑ 배치 시각에 이 노드는 Spark master(1g) + worker①(9g) + driver(1.5g) 를 함께 든다.
+    #   15Gi 에 Swap 이 0 이라 여유가 없다 — 상한을 안 걸면 커널이 무엇을 죽일지 우리가 못 고른다.
+    #   상한을 넘겨 MinIO 가 죽어도 restart 로 돌아오고, 적재 스크립트가 멱등해서
+    #   같은 run 으로 재개하면 빠진 파일만 다시 보낸다.
+
+  minio-init:
+    # 없는 버킷만 만든다. 한 번 돌고 끝나는 일회성 컨테이너다.
+    # Exited (0) 이 정상 — 초기화 성공을 뜻한다.
+    #
+    # 로컬과 **같은 스크립트**를 쓴다. 버킷 이름이 두 환경에서 갈라질 수 없다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - ../../../pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
+
+volumes:
+  # named volume 이지만 데이터는 Docker 영역이 아니라 호스트 경로에 있다.
+  # 손으로 띄운 컨테이너가 쓰던 그 디렉터리를 그대로 가리켜야 **기존 데이터가 보인다.**
+  #
+  # ⚠ device 경로를 바꾸거나 driver_opts 를 지우면 MinIO 는 빈 스토리지로 뜨고
+  #   버킷이 사라진 것처럼 보인다. 실제 데이터는 /srv/minio/data 에 그대로 있는데
+  #   컨테이너가 다른 곳을 보고 있는 상태다. 확인:
+  #     docker volume inspect pickage-data_minio-data --format '{{.Options.device}}'
+  #
+  # `docker compose down -v` 는 이 볼륨 정의만 지우고 /srv/minio/data 의 파일은
+  # 건드리지 않는다 (확인함). 그래도 습관으로 치지 말 것 — 누가 driver_opts 를
+  # 지운 뒤라면 진짜로 지워진다.
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /srv/minio/data
+      o: bind
