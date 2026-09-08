@@ -240,6 +240,12 @@ SMOKE_OK
 **호스트가 하나만 나오면 분산이 안 된 것이다.** 종료 코드도 1 이 된다.
 실제 배치를 먼저 돌리면 실패했을 때 배치 로직인지 클러스터 배선인지 가릴 수 없다.
 
+끝나면 지운다. `pickage-raw` 는 수집 원본이 사는 버킷이라 시험 데이터를 남겨 두지 않는다.
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm -r --force l/pickage-raw/_smoke/'
+```
+
 `--user root` 가 붙는 이유: 이미지는 `spark`(uid 185) 로 도는데 JAR 캐시 볼륨이
 root 소유라 **`spark.jars.ivy` 에 쓸 수 없다.** 제출만 root 로 하면 되고,
 worker 데몬과 executor 는 계속 비루트로 돈다 (`exec spark-worker-1 id` → uid=185).
