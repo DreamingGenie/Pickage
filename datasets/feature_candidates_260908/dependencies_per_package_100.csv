@@ -1,0 +1,101 @@
+﻿package,version,description,dependencies,dependency_count,peer_dependencies
+@exmg/livery,6.4.0,Ex Machina Group Livery Web SDK.,@exmg/livery-interactive|bowser|lit-element|lit-html|lodash-es|sprintf-js,6,
+@ebi-gene-expression-group/atlas-experiment-table,3.2.17,This package renders an experiment table with user interaction using Evergreen package,@testing-library/jest-dom|evergreen-ui|jw-paginate|lodash|prop-types|react|react-dom|react-popup|react-router-dom|react-tooltip|styled-components|urijs,12,
+dante,0.39.0,Opinionated static site generator.,@fastify/static|@swc/cli|@swc/core|@unocss/core|@unocss/preset-mini|@unocss/transformer-directives|chokidar|commander|fastify|fastify-http-errors-enhanced|glob|magic-string|pino-pretty|postcss|postcss-discard-comments|postcss-import|postcss-minify-selectors|postcss-nested|postcss-normalize-whitespace|purgecss|shiki,21,
+3box,1.22.2,Interact with user data,3box-orbitdb-plugins|3box-shared-cache|3id-blockchain-utils|3id-connect|3id-resolver|@babel/runtime|@ethersproject/hdnode|@ethersproject/wallet|did-jwt|did-resolver|events|graphql-request|https-did-resolver|ipfs|ipfs-did-document|ipfs-log|ipfs-pubsub-room|ipfs-repo|is-ipfs|js-sha256|levelup|libp2p-pubsub|lodash.merge|muport-did-resolver|node-fetch|orbit-db|orbit-db-cache|orbit-db-identity-provider|orbit-db-storage-adapter|p-timeout|store|tweetnacl|tweetnacl-util,33,
+ft-next-express,15.14.4,next-express [![Circle CI](https://circleci.com/gh/Financial-Times/next-express/tree/master.svg?style=svg)](https://circleci.com/gh/Financial-Times/next-express/tree/master) ============,@financial-times/n-handlebars|@financial-times/n-logger|@financial-times/n-navigation|@financial-times/n-raven|@risingstack/trace|debounce|debug|express|fetchres|isomorphic-fetch|next-beacon-node-client|next-feature-flags-client|next-metrics,13,
+@bbitgmbh/bbit.swiss-qr-bill,5.0.16,![Main](https://github.com/bbitgmbh/bbit.swiss-qr-bill/workflows/Main/badge.svg),@bbitgmbh/bbit.banking-utils|assert|browserify-zlib|buffer|canvas|pdfkit|qrcode|stream-browserify|util,9,
+mcpshield-scanner,0.3.1,Core scanning engine for MCPShield — MCP server security analysis,@modelcontextprotocol/sdk|zod,2,
+helm-protocol,0.3.2,"Helm Sovereign Protocol — MCP Gateway Client. Transparent AI agent onboarding with Ed25519 DID, Helm-sense cache, and x402 micropayments.",node-fetch|tweetnacl,2,
+@salesforce/cli,2.151.5,The Salesforce CLI,@inquirer/select|@oclif/core|@oclif/plugin-autocomplete|@oclif/plugin-commands|@oclif/plugin-help|@oclif/plugin-not-found|@oclif/plugin-plugins|@oclif/plugin-search|@oclif/plugin-update|@oclif/plugin-version|@oclif/plugin-warn-if-update-available|@oclif/plugin-which|@salesforce/core|@salesforce/kit|@salesforce/plugin-agent|@salesforce/plugin-apex|@salesforce/plugin-api|@salesforce/plugin-auth|@salesforce/plugin-data|@salesforce/plugin-deploy-retrieve|@salesforce/plugin-info|@salesforce/plugin-limits|@salesforce/plugin-marketplace|@salesforce/plugin-org|@salesforce/plugin-packaging|@salesforce/plugin-schema|@salesforce/plugin-settings|@salesforce/plugin-sobject|@salesforce/plugin-telemetry|@salesforce/plugin-templates|@salesforce/plugin-trust|@salesforce/plugin-user|@salesforce/sf-plugins-core|ansis,34,
+@democracy.js/rest,0.0.6,a REST server/client for a distributed country's immutable data store,@democracy.js/utils|body-parser|chai|ethereumjs-utils|express|immutable,6,
+conformity,0.0.3,"JSON validation middleware for express.js, kitchensink, etc",joi|xss,2,
+openapi-examples-validator,7.1.0,Validates embedded examples in OpenAPI-JSONs,@apidevtools/json-schema-ref-parser|ajv|ajv-draft-04|ajv-formats|commander|errno|glob|json-pointer|jsonpath-plus|lodash.clonedeep|lodash.flatmap|lodash.flatten|lodash.merge|yaml,14,
+@dicebear/avatars,4.10.8,An avatar library for designers and developers.,@types/json-schema|pure-color|svgson,3,
+meikit,0.0.5,[![Build Status](https://travis-ci.org/alextremp/meikit.svg?branch=master)](https://travis-ci.org/alextremp/meikit),@babel/runtime|fs-extra|handlebars|handlebars-helpers|inquirer|logda|meow|shelljs,8,
+@bnecko/orqlaude,0.12.1,"Multi-agent orchestrator for Claude Code. One primary session decomposes a complex task, gets a single budget approval, then dispatches N parallel Agnets via the Desktop app's native spawn_task (with explicit fallbacks). Tracks cost/status via JSONL tails",@modelcontextprotocol/sdk|zod,2,
+eslint-loader,4.0.2,A ESlint loader for webpack,find-cache-dir|fs-extra|loader-utils|object-hash|schema-utils,5,eslint|webpack
+@redux-ts-starter-kit/core,2.0.5,Reduce redux boilerplate,@redux-ts-starter-kit/slice|redux|redux-devtools-extension|redux-immutable-state-invariant|redux-thunk,5,
+fap-cli,1.0.1,CLI for FAP,commander|fap-application,2,
+snips-react-satellite,1.0.6,"The package provides a SnipsMicrophone Component to stream microphone pcm data to snips via mqtt. Implements audioserver, hotword and tts elements of the Snips hermes mqtt protocol over mqtt and websockets.",crunker|hark|merge|paho-mqtt,4,prop-types|react|react-dom
+@lucas-contrial/cli,0.1.2,"Contrail CLI — init, add, log, validate, diff",@lucas-contrial/core|commander|proper-lockfile,3,
+@roackb2/heddle-remote,5.13.0,Browser-safe protocol and run-consumer services for remotely hosted Heddle conversations,@standard-schema/spec|eventsource-parser|zod,3,
+agentkit-auth,0.1.0,Enterprise SSO/OIDC authentication for AgentLens,jose|openid-client,2,hono
+ibm-continuous-delivery,0.2.11,IBM Cloud Continuous Delivery Node.js SDK,@types/node|extend|ibm-cloud-sdk-core,3,
+@specverse/engines,7.0.2,"SpecVerse toolchain — parser, inference, realize, generators, AI, registry, bundles",@ai-sdk/anthropic|@ai-sdk/openai-compatible|@ai-sdk/provider|@specverse/assets|@specverse/entities|@specverse/runtime|@specverse/types|ai|ajv|ajv-formats|esbuild|glob|graphology|graphology-communities-louvain|handlebars|js-yaml|semver|typescript|yaml|zod,20,
+@outofsync/express-rate-limiter,1.3.0,"A cache-based, request rate limiter for ExpressJS",@outofsync/memory-cache|@outofsync/object-key-cache|@outofsync/request-utils|@types/node|lodash.assign|lodash.isnil|lodash.join|lodash.merge|logstub|redis,10,
+@hubspot/api-client,14.0.1,NodeJS v3 [HubSpot API](https://developers.hubspot.com/docs/api/overview) SDK(Client) files,@types/node|bottleneck|es6-promise|form-data|lodash.merge,5,
+@writetome51/open-array-item-getter,1.0.2,an array-manipulating typescript/javascript class with methods that return items copied from the array,@writetome51/adjacent-to-value-info-interface|@writetome51/array-get-adjacent-at|@writetome51/array-get-adjacent-to-value|@writetome51/array-get-all-after-before-first|@writetome51/array-get-all-after-before-last|@writetome51/array-get-between|@writetome51/array-get-copy|@writetome51/array-get-duplicates|@writetome51/array-get-filtered-results|@writetome51/array-get-head-tail|@writetome51/array-get-item|@writetome51/array-get-shuffled|@writetome51/array-get-unique-items|@writetome51/arrays-match|@writetome51/open-array-container|basic-data-handling,16,
+sorted-set-stream,2.0.1,for manipulating streams as sorted sets,readable-stream|stream-iterate,2,
+@xiaozhiclaw/module-sdk,0.4.6,Host-neutral contracts for Xiaozhi capability modules,@types/node|@xiaozhiclaw/provider-core,2,
+@push.rocks/logcontext,2.0.0,enrich logs with context,@pushrocks/lik|@pushrocks/smartcls|@pushrocks/smartunique|@types/shortid,4,
+read-pkg-up,11.0.0,Read the closest package.json file,find-up-simple|read-pkg|type-fest,3,
+@stefanfan/mcp-cli,0.1.0,CLI adapter for MCP-HTML-Bridge,@stefanfan/mcp-client|@stefanfan/mcp-ui-engine|commander,3,
+@nhcarrigan/eslint-config-angular,1.0.1,Global config for ESLint in Angular projects,@angular-eslint/builder|@angular-eslint/eslint-plugin|@angular-eslint/eslint-plugin-template|@angular-eslint/schematics|@angular-eslint/template-parser|@nhcarrigan/eslint-config,6,@angular/cli|@angular/core|eslint
+@ciscospark/react-component-typing-avatar,0.2.82,Cisco Spark React TypingAvatar,@ciscospark/react-container-presence-avatar|classnames|prop-types|react,4,
+vuepress-plugin-photo-swipe,1.30.0,Photo Swipe plugin for vuepress,@mr-hope/vuepress-shared|@mr-hope/vuepress-types|@types/photoswipe|photoswipe,4,
+evergreen-layers,2.19.7,"React components: Pane, Card, ElevationStyles, BorderColors, LayerAppearances",evergreen-colors|ui-box,2,prop-types|react
+@azure/arm-labservices,3.1.1,A generated SDK for LabServicesClient.,@azure/abort-controller|@azure/core-auth|@azure/core-client|@azure/core-lro|@azure/core-paging|@azure/core-rest-pipeline|tslib,7,
+@conquext/openrouter,0.1.0,,@conquext/core|@conquext/openai,2,
+friday-cli,0.0.5,Create React project with build configuraltion. Develop it now.,chalk|commander|git-clone|shelljs|yargs,5,
+@htmllinter/basic-config,0.5.1,basic standard for htmllinter used for setting the standard the config,@htmllinter/basic-rules|@htmllinter/core,2,
+mos-connection,2.0.1,MOS compliant TCP/IP Socket connection.,iconv-lite|moment|tslib|xml-js|xmlbuilder,5,
+react-native-link-preview,1.4.2,"# I'm kinda done maintaining this project, looking for somebody to take over the repo and the npm package, message me if you are interested: ospfranco@protonmail.com # MY ADVICE: CORS is there for a reason, it is a bad idea to directly fetch the response ",cheerio-without-node-native|cross-fetch|es6-promise|url,4,
+shrinkly,1.1.2,"A versatile and user-friendly npm package designed to instantly shorten URLs using multiple popular free URL shortening services, simplifying link sharing with one quick command.",axios|yargs,2,
+@dword-design/depcheck-spawn-detector,1.0.3,,@dword-design/functions|resolve-from,2,
+@adobe/helix-fetch,3.1.2,Light-weight Fetch implementation transparently supporting both HTTP/1(.1) and HTTP/2,debug|http-cache-semantics|lru-cache,3,
+ionic-gulp-webpack,2.0.0,Gulp task for Ionic projects to transpile and bundle JavaScript/TypeScript sources with webpack,lodash.assign|q|webpack,3,
+bs-rsuite-ui-react,1.3.2,Reason(React) bindings for Rsuite UI library,reason-react|rsuite,2,
+jest-enzyme-matchers,1.0.0,Enzyme specific jest matchers,common-tags|react-display-name,2,
+@optolith/character-schema,0.2.2,"Definitions for the characters of Optolith, a character creation tool for the Pen and Paper RPG “The Dark Eye 5”.",optolith-database-schema|tsondb,2,
+@marudor/react-joi-validation,1.2.2,Extremely flexible validation using Joi and React,invariant|lodash.clonedeep|lodash.defaultsdeep|lodash.drop|lodash.foreach|lodash.get|lodash.has|lodash.isplainobject|lodash.isstring|lodash.isundefined|lodash.keys|lodash.map|lodash.reduce|lodash.set|lodash.topath|lodash.uniq|lodash.unset,17,react
+dynamodb-sql,0.9.6,"⚠ ⚠ deprecated, use @awspilot/dynamodb-sql ⚠⚠",@awspilot/dynamodb|aws-sdk,2,
+appframe,0.11.2,"Basic framework app object for dependency injection, event propagation, and error handling.",async|chalk|containerized|json-lint|lodash|minimist|moment|string-template|strip-json-comments,9,
+@machize/scheduler,1.0.5,"Fluent Machize scheduler: schedule.job(X).daily().at('03:00'), timezones, withoutOverlapping and @machize/queue integration.",@machize/core|@machize/queue,2,
+@xyo-network/payload-plugins,7.2.0,Typescript/Javascript Plugins for XYO Platform,@ariestools/sdk|@xyo-network/diviner-hash-lease|@xyo-network/sdk|bowser|ethers|node-screenlogic|uuid|zod,8,
+yuppi,1.4.3,Portable and simple schemas for property validation.,@sinclair/typebox|@types/lodash.merge|json-schema-to-typescript|lodash.merge|yup,5,
+oc-chatgpt-multi-auth,5.4.9,"OpenCode plugin for using ChatGPT Plus/Pro in GPT-5 and Codex workflows with OAuth login, multi-account rotation, and guided setup",@openauthjs/openauth|@opencode-ai/plugin|hono|zod,4,typescript
+@barusu-react/rollup-config,0.0.20,rollup for react+ts+stylus,@barusu-react/rollup-plugin-postcss-dts|@barusu/util-cli|@barusu/util-option|@rollup/plugin-commonjs|@rollup/plugin-json|@rollup/plugin-multi-entry|@rollup/plugin-node-resolve|@types/autoprefixer|@types/postcss-url|@types/rollup-plugin-peer-deps-external|autoprefixer|builtin-modules|postcss-flexbugs-fixes|postcss-url|rollup|rollup-plugin-peer-deps-external|rollup-plugin-typescript2|stylus,18,
+tavori,0.1.2,"AI agent orchestrator that gives existing agents the drive to persist — set a goal, and Tavori observes, delegates, verifies, and loops until done.",@anthropic-ai/sdk|ink|ink-spinner|ink-text-input|js-yaml|nodemailer|openai|react|zod,9,
+pangu-chart-cli,1.0.0,pangu-chart-cli,await-to-js|chalk|commander|cross-spawn|dayjs|ora|yann-fs,7,
+zhin-next,0.0.2,zhin chat app,@icqqjs/icqq|@resvg/resvg-js|js-yaml|log4js|tsx,5,
+@productcraft/envoi,0.0.9,"Receive-and-store mail platform — template-rendered sends, mailboxes + domains + DKIM, message timeline, suppression lists, outbound webhooks via ProductCraft Envoi. Generated from the production OpenAPI spec.",@productcraft/core|openapi-fetch,2,
+azure-monitoring,0.10.6,Microsoft Azure Monitoring Client Library for node,azure-common|moment|underscore,3,
+@favware/syntax-highlighter-core,1.1.2,"A lightweight, easy-to-use and framework agnostic syntax highlighter for your code snippets.",@stencil/core|clipboard|prismjs,3,
+@ciscospark/react-container-activity-list,0.2.82,Cisco Spark React Container Activity List,@ciscospark/react-component-activity-list|@ciscospark/react-component-utils|@webex/helper-html|classnames|linkifyjs|moment|prop-types|react|react-redux|reselect,10,
+react-fivem-hooks,1.0.4,Essential React hooks for FiveM NUI development written in Typescript,esbuild|react|react-dom|typescript,4,
+@mangar2/httpserver,1.2.1,implements a simple http server,@mangar2/errorlog|@mangar2/shutdown,2,
+buttercup-generator,0.0.2,Password generator for Buttercup,mngen|password-generator,2,
+@sport-activities/vue-springboard,0.25.0,Springboard Vue.js components,@sport-activities/springboard-flags|@sport-activities/springboard-icons|moment|world-countries,4,
+agentguard-ai,0.2.0,"Security scanner and trust layer for AI agent skills/plugins — scan URLs, files, and directories for credential exfiltration, injection, and other threats",chalk|commander|glob,3,
+clfn,0.1.27,command-line interface to the cloudfn service,body-parser|chalk|colors|commander|esrever|glob|hash-object|isemail|mkdirp|moment|prompt|rand-token|request|tmp|update-notifier,15,
+react-evoke,2.0.0,Straightforward action-driven state management for straightforward apps.,immer|prop-types,2,react
+@webex/spark-widget-base,0.2.81,Webex React Widget Base,@webex/react-component-spark-fonts|@webex/react-component-utils|@webex/react-redux-spark|@webex/redux-module-users|ampersand-events|lodash|prop-types|react|react-dom|react-intl|react-redux|recompose|redux|redux-logger|redux-thunk|reselect|uuid,17,
+cw-htmlconv,0.3.0,Crescware HTML converter,commandpost|es6-promise|htmlparser2|type-name,4,
+@jarrodldavis/eslint-plugin-tailwindcss,0.4.0,An ESLint plugin to enforce usage of Tailwind CSS utility and component classes.,ajv|esquery|postcss-load-config|postcss-selector-parser,4,eslint|postcss|tailwindcss
+openapi-client-axios-typegen,7.8.0,Typescript type generator for openapi-client-axios,@anttiviljami/dtsgenerator|@apidevtools/json-schema-ref-parser|axios|indent-string|lodash|openapi-client-axios|openapi-types|yargs,8,
+@the-/repeatable,15.1.3,Repeatable of the-component,@the-/condition|@the-/spin|@the-/style|@the-/util-component|classnames|prop-types,6,react|react-dom
+simple-sql-get,0.2.5,Simple SQL Query Tool for Select statements. A very thin wrapper over Sequelize.,sequelize|tedious,2,
+@dword-design/types-youtube-thumbnail,0.0.1,get thumbnail images for youtube videos,get-youtube-id|open,2,
+react-component-latency-wrapper,1.0.0,Wrapper around React.Component that measures component render times.,babel-loader|babel-preset-es2015|babel-preset-react|react|react-dom|webpack,6,
+@edge-base/cli,0.5.0,"CLI for EdgeBase — create, develop, and deploy EdgeBase projects",@edge-base/server|@edge-base/shared|chalk|commander|esbuild|jose|ora|pg|ts-morph|tsx|wrangler,11,
+lordofapps,0.1.7,Global wrapper for app packages,fs-extra|outdent|pify|shelljs|typescript|yargs,6,
+@basaltkit/permissions,1.3.0,"Authorization for Basalt, Spatie-style: roles, permissions with wildcards, policies, tenant scoping, super admin and route guards.",@basaltkit/core|@basaltkit/http,2,
+@rollup/plugin-buble,1.0.3,Compile ES2015 with buble,@rollup/pluginutils|@types/buble|buble,3,rollup
+@pefish/create-typescript-app,0.0.6,Create Electron apps with no build configuration.,@pefish/js-helper-shell|@pefish/js-node-assist|chalk|commander,4,
+stylelint-plugin-use-baseline,1.4.6,A Stylelint plugin that enforces CSS feature availability based on Baseline.,css-tree|is-plain-object|postcss|postcss-value-parser,4,stylelint
+@kickstarter/binding,0.0.1,Generated APIs for async data flows in React with a strong emphasis on type safety,@apollo/react-common|@apollo/react-hooks|@graphql-codegen/cli|@graphql-codegen/core|@graphql-codegen/plugin-helpers|@graphql-codegen/typescript|@graphql-codegen/typescript-operations|chalk|commander|cosmiconfig|graphql-codegen-core|graphql-tag|loader-utils|lodash|schema-utils,15,@types/react|apollo-client|graphql|react|react-dom|webpack
+react-testutil-query,3.0.0,small wrapper around react test utils so I don't have to write long method names,bill|dom-helpers|react-addons-test-utils,3,react|react-dom
+log-debug,1.1.6,Provide logger written in TypeScript for TypeScript or JavaScript.,colors|source-map-support,2,
+api,7.0.2,Magical SDK generation from an OpenAPI definition 🪄,@readme/api-core|chalk|ci-info|commander|emphasize|execa|figures|httpsnippet-client-api|js-yaml|json-schema-traverse|license|lodash-es|oas|oas-normalize|ora|preferred-pm|prompts|semver|ssri|ts-morph|update-notifier|uslug|validate-npm-package-name,23,
+@monorepo-utils/publish,2.1.0,Publish packages to npm if needed. ,@monorepo-utils/package-utils|can-npm-publish|chalk|child-process-promise|cli-spinners|inquirer|log-update|meow,8,
+discord.bio,11.0.1,a node.js wrapper of the discords.com/bio website,deepmerge|discord.js|form-data|node-fetch|tslib,5,
+dev-dep-web-react-postcss,0.5.0,Webpack + ESLint + Babel + Mocha + React + PostCSS,@babel/cli|@babel/core|@babel/node|@babel/plugin-proposal-class-properties|@babel/preset-env|@babel/preset-react|@babel/register|babel-eslint|babel-loader|babel-plugin-minify-replace|babel-plugin-module-resolver|cross-env|css-loader|eslint|eslint-config-standard|eslint-config-standard-react|eslint-plugin-import|eslint-plugin-node|eslint-plugin-promise|eslint-plugin-react|eslint-plugin-standard|mini-css-extract-plugin|mocha|postcss|postcss-cssnext|postcss-loader|terser|webpack,28,prop-types|react
+@amsemnat/verifier,0.1.2,"Verifier for Romanian eID artifacts produced by the am-semnat SDKs — eMRTD passive auth and PAdES B-B signer verification. Runs in Node 20+, modern browsers, and edge runtimes.",asn1js|pkijs|pvtsutils,3,
+ember-prism,1.0.0,Ember components for PrismJS,@babel/core|@ember/render-modifiers|ember-auto-import|ember-cli-babel|ember-cli-htmlbars|ember-cli-node-assets|prismjs|prismjs-glimmer,8,ember-source
+@aartiq/servicenow-mcp,1.0.2,"The most comprehensive ServiceNow MCP server — 400+ tools across all modules. Integrates with Claude, ChatGPT, Gemini, Cursor, GitHub Copilot and any LLM.",@inquirer/prompts|@modelcontextprotocol/sdk|chalk|commander|dotenv|ora|zod,7,
+ng-jalali-flat-datepicker,1.0.1,Angular.js Datepicker built with Moment.js for Jalali Calendar,angular|moment|moment-jalaali,3,
+@the-/toast,15.1.3,Toast of the-components,@the-/style|@the-/util-component|classnames|prop-types,4,react|react-dom
+nexus-webfont-converter,1.1.4,"Converter for desktop font files (TTF, OTF) to web font formats (WOFF, WOFF2)",browserslist|cli-progress|del|gulp|gulp-lightningcss|gulp-rename|gulp-sass|lightningcss|picocolors|sass|tslib|ttf2woff|ttf2woff2,13,
+@astronautlabs/webrpc,0.3.8,"> 🚧 **Work In Progress**   > This library is in an alpha state. It is not yet ready for production use.",rxjs|uuid,2,reflect-metadata
+@emdaer/plugin-import,3.2.31,An emdaer plugin that imports content from another file,@emdaer/core|fs-extra|lodash.get,3,
