@@ -28,7 +28,11 @@ CREATE TABLE "version" (
     "description" TEXT NULL,
     "licenses" JSON NULL,
     "deprecated" TEXT NULL,
-    "dependency" JSON NULL
+    "dependency" JSON DEFAULT '{
+        "dependencies": {},
+        "peerDependencies": {},
+        "optionalDependencies": {}
+    }'::JSON NOT NULL
 );
 
 COMMENT ON COLUMN "version"."dependency"
@@ -47,6 +51,11 @@ CREATE TABLE "package_version_snapshot" (
     "snapshot_at" DATE NOT NULL,
     "dependents_count" INT DEFAULT 0 NOT NULL
 );
+
+
+-- =========================
+-- PRIMARY KEY / UNIQUE
+-- =========================
 
 ALTER TABLE "package"
 ADD CONSTRAINT "PK_PACKAGE"
@@ -72,27 +81,32 @@ ALTER TABLE "package_version_snapshot"
 ADD CONSTRAINT "PK_PACKAGE_VERSION_SNAPSHOT"
 PRIMARY KEY ("package_id", "version", "snapshot_at");
 
+
+-- =========================
+-- FOREIGN KEY
+-- =========================
+
 ALTER TABLE "package_snapshot"
-ADD CONSTRAINT "FK_package_TO_package_snapshot_1"
+ADD CONSTRAINT "FK_PACKAGE_PACKAGE_SNAPSHOT"
 FOREIGN KEY ("package_id")
 REFERENCES "package" ("package_id");
 
 ALTER TABLE "package_snapshot"
-ADD CONSTRAINT "FK_snapshot_TO_package_snapshot_1"
+ADD CONSTRAINT "FK_SNAPSHOT_PACKAGE_SNAPSHOT"
 FOREIGN KEY ("snapshot_at")
 REFERENCES "snapshot" ("snapshot_at");
 
 ALTER TABLE "version"
-ADD CONSTRAINT "FK_package_TO_version_1"
+ADD CONSTRAINT "FK_PACKAGE_VERSION"
 FOREIGN KEY ("package_id")
 REFERENCES "package" ("package_id");
 
 ALTER TABLE "package_version_snapshot"
-ADD CONSTRAINT "FK_version_TO_package_version_snapshot_1"
+ADD CONSTRAINT "FK_VERSION_PACKAGE_VERSION_SNAPSHOT"
 FOREIGN KEY ("package_id", "version")
 REFERENCES "version" ("package_id", "version");
 
 ALTER TABLE "package_version_snapshot"
-ADD CONSTRAINT "FK_snapshot_TO_package_version_snapshot_1"
+ADD CONSTRAINT "FK_SNAPSHOT_PACKAGE_VERSION_SNAPSHOT"
 FOREIGN KEY ("snapshot_at")
 REFERENCES "snapshot" ("snapshot_at");
