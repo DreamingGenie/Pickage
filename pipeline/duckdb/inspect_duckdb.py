@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """내려받은 raw Parquet를 DuckDB로 훑어보는 스크립트. 읽기 전용, 결과는 화면 출력.
 
-실행:  .venv-bq/Scripts/python pipeline/bigquery/inspect_duckdb.py [--quick]
+실행:  .venv-bq/Scripts/python pipeline/duckdb/inspect_duckdb.py [--quick]
   --quick : 무거운 쿼리(requirements 배열 펼치기)를 건너뜀
 """
 import sys

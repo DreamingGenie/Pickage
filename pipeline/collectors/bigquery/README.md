@@ -1,4 +1,4 @@
-# pipeline/bigquery — deps.dev BigQuery → GCS Parquet 수집기
+# pipeline/collectors/bigquery — deps.dev BigQuery → GCS Parquet 수집기
 
 계획서: [`docs/api & data/수집계획_BigQuery_Parquet_v2_260902.md`](../../docs/api%20&%20data/수집계획_BigQuery_Parquet_v2_260902.md)
 환경: `.venv-bq` (google-cloud-bigquery 3.44 · google-cloud-storage 3.13), 프로젝트 `oss-shift-a506`, 버킷 `gs://oss-shift-a506-raw` (US)
@@ -7,19 +7,19 @@
 
 ```bash
 # 0) 항상 먼저 계획 모드. dry-run만 하고 예산 합계를 보여준다 (과금 0)
-.venv-bq/Scripts/python pipeline/bigquery/collect.py --tier t0 --plan
+.venv-bq/Scripts/python pipeline/collectors/bigquery/collect.py --tier t0 --plan
 
 # 1) T0 핵심 4테이블, 최신 스냅샷 1회 (dry-run 합계 약 52.6 GiB)
-.venv-bq/Scripts/python pipeline/bigquery/collect.py --tier t0
+.venv-bq/Scripts/python pipeline/collectors/bigquery/collect.py --tier t0
 
 # 2) T1 Projects 전 스냅샷 백필 (228개, 합계 약 51 GiB, 40분 안팎)
-.venv-bq/Scripts/python pipeline/bigquery/collect.py --tier t1
+.venv-bq/Scripts/python pipeline/collectors/bigquery/collect.py --tier t1
 
 # 3) 매주 화요일: 새 스냅샷 증분 (약 23 GiB). 스냅샷이 없으면 "파티션이 없다"로 중단
-.venv-bq/Scripts/python pipeline/bigquery/collect.py --tier t2
+.venv-bq/Scripts/python pipeline/collectors/bigquery/collect.py --tier t2
 
 # 4) 월 1회: Description·Links·저장소 매핑 갱신 (약 35 GiB)
-.venv-bq/Scripts/python pipeline/bigquery/collect.py --tier t2m
+.venv-bq/Scripts/python pipeline/collectors/bigquery/collect.py --tier t2m
 
 # 노트북으로 내려받기
 gcloud storage rsync -r gs://oss-shift-a506-raw/raw ./data/raw
@@ -52,7 +52,7 @@ gcloud storage rsync -r gs://oss-shift-a506-raw/raw ./data/raw
 ```
 gs://oss-shift-a506-raw/raw/<table>/snapshot=YYYY-MM-DD/part-*.parquet
 gs://oss-shift-a506-raw/raw/<table>/snapshot=YYYY-MM-DD/_MANIFEST.json   ← job_id · dry/billed 바이트 · 행수 · 검증 결과
-pipeline/bigquery/ledger/ledger.jsonl                                              ← 실행된 모든 잡 1행씩 (git 추적)
+pipeline/collectors/bigquery/ledger/ledger.jsonl                                              ← 실행된 모든 잡 1행씩 (git 추적)
 ```
 
 `snapshot=` 폴더명은 Spark/DuckDB가 파티션 컬럼으로 자동 인식한다. 테이블: `versions_full` `versions_min` `requirements` `pkg_project` `projects`.
