@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0904
 
-작성 기준일: 2026-09-04  
-문서 상태: 최종본  
+작성 기준일: 2026-09-04 (본문 §4.1/§4.2 랭커는 2026-09-07 확정 반영)  
+문서 상태: Approved (2026-09-08 갱신 — effective_at: 2026-09-07, 후보 ranking 확정 `DEC-RANK-20260907-01`이 REQ/SVC/IA/Notion에 동일 반영됨. supersedes: 0904 초안의 move_lift/대체 이동 쌍 ranking 서술)  
 연결 문서: `Pickage_요구사항_명세서_0904.md`, `Pickage_메뉴구조_IA_0904.md`, `Pickage_서비스_기획서_0904.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 0904 시스템 아키텍처 확정안에 따라 v1의 서버·배치·저장·모델·배포 구조와 주요 기술 스택까지 개발 기준으로 고정한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -258,11 +258,9 @@ score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질
       "package": "pino",
       "description": "Fast JSON logger for Node.js",
       "sharedKeywords": ["logger", "json"],
-      "rankingReason": ["SEMANTIC_RELEVANCE", "MOVE_LIFT", "REPLACEMENT_PAIR_SIGNAL"],
+      "rankingReason": ["SEMANTIC_RELEVANCE"],
       "signalStatus": {
-        "semanticVector": "AVAILABLE",
-        "moveLift": "AVAILABLE",
-        "replacementPair": "AVAILABLE"
+        "semanticVector": "AVAILABLE"
       },
       "dataStatus": "READY",
       "defaultSelected": true
@@ -333,7 +331,8 @@ MVP에서 `relationshipType`은 `DIRECT`로 고정한다. 사용자에게 직접
 
 ### 5.3 Downloads
 
-- npm 공식 Downloads 자료 사용
+- npm 공식 Downloads API 경로만 사용
+- npmjs.com 웹 화면, npmtrends 등 서드파티 집계 사이트 크롤링 금지(2026-09-08 팀 결정)
 - MVP 최대 18개월
 - 기간과 호출 기준일 기록
 - 누락 구간은 null/gap으로 보존
