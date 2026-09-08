@@ -1,0 +1,117 @@
+{
+  "execution_id": "load-267-full-defaulted-v1",
+  "attempt_id": "826f0037c0f943498a3eddf3544537f3",
+  "started_at": "2026-09-08T05:51:21.581835+00:00",
+  "status": "PUBLISHED",
+  "phase": "COMPLETE",
+  "mode": "LOAD",
+  "snapshot": "2026-08-31",
+  "curated_run_id": "curated-20260907-v2",
+  "contract_sha256": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2",
+  "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\postgresql\\load-267-full-defaulted-v1\\826f0037c0f943498a3eddf3544537f3\\execution_report.json",
+  "quality": {
+    "dependency_defaulted": {
+      "count": 25,
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\postgresql\\load-267-full-defaulted-v1\\826f0037c0f943498a3eddf3544537f3\\quality\\dependency_defaulted.jsonl",
+      "sha256": "d3281a270d4fa875ec16e23201937b4a33b9da2f396ebcd4c1b91b89491e48bb",
+      "default_json": {
+        "dependencies": {},
+        "peerDependencies": {},
+        "optionalDependencies": {}
+      },
+      "reason": "DEPENDENCY_SQL_NULL_DEFAULTED"
+    }
+  },
+  "action": "REVERIFIED",
+  "counts": {
+    "package": 11080940,
+    "version": 54188349
+  },
+  "verification_scope": "INPUT_ONLY",
+  "is_current_input": true,
+  "finished_at": "2026-09-08T05:52:19.828142+00:00",
+  "elapsed_seconds": 58.235,
+  "verified_at": "2026-09-08T05:56:53.653166+00:00",
+  "verification_status": "PASSED",
+  "checks": {
+    "current_unchanged_including_published_at": true,
+    "service_counts_unchanged": true,
+    "dependency_sql_null_zero": true,
+    "action_reverified": true,
+    "input_only": true,
+    "is_current_input": true,
+    "no_copy_exports": true,
+    "quality_same_count_and_hash": true,
+    "database_quality_matches": true,
+    "attempt_states": true,
+    "execution_published": true
+  },
+  "before_current": {
+    "dataset": "package-version",
+    "execution_id": "load-267-full-defaulted-v1",
+    "snapshot_at": "2026-08-31",
+    "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "published_at": "2026-09-08T05:44:19.361282+00:00"
+  },
+  "after_current": {
+    "dataset": "package-version",
+    "execution_id": "load-267-full-defaulted-v1",
+    "snapshot_at": "2026-08-31",
+    "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "published_at": "2026-09-08T05:44:19.361282+00:00"
+  },
+  "before_counts": {
+    "package": 11080940,
+    "version": 54188349
+  },
+  "after_counts": {
+    "package": 11080940,
+    "version": 54188349,
+    "dependency_sql_null": 0
+  },
+  "attempts": [
+    {
+      "attempt_id": "9974ae24e2504510937cea4a12952041",
+      "status": "PUBLISHED",
+      "phase": "COMMIT",
+      "created_at": "2026-09-08T04:45:32.793614+00:00",
+      "completed_at": "2026-09-08T05:44:19.364288+00:00",
+      "quality_report": {
+        "dependency_defaulted": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\postgresql\\load-267-full-defaulted-v1\\9974ae24e2504510937cea4a12952041\\quality\\dependency_defaulted.jsonl",
+          "count": 25,
+          "reason": "DEPENDENCY_SQL_NULL_DEFAULTED",
+          "sha256": "d3281a270d4fa875ec16e23201937b4a33b9da2f396ebcd4c1b91b89491e48bb",
+          "default_json": {
+            "dependencies": {},
+            "peerDependencies": {},
+            "optionalDependencies": {}
+          }
+        }
+      }
+    },
+    {
+      "attempt_id": "826f0037c0f943498a3eddf3544537f3",
+      "status": "REVERIFIED",
+      "phase": "COMPLETE",
+      "created_at": "2026-09-08T05:51:23.802952+00:00",
+      "completed_at": "2026-09-08T05:52:19.714501+00:00",
+      "quality_report": {
+        "dependency_defaulted": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\postgresql\\load-267-full-defaulted-v1\\826f0037c0f943498a3eddf3544537f3\\quality\\dependency_defaulted.jsonl",
+          "count": 25,
+          "reason": "DEPENDENCY_SQL_NULL_DEFAULTED",
+          "sha256": "d3281a270d4fa875ec16e23201937b4a33b9da2f396ebcd4c1b91b89491e48bb",
+          "default_json": {
+            "dependencies": {},
+            "peerDependencies": {},
+            "optionalDependencies": {}
+          }
+        }
+      }
+    }
+  ],
+  "copy_file_count": 0,
+  "execution_report_sha256": "29512045e0d1641635e7519c82397cf7ce51f87f0ee16026023087c1f31da1ec",
+  "limitation": "REVERIFIED checks input only; separate read-only queries measure service counts and unchanged current pointer. Full field equality was sampled by full-data.json."
+}

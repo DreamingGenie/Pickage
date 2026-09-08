@@ -1,0 +1,100 @@
+{
+  "verified_at": "2026-09-08T05:47:41.257875+00:00",
+  "status": "PASSED",
+  "database": "pickage_267_full_defaulted",
+  "container": "pickage-267-validation",
+  "execution_id": "load-267-full-defaulted-v1",
+  "input_manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+  "contract_sha256": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2",
+  "input_file_count": 24,
+  "checks": {
+    "package_counts_and_nulls": true,
+    "version_counts_and_nulls": true,
+    "package_sample_fields": true,
+    "version_sample_fields": true,
+    "constraints_validated": true,
+    "execution_published": true,
+    "execution_identity": true,
+    "empty_database_counts": true,
+    "dependency_not_null": true,
+    "quality_file_hash": true,
+    "quality_defaulted_rows": true,
+    "quality_database_history": true
+  },
+  "expected_package": {
+    "rows": 11080940,
+    "repo_url_null": 2778319
+  },
+  "actual_package": {
+    "rows": 11080940,
+    "repo_url_null": 2778319
+  },
+  "expected_version": {
+    "rows": 54188349,
+    "published_at_null": 7015400,
+    "description_null": 6647883,
+    "licenses_sql_null": 0,
+    "licenses_json_null": 0,
+    "deprecated_null": 51818365,
+    "dependency_sql_null": 0,
+    "dependency_json_null": 0,
+    "min_ordinal": 1,
+    "max_ordinal": 37328
+  },
+  "actual_version": {
+    "rows": 54188349,
+    "published_at_null": 7015400,
+    "description_null": 6647883,
+    "licenses_sql_null": 0,
+    "licenses_json_null": 0,
+    "deprecated_null": 51818365,
+    "dependency_sql_null": 0,
+    "dependency_json_null": 0,
+    "min_ordinal": 1,
+    "max_ordinal": 37328
+  },
+  "constraints": [
+    {
+      "table": "package",
+      "name": "PK_PACKAGE",
+      "validated": true
+    },
+    {
+      "table": "package",
+      "name": "UK_PACKAGE_NAME",
+      "validated": true
+    },
+    {
+      "table": "version",
+      "name": "PK_VERSION",
+      "validated": true
+    },
+    {
+      "table": "version",
+      "name": "FK_PACKAGE_VERSION",
+      "validated": true
+    }
+  ],
+  "source_version_before_defaults": {
+    "rows": 54188349,
+    "published_at_null": 7015400,
+    "description_null": 6647883,
+    "licenses_sql_null": 0,
+    "licenses_json_null": 0,
+    "deprecated_null": 51818365,
+    "dependency_sql_null": 25,
+    "dependency_json_null": 0,
+    "min_ordinal": 1,
+    "max_ordinal": 37328
+  },
+  "dependency_defaulted_count": 25,
+  "package_sample_count": 166,
+  "version_sample_count": 185,
+  "sample_sha256": {
+    "package_expected": "b3e81b9c1f2d5925d2585db0f64e18b1d6fda4cd372e501590eda4ee4de6595f",
+    "package_actual": "b3e81b9c1f2d5925d2585db0f64e18b1d6fda4cd372e501590eda4ee4de6595f",
+    "version_expected": "22173860158ea722fb41e9b2b5e0f78a8e98a3f47cefd2a2183e3bb470754f5d",
+    "version_actual": "22173860158ea722fb41e9b2b5e0f78a8e98a3f47cefd2a2183e3bb470754f5d"
+  },
+  "limitation": "Full counts/null aggregates and input key/DB constraints; field equality is sampled, not all-row field equality."
+}

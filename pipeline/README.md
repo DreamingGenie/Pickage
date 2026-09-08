@@ -9,4 +9,15 @@
 
 공통 환경 `.venv-bq`(리포 루트, gitignore). 각 폴더의 `README.md`에 실행 명령·재시작 방법이 있다.
 
+Curated `package`·`version`을 PostgreSQL에 적재할 때는 [PostgreSQL 적재 안내](postgresql/README.md)를
+따른다. 적재기는 승인된 Curated manifest의 `package/data`·`version/data`만 읽고, PostgreSQL
+staging과 실행 이력을 거쳐 원자적으로 게시한다. Curated 결과를 새로 만드는 방법은
+[Curated 전처리 안내](curated/README.md)에, 로컬 PostgreSQL·Flyway·샘플 DB 운영은
+[로컬 개발 환경 안내](../deploy/local/README.md)에 있다.
+
+적재 CLI의 기본 작업 디렉터리는 `data/postgresql`이며, 실행 report·psql stderr·Parquet
+캐시·COPY 전송 파일을 여기에 남긴다. 이 파일에는 인증정보를 저장하지 않는다. 전체
+PostgreSQL 적재 성공 여부와 실제 검증 결과는 [작업 결과 기록](../docs/worklogs/S15P21A506-267/05-results.md)을
+확인한다.
+
 앞으로 Spark 정제·적재 코드가 생기면 `pipeline/spark/`처럼 같은 층에 둔다. 폐기된 교통 데이터 수집기(2026-08)는 `docs/history/0901_journey_reliability_legacy/collector/`로 이동했다.
