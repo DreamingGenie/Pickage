@@ -213,6 +213,46 @@ cd ~/S15P21A506/deploy/prod/app
 docker compose --profile batch up -d spark-worker-2
 ```
 
+### ⚠ 먼저 방화벽 — 이걸 안 하면 job 이 조용히 멈춘다
+
+**두 노드 사이는 기본적으로 막혀 있다.** 필요한 포트를 하나씩 열어야 한다.
+Spark 는 기본값으로 임의의 높은 포트를 쓰기 때문에 `spark-defaults.conf` 에서
+**고정해 두었다** — 그래서 아래 목록이 유한하다.
+
+**`data` 노드 인바운드** (출처: `app` = `172.26.6.235`)
+
+| 포트 | 무엇 | 없으면 |
+| --- | --- | --- |
+| **7077** | master RPC | worker② 가 아예 등록되지 않는다 |
+| **9000** | MinIO S3 API | executor 가 파티션을 못 읽는다. **driver 만 닿으면 파티션 1개짜리 잡은 통과해서 더 헷갈린다** |
+| **40001** | driver RPC | executor 가 driver 에 되연결하지 못한다 |
+| **40002** | driver blockManager | 결과 수집이 멈춘다 |
+| **40010-40014** | executor blockManager (셔플) | 셔플이 있는 잡만 멈춘다 |
+
+**`app` 노드 인바운드** (출처: `data` = `172.26.8.249`)
+
+| 포트 | 무엇 | 없으면 |
+| --- | --- | --- |
+| **40020** | worker RPC | worker 는 등록되는데 **executor 가 안 뜬다.** master 가 "executor 띄워라" 를 못 보낸다 |
+| **40010-40014** | executor blockManager (셔플) | 셔플이 있는 잡만 멈춘다 |
+
+**출처 IP 를 상대 노드로 제한할 것.** 40001 같은 포트가 인터넷에 열리면 인증 없는
+Spark RPC 가 노출된다.
+
+**웹 UI(8080·8081)는 열지 않는다.** 사람이 보는 것이라 SSH 터널로 충분하다.
+
+```bash
+ssh -L 8080:localhost:8080 <user>@j15a506a.p.ssafy.io
+```
+
+> **범위로 여는 게 편하면** `40000-40030` 을 상대 노드 IP 에서만 열어도 된다.
+> 위 목록이 그 안에 다 들어간다. 포트를 하나 빠뜨렸을 때의 증상이
+> **"조용히 멈춤"** 이라 진단이 오래 걸리므로, 범위 쪽이 실수에 강하다.
+
+> **driver 가 어디서 도는지에 따라 목록이 바뀐다.** 위는 `data` 노드에서
+> `spark-submit` 하는 것을 전제한다 (40001·40002 가 `data` 인바운드).
+> `app` 에서 제출하면 그 둘이 `app` 인바운드로 뒤집힌다.
+
 ### 이게 보이면 성공 — worker 가 둘
 
 ```bash
@@ -255,8 +295,10 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 | 증상 | 원인 |
 | --- | --- |
-| worker② 가 master 에 안 붙는다 | 두 노드 사이 7077 이 막혔다. **2026-09-08 에 양방향 200 으로 확인했으므로** 이게 원인이면 그 사이 뭔가 바뀐 것이다. `python3 -m http.server 7077` 로 맨 포트부터 다시 확인할 것 |
-| worker 는 붙었는데 job 이 executor 붙는 데서 멈춘다 | **동적 포트가 막혔다.** master↔worker 만 열려도 driver↔executor 는 임의의 높은 포트를 쓴다 |
+| worker② 가 master 에 안 붙는다 | **7077** 이 막혔다. 2026-09-08 에 양방향 200 으로 확인했으니 이게 원인이면 그 사이 바뀐 것이다 |
+| worker 는 등록됐는데 executor 가 안 뜬다 | **40020**(worker RPC)이 `app` 인바운드로 안 열렸다. master 가 executor 를 띄우라고 못 보낸다 |
+| job 이 executor 붙는 데서 멈춘다 | **40001·40002** 가 `data` 인바운드로 안 열렸다. 위 방화벽 절의 목록을 다시 볼 것 |
+| 셔플이 있는 잡만 멈춘다 | **40010-40014** 가 양쪽에 안 열렸다 |
 | master 로그의 worker 주소가 `172.17.x.x` 나 `172.19.x.x` | docker0 이나 컨테이너 IP 를 광고했다. `SPARK_LOCAL_IP` 가 사설 IP 로 설정됐는지 볼 것 |
 | executor 만 s3a 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
 | `NoSuchMethodError` | `hadoop-aws` 버전이 Spark 내장 Hadoop 과 다르다 ([../spark/README.md](../spark/README.md)) |

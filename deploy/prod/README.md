@@ -339,6 +339,10 @@ docker compose --profile batch stop spark-worker-2      # 배치 후
 master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거기서 돌린다 —
 [data/README.md](data/README.md) 의 "Spark (배치)".
 
+**먼저 방화벽을 열어야 한다.** 이 노드는 `40020`(worker RPC)과 `40010-40014`
+(executor blockManager)를 `data` 노드에서 오는 것만 열어 준다. 목록과 이유는
+[data/README.md](data/README.md) 의 "먼저 방화벽" 절 — **빠뜨리면 job 이 조용히 멈춘다.**
+
 ### ⚠ 배치 시각에는 배포하지 말 것
 
 이 노드의 메모리가 이때 가장 빠듯하다.
