@@ -24,10 +24,12 @@
 | `stats.json` | 아래 2·3절 숫자의 원본 | | |
 | `data/migration_pairs/migration_events.parquet` (git 미추적) | 제거 이벤트 원시 전부. 모델이 소비하는 최소 단위 | 657,023 | 21 MB |
 | `data/migration_pairs/migration_events.csv` (git 미추적) | 같은 내용 CSV | 657,023 | 119 MB |
-| `data/migration_pairs/removal_stats.parquet`, `removal_by_year.parquet` (git 미추적) | 위 두 CSV의 필터 없는 전체(X 203,347종) | 203,347 / 466,467 | 4.4 / 2.3 MB |
+| `data/migration_pairs/removal_stats.parquet`, `removal_by_year.parquet` (git 미추적) | 위 두 CSV의 필터 없는 전체(X 203,347종) | 203,347 / 352,009 | 4.4 / 2.3 MB |
 | `data/migration_pairs.duckdb` (git 미추적) | 중간 테이블(`events`, `pairs`, `pairs_out`, `base`, `removal_stats`, `removal_by_year`). 다른 필터로 다시 뽑을 때 재계산 없이 여기서 쿼리 | | 11.2 GB |
 
 CSV는 UTF-8 BOM. 배열은 `|`로 이어 붙였다.
+
+git 미추적 parquet 3종(`migration_events`, `removal_stats`, `removal_by_year`)은 2026-09-09 서버 MinIO에도 올렸다: `pickage-curated/depsdev/v1/migration-pairs/snapshot=2026-08-31/run_id=migration-pairs-20260909-v1/` (`data/*.parquet`, `run_manifest.json`에 SHA-256·행 수, `_SUCCESS`). 접속은 `pipeline/minio/README.md`의 서버 터널 절차를 따른다. 중간 DB(`data/migration_pairs.duckdb`)는 30분에 재생성되는 중간물이라 올리지 않았다.
 
 ### 열 (pairs)
 
