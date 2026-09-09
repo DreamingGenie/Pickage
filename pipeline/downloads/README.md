@@ -2,7 +2,11 @@
 
 이미 수집한 `data/raw/downloads`의 파일을 검증하고 로컬 MinIO `pickage-raw`에 보존한다.
 원본 API를 다시 호출하거나 원본 파일을 변경하지 않는다. 스냅샷 구간 합계와 PostgreSQL 적재는
-후속 작업이다. [278 작업 기록](../../docs/worklogs/S15P21A506-278/README.md)에 범위·이슈·실측 결과를 남긴다.
+후속 작업이다. [다운로드 원본 입고·구간 집계 작업 기록](../../docs/worklogs/S15P21A506-278/README.md)에 범위·이슈·실측 결과를 남긴다.
+
+스냅샷 구간 합계·Curated 게시도 같은 티켓(S15P21A506-278)에서 구현할 계획이다.
+[구간 집계 계약](../../docs/worklogs/S15P21A506-278/06-interval-contract.md)을 따르며 예정 구현은
+별도 `pipeline/downloads_interval/`에 둔다. 이 문서의 CLI와 검증 결과는 완료된 원본 검증·Bronze 입고에 해당한다.
 
 ## 입력과 의미
 
@@ -102,7 +106,7 @@ pickage-raw/npm-downloads/v1/run_id=<run-id>/
 
 후속 집계는 `_SUCCESS`의 manifest 해시를 확인하고 manifest에 명시된 일별·상태 파일만 읽는다.
 다른 실행이나 시험·실패 파일을 한꺼번에 읽지 않는다. 구간 계산에는
-[269 시간 정책](../snapshot/README.md)의 `[P,S)`를 적용한다.
+[스냅샷 시간 정책 — S15P21A506-269](../snapshot/README.md)의 `[P,S)`를 적용한다.
 
 ## 검증
 
@@ -119,4 +123,4 @@ $env:DOWNLOADS_MINIO_TEST = '1'
 .venv-bq\Scripts\python.exe -m unittest pipeline.downloads.test_integration -v
 ```
 
-실제 전체 입력의 통과 건수와 완료 run은 [278 결과 기록](../../docs/worklogs/S15P21A506-278/05-results.md)에서 확인한다.
+실제 전체 입력의 통과 건수와 완료 run은 [다운로드 원본 검증·입고 결과](../../docs/worklogs/S15P21A506-278/05-results.md)에서 확인한다.

@@ -10,6 +10,11 @@ deps.dev 수집과 보유 npm 다운로드 원본의 검증·MinIO 입고, Curat
 
 공통 환경 `.venv-bq`(리포 루트, gitignore). 각 폴더의 `README.md`에 실행 명령·재시작 방법이 있다.
 
+스냅샷 구간별 다운로드 집계는 검증 완료한 Bronze 원본에서 패키지별 구간 합계와 품질 정보를 만들어
+Curated에 게시하는 작업이다. 다운로드 원본 입고와 같은 티켓(S15P21A506-278)에서 구현할 계획이다.
+[구간 집계 계약](../docs/worklogs/S15P21A506-278/06-interval-contract.md)에 입력·시간·NULL·게시 조건을 기록하며,
+예정 구현 위치는 `pipeline/downloads_interval/`다. 구간 집계 모듈과 실행 결과는 아직 없다.
+
 Curated `package`·`version`을 PostgreSQL에 적재할 때는 [PostgreSQL 적재 안내](postgresql/README.md)를
 따른다. 적재기는 승인된 Curated manifest의 `package/data`·`version/data`만 읽고, PostgreSQL
 staging과 실행 이력을 거쳐 원자적으로 게시한다. Curated 결과를 새로 만드는 방법은
