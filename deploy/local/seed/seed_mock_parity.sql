@@ -7,6 +7,10 @@
 -- 값을 바꾸려면 dataset.ts 를 고치고 이 파일을 다시 생성한다. 여기만 고치면 둘이 갈라지고,
 -- 그때부터 "화면이 다른데 어느 쪽이 맞는지" 를 알 수 없게 된다.
 --
+-- ⚠ 예외 하나 — 아래 TRUNCATE/DELETE 블록은 손으로 고쳤다 (2026-09-09, S15P21A506-289).
+--   V3 의 FK 때문에 원래의 `TRUNCATE … snapshot` 이 이 스키마에서 아예 실행되지 않았다.
+--   **생성기를 다시 돌릴 때 이 블록을 함께 반영할 것.** 안 그러면 되살아나 다시 막힌다.
+--
 -- 패키지는 두 갈래다.
 --   * 카탈로그 14개 — 지표를 손으로 적었고 시계열이 흔들린다. 차트를 보는 용도.
 --   * 채움  355개 — 이름에서 파생된 1차식. **검색창을 채우는 용도.**
@@ -28,7 +32,17 @@
 --     자동 커밋이라, 묶지 않으면 CREATE 직후 커밋되며 테이블이 바로 사라진다.
 BEGIN;
 
-TRUNCATE similar_package, package_version_snapshot, package_snapshot, version, package, snapshot;
+TRUNCATE similar_package, package_version_snapshot, package_snapshot, version, package;
+
+-- ⚠ snapshot 만 TRUNCATE 가 아니라 DELETE 다 (2026-09-09, S15P21A506-289).
+--
+-- V3 가 etl_snapshot_reference.snapshot_at → snapshot 의 FK 를 만들었다. PostgreSQL 의
+-- TRUNCATE 는 참조하는 테이블이 **비어 있어도** 같이 지정하지 않으면 거절한다. 목록에
+-- etl_snapshot_reference 를 넣으면 시드가 파이프라인의 적재 이력을 지우게 되므로 넣지 않는다.
+--
+-- DELETE 는 참조가 실제로 있을 때만 FK 위반으로 실패한다. 즉 적재 이력이 있는 DB 에서
+-- 이 시드는 조용히 덮어쓰지 않고 에러로 멈춘다.
+DELETE FROM snapshot;
 
 -- 130주. 조회 상한(104주)보다 넉넉해 구간 자르기가 실제로 동작한다.
 INSERT INTO snapshot (snapshot_at) VALUES
