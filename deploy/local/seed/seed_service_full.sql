@@ -317,7 +317,7 @@ INSERT INTO version (package_id, version, published_at, ordinal, description, li
   (30, '12.6.0',  TIMESTAMP '2023-03-08 04:05:00', 2, 'Human-friendly and powerful HTTP request library for Node.js', '["MIT"]', NULL),
   (30, '13.0.0',  TIMESTAMP '2023-08-18 06:15:00', 3, 'Human-friendly and powerful HTTP request library for Node.js', '["MIT"]', NULL),
   (30, '14.4.2',  TIMESTAMP '2024-07-30 08:25:00', 4, 'Human-friendly and powerful HTTP request library for Node.js', '["MIT"]', NULL),
-  (31, '2.6.9',   TIMESTAMP '2022-11-18 03:35:00', 1, 'A light-weight module that brings Fetch API to node.js', '["MIT"]', NULL),
+  (31, '2.6.9',   TIMESTAMP '2022-01-18 03:35:00', 1, 'A light-weight module that brings Fetch API to node.js', '["MIT"]', NULL),
   (31, '3.2.10',  TIMESTAMP '2022-09-06 05:45:00', 2, 'A light-weight module that brings Fetch API to node.js', '["MIT"]', NULL),
   (31, '3.3.1',   TIMESTAMP '2023-05-19 07:55:00', 3, 'A light-weight module that brings Fetch API to node.js', '["MIT"]', NULL),
   (31, '3.3.2',   TIMESTAMP '2023-06-13 09:05:00', 4, 'A light-weight module that brings Fetch API to node.js', '["MIT"]', NULL),
@@ -395,7 +395,9 @@ CREATE TEMP TABLE pkg_curve (
     st_step      INT,
     is_base      INT,
     dl_null_tail BOOLEAN NOT NULL DEFAULT FALSE,
-    dep_scale    INT     NOT NULL
+    dep_scale    INT     NOT NULL,
+    -- 다음 버전이 다 퍼진 뒤에도 이 버전이 남기는 비율(%). 아래 7절에서 쓴다.
+    legacy_keep  INT     NOT NULL DEFAULT 0
 ) ON COMMIT DROP;
 
 INSERT INTO pkg_curve (package_id, first_i, dl_base, dl_step, st_base, st_step, is_base, dl_null_tail, dep_scale) VALUES
@@ -441,14 +443,41 @@ INSERT INTO pkg_curve (package_id, first_i, dl_base, dl_step, st_base, st_step, 
 -- consola(34)는 일부러 넣지 않는다 → 스냅샷이 한 줄도 생기지 않는다.
 -- 카드는 뜨는데 추이가 빈 시리즈인 상태이고, 그 이름이 not_found 로 새면 서버가 틀린 것이다.
 
-INSERT INTO pkg_curve (package_id, dl_base, dl_step, st_base, st_step, is_base, dep_scale)
+-- 구버전이 얼마나 오래 남는가.
+--
+-- 0 이면 다음 버전이 다 퍼진 순간 구버전이 0 이 된다. 그것만 있으면 **모든 패키지의 버전
+-- 분포가 최신 2개짜리 파이로 똑같이 나온다** — 비교 화면에서 세 패키지가 같은 그림을 그리고,
+-- 조각이 3개 이상일 때의 범례·색상을 검증할 수 없다.
+--
+-- 실제로는 메이저를 올려도 구버전이 몇 년씩 남는다. 그래서 일부 패키지에만 잔존율을 준다.
+-- 남은 패키지(0)는 0 인 행을 계속 만들어 §6 의 `dependents_count > 0` 필터를 검증한다.
+UPDATE pkg_curve SET legacy_keep = v.keep FROM (VALUES
+    ( 1, 28),   -- express   4.x 가 오래 남는다
+    ( 3, 22),   -- fastify
+    ( 5, 35),   -- restify
+    ( 7, 18),   -- pino
+    (15, 30),   -- moment
+    (17, 20),   -- date-fns
+    (19, 25),   -- jest
+    (21, 15),   -- vitest
+    (22, 24),   -- ava
+    (24, 18),   -- rollup
+    (26, 16),   -- vite
+    (30, 32),   -- got
+    (32, 26),   -- superagent
+    (33, 38)    -- request  폐기됐지만 옛 버전이 그대로 물려 있다
+) AS v(package_id, keep) WHERE pkg_curve.package_id = v.package_id;
+
+INSERT INTO pkg_curve (package_id, dl_base, dl_step, st_base, st_step, is_base, dep_scale, legacy_keep)
 SELECT package_id,
        120000 + (package_id % 37) * 3100,
        220 + (package_id % 11) * 35,
        800 + (package_id % 53) * 21,
        2 + (package_id % 4),
        12 + (package_id % 19),
-       600 + (package_id % 29) * 45
+       600 + (package_id % 29) * 45,
+       -- 넷 중 하나는 0 이다. 0 인 행이 남아야 `> 0` 필터가 검증된다.
+       (ARRAY[0, 15, 25, 35])[1 + (package_id % 4)]
 FROM filler_name;
 
 
@@ -501,7 +530,8 @@ SELECT v.package_id,
        (-30 + (148 * (v.ordinal - 1)) / GREATEST(1, m.max_ord - 1))::int AS start_i,
        LEAD((-30 + (148 * (v.ordinal - 1)) / GREATEST(1, m.max_ord - 1))::int)
             OVER (PARTITION BY v.package_id ORDER BY v.ordinal) AS next_start_i,
-       c.dep_scale
+       c.dep_scale,
+       c.legacy_keep
 FROM version v
 JOIN (SELECT package_id, MAX(ordinal) AS max_ord FROM version GROUP BY package_id) m
      ON m.package_id = v.package_id
@@ -526,7 +556,8 @@ FROM (
            -- INT 범위를 넘어 "integer out of range" 로 죽는다 — lodash 처럼 큰 값에서만 터진다.
            ROUND(vc.dep_scale::numeric
                  * LEAST(100, GREATEST(0, (s.i - vc.start_i) * 3))
-                 * (100 - COALESCE(LEAST(100, GREATEST(0, (s.i - vc.next_start_i) * 3)), 0))
+                 * (100 - COALESCE(LEAST(100, GREATEST(0, (s.i - vc.next_start_i) * 3)), 0)
+                          * (100 - vc.legacy_keep) / 100)
                  * (400 + s.i)
                  / 4000000.0)::int AS base,
            ((vc.dep_scale / 200) * (((s.i * 7) % 11) - 5))::int AS ripple
@@ -578,7 +609,15 @@ SELECT package_id,
 FROM (
     SELECT a.package_id,
            b.package_id AS similar_package_id,
-           ROW_NUMBER() OVER (PARTITION BY a.package_id ORDER BY b.package_id)::int AS rank
+           -- 기준 패키지마다 순서를 섞는다. b.package_id 로만 정렬하면 한 묶음(24개)의
+           -- 모든 패키지가 **id 가 작은 같은 10개**를 후보로 갖게 되어, 288개 채움 패키지의
+           -- 추천 목록이 전부 똑같아진다.
+           --
+           -- 곱으로 섞는 이유: `a*37 + b*101` 처럼 더하면 기준이 달라져도 같은 순서를 회전만
+           -- 시킨 것이라 후보 집합이 거의 그대로 겹친다.
+           ROW_NUMBER() OVER (PARTITION BY a.package_id
+                              ORDER BY (a.package_id * b.package_id * 41) % 97,
+                                       b.package_id)::int AS rank
     FROM pkg_group a
     JOIN pkg_group b ON b.group_id = a.group_id AND b.package_id <> a.package_id
 ) ranked
