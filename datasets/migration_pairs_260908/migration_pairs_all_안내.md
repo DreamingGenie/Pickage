@@ -27,6 +27,7 @@ npm(자바스크립트 부품 창고)에 올라온 패키지 407만 개의 **버
 | `b_pct` | npm 전체에서 아무 버전이나 골랐을 때 Y가 새로 들어오는 비율(%). "요즘 다들 넣는 부품"인지 보는 값 |
 | `lift` | `a_pct ÷ b_pct`. X를 뺀 사람이 Y를 넣는 일이 우연보다 몇 배 잦은지 |
 | `share_pct` | X를 뺀 표 전체 중 이 Y가 받은 비율(%). X 하나에 Y가 여러 개 붙어 있을 때 어느 Y가 주류인지 |
+| `share_pm_pct` | 같은 비율을 표 대신 **(조직, 달) 수**로 센 것(%). 한 조직의 대청소(아래 ①)가 표를 부풀려도 이 값은 덜 흔들리므로, 화면에 "떠난 사람들의 몇 %가 Y로 갔나"를 보여 줄 때는 이 열을 권장 |
 | `bidirectional` | Y → X 방향도 파일 안에 있으면 `true`. 진짜 대체가 아니라 같은 물건의 두 가지 포장(예: lodash ↔ lodash-es)일 가능성이 큼 |
 | `first_seen`, `last_seen` | 이 갈아타기가 처음·마지막으로 관측된 날 |
 
@@ -91,5 +92,6 @@ df[(df.lift >= 5) & (df.publisher_months >= 5) & (df.votes >= 8) & (df.share_pct
 
 ## 6. 참고
 
+- 같은 폴더의 `removal_stats.csv`는 X 한 줄씩 "X를 뺀 버전이 몇 건이고, 그중 몇 건이 **아무것도 새로 넣지 않고** 뺐는지"(`removals_no_replacement`)를 담습니다. 이 파일의 `removal_events`는 다른 부품이 들어온 경우만 세므로, "떠난 사람 전체"의 분모는 `removal_stats.csv`의 `removals_total`을 쓰십시오. `removal_by_year.csv`는 같은 것을 연도별로 나눈 표입니다.
 - 기술 상세(계산 방법, 원천 테이블, 재현 방법)는 같은 폴더의 `README.md`.
 - 생성 스크립트 `pipeline/duckdb/build_migration_pairs.py`. 다시 만들면 28분 걸립니다.
