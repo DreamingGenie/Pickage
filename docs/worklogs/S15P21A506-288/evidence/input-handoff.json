@@ -1,0 +1,83 @@
+{
+  "recorded_at": "2026-09-09T13:39:30.609289+09:00",
+  "verification_scope": "EXISTING_EXECUTION_RECORDS_AND_LOCAL_CODE_READ_ONLY",
+  "remote_inputs_reverified_this_task": false,
+  "database_checked_this_task": false,
+  "implementation_started": false,
+  "branch": "feat/S15P21A506-288-package_snapshot-postgresql",
+  "start_commit": "110ba9c481558cbcf82c809ec4a5179dca588ce8",
+  "repository_metrics_commit": "885f897858370632df0f8bad3e897eac02a2f4f3",
+  "repository_metrics_merged": false,
+  "snapshot_at": "2026-08-31",
+  "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+  "previous_snapshot_at": "2026-08-24",
+  "population": {
+    "run_id": "curated-20260907-v2",
+    "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2",
+    "bucket": "pickage-curated",
+    "expected_rows_from_prior_run": 11080940
+  },
+  "snapshot_reference": {
+    "candidate_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+    "policy_version": "snapshot-time-v1",
+    "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690"
+  },
+  "downloads": {
+    "source_record": "docs/worklogs/S15P21A506-278/evidence/interval-load.json",
+    "source_record_sha256": "f9a6656dd1ece878012f5bc7dcab10f578aedd608c0b7c9fbeb75adaa773d56b",
+    "input_record_sha256": "28de7b0876d9027e9afe819d9d4169a1890400e93ac9a72414060f0d4d02dff1",
+    "run_id": "downloads-interval-278-20260909-v1",
+    "bucket": "pickage-curated",
+    "prefix": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1",
+    "manifest_sha256": "7dfc0cb5b76102d35f9baa28e03d7370bbd0d9a241b9c4a58ba3de8a95906377",
+    "aggregation_policy_version": "downloads-interval-v1",
+    "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427",
+    "prior_quality": {
+      "package_rows": 11080940,
+      "complete_rows": 97091,
+      "partial_rows": 637,
+      "unavailable_rows": 10983212,
+      "zero_rows": 0,
+      "partial_zero_rows": 0,
+      "target_rows": 99996,
+      "target_duplicate_rows": 4,
+      "unmatched_names": 2251,
+      "daily_quality_rows": 6759,
+      "null_reason_counts": {
+        "NOT_FOUND": 17,
+        "OUTSIDE_TARGET_LIST": 10983195
+      }
+    }
+  },
+  "repository_metrics": {
+    "source_record": "docs/worklogs/05-repository-metrics/03-measured-evidence.json",
+    "source_record_location": "codex/05-repository-metrics worktree",
+    "source_record_sha256": "5a90f45f2e43b6ff2ae024e910a88936449016a5a81765ea44b5fd92ab18a042",
+    "run_id": "repository-metrics-20260909-v3",
+    "bucket": "pickage-curated",
+    "prefix": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3",
+    "manifest_sha256": "ca92eaa351fcd2ecd7d9355d3b5ee0635d9046ffecdb8fc946d28b226ecc0f30",
+    "policy_version": "repository-metrics-v2",
+    "policy_sha256": "4dc9174880b6b06eaba30e3d76081295f5fdb7b739199f411ae294ac47e1461d",
+    "prior_output_counts": {
+      "metric/data": 11080940,
+      "quality/candidates": 54188349,
+      "quality/project_conflicts": 0,
+      "quality/project_observations": 5217958,
+      "quality/selection": 11080940,
+      "quality/unmapped_projects": 17041
+    },
+    "prior_selection_reasons": {
+      "NO_EXACT_OBSERVATION": 1152136,
+      "NO_VALID_REPOSITORY": 2778319,
+      "SELECTED": 7150485
+    }
+  },
+  "expected_download_nonnull_rows_from_prior_run": 97728,
+  "scope_limits": [
+    "No branch merge or code implementation",
+    "No new aggregation, MinIO access, or PostgreSQL execution",
+    "Historical producer test results are not tests executed for this ticket"
+  ]
+}
