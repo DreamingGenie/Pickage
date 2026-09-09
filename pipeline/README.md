@@ -1,11 +1,12 @@
-# pipeline — OSS Shift 데이터 수집·변환
+# pipeline — Pickage 데이터 수집·변환·적재
 
-원천 두 개, 수집기 두 개. 결과는 GCS `gs://oss-shift-a506-raw/raw/…`(팀 공유 정본)와 로컬 `data/`(gitignore)에 쌓인다.
+deps.dev 수집과 보유 npm 다운로드 원본의 검증·MinIO 입고, Curated 생성·PostgreSQL 적재를 담당한다.
+기존 GCS 원천 경로는 `gs://oss-shift-a506-raw/raw/…`이며, 로컬 원본과 실행 기록은 `data/`(gitignore)에 보관한다.
 
-| 폴더 | 원천 | 무엇을 받나 | 주기 | 계획서 |
+| 폴더 | 원천 | 처리 내용 | 실행 주기 | 안내 |
 |---|---|---|---|---|
 | `bigquery/` | `bigquery-public-data.deps_dev_v1` | PackageVersions · NPMRequirements · PackageVersionToProject · Projects(전 스냅샷) → GCS Parquet | T0 1회 · T1 1회 · T2 주간(화) · T2m 월간 | `docs/api & data/수집계획_BigQuery_Parquet_v2_260902.md` |
-| `downloads/` | `api.npmjs.org/downloads` | 다운로드 순위 상위 10만 패키지의 일별 다운로드 → jsonl.gz → Parquet | 백필 1회 · 주간(화 10:00 KST~) | `docs/api & data/수집계획_downloads_npmAPI_260902.md` |
+| `downloads/` | 이미 수집한 npm 다운로드 원본 | 대상 CSV·JSONL·일별/상태 Parquet 검증 → MinIO Bronze 불변 입고 | 수동 실행 | [다운로드 검증·입고 안내](downloads/README.md) |
 
 공통 환경 `.venv-bq`(리포 루트, gitignore). 각 폴더의 `README.md`에 실행 명령·재시작 방법이 있다.
 

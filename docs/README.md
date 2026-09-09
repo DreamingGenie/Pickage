@@ -50,6 +50,7 @@
 
 - `templates/jira/` — Jira 이슈 템플릿(스토리 · 작업 · 버그). 주제와 무관하게 유지합니다.
 - [브랜치 작업 기록 — S15P21A506-267](worklogs/S15P21A506-267/README.md) — PostgreSQL 전체 적재의 범위·계획·이슈 해결·수행 내역·실제 검증 결과입니다.
+- [브랜치 작업 기록 — S15P21A506-278](worklogs/S15P21A506-278/README.md) — 보유 다운로드 데이터 검증·MinIO Bronze 입고의 착수 범위·계획·이슈·수행·검증 기록입니다.
 - `../.agents/AGENTS.md` — 팀 협업 규칙. 주제와 무관하게 유지합니다.
 
 ## Secret Hygiene

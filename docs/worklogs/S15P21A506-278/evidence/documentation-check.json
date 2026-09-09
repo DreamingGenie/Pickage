@@ -1,0 +1,227 @@
+{
+  "recorded_at": "2026-09-09T00:20:08.951384+00:00",
+  "status": "PASSED",
+  "markdown_files_checked": 7,
+  "local_links_checked": 42,
+  "index_entry_verified": true,
+  "python_ast_files_checked": 11,
+  "json_evidence_files_checked": 4,
+  "temporary_jira_references": 0,
+  "git_diff_check_exit_code": 0,
+  "trailing_whitespace_errors": 0,
+  "source_hashes_match_final_tested_files": true,
+  "contract_matches_completed_bronze_run": true,
+  "local_links": [
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "../../../pipeline/snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "../../../pipeline/minio/ingest_raw.py",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "04-work-log.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "../../../pipeline/minio/ingest_raw.py",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/03-issues.md",
+      "target": "01-scope.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/03-issues.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/documentation-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/tests.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/tests.log",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/documentation-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/tests.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "01-scope.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "03-issues.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "04-work-log.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../S15P21A506-267/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../S15P21A506-269/06-history-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/minio/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../../docs/worklogs/S15P21A506-278/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../../docs/worklogs/S15P21A506-278/05-results.md",
+      "exists": true
+    }
+  ],
+  "scope_note": "Static delivery checks. Data and MinIO test results are recorded separately."
+}
