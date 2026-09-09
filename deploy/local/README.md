@@ -66,18 +66,52 @@ docker volume rm pickage-local_pgdata
 
 | | 파일 | 누가 적용하나 |
 | --- | --- | --- |
-| 스키마 (ERD 5개 테이블) | `backend/src/main/resources/db/migration/V1__init.sql` | 앱이 뜰 때 Flyway 가 자동 |
-| 샘플 데이터 | `deploy/local/seed/seed_sample.sql` | **아래 명령으로 직접** |
+| 스키마 | `backend/src/main/resources/db/migration/V1__init.sql`<br>`…/V2__index_similar_etl.sql` | 앱이 뜰 때 Flyway 가 자동 |
+| 샘플 데이터 | `deploy/local/seed/*.sql` | **아래 명령으로 직접** |
 
 **테이블은 손으로 만들지 않는다.** 로컬과 운영이 같은 마이그레이션 파일을 쓰므로 스키마가 갈라질 수 없다.
 
-### 샘플 데이터 넣기
+### 샘플 데이터 — 목적이 다른 두 벌
+
+**둘을 같이 쓸 수 없다.** 둘 다 `TRUNCATE` 로 시작하므로 나중에 돌린 쪽만 남는다.
+
+| 파일 | 규모 | 무엇을 보려고 |
+| --- | --- | --- |
+| `seed_sample.sql` | 패키지 3 × 스냅샷 2 | **자료가 모자란 상태.** 추이 그래프가 "데이터 축적 중" 으로 뜨는지, `repo_url` 이 없는 패키지가 "미확인" 으로 뜨는지 |
+| `seed_mock_parity.sql` | 패키지 14 × 스냅샷 130 | **차트가 실제로 그려지는 상태.** 그리고 아래의 대조 검증 |
 
 ```bash
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
 ```
 
 몇 번을 돌려도 결과가 같다. `TRUNCATE` 로 비우고 다시 넣으므로 **파일이 곧 시드 상태**다.
+
+#### `seed_mock_parity.sql` 은 자동 생성 파일이다
+
+프론트의 mock 데이터(`frontend/src/api/mock/dataset.ts`)를 **실제로 실행해** 뽑았다.
+그래서 이 시드로 띄운 서버와 `VITE_USE_MOCK=true` 인 화면은 **같은 숫자를 그린다.**
+
+이게 서버 구현의 검증 수단이 된다 — 엔드포인트를 붙인 뒤 mock 을 켰다 껐다 하며
+**화면이 달라지는 곳을 찾으면 그게 곧 구현 차이**다. 응답 스키마가 맞는지 눈으로 확인하는
+것보다 훨씬 촘촘하다.
+
+> 값을 바꾸려면 `dataset.ts` 를 고치고 이 파일을 다시 생성한다. 여기만 고치면 둘이 갈라지고,
+> 그때부터 "화면이 다른데 어느 쪽이 맞는지" 를 알 수 없게 된다.
+
+담긴 것 (전부 지어낸 값이다):
+
+- 130주 스냅샷 — 조회 상한 104주보다 넉넉해 **구간 자르기가 실제로 동작**한다
+- `consola` — 패키지·버전은 있는데 **스냅샷이 없다.** 지표만 `null` 이고 `not_found` 가 아니어야 한다
+- `signale` — `repo_url` 이 없어 **stars·open_issues 가 `null`**, 다운로드는 있다
+- `fastify` · `log4js` · `tslog` — **관측 시작이 늦어 시리즈가 짧다.** 차트에서 선 길이가 달라진다
+- `bunyan` — 최신 버전에 **폐기 표시**가 있다
+- `@types/node` — 스코프 패키지이고 major 가 5개라 **"상위 5개 + 기타" 접기**가 걸린다
+
+### ⚠ 시드 파일에 테이블을 추가할 때
+
+`TRUNCATE` 목록에 새 테이블을 함께 적어야 한다. `CASCADE` 를 쓰지 않는 것은 의도다 —
+빠뜨리면 FK 오류로 **멈춰서 알려 준다.** (실제로 `similar_package` 를 추가했을 때 그렇게 걸렸다.)
 값을 고치고 다시 돌리면 그대로 반영된다.
 
 > ⚠ **이 다섯 테이블은 시드 파일이 소유한다.** 직접 넣은 데이터를 여기 두지 말 것 —

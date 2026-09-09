@@ -1,38 +1,38 @@
-import { SettingsIcon } from 'lucide-react'
-
-import {
-  INTERVALS,
-  type PackageCardModel,
-  type SnapshotWindow,
-} from '@/routes/report/ecosystem/model'
+import { INTERVALS, type SnapshotWindow } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
 export interface EcosystemControls {
+  /** 받아 둔 전체 구간 안에서 잘라 보기. */
   window: SnapshotWindow
+  /** 표시 간격. */
   intervalKey: string
 }
 
 /**
  * 차트 위 공통 조작줄.
  *
- * 구간은 상대 기간이 아니라 **실제 스냅샷 날짜**로 고른다.
- * 목록에 없는 날짜는 고를 수 없으므로, 화면에 뜬 시작·끝은 언제나 서버가 가진
- * 스냅샷과 같은 것을 가리킨다.
+ * <p><b>여기의 어떤 조작도 서버를 다시 부르지 않는다.</b> 추이는 상한(104주)만큼 한 번에
+ * 받아 두었고, 시작·끝을 고르는 일과 간격을 솎는 일은 그 위에서 끝난다.
+ *
+ * <p>처음에는 "26주 / 52주 / 104주" 버튼이 서버 조회 범위를 바꾸고, 그와 별개로 아래 드롭다운이
+ * 받은 것을 자르는 구조였다. 명세 §1 의 "기간만 바꾸면 추이만 다시 받으면 된다" 를 그대로
+ * 옮긴 것이었는데, <b>화면에서는 둘 다 똑같이 "구간 고르기" 로 보인다.</b> 26주 상태에서
+ * "전체" 를 눌러도 26주가 끝이고, 넓히려면 버튼·좁히려면 드롭다운이라 어디를 만질지 헷갈렸다.
+ * 지금은 조작이 하나뿐이라 그 구분 자체가 없다.
+ *
+ * <p>구간은 상대 기간("최근 1년")이 아니라 <b>실제 스냅샷 날짜</b>로 고른다. 목록에 없는
+ * 날짜는 고를 수 없으므로, 화면에 뜬 시작·끝은 언제나 서버가 준 스냅샷을 가리킨다.
  */
 export function EcosystemToolbar({
   controls,
   onChange,
-  /** 고를 수 있는 스냅샷 날짜. 오름차순. */
+  /** 응답에 들어 있는 스냅샷 날짜. 오름차순. */
   snapshots,
-  packages,
-  onVersionChange,
   className,
 }: {
   controls: EcosystemControls
   onChange: (next: EcosystemControls) => void
   snapshots: string[]
-  packages: PackageCardModel[]
-  onVersionChange: (key: string, version: string) => void
   className?: string
 }) {
   const { start, end } = controls.window
@@ -60,6 +60,10 @@ export function EcosystemToolbar({
         <span className="font-mono text-[10.5px] text-muted-foreground tabular-nums">
           {count}주
         </span>
+        {/*
+          이제 "전체" 가 실제로 전체다. 받아 둔 것이 곧 상한이라 더 넓힐 것이 없다.
+          예전에는 26주만 받아 둔 상태에서도 이 버튼이 있어 이름과 동작이 어긋났다.
+        */}
         <button
           type="button"
           onClick={() =>
@@ -74,36 +78,51 @@ export function EcosystemToolbar({
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
         <span className="text-[11px] whitespace-nowrap text-muted-foreground">표시 간격</span>
-        <div
-          className="flex gap-0.5 rounded-md bg-muted p-0.5"
-          role="group"
-          aria-label="스냅샷 표시 간격"
-        >
-          {INTERVALS.map((it) => {
-            const active = controls.intervalKey === it.key
-            return (
-              <button
-                key={it.key}
-                type="button"
-                onClick={() => onChange({ ...controls, intervalKey: it.key })}
-                aria-pressed={active}
-                className={cn(
-                  'rounded-[5px] px-2 py-1 text-[11px] transition-colors',
-                  active
-                    ? 'bg-background font-medium text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {it.label}
-              </button>
-            )
-          })}
-        </div>
+        <SegmentedControl
+          label="스냅샷 표시 간격"
+          options={INTERVALS.map((i) => ({ key: i.key, label: i.label }))}
+          value={controls.intervalKey}
+          onChange={(key) => onChange({ ...controls, intervalKey: key })}
+        />
       </div>
+    </div>
+  )
+}
 
-      <VersionSettings packages={packages} onChange={onVersionChange} className="ml-auto" />
+function SegmentedControl({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: { key: string; label: string }[]
+  value: string
+  onChange: (key: string) => void
+}) {
+  return (
+    <div className="flex gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label={label}>
+      {options.map((o) => {
+        const active = value === o.key
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            aria-pressed={active}
+            className={cn(
+              'rounded-[5px] px-2 py-1 text-[11px] transition-colors',
+              active
+                ? 'bg-background font-medium text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -124,7 +143,8 @@ function DateSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
-      className="h-7 rounded-md border border-input bg-background px-2 font-mono text-[11.5px] transition-colors hover:border-foreground/40"
+      disabled={options.length === 0}
+      className="h-7 rounded-md border border-input bg-background px-2 font-mono text-[11.5px] transition-colors hover:border-foreground/40 disabled:opacity-50"
     >
       {options.map((d) => (
         <option key={d} value={d}>
@@ -132,52 +152,5 @@ function DateSelect({
         </option>
       ))}
     </select>
-  )
-}
-
-/**
- * 패키지별 Dependents 표시 버전.
- *
- * 세 드롭다운은 서로 독립이고, 여기서 버전을 바꿔도 기능 비교(03B) 결과와
- * 분석 캐시는 무효화되지 않는다(구상안 1.2 · IA 8.2).
- */
-function VersionSettings({
-  packages,
-  onChange,
-  className,
-}: {
-  packages: PackageCardModel[]
-  onChange: (key: string, version: string) => void
-  className?: string
-}) {
-  return (
-    <details className={cn('group relative', className)}>
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:border-foreground/40 [&::-webkit-details-marker]:hidden">
-        <SettingsIcon className="size-3.5" aria-hidden />
-        표시 버전
-      </summary>
-
-      <div className="absolute top-full right-0 z-20 mt-1.5 flex w-[262px] flex-col gap-2.5 rounded-lg border bg-background p-3 shadow-lg">
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Dependents 그래프에만 적용됩니다. 기능 비교 버전과 분석 결과는 바뀌지 않습니다.
-        </p>
-        {packages.map((p) => (
-          <label key={p.key} className="flex items-center justify-between gap-2">
-            <span className="truncate font-mono text-[12px]">{p.key}</span>
-            <select
-              value={p.selectedDisplayVersion}
-              onChange={(e) => onChange(p.key, e.target.value)}
-              className="h-7 rounded-md border border-input bg-background px-2 font-mono text-[11.5px]"
-            >
-              {p.availableDisplayVersions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-      </div>
-    </details>
   )
 }

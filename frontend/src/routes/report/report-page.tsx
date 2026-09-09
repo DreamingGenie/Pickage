@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import { paths } from '@/app/routes'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,9 @@ const prefetch = {
 
 export type ReportTab = 'ecosystem' | 'features'
 
+/** 라우터 state 없이 들어왔을 때의 비교 조합. */
+const DEFAULT_COMPARISON = ['winston', 'pino', 'bunyan']
+
 /**
  * 03A / 03B 를 담는 셸.
  *
@@ -40,13 +43,14 @@ export type ReportTab = 'ecosystem' | 'features'
  * 그래서 보고서 전체를 막지 않고 03B 탭 안에서만 대기 화면을 보여준다.
  */
 export function ReportPage() {
-  const { reportId } = useParams<{ reportId: string }>()
   const navigate = useNavigate()
-  const packages = ((useLocation().state as { packages?: string[] } | null)?.packages ?? [
-    'winston',
-    'pino',
-    'bunyan',
-  ]) as string[]
+  /**
+   * 비교 대상. 새로고침하면 라우터 state 가 없으므로 기본 조합으로 떨어진다.
+   * 미해결: URL 쿼리(`?names=`)로 옮겨야 링크 공유가 된다 — API 가 이미 그 모양이라
+   * 옮기는 비용은 크지 않다.
+   */
+  const packages = ((useLocation().state as { packages?: string[] } | null)?.packages ??
+    DEFAULT_COMPARISON) as string[]
   const [searchParams, setSearchParams] = useSearchParams()
   const evidenceId = searchParams.get('evidence')
 
@@ -115,7 +119,7 @@ export function ReportPage() {
 
         <TabsContent value="ecosystem" className="pt-7">
           <Suspense fallback={<TabFallback />}>
-            <EcosystemReportTab reportId={reportId} />
+            <EcosystemReportTab packages={packages} />
           </Suspense>
         </TabsContent>
         <TabsContent value="features" className="pt-7">
