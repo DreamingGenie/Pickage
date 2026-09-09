@@ -1,0 +1,16 @@
+# 빌드 context는 ai/similarity/ 다.
+# 현재 Dockerfile은 requirements.txt 와 similarity_batch_pipeline.py 만 명시적으로 COPY 하므로
+# 아래 규칙의 실제 효과는 크지 않지만, COPY 를 `*.py` / `.` 로 넓히게 될 때를 대비해 둔다.
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+.env
+.env.*
+
+*.md

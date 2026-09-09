@@ -136,6 +136,26 @@ services:
     #   docker compose exec spark spark-submit /opt/work/작업파일.py
     command: ["sleep", "infinity"]
 
+  # ── AI 파트 ────────────────────────────────────────────────
+  #
+  # 유사도 배치. 운영에서는 EC2 #1 의 cron 이 배치 시각마다 새로 띄우는 1회성 잡이라
+  # 상시 떠 있지 않는다. spark 처럼 exec 로 쓰는 컨테이너가 아니다.
+  #
+  # 별도 프로파일에 둔다 — `--profile all` 로 올렸을 때 배치가 같이 돌아
+  # NotImplementedError 로 죽는 소음을 막는다. 로컬 용도는 이미지 빌드 확인·단계별 실행이다.
+  #
+  #   docker compose --profile similarity build similarity
+  #   docker compose --profile similarity run --rm --env-file pipeline/minio/.env similarity --help
+  #
+  # MinIO 가 필요하면 먼저: docker compose --profile data up -d minio
+  #
+  # env_file 을 여기 고정하지 않는다 — 그러면 그 파일이 없을 때 `build` 까지 막힌다.
+  # (배치는 아직 로컬에서 돌지 않으므로 자격증명은 run 시점에 --env-file 로 주입한다)
+  similarity:
+    profiles: ["similarity"]
+    build:
+      context: ./ai/similarity
+
 volumes:
   pgdata:
   # minio-data 는 적재한 원본을 담는다. `down -v` 로 지우지 말 것.
