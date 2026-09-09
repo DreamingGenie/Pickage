@@ -12,6 +12,7 @@ BigQuery 수집 결과의 팀 공유 정본은 GCS `gs://oss-shift-a506-raw/raw/
 | `collectors/bigquery/` | deps.dev BigQuery(`bigquery-public-data.deps_dev_v1`) → GCS Parquet. PackageVersions · NPMRequirements · PackageVersionToProject · Projects(전 스냅샷). T0 1회 · T1 1회 · T2 주간(화) · T2m 월간 | [BigQuery 수집 안내](collectors/bigquery/README.md) |
 | `collectors/downloads/` | npm downloads API(`api.npmjs.org/downloads`) → 다운로드 순위 상위 10만 패키지의 일별 다운로드 → jsonl.gz → Parquet. 백필 1회 · 주간(화 10:00 KST~) | [다운로드 수집 안내](collectors/downloads/README.md) |
 | `collectors/keywords/` | ecosyste.ms 목록 API(`packages.ecosyste.ms`) → 상위 100만 패키지의 keywords·description·GitHub topics → jsonl.gz → `package_text` Parquet(AI 학습 입력). 1회(필요 시 재수집) | [패키지 텍스트 수집 안내](collectors/keywords/README.md) |
+| `collectors/registry/` | npm registry(`registry.npmjs.org/<name>`) → 다운로드 순위 상위 10만 패키지의 전 버전 의존 선언(dependencies·**devDependencies**·peer·optional·발행 시각) → jsonl.gz → `registry_versions`·`registry_status` Parquet. 1회(주간 갱신은 S15P21A506-273) | [registry 버전 이력 수집 안내](collectors/registry/README.md) |
 | `minio/` | 로컬 MinIO 버킷 초기화·deps.dev 원본 적재 | [MinIO 원본 입고 안내](minio/README.md) |
 | `downloads/` | 이미 수집한 대상 CSV·JSONL·일별/상태 Parquet 검증 → MinIO Bronze 불변 입고. 수동 실행 | [다운로드 검증·입고 안내](downloads/README.md) |
 | `curated/` | MinIO의 deps.dev 원본 → PostgreSQL `package`·`version` 적재용 Curated Parquet | [Curated 전처리 안내](curated/README.md) |
@@ -22,15 +23,16 @@ BigQuery 수집 결과의 팀 공유 정본은 GCS `gs://oss-shift-a506-raw/raw/
 | `postgresql/` | 승인 Curated `package`·`version` → staging 검증·실행 이력 기록·PostgreSQL 원자적 게시 | [PostgreSQL 적재 안내](postgresql/README.md) |
 | `duckdb/` | 로컬 Parquet를 DuckDB로 읽는 도구와 데이터셋 빌더. `duckdb_ui.py`(브라우저 SQL 편집기), `inspect_duckdb.py`(원본 훑어보기), `build_*.py`(→ `datasets/`), `semver_rule.py`(의존 조건 해석 규칙, Spark 이식용 참조 구현), `sql/`(분석·확인 쿼리) | 각 파일 머리말 |
 
-수집기 세 개는 원천마다 폴더 하나이고, 그 폴더 안에 수집·그 수집기 전용 변환(`to_parquet.py`, `build_package_text.py`)·현황판(`status.py`, `*.cmd`)·README가 함께 있다.
-공통 환경은 `.venv-bq`(리포 루트, gitignore). 외부 API 수집기(`collectors/downloads`, `collectors/keywords`)는 User-Agent 연락처를 환경변수 `OSS_SHIFT_UA_CONTACT`로 받으며, 비어 있으면 시작하지 않는다.
+수집기 네 개는 원천마다 폴더 하나이고, 그 폴더 안에 수집·그 수집기 전용 변환(`to_parquet.py`, `build_package_text.py`)·현황판(`status.py`, `*.cmd`)·README가 함께 있다.
+공통 환경은 `.venv-bq`(리포 루트, gitignore). 외부 API 수집기(`collectors/downloads`, `collectors/keywords`, `collectors/registry`)는 User-Agent 연락처를 환경변수 `OSS_SHIFT_UA_CONTACT`로 받으며, 비어 있으면 시작하지 않는다.
+`collectors/downloads`·`collectors/registry`의 대상 목록(다운로드 순위 상위 10만)은 `datasets/targets/rank_top100k_20260902.csv`에 추적한다.
 
 다운로드 처리 순서는 `collectors/downloads/`의 API 수집·Parquet 변환 → `downloads/`의 원본 검증·Bronze 입고 →
 `downloads_interval/`의 스냅샷 구간 집계·Curated 게시다. 실행 명령과 입력 조건은 각 폴더의 안내를 따른다.
 
 ## 로컬 Parquet 조회
 
-`.venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py` → `data/` 아래 데이터셋을 DuckDB 뷰(`projects`·`pkg_project`·`requirements`·`versions_full`·`downloads`·`downloads_status`·`package_text`)로 묶고 브라우저 SQL 편집기(DuckDB UI, `localhost:4213`)를 띄운다. `-c "<sql>"`로 1회 실행, `--no-ui`로 카탈로그(`data/oss_shift.duckdb`)만 갱신.
+`.venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py` → `data/` 아래 데이터셋을 DuckDB 뷰(`projects`·`pkg_project`·`requirements`·`versions_full`·`downloads`·`downloads_status`·`package_text`·`registry_versions`·`registry_status`)로 묶고 브라우저 SQL 편집기(DuckDB UI, `localhost:4213`)를 띄운다. `-c "<sql>"`로 1회 실행, `--no-ui`로 카탈로그(`data/oss_shift.duckdb`)만 갱신.
 `duckdb/sql/`의 쿼리는 이 뷰 이름을 그대로 쓴다.
 
 ## 다운로드 구간 집계

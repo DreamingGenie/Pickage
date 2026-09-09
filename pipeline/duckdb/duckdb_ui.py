@@ -5,7 +5,8 @@
   .venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py --no-ui    # 카탈로그(data/oss_shift.duckdb)만 갱신
   .venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py -c "select count(*) from downloads"   # 1회성 쿼리
 
-뷰 이름 = 데이터셋 폴더명 (projects / pkg_project / requirements / versions_full / downloads / downloads_status / package_text).
+뷰 이름 = 데이터셋 폴더명 (projects / pkg_project / requirements / versions_full / downloads / downloads_status / package_text
+/ registry_versions / registry_status).
 package_text 는 data/keywords/package_text/ 의 가장 최근 run 파일 하나만 가리킨다(run 간 행이 겹치므로 합치지 않음).
 파티션 컬럼(snapshot, date)은 hive 파티션으로 노출되므로 WHERE 로 걸면 해당 폴더만 읽는다.
 """
@@ -43,6 +44,11 @@ def datasets() -> dict[str, tuple[str, bool]]:
     pt = sorted((DATA / "keywords" / "package_text").glob("package_text_*.parquet"))
     if pt:  # keywords 결합 결과(pipeline/collectors/keywords/build_package_text.py). 파일명 뒤 run 날짜순 → 마지막이 최신
         out["package_text"] = (str(pt[-1]), False)
+    rg = DATA / "registry" / "parquet"  # npm registry 버전 이력(pipeline/collectors/registry/to_parquet.py)
+    if (rg / "registry_versions").exists():
+        out["registry_versions"] = (str(rg / "registry_versions" / "*.parquet"), False)
+    if (rg / "registry_status.parquet").exists():
+        out["registry_status"] = (str(rg / "registry_status.parquet"), False)
     return out
 
 
