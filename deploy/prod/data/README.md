@@ -110,18 +110,47 @@ docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_RO
 pickage-raw  pickage-curated  pickage-vectors  pickage-mlflow-artifacts  pickage-quarantine
 ```
 
-### 5. 진짜 성공 조건 — 재부팅
+### 5. 진짜 성공 조건 — 손 안 대고 돌아오는가
+
+**재부팅할 필요는 없다.** Docker 데몬만 새로 띄우면 같은 경로를 지난다 —
+데몬이 시작하면서 restart 정책에 따라 컨테이너를 다시 올리는 그 동작이 핵심이다.
 
 ```bash
-sudo reboot
-# 다시 접속해서
-docker ps
+docker inspect $(docker ps -q) --format '{{.Name}} → {{.HostConfig.RestartPolicy.Name}}'
+systemctl is-enabled docker
+sudo systemctl restart docker
+sleep 25 && docker compose --profile batch ps -a
 ```
 
-**손으로 아무것도 안 했는데 MinIO 가 떠 있어야 한다.** 이게 이 작업의 목적이다 —
-`docker run` 으로 띄운 컨테이너는 재부팅 후 돌아오지 않고, 수집이 무인으로 도는 구성에서
-그건 **조용한 실패**가 된다. 아무도 모르는 채로 며칠이 지나고,
-npm 다운로드 수는 **놓친 기간을 소급 조회할 수 없다.**
+**이게 보이면 성공** — 손으로 아무것도 안 했는데 이렇게 돌아와 있어야 한다.
+
+```
+minio           Up (healthy)
+spark-master    Up
+spark-worker-1  Up
+minio-init      Exited (0)     ← 일회성 컨테이너라 안 돌아오는 것이 정상
+```
+
+**이게 이 작업의 목적이다.** `docker run` 으로 띄운 컨테이너는 서버가 재시작되면
+돌아오지 않고, 수집이 무인으로 도는 구성에서 그건 **조용한 실패**가 된다.
+아무도 모르는 채로 며칠이 지나고, npm 다운로드 수는 **놓친 기간을 소급 조회할 수 없다.**
+
+#### ✔ 결과 (2026-09-09, 양 노드)
+
+```
+data   minio Up (healthy) · spark-master Up · spark-worker-1 Up · minio-init Exited (0)
+       바인딩 127.0.0.1:9000-9001 + 172.26.8.249:9000 둘 다 유지
+app    postgres · api · web 전부 Up (healthy) · https://j15a506.p.ssafy.io/ → 200
+```
+
+#### 재부팅이 추가로 확인하는 것 둘
+
+데몬 재시작으로는 안 보이는 것이 있다. 여유가 생기면 한 번 해 볼 것.
+
+| | 지금 상태 |
+| --- | --- |
+| 부팅 시 `docker.service` 자동 기동 | `systemctl is-enabled docker` = `enabled` 로 갈음 |
+| **방화벽 규칙 잔존** | `ufw` 면 남고, 순수 `iptables` 면 **사라진다.** 확인 필요 |
 
 ## ⚠ `docker compose up -d --wait` 를 쓰지 말 것
 
@@ -205,13 +234,8 @@ docker compose --profile batch ps
 데이터가 없고, MinIO 만 다룰 때 Spark 가 같이 뜨면 메모리를 괜히 잡는다.
 정기 배치가 시작되면 `profiles:` 를 떼서 상시 기동으로 바꾸는 게 맞다.
 
-`app` 노드에서는 별도로 올려야 한다 (그쪽은 사용자 트래픽을 받으므로 배치 시각만).
-
-```bash
-# app 노드에서
-cd ~/S15P21A506/deploy/prod/app
-docker compose --profile batch up -d spark-worker-2
-```
+`app` 노드의 worker② 는 **상시로 떠 있다.** `docker compose up -d` 에 같이 들어가서
+따로 올릴 필요가 없다 (이유는 [../README.md](../README.md) 의 "왜 상시로 두나").
 
 ### ⚠ 먼저 방화벽 — 이걸 안 하면 job 이 조용히 멈춘다
 
@@ -242,7 +266,7 @@ Spark RPC 가 노출된다.
 **웹 UI(8080·8081)는 열지 않는다.** 사람이 보는 것이라 SSH 터널로 충분하다.
 
 ```bash
-ssh -L 8080:localhost:8080 <user>@j15a506a.p.ssafy.io
+ssh -L 8080:172.26.8.249:8080 <user>@j15a506a.p.ssafy.io
 ```
 
 > **범위로 여는 게 편하면** `40000-40030` 을 상대 노드 IP 에서만 열어도 된다.
@@ -256,11 +280,91 @@ ssh -L 8080:localhost:8080 <user>@j15a506a.p.ssafy.io
 ### 이게 보이면 성공 — worker 가 둘
 
 ```bash
-curl -s http://127.0.0.1:8080/json/ | grep -c '"id" : "worker-'
+curl -s -o /dev/null -w 'master UI → %{http_code}\n' http://172.26.8.249:8080/json/
+curl -s http://172.26.8.249:8080/json/ | grep -c '"id" : "worker-'
 ```
+
+**주소가 `127.0.0.1` 이 아니라 사설 IP 인 것에 주의할 것.** `spark-env.sh` 가
+`SPARK_LOCAL_IP` 를 내보내면 Spark 는 웹 UI 를 포함해 서비스를 **그 주소에만** 바인딩한다.
+루프백으로 두드리면 `000`(리스너 없음)이 나오는데, 그건 master 가 죽은 것과 구분되지 않는다.
+그래서 위 두 줄을 같이 본다 — HTTP 코드가 `200` 인데 개수가 `0` 이어야 "master 는 살아 있고
+worker 가 안 붙었다" 가 증명된다.
 
 `2` 여야 한다. `1` 이면 `app` 노드의 worker② 가 못 붙은 것이고, **거의 항상 네트워크 문제다**
 (아래 참고).
+
+### app 노드 worker 에 줄 자격증명 — 루트를 주지 말 것
+
+worker② 의 executor 가 s3a 로 MinIO 를 읽고 쓴다. 그래서 **`app` 노드의 `.env` 에도
+MinIO 자격증명이 있어야 한다.** 없으면 worker 는 정상 등록되고 잡도 시작하는데
+**쓰기 단계에서 executor 만** `NoAuthWithAWSException` 으로 죽는다.
+
+**루트 자격증명을 복사해 주지 말 것.** `app` 은 인터넷에 노출된 유일한 노드다 —
+거기가 뚫리면 수집 데이터 전체를 잃는다. 여기서 서비스 계정을 발급해서 그 키를 준다.
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc admin user svcacct add l "$MINIO_ROOT_USER"'
+```
+
+나온 Access Key / Secret Key 를 `app` 노드의 `.env` 에 `MINIO_ROOT_USER` ·
+`MINIO_ROOT_PASSWORD` 로 넣는다. **변수 이름이 ROOT 인 것은 `spark-env.sh` 가 그 이름을
+읽기 때문이고, 값은 서비스 계정 키다.**
+
+```bash
+# app 노드에서 — 값을 바꾼 뒤에는 반드시 재생성한다.
+# spark-env.sh 는 컨테이너가 뜰 때 읽히므로 restart 로는 반영되지 않는다.
+docker compose up -d --force-recreate spark-worker-2
+```
+
+키를 잃거나 유출되면 그 키만 폐기하면 된다.
+
+```bash
+docker compose exec minio sh -c 'mc admin user svcacct ls l "$MINIO_ROOT_USER"'
+docker compose exec minio sh -c 'mc admin user svcacct rm l <ACCESS_KEY>'
+```
+
+### GPU 서버용 읽기 전용 계정
+
+외부 GPU 서버가 학습 데이터를 가져갈 때 쓴다. **`pickage-curated` 읽기만** 된다.
+권한 내용은 [pipeline/minio/policies/gpu-readonly.json](../../../pipeline/minio/policies/gpu-readonly.json).
+
+**1. 정책을 만든다** — JSON 을 stdin 으로 컨테이너에 밀어 넣는다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-gpu-readonly /tmp/p.json' < ../../../pipeline/minio/policies/gpu-readonly.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-gpu "$S" >/dev/null && mc admin policy attach l pickage-gpu-readonly --user pickage-gpu >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-gpu "$S"'
+```
+
+**⚠ 출력에 시크릿이 찍힌다.** 채팅·MR·이슈에 붙여넣지 말고 담당자에게 직접 전달할 것.
+시크릿은 **다시 볼 수 없다** — 잃으면 사용자를 지우고 다시 만든다.
+
+넘길 사용법은 [pipeline/minio/GPU_ACCESS.md](../../../pipeline/minio/GPU_ACCESS.md) 를 같이 보낸다.
+
+```bash
+# 확인
+docker compose exec minio sh -c 'mc admin user info l pickage-gpu'
+# 폐기
+docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
+```
+
+**서비스 계정(`svcacct`)이 아니라 별도 사용자로 만든다.** `svcacct` 는 부모 사용자에
+매달려서 루트 자격증명을 회전할 때 같이 흔들리고, 권한도 부모에서 좁히는 형태라
+"이 계정이 무엇을 할 수 있나" 를 한눈에 못 본다. GPU 는 외부에서 오래 쓰는 소비자라
+정책이 명시된 독립 사용자가 맞고, 폐기도 사용자 하나 지우는 것으로 끝난다.
+
+> ### ⚠ 키만으로는 닿지 않는다
+> MinIO 는 루프백과 VPC 사설 IP 에만 바인딩돼 있다. **GPU 서버는 VPC 밖이라
+> 키가 있어도 연결이 안 된다.** 당장은 SSH 터널로 쓴다 — 팀원 노트북과 같은 방식이고
+> 서버에 되돌릴 설정이 안 남는다.
+>
+> 설계는 Tailscale 로 묶는 것으로 되어 있다. 터널이 불편해지거나(장시간 전송, 자동화)
+> GPU 쪽에서 정기적으로 당겨 가야 하면 그때 도입하면 된다.
 
 ### 스모크 잡 — 배치보다 먼저 이걸 돌린다
 
@@ -300,7 +404,8 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 | job 이 executor 붙는 데서 멈춘다 | **40001·40002** 가 `data` 인바운드로 안 열렸다. 위 방화벽 절의 목록을 다시 볼 것 |
 | 셔플이 있는 잡만 멈춘다 | **40010-40014** 가 양쪽에 안 열렸다 |
 | master 로그의 worker 주소가 `172.17.x.x` 나 `172.19.x.x` | docker0 이나 컨테이너 IP 를 광고했다. `SPARK_LOCAL_IP` 가 사설 IP 로 설정됐는지 볼 것 |
-| executor 만 s3a 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
+| executor 만 `NoAuthWithAWSException` | **app 노드의 `.env` 에 MinIO 자격증명이 없다.** 위 "자격증명" 절. 값을 넣은 뒤 `--force-recreate` 까지 해야 반영된다 |
+| executor 만 s3a 연결 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
 | `NoSuchMethodError` | `hadoop-aws` 버전이 Spark 내장 Hadoop 과 다르다 ([../spark/README.md](../spark/README.md)) |
 
 > **Windows 에서 `docker compose exec` 를 쓸 때**: Git Bash 가 `/opt/spark/...` 를
