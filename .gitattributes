@@ -17,3 +17,7 @@
 
 *.jar     binary
 *.parquet binary
+
+# git hook 은 확장자가 없어 위 *.sh 규칙에 걸리지 않는다.
+# CRLF 로 체크아웃되면 sh 가 줄 끝 \r 을 명령의 일부로 읽어 훅이 통째로 죽는다.
+.githooks/*  text eol=lf
