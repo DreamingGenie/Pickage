@@ -85,6 +85,23 @@ def parse(doc, name, rank, fetched_at):
     return rows, modified
 
 
+def online(session):
+    """registry 가 닿는가. 연결 오류가 '이 패키지 문제'인지 '인터넷 끊김'인지 가르는 데 쓴다."""
+    try:
+        return session.get(f"{API}/-/ping", timeout=10).status_code < 500
+    except requests.RequestException:
+        return False
+
+
+def wait_online(session, poll=30):
+    """인터넷이 끊겼으면 복구될 때까지 기다린다. 끊긴 동안 패키지를 failed 로 넘기지 않기 위함(밤새 실행 대비)."""
+    print("[collect] offline? registry 에 닿지 않는다 — 30초마다 재확인, 복구되면 이어간다", flush=True)
+    t0 = time.time()
+    while not online(session):
+        time.sleep(poll)
+    print(f"[collect] network back after {time.time() - t0:.0f}s", flush=True)
+
+
 def fetch(session, url, max_bytes):
     """전체 문서를 조각으로 읽어 모은다. 압축 해제 후 크기가 max_bytes 를 넘으면 TooLarge (수십 MB 문서가 있어 상한 필요)."""
     r = session.get(url, timeout=(15, 180), stream=True)
@@ -163,8 +180,13 @@ def main():
     )
     db.execute("CREATE TABLE IF NOT EXISTS events(ts TEXT, http INT, name TEXT)")
     db.executemany("INSERT OR IGNORE INTO tasks(name, rank) VALUES(?,?)", rows)
+    # 연결 오류(conn:)로 실패한 작업은 인터넷 끊김이 원인일 가능성이 커서 재시작 때마다 자동으로 다시 시도한다.
+    # 그 외 failed(too_large·parse·5xx)는 --retry-failed 를 줬을 때만.
+    n_conn = db.execute("UPDATE tasks SET status='pending', attempts=0, error=NULL WHERE status='failed' AND error LIKE 'conn:%'").rowcount
+    if n_conn:
+        print(f"[collect] reset {n_conn} conn-failed tasks to pending", flush=True)
     if a.retry_failed:
-        db.execute("UPDATE tasks SET status='pending', error=NULL WHERE status='failed'")
+        db.execute("UPDATE tasks SET status='pending', attempts=0, error=NULL WHERE status='failed'")
     db.commit()
 
     pending = db.execute("SELECT name, rank, attempts FROM tasks WHERE status='pending' ORDER BY rank").fetchall()
@@ -224,6 +246,10 @@ def main():
                     break
                 except requests.RequestException as e:
                     stats["conn_err"] += 1
+                    if not online(S):          # 인터넷 끊김: 시도 횟수를 소모하지 않고 복구까지 대기 후 같은 패키지 재시도
+                        db.commit()
+                        wait_online(S)
+                        continue
                     attempts += 1
                     if attempts >= 4:
                         db.execute("UPDATE tasks SET status='failed',attempts=?,error=? WHERE name=?",
