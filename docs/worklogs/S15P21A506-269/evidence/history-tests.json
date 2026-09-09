@@ -1,0 +1,55 @@
+{
+  "recorded_at": "2026-09-08T13:04:38.756045+00:00",
+  "evidence_kind": "unittest results observed in execution tool output; complete raw console output is not stored here",
+  "unit": {
+    "modules": [
+      "pipeline.snapshot.test_policy",
+      "pipeline.snapshot.test_projects",
+      "pipeline.snapshot.test_build",
+      "pipeline.snapshot.test_input",
+      "pipeline.snapshot.test_load",
+      "pipeline.postgresql.test_postgres",
+      "pipeline.postgresql.test_load"
+    ],
+    "tests_run": 29,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "runner_seconds": 0.587
+  },
+  "postgresql": {
+    "modules": [
+      "pipeline.snapshot.test_history",
+      "pipeline.snapshot.test_integration",
+      "pipeline.postgresql.test_integration"
+    ],
+    "tests_run": 34,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "runner_seconds": 133.79,
+    "container": "pickage-267-validation",
+    "database_scope": "new disposable database per test"
+  },
+  "total_tests": 63,
+  "source_sha256": {
+    "backend/src/main/resources/db/migration/V3__add_snapshot_reference_execution.sql": "a05793116d227e0d14071e8ef853d8487e14e37f29867c20b3871ee772361cfd",
+    "pipeline/postgresql/postgres.py": "c36780692f91f522c88e8e2d7c4864a25728f16755efdf724d2487c5897f532e",
+    "pipeline/postgresql/test_integration.py": "d9d58d0be5e1d86bc8349b404da4fcb841743b1f2bc5447358cfceb0820fd5f0",
+    "pipeline/snapshot/__init__.py": "9319c5eb48a55b9016607d7b65121b8ebb164950661386dc95053628da229b56",
+    "pipeline/snapshot/build.py": "be9c07ad2ff17f8466d2e25b894004546ec11d1a6330637f0954e5b4efae32d5",
+    "pipeline/snapshot/input.py": "3a31e42d33874f691c106517e1111090be735935cdd1b1a236499b5b8c2095ba",
+    "pipeline/snapshot/load.py": "e2d3db724360589faa374d363ddcad384db292ec039a9944131eca6f1b90ea76",
+    "pipeline/snapshot/policy.py": "47585ff3885acb97237fb26e2b7f13c823388d4f32ba8918dbc5a1af7c9a552b",
+    "pipeline/snapshot/postgres.py": "f6f2cc83a3d1828ac5b3dbe6b60e0bbb183280860e155e26613b4d14ffb5d34b",
+    "pipeline/snapshot/projects.py": "8754b7a0a25128607ceb78200e2ea33f9a6d67bc994979280c7c2b29ac3612b7",
+    "pipeline/snapshot/test_build.py": "35c408b50c570f924c476ff2ed1b68056d32825df2ce9873f33ef187e9216cda",
+    "pipeline/snapshot/test_history.py": "a62b5e0d77a98da1b556a05c2e2d4bab9690b60823c90cbf6e3642b390bde7d2",
+    "pipeline/snapshot/test_input.py": "39ed8ad9f798d4e1fcf64c4966a23e1c47f15e8d2c61ace6525da64af76df225",
+    "pipeline/snapshot/test_integration.py": "e1bab16e5bde0218c3966fd2b0e4ff8e10896523048d67f8616781ba389b6370",
+    "pipeline/snapshot/test_load.py": "b2f692afabe72fa0de5cc1e4d6d60ea561ee825390cc3617b4daf184dcda2f74",
+    "pipeline/snapshot/test_policy.py": "e9bbbbcb34783859d8a18db9606fdc6ebf3b12ad78cb01f63b610b45c87ba8de",
+    "pipeline/snapshot/test_projects.py": "f223dcad63833e5301c434ca90fc119a9bf8ec1abd2c7bf8551496808caa6908"
+  },
+  "v1_v2_unchanged": true
+}

@@ -1,0 +1,26 @@
+{
+  "recorded_at": "2026-09-08T05:42:26.186463+00:00",
+  "tests_run": 17,
+  "failures": 0,
+  "errors": 0,
+  "skipped": [],
+  "elapsed_seconds": 0.453,
+  "successful": true,
+  "log_sha256": "3630483f7e44d14542f4a08757c7214854859fbe859d8797f415af5d6968f282",
+  "modules": [
+    "pipeline.snapshot.test_policy",
+    "pipeline.snapshot.test_projects",
+    "pipeline.snapshot.test_build"
+  ],
+  "python_files_parsed": 8,
+  "source_sha256": {
+    "pipeline/snapshot/__init__.py": "9319c5eb48a55b9016607d7b65121b8ebb164950661386dc95053628da229b56",
+    "pipeline/snapshot/build.py": "be9c07ad2ff17f8466d2e25b894004546ec11d1a6330637f0954e5b4efae32d5",
+    "pipeline/snapshot/policy.py": "47585ff3885acb97237fb26e2b7f13c823388d4f32ba8918dbc5a1af7c9a552b",
+    "pipeline/snapshot/projects.py": "8754b7a0a25128607ceb78200e2ea33f9a6d67bc994979280c7c2b29ac3612b7",
+    "pipeline/snapshot/test_build.py": "35c408b50c570f924c476ff2ed1b68056d32825df2ce9873f33ef187e9216cda",
+    "pipeline/snapshot/test_integration.py": "e1bab16e5bde0218c3966fd2b0e4ff8e10896523048d67f8616781ba389b6370",
+    "pipeline/snapshot/test_policy.py": "e9bbbbcb34783859d8a18db9606fdc6ebf3b12ad78cb01f63b610b45c87ba8de",
+    "pipeline/snapshot/test_projects.py": "f223dcad63833e5301c434ca90fc119a9bf8ec1abd2c7bf8551496808caa6908"
+  }
+}

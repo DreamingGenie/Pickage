@@ -1,0 +1,113 @@
+{
+  "execution_id": "load-267-full-defaulted-v1",
+  "attempt_id": "9974ae24e2504510937cea4a12952041",
+  "started_at": "2026-09-08T04:45:30.474542+00:00",
+  "status": "PUBLISHED",
+  "phase": "COMPLETE",
+  "mode": "LOAD",
+  "snapshot": "2026-08-31",
+  "curated_run_id": "curated-20260907-v2",
+  "contract_sha256": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2",
+  "quality": {
+    "dependency_defaulted": {
+      "count": 25,
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\postgresql\\load-267-full-defaulted-v1\\9974ae24e2504510937cea4a12952041\\quality\\dependency_defaulted.jsonl",
+      "sha256": "d3281a270d4fa875ec16e23201937b4a33b9da2f396ebcd4c1b91b89491e48bb",
+      "default_json": {
+        "dependencies": {},
+        "peerDependencies": {},
+        "optionalDependencies": {}
+      },
+      "reason": "DEPENDENCY_SQL_NULL_DEFAULTED"
+    }
+  },
+  "action": "LOADED",
+  "counts": {
+    "package": 11080940,
+    "version": 54188349
+  },
+  "service_before_counts": {
+    "package": 0,
+    "version": 0
+  },
+  "service_after_counts": {
+    "package": 11080940,
+    "version": 54188349
+  },
+  "finished_at": "2026-09-08T05:44:19.479467+00:00",
+  "elapsed_seconds": 3529.0,
+  "input": {
+    "dataset": "package-version",
+    "snapshot": "2026-08-31",
+    "snapshot_timestamp": "2026-08-31T21:01:10.517131",
+    "curated_run_id": "curated-20260907-v2",
+    "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2",
+    "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "counts": {
+      "package": 11080940,
+      "version": 54188349
+    }
+  },
+  "validation": {
+    "counts": {
+      "package": 11080940,
+      "version": 54188349
+    },
+    "schemas": {
+      "package": [
+        [
+          "package_id",
+          "INTEGER"
+        ],
+        [
+          "name",
+          "VARCHAR"
+        ],
+        [
+          "repo_url",
+          "VARCHAR"
+        ]
+      ],
+      "version": [
+        [
+          "version",
+          "VARCHAR"
+        ],
+        [
+          "package_id",
+          "INTEGER"
+        ],
+        [
+          "published_at",
+          "TIMESTAMP"
+        ],
+        [
+          "ordinal",
+          "BIGINT"
+        ],
+        [
+          "description",
+          "VARCHAR"
+        ],
+        [
+          "licenses",
+          "JSON"
+        ],
+        [
+          "deprecated",
+          "VARCHAR"
+        ],
+        [
+          "dependency",
+          "JSON"
+        ]
+      ]
+    },
+    "checks": "PASSED"
+  },
+  "execution_report_path": "data\\postgresql\\load-267-full-defaulted-v1\\9974ae24e2504510937cea4a12952041\\execution_report.json",
+  "execution_report_sha256": "2314d647389754e9d973ac584ab9c9e8a18b0b2b3f35e2c953c2db9351093ad3",
+  "service_file_count": 24,
+  "input_bytes": 4534618749,
+  "copy_bytes": 20025861474
+}

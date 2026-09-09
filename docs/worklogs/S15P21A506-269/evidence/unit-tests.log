@@ -1,0 +1,22 @@
+test_calendar_deduplicates_equal_instants_but_rejects_utc_date_conflicts (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_calendar_deduplicates_equal_instants_but_rejects_utc_date_conflicts) ... ok
+test_calendar_irregular_gap_is_actual_gap (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_calendar_irregular_gap_is_actual_gap) ... ok
+test_coverage_distinguishes_missing_from_observed_zero (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_coverage_distinguishes_missing_from_observed_zero) ... ok
+test_first_snapshot_and_outside_range (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_first_snapshot_and_outside_range) ... ok
+test_parse_timestamp_normalizes_offsets_and_preserves_microseconds (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_parse_timestamp_normalizes_offsets_and_preserves_microseconds) ... ok
+test_parse_timestamp_rejects_weak_or_overprecise_values (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_parse_timestamp_rejects_weak_or_overprecise_values) ... ok
+test_projects_require_exact_instant_and_population_is_same_snapshot (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_projects_require_exact_instant_and_population_is_same_snapshot) ... ok
+test_version_reasons_and_policy_hash_are_stable (pipeline.snapshot.test_policy.SnapshotPolicyTests.test_version_reasons_and_policy_hash_are_stable) ... ok
+test_accepts_timestamptz_offset_and_maps_utc_date (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_accepts_timestamptz_offset_and_maps_utc_date) ... ok
+test_footer_hash_does_not_use_whole_file_read (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_footer_hash_does_not_use_whole_file_read) ... ok
+test_inventory_is_sorted_and_preserves_timestamp_and_identity (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_inventory_is_sorted_and_preserves_timestamp_and_identity) ... ok
+test_rejects_missing_manifest_and_invalid_partition (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_rejects_missing_manifest_and_invalid_partition) ... ok
+test_rejects_missing_snapshot_at_and_invalid_part_name (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_rejects_missing_snapshot_at_and_invalid_part_name) ... ok
+test_rejects_null_mixed_time_partition_and_path_mismatch (pipeline.snapshot.test_projects.ProjectsInventoryTests.test_rejects_null_mixed_time_partition_and_path_mismatch) ... ok
+test_candidate_keeps_hashes_window_and_unpublished_status (pipeline.snapshot.test_build.BuildTests.test_candidate_keeps_hashes_window_and_unpublished_status) ... ok
+test_invalid_input_does_not_create_output (pipeline.snapshot.test_build.BuildTests.test_invalid_input_does_not_create_output) ... ok
+test_sql_rejects_unordered_duplicate_and_injected_dates (pipeline.snapshot.test_build.BuildTests.test_sql_rejects_unordered_duplicate_and_injected_dates) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.351s
+
+OK

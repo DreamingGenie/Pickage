@@ -85,37 +85,12 @@ docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
 ```
 
-몇 번을 돌려도 결과가 같다. `TRUNCATE` 로 비우고 다시 넣으므로 **파일이 곧 시드 상태**다.
+이 명령은 샘플 DB를 재설정할 때만 사용한다. `TRUNCATE` 후 샘플 행을 다시 넣으므로,
+값을 고치고 다시 실행하면 기존 샘플 데이터가 교체된다.
 
-#### `seed_mock_parity.sql` 은 자동 생성 파일이다
-
-프론트의 mock 데이터(`frontend/src/api/mock/dataset.ts`)를 **실제로 실행해** 뽑았다.
-그래서 이 시드로 띄운 서버와 `VITE_USE_MOCK=true` 인 화면은 **같은 숫자를 그린다.**
-
-이게 서버 구현의 검증 수단이 된다 — 엔드포인트를 붙인 뒤 mock 을 켰다 껐다 하며
-**화면이 달라지는 곳을 찾으면 그게 곧 구현 차이**다. 응답 스키마가 맞는지 눈으로 확인하는
-것보다 훨씬 촘촘하다.
-
-> 값을 바꾸려면 `dataset.ts` 를 고치고 이 파일을 다시 생성한다. 여기만 고치면 둘이 갈라지고,
-> 그때부터 "화면이 다른데 어느 쪽이 맞는지" 를 알 수 없게 된다.
-
-담긴 것 (전부 지어낸 값이다):
-
-- 130주 스냅샷 — 조회 상한 104주보다 넉넉해 **구간 자르기가 실제로 동작**한다
-- `consola` — 패키지·버전은 있는데 **스냅샷이 없다.** 지표만 `null` 이고 `not_found` 가 아니어야 한다
-- `signale` — `repo_url` 이 없어 **stars·open_issues 가 `null`**, 다운로드는 있다
-- `fastify` · `log4js` · `tslog` — **관측 시작이 늦어 시리즈가 짧다.** 차트에서 선 길이가 달라진다
-- `bunyan` — 최신 버전에 **폐기 표시**가 있다
-- `@types/node` — 스코프 패키지이고 major 가 5개라 **"상위 5개 + 기타" 접기**가 걸린다
-
-### ⚠ 시드 파일에 테이블을 추가할 때
-
-`TRUNCATE` 목록에 새 테이블을 함께 적어야 한다. `CASCADE` 를 쓰지 않는 것은 의도다 —
-빠뜨리면 FK 오류로 **멈춰서 알려 준다.** (실제로 `similar_package` 를 추가했을 때 그렇게 걸렸다.)
-값을 고치고 다시 돌리면 그대로 반영된다.
-
-> ⚠ **이 다섯 테이블은 시드 파일이 소유한다.** 직접 넣은 데이터를 여기 두지 말 것 —
-> 위 명령을 돌리는 순간 사라진다. 살려야 하는 데이터는 다른 곳에 둘 것.
+> ⚠ 실제 Curated 적재 DB에서 이 명령을 실행하거나 `TRUNCATE`로 데이터를 비우지 말 것.
+> `package`, `version` 및 실행 이력은 PostgreSQL 적재기가 소유한다. 적재 실패 복구에는
+> seed를 사용하지 않는다.
 
 숫자는 전부 지어낸 값이다. 형태만 맞춰 둔 것이므로 분석 근거로 쓰지 말 것.
 
@@ -137,6 +112,37 @@ Flyway 의 반복 마이그레이션(`R__`)으로 두면 파일이 바뀔 때마
 - 체크섬·적용 이력이 없어서 "시드를 고쳤는데 기동이 막힌다" 류의 함정이 생기지 않는다.
 
 </details>
+
+## Curated package·version 적재
+
+Curated의 승인된 `package-version` 실행을 PostgreSQL에 넣을 때는
+[pipeline/postgresql/README.md](../../pipeline/postgresql/README.md)의 loader를 사용한다.
+일반 사용자 DB의 V1·V2 스키마는 앱이 Flyway로 적용한다. SQL 파일을 직접 붙여 넣어
+마이그레이션을 우회하지 않는다.
+
+적재 전에는 다음 조건을 확인한다.
+
+- MinIO의 `pickage-curated`에 `_SUCCESS`와 `run_manifest.json`이 있는 승인 Curated run이다.
+- `pipeline/minio/.env`가 준비되어 있고, 입력 파일을 받을 로컬 디스크 공간이 충분하다.
+- DB가 앱이 사용하는 PostgreSQL 16 스키마를 Flyway로 적용한 상태다.
+- 실행 ID와 snapshot을 명시하고, 비밀번호는 CLI·리포트·로그에 넣지 않는다.
+
+입력을 DB 없이 먼저 확인하려면 loader의 `--verify-only`를 사용한다.
+
+```powershell
+.venv-bq\Scripts\python.exe -m pipeline.postgresql.load `
+  --snapshot 2026-08-31 `
+  --curated-run-id curated-20260907-v2 `
+  --execution-id verify-20260907-v2 `
+  --verify-only
+```
+
+실제 적재는 Docker 컨테이너의 `psql` 또는 호스트 `psql`을 명시한다. 연결 방법, 재실행,
+실패한 PREPARING 세션 복구, commit 응답 유실 확인은 위 적재 안내를 기준으로 한다.
+
+`pipeline/postgresql/test_integration.py`가 V1·V2를 직접 적용하는 것은 격리된 테스트 DB를
+만드는 테스트 harness에 한정된다. 이 테스트는 `pickage` 애플리케이션 DB와 seed를 사용하지
+않는다.
 
 ### 스키마를 바꿀 때
 
@@ -160,6 +166,10 @@ Flyway 는 적용한 파일의 체크섬을 `flyway_schema_history` 에 적어 �
 docker compose --profile api down
 docker volume rm pickage-local_pgdata
 ```
+
+이 볼륨 삭제는 해당 로컬 PostgreSQL의 모든 데이터와 적재 이력을 폐기한다. 샘플 DB를
+처음부터 다시 만들 때만 사용하고, Curated 적재 결과를 복구하는 방법으로 사용하지 않는다.
+삭제 전에 `docker volume ls`로 정확한 볼륨 이름을 확인한다.
 
 > **앱이 DB 를 대신 비워 주지는 않는다.** 검증 실패를 잡아 `clean` 후 재적용하게 만들 수도
 > 있지만, 그건 로컬 DB 의 데이터를 조용히 지우는 경로가 된다. 시드만 있을 때는 손해가 없어

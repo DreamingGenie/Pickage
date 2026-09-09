@@ -10,7 +10,7 @@
                3일 자동 만료) → extract 잡으로 GCS Parquet(무과금) → 스테이징 삭제
   6. 검증     : 스테이징 테이블 행 수를 INFORMATION_SCHEMA.PARTITIONS 행 수와 대조, 매니페스트·원장 기록
 
-사용법은 pipeline/bigquery/README.md. 계획서는 docs/api & data/수집계획_BigQuery_Parquet_v2_260902.md.
+사용법은 pipeline/collectors/bigquery/README.md. 계획서는 docs/api & data/수집계획_BigQuery_Parquet_v2_260902.md.
 """
 from __future__ import annotations
 

@@ -1,0 +1,258 @@
+{
+  "verified_at": "2026-09-08T04:44:07.676987+00:00",
+  "database": "pickage_267_full_defaulted",
+  "container": "pickage-267-validation",
+  "schema_application": "V1 and V2 SQL directly; Flyway engine not run",
+  "service_counts_before": {
+    "package": 0,
+    "version": 0
+  },
+  "service_columns": [
+    {
+      "table_name": "package",
+      "ordinal_position": 1,
+      "column_name": "package_id",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package",
+      "ordinal_position": 2,
+      "column_name": "name",
+      "data_type": "character varying",
+      "character_maximum_length": 300,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package",
+      "ordinal_position": 3,
+      "column_name": "repo_url",
+      "data_type": "character varying",
+      "character_maximum_length": 200,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "package_snapshot",
+      "ordinal_position": 1,
+      "column_name": "package_id",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package_snapshot",
+      "ordinal_position": 2,
+      "column_name": "snapshot_at",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package_snapshot",
+      "ordinal_position": 3,
+      "column_name": "downloads",
+      "data_type": "bigint",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "package_snapshot",
+      "ordinal_position": 4,
+      "column_name": "stars",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "package_snapshot",
+      "ordinal_position": 5,
+      "column_name": "open_issues",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "ordinal_position": 1,
+      "column_name": "package_id",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "ordinal_position": 2,
+      "column_name": "version",
+      "data_type": "character varying",
+      "character_maximum_length": 100,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "ordinal_position": 3,
+      "column_name": "snapshot_at",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "ordinal_position": 4,
+      "column_name": "dependents_count",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "snapshot",
+      "ordinal_position": 1,
+      "column_name": "snapshot_at",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": "'2026-08-31'::date"
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 1,
+      "column_name": "version",
+      "data_type": "character varying",
+      "character_maximum_length": 100,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 2,
+      "column_name": "package_id",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 3,
+      "column_name": "published_at",
+      "data_type": "timestamp without time zone",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 4,
+      "column_name": "ordinal",
+      "data_type": "bigint",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 5,
+      "column_name": "description",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 6,
+      "column_name": "licenses",
+      "data_type": "json",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 7,
+      "column_name": "deprecated",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "version",
+      "ordinal_position": 8,
+      "column_name": "dependency",
+      "data_type": "json",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": "'{\n        \"dependencies\": {},\n        \"peerDependencies\": {},\n        \"optionalDependencies\": {}\n    }'::json"
+    }
+  ],
+  "service_constraints": [
+    {
+      "table_name": "package",
+      "name": "PK_PACKAGE",
+      "definition": "PRIMARY KEY (package_id)"
+    },
+    {
+      "table_name": "package",
+      "name": "UK_PACKAGE_NAME",
+      "definition": "UNIQUE (name)"
+    },
+    {
+      "table_name": "package_snapshot",
+      "name": "FK_PACKAGE_PACKAGE_SNAPSHOT",
+      "definition": "FOREIGN KEY (package_id) REFERENCES package(package_id)"
+    },
+    {
+      "table_name": "package_snapshot",
+      "name": "FK_SNAPSHOT_PACKAGE_SNAPSHOT",
+      "definition": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)"
+    },
+    {
+      "table_name": "package_snapshot",
+      "name": "PK_PACKAGE_SNAPSHOT",
+      "definition": "PRIMARY KEY (package_id, snapshot_at)"
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "name": "FK_SNAPSHOT_PACKAGE_VERSION_SNAPSHOT",
+      "definition": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)"
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "name": "FK_VERSION_PACKAGE_VERSION_SNAPSHOT",
+      "definition": "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)"
+    },
+    {
+      "table_name": "package_version_snapshot",
+      "name": "PK_PACKAGE_VERSION_SNAPSHOT",
+      "definition": "PRIMARY KEY (package_id, version, snapshot_at)"
+    },
+    {
+      "table_name": "snapshot",
+      "name": "PK_SNAPSHOT",
+      "definition": "PRIMARY KEY (snapshot_at)"
+    },
+    {
+      "table_name": "version",
+      "name": "FK_PACKAGE_VERSION",
+      "definition": "FOREIGN KEY (package_id) REFERENCES package(package_id)"
+    },
+    {
+      "table_name": "version",
+      "name": "PK_VERSION",
+      "definition": "PRIMARY KEY (package_id, version)"
+    }
+  ]
+}

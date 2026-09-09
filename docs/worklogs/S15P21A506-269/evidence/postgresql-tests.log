@@ -1,0 +1,8 @@
+test_actual_projects_candidate_exact_dates_and_retry (pipeline.snapshot.test_integration.SnapshotPostgresTests.test_actual_projects_candidate_exact_dates_and_retry) ... ok
+test_explicit_dates_are_idempotent_and_preserve_existing (pipeline.snapshot.test_integration.SnapshotPostgresTests.test_explicit_dates_are_idempotent_and_preserve_existing) ... ok
+test_failure_rolls_back_all_dates (pipeline.snapshot.test_integration.SnapshotPostgresTests.test_failure_rolls_back_all_dates) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 9.572s
+
+OK
