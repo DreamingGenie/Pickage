@@ -76,6 +76,12 @@ services:
   minio:
     profiles: ["data", "all"]
     # 태그가 아니라 다이제스트로 고정한다. 태그는 같은 이름으로 재발행될 수 있다.
+    #
+    # ⚠ 운영은 **더 오래된 버전**을 쓴다 (deploy/prod/data/compose.yaml —
+    #   minio/minio:RELEASE.2025-04-22T22-12-26Z, 웹 콘솔이 온전한 것을 확인해 고정).
+    #   그래서 **여기서 검증한 S3 동작이 운영에서 그대로라는 보장이 없다.**
+    #   서버에서만 나는 mc·멀티파트·프리사인 URL 오류는 이 차이를 먼저 의심할 것.
+    #   .agents/AGENTS.md 의 "알려진 환경 차이" 참고.
     image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /data --console-address :9001
     restart: unless-stopped
