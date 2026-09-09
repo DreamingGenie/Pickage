@@ -35,6 +35,14 @@ Postgres·API 값은 로컬 전용이라 커밋되어 있다. **운영 서버 �
 | MinIO | `http://localhost:9000` | `pipeline/minio/.env` 의 값 |
 | MinIO 콘솔 | http://localhost:9001 | 위와 같음 |
 
+> **서버 MinIO 에 넣으려는 것이면 이 문서가 아니다.** 서버는 외부 포트가 없어 SSH 터널로
+> 붙고, 자격증명 파일도 따로 쓴다. 절차는
+> [pipeline/minio/README.md](../../pipeline/minio/README.md) 의 "서버 MinIO 로 적재하기".
+>
+> 터널의 **내 PC 쪽 입구를 19000** 으로 낸다(서버는 9000 그대로다). 입구를 9000 으로
+> 잡으면 아래 로컬 MinIO 와 같은 주소가 되어, 터널을 잊었을 때 서버로 갈 데이터가
+> **오류 없이 로컬로 들어간다.**
+
 버킷 5종은 `minio-init` 이 기동 시 **없는 것만** 만든다. 기존 버킷과 객체는 유지된다.
 `minio-init` 이 `Exited (0)` 인 것은 초기화 성공을 뜻한다.
 
