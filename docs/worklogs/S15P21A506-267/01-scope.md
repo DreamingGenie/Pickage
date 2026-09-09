@@ -1,6 +1,6 @@
 # 01. 작업 정의와 변경 범위
 
-상태: **구현·전체 적재·읽기 전용 검증·동일 입력 재실행 검증 완료** · 작성 기준: 로컬 원문 `docs/jira/db-loading/01-package-version-load.md` · [문서 안내](README.md)
+상태: **구현·전체 적재·읽기 전용 검증·동일 입력 재실행 검증 완료** · 작성 기준: 사용자 요구사항과 아래에 기록한 확정 계약 · [문서 안내](README.md)
 
 소스 입력 검증과 격리 PostgreSQL의 경계값·실패·재시도·Curated 생성기 연계 샘플은 통과했고, 전체
 서비스 DDL은 사용자가 제공한 V1 계약과 동일하며 `version.dependency`는 `NOT NULL`이다.
