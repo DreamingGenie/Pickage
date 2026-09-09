@@ -41,7 +41,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 
 ## 현재 진행 상황
 
-2026-09-07 확인 기준이다. 아래 입고 수치는 저장된 검증 manifest 기준이며,
+2026-09-09 확인 기준이다. 아래 입고 수치는 저장된 검증 manifest 기준이며,
 이 문서 작성 시 전체 객체의 해시를 다시 계산한 결과는 아니다.
 
 - [x] 루트 Compose에서 로컬 MinIO 실행 및 데이터 볼륨 관리
@@ -50,9 +50,16 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] 동일 실행 ID 재개 및 기존 객체 내용 불일치 시 실패 처리
 - [x] deps.dev Bronze 데이터 입고 완료
 - [x] `package`·`version` Curated 전처리 구현 및 로컬 전체 데이터 저장·재검증
+- [x] 서버 MinIO 기동 및 로컬에서 터널로 적재하는 경로 (2026-09-09)
+- [x] ecosyste.ms keywords 원본 서버 입고 (`keywords-20260909-v1`)
+- [ ] npm registry 원본 입고 — **수집이 아직 진행 중이다.** 입고 경로는 준비되어 있고,
+      `manifest.json` 의 `pending` 이 0 이 되면 실행한다
 - [ ] PostgreSQL 적재
 - [ ] Spark·벡터 생성·MLflow 연동
-- [ ] 서버 배포, 권한 분리, 백업 및 자동 스케줄링
+- [ ] 권한 분리(서비스 계정), 백업 및 자동 스케줄링
+
+서버 MinIO는 루트 자격증명 하나를 함께 쓰는 상태다. 버킷별 권한을 가른 서비스 계정은
+아직 없다. 지금은 적재하는 사람이 곧 버킷 전체를 지울 수 있는 사람과 같다.
 
 입고 실행 ID: `bronze-20260907-v1`
 
@@ -77,6 +84,11 @@ Curated 전처리는 위 Bronze 중 `2026-08-31` 스냅샷의 `versions_full`과
 Bronze 원본을 변경하거나 `pickage-quarantine`으로 이동하지 않는다.
 `curated-20260907-v2`에서 package 11,080,940행과 version 54,188,349행을 생성했고,
 관리·품질 파일을 포함해 Parquet 44개(약 4.85GB)를 저장했다.
+
+수집기 원본은 `keywords-20260909-v1` 로 ecosyste.ms keywords 수집일 `2026-09-08` 을
+서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
+더해 1,003객체이며, 원본 manifest 기준 1,000/1,000페이지·100만 행이다. 같은 실행 ID로
+재실행해 객체 수가 늘지 않고 전량 해시 검증만 통과하는 것을 확인했다.
 
 ## 로컬 실행
 
@@ -104,6 +116,68 @@ MinIO가 healthy 상태가 되면 `minio-init`이 `init-buckets.sh`를 실행해
 중지는 `docker compose -f docker-compose.local.yaml stop`으로 한다.
 `down -v`는 저장 데이터를 삭제하므로 사용하지 않는다.
 
+## 서버 MinIO 로 적재하기
+
+여기까지는 전부 로컬 이야기다. 서버(`data` 노드)의 MinIO에 넣으려면 두 가지가 필요하다 —
+SSH 터널과 별도 자격증명 파일이다.
+
+서버 MinIO는 **외부에 열린 포트가 없다.** S3 API 9000·콘솔 9001 모두 루프백에만
+묶여 있어 터널로만 닿는다. 서버 구성은 [deploy/prod/data/README.md](../../deploy/prod/data/README.md)를 본다.
+
+### 1. 터널을 연다 — 9000 이 아니라 19000 이다
+
+```bash
+ssh -i ~/.ssh/J15A506T.pem -N -L 19000:localhost:9000 ubuntu@j15a506a.p.ssafy.io
+```
+
+**포트를 19000 으로 가르는 것이 이 구성의 핵심이다.** 터널을 9000 으로 열면 로컬 MinIO와
+같은 포트가 된다. 그러면 터널을 여는 것을 잊은 채 적재를 돌렸을 때 **아무 오류 없이
+로컬 MinIO 로 들어간다.** 서버에 넣은 줄 알고 넘어가고, 그 사실은 한참 뒤에 드러난다.
+
+19000 으로 갈라 두면 터널이 없을 때 연결 자체가 거부되어 그 자리에서 실패한다.
+안전이 사람의 기억이 아니라 포트 번호에 걸려 있게 된다.
+
+터널은 창을 닫으면 끊긴다. 적재가 끝날 때까지 열어 둔다.
+
+### 2. 자격증명 파일을 만든다
+
+```bash
+cp pipeline/minio/.env.server.example pipeline/minio/.env.server
+```
+
+값은 서버에서 돌고 있는 컨테이너에서 꺼낸다. 따로 발급받을 필요가 없다.
+
+```bash
+ssh -i ~/.ssh/J15A506T.pem ubuntu@j15a506a.p.ssafy.io   'docker inspect pickage-data-minio-1 --format "{{range .Config.Env}}{{println .}}{{end}}" | grep MINIO_ROOT'
+```
+
+`.env.server` 는 `.gitignore` 가 막는다(`.env.*` 전체를 막고 `.example` 만 예외로 둔다).
+**로컬 `.env` 에 서버 값을 넣지 말 것** — 그 파일은 루트 compose 가 로컬 컨테이너를
+띄울 때 함께 읽는다.
+
+### 3. 대상을 지정해 실행한다
+
+환경변수로 자격증명 파일을 고른다. 지정하지 않으면 로컬이다.
+
+```powershell
+$env:PICKAGE_MINIO_ENV=".env.server"
+```
+
+```bash
+export PICKAGE_MINIO_ENV=.env.server
+```
+
+이제 이 문서의 입고·적재 명령이 그대로 서버를 향한다. `pipeline/curated/build.py`와
+`pipeline/postgresql/load.py`도 같은 `client()` 를 쓰므로 함께 바뀐다.
+
+실행할 때마다 첫 줄에 붙은 곳이 찍힌다. **로그에서 이 줄을 먼저 볼 것.**
+
+```text
+PICKAGE_S3_ENDPOINT=http://localhost:19000 (.env.server)
+```
+
+로컬로 돌아가려면 변수를 지운다 (`Remove-Item Env:PICKAGE_MINIO_ENV` / `unset PICKAGE_MINIO_ENV`).
+
 ## Bronze 입고 실행
 
 원본 Parquet는 MinIO 기동과 별개의 입고 작업으로 `pickage-raw`에 복사한다.
@@ -126,6 +200,47 @@ MinIO가 healthy 상태가 되면 `minio-init`이 `init-buckets.sh`를 실행해
 `boto3`는 로컬 MinIO의 S3 API 호출에, `duckdb`는 입고 전 Parquet 메타데이터의
 행 수 확인에 사용한다. DuckDB 서버를 별도로 띄우거나 MinIO 컨테이너에 설치하지 않는다.
 
+## 수집기 원본 입고 실행
+
+deps.dev 스냅샷은 위의 `ingest_raw.py` 가 맡는다. API 수집기(ecosyste.ms keywords,
+npm registry)의 원본은 `ingest_collector_raw.py` 로 넣는다. 둘을 가른 이유는 원본의
+형태가 다르기 때문이다 — 수집기 쪽은 `data/<소스>/raw/run=<날짜>/` 에 gzip JSONL 조각과
+수집기가 직접 쓴 `manifest.json` 이 함께 있다. 업로드·검증 규칙은 같은 것을 쓴다.
+
+```powershell
+.venv-bq/Scripts/python.exe -m pipeline.minio.ingest_collector_raw --source keywords --dry-run
+.venv-bq/Scripts/python.exe -m pipeline.minio.ingest_collector_raw --source keywords --run 2026-09-08 --run-id keywords-20260909-v1 --workers 8
+```
+
+`--source` 는 `keywords` 와 `registry` 를 받는다. `--run` 으로 수집일을 지정하고,
+생략하면 **날짜 형태의 run 만** 쓸어 담는다.
+
+### 미완료 수집은 입고되지 않는다
+
+수집기의 `manifest.json` 을 읽어 **수집이 끝났는지 먼저 판정한다.** 끝나지 않았으면
+그 자리에서 실패한다.
+
+| 소스 | 완료 조건 |
+| --- | --- |
+| `keywords` | `final: true` 이고 `pages_done == pages_planned` |
+| `registry` | `final: true` 이고 `tasks_by_status.pending == 0` |
+
+`final` 만으로는 부족하다. 수집기가 체크포인트마다 manifest 를 다시 쓰기 때문에
+진행 중에도 파일은 늘 존재한다. 진행 카운터가 **없는** manifest 도 완료로 보지 않는다 —
+형태가 다른 manifest 를 "빠진 값 = 문제 없음" 으로 읽으면 부분 수집이 그대로 통과한다.
+
+부분 수집을 올리면 `_SUCCESS` 가 함께 기록되어 **나중에 검증된 완전한 원본으로 읽힌다.**
+그 뒤로는 아무도 의심하지 않는다. 그래서 여기서 막는다.
+
+### 스모크 런은 쓸어 담지 않는다
+
+시험 실행(`run=smoke-2026-09-08`)이 실제 수집 폴더와 같은 자리에 남는다.
+`--run` 없이 돌리면 날짜 형태만 고르므로 시험 데이터가 섞여 들어가지 않는다.
+굳이 올리려면 `--run smoke-2026-09-08` 처럼 이름을 대야 한다.
+
+`pickage-raw` 는 수집 원본이 사는 버킷이다. 시험 데이터가 한 번 들어가면
+나중에 그것이 무엇이었는지 아무도 기억하지 못한다.
+
 ## 저장 경로와 검증 규칙
 
 목적지 버킷은 `pickage-raw`이며, 실행별 객체 이름은 다음과 같다.
@@ -137,6 +252,21 @@ depsdev/v1/{table}/snapshot={date}/run_id={run}/
   run_manifest.json    # 파일별 크기·SHA-256 및 입고 검증 결과
   _SUCCESS             # 해당 데이터셋·스냅샷·실행의 검증 완료 표시
 ```
+
+수집기 원본은 소스별로 다음 경로에 넣는다. 검증 규칙과 관리 파일은 위와 같다.
+
+```text
+ecosystems-keywords/v1/collected_date={date}/run_id={run}/
+npm-registry/v1/collected_date={date}/run_id={run}/
+  data/part-*.jsonl.gz  # 수집된 gzip JSONL 원본
+  source_manifest.json  # 수집기 manifest.json 보존
+  run_manifest.json     # 파일별 크기·SHA-256 및 입고 검증 결과
+  _SUCCESS              # 해당 수집일·실행의 검증 완료 표시
+```
+
+수집기의 체크포인트 DB(`checkpoint.sqlite`)와 로그는 올리지 않는다. 수집기가 도는 동안
+계속 바뀌는 작업 상태이지 원본이 아니다. `npm-downloads/v1/` 은 별도 입고 경로가 맡는다
+([pipeline/downloads](../downloads/)).
 
 Projects는 여러 provider의 데이터이므로 `system=npm` prefix를 사용하지 않는다.
 모든 업로드 객체는 GET으로 읽어 로컬 SHA-256과 비교한다.

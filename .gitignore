@@ -1,7 +1,10 @@
-# 환경 secret 파일(실제 값) — .env.example만 추적, 리포 전역 방어
+# 환경 secret 파일(실제 값) — .env.example 류만 추적, 리포 전역 방어
+# .env.server 처럼 앞으로 늘어날 환경 파일까지 한 번에 막는다.
+# 서버 자격증명이 담기는 파일이라, 이름을 하나씩 추가하는 방식은 빠뜨리면 그대로 커밋된다.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Python
 __pycache__/

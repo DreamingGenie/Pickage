@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 import uuid
@@ -25,10 +26,23 @@ def digest(stream):
 
 
 def client():
-    env = dict(line.split('=', 1) for line in
-               (Path(__file__).parent / '.env').read_text().splitlines()
+    # PICKAGE_MINIO_ENV picks the credentials file; unset means local .env.
+    # The server file points at the SSH tunnel port rather than 9000, so forgetting
+    # the tunnel fails to connect instead of quietly writing to local MinIO.
+    name = os.environ.get('PICKAGE_MINIO_ENV', '.env')
+    path = Path(__file__).parent / name
+    if Path(name).name != name or not path.is_file():
+        raise SystemExit(f'MinIO credentials not found: pipeline/minio/{name}\n'
+                         'Local: copy .env.example to .env\n'
+                         'Server: see pipeline/minio/README.md')
+    env = dict(line.split('=', 1) for line in path.read_text().splitlines()
                if line and not line.startswith('#'))
-    return boto3.client('s3', endpoint_url='http://localhost:9000',
+    # Not MINIO_ENDPOINT: that name belongs to init-buckets.sh, which runs inside
+    # the compose network and resolves http://minio:9000. This one is a host address.
+    endpoint = env.get('PICKAGE_S3_ENDPOINT', 'http://localhost:9000')
+    # Printed so the destination is visible in every run log.
+    print(f'PICKAGE_S3_ENDPOINT={endpoint} ({name})', flush=True)
+    return boto3.client('s3', endpoint_url=endpoint,
                         aws_access_key_id=env['MINIO_ROOT_USER'],
                         aws_secret_access_key=env['MINIO_ROOT_PASSWORD'],
                         region_name='us-east-1',
