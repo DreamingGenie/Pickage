@@ -53,6 +53,7 @@ def report(run, out):
                      "WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-10 minutes')").fetchone()
     r60 = db.execute("SELECT COUNT(*), COALESCE(SUM(http=429),0), COUNT(DISTINCT name) FROM events "
                      "WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-60 minutes')").fetchone()
+    first_in_window = db.execute("SELECT MIN(ts) FROM events WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-60 minutes')").fetchone()[0]
     rank = db.execute("SELECT MAX(rank) FROM tasks WHERE status != 'pending'").fetchone()[0]
     db.close()
 
@@ -63,7 +64,14 @@ def report(run, out):
             t = t.replace(tzinfo=timezone.utc)
         age = (datetime.now(timezone.utc) - t).total_seconds()
     procs = alive()
-    pkgs_per_h = r60[2]
+    # 시간당 처리량: 최근 1시간 창. 가동(또는 재시작) 1시간 미만이면 창 안의 첫 호출부터 지금까지로 나눠 과대 ETA 를 막는다
+    window_h = 1.0
+    if first_in_window:
+        t0 = datetime.fromisoformat(first_in_window)
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=timezone.utc)
+        window_h = max(1 / 60, min(1.0, (datetime.now(timezone.utc) - t0).total_seconds() / 3600))
+    pkgs_per_h = round(r60[2] / window_h)
     eta_h = pend / pkgs_per_h if pkgs_per_h else None
     size = sum(os.path.getsize(os.path.join(rundir, f)) for f in os.listdir(rundir) if f.startswith("part-")) / 1e6
 
