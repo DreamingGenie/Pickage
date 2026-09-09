@@ -5,13 +5,18 @@
         migration_pairs_all.csv      lift≥5 AND votes≥3 인 (from, to) 쌍 전부 (UTF-8 BOM)
         migration_pairs_strict.csv   README 필터(lift≥5, votes≥12, publisher_months≥10, A≥3%) 통과 쌍
         migration_pairs_recommended.csv  권고 하한(lift≥5, votes≥8, publisher_months≥5, share≥10%) 통과 쌍
+        removal_stats.csv            X별 이탈 요약(제거 총수·대체 없이 제거·대체 동반 제거·dependents). removals_total≥3 만
+        removal_by_year.csv          X × 연도 이탈 추이. 같은 X 기준
         stats.json                   규모 통계(패키지 수·전이 수·이벤트 수·파일 크기)
       data/migration_pairs/migration_events.parquet   제거 이벤트 원시 전부(모델 최소 단위)
+      data/migration_pairs/removal_stats.parquet, removal_by_year.parquet   위 두 표 필터 없이 전부
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_migration_pairs.py   (중간 결과 data/migration_pairs.duckdb)
 
 계산은 docs/설계_마이그레이션쌍_탐지_260831.md 0~4단계. build_feature_candidates.py 와 같은 로직이되
 - TARGETS 제한 없이 모든 removed 패키지를 X 로 본다 (분모 B 도 npm 전수 전이)
 - 5-1 반영: 다음 버전의 Peer/OptionalDependencies 로 옮겨진 이름은 제거가 아니라 재분류로 보고 X 후보에서 뺀다
+- 7단계(S15P21A506-281): trans 를 지우기 전에 "대체 없이 제거"(X 를 뺐지만 같은 전이에서 아무것도 안 넣음) 와
+  연도별 이탈 수를 removal_stats / removal_by_year 로 집계. 점유율은 votes 기준 share 와 함께 (배포주체, 월) 기준 share_pm 도 낸다
 """
 import json
 import os
@@ -104,6 +109,28 @@ log("events", stats["removal_events"], "distinct removed", stats["removed_pkgs_d
 # 5) 기저율 B (npm 전수 전이 기준)
 con.execute(f"""CREATE OR REPLACE TABLE base AS
 SELECT y AS to_pkg, count(*)::DOUBLE / {n_trans} AS b_rate FROM trans, unnest(added) AS u(y) GROUP BY y""")
+
+# 5-2) X 별 이탈 요약 / X × 연도 이탈 추이 — 추가 여부 무관하게 X 를 뺀 전이 전부 (trans 가 남아 있을 때만 가능)
+#      removals_with_replacement 는 pairs.removal_events 와 같아야 한다. added 가 NULL 인 전이는 "대체 없음" 으로 센다
+con.execute("""CREATE OR REPLACE TABLE removal_stats AS
+SELECT x AS removed_pkg,
+       count(*)                                                AS removals_total,
+       count(*) FILTER (WHERE coalesce(len(added), 0) = 0)     AS removals_no_replacement,
+       count(*) FILTER (WHERE len(added) > 0)                  AS removals_with_replacement,
+       count(DISTINCT Name)                                    AS dependents,
+       count(DISTINCT publisher || '|' || strftime(to_ts, '%Y-%m')) AS publisher_months,
+       min(to_ts) AS first_seen, max(to_ts) AS last_seen
+FROM trans, unnest(removed) AS u(x) GROUP BY 1""")
+con.execute("""CREATE OR REPLACE TABLE removal_by_year AS
+SELECT x AS removed_pkg, year(to_ts) AS year,
+       count(*)                                                AS removals,
+       count(*) FILTER (WHERE coalesce(len(added), 0) = 0)     AS removals_no_replacement,
+       count(DISTINCT Name)                                    AS dependents
+FROM trans, unnest(removed) AS u(x) GROUP BY 1, 2""")
+stats["removed_pkgs_any"] = one("SELECT count(*) FROM removal_stats")
+stats["removals_total"] = one("SELECT sum(removals_total) FROM removal_stats")
+stats["removals_no_replacement_total"] = one("SELECT sum(removals_no_replacement) FROM removal_stats")
+log("removal_stats", {k: stats[k] for k in ("removed_pkgs_any", "removals_total", "removals_no_replacement_total")})
 con.execute("DROP TABLE trans")
 
 # 6) 쌍 집계 + lift
@@ -124,12 +151,13 @@ log("pairs", stats["candidate_pairs_all"])
 # share = lift≥5 쌍 안에서 X 전체 표 중 Y 의 비율 / bidirectional = (Y, X) 쌍도 lift≥5·votes≥3 으로 존재
 con.execute("""CREATE OR REPLACE TABLE pairs_out AS
 SELECT p.*, votes/sum(votes) OVER (PARTITION BY from_pkg) AS share,
+       publisher_months/sum(publisher_months) OVER (PARTITION BY from_pkg) AS share_pm,
        EXISTS(SELECT 1 FROM pairs q WHERE q.from_pkg=p.to_pkg AND q.to_pkg=p.from_pkg AND q.lift>=5 AND q.votes>=3) AS bidirectional
 FROM pairs p WHERE lift>=5""")
 
 SELECT_COLS = """from_pkg, to_pkg, round(votes,1) AS votes, co_events, removal_events, publisher_months, dependents,
        round(a_rate*100,2) AS a_pct, round(b_rate*100,4) AS b_pct, round(lift,1) AS lift,
-       round(share*100,1) AS share_pct, bidirectional,
+       round(share*100,1) AS share_pct, round(share_pm*100,1) AS share_pm_pct, bidirectional,
        strftime(first_seen,'%Y-%m-%d') AS first_seen, strftime(last_seen,'%Y-%m-%d') AS last_seen"""
 STRICT = "lift>=5 AND votes>=12 AND publisher_months>=10 AND a_rate>=0.03"
 LOOSE = "lift>=5 AND votes>=3"
@@ -157,6 +185,20 @@ for cond, fname in ((STRICT, "migration_pairs_strict.csv"), (LOOSE, "migration_p
                     (RECOMMENDED, "migration_pairs_recommended.csv")):
     con.execute(f"""COPY (SELECT {SELECT_COLS} FROM pairs_out WHERE {cond} ORDER BY from_pkg, votes DESC)
                     TO '{OUT}/{fname}' (HEADER, DELIMITER ',')""")
+REMOVAL_MIN = 3  # 이 아래는 통계로 의미가 없고 행이 10만 개 넘게 늘어난다
+REMOVAL_COLS = """removed_pkg, removals_total, removals_no_replacement, removals_with_replacement,
+       round(removals_no_replacement*100.0/removals_total, 1) AS no_replacement_pct,
+       dependents, publisher_months, strftime(first_seen,'%Y-%m-%d') AS first_seen, strftime(last_seen,'%Y-%m-%d') AS last_seen"""
+con.execute(f"""COPY (SELECT {REMOVAL_COLS} FROM removal_stats WHERE removals_total >= {REMOVAL_MIN}
+                      ORDER BY removals_total DESC, removed_pkg)
+                TO '{OUT}/removal_stats.csv' (HEADER, DELIMITER ',')""")
+con.execute(f"""COPY (SELECT y.removed_pkg, y.year, y.removals, y.removals_no_replacement, y.dependents
+                      FROM removal_by_year y JOIN removal_stats s USING (removed_pkg)
+                      WHERE s.removals_total >= {REMOVAL_MIN} ORDER BY y.removed_pkg, y.year)
+                TO '{OUT}/removal_by_year.csv' (HEADER, DELIMITER ',')""")
+con.execute(f"COPY (SELECT * FROM removal_stats ORDER BY removals_total DESC) TO '{EV_DIR}/removal_stats.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
+con.execute(f"COPY (SELECT * FROM removal_by_year ORDER BY removed_pkg, year) TO '{EV_DIR}/removal_by_year.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
+stats["removal_stats_rows_csv"] = one(f"SELECT count(*) FROM removal_stats WHERE removals_total >= {REMOVAL_MIN}")
 stats["recommended_pairs"] = one(f"SELECT count(*) FROM pairs_out WHERE {RECOMMENDED}")
 stats["recommended_from_pkgs"] = one(f"SELECT count(DISTINCT from_pkg) FROM pairs_out WHERE {RECOMMENDED}")
 con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_version, to_ts AS to_published_at,
@@ -170,7 +212,8 @@ con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_versio
                 TO '{EV_DIR}/migration_events.csv' (HEADER, DELIMITER ',')""")
 
 # UTF-8 BOM (팀 공유 CSV 관례)
-for f in ("migration_pairs_strict.csv", "migration_pairs_all.csv", "migration_pairs_recommended.csv"):
+for f in ("migration_pairs_strict.csv", "migration_pairs_all.csv", "migration_pairs_recommended.csv",
+          "removal_stats.csv", "removal_by_year.csv"):
     p = f"{OUT}/{f}"
     with open(p, "rb") as fh:
         data = fh.read()
@@ -185,6 +228,10 @@ stats["file_bytes"] = {
     "migration_pairs_strict.csv": sz(f"{OUT}/migration_pairs_strict.csv"),
     "migration_pairs_all.csv": sz(f"{OUT}/migration_pairs_all.csv"),
     "migration_pairs_recommended.csv": sz(f"{OUT}/migration_pairs_recommended.csv"),
+    "removal_stats.csv": sz(f"{OUT}/removal_stats.csv"),
+    "removal_by_year.csv": sz(f"{OUT}/removal_by_year.csv"),
+    "removal_stats.parquet": sz(f"{EV_DIR}/removal_stats.parquet"),
+    "removal_by_year.parquet": sz(f"{EV_DIR}/removal_by_year.parquet"),
     "migration_events.parquet": sz(f"{EV_DIR}/migration_events.parquet"),
     "migration_events.csv": sz(f"{EV_DIR}/migration_events.csv"),
     "migration_pairs.duckdb": sz(DB),
