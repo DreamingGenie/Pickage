@@ -1,0 +1,17 @@
+{
+  "verified_at": "2026-09-08T04:37:11.161361+00:00",
+  "reason": "User confirmed the original service DDL, including dependency NOT NULL. Cancelled the in-flight load and restored the validation DB constraint/comment.",
+  "load_report": "data\\postgresql\\load-267-full-v1\\e94e37c1c1c942b58276106ffa9eac97\\execution_report.json",
+  "load_status": "FAILED",
+  "load_error": "psql failed during PUBLISH: ERROR:  canceling statement due to user request",
+  "attempt_id": "e94e37c1c1c942b58276106ffa9eac97",
+  "elapsed_seconds": 1792.078,
+  "old_contract_sha256": "fe5fc2e387e2d726007a8b0524a0050d472c6ec1e4600e46699edb91f84f9153",
+  "database_after_rollback_and_schema_restore": {
+    "dependency_not_null": true,
+    "dependency_comment": "유저에게 의존성 보여주는 용도, 따로 계산할때 쓰진 않음",
+    "package": 0,
+    "version": 0,
+    "current": 0
+  }
+}

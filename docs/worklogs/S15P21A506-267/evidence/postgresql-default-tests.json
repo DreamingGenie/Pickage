@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-09-08T04:44:53.135995+00:00",
+  "status": "PASSED",
+  "exit_code": 0,
+  "summary": [
+    "Ran 31 tests in 62.312s",
+    "OK"
+  ],
+  "command": [
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+    "-m",
+    "unittest",
+    "pipeline.postgresql.test_input",
+    "pipeline.postgresql.test_load",
+    "pipeline.postgresql.test_postgres",
+    "pipeline.postgresql.test_integration",
+    "-v"
+  ],
+  "postgres_container": "pickage-267-validation",
+  "contract_sha256": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2",
+  "log_path": "data\\postgresql\\verification\\postgresql-default-tests.log",
+  "log_sha256": "674891966e04717320ee00aca41cf532798ef9d8b859524da6c5b99750d3f62e",
+  "test_count": 31,
+  "skipped": 0
+}

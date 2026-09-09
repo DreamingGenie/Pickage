@@ -1,0 +1,22 @@
+{
+  "verified_at": "2026-09-08T04:23:31.014777+00:00",
+  "status": "PASSED",
+  "checks": {
+    "v1_matches_head": true,
+    "loader_contract_matches_full_run": true
+  },
+  "v1_sha256": "9bcbd29365e3f5d2334501414ada4916157bd18401c6f58a2a02fc7c1715ee70",
+  "contract_sha256": "fe5fc2e387e2d726007a8b0524a0050d472c6ec1e4600e46699edb91f84f9153",
+  "prior_regression_results": {
+    "curated": {
+      "test_count": 31,
+      "elapsed_seconds": 16.264,
+      "status": "PASSED"
+    },
+    "minio": {
+      "test_count": 3,
+      "status": "PASSED"
+    },
+    "evidence": "Observed unittest tool output recorded in W-007; a separate regression log was not retained."
+  }
+}
