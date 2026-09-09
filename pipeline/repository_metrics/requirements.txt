@@ -1,0 +1,2 @@
+-r ../curated/requirements.txt
+pyspark==3.5.7
