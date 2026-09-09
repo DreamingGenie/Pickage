@@ -17,6 +17,8 @@ BigQuery 수집 결과의 팀 공유 정본은 GCS `gs://oss-shift-a506-raw/raw/
 | `curated/` | MinIO의 deps.dev 원본 → PostgreSQL `package`·`version` 적재용 Curated Parquet | [Curated 전처리 안내](curated/README.md) |
 | `snapshot/` | Projects에 실제 존재하는 스냅샷 날짜·원천 시각·직전 기준일 검증 → 기준 날짜와 DB 실행 이력 적재 | [스냅샷 기준·적재 안내](snapshot/README.md) |
 | `downloads_interval/` | 승인 패키지 전체의 스냅샷 구간 다운로드 합계·부분합·품질 정보 → MinIO Curated 게시 | [다운로드 구간 집계 안내](downloads_interval/README.md) |
+| `repository_metrics/` | 승인 패키지의 저장소 선택·정확한 관측 시각의 stars·open_issues → Curated 게시 | [저장소 지표 안내](repository_metrics/README.md) |
+| `package_snapshot/` | 다운로드 구간 합계·저장소 지표 통합 → 전체 패키지의 `package_snapshot`·DB 실행 이력 게시 | [통합 적재 안내](package_snapshot/README.md) |
 | `postgresql/` | 승인 Curated `package`·`version` → staging 검증·실행 이력 기록·PostgreSQL 원자적 게시 | [PostgreSQL 적재 안내](postgresql/README.md) |
 | `duckdb/` | 로컬 Parquet를 DuckDB로 읽는 도구와 데이터셋 빌더. `duckdb_ui.py`(브라우저 SQL 편집기), `inspect_duckdb.py`(원본 훑어보기), `build_*.py`(→ `datasets/`), `semver_rule.py`(의존 조건 해석 규칙, Spark 이식용 참조 구현), `sql/`(분석·확인 쿼리) | 각 파일 머리말 |
 
@@ -38,7 +40,8 @@ Curated에 게시한다. 다운로드 원본 입고와 같은 티켓(S15P21A506-
 [구간 집계 계약](../docs/worklogs/S15P21A506-278/06-interval-contract.md)에 입력·시간·NULL·게시 조건을 기록하며,
 유효 날짜가 일부만 있으면 부분합을, 하나도 없으면 NULL을 게시한다. 초도 실행 결과와 재검증 근거는
 [작업 결과 기록](../docs/worklogs/S15P21A506-278/08-interval-results.md)에 있다.
-다운로드 결과의 `package_snapshot` PostgreSQL 적재는 후속 통합 적재 작업에서 처리한다.
+다운로드 결과와 저장소 지표를 `package_snapshot`에 함께 적재하는 방법은
+[통합 적재 안내](package_snapshot/README.md)를 따른다. 부분합·NULL의 품질 근거도 DB 실행 이력에 연결한다.
 
 ## PostgreSQL 적재
 

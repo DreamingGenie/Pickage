@@ -1,6 +1,6 @@
 # 06. 패키지 스냅샷 통합 적재 계약
 
-상태: **초도 구현을 위한 계약. 해당 통합 코드·데이터 실행은 아직 없다.**
+상태: **초도 한 기준일의 구현·게시·로컬 DB 적재·전수 검증 완료.**
 [범위](01-scope.md) · [계획](02-plan.md) · [입력 기록](evidence/input-handoff.json)
 
 ## 승인 입력
@@ -28,8 +28,9 @@
 
 ## 서비스 행과 품질
 
-승인 `package` 집합에 S를 붙여 기준 행을 만든 뒤 각 지표를 `(package_id, snapshot_at)`으로
-LEFT JOIN한다. 다운로드 수집 대상이나 저장소 매핑 성공 목록을 모집단으로 사용하지 않는다.
+승인 `package` 집합을 기준으로 각 지표의 전체 키 집합이 같음을 검증한 뒤
+`(package_id, snapshot_at)`으로 결합한다. 누락된 입력 행은 실패이며 지표 값 NULL은 유지한다.
+다운로드 수집 대상이나 저장소 매핑 성공 목록을 모집단으로 사용하지 않는다.
 
 | 서비스 컬럼 | 입력 | 검증·보존 |
 | --- | --- | --- |
@@ -45,14 +46,21 @@ LEFT JOIN한다. 다운로드 수집 대상이나 저장소 매핑 성공 목록
 여러 패키지가 한 저장소를 가리키면 해당 관측값을 각각 연결하며 저장소 지표를 합산하지 않는다.
 
 이 품질 정보는 검증 가능한 상세 산출물과 DB 실행 이력의 품질 요약·manifest 참조로 연결한다.
-실행 이력에서 입력 두 지표의 SHA와 상세 품질 위치까지 추적 가능해야 한다. 상세 저장 구조와
-신규 migration 필요 여부는 P-03에서 확정하며, 아직 존재하지 않는 테이블·필드를 운영 계약처럼 쓰지 않는다.
+실행 이력에서 입력 두 지표의 SHA와 상세 품질 위치까지 추적 가능해야 한다.
+P-03에서 신규 migration 없이 기존 V1~V3를 유지하기로 확정했다. 통합 `quality.parquet`에
+패키지별 다운로드 상태·일수·사유와 저장소 선택 근거를 함께 보존한다. 원천의 날짜별 품질과
+미매칭 상세는 입력 manifest의 파일 key·크기·SHA로 연결한다.
+`etl_load_execution.input_metadata`에 통합 manifest 전체를, `etl_load_attempt.quality_report`에
+입력 manifest·출력 파일·품질 요약·전수 대조 범위를 기록한다. 서비스 값의 NULL은 그대로 유지한다.
 
 ## 통합 게시와 DB 반영
 
-통합 Curated는 두 원천을 덮어쓰지 않는 별도 실행으로 만든다. 계획 경로는
-`pickage-curated/depsdev/v1/package-snapshot/snapshot=<S>/run_id=<run-id>/`이며 아직 게시하지 않았다.
+통합 Curated는 두 원천을 덮어쓰지 않는 별도 실행으로 만든다. 게시 경로는
+`pickage-curated/depsdev/v1/package-snapshot/snapshot=<S>/run_id=<run-id>/`다.
+초도 실행 ID와 SHA는 [실제 결과](05-results.md)에 기록했다.
 manifest에는 패키지·스냅샷·두 지표의 입력 식별자/해시, 정책/코드 해시, 출력 파일·행 수·품질을 남긴다.
+출력 역할은 서비스 값 `package_snapshot`, 품질 `quality`, DB의 ID/name 대조용 `package_identity`다.
+DB 적재는 통합 결과의 명시적 run ID와 manifest SHA를 요구하며, 기존 완료된 입력을 재사용한다.
 
 1. 입력 검증 → 통합 결과 생성 → 전체 키·값·품질 검증 → 파일 게시·원격 GET/SHA 대조 → 완료 표시 게시.
 2. 완료된 통합 manifest를 고정하고 DB 실행·시도를 등록한다. 입력·검증 실패를 성공 상태로 바꾸지 않는다.
@@ -71,4 +79,4 @@ DB 실패로 이미 성공한 통합 또는 선행 Curated의 `_SUCCESS`를 삭�
 - 같은 S의 기존 지표가 다른 입력에서 왔거나 값이 다르면 자동 덮어쓰지 않고 충돌로 처리한다.
 - 실패한 시도 재실행, writer 잠금, commit 직전 입력·선행 상태 확인으로 부분 게시와 경쟁을 방지한다.
 - package·version·snapshot·다른 기준일·기존 성공 이력과 원천 객체는 보존한다.
-- 구현 후 확인할 명령·실행 ID는 실제 결과로 문서화한다. 아직 없는 적재 CLI를 실행 가능한 안내로 제시하지 않는다.
+- 재현 명령·실행 ID·조회 SQL은 [실제 결과](05-results.md)와 [모듈 안내](../../../pipeline/package_snapshot/README.md)를 따른다.

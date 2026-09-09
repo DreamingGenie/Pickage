@@ -4,7 +4,7 @@
 `package_snapshot`에 적재하는 작업이다. 전체 승인 패키지를 유지하고, 부분합·NULL·실제 0과
 각 지표의 품질 근거를 함께 추적한다.
 
-**현재 상태: 저장소 지표 브랜치 합류·병합 검증 완료. 통합 산출물 구현·DB 적재는 미착수.**
+**현재 상태: 2026-08-31 기준 11,080,940행의 통합 게시·로컬 DB 적재·재실행·독립 전수 검증 완료. 테스트 36개 통과.**
 
 | 항목 | 확인 내용 |
 | --- | --- |
@@ -18,8 +18,8 @@
 | 초도 대상 | S=`2026-08-31`, 다운로드 구간 `[2026-08-24,2026-08-31)` |
 | 실행 범위 | 초도 한 기준일의 로컬 검증·적재. 과거 전체 기간·운영 서버 적용은 제외 |
 
-저장소 지표 코드가 커밋된 사실과 산출물의 승인 상태는 별개로 확인한다. 두 선행 산출물은
-완료 기록이 있지만, 이번 작업의 입력 재검증과 PostgreSQL 게시가 끝났다는 의미는 아니다.
+두 선행 산출물의 승인 상태와 실제 파일을 이번 작업에서 다시 검증했으며,
+통합 Curated와 로컬 PostgreSQL 게시·재실행·독립 전수 대조까지 완료했다.
 
 | 문서 | 역할 |
 | --- | --- |
@@ -29,6 +29,7 @@
 | [04 작업 일지](04-work-log.md) | 실제 수행한 내용과 확인 근거 |
 | [05 결과](05-results.md) | 선행 실측 참고값과 이번 작업의 검증 상태 |
 | [06 통합 적재 계약](06-load-contract.md) | 승인 입력·컬럼 매핑·품질·게시·재실행 계약 |
+| [07 직접 조회 SQL](07-inspect.sql) | DB 실행 이력·건수·실제 지표·품질 근거 조회 |
 | [선행 입력 기록](evidence/input-handoff.json) | 선택할 run·manifest SHA·기존 측정값·확인 범위 |
 | [병합·검증 기록](evidence/merge-validation.json) | 합류 커밋·코드 해시·테스트·변경 및 보존 범위 |
 
@@ -42,7 +43,7 @@ P는 작업 단계, AC는 완료 기준, ISS는 이슈, W는 수행 기록, V는
 - [스냅샷 실행 이력 계약](../S15P21A506-269/06-history-contract.md)과 [스냅샷 모듈](../../../pipeline/snapshot/README.md).
 - [서비스 테이블 DDL](../../../backend/src/main/resources/db/migration/V1__init.sql).
 - [저장소 지표 모듈](../../../pipeline/repository_metrics/README.md)과
-  [선행 실행 증거](../05-repository-metrics/03-measured-evidence.json). 코드와 문서를 합류했으며 실제 산출물은 기존 MinIO 실행을 소비할 예정이다.
+  [선행 실행 증거](../05-repository-metrics/03-measured-evidence.json). 코드·문서를 합류하고 승인된 기존 MinIO 산출물을 통합 입력으로 소비했다.
 
 `input-handoff.json`과 `documentation-check.json`은 착수 문서 작성 당시의 기록을 보존한다.
 그 이후의 브랜치 합류와 검증 상태는 `merge-validation.json` 및 작업 일지에서 확인한다.
