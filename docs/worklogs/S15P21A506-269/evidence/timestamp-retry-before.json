@@ -1,0 +1,21 @@
+{
+  "phase": "before_fix",
+  "recorded_at": "2026-09-09T01:49:06.554365+00:00",
+  "tests": [
+    "pipeline.postgresql.test_integration.PostgresIntegrationTests.test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract",
+    "pipeline.postgresql.test_integration.PostgresIntegrationTests.test_failed_retry_accepts_trailing_zero_timestamp",
+    "pipeline.postgresql.test_integration.PostgresIntegrationTests.test_changed_microsecond_timestamp_is_rejected_without_state_mutation"
+  ],
+  "tests_run": 3,
+  "failures": 0,
+  "errors": 2,
+  "skipped": 0,
+  "elapsed_seconds": 7.094,
+  "passed": false,
+  "expected_regression_reproduced": true,
+  "source_sha256": {
+    "pipeline/postgresql/postgres.py": "fce8dd1c3496addd4b25e46c202ce3e43bc01e54f6d405b725ddf140b60b429a",
+    "pipeline/postgresql/test_integration.py": "9b7aae95c40b5a4575f40305ea7859e24cbf76240c3f2f669b05b08f8e12a4fa"
+  },
+  "log": "test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract (pipeline.postgresql.test_integration.PostgresIntegrationTests.test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract) ... ERROR\ntest_failed_retry_accepts_trailing_zero_timestamp (pipeline.postgresql.test_integration.PostgresIntegrationTests.test_failed_retry_accepts_trailing_zero_timestamp) ... ERROR\ntest_changed_microsecond_timestamp_is_rejected_without_state_mutation (pipeline.postgresql.test_integration.PostgresIntegrationTests.test_changed_microsecond_timestamp_is_rejected_without_state_mutation) ... ok\n\n======================================================================\nERROR: test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract (pipeline.postgresql.test_integration.PostgresIntegrationTests.test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\test_integration.py\", line 187, in test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract\n    result = self.publish(metadata, contract=\"b\" * 64)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\test_integration.py\", line 110, in publish\n    previous = database.start(metadata, execution, contract, uuid.uuid4().hex)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\postgres.py\", line 161, in start\n    raise ValueError(\"execution_id already exists with different input or contract\")\nValueError: execution_id already exists with different input or contract\n\n======================================================================\nERROR: test_failed_retry_accepts_trailing_zero_timestamp (pipeline.postgresql.test_integration.PostgresIntegrationTests.test_failed_retry_accepts_trailing_zero_timestamp)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\test_integration.py\", line 201, in test_failed_retry_accepts_trailing_zero_timestamp\n    self.publish(metadata)\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\test_integration.py\", line 110, in publish\n    previous = database.start(metadata, execution, contract, uuid.uuid4().hex)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\postgresql\\postgres.py\", line 161, in start\n    raise ValueError(\"execution_id already exists with different input or contract\")\nValueError: execution_id already exists with different input or contract\n\n----------------------------------------------------------------------\nRan 3 tests in 7.021s\n\nFAILED (errors=2)\n"
+}

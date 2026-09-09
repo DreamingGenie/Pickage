@@ -1,0 +1,17 @@
+{
+  "phase": "previously_skipped_source_candidate_test",
+  "recorded_at": "2026-09-09T01:52:53.470274+00:00",
+  "tests": [
+    "pipeline.snapshot.test_integration.SnapshotPostgresTests.test_actual_projects_candidate_exact_dates_and_retry"
+  ],
+  "candidate_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\snapshot\\S15P21A506-269\\projects-v1\\snapshot-candidate.json",
+  "candidate_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+  "tests_run": 1,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 2.984,
+  "passed": true,
+  "log": "test_actual_projects_candidate_exact_dates_and_retry (pipeline.snapshot.test_integration.SnapshotPostgresTests.test_actual_projects_candidate_exact_dates_and_retry) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 2.974s\n\nOK\n",
+  "remaining_test_databases": 0
+}
