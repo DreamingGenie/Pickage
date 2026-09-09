@@ -9,7 +9,7 @@
 <part>/<type>/<issue_no>-작업내용
 ```
 
-- `part` — `frontend` `api` `data` `ai` `worker` `infra` `docs` (**담당 파트. 폴더명이 아니다**)
+- `part` — `frontend` `api` `data` `ai` `worker` `infra` `docs` `plan` (**담당 파트. 폴더명이 아니다**)
 - `type` — `feat` `fix` `refactor` `test` `chore` `docs` `style` `config`
 - `issue_no` — Jira 키 전체. `S15P21A506-290` (숫자만 쓰지 않는다)
 

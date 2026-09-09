@@ -100,7 +100,7 @@ push 이후 GitLab 웹 UI/API로 본문을 갱신한다. 이때 저장된 git �
 
 | 자리 | 값 |
 | --- | --- |
-| `part` | `frontend` `api` `data` `ai` `worker` `infra` `docs` |
+| `part` | `frontend` `api` `data` `ai` `worker` `infra` `docs` `plan` |
 | `type` | `feat` `fix` `refactor` `test` `chore` `docs` `style` `config` |
 | `issue_no` | Jira 이슈 키 — `S15P21A506-290`. 숫자만(`290-...`) 쓰지 않습니다 |
 | `작업내용` | 영문 kebab-case. 브랜치명의 한글·공백·대문자는 도구 호환 문제가 있습니다 |
@@ -116,7 +116,8 @@ push 이후 GitLab 웹 UI/API로 본문을 갱신한다. 이때 저장된 git �
 | `ai` | (미착수) |
 | `worker` | (미착수) |
 | `infra` | `deploy/`, `compose.yaml`, `.githooks/`, `scripts/` |
-| `docs` | `docs/`, 루트 문서 |
+| `plan` | `docs/` 중 기획·요구사항·구상안 |
+| `docs` | `docs/` 중 그 외, 루트 문서·README |
 
 손으로 만들지 말고 헬퍼를 쓰면 규칙을 외우지 않아도 됩니다.
 

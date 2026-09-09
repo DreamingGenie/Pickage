@@ -12,7 +12,7 @@
 # 함께 쓰므로, 규칙을 바꿀 때는 여기만 고친다.
 
 PROJECT_KEY="S15P21A506"
-PARTS="frontend api data ai worker infra docs"
+PARTS="frontend api data ai worker infra docs plan"
 TYPES="feat fix refactor test chore docs style config"
 
 BRANCH="$1"

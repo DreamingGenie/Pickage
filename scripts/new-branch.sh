@@ -14,7 +14,7 @@
 set -e
 
 PROJECT_KEY="S15P21A506"
-PARTS="frontend api data ai worker infra docs"
+PARTS="frontend api data ai worker infra docs plan"
 TYPES="feat fix refactor test chore docs style config"
 BASE="origin/develop"
 

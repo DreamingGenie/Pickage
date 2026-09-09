@@ -35,7 +35,7 @@ scripts\new-branch.bat data feat 290 downloads bronze ingest
 
 이름 형식은 `<part>/<type>/<이슈키>-작업내용` 입니다.
 
-- `part` — `frontend` `api` `data` `ai` `worker` `infra` `docs` (**담당 파트. 폴더명이 아닙니다**)
+- `part` — `frontend` `api` `data` `ai` `worker` `infra` `docs` `plan` (**담당 파트. 폴더명이 아닙니다**)
 - `type` — `feat` `fix` `refactor` `test` `chore` `docs` `style` `config`
 - 이슈키는 `S15P21A506-290` 처럼 프로젝트 키까지 씁니다
 

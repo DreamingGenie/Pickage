@@ -25,7 +25,7 @@ exit /b %RC%
 :usage
 echo 사용: scripts\new-branch.bat ^<part^> ^<type^> ^<이슈번호^> ^<설명...^>
 echo.
-echo   part : frontend api data ai worker infra docs
+echo   part : frontend api data ai worker infra docs plan
 echo   type : feat fix refactor test chore docs style config
 echo.
 echo   예^) scripts\new-branch.bat data feat 290 downloads bronze ingest
