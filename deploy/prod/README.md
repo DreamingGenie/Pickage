@@ -4,7 +4,7 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker②(배치 시각만) |
+| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
 | **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · Spark master·worker① (이후 mlflow · 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
@@ -325,16 +325,10 @@ docker rmi pickage-api:<지울 태그>
 
 ---
 
-## Spark worker② (배치 시각만)
+## Spark worker② (상시)
 
-이 노드는 배치 때 Spark worker 를 겸한다. **평소에는 뜨지 않는다** — `profiles` 에
-들어 있어서 `docker compose up -d` 로는 시작되지 않는다.
-
-```bash
-cd ~/S15P21A506/deploy/prod/app
-docker compose --profile batch up -d spark-worker-2     # 배치 전
-docker compose --profile batch stop spark-worker-2      # 배치 후
-```
+이 노드는 배치 때 Spark worker 를 겸한다. **`docker compose up -d` 에 같이 뜬다** —
+별도 프로파일이 없다.
 
 master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거기서 돌린다 —
 [data/README.md](data/README.md) 의 "Spark (배치)".
@@ -343,19 +337,37 @@ master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거�
 (executor blockManager)를 `data` 노드에서 오는 것만 열어 준다. 목록과 이유는
 [data/README.md](data/README.md) 의 "먼저 방화벽" 절 — **빠뜨리면 job 이 조용히 멈춘다.**
 
+**MinIO 자격증명이 이 노드의 `.env` 에도 있어야 한다.** executor 가 s3a 로 읽고 쓴다.
+없으면 worker 는 정상 등록되고 잡도 시작하는데 **쓰기 단계에서 executor 만 죽는다.**
+루트가 아니라 서비스 계정 키를 쓴다 — [data/README.md](data/README.md) 참고.
+
+### 왜 상시로 두나 (09-09 결정)
+
+원래는 배치 전후로 사람이 켜고 끄게 했다. 뒤집은 이유가 셋이다.
+
+1. **켜고 끄는 주체가 문제다.** 그 코드는 `data` 노드의 배치 cron 에서 돌 텐데, 다른
+호스트의 컨테이너를 조작하려면 **SSH 키를 주거나 Docker 소켓을 줘야 한다.** 소켓은
+호스트 root 와 동등한 권한이다. 1GB 아끼자고 치를 값이 아니다.
+2. **아끼는 게 생각보다 없다.** `mem_limit` 은 상한이지 예약이 아니라서, 놀고 있는
+worker 데몬은 6.5g 가 아니라 **1GB 안팎**을 쓴다.
+3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과 부딪히는
+것인데, 그건 컨테이너를 언제 띄웠든 똑같다.
+
+> **되돌릴 조건**: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
+> 그때는 실측이 있으니 판단 근거가 생긴다. 설계 문서는 "배치 시각만" 으로 되어 있고,
+> 이건 의도적인 이탈이다.
+
 ### ⚠ 배치 시각에는 배포하지 말 것
 
 이 노드의 메모리가 이때 가장 빠듯하다.
 
 ```
-postgres 2g + api 1.6g + web 0.25g + worker② 6.5g ≈ 10.4g / 15Gi
+postgres 2g + api 1.6g + web 0.25g + executor 6g ≈ 10g / 15Gi
 ```
 
 여기에 **배포가 겹치면 Gradle·npm 빌드가 메모리를 더 먹는다.** 그리고 이 서버는
 **Swap 이 0** 이라 넘기는 순간 완충 없이 OOM Kill 이고, 커널이 무엇을 죽일지 우리가
 고를 수 없다 — **Postgres 를 고를 수도 있다.**
-
-배치와 배포가 겹칠 것 같으면 worker② 를 먼저 멈추고 배포한다.
 
 ### `network_mode: host` 인 이유
 

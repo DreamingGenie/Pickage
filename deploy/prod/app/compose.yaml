@@ -113,26 +113,33 @@ services:
       start_period: 10s
     mem_limit: 256m
 
-  # ── Spark worker② (배치 시각만) ────────────────────────────────
+  # ── Spark worker② (상시) ───────────────────────────────────────
   #
-  # 이 노드는 사용자 트래픽을 받는 곳이다. 평소에는 뜨지 않는다 —
-  # profiles 에 넣어서 `docker compose up -d` 로는 시작되지 않게 했다.
+  # 09-09 결정: **배치 시각에만 띄우지 않고 상시로 둔다.**
   #
-  #   배치 전:  docker compose --profile batch up -d spark-worker-2
-  #   배치 후:  docker compose --profile batch stop spark-worker-2
+  # 원래는 profiles 에 넣어 배치 전후로 사람이 켜고 끄게 했다. 뒤집은 이유가 셋이다.
   #
-  # ⚠ 이 노드의 여유는 얇다. postgres 2g + api 1.6g + web 0.25g 위에
-  #   worker 6g 를 얹는 것이고 **Swap 이 0** 이다. 배치 중에 배포까지 겹치면
-  #   빌드가 메모리를 더 먹는다 — 배치 시각에는 배포하지 않는 것이 맞다.
+  # 1. **켜고 끄는 주체가 문제다.** 그 코드는 data 노드의 배치 cron 에서 돌 텐데,
+  #    다른 호스트의 컨테이너를 조작하려면 SSH 키를 주거나 Docker 소켓을 줘야 한다.
+  #    소켓은 호스트 root 와 동등한 권한이다. **1GB 아끼자고 치를 값이 아니다.**
+  # 2. **아끼는 게 생각보다 없다.** mem_limit 은 상한이지 예약이 아니라서,
+  #    놀고 있는 worker 데몬은 6.5g 가 아니라 1GB 안팎을 쓴다.
+  # 3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과
+  #    부딪히는 것인데, 그건 컨테이너를 5분 전에 띄웠든 5일 전에 띄웠든 똑같다.
+  #
+  # 되돌릴 조건: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
+  # 그때는 실측이 있으니 판단 근거가 생긴다. (설계 문서는 "배치 시각만" 으로 되어 있다)
+  #
+  # ⚠ 이 노드의 여유는 얇다. postgres 2g + api 1.6g + web 0.25g 위에 배치 중
+  #   executor 6g 가 얹히고 **Swap 이 0** 이다. 배치 중에 배포까지 겹치면 빌드가
+  #   메모리를 더 먹는다 — 배치 시각에는 배포하지 않는 것이 맞다.
   #
   # ⚠ network_mode: host 다. 이유는 data 노드 compose 의 같은 주석 참고.
   #   웹 UI(8081)가 0.0.0.0 에 붙지만 이 노드는 80·443·22 만 열려 있다.
   spark-worker-2:
-    profiles: ["batch"]
     image: apache/spark:3.5.3-python3
     network_mode: host
-    # 배치가 끝나면 사람이 멈춘다. 죽었을 때만 되살린다.
-    restart: on-failure
+    restart: unless-stopped
     command:
       - /opt/spark/bin/spark-class
       - org.apache.spark.deploy.worker.Worker
