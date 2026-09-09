@@ -1,53 +1,395 @@
-"""유사도 배치 파이프라인 (§4.1) — EC2 #1 cron이 배치 시각마다 1회성으로 실행.
+"""유사도 배치 파이프라인 (§4.1) — EC2 #1에서 cron이 배치 시각마다 1회성으로 실행.
 
-후보군 정제 → ONNX 추론 → top-K 20 → v1 재랭킹 → 채점 게이트 → similar_packages 스왑.
-상세 계약: docs/Pickage_기능별_개발_구상안_0904.md §3.3, §4.1, §4.2
+코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → top-K 20 → v1 재랭킹(§4.2)
+→ 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지 않는다(방식 C).
 
-이 파일은 컨테이너 골격(S15P21A506-282)을 위한 스텁이다.
-각 단계 로직과 CLI 인자(--snapshot, --model-ver 등)는 후속 티켓에서 구현한다.
+모델 I/O·전처리 규격: ai/MODEL_CONTRACT.md
+설계: docs/Pickage_기능별_개발_구상안_0904.md §3.3, §4.1, §4.2
+
+현재 구현 상태 (S15P21A506-168):
+  1 자격 필터        구현
+  2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
+  3 top-K 20         구현 (정규화 벡터 블록 행렬곱)
+  4 재랭킹           부분 — cos + deprecated 지목 가산(옵션) 구현.
+                      보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
+  6 산출물           구현 (로컬 디렉터리. s3:// 출력은 후속)
 """
 
 from __future__ import annotations
 
+import argparse
+import csv
+import datetime as dt
+import hashlib
+import json
+import os
+import sys
+import time
+from typing import Iterable
 
-def refine_corpus() -> None:
-    """1. 코퍼스 자격 필터: dependents 하한 · 최근 12개월 릴리스 · deprecated 제외."""
-    raise NotImplementedError
+import numpy as np
+import onnxruntime as ort
+import pyarrow.parquet as pq
+from transformers import AutoTokenizer
+
+MAX_LENGTH = 512  # ai/MODEL_CONTRACT.md — SentenceTransformer.max_seq_length
+DEPRECATED_STATUSES = {"deprecated", "removed", "unpublished"}
 
 
-def embed_changed() -> None:
-    """2. MLflow @production 모델로 text_hash가 바뀐 description만 ONNX 재임베딩."""
-    raise NotImplementedError
+def log(msg: str) -> None:
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
-def build_topk() -> None:
-    """3. 정규화 벡터 행렬곱으로 패키지별 top-K 20 후보 생성."""
-    raise NotImplementedError
+# ── 입력 ────────────────────────────────────────────────────────────────
 
+def load_package_text(path: str) -> list[dict]:
+    """package_text parquet 를 행 dict 목록으로 읽는다.
 
-def rerank() -> None:
-    """4. cos 유사도 기반 재랭킹 — deprecated 가산 · 보완재 감점 · 자격 미달 drop.
-
-    move_lift(대체 이동 쌍 관측 가산)는 배제 확정(DEC-RANK-20260907-01).
+    기대 컬럼: name, description, keywords, dependent_packages_count,
+    latest_release_published_at, status (일부는 없을 수 있음).
     """
-    raise NotImplementedError
+    table = pq.read_table(path)
+    rows = table.to_pylist()
+    log(f"package_text: {len(rows)} 행  ({path})")
+    return rows
 
 
-def scoring_gate() -> None:
-    """5. deprecated 51K 홀드아웃으로 Recall@20 / Recall@10 측정, 직전 운영값 대비 하락 시 적재 중단·알림."""
-    raise NotImplementedError
+def build_text(row: dict, raw_column: str | None) -> str:
+    """모델 입력 텍스트. raw_column 이 주어지면 그 값을 그대로,
+    아니면 'DESCRIPTION: {description} / KEYWORDS: {k1, k2, ...}' 로 조립한다."""
+    if raw_column:
+        return (row.get(raw_column) or "").strip()
+    desc = (row.get("description") or "").strip()
+    kws = row.get("keywords") or []
+    if isinstance(kws, str):
+        kws = [kws]
+    return f"DESCRIPTION: {desc} / KEYWORDS: {', '.join(kws)}"
 
 
-def swap() -> None:
-    """6. 게이트 통과분만 similar_packages를 model_ver 병렬 적재 후 model_production 포인터 전환."""
-    raise NotImplementedError
+# ── 1. 코퍼스 자격 필터 (§4.1) ──────────────────────────────────────────
+
+def _parse_date(value) -> dt.date | None:
+    if value is None:
+        return None
+    if isinstance(value, dt.datetime):
+        return value.date()
+    if isinstance(value, dt.date):
+        return value
+    s = str(value)[:10]
+    try:
+        return dt.date.fromisoformat(s)
+    except ValueError:
+        return None
 
 
-def main() -> None:
-    raise NotImplementedError(
-        "S15P21A506-282는 컨테이너 골격만 만든다. 배치 로직은 후속 티켓에서 구현한다."
+def qualify(rows: list[dict], min_dependents: int, max_age_months: int) -> list[dict]:
+    """dependents 하한 · 최근 N개월 릴리스 · deprecated 제외 로 코퍼스를 좁힌다."""
+    cutoff = dt.date.today() - dt.timedelta(days=int(max_age_months * 30.44))
+    kept, drop_dep, drop_age, drop_status = [], 0, 0, 0
+    for r in rows:
+        dep = r.get("dependent_packages_count")
+        if dep is None or dep < min_dependents:
+            drop_dep += 1
+            continue
+        released = _parse_date(r.get("latest_release_published_at"))
+        if released is not None and released < cutoff:
+            drop_age += 1
+            continue
+        status = (r.get("status") or "").lower()
+        if status in DEPRECATED_STATUSES or r.get("is_spam"):
+            drop_status += 1
+            continue
+        kept.append(r)
+    log(
+        f"자격 필터: {len(rows)} → {len(kept)}  "
+        f"(dependents<{min_dependents} {drop_dep}, {max_age_months}개월 초과 {drop_age}, "
+        f"deprecated/spam {drop_status})"
     )
+    return kept
+
+
+# ── 2. 변경분 재임베딩 (§4.1) ──────────────────────────────────────────
+
+def text_hash(text: str) -> str:
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def load_state(path: str | None) -> dict[str, dict]:
+    """이전 실행의 name → {hash, vector} 상태. 없으면 빈 dict (전수 임베딩)."""
+    if not path or not os.path.exists(path):
+        return {}
+    tbl = pq.read_table(path).to_pylist()
+    state = {r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)} for r in tbl}
+    log(f"이전 상태: {len(state)} 개 (재임베딩 생략 후보)")
+    return state
+
+
+class OnnxEmbedder:
+    """ai/MODEL_CONTRACT.md 규격: 입력 int64, 출력 last_hidden_state,
+    후처리는 여기서 (CLS pooling + L2 정규화). ONNX 밖."""
+
+    def __init__(self, model_dir: str):
+        self.tok = AutoTokenizer.from_pretrained(model_dir)
+        self.sess = ort.InferenceSession(
+            os.path.join(model_dir, "model.onnx"), providers=["CPUExecutionProvider"]
+        )
+        self.model_ver = self._read_model_ver(model_dir)
+        log(f"ONNX 로드: {model_dir}  (model_ver={self.model_ver})")
+
+    @staticmethod
+    def _read_model_ver(model_dir: str) -> str:
+        mf = os.path.join(model_dir, "run_manifest.json")
+        if os.path.exists(mf):
+            try:
+                return json.load(open(mf, encoding="utf-8")).get("model_ver", "unknown")
+            except Exception:
+                pass
+        return "unknown"
+
+    def encode(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
+        out: list[np.ndarray] = []
+        for i in range(0, len(texts), batch_size):
+            enc = self.tok(
+                texts[i : i + batch_size],
+                padding=True,
+                truncation=True,
+                max_length=MAX_LENGTH,
+                return_tensors="np",
+            )
+            h = self.sess.run(
+                None,
+                {
+                    "input_ids": enc["input_ids"].astype("int64"),
+                    "attention_mask": enc["attention_mask"].astype("int64"),
+                },
+            )[0]
+            v = h[:, 0, :]  # CLS pooling
+            v = v / np.linalg.norm(v, axis=1, keepdims=True)  # L2 정규화
+            out.append(v.astype(np.float32))
+            if (i // batch_size) % 50 == 0 and i:
+                log(f"  임베딩 {i}/{len(texts)}")
+        return np.vstack(out) if out else np.zeros((0, 384), dtype=np.float32)
+
+
+def embed_corpus(
+    rows: list[dict], texts: list[str], embedder: OnnxEmbedder, state: dict, batch_size: int
+) -> np.ndarray:
+    """text_hash 가 바뀐 항목만 재임베딩하고, 나머지는 이전 벡터를 재사용한다."""
+    hashes = [text_hash(t) for t in texts]
+    to_embed = [i for i, (r, h) in enumerate(zip(rows, hashes)) if state.get(r["name"], {}).get("hash") != h]
+    log(f"재임베딩 대상: {len(to_embed)} / {len(rows)} (변경·신규분)")
+
+    vectors = np.zeros((len(rows), 384), dtype=np.float32)
+    for i, r in enumerate(rows):
+        if i not in set(to_embed):
+            vectors[i] = state[r["name"]]["vector"]
+    if to_embed:
+        fresh = embedder.encode([texts[i] for i in to_embed], batch_size=batch_size)
+        for k, i in enumerate(to_embed):
+            vectors[i] = fresh[k]
+    for i, h in enumerate(hashes):
+        rows[i]["_text_hash"] = h
+    return vectors
+
+
+# ── 3. top-K 20 (§4.1) ────────────────────────────────────────────────
+
+def top_k(vectors: np.ndarray, names: list[str], k: int, query_block: int) -> list[tuple[int, int, float]]:
+    """정규화 벡터 블록 행렬곱으로 패키지별 top-k(자기 자신 제외). (base_idx, cand_idx, cos)."""
+    n = len(names)
+    results: list[tuple[int, int, float]] = []
+    for start in range(0, n, query_block):
+        end = min(start + query_block, n)
+        sims = vectors[start:end] @ vectors.T  # (block, n)
+        for local, base_idx in enumerate(range(start, end)):
+            row = sims[local]
+            row[base_idx] = -np.inf  # 자기 자신 제외
+            top = np.argpartition(-row, min(k, n - 1))[:k]
+            top = top[np.argsort(-row[top])]
+            for cand_idx in top:
+                results.append((base_idx, int(cand_idx), float(row[cand_idx])))
+        log(f"  top-{k} {end}/{n}")
+    return results
+
+
+# ── 4. 재랭킹 (§4.2) ──────────────────────────────────────────────────
+
+def load_deprecated_replacement(path: str | None) -> dict[str, set[str]]:
+    """deprecated 패키지 → 지목된 대체 패키지명 집합. §4.2 '가산: deprecated 지목'."""
+    if not path or not os.path.exists(path):
+        return {}
+    out: dict[str, set[str]] = {}
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            name, repl = r.get("name"), r.get("replacement")
+            if name and repl:
+                out.setdefault(name, set()).add(repl.strip().lower())
+    log(f"deprecated→대체 사전: {len(out)} 개")
+    return out
+
+
+def rerank(
+    hits: list[tuple[int, int, float]],
+    names: list[str],
+    k_user: int,
+    deprecated_repl: dict[str, set[str]],
+    deprecated_bonus: float,
+) -> list[dict]:
+    """v1 재랭킹. move_lift 배제 확정(DEC-RANK-20260907-01).
+
+    구현: cos 기반 + candidate 가 base 관련 deprecated 지목이면 가산.
+    TODO(S15P21A506-168): 보완재 감점 — dependents 교집합 >0.3. 의존 그래프 필요.
+    """
+    all_replacements: set[str] = set().union(*deprecated_repl.values()) if deprecated_repl else set()
+    by_base: dict[int, list[dict]] = {}
+    for base_idx, cand_idx, cos in hits:
+        score = cos
+        reason = ["SEMANTIC_RELEVANCE"]
+        if names[cand_idx].lower() in all_replacements:
+            score += deprecated_bonus
+            reason.append("DEPRECATED_REPLACEMENT_SIGNAL")
+        by_base.setdefault(base_idx, []).append(
+            {"candidate": names[cand_idx], "cos": round(cos, 6), "score": round(score, 6), "reason": reason}
+        )
+
+    out: list[dict] = []
+    for base_idx, cands in by_base.items():
+        cands.sort(key=lambda c: -c["score"])
+        for rank, c in enumerate(cands[:k_user], start=1):
+            out.append(
+                {
+                    "base_package": names[base_idx],
+                    "candidate_package": c["candidate"],
+                    "cos_score": c["cos"],
+                    "final_score": c["score"],
+                    "rank": rank,
+                    "ranking_reason": c["reason"],
+                    "user_visible": rank <= 3,      # §4.2 사용자 노출 최대 3
+                    "default_selected": rank <= 2,  # §4.2 상위 2 기본 선택
+                }
+            )
+    return out
+
+
+# ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
+
+def scoring_gate(candidates: list[dict]) -> dict:
+    """deprecated 51K 홀드아웃으로 Recall@20/@10 측정, 직전 운영값 대비 하락 시 중단.
+
+    TODO(S15P21A506-169): 51K 홀드아웃 구성 방식 미확정. 현재는 SKIPPED.
+    """
+    return {
+        "status": "SKIPPED",
+        "reason": "51K holdout undefined (S15P21A506-169)",
+        "measured_candidate_rows": len(candidates),
+    }
+
+
+# ── 6. 산출물 (§4.1) ──────────────────────────────────────────────────
+
+def write_output(
+    out_dir: str,
+    candidates: list[dict],
+    rows: list[dict],
+    gate: dict,
+    meta: dict,
+    allow_gate_skip: bool,
+) -> None:
+    os.makedirs(out_dir, exist_ok=True)
+
+    import pyarrow as pa
+
+    pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
+    pq.write_table(
+        pa.Table.from_pylist([{"name": r["name"], "text_hash": r["_text_hash"]} for r in rows]),
+        os.path.join(out_dir, "text_hash_state.parquet"),
+    )
+
+    manifest = {
+        **meta,
+        "created_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "candidate_rows": len(candidates),
+        "base_packages": len({c["base_package"] for c in candidates}),
+        "scoring_gate": gate,
+    }
+    json.dump(manifest, open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8"),
+              ensure_ascii=False, indent=2)
+
+    gate_ok = gate["status"] == "PASSED" or (gate["status"] == "SKIPPED" and allow_gate_skip)
+    if gate_ok:
+        open(os.path.join(out_dir, "_SUCCESS"), "w").close()
+        log(f"_SUCCESS 기록 ({out_dir})")
+    else:
+        log(f"게이트 미통과({gate['status']}) — _SUCCESS 미기록. 로더가 이 실행을 무시함")
+
+
+# ── main ─────────────────────────────────────────────────────────────
+
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="유사 패키지 후보 배치 (§4.1)")
+    p.add_argument("--package-text", required=True, help="package_text parquet 경로")
+    p.add_argument("--model-dir", required=True, help="onnx_bge_v6 디렉터리 (model.onnx + tokenizer)")
+    p.add_argument("--out", required=True, help="산출물 디렉터리")
+    p.add_argument("--raw-text-column", default=None,
+                   help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
+    p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
+    p.add_argument("--deprecated-replacement", default=None, help="deprecated→대체 CSV (name,replacement)")
+    p.add_argument("--min-dependents", type=int, default=5)
+    p.add_argument("--max-age-months", type=int, default=12)
+    p.add_argument("--top-k", type=int, default=20)
+    p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
+    p.add_argument("--deprecated-bonus", type=float, default=0.05)
+    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument("--query-block", type=int, default=2000)
+    p.add_argument("--allow-gate-skip", action="store_true",
+                   help="채점 게이트 미구현 상태에서도 _SUCCESS 기록 (개발용)")
+    return p.parse_args(list(argv) if argv is not None else None)
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    args = parse_args(argv)
+    t0 = time.time()
+
+    rows = load_package_text(args.package_text)
+    rows = qualify(rows, args.min_dependents, args.max_age_months)
+    if not rows:
+        log("자격 통과 패키지 0개 — 중단")
+        return 1
+
+    texts = [build_text(r, args.raw_text_column) for r in rows]
+    names = [r["name"] for r in rows]
+
+    embedder = OnnxEmbedder(args.model_dir)
+    state = load_state(args.state)
+    vectors = embed_corpus(rows, texts, embedder, state, args.batch_size)
+
+    hits = top_k(vectors, names, args.top_k, args.query_block)
+    log(f"top-{args.top_k}: {len(hits)} 쌍 ({len(names)} base)")
+
+    deprecated_repl = load_deprecated_replacement(args.deprecated_replacement)
+    candidates = rerank(hits, names, args.user_k, deprecated_repl, args.deprecated_bonus)
+
+    gate = scoring_gate(candidates)
+    log(f"채점 게이트: {gate['status']} ({gate.get('reason', '')})")
+
+    meta = {
+        "model_ver": embedder.model_ver,
+        "input_package_text": os.path.abspath(args.package_text),
+        "input_rows_qualified": len(rows),
+        "params": {
+            "min_dependents": args.min_dependents,
+            "max_age_months": args.max_age_months,
+            "top_k": args.top_k,
+            "deprecated_bonus": args.deprecated_bonus,
+            "raw_text_column": args.raw_text_column,
+        },
+        "elapsed_sec": round(time.time() - t0, 1),
+    }
+    write_output(args.out, candidates, rows, gate, meta, args.allow_gate_skip)
+    log(f"완료 — {meta['elapsed_sec']}s")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,10 +1,9 @@
-# similarity_batch_pipeline.py의 각 단계가 실제 코드로 채워지면
-# 그때 필요해지는 서드파티 패키지를 버전 고정해 여기 추가한다.
-# 현재는 스텁만 있어 표준 라이브러리만 사용 중이라 비어 있음.
-#
-# 예상 목록 (docs/Pickage_기능별_개발_구상안_0904.md §3.3, §4.1 기준):
-#   onnxruntime    # @production 모델 ONNX 추론
-#   numpy          # 정규화 벡터 행렬곱 · top-K
-#   pyarrow        # pkg_vectors parquet 읽기/쓰기
-#   boto3          # MinIO(pickage-vectors 등) 접근
-#   mlflow-skinny  # @production 모델 pull · 메타데이터 조회
+# similarity_batch_pipeline.py 의존성.
+# EC2 #1(x86_64)에서 onnxruntime CPU 추론 + parquet I/O. 버전은 실측 후 고정 예정.
+
+numpy
+onnxruntime
+pyarrow
+transformers
+# tokenizer.json(fast) 사용 — sentencepiece 불필요.
+# 채점 게이트(S15P21A506-169)·보완재 감점(의존 그래프) 구현 시 추가 의존성 검토.
