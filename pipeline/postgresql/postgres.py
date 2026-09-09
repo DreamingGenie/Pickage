@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
+from datetime import datetime
 import json
 from pathlib import Path
 import re
@@ -151,11 +152,15 @@ class PgLoader:
         if existing:
             prior = json.loads(existing[0])
             identity = {"dataset": metadata["dataset"], "snapshot_at": metadata["snapshot"],
-                        "snapshot_timestamp": metadata["snapshot_timestamp"],
                         "curated_run_id": metadata["curated_run_id"], "run_prefix": metadata["run_prefix"],
                         "manifest_sha256": metadata["manifest_sha256"],
                         "input_metadata": metadata["manifest"], "expected_counts": metadata["counts"]}
-            same_input = all(prior[key] == value for key, value in identity.items())
+            # PostgreSQL JSON omits trailing fractional zeros; compare the time value.
+            same_input = (
+                all(prior[key] == value for key, value in identity.items())
+                and datetime.fromisoformat(prior["snapshot_timestamp"])
+                == datetime.fromisoformat(metadata["snapshot_timestamp"])
+            )
             allow_published_contract_change = prior["status"] == "PUBLISHED" and same_input
             if not same_input or (prior["contract_sha256"] != contract_sha256 and not allow_published_contract_change):
                 raise ValueError("execution_id already exists with different input or contract")

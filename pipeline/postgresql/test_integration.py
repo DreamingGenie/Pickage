@@ -180,6 +180,45 @@ class PostgresIntegrationTests(unittest.TestCase):
             "a" * 64 + "," + "b" * 64,
         )
 
+    def test_published_same_input_reverification_accepts_trailing_zero_timestamp_and_new_contract(self):
+        metadata = self.metadata()
+        metadata["snapshot_timestamp"] = "2026-08-31T21:01:10.500000"
+        self.publish(metadata, contract="a" * 64)
+        result = self.publish(metadata, contract="b" * 64)
+        self.assertEqual(result["action"], "REVERIFIED")
+        self.assertEqual(self.sql("SELECT contract_sha256 FROM public.etl_load_execution;"), "a" * 64)
+        self.assertEqual(
+            self.sql("SELECT string_agg(validation_contract_sha256,',' ORDER BY created_at) "
+                     "FROM public.etl_load_attempt;"),
+            "a" * 64 + "," + "b" * 64,
+        )
+
+    def test_failed_retry_accepts_trailing_zero_timestamp(self):
+        metadata = self.metadata()
+        metadata["snapshot_timestamp"] = "2026-08-31T21:01:10.123450"
+        with self.assertRaisesRegex(RuntimeError, "failpoint"):
+            self.publish(metadata, failpoint="after_package_insert")
+        self.publish(metadata)
+        self.assertEqual(self.sql("SELECT string_agg(status,',' ORDER BY created_at) "
+                                  "FROM public.etl_load_attempt;"), "FAILED,PUBLISHED")
+
+    def test_changed_microsecond_timestamp_is_rejected_without_state_mutation(self):
+        metadata = self.metadata()
+        metadata["snapshot_timestamp"] = "2026-08-31T21:01:10.000010"
+        self.publish(metadata)
+        before = self.sql("SELECT status,active_attempt_id,contract_sha256,actual_counts::text "
+                          "FROM public.etl_load_execution;")
+        before_attempts = self.sql("SELECT count(*) FROM public.etl_load_attempt;")
+
+        changed = dict(metadata)
+        changed["snapshot_timestamp"] = "2026-08-31T21:01:10.000011"
+        with self.assertRaisesRegex(ValueError, "different input or contract"):
+            self.publish(changed)
+
+        self.assertEqual(self.sql("SELECT status,active_attempt_id,contract_sha256,actual_counts::text "
+                                  "FROM public.etl_load_execution;"), before)
+        self.assertEqual(self.sql("SELECT count(*) FROM public.etl_load_attempt;"), before_attempts)
+
     def test_same_input_retry_records_reverification(self):
         self.publish()
         result = self.publish()
