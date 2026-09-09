@@ -1,5 +1,7 @@
 # similarity-batch-pipeline — EC2 #1, cron(#1)이 배치 시각마다 새로 띄우는 1회성 배치 잡
-# 대상 아키텍처: t4g.xlarge (ARM64/Graviton) — python 공식 이미지는 arm64 멀티아치 지원
+# 대상 아키텍처: x86_64 (2026-09-09 EC2 #1에서 `uname -m` 확인).
+#   0904 문서·일부 티켓은 t4g.xlarge(ARM64/Graviton) 전제로 쓰여 있으나 실제는 x86.
+#   인프라팀에 최종 확정 확인 필요. 베이스 이미지는 멀티아치라 arch가 바뀌어도 빌드는 됨.
 FROM python:3.11-slim-bookworm
 
 # 파이썬 stdout 버퍼링 방지.

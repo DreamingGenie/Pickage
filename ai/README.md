@@ -9,7 +9,7 @@
 
 | 폴더 | 역할 | 실행 위치 |
 |---|---|---|
-| `similarity/` | 유사도 배치 파이프라인 컨테이너 (§4.1 6단계). CPU 추론·재랭킹·채점 게이트·MinIO 산출 | EC2 #1 `t4g.xlarge` (ARM64 CPU), cron 1회성 |
+| `similarity/` | 유사도 배치 파이프라인 컨테이너 (§4.1 6단계). CPU 추론·재랭킹·채점 게이트·MinIO 산출 | EC2 #1 (x86_64 — 2026-09-09 확인, 문서는 t4g/ARM 전제), cron 1회성 |
 | `training/` | GPU 재학습 오케스트레이터(`run_pipeline.sh`)의 **참조용 사본**. 학습 코드 본체(`finetune_bge_small_lora.py`, `merge_and_export_onnx_v6.py` 등)는 jupyter05에만 있고 레포에 커밋하지 않는다 | jupyter05 (GPU) |
 
 > 학습 코드가 레포 밖이므로 **재현성은 산출물 계약으로만 보장**된다. 학습 실행마다
@@ -44,7 +44,8 @@
   - 계승형 recall@3 0.864 vs 베이스라인 0.802 (z=5.57, 유의)
   - 공존형 recall@3 0.833 vs 0.806 (미유의 — 평가셋 설계 한계)
   - 산출물: `train_combined_v6.jsonl`(20,132쌍), `held_out_eval_bundle_v5.json`, `lora_final_v6`
-- CPU 추론 처리량 (더미벡터): EC2 t4g에서 10만×384dim flat cosine top-20 = 110.9초 — S15P21A506-169
+- CPU 추론 처리량 (더미벡터): EC2 #1에서 10만×384dim flat cosine top-20 = 110.9초 — S15P21A506-169 (티켓엔 "t4g/ARM"으로 기재됐으나 실측 노드는 x86_64)
+- **ONNX export 완료 (2026-09-09)**: `lora_final_v6` merge → `onnx_bge_v6/model.onnx` (opset 18, legacy TorchScript exporter, `dynamo=False`). GPU에서 PyTorch vs ONNX 오차 0.000000. pooling(CLS)+L2 정규화는 ONNX **밖**. — S15P21A506-287
 - 유사도 배치 컨테이너 골격 (`ai/similarity/`) — S15P21A506-282
 
 **진행 중 / 블로커**
@@ -57,6 +58,7 @@
 | B4 | MinIO **읽기전용** curated 키 (admin 아님 — §3.7). 공유 서버라 중요 | 인프라 |
 | B5 | `pickage-curated`에 `training_pairs` 존재 여부 — S7 Spark 잡 미구현 → v6 학습셋이 GPU 로컬에만 있을 가능성 | AI |
 | B6 | EC2 #1 MLflow(5000) 배포 — 미배포. `run_pipeline.sh` 5단계·S15P21A506-236 공통 블로커 | 인프라 |
+| B7 | EC2 #1 = 4 vCPU / 15 GiB / **swap 0** (Intel Xeon 8259CL, x86_64). Spark(~10G)·MinIO·MLflow·cron ETL과 공유 → 동시 실행 시 OOM 위험. AI 배치를 Spark ETL과 시간 겹치지 않게 cron 스케줄 분리 필요 (미정) | AI + 인프라 |
 
 ## 앞으로의 단계
 
@@ -66,7 +68,7 @@
 | 1 | B5 판정: `training_pairs` 없으면 v6 학습셋을 MinIO `pickage-curated`에 업로드 (S7 임시 대체) | 신규 (조건부) |
 | 2 | `run_pipeline.sh` TODO 채우기 — 3개 스크립트 `--help` 확인, `TRAIN_CMD` 하이퍼파라미터, `prepare_training_format()`, `run_manifest.json` | 신규 |
 | 3 | 학습 + ONNX export (MLflow 제외). 산출물 수동 저장 | Step 2 티켓 |
-| 4 | **ONNX export + EC2 #1 CPU(ARM) 추론 검증** — 수치 일치·recall 동등·처리량 실측 | 신규 (이 문서 작성 시점 생성) |
+| 4 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
 | 5 | `ai/MODEL_CONTRACT.md` — Step 4 실측 스펙(입출력 텐서·전처리·정규화·저장 경로)으로 계약 고정. 배치(168) 선행 | 신규 또는 168 서브 |
 | 6 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인) | S15P21A506-169 |
 | 7 | 인프라: MLflow 배포(B6) → `register_mlflow` 활성화 → @candidate/@production 경로 | S15P21A506-236 |
