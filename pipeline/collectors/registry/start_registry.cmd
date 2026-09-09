@@ -2,6 +2,7 @@
 rem npm registry 버전 이력 수집 시작·재시작 — 더블클릭 또는 터미널에서 실행. 체크포인트부터 이어간다.
 rem 이미 돌고 있으면 새로 띄우지 않는다(같은 IP에서 두 개가 돌면 429만 늘어남).
 setlocal
+chcp 65001 >nul
 rem 리포 루트 = 이 파일의 세 단계 상위 (pipeline\collectors\registry\ 아래에 있다)
 for %%I in ("%~dp0..\..\..") do set ROOT=%%~fI
 set RUN=2026-09-09

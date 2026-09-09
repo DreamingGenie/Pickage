@@ -69,6 +69,8 @@ def report(run, out):
 
     if procs > 0 and age is not None and age < 120:
         state = "RUNNING"
+    elif procs > 0 and age is None:
+        state = "STARTING (프로세스는 있음, 아직 첫 호출 전 — 대상 10만 건을 체크포인트에 넣는 중)"
     elif procs > 0:
         state = f"STALLED? (마지막 호출 {age/60:.0f}분 전, 프로세스는 있음)"
     else:
