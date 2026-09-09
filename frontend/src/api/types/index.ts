@@ -1,108 +1,235 @@
 /**
- * Spring 게이트웨이 DTO.
+ * npm 동향 서비스 v1 API 타입.
  *
- * 미확정: 아직 서버 스펙을 못 받아서 화면(Figma 00~03B)에서 역산한 초안이다.
- * 스펙 확정되면 이 파일만 교체하면 되도록 화면 코드는 여기 타입에만 의존시킨다.
+ * 근거: `npm 동향 서비스 — v1 API 명세` (2026-09-08).
+ * 명세의 필드명이 snake_case 라서 **서버 응답 타입은 snake_case 그대로 둔다**.
+ * camelCase 로 바꾸는 일은 화면 어댑터(`routes/report/ecosystem/adapter.ts`)가 하고,
+ * 이 파일은 서버가 실제로 보내는 모양만 적는다. 여기서 이름을 바꾸면
+ * 명세와 코드를 대조할 수 없게 된다.
  */
 
+/* ------------------------------------------------------------------ *
+ * 0.3 응답 봉투 · 0.4 에러 코드
+ * ------------------------------------------------------------------ */
+
+/** 0.4 — 서버가 정의한 에러 코드. 그 밖의 값은 클라이언트가 만든 것이다. */
+export type ApiErrorCode =
+  /** 400 필수 파라미터 누락 */
+  | 'V001'
+  /** 400 개수·범위 상한 초과 */
+  | 'V002'
+  /** 400 날짜 형식 오류 */
+  | 'V003'
+  /** 400 값 형식 오류 (길이·문자·타입) */
+  | 'V004'
+  /** 500 서버 내부 오류 */
+  | 'S001'
+
+/** 서버 코드가 아닌, 클라이언트가 자체 판단해 만든 코드. */
+export type ClientErrorCode = 'TIMEOUT' | 'NETWORK'
+
+export interface ApiSuccess<T> {
+  success: true
+  data: T
+}
+
+export interface ApiFailure {
+  success: false
+  code: ApiErrorCode
+  message: string
+}
+
+export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure
+
+/* ------------------------------------------------------------------ *
+ * 0.1 배치 입력 상한
+ * ------------------------------------------------------------------ */
+
+/** 0.1 — `names` 배열 상한. UI 의 최대 선택 수와 같은 값이다. 초과 시 V002. */
+export const MAX_NAMES = 3
+
+/** §4 — 추이 조회 기간 상한(주). 배열 상한 3 과 곱해져 응답 크기를 정한다. */
+export const MAX_WEEKS = 104
+
+/** §4 — `from` 생략 시 기본 구간(주). */
+export const DEFAULT_WEEKS = 26
+
+/** §2.4 — `limit` 기본값·상한. */
+export const SEARCH_LIMIT_DEFAULT = 20
+export const SEARCH_LIMIT_MAX = 50
+
+/**
+ * 0.1 — npm 이름 허용 문자.
+ * 소문자·숫자·`-`·`_`·`.` 와 스코프의 `@`·`/`. 쉼표가 없어 구분자와 충돌하지 않는다.
+ */
+export const NPM_NAME_RE = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/
+
+/* ------------------------------------------------------------------ *
+ * 2.2 사전 배포 · 2.4 서버 폴백
+ * ------------------------------------------------------------------ */
+
+/**
+ * 2.2 — 사전 manifest.
+ *
+ * 파일명을 고정하지 않고 내용 해시를 쓰기 때문에 이 한 겹이 필요하다.
+ * `url` 은 immutable 로 캐시되고 manifest 만 짧게 캐시된다.
+ */
+export interface DictManifest {
+  /** 내용 해시가 박힌 사전 파일 경로 */
+  url: string
+  count: number
+  /** YYYY-MM-DD */
+  built_at: string
+}
+
+/** 2.2 — 사전 파일 본문. 다운로드 상위 N개 이름 배열이며 순서가 곧 인기순이다. */
+export type PackageDictionary = string[]
+
+/**
+ * 2.4 — 서버 폴백 검색 결과.
+ *
+ * 이름만 온다. 다운로드 순 정렬이라 배열 순서가 곧 인기순이고,
+ * 사전 파일과 형태가 같아 클라이언트가 두 결과를 그대로 합칠 수 있다.
+ */
+export interface PackageSearchResponse {
+  query: string
+  items: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * 3. GET /packages — 패키지 개요
+ * ------------------------------------------------------------------ */
+
+/**
+ * 3 — 카드 헤더 + 현재값·증감.
+ *
+ * 0.5 — 패키지는 있으나 스냅샷이 없으면 `items` 에 들어오고 **지표 필드만 null** 이다.
+ * `not_found` 와 구분해야 한다. null 은 0 이 아니라 "집계 대기 중"이다.
+ */
+export interface PackageOverview {
+  name: string
+  repo_url: string | null
+  latest_version: string
+  /** ISO 8601 UTC */
+  published_at: string
+  description: string | null
+  licenses: string[]
+  is_deprecated: boolean
+  /** 직전 7일 합계. 화면 라벨을 "주간 다운로드"로 고정한다(§3 화면 연결). */
+  downloads: number | null
+  stars: number | null
+  /** 직전 스냅샷 대비 증감. 첫 스냅샷이면 null — 화면에서 화살표를 숨긴다. */
+  stars_delta: number | null
+  open_issues: number | null
+  open_issues_delta: number | null
+}
+
+export interface PackagesOverviewResponse {
+  /** 0.5 — 항목마다 같으므로 바깥에 한 번만 싣는다. YYYY-MM-DD */
+  snapshot_at: string
+  items: PackageOverview[]
+  /** 0.2 — 일부가 없어도 200. 못 찾은 이름을 여기 담는다. */
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * 4·5. 추이 (downloads · dependents)
+ * ------------------------------------------------------------------ */
+
+export interface TrendPoint {
+  /** YYYY-MM-DD */
+  snapshot_at: string
+  value: number
+}
+
+/**
+ * §4 — 신규 패키지는 옛 스냅샷에 행이 없어 **시리즈마다 길이가 다르다**.
+ * x축을 시리즈별 인덱스가 아니라 `snapshot_at` 값으로 잡아야 선이 어긋나지 않는다.
+ */
+export interface TrendSeries {
+  name: string
+  points: TrendPoint[]
+}
+
+export interface DownloadsTrendResponse {
+  metric: 'downloads'
+  /** 축 라벨의 근거 */
+  unit: 'weekly'
+  series: TrendSeries[]
+  not_found: string[]
+}
+
+export interface DependentsTrendResponse {
+  metric: 'dependents'
+  /**
+   * §5 — 스냅샷별로 그 패키지의 전 버전 `dependents_count` 를 합산한 값이다.
+   * 한 프로젝트가 `^4.17.0` 으로 여러 버전에 걸리므로 **실제 사용처 수보다 크다**.
+   * 기울기는 유효하지만 절대수는 부풀려져 있다 —
+   * 축 라벨을 "N개 프로젝트가 사용"으로 쓰면 안 되고 "의존 수(버전별 합계)"로 적는다.
+   */
+  sum_over_versions: true
+  series: TrendSeries[]
+  not_found: string[]
+}
+
+/** 추이 조회 파라미터. `from`·`to` 생략 시 서버가 기본 구간을 정한다. */
+export interface TrendQuery {
+  names: string[]
+  /** YYYY-MM-DD. 생략 시 최신 스냅샷 기준 26주 전 */
+  from?: string
+  /** YYYY-MM-DD. 생략 시 최신 스냅샷 */
+  to?: string
+}
+
+/* ------------------------------------------------------------------ *
+ * 6. GET /packages/version — 버전 분포
+ * ------------------------------------------------------------------ */
+
+export interface VersionSlice {
+  /** major 문자열. `0.x` 대는 "0" 으로 뭉친다 — 정상 동작이다. */
+  major: string
+  dependents: number
+  /** §6 — **해당 패키지 안에서의** 비율. 패키지별로 각각 100% 가 된다. */
+  pct: number
+}
+
+export interface VersionShareItem {
+  name: string
+  /**
+   * 형식은 맞으나 데이터가 없는 `snapshot_at` 이면 빈 배열이다.
+   * 이건 에러가 아니라 200 이며, 형식 오류(V003)와 구분해야 한다.
+   */
+  slices: VersionSlice[]
+}
+
+export interface VersionShareResponse {
+  snapshot_at: string
+  /** 다운로드는 패키지 단위 단일값이라 버전별로 쪼갤 수 없다. 지분 기준은 dependents. */
+  basis: 'dependents'
+  /** §5 와 같은 이유로 조각 합계는 부풀려진 값이다. 원 가운데에 총계를 찍지 않는다. */
+  sum_over_versions: true
+  items: VersionShareItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * 화면 전용 타입 (서버 스펙 아님)
+ * ------------------------------------------------------------------ */
+
+/**
+ * UI 뱃지 등급. 명세에 없는 화면 전용 값이다.
+ * 서버는 판정을 내리지 않으므로 이 값은 클라이언트가 관측치로부터 정한다.
+ */
 export type StatusLevel = 'ok' | 'warn' | 'err'
 
-/** 리포트 생성 단위. id 발급 주체(서버/클라)는 미해결 — 지금은 서버 발급 가정. */
-export type ReportId = string
-
+/**
+ * 입력창이 다루는 패키지 참조.
+ *
+ * `range` 는 v1 API 가 받지 않는다(마이그레이션 판정 UC3 은 제외 확정).
+ * 입력 파싱 결과를 보존하기 위해 남겨 두되, API 호출에는 `name` 만 쓴다.
+ */
 export interface PackageRef {
-  /** npm 패키지명 */
   name: string
   /** 사용자가 입력한 버전 레인지 (예: ^18.2.0). 미지정 시 null */
   range: string | null
-}
-
-/** 01-package-input: 입력 검증 결과 */
-export interface PackageResolution {
-  input: PackageRef
-  resolved: boolean
-  /** 레지스트리에서 확인된 최신 버전 */
-  latestVersion: string | null
-  /** 해석 실패 사유 */
-  reason: string | null
-}
-
-/** 02-candidate-select: 대체 후보 */
-export interface Candidate {
-  name: string
-  description: string
-  latestVersion: string
-  weeklyDownloads: number
-  stars: number
-  /** 마지막 릴리스 ISO8601 */
-  lastPublishedAt: string
-  license: string
-  /** 0~100 종합 적합도 */
-  matchScore: number
-}
-
-export interface CandidateListResponse {
-  source: PackageRef
-  candidates: Candidate[]
-}
-
-/** 03A: 생태계 지표 */
-export interface EcosystemMetric {
-  key: string
-  label: string
-  value: number
-  unit: string | null
-  /** 전월 대비 변화율(%) */
-  delta: number | null
-  status: StatusLevel
-}
-
-export interface TimeseriesPoint {
-  /** ISO8601 date */
-  t: string
-  v: number
-}
-
-export interface EcosystemSeries {
-  key: string
-  label: string
-  points: TimeseriesPoint[]
-}
-
-export interface EcosystemReport {
-  reportId: ReportId
-  target: PackageRef
-  metrics: EcosystemMetric[]
-  series: EcosystemSeries[]
-}
-
-/** 03B: 기능 비교 */
-export interface FeatureCell {
-  /** 지원 여부. partial은 제약 있음 */
-  support: 'yes' | 'no' | 'partial' | 'unknown'
-  note: string | null
-  /** 근거 드로어에서 열 evidence id */
-  evidenceId: string | null
-}
-
-export interface FeatureRow {
-  key: string
-  label: string
-  /** 패키지명 -> 셀 */
-  cells: Record<string, FeatureCell>
-}
-
-export interface FeatureCompareReport {
-  reportId: ReportId
-  packages: string[]
-  rows: FeatureRow[]
-}
-
-/** 근거 드로어 */
-export interface Evidence {
-  id: string
-  title: string
-  sourceUrl: string
-  excerpt: string
-  collectedAt: string
 }

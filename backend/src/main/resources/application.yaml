@@ -13,6 +13,17 @@ spring:
   profiles:
     default: local
 
+  jackson:
+    # 명세 0.5 — 응답 필드는 전부 snake_case.
+    #
+    # DTO 마다 @JsonProperty 를 붙이지 않는다. 붙이는 방식은 한 필드를 빠뜨려도
+    # 컴파일이 통과하고, 그 필드만 camelCase 로 나가 프론트에서 undefined 가 된다.
+    # 전역 규칙으로 두면 빠뜨릴 자리가 없다.
+    #
+    # 요청 쪽에는 영향이 없다 — 쿼리 파라미터는 @RequestParam 이름으로 직접 묶고,
+    # v1 에는 JSON 요청 본문이 아예 없다.
+    property-naming-strategy: SNAKE_CASE
+
   jpa:
     hibernate:
       # 스키마는 마이그레이션 파일이 소유한다. Hibernate 는 검증만 한다.

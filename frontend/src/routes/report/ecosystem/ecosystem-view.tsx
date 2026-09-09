@@ -7,20 +7,21 @@ import {
 } from '@/routes/report/ecosystem/ecosystem-toolbar'
 import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
-import { TOTAL, type EcosystemModel, type PackageCardModel } from '@/routes/report/ecosystem/model'
+import { type EcosystemModel } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
 /**
- * 03A 생태계 변화.
+ * 생태계 변화.
  *
  * 하나의 큰 카드로 묶지 않는다. 공통 조작줄과 범례가 위에 있고,
- * Dependents · Activity 는 각자 독립 카드로 위아래에 쌓인다(IA 8.1).
+ * Dependents · Downloads 는 각자 독립 카드로 위아래에 쌓인다.
  * 시간축이 같으므로 세로로 겹쳐 읽는 편이 좌우로 나누는 것보다 대조가 쉽다.
  *
- * 별 수·이슈·폐기 표시는 시계열로 그리지 않고 패키지 카드의 뱃지로 낸다.
+ * 별 수·이슈·폐기 표시는 시계열로 그리지 않고 패키지 카드의 뱃지로 낸다 —
+ * 명세 §3 이 그 둘을 현재값 + 직전 스냅샷 대비 증감으로만 주기 때문이다.
  *
- * 패키지 카드는 기본이 전부 펼침이다. 서로 배타적이지 않아 여러 개를 동시에 열어 둘 수 있고,
- * 직접 접기 전까지 닫히지 않는다. 접은 패키지는 차트에서도 흐려진다.
+ * 조회 기간은 **부모가 들고 있다.** 그것만 서버 왕복을 부르기 때문이다.
+ * 구간·간격은 받은 점을 다루는 일이라 여기 안에서 끝난다.
  */
 export function EcosystemView({
   model,
@@ -33,7 +34,7 @@ export function EcosystemView({
   className?: string
 }) {
   /**
-   * 고를 수 있는 스냅샷 날짜. 지표마다 커버리지가 다르므로 **넓은 쪽**을 목록으로 쓴다.
+   * 고를 수 있는 스냅샷 날짜. 지표마다 관측 시작이 다르므로 **합집합**을 쓴다.
    * 좁은 지표는 자기 카드 안에서 잘리고 그 사실을 스스로 알린다.
    */
   const snapshots = useMemo(() => {
@@ -44,39 +45,54 @@ export function EcosystemView({
     return [...set].sort()
   }, [model])
 
-  const [controls, setControls] = useState<EcosystemControls>(() => ({
-    // 기본은 최근 52개 스냅샷
-    window: {
-      start: snapshots[Math.max(0, snapshots.length - 52)],
-      end: snapshots[snapshots.length - 1],
-    },
-    intervalKey: '1w',
+  /**
+   * 구간·간격. 조회 기간이 바뀌면 스냅샷 목록 자체가 갈리므로 구간을 되돌린다.
+   * effect 로 동기화하는 대신 목록을 열쇠로 삼아 렌더에서 파생시킨다 —
+   * 상태가 두 곳에 갈라지지 않는다.
+   */
+  const bounds = { start: snapshots[0] ?? '', end: snapshots[snapshots.length - 1] ?? '' }
+  const [local, setLocal] = useState<{ key: string; window: EcosystemControls['window'] }>(() => ({
+    key: `${bounds.start}~${bounds.end}`,
+    window: bounds,
   }))
+  const [intervalKey, setIntervalKey] = useState('1w')
+
+  const boundsKey = `${bounds.start}~${bounds.end}`
+  const window = local.key === boundsKey ? local.window : bounds
+
+  const controls: EcosystemControls = { window, intervalKey }
+
+  function onControlsChange(next: EcosystemControls) {
+    setIntervalKey(next.intervalKey)
+    setLocal({ key: boundsKey, window: next.window })
+  }
+
   /**
    * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.
    * 접힌 패키지는 차트에서도 물러난다 — 그래서 선택이 아니라 펼침 상태가 강조를 정한다.
    */
-  const [expanded, setExpanded] = useState<string[]>(() => model.packages.map((p) => p.key))
-  const [versions, setVersions] = useState<Record<string, string>>(() =>
-    Object.fromEntries(model.packages.map((p) => [p.key, p.selectedDisplayVersion])),
-  )
-
-  const packages: PackageCardModel[] = model.packages.map((p) => ({
-    ...p,
-    selectedDisplayVersion: versions[p.key] ?? TOTAL,
-  }))
+  const packageKeys = model.packages.map((p) => p.key).join(',')
+  const [collapsed, setCollapsed] = useState<{ key: string; keys: string[] }>({
+    key: packageKeys,
+    keys: [],
+  })
+  const collapsedKeys = collapsed.key === packageKeys ? collapsed.keys : []
+  const expanded = model.packages.map((p) => p.key).filter((k) => !collapsedKeys.includes(k))
 
   const height = compactChart ? 148 : 196
 
   return (
     <div className={cn('flex flex-col gap-5', className)}>
-      <EcosystemToolbar
-        controls={controls}
-        onChange={setControls}
-        snapshots={snapshots}
-        packages={packages}
-        onVersionChange={(key, v) => setVersions((prev) => ({ ...prev, [key]: v }))}
-      />
+      {/* 0.2 — 부분 실패. 못 찾은 이름은 조용히 사라지면 안 된다 */}
+      {model.notFound.length > 0 && (
+        <p className="rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
+          찾지 못한 패키지:{' '}
+          <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> — 이름을
+          확인해 주세요. 나머지는 그대로 표시했습니다.
+        </p>
+      )}
+
+      <EcosystemToolbar controls={controls} onChange={onControlsChange} snapshots={snapshots} />
 
       {/* 두 카드가 같은 시리즈·같은 선 모양을 쓰므로 범례도 한 번만 */}
       <SeriesLegend series={model.series.dependents} emphasisKeys={expanded} />
@@ -85,39 +101,42 @@ export function EcosystemView({
       <div className="flex flex-col gap-5">
         <MetricChart
           title="Dependents"
-          unit="직접 의존 패키지 수"
+          unit="의존 수 · 버전별 합계"
           series={model.series.dependents}
-          window={controls.window}
-          intervalKey={controls.intervalKey}
+          window={window}
+          intervalKey={intervalKey}
           observedFrom={model.observedFrom.dependents}
-          coverageNote={model.coverageNote?.dependents}
+          coverageNote="이 지표의 관측 시작"
           emphasisKeys={expanded}
           height={height}
         />
         <MetricChart
-          title="Activity"
-          unit="Downloads · 주간 · npm 공식 자료"
+          title="Downloads"
+          unit="주간 · npm 공식 자료"
           series={model.series.downloads}
-          window={controls.window}
-          intervalKey={controls.intervalKey}
+          window={window}
+          intervalKey={intervalKey}
           observedFrom={model.observedFrom.downloads}
-          coverageNote={model.coverageNote?.downloads}
+          coverageNote="이 지표의 관측 시작"
           emphasisKeys={expanded}
           height={height}
         />
       </div>
 
       <div className="grid items-start gap-4">
-        {packages.map((p, i) => (
+        {model.packages.map((p, i) => (
           <PackageCard
             key={p.key}
             model={p}
             index={i}
             expanded={expanded.includes(p.key)}
             onToggle={() =>
-              setExpanded((cur) =>
-                cur.includes(p.key) ? cur.filter((k) => k !== p.key) : [...cur, p.key],
-              )
+              setCollapsed({
+                key: packageKeys,
+                keys: collapsedKeys.includes(p.key)
+                  ? collapsedKeys.filter((k) => k !== p.key)
+                  : [...collapsedKeys, p.key],
+              })
             }
           />
         ))}
@@ -129,6 +148,10 @@ export function EcosystemView({
           : expanded.length < model.packages.length
             ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
             : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
+      </p>
+
+      <p className="font-mono text-[10.5px] text-muted-foreground">
+        기준 스냅샷 {model.snapshotAt}
       </p>
     </div>
   )

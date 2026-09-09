@@ -66,15 +66,23 @@ docker volume rm pickage-local_pgdata
 
 | | 파일 | 누가 적용하나 |
 | --- | --- | --- |
-| 스키마 (ERD 5개 테이블) | `backend/src/main/resources/db/migration/V1__init.sql` | 앱이 뜰 때 Flyway 가 자동 |
-| 샘플 데이터 | `deploy/local/seed/seed_sample.sql` | **아래 명령으로 직접** |
+| 스키마 | `backend/src/main/resources/db/migration/V1__init.sql`<br>`…/V2__index_similar_etl.sql` | 앱이 뜰 때 Flyway 가 자동 |
+| 샘플 데이터 | `deploy/local/seed/*.sql` | **아래 명령으로 직접** |
 
 **테이블은 손으로 만들지 않는다.** 로컬과 운영이 같은 마이그레이션 파일을 쓰므로 스키마가 갈라질 수 없다.
 
-### 샘플 데이터 넣기
+### 샘플 데이터 — 목적이 다른 두 벌
+
+**둘을 같이 쓸 수 없다.** 둘 다 `TRUNCATE` 로 시작하므로 나중에 돌린 쪽만 남는다.
+
+| 파일 | 규모 | 무엇을 보려고 |
+| --- | --- | --- |
+| `seed_sample.sql` | 패키지 3 × 스냅샷 2 | **자료가 모자란 상태.** 추이 그래프가 "데이터 축적 중" 으로 뜨는지, `repo_url` 이 없는 패키지가 "미확인" 으로 뜨는지 |
+| `seed_mock_parity.sql` | 패키지 14 × 스냅샷 130 | **차트가 실제로 그려지는 상태.** 그리고 아래의 대조 검증 |
 
 ```bash
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
 ```
 
 이 명령은 샘플 DB를 재설정할 때만 사용한다. `TRUNCATE` 후 샘플 행을 다시 넣으므로,

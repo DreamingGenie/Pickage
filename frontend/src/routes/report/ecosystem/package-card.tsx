@@ -3,7 +3,7 @@ import { ChevronDownIcon } from 'lucide-react'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
 import { ObservationBadges } from '@/routes/report/ecosystem/badges'
-import { TOTAL, type PackageCardModel } from '@/routes/report/ecosystem/model'
+import type { PackageCardModel } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  *
  * 기본은 전부 펼침. 여러 개를 동시에 펼 수 있고, 직접 접기 전까지 닫히지 않는다.
  *
- * 접힘: 패키지 이름만. 그리고 그 패키지 선이 차트에서 물러난다.
+ * 접힘: 패키지 이름과 최신 버전. 그리고 그 패키지 선이 차트에서 물러난다.
  * 펼침: 뱃지 · Dependents 증감 · Version Share 상세.
  *
  * 접힘 상태에도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
@@ -53,13 +53,14 @@ export function PackageCard({
             기준
           </span>
         )}
-      </div>
-      <span className="flex shrink-0 items-center gap-2">
-        {expanded && (
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {model.selectedDisplayVersion === TOTAL ? 'TOTAL' : model.selectedDisplayVersion}
+        {model.isDeprecated && (
+          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+            폐기 표시
           </span>
         )}
+      </div>
+      <span className="flex shrink-0 items-center gap-2">
+        <span className="font-mono text-[11px] text-muted-foreground">v{model.latestVersion}</span>
         <ChevronDownIcon
           aria-hidden
           className={cn(
@@ -93,9 +94,15 @@ export function PackageCard({
     >
       {header}
 
+      {model.description && (
+        <p className="-mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+          {model.description}
+        </p>
+      )}
+
       <ObservationBadges model={model} />
 
-      {/* Dependents 증감 — 유입·이탈로 나누지 않는다 */}
+      {/* Dependents 증감 — 유입·이탈로 나누지 않는다. 합계값이라 그렇게 나눌 수 없다 */}
       <div className="flex items-baseline justify-between gap-3 border-t pt-5">
         <span className="text-[12px] text-muted-foreground">Dependents 증감</span>
         <span className="flex items-baseline gap-2">
@@ -104,24 +111,46 @@ export function PackageCard({
               ? '—'
               : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
           </span>
-          <span className="text-[10.5px] text-muted-foreground">기간 전체</span>
+          <span className="text-[10.5px] text-muted-foreground">
+            {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
+          </span>
         </span>
       </div>
 
-      {/* Version Share 상세 */}
+      {/* Version Share */}
       <div className="flex flex-col gap-3 border-t pt-5">
         <span className="text-[12px] text-muted-foreground">Version Share</span>
-        <div className="flex flex-wrap items-center gap-5">
-          <ShareDonut
-            groups={model.versionShare}
-            size={104}
-            ariaLabel={`${model.key} 버전 계열 분포`}
-          />
-          <ShareBars groups={model.versionShare} />
-        </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          공개된 의존 조건의 분포입니다. 실제 설치 버전이 아닙니다.
-        </p>
+        {model.versionShare.length === 0 ? (
+          <p className="text-[11.5px] text-muted-foreground">
+            이 시점의 버전 분포 자료가 없습니다.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-5">
+              <ShareDonut
+                groups={model.versionShare}
+                size={104}
+                ariaLabel={`${model.key} major 버전 분포`}
+              />
+              <ShareBars groups={model.versionShare} />
+            </div>
+            {/*
+              명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
+              그래서 비율만 적고 총계를 쓰지 않는다.
+            */}
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
+              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* 라이선스·최신 릴리스는 판단 재료라 카드 맨 아래에 조용히 둔다 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-[11px] text-muted-foreground">
+        <span>{model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'}</span>
+        <span className="font-mono">최신 릴리스 {model.publishedAt.slice(0, 10)}</span>
+        {model.repoUrl && <span className="truncate font-mono">{model.repoUrl}</span>}
       </div>
     </button>
   )
