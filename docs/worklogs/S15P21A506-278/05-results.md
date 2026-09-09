@@ -5,8 +5,7 @@
 `COMMITTED_AND_REVERIFIED`다.
 
 2026-09-09 스냅샷 구간 다운로드 집계·Curated 게시를 S15P21A506-278 범위에 추가했다.
-아래 실측·31개 테스트는 **원본 검증·입고 결과**다. 구간 집계는 계약·계획 작성 완료, 구현 전 상태다.
-이 티켓 전체의 완료 여부는 구간 집계의 AC-10~19를 구현·실행·검증한 뒤 판정한다.
+아래 원본 입고 결과와 구간 집계 결과를 분리해 기록한다. 구간 집계의 초도 실행·동일 입력 재검증·인계를 완료했으며, [구간 집계 결과](08-interval-results.md)에 증거를 연결했다.
 
 ## 구현 결과
 
@@ -120,8 +119,8 @@ s3://pickage-raw/npm-downloads/v1/run_id=downloads-278-20260909-v1/run_manifest.
 s3://pickage-raw/npm-downloads/v1/run_id=downloads-278-20260909-v1/_SUCCESS
 ```
 
-위 완료 결과는 원본 다운로드의 검증·Bronze 보존까지다. 스냅샷 구간 합계·Curated 생성은
-구현 예정 범위이며, PostgreSQL 적재·서비스 준비 상태 판단은 별도 후속 작업이다.
+위 결과는 원본 다운로드의 검증·Bronze 보존을 설명한다. 이어서 완료한 스냅샷 구간 합계·Curated
+게시 결과는 [구간 집계 결과](08-interval-results.md)에 정리했다. PostgreSQL 적재·서비스 준비 상태 판단은 별도 후속 작업이다.
 
 생성 계보의 실제 실행 버전은 미확인이다. 표본 대조는 선택된 패키지에 대한 검증이며 전체
 원본으로 Parquet를 재생성해 모든 행의 변환 의미를 확인한 결과가 아니다. 생성 코드의 실제
@@ -129,11 +128,11 @@ s3://pickage-raw/npm-downloads/v1/run_id=downloads-278-20260909-v1/_SUCCESS
 범위를 기준으로 하며, 다음 `[P,S)` 구간은 별도 검사가 필요하다. 원격 Jira 제목·상태·댓글은
 조회하지 않았다.
 
-## 스냅샷 구간 다운로드 집계·게시 상태 — 구현·실행 미착수
+## 스냅샷 구간 다운로드 집계·게시 상태 — 초도 실행 완료
 
 - 동일 티켓·브랜치의 범위·계획·이슈 및 [구간 계약](06-interval-contract.md)·[Jira 기재안](07-jira-ticket.md)을 준비했다.
-- P-09~14 미착수, AC-10~19 미검증이다. 신규 집계 모듈·다운로드 합계·Curated run·구간 집계 테스트 결과는 아직 없다.
-- 일부 날짜·값 누락 시 유효 값의 부분합을 게시하는 계약을 확정했다. 전체 합계·부분합·유효 값 없음과 품질 사유를 구분하며, 이는 아직 실행 결과가 아니다.
-- 현재 확인된 승인 package 입력은 2026-08-31이다. 초도 S는 이 날짜를 계획하며, 정확한 원격 입력과 모집단은 P-09에서 재검증한다.
-- 원본 검증·입고의 31개 테스트와 실제 게시 증거는 보존한다. 구간 집계의 테스트·실행 결과는 구현 후 별도로 기록한다.
-- 문서 링크·계획/완료 기준 ID·기존 코드와 증거 보존 여부는 별도 [착수 문서 검사](evidence/interval-prework-check.json)에 기록한다. 이 검사는 구간 집계·게시·테스트의 실행 증거가 아니다.
+- 입력 고정·집계·Curated 게시 구현과 55개 신규 테스트를 완료했다. 기존 31개 회귀 테스트까지 총 86개가 통과했고 skip/error/failure는 0건이다.
+- 초도 S=`2026-08-31`, P=`2026-08-24`, 기대 7일이며 승인 `package/data` 11,080,940행을 `(package_id,snapshot_at)`으로 보존했다.
+- 실제 결과는 COMPLETE 97,091행, PARTIAL 637행, UNAVAILABLE 10,983,212행이다. 독립 대조 8개 조건이 모두 통과했고 값·coverage 불일치는 0건이다. 근거는 [interval reconciliation](evidence/interval-reconciliation.json)이다.
+- 입력 manifest SHA는 `a0b80537f35e000a471ed95ce4e10c5f25264b587b6c433b0aed9561a777a9d7`, 집계 정책 SHA는 `d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427`이다. 코드 계약 SHA는 `6174089`로 시작한다.
+- `OUTSIDE_TARGET_LIST` 대상은 승인 모집단의 기존 ID 행을 NULL로 유지했고, 승인 모집단 밖 2,251개 이름은 unmatched 결과에 기록했다. daily quality는 6,759행이다. [재검증 receipt](evidence/interval-load.json)와 [최종 인계](08-interval-results.md)를 완료했으며 PostgreSQL 적재는 후속 작업이다.

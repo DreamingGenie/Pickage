@@ -1,6 +1,6 @@
 # 06. 스냅샷 구간 다운로드 집계 계약
 
-상태: **작업 범위 및 계약 문서화 완료**. 다운로드 원본 검증·Bronze 입고는 완료했으며, 스냅샷 구간 다운로드 집계·Curated 게시와 실행은 아직 시작하지 않았다.
+상태: **초도 집계·Curated 게시·동일 입력 재검증·인계 완료**. 실제 수치와 후속 DB 적재에 사용할 입력은 [구간 집계 결과](08-interval-results.md)에 기록했다.
 [기존 범위와 결과](05-results.md) · [S15P21A506-269 Projects 스냅샷 시간 정책](../../../pipeline/snapshot/README.md) · [Jira 기록 초안](07-jira-ticket.md)
 
 ## 목적과 경계
@@ -8,10 +8,10 @@
 S15P21A506-278은 다음 두 작업을 하나의 흐름으로 관리한다.
 
 - **다운로드 원본 검증·Bronze 입고**: npm 다운로드 원본을 검증하고 실행 단위로 MinIO `pickage-raw`에 보관한다. 이 작업은 완료했다.
-- **스냅샷 구간 다운로드 집계·Curated 게시**: 기준일 사이의 다운로드 데이터를 집계해 검증된 Curated 결과를 게시한다. 이 작업은 아직 시작하지 않았다.
+- **스냅샷 구간 다운로드 집계·Curated 게시**: 기준일 사이의 다운로드 데이터를 집계해 검증된 Curated 결과를 게시한다. 초도 실행과 동일 입력 재검증까지 완료했다.
 
-이 문서는 두 번째 작업을 구현하기 전에 입력·식별자·구간·누락·게시 계약을 설명한다.
-아직 집계 코드, Curated Parquet, MinIO 게시, PostgreSQL `package_snapshot` 통합 적재, 실제 집계 테스트는 만들거나 실행하지 않았다.
+이 문서는 스냅샷 구간 다운로드 집계·Curated 게시의 입력·식별자·구간·누락·게시 계약과 현재 구현을 설명한다.
+구현은 `pipeline/downloads_interval`에 두며, PostgreSQL `package_snapshot` 통합 적재는 이 작업의 출력물을 사용하는 후속 작업이다.
 
 manifest는 한 실행의 파일 목록·크기·해시·검증 결과를 담는 명세이고, `_SUCCESS`는 검증 완료 표시다.
 승인 모집단은 해당 스냅샷의 검증 완료 Curated 입력에 포함된 전체 패키지 목록을 뜻한다.
@@ -32,7 +32,7 @@ S15P21A506-269 문서의 누락 시 NULL 규칙은 S15P21A506-278의 부분합 �
 | 항목 | 계약 |
 | --- | --- |
 | 기준 달력 | Projects에서 검증한 229개 기준일 전체. 현재 확인 범위는 2022-05-08~2026-08-31 |
-| 현재 S | 초도 실행은 `2026-08-31`을 대상으로 계획. P-09에서 승인 manifest와 정확한 `SnapshotAt`을 재검증한 뒤 확정 |
+| 현재 S | 초도 실행 `2026-08-31`. P-09에서 승인 manifest와 `SnapshotAt=2026-08-31T21:01:10.517131Z` 일치 확인 |
 | 이전 P | 전체 달력에서 S 바로 앞의 기준일. 초도 S가 2026-08-31이면 P는 2026-08-24 |
 | 집계 구간 | UTC calendar 날짜 `[P,S)`. 따라서 2026-08-24→2026-08-31은 8월 24일부터 30일까지 |
 | 간격 | 고정 7일을 가정하지 않고 달력에 실제 기록된 `P`와 `S`의 날짜 차이를 사용 |
@@ -68,8 +68,8 @@ P를 임의로 최근 7일로 만들거나 DB의 마지막 성공일로 대체�
 Curated 출력의 목표 grain은 **하나의 `(package_id, snapshot_at)` 행**이다. 집계 값은 해당 S의
 패키지가 P 이상 S 미만의 각 UTC 날짜에서 관측한 다운로드 수를 합산한 값이다.
 
-계획한 출력 필드는 다음 의미를 따른다. 실제 Parquet 컬럼명·Curated MinIO prefix·manifest 구조는
-P-10~11에서 기존 저장소 계약을 확인한 후 확정하며, 이 문서에서는 계획으로 표시한다.
+출력 필드는 다음 의미를 따른다. Parquet 컬럼명과 Curated MinIO prefix·manifest 구조는
+현재 구현에서 확정했다. 실제 초도 실행 결과와 파일별 해시는 [결과](08-interval-results.md)에 기록했다.
 
 | 필드 | 의미 |
 | --- | --- |
@@ -80,7 +80,7 @@ P-10~11에서 기존 저장소 계약을 확인한 후 확정하며, 이 문서�
 | `expected_days` | 달력 구간의 기대 날짜 수 |
 | `observed_days` | 행이 존재하는 고유 날짜 수. NULL·gap 날짜도 포함 |
 | `valid_days` | `downloads`가 NULL이 아니고 `imputed_gap=false`인 고유 날짜 수 |
-| `missing_dates` 또는 동등한 quality 정보 | 누락·NULL·gap의 날짜와 사유. 최종 스키마는 P-10에서 확정 |
+| `daily_quality.parquet` | 대상 이름별 날짜별 `ROW_MISSING`, `NULL_VALUE`, `IMPUTED_GAP`, `OUTSIDE_AVAILABLE_RANGE` 상세 |
 | `data_status` | `COMPLETE`(전체 합계), `PARTIAL`(부분합), `UNAVAILABLE`(계산 가능한 값 없음) 구분 |
 | `quality_reasons` / `null_reason` | 부분합의 누락 사유도 품질 정보로 보존. `null_reason`은 합계가 NULL인 경우에만 기록 |
 | `input_manifest_sha256`, `policy_sha256`, `aggregation_policy_sha256` | 사용한 불변 입력·시간 정책·부분합 집계 정책 연결 |
@@ -117,9 +117,10 @@ NOT_FOUND 패키지도 0으로 채우지 않는다.
 입력 검증 실패로 처리하며 해당 파일을 제외하고 게시하지 않는다.
 
 다운로드 대상 목록 밖이지만 승인 모집단에 포함된 패키지를 구분하기 위한
-`OUTSIDE_TARGET_LIST`는 스냅샷 구간 다운로드 집계·Curated 게시 작업에서 제안하는 코드이며, S15P21A506-269의 기존 확정 정책 코드가 아니다.
-대표 NULL 사유의 우선순위와 여러 상세 사유를 함께 보존할지 여부는 P-10에서 입력 품질을 확인한
-뒤 확정한다. 확정 전까지는 관측된 모든 조건을 상세 품질 정보로 잃지 않게 남긴다.
+`OUTSIDE_TARGET_LIST`는 현재 집계 구현의 품질 사유이며, 대상 목록 밖이지만 승인 모집단에 포함된 패키지의 NULL 결과를 설명한다.
+`quality_reasons`는 조건별 사유 배열로 저장하며, 대표 `null_reason`과 별도로 여러 조건을 보존한다.
+대상 이름의 날짜별 사유는 `daily_quality.parquet`에 기록한다. 승인 모집단 밖 이름은 정상 출력 모집단에
+새 `package_id`를 만들지 않고 `unmatched_packages.parquet`에 남긴다.
 
 ## 불변 게시 계약
 
@@ -128,7 +129,12 @@ candidate SHA, Bronze manifest SHA, 승인 Curated manifest SHA, `snapshot-time-
 S15P21A506-278 부분합 집계 정책 버전·해시, S/P, expected/observed/valid 일수와 품질 집계, 코드 계약 해시를 기록한다. 기존 Bronze와 승인 Curated 객체를
 덮어쓰지 않으며, 게시 전후 파일 크기·SHA를 검증한다.
 
-Curated prefix와 정확한 schema는 기존 `pipeline` 저장 계약과 P-10의 출력 검증을 확인한 뒤 정한다.
+Curated 결과 prefix는 `pickage-curated/npm-downloads-interval/v1/snapshot=<S>/run_id=<run-id>/`로 고정한다.
+정상 게시에는 `data/interval_downloads.parquet`, `data/daily_quality.parquet`, `data/unmatched_packages.parquet`,
+`run_manifest.json`, `_INPUT.json`, `_SUCCESS`가 포함된다. 주 출력은 `(package_id, snapshot_at)` grain이며
+`interval_downloads.parquet`의 주요 필드는 `package_id`, `snapshot_at`, `previous_snapshot_at`,
+`download_sum`, `expected_days`, `observed_days`, `valid_days`, `data_status`, `null_reason`,
+`quality_reasons`, `input_manifest_sha256`, `policy_sha256`, `aggregation_policy_sha256`다.
 완료 표시가 없는 결과나 manifest SHA가 일치하지 않는 결과는 후속 DB 입력으로 넘기지 않는다.
 집계 실행은 현재 PostgreSQL을 변경하지 않는다. DB 실행 이력 연결이 필요하면 별도 후속 계약으로
 manifest와 실행 ID를 연결하며, 로컬 JSON에만 결과를 남기는 상태로 완료 처리하지 않는다.
@@ -138,12 +144,12 @@ manifest와 실행 ID를 연결하며, 로컬 JSON에만 결과를 남기는 상
 | 단계 | 작업 | 산출물 / 중지 조건 | 상태 |
 | --- | --- | --- | --- |
 | P-08 | 작업 범위와 집계·게시 계약 문서화 | 본 문서·Jira 본문 초안 | 완료 |
-| P-09 | Bronze·S15P21A506-269 Projects 스냅샷 기준일 후보·승인 Curated manifest/_SUCCESS·package 모집단 재검증 | 불변 입력 대장. 원격 입력 불일치·과거 모집단 미확보 시 게시 대상과 사유 확정 전 중지 | 미착수 |
-| P-10 | `[P,S)` 집계와 품질 판정 구현 | `pipeline/downloads_interval` 계획 위치, fixture 결과, 출력 manifest | 미착수 |
-| P-11 | Curated 출력 검증과 MinIO 게시 구현 | 기존 저장 계약을 확인해 prefix/schema를 확정하고 전체 GET·SHA 검증 경로 구현 | 미착수 |
-| P-12 | 격리된 소형 입력으로 단위·집계·게시·회귀 테스트 | 실패·중복·부분합·유효 값 없음·실제 0·범위 일부 겹침·overflow·불변 재실행 검증 | 미착수 |
-| P-13 | S=2026-08-31 초도 실제 실행·게시·동일 입력 재검증 | P=2026-08-24 확인, 전체 모집단·행 수·품질·manifest·원격 객체 및 재실행 보존 검증 | 미착수 |
-| P-14 | 인계 문서 작성 | 실행 ID·manifest·policy SHA·NULL 사유·미확인 범위와 다음 소비자 전달 | 미착수 |
+| P-09 | Bronze·Projects 기준일·승인 Curated 입력 재검증 | 입력 manifest, 선택 파일 목록, SHA 고정 | 완료 |
+| P-10 | `[P,S)` 집계와 품질 판정 구현 | `pipeline/downloads_interval/aggregate.py`, 부분합·NULL·실제 0·품질 배열 | 구현 완료, 보강 검증 중 |
+| P-11 | Curated 출력 검증과 MinIO 게시 구현 | 고정 prefix/schema, 전체 GET·SHA 검증, 재실행 보호 | 구현 완료, 실제 게시 전 |
+| P-12 | 격리된 소형 입력으로 단위·집계·게시·회귀 테스트 | 실패·중복·부분합·유효 값 없음·실제 0·범위 일부 겹침·overflow·불변 재실행 | 완료 (86개 전체 통과) |
+| P-13 | S=2026-08-31 초도 실제 실행·게시·동일 입력 재검증 | 전체 모집단·행 수·품질·manifest·원격 객체 및 재실행 보존 | 완료 |
+| P-14 | 인계 문서 작성 | 실행 ID·manifest·policy SHA·NULL 사유·제한사항 전달 | 완료 — [인계](08-interval-results.md) |
 
 스냅샷 구간 다운로드 집계·Curated 게시의 새 구현은 기존 `pipeline/downloads` Bronze 계약 해시를 불필요하게 바꾸지 않도록
 `pipeline/downloads_interval`에 둔다. 다운로드 원본 검증·Bronze 입고 작업의 현재 31개 테스트는 구간 집계 테스트가 아니며,
@@ -169,6 +175,5 @@ PostgreSQL `package_snapshot` 통합 적재는 이 티켓의 집계·게시 결�
 | AC-18 | 초도 S 실행의 실제 output·품질·원격 객체를 전체 검증하고 완료 표시를 게시한 뒤, 동일 입력 재실행으로 기존 결과 보존을 확인한다 |
 | AC-19 | 후속 DB/분석 소비자가 사용할 실행 ID·manifest·정책·제한사항·재실행 방법을 인계한다 |
 
-이 기준을 모두 만족하기 전에는 S15P21A506-278의 통합 작업을 완료로 표시하지 않는다. 현재 AC-10~19는
-스냅샷 구간 다운로드 집계·Curated 게시 작업의 예정 기준이며, 다운로드 원본 검증·Bronze 입고 작업의
-AC-01~09 완료와 구분한다.
+AC-10~19는 [실제 실행·재검증·인계](08-interval-results.md)로 충족했다. 다운로드 원본 검증·Bronze 입고의
+AC-01~09와 구간 집계 검증 증거를 구분해 보관한다. PostgreSQL 적재 실행은 이 완료 기준에 포함하지 않는다.

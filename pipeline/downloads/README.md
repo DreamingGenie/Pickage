@@ -4,9 +4,9 @@
 원본 API를 다시 호출하거나 원본 파일을 변경하지 않는다. 스냅샷 구간 합계와 PostgreSQL 적재는
 후속 작업이다. [다운로드 원본 입고·구간 집계 작업 기록](../../docs/worklogs/S15P21A506-278/README.md)에 범위·이슈·실측 결과를 남긴다.
 
-스냅샷 구간 합계·Curated 게시도 같은 티켓(S15P21A506-278)에서 구현할 계획이다.
-[구간 집계 계약](../../docs/worklogs/S15P21A506-278/06-interval-contract.md)을 따르며 예정 구현은
-별도 `pipeline/downloads_interval/`에 둔다. 이 문서의 CLI와 검증 결과는 완료된 원본 검증·Bronze 입고에 해당한다.
+스냅샷 구간 합계·Curated 게시도 같은 티켓(S15P21A506-278)에서 초도 실행까지 완료했다.
+[구간 집계 계약](../../docs/worklogs/S15P21A506-278/06-interval-contract.md)을 따르며 구현은
+별도 [구간 집계 모듈](../downloads_interval/README.md)에 둔다. 구간 집계 CLI와 결과는 해당 모듈 README와 작업 기록에 남긴다.
 
 ## 입력과 의미
 

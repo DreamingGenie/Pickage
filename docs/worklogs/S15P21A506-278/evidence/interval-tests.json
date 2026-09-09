@@ -1,0 +1,16 @@
+{
+  "tested_at": "2026-09-09T02:27:10.213778+00:00",
+  "tests_run": 86,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 26.375,
+  "contract_sha256": "6174089e272c8a694463763230b3d7112a23b5f9004958d194df751556f73469",
+  "contract_unchanged": true,
+  "minio_fixture_tests_enabled": true,
+  "scope": [
+    "interval input/aggregate/publication",
+    "Bronze regression",
+    "existing MinIO regression"
+  ]
+}
