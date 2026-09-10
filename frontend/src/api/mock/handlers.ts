@@ -9,6 +9,7 @@
 
 import { ApiError } from '@/api/client'
 import {
+  ALL_PACKAGES,
   ALL_SNAPSHOTS,
   BY_NAME,
   LATEST_SNAPSHOT,
@@ -26,6 +27,8 @@ import {
   NPM_NAME_RE,
   SEARCH_LIMIT_DEFAULT,
   SEARCH_LIMIT_MAX,
+  SIMILAR_LIMIT_DEFAULT,
+  SIMILAR_LIMIT_MAX,
   type DependentsTrendResponse,
   type DictManifest,
   type DownloadsTrendResponse,
@@ -33,6 +36,7 @@ import {
   type PackageOverview,
   type PackageSearchResponse,
   type PackagesOverviewResponse,
+  type SimilarPackagesResponse,
   type TrendQuery,
   type TrendSeries,
   type VersionShareResponse,
@@ -271,6 +275,78 @@ export function mockDependentsTrend({
     series: buildDependentsSeries(found, window),
     not_found,
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-03 · UC4. GET /packages/similar
+ * ------------------------------------------------------------------ */
+
+/**
+ * 유사 패키지.
+ *
+ * **후보 선정은 지어낸 것이다.** 시드(`seed_service_full.sql`)는 쓰임새별 묶음에서 후보를
+ * 뽑지만 mock 데이터에는 쓰임새 정보가 없다. 그래서 이름에서 파생한 결정적 순서로 고른다 —
+ * 목록의 *모양*(순위 연속·점수 내림차순·자기 자신 배제)만 서버와 같고, **어떤 패키지가
+ * 후보인지는 뜻이 없다.**
+ *
+ * 난수를 쓰지 않는 것이 중요하다. 새로고침마다 후보가 바뀌면 화면 버그와 구분할 수 없다.
+ */
+export function mockSimilarPackages(
+  name: string | undefined,
+  limit: number | undefined,
+): Promise<SimilarPackagesResponse> {
+  const base = (name ?? '').trim()
+
+  // 검증 순서는 서버와 같다 — 누락(V001) → 상한(V002) → 형식(V004).
+  if (!base) fail('V001', '기준 패키지(name)는 필수입니다.')
+  if (limit !== undefined && limit > SIMILAR_LIMIT_MAX) {
+    fail('V002', `limit은 최대 ${SIMILAR_LIMIT_MAX}까지 가능합니다.`)
+  }
+  if (limit !== undefined && limit < 1) fail('V004', 'limit은 1 이상이어야 합니다.')
+  if (!NPM_NAME_RE.test(base)) fail('V004', `패키지 이름 형식이 올바르지 않습니다: ${base}`)
+
+  const pkg = BY_NAME.get(base)
+  if (!pkg) {
+    return delay<SimilarPackagesResponse>({
+      base,
+      data_status: 'NO_DATA',
+      candidates: [],
+      not_found: [base],
+    })
+  }
+
+  const take = limit ?? SIMILAR_LIMIT_DEFAULT
+  const candidates = ALL_PACKAGES.filter((p) => p.name !== base)
+    // 기준 이름을 섞어 정렬한다. 안 섞으면 모든 패키지가 같은 후보 목록을 갖는다.
+    .map((p) => ({ p, order: fnv(base + ' ' + p.name) }))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, take)
+    .map(({ p }, i) => ({
+      rank: i + 1,
+      // 시드와 같은 식. 순위가 내려갈수록 점수가 낮아진다.
+      score: Math.round((0.94 - (i + 1) * 0.035) * 1000) / 1000,
+      name: p.name,
+      latest_version: p.latest_version,
+      description: p.description,
+    }))
+
+  return delay<SimilarPackagesResponse>({
+    base,
+    model_ver: 'mock-v1-20260831',
+    data_status: 'COMPLETE',
+    candidates,
+    not_found: [],
+  })
+}
+
+/** FNV-1a. `Math.imul` 로 32비트를 유지해 환경이 달라도 같은 값이 나온다. */
+function fnv(s: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
 }
 
 /* ------------------------------------------------------------------ *
