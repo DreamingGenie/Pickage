@@ -6,13 +6,8 @@ import hashlib
 from pathlib import Path
 import duckdb
 from pipeline.downloads_interval.aggregate import reject, require_schema, MAX_BIGINT
-
-REQUIRED_QUALITY = [
-    "package_id", "snapshot_at", "first_published_at", "selected_published_at",
-    "download_sum", "stars", "open_issues", "data_status", "expected_days",
-    "observed_days", "valid_days", "null_reason", "repository_reason", "repo_url",
-    "selected_version", "observed_timestamp",
-]
+from .quality import (COMMON_SCHEMA, HISTORY_FIELDS, QUALITY_SCHEMA_ID,
+                      history_quality_projection, require_schema as require_quality_schema)
 
 
 def _paths(values, label):
@@ -245,7 +240,7 @@ def build_snapshot(prepared: dict, state: dict, interval: dict, output_dir: Path
             expected=expected_days or 0, overlap=overlap)
         if previous is None:
             quality_reasons = "['NO_PREVIOUS_SNAPSHOT']"
-        con.execute(f"""CREATE OR REPLACE TEMP TABLE quality AS SELECT p.package_id,DATE '{snapshot}' snapshot_at,p.first_published_at,
+        con.execute(f"""CREATE OR REPLACE TEMP TABLE quality_raw AS SELECT p.package_id,DATE '{snapshot}' snapshot_at,p.first_published_at,
             s.published_at selected_published_at,d.download_sum,m.stars,m.open_issues,
             CASE WHEN {str(previous is None).lower()} THEN 'UNAVAILABLE' WHEN d.valid_days=0 THEN 'UNAVAILABLE' WHEN d.valid_days={expected_days or 0} THEN 'COMPLETE' ELSE 'PARTIAL' END data_status,
             {expected_days if expected_days is not None else 'NULL'}::INTEGER expected_days,d.observed_days,d.valid_days,
@@ -258,13 +253,9 @@ def build_snapshot(prepared: dict, state: dict, interval: dict, output_dir: Path
             FROM population p LEFT JOIN selected s ON s.package_id=p.package_id
             JOIN downloads d ON d.package_id=p.package_id AND d.name=p.name
             LEFT JOIN metrics m ON m.package_id=p.package_id""")
-        quality_columns = [row[0] for row in con.execute("DESCRIBE quality").fetchall()]
-        expected_quality = ["package_id", "snapshot_at", "first_published_at", "selected_published_at",
-                            "download_sum", "stars", "open_issues", "data_status", "expected_days",
-                            "observed_days", "valid_days", "null_reason", "quality_reasons",
-                            "repository_reason", "repo_url", "selected_version", "observed_timestamp"]
-        if quality_columns != expected_quality:
-            raise ValueError("quality schema does not match the history contract")
+        con.execute("CREATE TEMP VIEW package_identity AS SELECT package_id,name FROM population")
+        history_quality_projection(con, interval)
+        require_quality_schema(con, "quality", COMMON_SCHEMA + HISTORY_FIELDS)
         quality_rows = con.execute("SELECT count(*),count(DISTINCT package_id) FROM quality").fetchone()
         population_rows = con.execute("SELECT count(*) FROM population").fetchone()[0]
         if quality_rows[0] != population_rows or quality_rows[1] != quality_rows[0]:
@@ -275,6 +266,7 @@ def build_snapshot(prepared: dict, state: dict, interval: dict, output_dir: Path
         rows = quality_rows[0]
         summary = dict(con.execute("SELECT data_status,count(*) FROM quality GROUP BY 1").fetchall())
     files = {role: str(output_dir / (role + ".parquet")) for role in ("package_snapshot", "package_identity", "quality")}
-    return {"files": files, "rows": rows, "quality": {"status": "PASSED", "status_counts": summary,
+    return {"files": files, "rows": rows, "quality_schema": QUALITY_SCHEMA_ID,
+            "quality": {"status": "PASSED", "status_counts": summary,
             "reconstruction": "PUBLICATION_DATE_AS_OF", "input_sha256": prepared["input_sha256"]},
             "validation": {"rows": rows, "sha256": {role: _sha(path) for role, path in files.items()}}}

@@ -140,6 +140,35 @@ class PackageSnapshotPostgresTests(unittest.TestCase):
         self.assertEqual(self.sql("SELECT actual_counts::text FROM etl_load_execution WHERE execution_id='snapshot-load'"), before)
         self.assertEqual(self.sql("SELECT status FROM etl_load_attempt WHERE attempt_id='snapshot-load-retry'"), "REVERIFIED")
 
+    def test_same_input_retry_accepts_changed_contract_and_preserves_publication_contract(self):
+        self.load(contract="f" * 64)
+        result = self.load(attempt="snapshot-load-new-contract", contract="e" * 64)
+        self.assertEqual(result["action"], "REVERIFIED")
+        self.assertEqual(
+            self.sql("SELECT contract_sha256 FROM etl_load_execution WHERE execution_id='snapshot-load'"),
+            "f" * 64,
+        )
+        self.assertEqual(
+            self.sql("SELECT validation_contract_sha256 FROM etl_load_attempt "
+                     "WHERE attempt_id='snapshot-load-new-contract'"),
+            "e" * 64,
+        )
+
+    def test_failed_execution_rejects_changed_contract(self):
+        with self.assertRaises(Exception):
+            self.load("contract-guard", contract="f" * 64, failpoint="before_commit")
+        with self.assertRaisesRegex(Exception, "different input or contract"):
+            self.load("contract-guard", attempt="contract-guard-new", contract="e" * 64)
+
+    def test_changed_validator_rejects_incompatible_service_schema(self):
+        self.load(contract="f" * 64)
+        self.sql("ALTER TABLE package_snapshot ALTER COLUMN stars TYPE bigint")
+        with self.assertRaisesRegex(Exception, "service schema differs"):
+            self.load(attempt="snapshot-load-wrong-schema", contract="e" * 64)
+        self.assertEqual(self.sql("SELECT status||'|'||contract_sha256 FROM etl_load_execution "
+                                  "WHERE execution_id='snapshot-load'"), "PUBLISHED|" + "f" * 64)
+        self.assertEqual(self.sql("SELECT count(*) FROM package_snapshot"), "3")
+
     def test_retry_rejects_service_value_mutation(self):
         self.load()
         self.sql("UPDATE package_snapshot SET stars=999 WHERE package_id=1")

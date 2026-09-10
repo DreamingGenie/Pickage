@@ -35,7 +35,7 @@ def policy_sha256():
 
 def contract_sha256():
     root = Path(__file__).resolve().parents[2]
-    names = ('history_policy.py', 'history_inputs.py', 'history_build.py', 'history_load.py', 'history.py')
+    names = ('history_policy.py', 'history_inputs.py', 'history_build.py', 'history_load.py', 'history.py', 'quality.py')
     paths = [Path(__file__).with_name(name) for name in names]
     paths += [Path(__file__).with_name('postgres.py'), root / 'pipeline/postgresql/postgres.py',
               root / 'pipeline/downloads/bronze.py', root / 'pipeline/downloads_interval/aggregate.py']

@@ -1,0 +1,69 @@
+{
+  "date": "2026-09-10",
+  "issue": "S15P21A506-288",
+  "base_commit": "728d00871563fb5982955075dda2aae19df1cf3b",
+  "scope": [
+    "same-input published retry contract",
+    "shared quality schema and legacy artifact readers",
+    "backend handoff documentation only"
+  ],
+  "suites": [
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_input pipeline.package_snapshot.test_build pipeline.package_snapshot.test_load pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume pipeline.package_snapshot.test_contract -q",
+      "tests": 54,
+      "seconds": 15.721,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_postgres pipeline.package_snapshot.test_history_postgres -q",
+      "environment": {
+        "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER": "pickage-267-validation"
+      },
+      "tests": 23,
+      "seconds": 101.738,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "final_targeted_rerun": {
+    "module": "pipeline.package_snapshot.test_contract",
+    "tests": 3,
+    "seconds": 0.025,
+    "status": "PASSED",
+    "already_counted_in_suites": true
+  },
+  "syntax_checked_files": 16,
+  "diff_check": "PASSED",
+  "remaining_test_databases": [],
+  "source_sha256": {
+    "pipeline/package_snapshot/build.py": "dfd763490deb78a275f02e5041e975094b0f35d1efc37f5c7ce9681b8c21e2bb",
+    "pipeline/package_snapshot/history.py": "161e6802a52c9c84b8fe90e2a147f335488d4d665949551e6aec00f9c500526d",
+    "pipeline/package_snapshot/history_build.py": "a6543452f91b0732bbba05168f6ef5f718fa2240bb333ca4797d7b5275f370e2",
+    "pipeline/package_snapshot/history_load.py": "be3aa5e88b4273aba728b183b89dfb4cb7e8d6d18f3df0b04a1be8942a455d07",
+    "pipeline/package_snapshot/history_policy.py": "8735c86ea8e0c60cf748dc59018e11570cd70a8a3973f861271ad230c2b528c5",
+    "pipeline/package_snapshot/load.py": "85665b07a8ed5b563cd5f7f3e161ff20a8854ffe91db915c8e2694470674eac5",
+    "pipeline/package_snapshot/policy.py": "283bc0d4630413aeba813ae6da61df7dfdcf1d0d17167b3817e9337b8d9b8d5f",
+    "pipeline/package_snapshot/postgres.py": "d127536839e99343597c5513d939c04daa6b1f57198027686812a1c7d7a82ba4",
+    "pipeline/package_snapshot/quality.py": "cd11e3bf9da971e0be79997ec9ea8428f2c63eb59c6dad64c484f98c762074e4",
+    "pipeline/package_snapshot/test_build.py": "fa67daf2ceed5a9ae3efa4caafe8ef753df09b8b6da4ee2b95208b776e58b045",
+    "pipeline/package_snapshot/test_contract.py": "d41e5520a2e8b80564ead19f40b7996f3c94e31beb479a24c037071f5a77c6c0",
+    "pipeline/package_snapshot/test_history_build.py": "919bc38841825abd78b5caa97402ea3ed3315d395a4b099bac2eb4c02388813b",
+    "pipeline/package_snapshot/test_history_resume.py": "d2888b7c73107e4812df60b59a1555882c45f8641880a08681de5a4f862de2a9",
+    "pipeline/package_snapshot/test_load.py": "0411058e4bca90e45157edd077b2852793b2af227d0381e42951aa4b9198cbb7",
+    "pipeline/package_snapshot/test_postgres.py": "870623b38805bf04416b0962925fbef9bab7aaf7ba0862898c4aa43a8d70ba95",
+    "pipeline/package_snapshot/test_quality.py": "854dcfe47a03c9843886b1c462a547e5e927ee41aa32b5bdcae14a8a40a80c94"
+  },
+  "boundaries": {
+    "legacy_compatibility": "isolated fixtures matching old producer schemas",
+    "history_resume": "real copy validation; remote publication and DB dispatch replaced in unit fixture",
+    "postgres_tests": "disposable databases only",
+    "existing_full_history_reverified": false,
+    "existing_data_reloaded": false,
+    "backend_api_modified": false,
+    "server_deployed": false
+  },
+  "distinct_tests_passed": 77
+}

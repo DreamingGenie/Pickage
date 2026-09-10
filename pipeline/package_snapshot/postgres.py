@@ -41,13 +41,28 @@ class PackageSnapshotLoader(PgLoader):
             prior = json.loads(existing[0])
             identity = {'dataset': metadata['dataset'], 'snapshot_at': metadata['snapshot'],
                         'curated_run_id': metadata['curated_run_id'], 'run_prefix': metadata['run_prefix'],
-                        'manifest_sha256': metadata['manifest_sha256'], 'contract_sha256': contract_sha256,
+                        'manifest_sha256': metadata['manifest_sha256'],
                         'input_metadata': metadata['manifest'], 'expected_counts': metadata['counts']}
-            if (any(prior[k] != v for k, v in identity.items()) or
-                    datetime.fromisoformat(prior['snapshot_timestamp']) !=
-                    datetime.fromisoformat(metadata['snapshot_timestamp'])):
+            same_input = (all(prior[k] == value for k, value in identity.items()) and
+                          datetime.fromisoformat(prior['snapshot_timestamp']) ==
+                          datetime.fromisoformat(metadata['snapshot_timestamp']))
+            # A published execution is the immutable record of the input that
+            # produced the service rows.  A later validation may use a newer
+            # compatible loader contract; keep that original publication hash
+            # and record the newer hash on the attempt below.
+            allow_published_contract_change = prior['status'] == 'PUBLISHED' and same_input
+            if (not same_input or
+                    (prior['contract_sha256'] != contract_sha256 and
+                     not allow_published_contract_change)):
                 raise ValueError('execution_id already exists with different input or contract')
             self._already_published = prior['status'] == 'PUBLISHED'
+        else:
+            allow_published_contract_change = False
+        published = self._send('SELECT contract_sha256 FROM public.etl_load_execution '
+                               "WHERE dataset='package-snapshot' AND manifest_sha256="
+                               f"{q(metadata['manifest_sha256'])} AND status='PUBLISHED' LIMIT 1;")
+        if published and published[0] != contract_sha256 and not allow_published_contract_change:
+            raise ValueError('published input has a different load contract; use a new approved input run')
         values = [execution_id, 'package-snapshot', 'PREPARING', metadata['snapshot'],
                   metadata['snapshot_timestamp'], metadata['curated_run_id'], metadata['run_prefix'],
                   metadata['manifest_sha256'], contract_sha256, metadata['manifest'], metadata['counts'], attempt_id]
@@ -157,6 +172,17 @@ class PackageSnapshotLoader(PgLoader):
                    'LOCK TABLE public.snapshot IN SHARE MODE; '
                    'LOCK TABLE public.package_snapshot,public.etl_load_execution,public.etl_load_attempt,'
                    'public.etl_dataset_current IN SHARE ROW EXCLUSIVE MODE;')
+        # A new validator hash is allowed for a published input, but incompatible
+        # serving column types/nullability are not. Ignore unrelated added columns.
+        self._require("(SELECT count(*) FROM (VALUES ('package_id','integer',true),"
+                      "('snapshot_at','date',true),('downloads','bigint',false),"
+                      "('stars','integer',false),('open_issues','integer',false)) "
+                      "AS expected(name,type_name,not_null) JOIN pg_attribute a "
+                      "ON a.attrelid='public.package_snapshot'::regclass AND a.attname=expected.name "
+                      "WHERE a.attnum>0 AND NOT a.attisdropped "
+                      "AND format_type(a.atttypid,a.atttypmod)=expected.type_name "
+                      "AND a.attnotnull=expected.not_null)=5",
+                      'service schema differs from package-snapshot contract')
         self._lineage()
         self._require('NOT EXISTS (SELECT 1 FROM pg_temp.package_identity_input i '
                       'LEFT JOIN public.package p USING(package_id) WHERE p.package_id IS NULL '

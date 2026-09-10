@@ -15,6 +15,7 @@ from pipeline.postgresql.input import _sql_path
 from .history_policy import policy_document, policy_sha256
 from .policy import canonical_bytes
 from .postgres import PackageSnapshotLoader
+from .quality import normalize_quality, validate_quality
 
 
 class HistorySnapshotLoader(PackageSnapshotLoader):
@@ -67,11 +68,14 @@ def prepare_copy(files, manifest, work_dir, *, memory='8GB', threads=4):
         con.execute("SET TimeZone='UTC'")
         for role in ('package_snapshot', 'package_identity', 'quality'):
             path = Path(files[role])
-            con.execute(f'CREATE VIEW {role} AS SELECT * FROM read_parquet({_sql_path(path)},hive_partitioning=false)')
-            if con.execute(f'SELECT count(*) FROM {role}').fetchone()[0] != rows:
+            view = 'quality_raw' if role == 'quality' else role
+            con.execute(f'CREATE VIEW {view} AS SELECT * FROM read_parquet({_sql_path(path)},hive_partitioning=false)')
+            if con.execute(f'SELECT count(*) FROM {view}').fetchone()[0] != rows:
                 raise ValueError('history output row count mismatch: ' + role)
-            if con.execute(f'SELECT EXISTS(SELECT package_id FROM {role} GROUP BY 1 HAVING count(*)<>1)').fetchone()[0]:
+            if con.execute(f'SELECT EXISTS(SELECT package_id FROM {view} GROUP BY 1 HAVING count(*)<>1)').fetchone()[0]:
                 raise ValueError('duplicate history package key: ' + role)
+        normalize_quality(con, manifest, producer='history')
+        validate_quality(con, manifest, producer='history')
         expected_schema = [('package_id', 'INTEGER'), ('snapshot_at', 'DATE'), ('downloads', 'BIGINT'),
                            ('stars', 'INTEGER'), ('open_issues', 'INTEGER')]
         schema = [(r[0], r[1]) for r in con.execute('DESCRIBE package_snapshot').fetchall()]
@@ -90,8 +94,8 @@ def prepare_copy(files, manifest, work_dir, *, memory='8GB', threads=4):
                        'OR s.downloads<0 OR s.stars<0 OR s.open_issues<0 '
                        'OR q.first_published_at IS NULL OR q.first_published_at>?::TIMESTAMPTZ '
                        'OR q.selected_published_at>?::TIMESTAMPTZ '
-                       'OR (q.observed_timestamp IS NOT NULL AND q.observed_timestamp<>?::TIMESTAMPTZ) '
-                       'OR (q.repo_url IS NOT NULL AND q.selected_published_at IS NULL) '
+                       'OR (q.repository_observed_timestamp IS NOT NULL AND q.repository_observed_timestamp<>?::TIMESTAMPTZ) '
+                       'OR (q.repository_repo_url IS NOT NULL AND q.selected_published_at IS NULL) '
                        'OR q.valid_days IS NULL OR q.observed_days IS NULL OR q.valid_days<0 '
                        'OR q.expected_days IS DISTINCT FROM ?::INTEGER '
                        'OR q.valid_days>q.observed_days OR q.observed_days>q.expected_days '

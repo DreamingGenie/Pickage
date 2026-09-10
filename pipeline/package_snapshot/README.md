@@ -21,6 +21,10 @@
 manifest에는 입력·정책·코드 SHA, 출력 파일 SHA·건수, 품질 요약과 원천 상세의 위치를 남긴다.
 완료 표시를 게시하기 전에 파일을 원격에서 다시 읽고 SHA를 확인한다.
 
+새 관측·과거 quality 파일은 `quality_schema=package-snapshot-quality-v2`의 동일한 30개 컬럼을 쓴다.
+기존 승인 파일은 원래 바이트와 SHA를 보존하며 읽을 때 공통 형식으로 연결한다.
+컬럼별 의미·NULL 처리·호환 조건은 [quality 공통 계약](../../docs/worklogs/S15P21A506-288/13-quality-schema.md)을 따른다.
+
 ## 실행
 
 저장소 루트에서 기존 Python 환경을 사용한다. 명령은 두 단계로 나뉜다.
@@ -53,8 +57,12 @@ ID/name과 선행 게시 이력을 검증한다. 승인 package/version 현재 �
 DB 커밋 이후 확인 연결에 실패한 경우 보고서의 `COMMITTED_UNVERIFIED`는 DB 확인이 필요하다는 뜻이다.
 이미 완료된 Curated의 `_SUCCESS`는 DB 실패 때문에 삭제하지 않는다.
 
-동일 실행 ID·입력·적재 계약으로 재실행하면 DB의 모든 서비스 값을 다시 비교하며 행을 고치지 않는다.
-다른 입력·코드 계약을 같은 실행 ID로 실행하거나 같은 기준일의 다른 출처 값을 덮어쓰면 실패한다.
+동일 실행 ID·입력으로 게시된 실행을 재검증하면 DB의 모든 서비스 값을 다시 비교하며 행을 고치지 않는다.
+적재 코드 해시는 직접 의존하는 V1~V3만 포함한다. 무관한 마이그레이션은 재검증을 막지 않는다.
+PUBLISHED 실행은 현재 검증 코드 해시가 달라도 입력·서비스 스키마·선행 이력·실제 값 검증 후 재검증한다.
+최초 게시의 `contract_sha256`와 건수는 보존하고 새 attempt의 `validation_contract_sha256`에 현재 해시를 남긴다.
+다른 입력, 호환되지 않는 서비스 컬럼, 아직 게시되지 않은 실행의 코드 계약 변경은 계속 거부한다.
+같은 기준일의 다른 출처 값을 덮어쓰려는 실행도 실패한다.
 새 입력에는 새 run·실행 ID를 사용한다. 이 관측 기반 경로에서 현재 모집단을 과거 관측 목록으로 복제하지 않는다.
 
 ## 배포일로 재구성한 전체 기간
@@ -82,6 +90,9 @@ DB 커밋 이후 확인 연결에 실패한 경우 보고서의 `COMMITTED_UNVER
 [전체 기간 작업 기록](../../docs/worklogs/S15P21A506-288/08-full-history-plan.md)과
 [직접 조회 SQL](../../docs/worklogs/S15P21A506-288/09-inspect-history.sql)에 남긴다.
 
+API에서 재구성 여부를 표시하고 저장소가 바뀐 두 시점의 증감 계산을 막는 작업은
+[백엔드 인계 메모](../../docs/worklogs/S15P21A506-288/12-backend-history-handoff.md)에 남겼다. 백엔드 구현은 후속 작업이다.
+
 ## 검증과 기록
 
 ```powershell
@@ -89,6 +100,7 @@ python -m unittest pipeline.package_snapshot.test_input pipeline.package_snapsho
 $env:PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER = '<기존-검증-컨테이너>'
 python -m unittest pipeline.package_snapshot.test_postgres -v
 python -m unittest pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_history_postgres -v
+python -m unittest pipeline.package_snapshot.test_contract pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume -v
 ```
 
 DB 테스트는 `pickage_288_test_<UUID>`라는 새 격리 DB를 만들고 종료 시 해당 DB만 삭제한다.

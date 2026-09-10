@@ -17,6 +17,7 @@ from .history_inputs import prepare, revalidate_files
 from .history_load import load_snapshot, prepare_copy
 from .history_policy import contract_sha256, policy_document, policy_sha256
 from .policy import canonical_bytes
+from .quality import QUALITY_SCHEMA_ID
 
 
 def event(phase, **values):
@@ -80,6 +81,28 @@ def state_cache(prepared, directory, contract, memory, threads):
     return state
 
 
+def validate_saved_manifest(manifest, prepared, interval, run_id):
+    """Reuse approved bytes across validator updates, never across input/policy changes."""
+    sources = prepared['input_manifest']
+    expected = {'dataset': 'package-snapshot', 'format_version': 1, 'status': 'PASSED',
+                'run_id': run_id, 'snapshot': interval['snapshot_at'],
+                'snapshot_timestamp': interval['snapshot_timestamp'], 'interval': interval,
+                'input_manifest_sha256': prepared['input_sha256'],
+                'input_manifest': {k: sources[k] for k in ('population', 'candidate', 'repository', 'downloads')},
+                'history_policy': policy_document(), 'history_policy_sha256': policy_sha256(),
+                'projects_input': sources['projects'][interval['snapshot_at']],
+                'required_remote_verification': 'GET_SHA256_ALL_FILES'}
+    if (any(manifest.get(key) != value for key, value in expected.items()) or
+            manifest.get('quality_schema') not in (None, QUALITY_SCHEMA_ID) or
+            not re.fullmatch(r'[0-9a-f]{64}', str(manifest.get('contract_sha256', '')))):
+        raise ValueError('saved history output belongs to different input, date, policy or schema')
+    records = manifest.get('files', [])
+    if (len(records) != 3 or {r.get('role') for r in records} !=
+            {'package_snapshot', 'package_identity', 'quality'} or
+            any(r.get('path') != r['role'] + '.parquet' for r in records)):
+        raise ValueError('saved history output file roles or paths differ')
+
+
 def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snapshots=None):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,60}', run_id):
         raise ValueError('invalid history run ID')
@@ -109,7 +132,9 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
     _same_or_put(s3, 'pickage-curated', input_key, canonical_bytes(prepared['input_manifest']))
     _same_or_put(s3, 'pickage-curated', input_key.rsplit('/', 1)[0] + '/_SUCCESS',
                  (prepared['input_sha256'] + '\n').encode())
-    state = state_cache(prepared, root / 'state', contract, memory, threads)
+    # Revalidating saved outputs needs no population-state rebuild. New dates get
+    # a cache tied to the current code, leaving older caches and artifacts intact.
+    state = None
     reports = []
     for interval in prepared['calendar']:
         day = interval['snapshot_at']
@@ -123,11 +148,11 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
         event('SNAPSHOT_START', snapshot=day, completed_in_this_invocation=len(reports))
         if saved_manifest.exists():
             manifest = json.loads(saved_manifest.read_text(encoding='utf-8'))
-            if (manifest['contract_sha256'] != contract or manifest['input_manifest_sha256'] != prepared['input_sha256']
-                    or manifest['interval'] != interval or manifest['run_id'] != day_run):
-                raise ValueError('saved history output belongs to different input, date or code')
+            validate_saved_manifest(manifest, prepared, interval, day_run)
             files = {r['role']: str(day_root / 'output' / r['path']) for r in manifest['files']}
         else:
+            if state is None:
+                state = state_cache(prepared, root / 'state' / contract, contract, memory, threads)
             # Check consumed raw partitions immediately before building this date.
             paths = set(prepared['project_files'][day])
             for date, items in prepared['daily_files'].items():
@@ -147,6 +172,7 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
                 raise ValueError('history output role missing')
             inputs = prepared['input_manifest']
             manifest = {'dataset': 'package-snapshot', 'format_version': 1, 'status': 'PASSED',
+                        'quality_schema': built['quality_schema'],
                         'run_id': day_run, 'snapshot': day, 'snapshot_timestamp': interval['snapshot_timestamp'],
                         'interval': interval, 'history_policy': policy_document(),
                         'history_policy_sha256': policy_sha256(), 'contract_sha256': contract,

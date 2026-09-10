@@ -18,6 +18,7 @@ from pipeline.minio.ingest_raw import client
 from pipeline.postgresql.input import _sql_path, _sql_paths
 from pipeline.postgresql.load import _write_report
 from .postgres import PackageSnapshotLoader
+from .quality import normalize_quality, validate_quality
 
 ROOT = Path(__file__).resolve().parents[2]
 BUCKET = 'pickage-curated'
@@ -29,14 +30,26 @@ SCHEMAS = {
     'package_identity': [('package_id', 'INTEGER'), ('name', 'VARCHAR')],
 }
 
+# The package-snapshot loader depends on the tables and execution lineage
+# introduced by V1-V3.  Later migrations may belong to an unrelated feature
+# (for example an API index or a new table) and must not make an already
+# published snapshot impossible to revalidate.
+PACKAGE_SNAPSHOT_MIGRATIONS = (
+    'V1__init.sql',
+    'V2__add_curated_load_execution.sql',
+    'V3__add_snapshot_reference_execution.sql',
+)
+
 
 def contract_sha256():
     digest = hashlib.sha256()
     paths = [Path(__file__), Path(__file__).with_name('postgres.py'),
+             Path(__file__).with_name('quality.py'),
              ROOT / 'pipeline/postgresql/postgres.py', ROOT / 'pipeline/postgresql/input.py',
              ROOT / 'pipeline/postgresql/load.py', ROOT / 'pipeline/downloads_interval/input.py',
              ROOT / 'pipeline/curated/storage.py']
-    paths += sorted((ROOT / 'backend/src/main/resources/db/migration').glob('V*.sql'))
+    migration_dir = ROOT / 'backend/src/main/resources/db/migration'
+    paths += [migration_dir / name for name in PACKAGE_SNAPSHOT_MIGRATIONS]
     for path in paths:
         digest.update(path.relative_to(ROOT).as_posix().encode() + b'\0')
         digest.update(path.read_text(encoding='utf-8').encode() + b'\0')
@@ -119,14 +132,16 @@ def prepare(s3, metadata, work_dir, *, memory='4GB', threads=2):
         con.execute('SET threads=?', [threads])
         con.execute("SET TimeZone='UTC'")
         for role, paths in files.items():
-            con.execute(f'CREATE VIEW {role} AS SELECT * FROM read_parquet({_sql_paths(paths)},hive_partitioning=false)')
-            schema = [(r[0], r[1]) for r in con.execute('DESCRIBE ' + role).fetchall()]
+            view = 'quality_raw' if role == 'quality' else role
+            con.execute(f'CREATE VIEW {view} AS SELECT * FROM read_parquet({_sql_paths(paths)},hive_partitioning=false)')
+            schema = [(r[0], r[1]) for r in con.execute('DESCRIBE ' + view).fetchall()]
             if role in SCHEMAS and schema != SCHEMAS[role]:
                 raise ValueError(role + ' schema mismatch')
-            if con.execute(f'SELECT count(*) FROM {role}').fetchone()[0] != expected:
+            if con.execute(f'SELECT count(*) FROM {view}').fetchone()[0] != expected:
                 raise ValueError(role + ' count mismatch')
-            if con.execute(f'SELECT count(*) FROM (SELECT package_id FROM {role} GROUP BY 1 HAVING count(*)<>1)').fetchone()[0]:
+            if con.execute(f'SELECT count(*) FROM (SELECT package_id FROM {view} GROUP BY 1 HAVING count(*)<>1)').fetchone()[0]:
                 raise ValueError(role + ' duplicate package ID')
+        normalize_quality(con, metadata['manifest'], producer='observed')
         bad = con.execute('SELECT count(*) FROM package_snapshot WHERE package_id IS NULL OR snapshot_at IS NULL '
                           'OR snapshot_at<>?::date OR downloads<0 OR stars<0 OR open_issues<0',
                           [metadata['snapshot']]).fetchone()[0]
@@ -141,23 +156,7 @@ def prepare(s3, metadata, work_dir, *, memory='4GB', threads=2):
             if con.execute(f'SELECT count(*) FROM package_snapshot s FULL JOIN {role} q USING(package_id) '
                            'WHERE s.package_id IS NULL OR q.package_id IS NULL').fetchone()[0]:
                 raise ValueError(role + ' key mismatch')
-        quality_columns = {r[0] for r in con.execute('DESCRIBE quality').fetchall()}
-        required = {'package_id', 'snapshot_at', 'download_sum', 'data_status', 'expected_days',
-                    'observed_days', 'valid_days', 'null_reason', 'quality_reasons',
-                    'repository_reason', 'repository_mapping_status'}
-        if not required.issubset(quality_columns):
-            raise ValueError('required quality fields missing')
-        if con.execute('SELECT count(*) FROM package_snapshot s JOIN quality q USING(package_id) '
-                       'WHERE q.snapshot_at IS DISTINCT FROM s.snapshot_at '
-                       'OR q.download_sum IS DISTINCT FROM s.downloads '
-                       'OR q.data_status IS NULL OR q.repository_reason IS NULL '
-                       "OR q.data_status NOT IN ('COMPLETE','PARTIAL','UNAVAILABLE') "
-                       "OR (q.data_status='UNAVAILABLE' AND (q.download_sum IS NOT NULL OR q.null_reason IS NULL)) "
-                       "OR (q.data_status IN ('COMPLETE','PARTIAL') AND (q.download_sum IS NULL OR q.null_reason IS NOT NULL)) "
-                       'OR q.valid_days<0 OR q.observed_days<q.valid_days OR q.expected_days<q.observed_days '
-                       "OR (q.data_status='COMPLETE' AND q.valid_days IS DISTINCT FROM q.expected_days) "
-                       "OR (q.data_status='PARTIAL' AND NOT(q.valid_days>0 AND q.valid_days<q.expected_days))").fetchone()[0]:
-            raise ValueError('service and quality values disagree')
+        validate_quality(con, metadata['manifest'], producer='observed')
         counts = con.execute('SELECT count(downloads),count(stars),count(open_issues),'
                              'cast(sum(downloads) AS VARCHAR),cast(sum(stars) AS VARCHAR),'
                              'cast(sum(open_issues) AS VARCHAR) FROM package_snapshot').fetchone()

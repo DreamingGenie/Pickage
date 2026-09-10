@@ -16,26 +16,17 @@ from pipeline.minio.ingest_raw import client
 from pipeline.postgresql.input import _sql_path, _sql_paths
 from .input import BUCKET, RUN, SHA, prepare, revalidate
 from .policy import canonical_bytes, contract_sha256, policy_document, policy_sha256
+from .quality import (DOWNLOAD_FIELDS, QUALITY_SCHEMA, QUALITY_SCHEMA_ID, SELECTION_FIELDS,
+                      require_schema)
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "depsdev/v1/package-snapshot"
 SCHEMAS = {
     "population_files": [("package_id", "INTEGER"), ("name", "VARCHAR"), ("repo_url", "VARCHAR")],
-    "download_files": [
-        ("package_id", "INTEGER"), ("snapshot_at", "DATE"), ("previous_snapshot_at", "DATE"),
-        ("download_sum", "BIGINT"), ("expected_days", "INTEGER"), ("observed_days", "INTEGER"),
-        ("valid_days", "INTEGER"), ("data_status", "VARCHAR"), ("null_reason", "VARCHAR"),
-        ("quality_reasons", "VARCHAR[]"), ("input_manifest_sha256", "VARCHAR"),
-        ("policy_sha256", "VARCHAR"), ("aggregation_policy_sha256", "VARCHAR")],
+    "download_files": [("package_id", "INTEGER")] + DOWNLOAD_FIELDS,
     "repository_files": [("package_id", "INTEGER"), ("snapshot_at", "DATE"),
                          ("stars", "INTEGER"), ("open_issues", "INTEGER")],
-    "selection_files": [
-        ("package_id", "INTEGER"), ("version", "VARCHAR"), ("ordinal", "BIGINT"),
-        ("repo_url", "VARCHAR"), ("provider", "VARCHAR"), ("project_path", "VARCHAR"),
-        ("comparison_project_path", "VARCHAR"), ("observed_project_path", "VARCHAR"),
-        ("snapshot", "VARCHAR"), ("snapshot_timestamp", "VARCHAR"),
-        ("observed_timestamp", "TIMESTAMP WITH TIME ZONE"),
-        ("reason", "VARCHAR"), ("mapping_status", "VARCHAR")],
+    "selection_files": [("package_id", "INTEGER")] + SELECTION_FIELDS,
 }
 VIEWS = {"population_files": "population", "download_files": "downloads",
          "repository_files": "repository", "selection_files": "selection"}
@@ -129,8 +120,11 @@ def _expected_views(con):
     repository_columns = ",".join("q." + name + " AS repository_" + name
                                   for name, _ in SCHEMAS["selection_files"] if name != "package_id")
     con.execute("CREATE VIEW expected_quality AS SELECT p.package_id,p.name," + download_columns + ","
-                + repository_columns + " FROM population p JOIN downloads d USING(package_id) "
-                "JOIN selection q ON q.package_id=p.package_id AND q.snapshot=CAST(d.snapshot_at AS VARCHAR)")
+                + repository_columns + ",r.stars,r.open_issues,NULL::TIMESTAMPTZ first_published_at,"
+                "NULL::TIMESTAMPTZ selected_published_at FROM population p JOIN downloads d USING(package_id) "
+                "JOIN selection q ON q.package_id=p.package_id AND q.snapshot=CAST(d.snapshot_at AS VARCHAR) "
+                "JOIN repository r ON r.package_id=p.package_id AND r.snapshot_at=d.snapshot_at")
+    require_schema(con, "expected_quality", QUALITY_SCHEMA)
 
 
 def _quality_report(con, prepared):
@@ -207,6 +201,7 @@ def _reconcile_saved(prepared, out, quality, *, memory_limit, threads):
 
 def _compatible(manifest, prepared, run_id, contract):
     expected = {"dataset": "package-snapshot", "status": "PASSED", "format_version": 1,
+                "quality_schema": QUALITY_SCHEMA_ID,
                 "run_id": run_id, "snapshot": prepared["interval"]["snapshot_at"],
                 "snapshot_timestamp": prepared["interval"]["snapshot_timestamp"],
                 "interval": prepared["interval"], "input_manifest": prepared["input_manifest"],
@@ -279,6 +274,7 @@ def run(*, snapshot, population_run_id, population_manifest_sha256, candidate_pa
         print("Validating complete input keys and building integrated Parquet", flush=True)
         records, quality = _build(prepared, out, memory_limit=memory_limit, threads=threads)
         manifest = {"dataset": "package-snapshot", "status": "PASSED", "format_version": 1,
+                    "quality_schema": QUALITY_SCHEMA_ID,
                     "run_id": run_id, "snapshot": snapshot,
                     "snapshot_timestamp": prepared["interval"]["snapshot_timestamp"],
                     "interval": prepared["interval"], "input_manifest": prepared["input_manifest"],

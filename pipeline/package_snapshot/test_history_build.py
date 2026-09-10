@@ -12,6 +12,7 @@ import duckdb
 
 from .history_build import build_snapshot, prepare_state
 from .history_load import prepare_copy
+from .quality import COMMON_SCHEMA, HISTORY_FIELDS, QUALITY_SCHEMA_ID
 
 
 TARGET = "2025-12-31"
@@ -138,8 +139,8 @@ class HistoryBuildTests(unittest.TestCase):
             return con.execute("""SELECT package_id,CAST(snapshot_at AS VARCHAR),
                 CAST(first_published_at AS VARCHAR),CAST(selected_published_at AS VARCHAR),
                 download_sum,stars,open_issues,data_status,expected_days,observed_days,
-                valid_days,null_reason,quality_reasons,repository_reason,repo_url,
-                selected_version,CAST(observed_timestamp AS VARCHAR)
+                valid_days,null_reason,quality_reasons,repository_reason,repository_repo_url,
+                repository_version,CAST(repository_observed_timestamp AS VARCHAR)
                 FROM read_parquet(?) WHERE package_id=?""",
                                [result["files"]["quality"], package_id]).fetchone()
 
@@ -264,8 +265,10 @@ class HistoryBuildTests(unittest.TestCase):
     def test_build_outputs_pass_history_copy_quality_validation(self):
         result = self.build(output_name="copy-input")
         manifest = {
+            "quality_schema": QUALITY_SCHEMA_ID,
             "snapshot": TARGET,
-            "interval": {"snapshot_timestamp": TARGET + "T21:00:00Z", "interval_days": 2},
+            "interval": {"snapshot_timestamp": TARGET + "T21:00:00Z", "interval_days": 2,
+                         "previous_snapshot_at": PREVIOUS},
             "counts": {"package_snapshot": result["rows"]},
         }
         copied = prepare_copy(result["files"], manifest, self.root / "copy", memory="256MB", threads=1)
@@ -275,6 +278,18 @@ class HistoryBuildTests(unittest.TestCase):
         self.assertEqual(set(copied["csv_files"]), {"package_snapshot", "package_identity"})
         self.assertIn(b"1\t2025-12-31\t10\t3\t1\n",
                       (self.root / "copy" / "package_snapshot.copy.tsv").read_bytes())
+
+    def test_history_common_schema_mapping_and_name(self):
+        result = self.build(output_name="common-schema")
+        self.assertEqual(result["quality_schema"], QUALITY_SCHEMA_ID)
+        with duckdb.connect() as con:
+            schema = [(r[0], r[1]) for r in con.execute("DESCRIBE SELECT * FROM read_parquet(?)",
+                      [result["files"]["quality"]]).fetchall()]
+            self.assertEqual(schema, COMMON_SCHEMA + HISTORY_FIELDS)
+            rows = con.execute("SELECT package_id,name,repository_mapping_status FROM read_parquet(?) "
+                               "WHERE package_id IN (1,3,6) ORDER BY 1", [result["files"]["quality"]]).fetchall()
+        self.assertEqual(rows, [(1, "alpha", "MATCHED"), (3, "gamma", "NO_SELECTED_REPOSITORY"),
+                                (6, "zeta", "MATCHED")])
 
     def test_duplicate_daily_name_and_date_is_rejected(self):
         duplicate = self.daily_file("2025-12-29", [("alpha", 10, False)], name="duplicate")

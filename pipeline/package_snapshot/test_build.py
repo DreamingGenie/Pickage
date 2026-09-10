@@ -9,9 +9,11 @@ from unittest.mock import patch
 import duckdb
 
 from . import build
+from . import load
 from . import input as source
 from .test_input import Fixture, SNAPSHOT
 from .policy import canonical_bytes
+from .quality import QUALITY_SCHEMA, QUALITY_SCHEMA_ID
 
 
 class BuildTests(unittest.TestCase):
@@ -42,11 +44,15 @@ class BuildTests(unittest.TestCase):
                                       (3, None, "UNAVAILABLE", "NO_VALID_REPOSITORY", None)])
             columns = {row[0] for row in con.execute("DESCRIBE SELECT * FROM read_parquet(?)",
                                                    [str(out / "quality.parquet")]).fetchall()}
+            schema = [(row[0], row[1]) for row in con.execute("DESCRIBE SELECT * FROM read_parquet(?)",
+                       [str(out / "quality.parquet")]).fetchall()]
+            self.assertEqual(schema, QUALITY_SCHEMA)
         expected = {"repository_" + name for name, _ in build.SCHEMAS["selection_files"] if name != "package_id"}
         self.assertTrue(expected <= columns)
         self.assertEqual(result["quality"]["download_partial_sum"], "12")
         self.assertEqual(result["quality"]["download_status"], {"COMPLETE": 1, "PARTIAL": 1, "UNAVAILABLE": 1})
         manifest = json.loads(Path(result["manifest_path"]).read_text())
+        self.assertEqual(manifest["quality_schema"], QUALITY_SCHEMA_ID)
         self.assertEqual({item["role"] for item in manifest["files"]}, {"package_snapshot", "package_identity", "quality"})
         self.assertEqual(len(manifest["files"]), 3)
 
@@ -58,6 +64,14 @@ class BuildTests(unittest.TestCase):
             ("repository_files", "ALTER TABLE changed ALTER stars TYPE BIGINT", "schema mismatch"),
         ]
         self._invalid_cases(cases)
+
+    def test_new_observed_artifact_is_consumed_by_loader(self):
+        result = self.run_build()
+        metadata = load.select_run(self.fixture.s3, SNAPSHOT, "integrated", result["manifest_sha256"])
+        copied = load.prepare(self.fixture.s3, metadata, self.root / "copy", memory="256MB", threads=1)
+        self.assertEqual(copied["validation"]["rows"], 3)
+        self.assertEqual((self.root / "copy" / "package_snapshot.copy.tsv").read_bytes(),
+                         b"1\t2026-08-31\t0\t0\t\\N\n2\t2026-08-31\t12\t100\t2\n3\t2026-08-31\t\\N\t\\N\t\\N\n")
 
     def test_invalid_metric_coverage_time_and_quality_rows_rejected(self):
         cases = [

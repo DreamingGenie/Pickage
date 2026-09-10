@@ -12,6 +12,7 @@ import duckdb
 
 from pipeline.curated.storage import json_bytes
 from . import load
+from .quality import QUALITY_SCHEMA_ID
 
 
 class S3:
@@ -43,7 +44,23 @@ class LoadInputTests(unittest.TestCase):
         self.service_sql = "CREATE TABLE src(package_id INT,snapshot_at DATE,downloads BIGINT,stars INT,open_issues INT); INSERT INTO src VALUES (1,'2026-08-31',12,0,NULL),(2,'2026-08-31',0,NULL,4),(3,'2026-08-31',NULL,10,0)"
         self.output('package_snapshot', self.service_sql)
         self.output('package_identity', "CREATE TABLE src(package_id INT,name VARCHAR); INSERT INTO src VALUES (1,'alpha'),(2,'beta'),(3,'gamma')")
-        self.quality_sql = "CREATE TABLE src(package_id INT,snapshot_at DATE,download_sum BIGINT,data_status VARCHAR,expected_days INT,observed_days INT,valid_days INT,null_reason VARCHAR,quality_reasons VARCHAR[],repository_reason VARCHAR,repository_mapping_status VARCHAR); INSERT INTO src VALUES (1,'2026-08-31',12,'PARTIAL',7,7,6,NULL,['GAP'],'SELECTED','SELECTED'),(2,'2026-08-31',0,'COMPLETE',7,7,7,NULL,[],'SELECTED','SELECTED'),(3,'2026-08-31',NULL,'UNAVAILABLE',7,0,0,'OUTSIDE_TARGET_LIST',[],'SELECTED','SELECTED')"
+        # Exact legacy observed producer schema, rather than a reduced mock format.
+        self.quality_sql = """CREATE TABLE src AS SELECT id::INTEGER package_id,name,
+            DATE '2026-08-31' snapshot_at,DATE '2026-08-24' previous_snapshot_at,
+            downloads::BIGINT download_sum,7::INTEGER expected_days,observed::INTEGER observed_days,
+            valid::INTEGER valid_days,status data_status,reason null_reason,['GAP'] quality_reasons,
+            repeat('a',64) input_manifest_sha256,repeat('b',64) policy_sha256,
+            repeat('c',64) aggregation_policy_sha256,'1.0.0' repository_version,
+            1::BIGINT repository_ordinal,'https://github.com/org/repo' repository_repo_url,
+            'github.com' repository_provider,'org/repo' repository_project_path,
+            'org/repo' repository_comparison_project_path,'org/repo' repository_observed_project_path,
+            '2026-08-31' repository_snapshot,'2026-08-31T21:01:10.517131Z' repository_snapshot_timestamp,
+            TIMESTAMPTZ '2026-08-31T21:01:10.517131Z' repository_observed_timestamp,
+            'SELECTED' repository_reason,'MATCHED' repository_mapping_status
+            FROM (VALUES (1,'alpha',12,7,6,'PARTIAL',NULL),
+                         (2,'beta',0,7,7,'COMPLETE',NULL),
+                         (3,'gamma',NULL,0,0,'UNAVAILABLE','OUTSIDE_TARGET_LIST'))
+                 AS rows(id,name,downloads,observed,valid,status,reason)"""
         self.output('quality', self.quality_sql)
 
     def output(self, role, sql):
@@ -79,6 +96,7 @@ class LoadInputTests(unittest.TestCase):
 
     def test_copy_escapes_control_line_and_tabs(self):
         self.output('package_identity', "CREATE TABLE src(package_id INT,name VARCHAR); INSERT INTO src VALUES (1,chr(92)||'.'||chr(10)||'x'||chr(9)||'z'),(2,'beta'),(3,'gamma')")
+        self.output('quality', self.quality_sql + ";UPDATE src SET name=chr(92)||'.'||chr(10)||'x'||chr(9)||'z' WHERE package_id=1")
         self.prepare()
         body = (self.root / 'package_identity.copy.tsv').read_bytes()
         self.assertIn(b'1\t\\\\.\\nx\\tz\n', body)
@@ -130,13 +148,45 @@ class LoadInputTests(unittest.TestCase):
     def test_quality_key_or_value_mismatch(self):
         for suffix in ('UPDATE src SET package_id=9 WHERE package_id=1',
                        'UPDATE src SET download_sum=13 WHERE package_id=1',
-                       "UPDATE src SET data_status='COMPLETE' WHERE package_id=1"):
+                       "UPDATE src SET data_status='COMPLETE' WHERE package_id=1",
+                       "UPDATE src SET repository_mapping_status='wrong' WHERE package_id=1",
+                       "UPDATE src SET valid_days=NULL WHERE package_id=1",
+                       "UPDATE src SET name='wrong' WHERE package_id=1"):
             with self.subTest(suffix=suffix):
                 self.output('quality', self.quality_sql + ';' + suffix)
                 work = self.root / hashlib.sha256(suffix.encode()).hexdigest()
                 work.mkdir()
                 with self.assertRaises(ValueError):
                     load.prepare(self.s3, self.select(), work, memory='256MB', threads=1)
+
+    def test_unknown_quality_version_and_mislabeled_legacy_schema_rejected(self):
+        for marker in ('package-snapshot-quality-v999', QUALITY_SCHEMA_ID):
+            with self.subTest(marker=marker):
+                self.manifest['quality_schema'] = marker
+                with self.assertRaisesRegex(ValueError, 'quality schema'):
+                    self.prepare()
+
+    def test_legacy_schema_missing_or_wrong_typed_column_rejected(self):
+        for suffix in ('ALTER TABLE src DROP COLUMN repository_mapping_status',
+                       'ALTER TABLE src ALTER COLUMN valid_days TYPE VARCHAR'):
+            with self.subTest(suffix=suffix):
+                self.output('quality', self.quality_sql + ';' + suffix)
+                with self.assertRaisesRegex(ValueError, 'quality schema'):
+                    self.prepare()
+
+    def test_observed_quality_cannot_claim_reconstructed_publication_dates(self):
+        current_sql = self.quality_sql + ";ALTER TABLE src RENAME TO legacy;" + """
+            CREATE TABLE src AS SELECT q.*,m.stars::INTEGER stars,m.open_issues::INTEGER open_issues,
+            NULL::TIMESTAMPTZ first_published_at,NULL::TIMESTAMPTZ selected_published_at
+            FROM legacy q JOIN (VALUES (1,0,NULL),(2,NULL,4),(3,10,0))
+            AS m(package_id,stars,open_issues) USING(package_id)"""
+        self.manifest['quality_schema'] = QUALITY_SCHEMA_ID
+        for column in ('first_published_at', 'selected_published_at'):
+            with self.subTest(column=column):
+                self.output('quality', current_sql +
+                            f";UPDATE src SET {column}=TIMESTAMPTZ '2024-01-01T00:00:00Z' WHERE package_id=1")
+                with self.assertRaisesRegex(ValueError, 'quality values disagree'):
+                    self.prepare()
 
     def test_changed_completion_blocks_precommit(self):
         metadata = self.select()
