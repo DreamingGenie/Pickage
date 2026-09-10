@@ -1,0 +1,141 @@
+{
+  "status": "COMMITTED_AND_REVERIFIED",
+  "verified_at": "2026-09-09T02:29:12.040085+00:00",
+  "first": {
+    "dataset": "npm-downloads-interval",
+    "run_id": "downloads-interval-278-20260909-v1",
+    "attempt_id": "d02900d932a04ca5a566e391afb44834",
+    "snapshot_at": "2026-08-31",
+    "status": "PUBLISHED",
+    "phase": "COMPLETE",
+    "mode": "PUBLISH_CURATED",
+    "started_at": "2026-09-09T02:27:48.331290+00:00",
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\d02900d932a04ca5a566e391afb44834\\execution_report.json",
+    "interval": {
+      "snapshot_at": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+      "source_timestamps": [
+        "2026-08-31T21:01:10.517131Z"
+      ],
+      "previous_snapshot_at": "2026-08-24",
+      "previous_snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+      "download_start_inclusive": "2026-08-24",
+      "download_end_exclusive": "2026-08-31",
+      "interval_days": 7,
+      "interval_reason": null
+    },
+    "input_manifest_sha256": "a0b80537f35e000a471ed95ce4e10c5f25264b587b6c433b0aed9561a777a9d7",
+    "manifest_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\d02900d932a04ca5a566e391afb44834\\run-manifest.json",
+    "output_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\d02900d932a04ca5a566e391afb44834\\output",
+    "contract_sha256": "6174089e272c8a694463763230b3d7112a23b5f9004958d194df751556f73469",
+    "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427",
+    "manifest_sha256": "7dfc0cb5b76102d35f9baa28e03d7370bbd0d9a241b9c4a58ba3de8a95906377",
+    "quality": {
+      "package_rows": 11080940,
+      "complete_rows": 97091,
+      "partial_rows": 637,
+      "unavailable_rows": 10983212,
+      "zero_rows": 0,
+      "partial_zero_rows": 0,
+      "target_rows": 99996,
+      "target_duplicate_rows": 4,
+      "unmatched_names": 2251,
+      "daily_quality_rows": 6759,
+      "null_reason_counts": {
+        "NOT_FOUND": 17,
+        "OUTSIDE_TARGET_LIST": 10983195
+      }
+    },
+    "file_count": 3,
+    "bucket": "pickage-curated",
+    "prefix": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1",
+    "action": "LOADED",
+    "bytes": 46510727,
+    "finished_at": "2026-09-09T02:28:27.843919+00:00",
+    "elapsed_seconds": 39.515
+  },
+  "second": {
+    "dataset": "npm-downloads-interval",
+    "run_id": "downloads-interval-278-20260909-v1",
+    "attempt_id": "bb182fcbda0548f2b6025861bbc22552",
+    "snapshot_at": "2026-08-31",
+    "status": "REVERIFIED",
+    "phase": "COMPLETE",
+    "mode": "PUBLISH_CURATED",
+    "started_at": "2026-09-09T02:28:28.660057+00:00",
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\bb182fcbda0548f2b6025861bbc22552\\execution_report.json",
+    "interval": {
+      "snapshot_at": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+      "source_timestamps": [
+        "2026-08-31T21:01:10.517131Z"
+      ],
+      "previous_snapshot_at": "2026-08-24",
+      "previous_snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+      "download_start_inclusive": "2026-08-24",
+      "download_end_exclusive": "2026-08-31",
+      "interval_days": 7,
+      "interval_reason": null
+    },
+    "input_manifest_sha256": "a0b80537f35e000a471ed95ce4e10c5f25264b587b6c433b0aed9561a777a9d7",
+    "manifest_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\bb182fcbda0548f2b6025861bbc22552\\run-manifest.json",
+    "output_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\downloads_interval\\executions\\downloads-interval-278-20260909-v1\\bb182fcbda0548f2b6025861bbc22552\\output",
+    "contract_sha256": "6174089e272c8a694463763230b3d7112a23b5f9004958d194df751556f73469",
+    "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427",
+    "manifest_sha256": "7dfc0cb5b76102d35f9baa28e03d7370bbd0d9a241b9c4a58ba3de8a95906377",
+    "quality": {
+      "package_rows": 11080940,
+      "complete_rows": 97091,
+      "partial_rows": 637,
+      "unavailable_rows": 10983212,
+      "zero_rows": 0,
+      "partial_zero_rows": 0,
+      "target_rows": 99996,
+      "target_duplicate_rows": 4,
+      "unmatched_names": 2251,
+      "daily_quality_rows": 6759,
+      "null_reason_counts": {
+        "NOT_FOUND": 17,
+        "OUTSIDE_TARGET_LIST": 10983195
+      }
+    },
+    "file_count": 3,
+    "bucket": "pickage-curated",
+    "prefix": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1",
+    "action": "REVERIFIED",
+    "bytes": 46510727,
+    "finished_at": "2026-09-09T02:29:11.223519+00:00",
+    "elapsed_seconds": 42.562
+  },
+  "files": [
+    {
+      "bytes": 46433960,
+      "path": "interval_downloads.parquet",
+      "role": "interval_downloads",
+      "row_count": 11080940,
+      "sha256": "40f4af5949a53a1d1001adc16f671b91f350cf0126e2cac93d4c0764f61e8f37",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/interval_downloads.parquet"
+    },
+    {
+      "bytes": 42399,
+      "path": "daily_quality.parquet",
+      "role": "daily_quality",
+      "row_count": 6759,
+      "sha256": "3e2d2c7c29e3ef9db99537db031e917034888b3f903f595b1fee1c4790505409",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/daily_quality.parquet"
+    },
+    {
+      "bytes": 34368,
+      "path": "unmatched_packages.parquet",
+      "role": "unmatched_packages",
+      "row_count": 2251,
+      "sha256": "c980da55a323ed1369ec6cf146d60dda821301f11a359b9a3f4bcc081ec98572",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/unmatched_packages.parquet"
+    }
+  ],
+  "prior_objects_preserved": 4880,
+  "new_objects": 6,
+  "remote_preservation_scope": "KEY_SIZE_ETAG_LAST_MODIFIED",
+  "remote_output_verification": "GET_SHA256_ALL_FILES",
+  "postgresql_writes": false
+}

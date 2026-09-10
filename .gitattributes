@@ -11,6 +11,9 @@
 # 다른 OS 팀원의 DB 에서 검증이 실패한다.
 *.sql   text eol=lf
 
+# 저장소 지표 모듈은 코드의 원본 바이트를 해시한다. 승인 실행과 같은 LF를 유지한다.
+pipeline/repository_metrics/*.py text eol=lf
+
 # Windows 전용 스크립트는 CRLF 여야 한다.
 *.bat   text eol=crlf
 *.cmd   text eol=crlf

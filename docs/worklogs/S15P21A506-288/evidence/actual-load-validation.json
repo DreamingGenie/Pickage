@@ -1,0 +1,348 @@
+{
+  "status": "PASSED",
+  "verified_at": "2026-09-09T06:00:26.612172+00:00",
+  "verification": "POSTGRESQL_COPY_EXPORT_VS_PINNED_ORIGINAL_METRICS_ALL_ROWS",
+  "snapshot": "2026-08-31",
+  "database": "pickage_267_full_defaulted",
+  "container": "pickage-267-validation",
+  "curated_run_id": "package-snapshot-288-20260909-v1",
+  "manifest_sha256": "53b04df38d126128b30e49bd31dde4cd0354b3711317753f8165b86d9c433357",
+  "counts": {
+    "package_snapshot": 11080940,
+    "downloads_nonnull": 97728,
+    "stars_nonnull": 7150485,
+    "open_issues_nonnull": 7150485,
+    "downloads_zero": 0,
+    "stars_zero": 504766,
+    "open_issues_zero": 1476898,
+    "downloads_sum": "213093115787",
+    "stars_sum": "33485871365",
+    "open_issues_sum": "579209553"
+  },
+  "mismatches": {
+    "unexpected_db_rows": 0,
+    "missing_db_rows": 0,
+    "downloads": 0,
+    "stars": 0,
+    "open_issues": 0
+  },
+  "source_status_counts": {
+    "UNAVAILABLE": 10983212,
+    "COMPLETE": 97091,
+    "PARTIAL": 637
+  },
+  "parent_counts": {
+    "package": 11080940,
+    "version": 54188349,
+    "snapshot": 229,
+    "snapshot_reference": 229,
+    "package_version_snapshot": 0,
+    "package_snapshot": 11080940
+  },
+  "parent_history_before_sha256": "acc056372dde4c25426925009d9ab2d109ae656ac87fd17b68cda5982394fb53",
+  "parent_history_after_sha256": "acc056372dde4c25426925009d9ab2d109ae656ac87fd17b68cda5982394fb53",
+  "samples": [
+    [
+      "react",
+      9633488,
+      "2026-08-31",
+      170792304,
+      248006,
+      1281,
+      "COMPLETE"
+    ],
+    [
+      "typescript",
+      10602005,
+      "2026-08-31",
+      273437565,
+      110779,
+      5170,
+      "COMPLETE"
+    ]
+  ],
+  "partial_samples": [
+    [
+      "@acuminous/bitsyntax",
+      72482,
+      453518,
+      7,
+      6
+    ],
+    [
+      "@adminjs/license",
+      76447,
+      9013,
+      7,
+      6
+    ],
+    [
+      "@adyen/openbankingsdk",
+      81017,
+      13990,
+      7,
+      6
+    ],
+    [
+      "@aergonaut/playwright-opentelemetry-reporter",
+      82112,
+      13626,
+      7,
+      6
+    ],
+    [
+      "@ai-zen/node-fetch-event-source",
+      105993,
+      382484,
+      7,
+      6
+    ]
+  ],
+  "db_receipt": {
+    "execution_id": "load-288-20260831-v1",
+    "status": "PUBLISHED",
+    "manifest_sha256": "53b04df38d126128b30e49bd31dde4cd0354b3711317753f8165b86d9c433357",
+    "first_counts": {
+      "inserted": 11080940,
+      "verified_rows": 11080940,
+      "package_snapshot": 11080940
+    },
+    "attempts": [
+      {
+        "attempt_id": "9ca49ab318094dbb9db7bde60303ed50",
+        "status": "PUBLISHED",
+        "phase": "COMMIT",
+        "actual_counts": {
+          "inserted": 11080940,
+          "verified_rows": 11080940,
+          "package_snapshot": 11080940
+        },
+        "scope": "ALL_SERVICE_ROWS_NULL_SAFE"
+      },
+      {
+        "attempt_id": "89c3d9118a0c45babf69fe1719b68de1",
+        "status": "REVERIFIED",
+        "phase": "COMMIT",
+        "actual_counts": {
+          "inserted": 0,
+          "verified_rows": 11080940,
+          "package_snapshot": 11080940
+        },
+        "scope": "ALL_SERVICE_ROWS_NULL_SAFE"
+      }
+    ]
+  },
+  "first_load_elapsed_seconds": 474.266,
+  "retry_elapsed_seconds": 107.281,
+  "reconciliation_elapsed_seconds": 35.625,
+  "curated_quality": {
+    "detail_references": [
+      {
+        "bytes": 42399,
+        "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/daily_quality.parquet",
+        "role": "daily_quality",
+        "row_count": 6759,
+        "sha256": "3e2d2c7c29e3ef9db99537db031e917034888b3f903f595b1fee1c4790505409"
+      },
+      {
+        "bytes": 34368,
+        "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/unmatched_packages.parquet",
+        "role": "unmatched_packages",
+        "row_count": 2251,
+        "sha256": "c980da55a323ed1369ec6cf146d60dda821301f11a359b9a3f4bcc081ec98572"
+      }
+    ],
+    "download_null_reason": {
+      "NOT_FOUND": 17,
+      "OUTSIDE_TARGET_LIST": 10983195
+    },
+    "download_partial_sum": "504212835",
+    "download_status": {
+      "COMPLETE": 97091,
+      "PARTIAL": 637,
+      "UNAVAILABLE": 10983212
+    },
+    "download_sum": "213093115787",
+    "nonnull": {
+      "downloads": 97728,
+      "open_issues": 7150485,
+      "stars": 7150485
+    },
+    "repository_reason": {
+      "NO_EXACT_OBSERVATION": 1152136,
+      "NO_VALID_REPOSITORY": 2778319,
+      "SELECTED": 7150485
+    },
+    "repository_selection_references": [
+      {
+        "bytes": 11267846,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00000-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 433855,
+        "sha256": "c619357557dc265ee33055cff43774bcda7d55dbd5cf1626c841b11552d6114b"
+      },
+      {
+        "bytes": 12163995,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00001-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 564398,
+        "sha256": "dfce6154272f76251bcebe52854198c58c749004b45f2afce4722581b7e956b2"
+      },
+      {
+        "bytes": 10392879,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00002-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 337646,
+        "sha256": "14b72d7f691a81a3a4b13e9ddd5465a65cc720eaf4127c0d89094afd5ed132f0"
+      },
+      {
+        "bytes": 11965999,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00003-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 528857,
+        "sha256": "f050554368def2e7c4b95316ce47af7e36bfee63b390545649c2ec83f7a30f57"
+      },
+      {
+        "bytes": 11388920,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00004-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 466967,
+        "sha256": "7612a33318ccee38611a19bd7b60905802d4e91cc9a307a5bf365200287c1a11"
+      },
+      {
+        "bytes": 11183342,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00005-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 441275,
+        "sha256": "b74d7919fefbc9bc2526a86b5996299c5dfce40c62d7efe9553b322d2eb39411"
+      },
+      {
+        "bytes": 11372092,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00006-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 447812,
+        "sha256": "615e8890689cd41faa71ce2dd81c73e2b70af5b344ef07dd3cb80dd66824e471"
+      },
+      {
+        "bytes": 12616755,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00007-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 703447,
+        "sha256": "e72018e489db4b5a7879f6c3139d713e7793d329df207e20cc7d66ff4bef7c1e"
+      },
+      {
+        "bytes": 12691969,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00008-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 549449,
+        "sha256": "0534197134ca5a45210e9ebcd7688182bcd6c76e35979040aab41ea83faded4a"
+      },
+      {
+        "bytes": 11846362,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00009-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 513643,
+        "sha256": "010213e8e8fc7904de4add9969c12c244ca65aaee37ceb4e3fd35425010f2240"
+      },
+      {
+        "bytes": 4045331,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 1000000,
+        "sha256": "23c8efe08c7ddf1afedf657f4a272e9610465d42d2cdb54c9357d75bb9c3c3b6"
+      },
+      {
+        "bytes": 4045325,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c001.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 1000000,
+        "sha256": "2b6c70a95bc604b9c0a0a5693a91d09e44e429213efb8f59f1387ff318e93cda"
+      },
+      {
+        "bytes": 6528695,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c002.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 1000000,
+        "sha256": "92358672fad0eebac53a000e18436f1c05463a62baedd5463b6381ea1e7932cd"
+      },
+      {
+        "bytes": 11063456,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c003.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 597606,
+        "sha256": "db3f210c1daa2a704fcce49cbf5a5f9cd8af1bd0455237838650cf1351becdbe"
+      },
+      {
+        "bytes": 11148907,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00011-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 417650,
+        "sha256": "b574c3136319b422d55c95943c18d17d784aa9c9408dcec560e6d1a2ac3e2454"
+      },
+      {
+        "bytes": 12668318,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00012-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 633269,
+        "sha256": "5a390237b5c15d90d9982cec32716308a75bfabf1e70fae85eb3b4a717f9af08"
+      },
+      {
+        "bytes": 11759396,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00013-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 493781,
+        "sha256": "889d36496b527684cfbbd22c8280a5ccf04ed63ef25707ccde14f9f6c3a4722f"
+      },
+      {
+        "bytes": 11117322,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00014-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 426586,
+        "sha256": "0ecfc2fd87e4a2dd993bd84afdce8bf643d76338ac630d19549588748e341648"
+      },
+      {
+        "bytes": 11750014,
+        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00015-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+        "role": "quality/selection",
+        "row_count": 524699,
+        "sha256": "c0b53dda390f267543a14c8c8421fbdadcea17ff4fdb279ff1f4b295558d2b4f"
+      }
+    ],
+    "rows": 11080940,
+    "status": "PASSED",
+    "verification": "ALL_KEYS_SCHEMA_COUNTS_VALUES_AND_QUALITY",
+    "zero": {
+      "downloads": 0,
+      "open_issues": 1476898,
+      "stars": 504766
+    }
+  },
+  "curated_files": [
+    {
+      "bytes": 53726939,
+      "path": "package_snapshot.parquet",
+      "role": "package_snapshot",
+      "row_count": 11080940,
+      "sha256": "263074c0ab506fab8fbb2ae079e007c43f0953cce3d35e97c85466786b4d3f81"
+    },
+    {
+      "bytes": 146221689,
+      "path": "package_identity.parquet",
+      "role": "package_identity",
+      "row_count": 11080940,
+      "sha256": "c941d55bc376a4d3e0db42d5751244d0b167db3b0c6a0b980357eb9e37bf2511"
+    },
+    {
+      "bytes": 327113739,
+      "path": "quality.parquet",
+      "role": "quality",
+      "row_count": 11080940,
+      "sha256": "ce4938c81367de27668c38ceff42d63707202bf2afaf4698e0125e6ddf38586b"
+    }
+  ],
+  "limitations": [
+    "Local PostgreSQL and local MinIO only",
+    "No production server or Spring/Flyway startup/API run",
+    "No historical dates loaded beyond 2026-08-31"
+  ]
+}

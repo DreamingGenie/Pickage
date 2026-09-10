@@ -1,0 +1,56 @@
+{
+  "status": "PASSED",
+  "input_sha256": "f3cd069f5d9eae475b55d615c2597e922a423554838b2f722686e747412023d1",
+  "dates": {
+    "2022-05-08": {
+      "status": "PASSED",
+      "population_key_or_name_difference": 0,
+      "source_selection_difference": 0,
+      "wrong_source_timestamp": 0,
+      "raw_repository_metric_difference": 0,
+      "raw_download_sum_difference": 0,
+      "source_population_rows": 1812444,
+      "raw_project_rows": 1996332,
+      "quality_rows": 1812444,
+      "quality_duplicate_keys": 0,
+      "service_rows": 1812444,
+      "service_duplicate_keys": 0,
+      "identity_rows": 1812444,
+      "identity_duplicate_keys": 0
+    },
+    "2024-09-02": {
+      "status": "PASSED",
+      "population_key_or_name_difference": 0,
+      "source_selection_difference": 0,
+      "wrong_source_timestamp": 0,
+      "raw_repository_metric_difference": 0,
+      "raw_download_sum_difference": 0,
+      "source_population_rows": 2988876,
+      "raw_project_rows": 3993120,
+      "quality_rows": 2988876,
+      "quality_duplicate_keys": 0,
+      "service_rows": 2988876,
+      "service_duplicate_keys": 0,
+      "identity_rows": 2988876,
+      "identity_duplicate_keys": 0
+    },
+    "2026-08-24": {
+      "status": "PASSED",
+      "population_key_or_name_difference": 0,
+      "source_selection_difference": 0,
+      "wrong_source_timestamp": 0,
+      "raw_repository_metric_difference": 0,
+      "raw_download_sum_difference": 0,
+      "source_population_rows": 4044975,
+      "raw_project_rows": 5209718,
+      "quality_rows": 4044975,
+      "quality_duplicate_keys": 0,
+      "service_rows": 4044975,
+      "service_duplicate_keys": 0,
+      "identity_rows": 4044975,
+      "identity_duplicate_keys": 0
+    }
+  },
+  "algorithm": "Direct published_at filter and ROW_NUMBER; distinct raw metric pairs; independent daily SUM; full key/value comparison",
+  "elapsed_seconds": 56.859
+}

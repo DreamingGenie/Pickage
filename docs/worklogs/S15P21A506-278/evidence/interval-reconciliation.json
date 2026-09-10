@@ -1,0 +1,305 @@
+{
+  "verified_at": "2026-09-09T02:28:36.925412+00:00",
+  "checks": {
+    "approved_population_count": true,
+    "single_snapshot": true,
+    "source_reconciliation": true,
+    "approved_ids_exact": true,
+    "outside_target_null": true,
+    "coverage_and_status": true,
+    "lineage_columns": true,
+    "contract_matches_test_and_execution": true
+  },
+  "rows": 11080940,
+  "source_value_or_coverage_mismatches": 0,
+  "status_counts": [
+    {
+      "data_status": "COMPLETE",
+      "rows": 97091,
+      "download_sum": 212588902952
+    },
+    {
+      "data_status": "PARTIAL",
+      "rows": 637,
+      "download_sum": 504212835
+    },
+    {
+      "data_status": "UNAVAILABLE",
+      "rows": 10983212,
+      "download_sum": null
+    }
+  ],
+  "samples": {
+    "familiar": [
+      {
+        "name": "express",
+        "package_id": 6620867,
+        "download_sum": 133100711,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 7,
+        "data_status": "COMPLETE",
+        "null_reason": null,
+        "quality_reasons": []
+      },
+      {
+        "name": "lodash",
+        "package_id": 8006164,
+        "download_sum": 172491803,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 7,
+        "data_status": "COMPLETE",
+        "null_reason": null,
+        "quality_reasons": []
+      },
+      {
+        "name": "react",
+        "package_id": 9633488,
+        "download_sum": 170792304,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 7,
+        "data_status": "COMPLETE",
+        "null_reason": null,
+        "quality_reasons": []
+      },
+      {
+        "name": "typescript",
+        "package_id": 10602005,
+        "download_sum": 273437565,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 7,
+        "data_status": "COMPLETE",
+        "null_reason": null,
+        "quality_reasons": []
+      }
+    ],
+    "partial": [
+      {
+        "name": "@acuminous/bitsyntax",
+        "package_id": 72482,
+        "download_sum": 453518,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 6,
+        "data_status": "PARTIAL",
+        "null_reason": null,
+        "quality_reasons": [
+          "MISSING_DAILY_VALUES",
+          "NULL_VALUE",
+          "IMPUTED_GAP"
+        ]
+      },
+      {
+        "name": "@adminjs/license",
+        "package_id": 76447,
+        "download_sum": 9013,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 6,
+        "data_status": "PARTIAL",
+        "null_reason": null,
+        "quality_reasons": [
+          "MISSING_DAILY_VALUES",
+          "NULL_VALUE",
+          "IMPUTED_GAP"
+        ]
+      },
+      {
+        "name": "@adyen/openbankingsdk",
+        "package_id": 81017,
+        "download_sum": 13990,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 6,
+        "data_status": "PARTIAL",
+        "null_reason": null,
+        "quality_reasons": [
+          "MISSING_DAILY_VALUES",
+          "NULL_VALUE",
+          "IMPUTED_GAP"
+        ]
+      },
+      {
+        "name": "@aergonaut/playwright-opentelemetry-reporter",
+        "package_id": 82112,
+        "download_sum": 13626,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 6,
+        "data_status": "PARTIAL",
+        "null_reason": null,
+        "quality_reasons": [
+          "MISSING_DAILY_VALUES",
+          "NULL_VALUE",
+          "IMPUTED_GAP"
+        ]
+      },
+      {
+        "name": "@ai-zen/node-fetch-event-source",
+        "package_id": 105993,
+        "download_sum": 382484,
+        "expected_days": 7,
+        "observed_days": 7,
+        "valid_days": 6,
+        "data_status": "PARTIAL",
+        "null_reason": null,
+        "quality_reasons": [
+          "MISSING_DAILY_VALUES",
+          "NULL_VALUE",
+          "IMPUTED_GAP"
+        ]
+      }
+    ],
+    "zero": [],
+    "unavailable": [
+      {
+        "name": "@bikdotai/bik-component-library",
+        "package_id": 483308,
+        "download_sum": null,
+        "expected_days": 7,
+        "observed_days": 0,
+        "valid_days": 0,
+        "data_status": "UNAVAILABLE",
+        "null_reason": "NOT_FOUND",
+        "quality_reasons": [
+          "NOT_FOUND",
+          "MISSING_DAILY_VALUES",
+          "ROW_MISSING"
+        ]
+      },
+      {
+        "name": "@grafana/components",
+        "package_id": 1272980,
+        "download_sum": null,
+        "expected_days": 7,
+        "observed_days": 0,
+        "valid_days": 0,
+        "data_status": "UNAVAILABLE",
+        "null_reason": "NOT_FOUND",
+        "quality_reasons": [
+          "NOT_FOUND",
+          "MISSING_DAILY_VALUES",
+          "ROW_MISSING"
+        ]
+      },
+      {
+        "name": "@grafana/design-catalog",
+        "package_id": 1272983,
+        "download_sum": null,
+        "expected_days": 7,
+        "observed_days": 0,
+        "valid_days": 0,
+        "data_status": "UNAVAILABLE",
+        "null_reason": "NOT_FOUND",
+        "quality_reasons": [
+          "NOT_FOUND",
+          "MISSING_DAILY_VALUES",
+          "ROW_MISSING"
+        ]
+      },
+      {
+        "name": "@grafana/design-mcp",
+        "package_id": 1272984,
+        "download_sum": null,
+        "expected_days": 7,
+        "observed_days": 0,
+        "valid_days": 0,
+        "data_status": "UNAVAILABLE",
+        "null_reason": "NOT_FOUND",
+        "quality_reasons": [
+          "NOT_FOUND",
+          "MISSING_DAILY_VALUES",
+          "ROW_MISSING"
+        ]
+      },
+      {
+        "name": "@grafana/design-tokens",
+        "package_id": 1272986,
+        "download_sum": null,
+        "expected_days": 7,
+        "observed_days": 0,
+        "valid_days": 0,
+        "data_status": "UNAVAILABLE",
+        "null_reason": "NOT_FOUND",
+        "quality_reasons": [
+          "NOT_FOUND",
+          "MISSING_DAILY_VALUES",
+          "ROW_MISSING"
+        ]
+      }
+    ]
+  },
+  "daily_quality_reason_counts": {
+    "IMPUTED_GAP": 646,
+    "NULL_VALUE": 646,
+    "ROW_MISSING": 5467
+  },
+  "unmatched_samples": [
+    [
+      "@1password/web-api",
+      "NOT_FOUND",
+      0,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@a5c-ai/babysitter-paperclip",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@a5c-ai/hooks-mux-cli",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@a5c-ai/hooks-mux-core",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@a5c-ai/transport-mux",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@abandonware/bluetooth-hci-socket",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@abandonware/noble",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@absolutejs/native-linux-x64",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@accrual/pdf-lib-with-encrypt",
+      "NOT_FOUND",
+      0,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ],
+    [
+      "@acitons/artifact",
+      "READY",
+      7,
+      "TARGET_NOT_IN_APPROVED_POPULATION"
+    ]
+  ],
+  "source_daily_rows": 694505,
+  "input_manifest_sha256": "a0b80537f35e000a471ed95ce4e10c5f25264b587b6c433b0aed9561a777a9d7",
+  "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427"
+}

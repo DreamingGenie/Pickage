@@ -1,0 +1,50 @@
+test_daily_duplicate_is_rejected (pipeline.downloads.test_input.DownloadsInputTests.test_daily_duplicate_is_rejected) ... ok
+test_discovery_and_inspection_keep_csv_duplicates_and_exclusions (pipeline.downloads.test_input.DownloadsInputTests.test_discovery_and_inspection_keep_csv_duplicates_and_exclusions) ... ok
+test_gap_must_correspond_to_null_download (pipeline.downloads.test_input.DownloadsInputTests.test_gap_must_correspond_to_null_download) ... ok
+test_metadata_identity_is_checked (pipeline.downloads.test_input.DownloadsInputTests.test_metadata_identity_is_checked) ... ok
+test_physical_schema_variation_is_rejected_before_casting (pipeline.downloads.test_input.DownloadsInputTests.test_physical_schema_variation_is_rejected_before_casting) ... ok
+test_ready_coverage_reports_null_without_imputation (pipeline.downloads.test_input.DownloadsInputTests.test_ready_coverage_reports_null_without_imputation) ... ok
+test_target_blank_and_negative_downloads_are_rejected (pipeline.downloads.test_input.DownloadsInputTests.test_target_blank_and_negative_downloads_are_rejected) ... ok
+test_unknown_file_is_rejected (pipeline.downloads.test_input.DownloadsInputTests.test_unknown_file_is_rejected) ... ok
+test_history_provenance_is_explicit (pipeline.downloads.test_lineage.LineageTests.test_history_provenance_is_explicit) ... ok
+test_latest_fetched_duplicate_is_used_and_mismatch_fails (pipeline.downloads.test_lineage.LineageTests.test_latest_fetched_duplicate_is_used_and_mismatch_fails) ... ok
+test_not_found_response_has_null_downloads (pipeline.downloads.test_lineage.LineageTests.test_not_found_response_has_null_downloads) ... ok
+test_rejects_invalid_nested_value (pipeline.downloads.test_lineage.LineageTests.test_rejects_invalid_nested_value) ... ok
+test_streams_responses_and_does_not_call_response_rows_daily_rows (pipeline.downloads.test_lineage.LineageTests.test_streams_responses_and_does_not_call_response_rows_daily_rows) ... ok
+test_before_commit_is_required_before_success (pipeline.downloads.test_bronze.BronzeTests.test_before_commit_is_required_before_success) ... ok
+test_before_success_failure_leaves_manifest_and_resumes (pipeline.downloads.test_bronze.BronzeTests.test_before_success_failure_leaves_manifest_and_resumes) ... ok
+test_changed_input_and_completed_missing_object_rejected (pipeline.downloads.test_bronze.BronzeTests.test_changed_input_and_completed_missing_object_rejected) ... ok
+test_completed_run_requires_input_and_unchanged_local_source (pipeline.downloads.test_bronze.BronzeTests.test_completed_run_requires_input_and_unchanged_local_source) ... ok
+test_conditional_race_with_different_object_and_upload_failure (pipeline.downloads.test_bronze.BronzeTests.test_conditional_race_with_different_object_and_upload_failure) ... ok
+test_failpoint_resumes_and_does_not_overwrite_completed_objects (pipeline.downloads.test_bronze.BronzeTests.test_failpoint_resumes_and_does_not_overwrite_completed_objects) ... ok
+test_publish_and_reverify (pipeline.downloads.test_bronze.BronzeTests.test_publish_and_reverify) ... ok
+test_source_change_and_conditional_race (pipeline.downloads.test_bronze.BronzeTests.test_source_change_and_conditional_race) ... ok
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmp04pa_4p8\work\load-1\7a48b7eb097945bf854359192d3759e8\execution_report.json
+REVERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmp04pa_4p8\work\load-1\d2f728c834c542c1986c0f4b8edb32ec\execution_report.json
+test_publish_then_reverify_preserves_objects_and_records_real_status (pipeline.downloads.test_load.LoadTests.test_publish_then_reverify_preserves_objects_and_records_real_status) ... ok
+test_rejects_execution_artifacts_inside_source_and_invalid_run_id (pipeline.downloads.test_load.LoadTests.test_rejects_execution_artifacts_inside_source_and_invalid_run_id) ... ok
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpnpeq5iw9\work\resume-1\39d5af0eb6374cb08f692c68c2d19880\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpnpeq5iw9\work\resume-1\42fe0b20b01b4d6f9298cc4931783f80\execution_report.json
+test_upload_failure_is_not_published_and_can_resume (pipeline.downloads.test_load.LoadTests.test_upload_failure_is_not_published_and_can_resume) ... ok
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmp3negms5d\work\bad-1\89ed5524e601419fbf5ddc85789bdde7\execution_report.json
+test_validation_failure_records_attempt_and_does_not_connect (pipeline.downloads.test_load.LoadTests.test_validation_failure_records_attempt_and_does_not_connect) ... ok
+VERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmp28ffi8dw\work\verify-1\3bbf25a79e9b4f92845207f940062f00\execution_report.json
+VERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmp28ffi8dw\work\verify-1\2b3682d09da544b5a395702a15f3fd2b\execution_report.json
+test_verify_only_never_connects_and_input_manifest_is_deterministic (pipeline.downloads.test_load.LoadTests.test_verify_only_never_connects_and_input_manifest_is_deterministic) ... ok
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpp9zfcie9\work\test-278-5c1aa2c5c16547c8ad647d98c152ef69\0ecabc8b70c94cc0bf3d0b68353ce0e2\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpp9zfcie9\work\test-278-5c1aa2c5c16547c8ad647d98c152ef69\d9fd9c5cb0b146d2984c29fb650de58f\execution_report.json
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpp9zfcie9\work\test-278-5c1aa2c5c16547c8ad647d98c152ef69\16f913b9716342198278eb48afccbfec\execution_report.json
+test_real_failure_resume_and_changed_manifest_rejected (pipeline.downloads.test_integration.MinioIntegrationTests.test_real_failure_resume_and_changed_manifest_rejected) ... ok
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpypmt_rx9\work\test-278-b5e147954eaa44388e9df4392e53e6d4\45f3285729434999baf1754b32634312\execution_report.json
+REVERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmpypmt_rx9\work\test-278-b5e147954eaa44388e9df4392e53e6d4\e01be98e49ab467c9eaf070b57eacb1e\execution_report.json
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpypmt_rx9\work\test-278-b5e147954eaa44388e9df4392e53e6d4\80dcef95f0f5494bb69e4d81dc08a74b\execution_report.json
+test_real_publish_reverify_and_completed_missing_file_no_repair (pipeline.downloads.test_integration.MinioIntegrationTests.test_real_publish_reverify_and_completed_missing_file_no_repair) ... ok
+test_resume_changed_manifest_rejected (pipeline.minio.test_ingest_raw.IngestTests.test_resume_changed_manifest_rejected) ... ok
+test_resume_identical_manifest (pipeline.minio.test_ingest_raw.IngestTests.test_resume_identical_manifest) ... ok
+test_stream_hash (pipeline.minio.test_ingest_raw.IngestTests.test_stream_hash) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 17.671s
+
+OK
+{"recorded_at": "2026-09-09T00:01:47.479172+00:00", "modules": ["pipeline.downloads.test_input", "pipeline.downloads.test_lineage", "pipeline.downloads.test_bronze", "pipeline.downloads.test_load", "pipeline.downloads.test_integration", "pipeline.minio.test_ingest_raw"], "tests_run": 31, "failures": 0, "errors": 0, "skipped": 0, "seconds": 18.078}

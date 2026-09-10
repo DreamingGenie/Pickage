@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-09-09T00:01:47.479172+00:00",
+  "modules": [
+    "pipeline.downloads.test_input",
+    "pipeline.downloads.test_lineage",
+    "pipeline.downloads.test_bronze",
+    "pipeline.downloads.test_load",
+    "pipeline.downloads.test_integration",
+    "pipeline.minio.test_ingest_raw"
+  ],
+  "tests_run": 31,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 18.078,
+  "source_sha256": {
+    "pipeline/downloads/__init__.py": "0ebf0a10f7b8221ed1baa13ca3dbd32d80ee98dfa9deaac6ba8cdee92fd3f698",
+    "pipeline/downloads/bronze.py": "8259be7eb06c0766ba7de861f94bb709f652f77f0cbdbecbac97a9209dcb8abb",
+    "pipeline/downloads/input.py": "a43447f3e5e2bdc9ef315c93338fa8c9ed376788305e95dfa3ce5e3cfd0e7d13",
+    "pipeline/downloads/lineage.py": "40e28ed2ee8e2dac375f519854fe8439e8061d868e854a630620642dc6531118",
+    "pipeline/downloads/load.py": "2069ca2891c5b1d01d6382522693cdbd7443335c761fb3773b53fd02fbe91539",
+    "pipeline/downloads/test_bronze.py": "65f91823d7327f3e83272d22b07b0d81669f1f55e00062d746abd0626a7597d8",
+    "pipeline/downloads/test_input.py": "d5ee74909b9eddb207de632f5beefe2f088fe917fbdcd3419ef18e44403d97df",
+    "pipeline/downloads/test_integration.py": "4e31022e06b77bdce21e95f07b527221b6067800c31d4fec9a176678f13d0d8a",
+    "pipeline/downloads/test_lineage.py": "d427ea0d800038a914b4d4a8030d33d98b0352d6697581c4fee00c68f426a6cb",
+    "pipeline/downloads/test_load.py": "736bbdd6124ac44c7923444855487c734f153567e9747f1b7d10b1d2ed076fa8",
+    "pipeline/downloads/test_support.py": "c5bfb4a8cda3b6a907aa7b4e502e9065752f8c5ac7a19a6a1f36d4bdec16ad34",
+    "pipeline/minio/ingest_raw.py": "79b692a2b270bda5199b95b3d64e9ed93b95132c31aabbdc357de78a761e24c8"
+  }
+}

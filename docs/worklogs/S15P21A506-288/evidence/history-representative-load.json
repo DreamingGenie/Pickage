@@ -1,0 +1,42 @@
+{
+  "status": "SELECTED_DATES_PUBLISHED",
+  "run_id": "full-history-288-20260909-v1",
+  "input_sha256": "f3cd069f5d9eae475b55d615c2597e922a423554838b2f722686e747412023d1",
+  "contract_sha256": "285b6da0ed63f862e1fe18e3942e88fd98a059b9c3f0bf572d8679a0b32de518",
+  "calendar_dates": 229,
+  "loaded_dates": 4,
+  "rows": 19927235,
+  "preserved_observed_base": "2026-08-31",
+  "reconstructed_dates": 3,
+  "elapsed_seconds": 485.469,
+  "dates": [
+    {
+      "snapshot_at": "2022-05-08",
+      "rows": 1812444
+    },
+    {
+      "snapshot_at": "2024-09-02",
+      "rows": 2988876
+    },
+    {
+      "snapshot_at": "2026-08-24",
+      "rows": 4044975
+    },
+    {
+      "snapshot_at": "2026-08-31",
+      "rows": 11080940
+    }
+  ],
+  "base_values_and_current_pointers_preserved": true,
+  "tests": {
+    "passed": 61,
+    "failed": 0,
+    "skipped": 0,
+    "execution": "existing suite plus history PostgreSQL 43; history builder and COPY 18"
+  },
+  "scope": "Representative three historical dates; full calendar not completed",
+  "local_database": {
+    "container": "pickage-267-validation",
+    "database": "pickage_267_full_defaulted"
+  }
+}

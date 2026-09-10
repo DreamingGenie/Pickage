@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-09-09T13:42:27.251713+09:00",
+  "status": "PASSED",
+  "scope": "PREWORK_DOCUMENTS_ONLY",
+  "worklog_markdown_files": 7,
+  "index_files": 1,
+  "local_links_checked": 36,
+  "broken_links": 0,
+  "conflict_markers": 0,
+  "temporary_document_references": 0,
+  "task_number_shorthand": 0,
+  "plan_steps": 9,
+  "acceptance_criteria": 10,
+  "unstarted_implementation_steps": 8,
+  "failures": [],
+  "document_sha256": {
+    "docs/worklogs/S15P21A506-288/01-scope.md": "efab62c64ef42634f5192702f143ef5dbd574e060b57644c417af6b0c52c711e",
+    "docs/worklogs/S15P21A506-288/02-plan.md": "37ea0d97ce9403f7618f4a0ce006038888a6d5cc98dc8f5d1781a238b60ac54c",
+    "docs/worklogs/S15P21A506-288/03-issues.md": "97bd65a174d06245880fb57389bd5e8f37f0eb27e86e440875c6919fa731652c",
+    "docs/worklogs/S15P21A506-288/04-work-log.md": "12c91924e6bd079e3f03647cb08776fe3c03a28dfac69ef849bdcafaeccaa1bc",
+    "docs/worklogs/S15P21A506-288/05-results.md": "654179ff723630b22eb3639aacf36e1835e2129831345b32e2212cf95005282a",
+    "docs/worklogs/S15P21A506-288/06-load-contract.md": "35c58490a7a59afacfdb3c8697d2cafd03f6104444a081705a254adc86772183",
+    "docs/worklogs/S15P21A506-288/README.md": "85b538e2faa008a10706238d1d6964c49deb6b28bbd6d5ce258c077733b55de6",
+    "docs/README.md": "ced04b4cd0dbf97031abaaad8af8e1410659865ea294ef5dee1dda74f2e38c87"
+  },
+  "input_handoff_sha256": "c22c82da18e58173c9ed1c2e8e1d35f0cd68f4b050de5e9b2ec2c3929fe854de",
+  "validation_limits": [
+    "Static documentation and recorded-input consistency only",
+    "No producer or integration tests executed",
+    "No new aggregation, MinIO access or PostgreSQL execution",
+    "No merge, staging or commit performed"
+  ],
+  "protected_tracked_files": 675,
+  "protected_tracked_sha256": "0a1549b149b915f07fb1451b9178af2b928dad21cc51e718e896b3239bc30404",
+  "protected_files_and_index_unchanged": true
+}
