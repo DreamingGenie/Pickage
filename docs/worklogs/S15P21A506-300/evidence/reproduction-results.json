@@ -1,0 +1,55 @@
+{
+  "node": "v24.18.0",
+  "checks": [
+    {
+      "id": "delta-immediate",
+      "expected": 5,
+      "actual": 15,
+      "result": "FAILED_EXPECTATION"
+    },
+    {
+      "id": "delta-previous-missing",
+      "expected": null,
+      "actual": 15,
+      "result": "FAILED_EXPECTATION"
+    },
+    {
+      "id": "delta-one-point",
+      "expected": null,
+      "actual": null,
+      "result": "PASS"
+    },
+    {
+      "id": "gap-omitted-row",
+      "expected": 2,
+      "actual": 1,
+      "result": "FAILED_EXPECTATION"
+    },
+    {
+      "id": "gap-explicit-null-control",
+      "expected": 2,
+      "actual": 2,
+      "result": "PASS"
+    },
+    {
+      "id": "observed-zero-preserved",
+      "expected": 0,
+      "actual": 0,
+      "result": "PASS"
+    }
+  ],
+  "observations": {
+    "figma_ready_range": {
+      "from": "2025-03-03",
+      "to": "2026-08-31",
+      "intervals": 78,
+      "inclusive_weekly_points": 79
+    },
+    "y_scale_equal_ratio_10_to_100_to_1000": [
+      99,
+      90,
+      0
+    ],
+    "note": "FAILED_EXPECTATION은 검수에서 발견한 현행 구현 차이이며 스크립트 실행 실패와 다르다. gap 기대값은 08-24가 기준 달력에 존재한다는 합성 조건이다."
+  }
+}
