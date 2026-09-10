@@ -304,6 +304,17 @@ cd ~/S15P21A506/deploy/prod/app && git pull && docker compose up -d --wait
 `data` 노드는 **`--wait` 를 붙이지 않는다** — [data/README.md](data/README.md) 의
 "`docker compose up -d --wait` 를 쓰지 말 것".
 
+> **⚠ `git pull` 로는 `SPARK_WORKER_MEMORY` 가 안 바뀐다.** 그 값은 서버의 `.env` 에
+> 있고 `.env` 는 커밋되지 않는다 — 저장소에 있는 것은 `.env.example` 뿐이다.
+> **두 노드에서 손으로 고쳐야 한다.**
+>
+> ```bash
+> grep SPARK_WORKER_MEMORY .env        # app 은 5g, data 는 7g 여야 한다
+> ```
+>
+> 안 고치면 광고하는 풀이 상한보다 큰 상태가 그대로 남아, **첫 풀사이즈 executor 에서
+> OOM Kill** 이다. 산수는 각 노드 `.env.example` 에 있다. 고친 뒤 worker 를 다시 띄운다.
+
 > **⚠ 컨테이너가 재생성된다.** `memswap_limit` 은 생성 시점에 정해지는 설정이라
 > 재시작이 아니라 새로 만든다. `postgres` 는 데이터가 볼륨에 있어 안전하지만
 > **연결이 끊기고 기동까지 수십 초 멈춘다** — 배치 시각이나 데모 중에 하지 말 것.
@@ -509,7 +520,7 @@ master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거�
 호스트 root 와 동등한 권한이다. 1GB 아끼자고 치를 값이 아니다.
 2. **아끼는 게 생각보다 없다.** `mem_limit` 은 상한이지 예약이 아니라서, 놀고 있는
 worker 데몬은 6.5g 가 아니라 **1GB 안팎**을 쓴다.
-3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과 부딪히는
+3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 5g 가 사용자 트래픽과 부딪히는
 것인데, 그건 컨테이너를 언제 띄웠든 똑같다.
 
 > **되돌릴 조건**: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
@@ -521,8 +532,13 @@ worker 데몬은 6.5g 가 아니라 **1GB 안팎**을 쓴다.
 이 노드의 메모리가 이때 가장 빠듯하다.
 
 ```
-postgres 2g + api 1.6g + web 0.25g + executor 6g ≈ 10g / 15Gi
+postgres 2g + api 1.6g + web 0.25g + worker②(executor 5g + 데몬 ~1g) ≈ 10g / 15Gi
 ```
+
+> **`SPARK_WORKER_MEMORY` 는 `mem_limit` 과 짝이다.** 그 값이 executor 힙의 상한이 되고,
+> 힙·비힙·worker 데몬(그리고 `data` 노드에서는 driver)이 **같은 cgroup** 에 들어간다.
+> 한쪽만 올리면 **첫 풀사이즈 executor 에서 OOM Kill** 이다. 산수는 각 노드의
+> `.env.example` 에 적어 두었다.
 
 여기에 **배포가 겹치면 Gradle·npm 빌드가 메모리를 더 먹는다.** 호스트 스왑 2 GiB 는
 빌드 쪽 완충이지 컨테이너 완충이 아니다 — **컨테이너에는 스왑을 0 준다**(위 "Swap").

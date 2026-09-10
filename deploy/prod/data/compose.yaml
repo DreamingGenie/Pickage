@@ -61,8 +61,10 @@ services:
     # 이 줄을 빼면 Docker 가 총량을 mem_limit 의 2배로 잡아서, 호스트에 스왑이 생긴 뒤로는
     # **1g 짜리 상한이 조용히 2g 가 된다.** 이유와 확인 방법은 ../README.md 의 "Swap".
     memswap_limit: 1g
-    # ↑ 배치 시각에 이 노드는 Spark master(1g) + worker①(9g) + driver(1.5g) 를 함께 든다.
-    #   15Gi 에 여유가 없다 — 상한을 안 걸면 커널이 무엇을 죽일지 우리가 못 고른다.
+    # ↑ 배치 시각에 이 노드는 Spark master(1g) + worker①(10g) 를 함께 든다.
+    #   **driver 를 따로 세지 않는다** — spark-submit 을 worker① 컨테이너에서 exec 하므로
+    #   데몬·driver·executor 가 전부 그 10g 안에 있다. 합계 1 + 1 + 10 = 12g / 15Gi.
+    #   여유가 얇다 — 상한을 안 걸면 커널이 무엇을 죽일지 우리가 못 고른다.
     #   상한을 넘겨 MinIO 가 죽어도 restart 로 돌아오고, 적재 스크립트가 멱등해서
     #   같은 run 으로 재개하면 빠진 파일만 다시 보낸다.
     #   **스왑을 주지 않는 쪽을 골랐다** — 죽는 쪽은 재개가 멱등해서 값이 싸지만,
@@ -136,7 +138,8 @@ services:
       - --cores
       - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
       - --memory
-      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 8g}"
+      # ⚠ mem_limit 10g 에서 데몬·driver·비힙 몫을 뺀 값이다. .env.example 의 산수를 볼 것.
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 7g}"
       # master 가 executor 를 띄우라고 이 포트로 되연결한다. 고정하지 않으면
       # 임의 포트라 방화벽을 통과하지 못하고 job 이 조용히 멈춘다.
       - --port
@@ -156,7 +159,19 @@ services:
     env_file: ./.env
     mem_limit: 10g
     memswap_limit: 10g
-    # ↑ worker 데몬(1g) + executor(8g) + 여유. 상한이라 놀 때는 1g 만 쓴다.
+    # ↑ 이 10g 안에 **셋이 같이** 들어간다 — worker 데몬, executor, 그리고 **driver**.
+    #   spark-submit 을 이 컨테이너에서 exec 하므로 driver 도 같은 cgroup 이다
+    #   (README.md 의 "스모크 잡" 명령을 볼 것). driver 를 바깥에서 따로 세면 안 된다.
+    #
+    #     executor 힙 7g + 비힙 ~0.7g + driver 1g + 데몬 ~1g ≈ 9.7g   vs   10g
+    #
+    #   SPARK_WORKER_MEMORY 는 worker 가 광고하는 **풀 크기**이므로 그 값이 곧 executor
+    #   힙의 상한이다. 위 합이 10g 을 넘게 두면 **첫 풀사이즈 executor 에서 OOM Kill** 이다 —
+    #   광고하는 풀과 상한 중 하나만 올리면 그렇게 된다.
+    #
+    #   배치 중에 실측해서 이 산수를 확인한다:
+    #     docker stats --no-stream spark-worker-1
+    #
     #   넘기면 완충 없이 OOM Kill 이다 — **일부러 그렇게 뒀다.**
     #
     #   Spark 에 스왑을 주면 안 되는 이유: JVM 힙이 스왑으로 밀리면 GC 가 디스크를

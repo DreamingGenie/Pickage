@@ -381,6 +381,7 @@ docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
 docker compose --profile batch exec --user root spark-worker-1 \
   /opt/spark/bin/spark-submit --master spark://172.26.8.249:7077 \
   --total-executor-cores 2 --executor-cores 1 --executor-memory 512m \
+  --driver-memory 1g \
   /opt/work/spark/smoke_distribution.py
 ```
 
