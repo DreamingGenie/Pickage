@@ -39,6 +39,9 @@ type: subject (S15P21A506-290)
 - 코드/문서 작업 전에 Jira 이슈를 찾거나 만들고, **그 키로 브랜치를 딴다** (절차는 AGENTS.md 3번 항목)
 - 병합 흐름은 `기능 브랜치 → develop → main`. `develop`·`main` 에 직접 push 하지 않고 MR로 리뷰받는다
 - MR·Jira 본문은 한국어로 쓴다 (AGENTS.md 2번 항목)
+- **MR 본문은 `.gitlab/merge_request_templates/default.md` 의 섹션을 전부 채운다.**
+  `-o merge_request.description=` 로 쓰지 말 것 — 개행이 안 들어가 템플릿을 못 지킨다.
+  제목만 push 옵션으로 주고, 본문은 웹 편집의 플레인텍스트 모드에서 채운다 (AGENTS.md 2·5번 항목)
 
 ---
 
