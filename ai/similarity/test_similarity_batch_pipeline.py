@@ -306,5 +306,17 @@ class EmbedCorpus(QuietMixin, unittest.TestCase):
         self.assertEqual(vecs.shape, (3, 384))
 
 
+class GateAllowsSuccess(unittest.TestCase):
+    def test_passed_gate_allows(self):
+        self.assertTrue(sbp.gate_allows_success({"status": "PASSED"}, allow_gate_skip=False))
+
+    def test_skipped_allowed_only_with_flag(self):
+        self.assertTrue(sbp.gate_allows_success({"status": "SKIPPED"}, allow_gate_skip=True))
+        self.assertFalse(sbp.gate_allows_success({"status": "SKIPPED"}, allow_gate_skip=False))
+
+    def test_failed_gate_never_allows(self):
+        self.assertFalse(sbp.gate_allows_success({"status": "FAILED"}, allow_gate_skip=True))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -284,6 +284,15 @@ def scoring_gate(candidates: list[dict]) -> dict:
 
 # ── 6. 산출물 (§4.1) ──────────────────────────────────────────────────
 
+def gate_allows_success(gate: dict, allow_gate_skip: bool) -> bool:
+    """`_SUCCESS` 마커를 기록해도 되는가 (= 로더가 이 실행을 적재해도 되는가).
+
+    PASSED 는 항상 허용. SKIPPED 는 --allow-gate-skip 일 때만. 그 외(FAILED 등)는 불허.
+    """
+    status = gate["status"]
+    return status == "PASSED" or (status == "SKIPPED" and allow_gate_skip)
+
+
 def write_output(
     out_dir: str,
     candidates: list[dict],
@@ -313,8 +322,7 @@ def write_output(
     json.dump(manifest, open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
-    gate_ok = gate["status"] == "PASSED" or (gate["status"] == "SKIPPED" and allow_gate_skip)
-    if gate_ok:
+    if gate_allows_success(gate, allow_gate_skip):
         open(os.path.join(out_dir, "_SUCCESS"), "w").close()
         log(f"_SUCCESS 기록 ({out_dir})")
     else:
