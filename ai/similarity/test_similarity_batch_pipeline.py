@@ -407,17 +407,17 @@ class ApplyGates(unittest.TestCase):
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
 
-    def test_retrieve_k_defaults_none(self):
-        self.assertIsNone(sbp.parse_args(self.BASE).retrieve_k)
+    def test_retrieve_k_defaults_to_30(self):
+        self.assertEqual(sbp.parse_args(self.BASE).retrieve_k, 30)
 
     def test_retrieve_k_parsed(self):
         self.assertEqual(sbp.parse_args(self.BASE + ["--retrieve-k", "50"]).retrieve_k, 50)
 
-    def test_gate_defaults_off(self):
-        self.assertFalse(sbp.parse_args(self.BASE).gate)
+    def test_gate_defaults_on(self):
+        self.assertTrue(sbp.parse_args(self.BASE).gate)
 
-    def test_gate_flag_turns_on(self):
-        self.assertTrue(sbp.parse_args(self.BASE + ["--gate"]).gate)
+    def test_no_gate_turns_it_off(self):
+        self.assertFalse(sbp.parse_args(self.BASE + ["--no-gate"]).gate)
 
 
 class GateAllowsSuccess(unittest.TestCase):

@@ -1,18 +1,20 @@
 """유사도 배치 파이프라인 (§4.1) — EC2 #1에서 cron이 배치 시각마다 1회성으로 실행.
 
-코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → top-K 20 → v1 재랭킹(§4.2)
+코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → 의미 검색(넓게) → 구조적 관문 → cos 정렬
 → 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지 않는다(방식 C).
 
 모델 I/O·전처리 규격: ai/MODEL_CONTRACT.md
-설계: docs/Pickage_기능별_개발_구상안_0909.md §3.3, §4.1, §4.2 (DEC-RANK-20260909-01)
+설계: docs/Pickage_기능별_개발_구상안_0909.md §3.3, §4.1, §4.2
+2단계 랭커(넓게 검색 → 관문 → 정렬): 제안_유사후보_v1랭커_2단계분리_260910.md (2026-09-10 팀 승인)
 
 현재 구현 상태 (S15P21A506-168):
   1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
-  3 top-K 20         구현 (정규화 벡터 블록 행렬곱). --retrieve-k 로 검색 폭 분리 가능
-  4 재랭킹           부분 — cos 유사도 기반. move_lift·deprecated 지목 가산 없음 (0909).
+  3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
+  4 구조적 관문      구현 — plugin/adapter·same-family drop (--gate, 기본 on).
                       보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
-  4.5 구조적 관문    --gate 뒤 (기본 off, 제안 §2.2 미승인). plugin/adapter·same-family drop
+  4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
+                      move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
   6 산출물           구현 (로컬 디렉터리. s3:// 출력은 후속)
 """
@@ -204,7 +206,7 @@ def embed_corpus(
     return vectors
 
 
-# ── 3. top-K 20 (§4.1) ────────────────────────────────────────────────
+# ── 3. 의미 검색 top-K (§4.1) ─────────────────────────────────────────
 
 def top_k(vectors: np.ndarray, names: list[str], k: int, query_block: int) -> list[tuple[int, int, float]]:
     """정규화 벡터 블록 행렬곱으로 패키지별 top-k(자기 자신 제외). (base_idx, cand_idx, cos)."""
@@ -224,7 +226,7 @@ def top_k(vectors: np.ndarray, names: list[str], k: int, query_block: int) -> li
     return results
 
 
-# ── 4. 재랭킹 (§4.2) ──────────────────────────────────────────────────
+# ── 4. 정렬 (§4.2) — 후보를 cos 유사도 순으로 (main 에서 관문 뒤에 실행) ──
 
 def rerank(
     hits: list[tuple[int, int, float]],
@@ -269,10 +271,10 @@ def rerank(
     return out
 
 
-# ── 4.5 구조적 관문 (제안 §2.2 — --gate 플래그 뒤, 기본 off) ─────────────
+# ── 4 (관문). 구조적 관문 (§4.2, 2단계 랭커 — --gate 기본 on) ───────────
 #
-# 재랭킹 결과 중 "설명은 비슷하지만 대안이 아닌" 후보를 점수 조정이 아니라
-# 통과/탈락으로 걸러낸다. 각 판정은 순수 함수 — 파이프라인 연결은 뒤(§main).
+# 검색 결과 중 "설명은 비슷하지만 대안이 아닌" 후보를 점수 조정이 아니라
+# 통과/탈락으로 걸러낸다. main 에서 정렬(위 §4) 앞에 실행. 각 판정은 순수 함수.
 
 _PLUGIN_MARKERS = {"plugin", "adapter", "preset", "loader"}
 
@@ -415,12 +417,11 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-age-months", type=int, default=12)
-    p.add_argument("--top-k", type=int, default=20)
-    p.add_argument("--retrieve-k", type=int, default=None,
-                   help="검색 단계 후보 수 (기본 = --top-k). 제안 §2.1-1: 최종보다 넉넉히 (예: 50)")
+    p.add_argument("--retrieve-k", type=int, default=30,
+                   help="검색 단계 후보 수 (DEC-RANK: 최종보다 넉넉히 뽑아 관문으로 좁힌다)")
     p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
-    p.add_argument("--gate", action="store_true",
-                   help="구조적 관문(plugin/adapter·same-family drop) 적용. 제안 §2.2 — 기본 off")
+    p.add_argument("--gate", action=argparse.BooleanOptionalAction, default=True,
+                   help="구조적 관문(plugin/adapter·same-family drop). 기본 on, --no-gate 로 끔")
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--query-block", type=int, default=2000)
     p.add_argument("--allow-gate-skip", action="store_true",
@@ -445,9 +446,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     state = load_state(args.state)
     vectors = embed_corpus(rows, texts, embedder, state, args.batch_size)
 
-    retrieve_k = args.retrieve_k or args.top_k
-    hits = top_k(vectors, names, retrieve_k, args.query_block)
-    log(f"검색 top-{retrieve_k}: {len(hits)} 쌍 ({len(names)} base)")
+    hits = top_k(vectors, names, args.retrieve_k, args.query_block)
+    log(f"검색 top-{args.retrieve_k}: {len(hits)} 쌍 ({len(names)} base)")
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate)
@@ -466,8 +466,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         "params": {
             "min_dependents": args.min_dependents,
             "max_age_months": args.max_age_months,
-            "top_k": args.top_k,
-            "retrieve_k": retrieve_k,
+            "retrieve_k": args.retrieve_k,
+            "user_k": args.user_k,
             "gate": args.gate,
             "gate_drops": gate_drops,
             "raw_text_column": args.raw_text_column,
