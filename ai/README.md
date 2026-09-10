@@ -88,6 +88,13 @@
 - 내부 top-K 20 → 사용자 노출 최대 3 → 상위 2개 기본 선택
 - 내부 score·계수는 API에 노출하지 않는다
 
+### 제안 (미승인 — `제안_유사후보_v1랭커_2단계분리_260910.md`)
+
+`similarity_batch_pipeline.py` 에 아래가 **플래그 뒤로만** 들어가 있다. 기본값에서는 위 확정 규칙 그대로 동작한다.
+
+- `--retrieve-k` : 검색 단계 후보 수를 최종 노출 수와 분리 (기본 = `--top-k`)
+- `--gate` : `rerank` 전에 구조적 관문 적용 — 이름·keywords 로 plugin/adapter·same-family(우산·하위모듈·스코프) 후보를 drop (기본 off). 보완재 감점(의존 그래프)은 미구현
+
 ## 관련 문서
 
 - `docs/Pickage_기능별_개발_구상안_0909.md` — 시스템 확정안 (0904 는 `docs/history/` 로 이관)

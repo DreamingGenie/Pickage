@@ -9,9 +9,10 @@
 현재 구현 상태 (S15P21A506-168):
   1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
-  3 top-K 20         구현 (정규화 벡터 블록 행렬곱)
+  3 top-K 20         구현 (정규화 벡터 블록 행렬곱). --retrieve-k 로 검색 폭 분리 가능
   4 재랭킹           부분 — cos 유사도 기반. move_lift·deprecated 지목 가산 없음 (0909).
                       보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  4.5 구조적 관문    --gate 뒤 (기본 off, 제안 §2.2 미승인). plugin/adapter·same-family drop
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
   6 산출물           구현 (로컬 디렉터리. s3:// 출력은 후속)
 """
