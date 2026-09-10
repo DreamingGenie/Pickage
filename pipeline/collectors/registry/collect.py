@@ -137,6 +137,11 @@ class Writer:
         if self.n >= self.rotate:
             self._open()
 
+    def flush(self):
+        """체크포인트 commit 직전에 호출. gzip 버퍼를 디스크에 내려 강제 종료 시 '체크포인트는 done 인데 행은 없는' 패키지가 생기지 않게 한다."""
+        if self.fh:
+            self.fh.flush()
+
     def close(self):
         if self.fh:
             self.fh.close()
@@ -323,8 +328,10 @@ def main():
             if len(recent) > 100:
                 recent.pop(0)
             if (i + 1) % 20 == 0:
+                W.flush()
                 db.commit()
             if (i + 1) % 100 == 0 or i + 1 == len(pending):
+                W.flush()
                 db.commit()
                 el = time.time() - started
                 per_task = (recent[-1] - recent[0]) / max(1, len(recent) - 1) if len(recent) > 1 else 0

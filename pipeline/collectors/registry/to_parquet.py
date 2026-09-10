@@ -67,6 +67,11 @@ for f in incomplete:
 if newest in incomplete:
     print(f"[to_parquet] skipping in-progress part: {os.path.basename(newest)}")
     files = files[:-1]
+# 파일 회전 직후 강제 종료되면 gzip 헤더도 없는 0바이트 part 가 남는다. 읽을 줄이 없으니 건너뛴다(DuckDB 는 "not a GZIP stream" 으로 멈춤).
+empty = [f for f in files if os.path.getsize(f) == 0]
+if empty:
+    print(f"[to_parquet] skipping {len(empty)} empty part(s): {', '.join(os.path.basename(f) for f in empty)}")
+    files = [f for f in files if f not in empty]
 assert files, "no complete parts yet"
 
 DEP = "STRUCT(Name VARCHAR, Requirement VARCHAR)[]"
