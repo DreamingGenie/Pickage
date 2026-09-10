@@ -1,7 +1,7 @@
 # Pickage 0909→0910 기획변경 상세분석
 
-작성 기준일: 2026-09-10  
-연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`  
+작성 기준일: 2026-09-10
+연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`
 유지 결정: `DEC-COMMUNITY-20260909-01`, `DEC-RANK-20260909-01`
 
 이 문서는 2026-09-09 기획 세트(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)에서
@@ -10,6 +10,28 @@ Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서�
 정리까지 포함한다. 0909의 후보 ranking 결정과 GitHub 커뮤니티 단일 패키지/Spring-GMS 한정 예외는
 폐기하지 않고 유지했다.
 
+## 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`)
+
+정합성 검수 뒤 제품·개발팀과 다음을 확정했다. 이 절은 아래의 당시 변경 이력을 지우지 않고, 이후
+후속 구현 계약과 Figma·0910 문서에 적용할 최종 해석을 기록한다.
+
+1. **PDF 적격성**: 기능 비교의 패키지별 현재 선택 버전 결과가 완료되어야 PDF를 생성한다. 버전 변경 후 기존 결과는 보존하지만 PDF는 `BLOCKED`다. 따라서 PDF는 기능 비교가 제공되는 단계의 통합 산출물이며, 생태계 MVP 화면의 완료 조건과 구분한다.
+2. **예시 기준 패키지**: 입력·후보 선택·보고서·PDF의 예시는 `pino → winston → bunyan` 순서로 통일한다.
+3. **날짜 표기**: 관측 구간은 `2025.03.03–2026.08.31 · 78주 구간`, Version Share 기준일은 `2026.09.02`로 통일한다. `최근 78주`처럼 기준일이 흔들리는 표현은 쓰지 않는다.
+4. **bunyan**: 자동 ranking 후보가 아니라 사용자가 수동으로 추가한 과거 비교 대상 예시다.
+5. **근거 ID**: 한 ReportSnapshot 안에서 `package@version + sequence`가 하나의 근거를 가리킨다. 화면에는 `pino@10.3.1 · E01`처럼 보이고, 내부 복사값은 reportSnapshotId를 포함한다.
+6. **Dependency signed delta**: 현행 코드대로 조회 구간의 첫·마지막 유효 관측값 차이로 표시한다. 바로 직전 Snapshot 계약은 철회한다.
+7. **관측 공백**: 주간 수집에서 8일을 넘는 간격은 원인을 단정하지 않고 선을 끊어 연속 관측으로 오해하지 않게 한다.
+8. **지표 실패 격리**: Dependents·Downloads 중 하나가 실패해도 정상 카드와 패키지 정보는 유지하며, 실패 카드 안에서만 재시도한다.
+9. **입력 구현 경계**: 현행 sample registry는 시제품 데이터로 보존한다. 입력과 수동 추가는 자동완성 목록을 직접 선택해야 하며, 실제 연동 시에는 검색 결과의 선택 토큰과 후보 API로 교체한다.
+10. **78주·로그축**: 프런트·백엔드 조회 상한을 78주로 맞추고, 0을 포함하는 `log1p` 로그축을 사용한다.
+11. **Version Share 확장**: 사용자는 최신 완료 Snapshot 기준의 버전 분포를 본다. 이를 위해 원본 requirement·해석 상태·분모를 보존하는 전용 집계 산출물을 추가하며, 현 ERD는 확장 목표 설계로 존중한다.
+12. **준비 상태**: 날짜가 snapshot 테이블에 있다는 사실만으로 자료 준비 완료로 추정하지 않는다. 지표별 완료 실행·기준일·자료 상태를 묶어 게시하고 PDF도 같은 ReportSnapshot을 고정한다.
+13. **ERD 해석**: ERD는 개발팀이 합의한 최신 목표 설계다. 현재 코드·마이그레이션과의 차이는 오류가 아니라 이행 과제로 기록한다.
+14. **유사 후보 저장**: ERD의 `similar_package`는 현재 서빙 결과 한 벌을 보관한다. 새 모델 결과는 staging 검증 후 원자 교체하고, 모델 버전과 검증 결과는 실행 manifest로 추적한다.
+
+이번 기획 작업의 수정 대상은 요구사항·서비스 기획서·IA·개발 구상안·Figma다. 프런트·백엔드·데이터·배포 등 실제 구현 파일은 수정하지 않으며, 78주 상한·차트·입력·상태 처리 등 구현 필요사항은 WORKLOGS의 후속 목록으로 관리한다. API wire와 Version Share 확장 스키마는 개발팀 Notion/Swagger 반영 전까지 OPEN으로 남긴다.
+
 ## 결정 1 — Dependency 유지·유입·이탈을 MVP에서 제거하고 Snapshot signed 증감으로 전환 (`DEC-DEPENDENCY-DELTA-20260910-01`)
 
 **무엇이 바뀌었나**: 0909 MVP는 Direct Dependency 카드 하단에서 `유지·유입·이탈`을 각각 계산해
@@ -17,11 +39,11 @@ Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서�
 동일 dependent의 식별자 집합을 보유하지 않는다고 확인하면서, 이 세 상태는 현재 데이터만으로 계산할
 수 없는 기능으로 재분류했다.
 
-0910 MVP는 같은 표시 필터(`Total` 또는 특정 version)에서 **현재 Snapshot과 바로 직전 Snapshot의
-직접 의존 선언 수 차이만** signed 값으로 표시한다. 계산은 서버 summary가 아니라 프론트 `adapter.ts`가
-trend point로 수행한다. `+N`은 총수 증가, `-N`은 총수 감소이며 유입/이탈을 뜻하지 않는다. 바로 직전
-Snapshot이 없으면 `0`이나 더 오래된 시점으로 대체하지 않는다. `유지·유입·이탈` 자체는 기능-08 확장
-검토로 이동했다.
+0910 최종 계약은 같은 표시 필터(`Total` 또는 특정 version)와 현재 조회 구간에서 **첫 유효 관측값과
+마지막 유효 관측값의 직접 의존 선언 수 차이만** signed 값으로 표시한다. 계산은 서버 summary가 아니라
+프론트 `adapter.ts`가 trend point로 수행한다. `+N`은 총수 증가, `-N`은 총수 감소이며 유입/이탈을
+뜻하지 않는다. 유효 관측값이 2개 미만이면 `0`으로 대체하지 않는다. `유지·유입·이탈` 자체는 기능-08
+확장 검토로 이동했다.
 
 **왜 바뀌었나**: aggregate count 두 개만으로는 동일 dependent가 계속 남았는지, 새로 들어왔는지,
 사라졌는지를 식별할 수 없다. 가능한 상태 조합이 여러 개이므로 count 차이에서 identity flow를
@@ -30,15 +52,14 @@ Snapshot이 없으면 `0`이나 더 오래된 시점으로 대체하지 않는�
 
 | 문서 | 위치 | 0909 | 0910 |
 |---|---|---|---|
-| 서비스 기획서 | MVP 범위, §7.2, §7.6, PDF, MVP 완료범위 | 직접 의존 기준 유지·유입·이탈 | 현재−바로 직전 Snapshot signed 총수 증감, 유지·유입·이탈은 확장 |
+| 서비스 기획서 | MVP 범위, §7.2, §7.6, PDF, MVP 완료범위 | 직접 의존 기준 유지·유입·이탈 | 조회 구간 첫−마지막 유효 관측 signed 총수 증감, 유지·유입·이탈은 확장 |
 | 요구사항 명세서 | §9.1, 기존 §9.2, §13 PDF, 기능 연결 | 기능-08-R01~R04가 MVP 유지·유입·이탈 제공 | 기능-07이 delta를 소유, 기능-08은 확장 검토 |
 | 메뉴구조 IA | §8.2~8.3, PDF 구조 | 하단 `유지·유입·이탈` 3종 지표 | 비교 패키지별 동일 signed delta 카드 |
-| 기능별 개발 구상안 | §5.1~5.2, 저장/PDF/시험 | `summary{retained,inflow,outflow}` 등 묶음 계약 | server summary 삭제, adapter current-vs-immediate-previous 계산 |
-| Figma | 화면03A/PDF/Requirement Map | 유지·유입·이탈 3카드·old Snapshot pair | package별 +/- 카드, 바로 직전→현재 기준, old hidden frame 제거 |
+| 기능별 개발 구상안 | §5.1~5.2, 저장/PDF/시험 | `summary{retained,inflow,outflow}` 등 묶음 계약 | server summary 삭제, adapter 조회 구간 첫·마지막 유효 관측 계산 |
+| Figma | 화면03A/PDF/Requirement Map | 유지·유입·이탈 3카드·old Snapshot pair | package별 +/- 카드, 조회 구간 첫·마지막 유효 기준, old hidden frame 제거 |
 
-**추가로 명확해진 것**: 그래프의 visible 조회 범위가 바로 직전 Snapshot을 포함하지 않더라도 delta
-계산에는 current/previous 두 point가 필요하다. 이를 어떤 fetch 방식으로 확보할지는 구현에서 결정하고,
-기획이 새 endpoint를 임의로 만들지 않는다.
+**추가로 명확해진 것**: delta는 그래프에 표시된 조회 범위와 같은 trend에서 첫·마지막 유효 point를
+사용한다. 별도의 직전 Snapshot을 숨겨서 가져오거나 새 endpoint를 임의로 만들지 않는다.
 
 ## 결정 2 — API 정본을 개발팀 Notion 명세로 올리고 UI/API 책임 경계 정리 (`DEC-API-ALIGN-20260910-01`)
 
@@ -93,7 +114,7 @@ Version Share 5개 항목은 모두 `서버 반영=No`였다. 따라서 `version
 | 요구사항 명세서 | 화면-01, 기능-01·02, 공통-R14 | `패키지 확인` 버튼, 확인 중/성공/실패 | 검색 결과 직접 선택 전 CTA 비활성 |
 | 메뉴구조 IA | §5 화면-01 | 입력 우측 `패키지 확인` | autocomplete list + selected package + CTA |
 | 기능별 개발 구상안 | §4.0 | npm 존재 확인 중심 | `/packages/search?q=` selection gate, 직접 추가도 재사용 |
-| Figma | `485:275`, 화면00/Requirement Map | 입력 + `패키지 확인` + “npm에서 확인됨” | `win` → 목록 → `winston` 선택 → 다음 CTA |
+| Figma | `485:275`, 화면00/Requirement Map | 입력 + `패키지 확인` + “npm에서 확인됨” | `pin` → 목록 → `pino` 선택 → 다음 CTA |
 
 ## 결정 4 — EXT-01/02/04를 “새 화면”이 아니라 생태계 보고서 내부 확장으로 재정의 (`DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`)
 
@@ -105,7 +126,7 @@ Version Share 5개 항목은 모두 `서버 반영=No`였다. 따라서 `version
 - EXT-04 간접·전이 Dependency: 기존 Dependency 카드 안의 `직접 | 간접·전이` 범위 전환
 - 기능 비교와 GitHub 커뮤니티만 실제 확장 report tab
 
-EXT-01에는 `winston / pino / bunyan`처럼 분석 패키지를 고르는 탭을 두고 한 번에 한 패키지의
+EXT-01에는 `pino / winston / bunyan`처럼 분석 패키지를 고르는 탭을 두고 한 번에 한 패키지의
 고착 분포를 본다. EXT-02는 3개 패키지에서 가능한 최대 6개의 directed edge를 표가 아니라
 `FROM → TO` flow map으로 보여주며, `전체 / package focus`를 지원한다.
 
@@ -162,11 +183,11 @@ OPEN으로 남겼다.
 - Dependency Total은 고유 프로젝트 수가 아니라 버전별 `dependents_count` 합계라고 명시
 - 다중 패키지 Dependency/Downloads 추이는 로그축 사용
 - 유효 trend point가 2개 이하이면 `데이터 축적 중 (N주차)` 표시
-- visible range와 delta 계산용 current/previous point를 분리
+- visible range 안의 첫·마지막 유효 point를 delta 기준으로 통일
 - PDF 생성 실패 `FAILED`와 생성 완료 후 다운로드 실패를 분리
 - PDF의 GitHub 커뮤니티 확장 부록도 기준 패키지 하나만 대상으로 정합
 - 서버 정합 중 빠질 수 있던 Spring→GMS bounded 예외 복원
-- Figma old Snapshot pair, standalone “18개월”, hidden retained/inflow/outflow reference 정리
+- Figma old Snapshot pair를 조회 구간 첫·마지막 기준으로 정리하고 standalone “18개월”, hidden retained/inflow/outflow reference 정리
 
 **왜 바뀌었나**: 개별 문서만 읽으면 문제가 없어 보여도 API의 데이터 의미, 화면의 예시 문구,
 PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간이 남아 있었다. 이 단계에서는 새로운

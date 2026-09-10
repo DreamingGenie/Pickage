@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0910
 
-작성 기준일: 2026-09-04 (2026-09-10 Dependency delta + API 정합 계약 반영; 기존 랭커·Spring/GMS·커뮤니티 결정 유지; 실제 EC2 서버 배치·사양 정합 반영)  
-문서 상태: Approved (2026-09-10 갱신 — effective_at: 2026-09-10. `DEC-DEPENDENCY-DELTA-20260910-01`: MVP Direct Dependency의 `retained/inflow/outflow` 계약을 제거하고 현재/바로 직전 Snapshot의 총수 차이만 표시한다. `DEC-API-ALIGN-20260910-01`: HTTP 정본은 개발팀 Notion API 명세이며 서버 반영 완료 시 Swagger를 최종 기준으로 한다. Dependency 특정 버전은 `version` query parameter, signed delta는 프론트 `adapter.ts` 계산, 후보 ranking API 상세 계약은 임베딩 모델 실제 결과 확인 전까지 보류한다. 2026-09-09의 `DEC-COMMUNITY-20260909-01`, `DEC-RANK-20260909-01`은 유지. `DEC-SERVER-ALIGN-20260910-01`: 실제 서버 배치와 물리 사양은 개발팀 `서버 정보.pdf`를 인프라 정본으로 하며, 과거 `t4g.xlarge`·MinIO `EBS 200GB`·Redis/History 확장 가정과 충돌하면 본 결정을 우선한다)  
+작성 기준일: 2026-09-04 (2026-09-10 Dependency delta + API 정합 계약 반영; 기존 랭커·Spring/GMS·커뮤니티 결정 유지; 실제 EC2 서버 배치·사양 정합 반영)
+문서 상태: Approved (2026-09-10 갱신 — effective_at: 2026-09-10. `DEC-RECONCILIATION-20260910-01`: 0910 정합성 검수 토론 결과에 따라 signed delta는 현행 `adapter.ts`의 조회 구간 첫·마지막 유효 관측값 차이로 고정하고, PDF는 기능 비교 선택 버전 결과가 최신일 때만 생성한다. `similar_package` ERD는 확장 개발의 목표 설계를 우선하며 현재 모델 결과 한 벌을 원자 게시한다. 기존 API·서버·후보 ranking·커뮤니티 결정은 유지)
 연결 문서: `Pickage_요구사항_명세서_0910.md`, `Pickage_메뉴구조_IA_0910.md`, `Pickage_서비스_기획서_0910.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 서버의 실제 컴포넌트 배치와 물리 자원은 2026-09-10 개발팀 `서버 정보.pdf`를 우선 정본으로 하고, 그 위에 기존 0904 시스템 아키텍처의 데이터·모델·배포 결정을 결합한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -27,7 +27,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 | Version Share | 최신 기준일 Snapshot 집계 | 시계열이 아니라 현재 공개 의존 조건 분포를 제공 |
 | 기능 비교 [확장] | Data + AI + RAG 우선, 불가 시 AI + RAG | 고비용 기능 분석을 MVP와 분리 |
 | GitHub 커뮤니티 [확장] | 짧은 TTL 갱신 캐시 | 최신성과 API 제한 균형 |
-| PDF | 완료 생태계 ReportSnapshot 재사용 + EC2 #1(data) worker 생성 | 화면과 다른 재계산 방지; PDF 실행 부하는 app 서빙 경로와 분리 |
+| PDF | 완료 생태계 ReportSnapshot과 현재 선택 버전의 완료 기능 비교 결과 재사용 + EC2 #1(data) worker 생성 | 화면과 다른 재계산 방지; PDF 실행 부하는 app 서빙 경로와 분리 |
 
 ### 1.2 MVP 버전 상태
 
@@ -35,7 +35,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 2. Dependency 표시 버전: 직접 의존 그래프의 `Total` 또는 특정 버전
 3. Version Share: 버전 선택 상태가 아니라 최신 Snapshot 기준일과 버전 계열 분포
 
-기능 비교 버전은 확장 기능 내부 상태이며 MVP 상태 모델과 분리한다.
+기능 비교 버전은 확장 기능 내부 상태이며 생태계 화면 상태와 분리한다. 다만 PDF 적격성에서는 각 비교 패키지의 현재 선택 버전 결과가 완료되었는지 검사한다.
 
 ### 1.3 후보 ranking 원칙
 
@@ -54,7 +54,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 3. 정규화 벡터 행렬곱으로 패키지별 top-K 20 후보 생성
 4. cos 유사도를 기본 score로 두고 dependents 교집합 `> 0.3`인 보완재 감점·자격 미달 drop을 적용 (`move_lift` 항은 배제 확정 — 대체 이동 쌍 관측 가산은 더 이상 사용하지 않는다)
 5. 채점 게이트: deprecated 51K 홀드아웃으로 Recall@20(임베딩·후보 생성 성적)·Recall@10(파이프라인 전체 성적)을 측정해 직전 운영값과 비교하고, 하락 시 적재를 중단하고 알림을 발생시킨다
-6. 게이트 통과분만 `similar_packages`를 `model_ver` 병렬 적재하고 행수 가드 후 `model_production` 포인터를 전환
+6. 게이트 통과분만 staging 후보 결과를 검증하고, 행수 가드 후 ERD의 현재 `similar_package` 한 벌을 원자 교체하며 실행 manifest에 모델 버전을 기록
 7. 화면에는 최종 유효 후보 최대 3개만 전달하고 상위 2개를 기본 선택
 
 **학습 개시 판정 기준**: Recall@20. 정답이 top-20 후보에 반복적으로 못 들면 score 조정으로 해결할 수 없는 문제이므로 그 시점에 아래 3.5절 학습 트랙을 연다(Recall@10·MRR 기반 승격 게이트와는 별개 판단 시점).
@@ -109,7 +109,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 | 후보 ranking | 의미 관련성 + 공개 생태계 신호 결합 | ranked candidates (HTTP endpoint/schema는 임베딩 결과 검증 후 확정) | MVP |
 | 비교 대상 확정 | 최대 3개·중복·존재 검증 | comparisonPackages | MVP |
 | 생태계 변화 | 직접 의존 사전 집계·기간 자료 결합 | Direct Dependency series + Snapshot delta, Downloads, Version Share Snapshot | MVP |
-| PDF | 생태계 적격성 검사·스냅샷·문서 생성 | reportSnapshot, pdfJob | MVP |
+| PDF | 생태계·현재 선택 버전 기능 비교 적격성 검사, 스냅샷·문서 생성 | reportSnapshot, pdfJob | 확장(기능 비교 제공 이후) |
 | 기능 비교 | 정확한 버전 근거 retrieval·선택적 구조화·AI 분석 | assessment, evidence, narrative | 확장 |
 | 재분석 | 이전 결과 보존·새 실행·차이 생성 | analysisRun, diff | 확장 |
 | Evidence Drawer | 셀 단위 근거 응답 | assessment + grouped evidence | 확장 |
@@ -129,7 +129,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 | 기능-07 Dependency | 5.1·5.2장 | MVP 직접 의존 |
 | 기능-08 유지·유입·이탈 | 12.6장 | 확장 검토 |
 | 기능-09 생태계 변화 통합 | 5장 | MVP |
-| 기능-14 PDF | 13장 | MVP |
+| 기능-14 PDF | 13장 | 확장(기능 비교 제공 이후) |
 | 기능-15 서비스 소개 | 정적 화면, 사용자 문서 기준 | MVP |
 | 기능-16 자료 상태·오류 | 4·5·13장 및 확장 오류 | 공통 |
 | 기능-17 Version Share | 5.4장 | MVP Snapshot |
@@ -210,7 +210,7 @@ flowchart LR
 
 - BigQuery/deps.dev와 npm API 수집·집계의 주 실행 위치는 #1 data다.
 - 외부 GPU 학습 서버를 사용하는 기존 모델 학습 트랙은 유지하되, 이번 `서버 정보.pdf`는 GPU 사양·접속 방식을 새로 확정한 자료가 아니다.
-- 학습 결과의 등록·승격 규칙은 기존 MLflow/model_production 계약을 유지한다.
+- 학습 결과의 등록·승격은 MLflow alias와 `etl_load_execution` 실행 manifest를 사용해 추적한다.
 
 ### 3.5 모델 학습·스위칭 사이클
 
@@ -218,8 +218,8 @@ flowchart LR
 1. 배치가 매 Snapshot에서 학습쌍을 갱신한다.
 2. 외부 GPU가 학습 후 모델을 등록한다.
 3. #1 data의 평가/승격 단계가 Recall@10·MRR 개선을 확인한다.
-4. candidate 모델로 전수 재임베딩 후 `similar_packages(vN+1)`를 병렬 적재하고 shadow 비교한다.
-5. 승격 시 `@production` alias와 `model_production` 포인터를 전환하며 롤백도 같은 포인터 전환으로 수행한다.
+4. candidate 모델로 전수 재임베딩 후 staging 후보 결과를 적재하고 shadow 비교한다.
+5. 승격 시 `@production` alias를 전환하고, 검증된 staging 결과를 현재 `similar_package`로 원자 게시한다. 롤백은 이전 검증 결과를 다시 게시하며 실행 manifest로 추적한다.
 
 ### 3.6 배포·실행 기준
 
@@ -294,7 +294,7 @@ Redis와 Spark History Server는 더 이상 `향후 확장`으로 분류하지 �
 3. **top-K 생성**: 정규화 벡터 행렬곱으로 패키지당 20개를 만든다.
 4. **재랭킹**: cos 유사도를 기본 score로 두고 dependents 교집합 `> 0.3`인 보완재 감점, 자격 미달 drop을 적용한다.
 5. **채점 게이트**: deprecated 51K 홀드아웃으로 Recall@20·Recall@10을 측정해 직전 운영값과 비교한다. 하락하면 6번 적재를 중단하고 알림을 발생시킨다.
-6. **스왑**: 게이트를 통과한 결과만 `similar_packages`를 `model_ver`별로 병렬 적재하고 행수 가드 통과 후 `model_production` 포인터를 전환한다.
+6. **게시**: 게이트를 통과한 staging 결과만 행수 가드를 통과한 뒤 현재 `similar_package`로 원자 교체하고 실행 manifest에 모델 버전·입력 snapshot·검증 결과를 기록한다.
 
 ### 4.2 v1 재랭킹 규칙
 
@@ -313,7 +313,7 @@ score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질
 
 - **Recall@20** = 임베딩(후보 생성) 단계만의 성적. 정답이 top-20 후보 안에 들었는지로 측정한다.
 - **Recall@10** = 재랭킹까지 마친 파이프라인 전체의 성적. 사용자에게 실제 노출되는 순서에 정답이 있는지로 측정한다.
-- 두 지표 모두 deprecated 51K 홀드아웃 셋으로 매 배치 실행마다 측정하고, 직전 운영값 대비 하락하면 해당 배치 결과의 `similar_packages` 적재를 중단하고 알림을 보낸다 — 저품질 결과가 `model_production`으로 스왑되는 것을 막는 안전장치다.
+- 두 지표 모두 deprecated 51K 홀드아웃 셋으로 매 배치 실행마다 측정하고, 직전 운영값 대비 하락하면 해당 staging 결과의 게시를 중단하고 알림을 보낸다 — 저품질 결과가 현재 `similar_package`를 교체하지 못하게 하는 안전장치다.
 - Recall@20이 반복적으로 하락하면 3.5절의 모델 학습 트랙을 여는 판단 기준이 된다(재랭킹 계수 튜닝으로 해결 가능한 문제가 아니라는 신호이므로).
 - **알려진 한계**: Live 경쟁자(예: express↔fastify)처럼 이미 널리 쓰이는 대안 간 비교는 임베딩 단독 성능에 의존한다. 이 한계는 보완하지 않고 한계로 명시한다.
 
@@ -350,11 +350,11 @@ score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질
 **제품 계약**
 
 - MVP는 직접 의존 관계만 집계한다.
-- MVP signed 증감은 각 패키지의 현재 표시 필터와 동일한 범위에서 **현재 Snapshot과 바로 직전 Snapshot**의 직접 의존 선언 수 차이만 사용한다.
-- signed 증감은 총수 변화이며 동일 dependent의 유지·유입·이탈을 의미하지 않는다. 사용자가 그래프 조회 기간을 바꿔도 비교 기준은 기간 시작/끝이 아니라 `현재 Snapshot vs 바로 직전 Snapshot`으로 고정한다.
-- 바로 직전 Snapshot이나 필요한 시점 자료가 없으면 증감값 `0`을 만들지 않고 자료 상태를 남긴다. 더 오래된 point로 건너뛰어 비교하지 않는다.
-- 같은 현재/바로 직전 Snapshot 쌍·표시 필터·규칙이면 같은 signed 증감이 계산되어야 한다.
-- 서버/DB는 패키지별 직접 의존 시계열을 제공하고, signed 증감은 별도 서버 summary로 저장·반환하지 않는다. 프론트 `adapter.ts`가 현재 Snapshot point와 바로 직전 Snapshot point를 사용해 계산한다.
+- MVP signed 증감은 각 패키지의 현재 표시 필터와 동일한 **조회 구간**에서 첫 유효 관측값과 마지막 유효 관측값의 직접 의존 선언 수 차이만 사용한다.
+- signed 증감은 총수 변화이며 동일 dependent의 유지·유입·이탈을 의미하지 않는다. 사용자가 그래프 조회 기간을 바꾸면 비교 기준도 해당 기간의 양 끝으로 바뀌며, 화면에 두 기준일을 함께 표시한다.
+- 유효 point가 2개 미만이면 증감값 `0`을 만들지 않고 자료 상태를 남긴다.
+- 같은 조회 구간·표시 필터·규칙이면 같은 signed 증감이 계산되어야 한다.
+- 서버/DB는 패키지별 직접 의존 시계열을 제공하고, signed 증감은 별도 서버 summary로 저장·반환하지 않는다. 프론트 `adapter.ts`가 해당 trend의 첫·마지막 유효 point를 사용해 계산한다.
 - 기능-08 유지·유입·이탈과 간접·전이 의존은 MVP 완료 조건이 아니며 확장 파이프라인으로 분리한다.
 - `DEC-DEPENDENCY-DELTA-20260910-01`에 따라 총수 차이만으로 retained/inflow/outflow를 역산하거나 추정하지 않는다.
 
@@ -362,7 +362,7 @@ score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질
 
 - EC2 #1 cron이 deps.dev BigQuery를 조회하고 Spark master + worker①/②가 S1~S7 변환·집계를 수행한다.
 - 상태와 중간 산출물은 MinIO에 저장하며 Spark 자체는 무상태로 운용한다.
-- 배치 말미에는 `\copy → staging → RENAME` 스왑으로 PostgreSQL의 서빙 테이블을 무중단 갱신한다.
+- 현재 package/version·calendar 로더는 transaction·lock·임시 staging 후 `INSERT … ON CONFLICT UPDATE`와 `etl_dataset_current` 게시로 갱신한다. 후보 결과의 원자 게시 전략은 §14.4의 `similar_package` 계약을 따른다.
 - 필요한 partition 수·executor 메모리·동시성은 두 실서버 각각 **4 vCPU / 15Gi**의 한계와 현재 동시 배치 서비스 부하를 기준으로 튜닝한다.
 
 ### 5.2 Dependency 표시·API 계약
@@ -392,10 +392,10 @@ GET /packages/dependents?names=winston&from={from}&to={to}&version=3.19.0
 #### signed 증감 계산
 
 - 서버 응답에 `summary{previous_count,current_count,delta}` 같은 별도 객체를 요구하지 않는다.
-- 보고서의 signed 증감은 프론트 `adapter.ts`가 **현재 Snapshot point와 바로 직전 Snapshot point**를 찾아 `current.value - previous.value`로 계산한다.
-- 현재 화면의 visible `from/to` 범위가 바로 직전 Snapshot을 포함하지 않더라도 delta 계산 입력에는 current/previous 두 point가 확보되어야 한다. 이를 기존 trend 요청 범위 확장, 별도 최소 조회 등 어떤 방식으로 확보할지는 구현에서 결정하며 이 문서가 새 endpoint를 임의 생성하지 않는다.
-- 현재/바로 직전 두 point가 모두 유효할 때만 계산한다. 직전 Snapshot이 없거나 자료 상태상 계산할 수 없으면 값 대신 해당 자료 상태를 표시한다. 더 오래된 Snapshot을 직전 값처럼 사용하지 않는다.
-- UI 조회 기간 변경은 그래프 범위만 바꾸며 signed 증감의 기준을 기간 시작/끝 차이로 변경하지 않는다.
+- 보고서의 signed 증감은 프론트 `adapter.ts`가 **현재 화면 trend의 첫·마지막 유효 point**를 찾아 `last.value - first.value`로 계산한다.
+- 계산 입력은 화면에 표시하는 `from/to` 범위의 trend 응답에 한정한다. 별도 최소 조회나 새 endpoint를 요구하지 않는다.
+- 유효 point가 2개 미만이거나 자료 상태상 계산할 수 없으면 값 대신 해당 자료 상태를 표시한다.
+- UI 조회 기간 변경은 그래프 범위와 signed 증감 기준을 함께 변경하며, 두 기준일을 카드 메타에 표시한다.
 - `+/-`는 총수 증가·감소만 의미하며 retained/inflow/outflow를 뜻하지 않는다.
 - 여러 패키지의 비교 시계열은 규모 차이 때문에 작은 시리즈가 바닥에 눌리지 않도록 로그축을 사용한다.
 - 유효 Snapshot point가 2개 이하인 경우에는 선그래프 추세를 과장하지 않고 `데이터 축적 중 (N주차)` 또는 동등한 상태를 표시한다.
@@ -437,6 +437,8 @@ Version Share는 MVP에서 **최신 집계 기준일 Snapshot**만 사용자 화
 - major가 많을 경우 화면 표현상 상위 항목 + 기타로 접을 수 있다.
 - 해석할 수 없는 조건은 임의 계열에 넣지 않고 별도 상태/비중으로 보존한다. 이 산출 가능 여부는 실제 `/packages/version` schema와 대조해 확정한다.
 - `data_status`는 공통 6종을 따른다.
+
+**확장 준비 설계**: ERD의 현행 `package_version_snapshot`은 구체 버전별 `dependents_count` 저장을 위한 기반이며, 조건 문자열의 최신 Snapshot 분포를 그대로 보존하는 산출물은 아직 별도다. 최신 Snapshot마다 `package_id`, `snapshot_at`, 원본 requirement, 해석 major, 해석 상태(`RESOLVED|UNKNOWN|AMBIGUOUS`), 가중치/분모 단위를 가진 Version Share 집계 산출물을 추가한다. 화면은 이 산출물의 **최신 완료 Snapshot**만 읽는다. 이 확장은 ERD에 예정된 개발로 관리하며, 기존 ERD를 현행 구현과 같아야 한다는 이유로 변경하지 않는다.
 
 ### 5.5 Issues 확장
 
@@ -981,18 +983,18 @@ MVP 직접 의존 집계와 별도 파이프라인·별도 결과로 둔다.
 
 위 미확정 항목을 문서가 임의로 채우지 않는다.
 
-## 13. PDF 생성 계약
+## 13. PDF 생성 계약 [확장: 기능 비교 제공 이후]
 
 ### 13.1 ReportSnapshot
 
-MVP PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 보고서**를 ReportSnapshot으로 고정한다.
+PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 보고서와 현재 선택 버전의 완료 기능 비교 결과**를 ReportSnapshot으로 고정한다.
 
 필수 포함:
 
 - comparisonPackages
 - ecosystem period와 source dates
 - package별 직접 dependency display filter
-- package별 Dependency current/previous Snapshot 기준과 화면에 표시된 signed 증감의 정합 정보. 프론트 adapter 계산 결과를 PDF와 동일하게 재현해야 하며, derived delta를 전달할지 계산 입력 point를 ReportSnapshot에 보존할지는 `OPEN-SERVER-01`의 PDF 요청/전달 계약에서 확정
+- package별 Dependency 조회 구간의 첫·마지막 유효 Snapshot 기준과 화면에 표시된 signed 증감의 정합 정보. 프론트 adapter 계산 결과를 PDF와 동일하게 재현해야 하며, derived delta를 전달할지 계산 입력 point를 ReportSnapshot에 보존할지는 `OPEN-SERVER-01`의 PDF 요청/전달 계약에서 확정
 - 최신 Version Share snapshotAt
 - 후보·생태계 data status summary
 - createdAt
@@ -1017,16 +1019,19 @@ MVP PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태�
 READY:
 - comparisonPackages 확정
 - 생태계 핵심 결과 Snapshot 생성 가능
+- 각 패키지의 현재 기능 비교 버전 결과 완료
 
 BLOCKED:
 - COMPARISON_NOT_CONFIRMED
 - ECOSYSTEM_RESULT_INCOMPLETE
 - SNAPSHOT_CREATION_ERROR
+- FEATURE_ANALYSIS_REQUIRED
+- VERSION_RESULT_MISMATCH
 ```
 
 일부 기간 없음, 일부 후보 신호 미검증, Version Share 해석 불가 조건은 차단 사유가 아니다. 상태를 PDF에 표시한다.
 
-기능 비교 확장의 `REANALYSIS_REQUIRED`, `ANALYSIS_RUNNING`, `VERSION_RESULT_MISMATCH`는 MVP 생태계 PDF를 차단하지 않는다. 확장 결과를 PDF에 포함하는 별도 적격성에서만 사용한다.
+기능 비교 확장의 `REANALYSIS_REQUIRED`, `ANALYSIS_RUNNING`, `VERSION_RESULT_MISMATCH`는 PDF를 차단한다. 기존 결과는 비교 화면에서 유지하지만, 현재 선택 버전의 분석이 완료될 때까지 동일 ReportSnapshot의 PDF를 만들지 않는다.
 
 ### 13.3 PDF 작업 상태
 
@@ -1038,19 +1043,19 @@ BLOCKED:
 
 ### 13.4 문서 레이아웃
 
-MVP:
+필수 구성:
 
 1. 표지·요약
 2. 후보·비교 대상과 분석 범위
 3. Downloads
 4. 직접 Dependency·표시 필터·Snapshot 간 signed 증감
 5. 최신 Version Share Snapshot과 기준일
-6. 자료 상태·해석 한계
+6. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
+7. 판정 또는 narrative에 연결된 근거 요약
+8. 자료 상태·해석 한계
 
-확장 결과 완료 시 추가 가능:
+완료된 경우 추가 가능한 선택 구역:
 
-7. 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
-8. 판정 또는 narrative에 연결된 근거 요약
 9. 완료 snapshot이 있는 **기준 패키지 1개의** 커뮤니티 구역 (`DEC-COMMUNITY-20260909-01`; 다른 비교 패키지로 대체하지 않음)
 
 페이지 분할 규칙:
@@ -1105,8 +1110,7 @@ Pickage_winston-pino-bunyan_2026-09-04.pdf
 - 직접 Dependency 시계열/Snapshot point (**signed delta 자체는 프론트 adapter 계산이며 별도 집계 필드로 강제하지 않음**)
 - Downloads 집계
 - 최신 Version Share Snapshot
-- `similar_packages`와 `model_ver`(후보 API schema는 임베딩 실결과 확인 뒤 확정)
-- `model_production` 포인터
+- 현재 `similar_package` 결과와 실행 manifest의 모델 버전·검증 결과(후보 API schema는 임베딩 실결과 확인 뒤 확정)
 - 생태계 ReportSnapshot·PDF 메타데이터
 - 확장 기능이 실제 제공될 경우 필요한 결과 메타데이터
 
@@ -1131,11 +1135,12 @@ mlflow-artifacts
 
 전체 BigQuery 데이터셋을 장기 복제하는 구조는 요구하지 않으며, 320G 단일 서버 스토리지 한계 안에서 raw/curated/artifact 보존 기간과 정리 정책을 운영한다.
 
-### 14.4 모델·유사 후보 버전 동행
+### 14.4 모델·유사 후보 게시
 
-- 기존 MLflow `@production`/`@candidate` alias와 `model_production` 포인터 계약은 유지한다.
-- 후보 벡터와 `similar_packages`의 버전 동행 원칙을 유지한다.
-- 새 모델은 실제 임베딩 결과 검증과 채점 게이트를 통과한 뒤 승격한다.
+- ERD의 `similar_package`는 사용자에게 제공하는 **현재 후보 결과 한 벌**이다. `(package_id, similar_package_id)`와 `(package_id, rank)` 제약을 유지하고 `model_ver`를 이 테이블의 키에 넣지 않는다.
+- 새 모델 결과는 staging에서 행수·중복·자기추천·rank 범위를 검증한 뒤 하나의 트랜잭션으로 현재 `similar_package` 결과를 교체하고, 사용 모델 버전·입력 snapshot·검증 결과는 `etl_load_execution`의 실행 메타데이터/manifest에 남긴다.
+- MLflow `@production`/`@candidate` alias는 모델 레지스트리에서 유지한다. 별도 `model_production` 서비스 테이블은 ERD에 추가하지 않으며, 후보 벡터와 현재 후보 결과의 동행은 같은 실행 manifest로 추적한다.
+- 새 모델은 실제 임베딩 결과 검증과 채점 게이트를 통과한 뒤 게시한다.
 
 ### 14.5 확장 기능 캐시
 
@@ -1145,7 +1150,7 @@ mlflow-artifacts
 
 ### 후보 검색
 
-- 사용자 요청에서는 PostgreSQL의 사전 계산 `similar_packages`만 조회한다.
+- 사용자 요청에서는 PostgreSQL의 사전 계산 현재 `similar_package`만 조회한다.
 - 모델 inference·top-K·재랭킹 실행은 #1 data의 분석 worker/배치 범위에서 수행한다.
 - 변경 description만 재임베딩하고 전수 재임베딩은 모델 승격 시에만 수행한다.
 - 후보 1건 조회를 위해 BigQuery·npm API·MLflow·MinIO를 실시간 호출하지 않는다.
@@ -1243,13 +1248,14 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 | 6 | 유사도 배치 v1 | 필터(deprecated 제외) → ONNX 추론 → top-K 20 → cos 기반 재랭킹(`move_lift` 배제) → 채점 게이트(Recall@20/10) → 스왑 |
 | 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 서빙 요청에서 PG 외 모델/MinIO 접촉 없음 |
 | 8 | 직접 Dependency·Downloads·Version Share 보고서 | 사전 집계 조회와 화면 상태 일치 |
-| 9 | PDF Snapshot·#1 data worker 생성 | 생태계 결과만으로 READY/COMPLETE 가능하고 app 요청 경로와 생성 실행 분리 |
-| 10 | GitHub 커뮤니티·간접 Dependency·RAG 기능 비교 [확장] | v1 코어와 분리된 추가 서비스/TTL/근거 계약 |
-| 11 | Prometheus/Grafana·blue-green·Loki 등 [운영 확장] | 현재 Redis·Spark History와 구분해 v1 이후 고도화 |
+| 9 | RAG 기능 비교 [확장] | 현재 선택 버전별 완료 결과와 근거 계약 |
+| 10 | PDF Snapshot·#1 data worker 생성 [확장] | 생태계 결과와 현재 선택 버전의 완료 기능 비교 결과가 모두 있어야 READY이며, app 요청 경로와 생성 실행 분리 |
+| 11 | GitHub 커뮤니티·간접 Dependency [확장] | v1 코어와 분리된 추가 서비스·TTL 계약 |
+| 12 | Prometheus/Grafana·blue-green·Loki 등 [운영 확장] | 현재 Redis·Spark History와 구분해 v1 이후 고도화 |
 
 ## 18. 필수 시험 시나리오
 
-### MVP
+### 기본·통합 계약
 
 1. 기준 패키지와 후보 ranking 상위 2개 기본 선택
 2. 기준 패키지 해제 요청 거부
@@ -1261,7 +1267,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 8. deprecated 51K 홀드아웃 채점 게이트가 Recall@20/Recall@10 하락 시 적재를 중단하고 알림을 발생시키는지 검증
 9. MVP Dependents 응답 메타가 `relationship_type=DIRECT`로 고정되고 직접/간접 전환 요청이 MVP 계약에 없는지 확인
 10. Dependency 기본 Total 조회와 `version` query parameter 특정 버전 조회가 패키지별로 독립 변경되는지 확인
-11. 프론트 `adapter.ts`가 현재 표시 필터의 dependents trend에서 현재 Snapshot과 바로 직전 Snapshot만 사용해 signed 증감을 계산하고, 직전 Snapshot/자료가 없을 때 더 오래된 point나 0으로 대체하지 않는지 확인
+11. 프론트 `adapter.ts`가 현재 표시 필터의 dependents trend에서 조회 구간 첫·마지막 유효 point만 사용해 signed 증감을 계산하고, 유효 point가 하나일 때 0으로 대체하지 않는지 확인
 12. Version Share 응답에 최신 `snapshot_at`이 있고 시계열 series가 없는지 확인
 13. Version Share 해석 불가 조건을 임의 버전에 포함하지 않는지 확인
 14. Notion API 명세/Swagger의 endpoint와 HTTP wire `snake_case`를 정본으로 사용하고 `api/types`가 wire shape를 보존하며 camelCase 변환이 `adapter.ts`에만 있는지 확인
@@ -1269,7 +1275,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 16. Downloads 조회가 최대 78주이고 각 point가 weekly(직전 7일 합계) 의미로 표시되는지 확인
 17. 공통 API `data_status`가 6종으로 통일되고 후보/PDF lifecycle의 `READY`와 혼용되지 않는지 확인
 18. 후보 ranking HTTP endpoint/schema가 임베딩 모델 실제 결과 검증 전 canonical로 선확정되지 않았는지 확인
-19. 기능 비교 결과가 없어도 MVP 생태계 PDF READY가 가능한지 확인
+19. 기능 비교의 현재 선택 버전 결과가 완료되기 전에는 PDF가 BLOCKED이며, 완료 후 READY가 되는지 확인
 20. PDF 부분 결과 생성과 자료 상태 경고
 21. PDF 다운로드 실패 후 동일 파일 재다운로드
 22. #2 app에 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가 의도한 배치로 실행되는지 확인
@@ -1278,11 +1284,11 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 25. 두 서버가 각각 4 vCPU·15Gi·Swap 0·320G NVMe 실측 기준을 유지하는지 확인
 26. PDF 생성이 #1 data worker에서 실행되고 app API 요청과 무거운 생성 실행이 분리되는지 확인
 27. Dependency/Downloads 비교 그래프가 로그축 계약을 따르고 유효 point 2개 이하에서 `데이터 축적 중 (N주차)` 상태로 전환되는지 확인
-28. visible 조회 범위가 직전 Snapshot을 포함하지 않아도 delta 계산 입력에 current/previous 두 point가 확보되고, 더 오래된 point로 대체하지 않는지 확인
+28. 표시한 trend의 8일 초과 관측 공백이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인
 29. GitHub 커뮤니티 refresh의 Spring→GMS 직접 호출이 확장-03 bounded 예외에만 한정되고 코어 서빙 경로로 확산되지 않는지 확인
 30. Notion export에서 `서버 반영=No`인 API를 구현 완료로 오기하지 않고 Swagger 반영 전까지 pending alignment로 관리하는지 확인
-27. 새 모델 승격이 `@production` alias + `model_production` 포인터 전환만으로 반영되고 서빙 재기동이 없는지 검증
-28. 두 EC2의 배포 아티팩트/런타임 버전 호환성이 유지되는지 검증
+31. 새 모델 승격이 `@production` alias와 검증된 `similar_package` 원자 게시로 반영되고 서빙 재기동이 없는지 검증
+32. 두 EC2의 배포 아티팩트/런타임 버전 호환성이 유지되는지 검증
 
 ### 확장
 
@@ -1292,7 +1298,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 4. AI + RAG fallback에서 검색 근거 없이 확정 판정을 생성하지 않는지 확인
 5. 기능 최신 안정 버전 캐시 적중·미적중
 6. 정식 버전 없음에서 사전 배포 자동 선택 차단
-7. 기능 버전 변경 후 재분석 필요 상태가 MVP PDF를 차단하지 않는지 확인
+7. 기능 버전 변경 후 재분석 필요 상태가 PDF를 차단하고, 이전 결과가 화면에서 유지되는지 확인
 8. 재분석 성공 시 원자적 결과 교체, 실패 시 이전 결과 유지
 9. 같은 버전 근거 충돌에서 UNCONFIRMED+CONFLICT
 10. Drawer·커뮤니티 응답에 외부 URL·전체 원문이 없는지 확인
@@ -1313,4 +1319,4 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - Node.js packages: https://nodejs.org/api/packages.html
 - GitHub REST API: https://docs.github.com/en/rest
 
-> **최종 개발 기준** v1의 실제 인프라는 **#2 app(4 vCPU, 15Gi, 320G NVMe)**과 **#1 data(4 vCPU, 15Gi, 320G NVMe)** 두 서버를 기준으로 한다. #2에는 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가, #1에는 Spark master·worker-1·History Server·임베딩 추론/tarball 정적분석/PDF worker·MinIO가 배치된다. 서비스 외부 노출은 #2의 80/443이며 #1 data는 서비스 포트를 외부 노출하지 않는다. 과거 `t4g.xlarge`, `EBS 200GB`, Redis/History 확장 가정은 폐기한다. API는 Notion 명세를 정본으로 하되 현재 export의 `서버 반영=No` 항목과 pending field를 구현 완료로 간주하지 않고 Swagger 반영 후 확정한다. Dependency signed delta는 프론트 adapter가 current/바로 직전 Snapshot으로 계산하며 visible range와 무관하게 두 계산 point를 확보한다. 후보 ranking API schema는 임베딩 실결과 검증 후 확정한다. 외부 GPU·MLflow 모델 사이클은 기존 논리 계약을 유지하되 물리 사양은 이번 서버 자료로 새로 확정하지 않는다. GitHub 커뮤니티(확장-03)의 Spring→GMS 직접 호출은 `DEC-COMMUNITY-20260909-01`의 bounded 한정 예외로 유지한다. Redis 책임, PDF #2→#1 job 전달, CI/CD 상세 등 근거가 없는 구현은 OPEN으로 남긴다.
+> **최종 개발 기준** v1의 실제 인프라는 **#2 app(4 vCPU, 15Gi, 320G NVMe)**과 **#1 data(4 vCPU, 15Gi, 320G NVMe)** 두 서버를 기준으로 한다. #2에는 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가, #1에는 Spark master·worker-1·History Server·임베딩 추론/tarball 정적분석/PDF worker·MinIO가 배치된다. 서비스 외부 노출은 #2의 80/443이며 #1 data는 서비스 포트를 외부 노출하지 않는다. API는 Notion 명세를 정본으로 하되 현재 export의 `서버 반영=No` 항목과 pending field를 구현 완료로 간주하지 않고 Swagger 반영 후 확정한다. Dependency signed delta는 프론트 adapter가 조회 구간의 첫·마지막 유효 point로 계산한다. 후보 ranking은 ERD의 현재 `similar_package` 결과 한 벌을 원자 게시하고 실행 manifest로 모델 버전을 추적한다. 최신 Version Share는 별도 확장 집계 산출물의 완료 Snapshot을 기준으로 제공한다. 기능 비교의 현재 선택 버전 분석이 끝나기 전 PDF는 BLOCKED다. 외부 GPU·MLflow 모델 사이클, GitHub 커뮤니티, Redis 책임, PDF #2→#1 job 전달, CI/CD 상세 등 근거가 없는 구현은 OPEN으로 남긴다.

@@ -1,0 +1,9 @@
+{
+  "observed_date": "2026-09-10",
+  "method": "Python urllib GET public npm registry packuments; time and dist-tags fields",
+  "items": [
+    {"name":"bunyan","source":"https://registry.npmjs.org/bunyan","version":"1.8.15","published_at":"2021-01-08T23:26:28.125Z","latest":"1.8.15","most_recent_non_prerelease_publication":{"version":"2.0.5","published_at":"2021-01-08T23:34:23.784Z"}},
+    {"name":"pino","source":"https://registry.npmjs.org/pino","version":"10.3.1","published_at":"2026-02-09T15:50:56.728Z","latest":"10.3.1"},
+    {"name":"winston","source":"https://registry.npmjs.org/winston","version":"3.19.0","published_at":"2025-12-07T07:37:16.009Z","latest":"3.19.0"}
+  ]
+}
