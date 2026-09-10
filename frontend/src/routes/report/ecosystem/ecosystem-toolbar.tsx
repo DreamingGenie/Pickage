@@ -57,9 +57,7 @@ export function EcosystemToolbar({
         <DateSelect value={start} options={snapshots} onChange={setStart} label="시작 스냅샷" />
         <span className="text-base text-muted-foreground">~</span>
         <DateSelect value={end} options={snapshots} onChange={setEnd} label="끝 스냅샷" />
-        <span className="font-mono text-base text-muted-foreground tabular-nums">
-          {count}주
-        </span>
+        <span className="font-mono text-base text-muted-foreground tabular-nums">{count}주</span>
         {/*
           이제 "전체" 가 실제로 전체다. 받아 둔 것이 곧 상한이라 더 넓힐 것이 없다.
           예전에는 26주만 받아 둔 상태에서도 이 버튼이 있어 이름과 동작이 어긋났다.

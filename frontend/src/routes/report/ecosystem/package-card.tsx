@@ -106,9 +106,7 @@ export function PackageCard({
       </button>
 
       {model.description && (
-        <p className="-mt-2 text-base leading-relaxed text-muted-foreground">
-          {model.description}
-        </p>
+        <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
       )}
 
       <ObservationBadges model={model} />
@@ -141,9 +139,7 @@ export function PackageCard({
       <div className="flex flex-col gap-3 border-t pt-5">
         <span className="text-base text-muted-foreground">Version Share</span>
         {model.versionShare.length === 0 ? (
-          <p className="text-base text-muted-foreground">
-            이 시점의 버전 분포 자료가 없습니다.
-          </p>
+          <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-5">

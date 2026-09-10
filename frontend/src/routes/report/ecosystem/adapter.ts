@@ -120,8 +120,13 @@ function observedFromOf(series: ChartSeries[]): string | undefined {
   return starts.length ? starts.reduce((a, b) => (a > b ? a : b)) : undefined
 }
 
-/** 구간 양 끝의 차이. 점이 둘 미만이면 증감을 말할 수 없다. */
-function deltaOf(series: ChartSeries | undefined): number | null {
+/**
+ * 구간 양 끝의 차이. 점이 둘 미만이면 증감을 말할 수 없다.
+ *
+ * 표시 버전을 바꾸면 화면 쪽에서도 이 값을 다시 세야 해서 밖으로 연다.
+ * 두 곳에서 각자 빼면 언젠가 결측 처리가 갈린다.
+ */
+export function deltaOf(series: ChartSeries | undefined): number | null {
   const points = series?.points.filter((p) => p.v !== null) ?? []
   if (points.length < 2) return null
   return (points[points.length - 1].v as number) - (points[0].v as number)

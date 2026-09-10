@@ -129,11 +129,7 @@ export function VerdictPill({ verdict, className }: { verdict: Verdict; classNam
   }
   return (
     <span
-      className={cn(
-        'w-fit rounded px-1.5 py-0.5 text-base font-medium',
-        style[verdict],
-        className,
-      )}
+      className={cn('w-fit rounded px-1.5 py-0.5 text-base font-medium', style[verdict], className)}
       title={verdict}
     >
       {VERDICT_LABEL[verdict]}

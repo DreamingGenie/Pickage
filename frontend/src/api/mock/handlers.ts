@@ -228,7 +228,9 @@ function buildDependentsSeries(
   found: MockPackage[],
   window: { from: string; to: string },
 ): TrendSeries[] {
-  return found.flatMap((pkg) => {
+  // 반환 타입을 못 박는다. 안 적으면 두 갈래(major 있는 것 · 없는 것)의 리터럴 타입이
+  // 서로 다른 배열로 추론되어 `major` 가 필수인 쪽으로 좁혀진다.
+  return found.flatMap((pkg): TrendSeries[] => {
     const split = dependentsByMajor(pkg)
       .map((r) => ({ name: pkg.name, major: r.major, points: r.points.filter(inWindow(window)) }))
       .filter((r) => r.points.length > 0)

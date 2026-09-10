@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { SeriesLegend } from '@/components/charts/line-chart'
-import { dependentsLineOf } from '@/routes/report/ecosystem/adapter'
+import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
   EcosystemToolbar,
   type EcosystemControls,
@@ -106,13 +106,11 @@ export function EcosystemView({
   )
 
   const seriesByName = new Map(dependentsSeries.map((s) => [s.key, s]))
-  const packages = model.packages.map((p) => {
-    const points = seriesByName.get(p.key)?.points ?? []
-    return {
-      ...p,
-      dependentsDelta: points.length < 2 ? null : points[points.length - 1].v - points[0].v,
-    }
-  })
+  const packages = model.packages.map((p) => ({
+    ...p,
+    // 어댑터와 같은 함수를 쓴다. 결측 처리를 두 곳에서 각자 하면 언젠가 갈린다.
+    dependentsDelta: deltaOf(seriesByName.get(p.key)),
+  }))
 
   /**
    * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.

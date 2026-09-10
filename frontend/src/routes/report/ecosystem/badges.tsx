@@ -63,14 +63,9 @@ function BadgeTile({
   return (
     <div
       title={title}
-      className={cn(
-        'flex items-center gap-3 rounded-xl border bg-background px-3 py-3',
-        t.tile,
-      )}
+      className={cn('flex items-center gap-3 rounded-xl border bg-background px-3 py-3', t.tile)}
     >
-      <span
-        className={cn('grid size-9 shrink-0 place-items-center rounded-full', t.ring, t.icon)}
-      >
+      <span className={cn('grid size-9 shrink-0 place-items-center rounded-full', t.ring, t.icon)}>
         {icon}
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
