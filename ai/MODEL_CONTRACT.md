@@ -62,14 +62,15 @@ emb = last_hidden_state[:, 0, :]                       # 1. CLS pooling (토큰 
 emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
 ```
 
-재랭킹(§4.2)이 "정규화 벡터 행렬곱"을 전제하므로 2번은 필수.
+의미 검색·정렬(§4.2 2단계 랭커)이 "정규화 벡터 행렬곱"을 전제하므로 2번은 필수.
 
 ## 실행 환경
 
 - EC2 #1: Intel Xeon Platinum 8259CL @ 2.5GHz, **4 vCPU / 15 GiB RAM / swap 0**, x86_64
-  (2026-09-09 확인. 0904 문서·티켓은 `t4g.xlarge` ARM 전제 — 크기는 동급, arch만 x86)
+  (2026-09-09 확인. 0909 문서 §3.1·일부 티켓은 `t4g.xlarge` ARM 전제 — 크기는 동급, arch만 x86)
 - `onnxruntime` `CPUExecutionProvider`
-- 처리량 (이 스펙 실측): 10만건 재임베딩 ~20.7분 (batch 32). flat cosine top-20 별도 ~110초 (S15P21A506-169)
+- 처리량 (이 스펙 실측): 10만건 재임베딩 ~20.7분 (batch 32). flat cosine top-20 별도 ~110초 (S15P21A506-169).
+  2단계 랭커는 retrieve-k 30 이라 검색 비용 소폭 증가 — 재측정 필요
 - ⚠️ EC2 #1은 Spark(master+worker①, ~10G)·MinIO·MLflow·cron ETL과 공유. swap 0이라
   동시 실행 시 OOM 위험 → AI 배치는 Spark ETL과 시간이 겹치지 않게 cron 스케줄 분리 필요 (미정)
 
