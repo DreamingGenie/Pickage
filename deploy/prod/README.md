@@ -221,8 +221,16 @@ docker run --rm -m 100m --memory-swap 100m alpine cat /sys/fs/cgroup/memory.swap
 데몬, 배포 중의 Gradle·npm 빌드 — 의 완충과 유휴 페이지 배출이다. **커널이 Postgres 를
 고르는 시나리오가 거기서 온다.**
 
-> **서비스를 새로 추가할 때 `mem_limit` 과 `memswap_limit` 은 짝으로 쓴다.**
-> 한쪽만 쓰면 그 서비스만 상한이 조용히 2배가 되고, 아무 경고도 없다.
+> **`mem_limit`·`memswap_limit`, `--memory`·`--memory-swap` 은 짝으로 쓴다.**
+> 한쪽만 쓰면 그것만 상한이 조용히 2배가 되고, 아무 경고도 없다.
+> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/repository_metrics/` 가 그렇다.
+> 짝이 빠진 곳을 찾는 명령:
+>
+> ```bash
+> grep -rn --include='*.py' --include='*.sh' -e '--memory"' . | grep -v 'memory-swap'
+> ```
+>
+> 아무것도 안 나와야 한다.
 
 ### 넣기 — 두 노드에서 각각, 1회
 

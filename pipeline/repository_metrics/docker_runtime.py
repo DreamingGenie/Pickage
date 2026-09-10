@@ -30,8 +30,11 @@ def transform_docker(inputs, output, *, threads=2, driver_memory="4g"):
                   "files": files, "counts": inputs["counts"], "threads": threads, "driver_memory": driver_memory}
     with (attempt / "spark-invocation.json").open("xb") as stream:
         stream.write(canonical_bytes(invocation))
+    # --memory-swap 은 --memory 와 같은 값이어야 한다. 빼면 Docker 가 총량을 2배로 잡고,
+    # 호스트에 스왑이 있으면 그걸 전부 빌린다 (deploy/prod/README.md 의 "Swap").
+    # 그러면 아래 runtime.memory_limit 로 기록하는 증빙이 사실과 달라진다.
     command = ["docker", "run", "--rm", "--name", "pickage-repo-metrics-" + uuid.uuid4().hex[:12],
-               "--cpus", str(threads), "--memory", "6g", "--network", "none",
+               "--cpus", str(threads), "--memory", "6g", "--memory-swap", "6g", "--network", "none",
                "-e", "PYTHONPATH=/workspace", "-e", "PYTHONDONTWRITEBYTECODE=1",
                "-e", "SPARK_LOCAL_IP=127.0.0.1", "-e", "SPARK_LOCAL_HOSTNAME=localhost",
                "--mount", f"type=bind,source={ROOT},target=/workspace,readonly",
