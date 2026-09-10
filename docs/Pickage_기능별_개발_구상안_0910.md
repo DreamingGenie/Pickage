@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0910
 
-작성 기준일: 2026-09-04 (2026-09-10 Dependency delta·API 정합 계약·유사후보 v1 랭커 2단계 분리 반영; Spring/GMS·커뮤니티 결정 유지; 실제 EC2 서버 배치·사양 정합 반영)
-문서 상태: Approved (2026-09-10 갱신 — effective_at: 2026-09-10. `DEC-RECONCILIATION-20260910-01`: signed delta·PDF·ERD 게시 계약을 확정한다. `DEC-RANK-20260910-01`: 의미 검색 후보 풀과 최종 노출 수를 분리하고, 구조적 관문 통과분을 cos 유사도로만 정렬한다. 이 결정은 `DEC-RANK-20260909-01`의 top-K 20 고정·보완재 감점 조항을 대체하며 검색 `N`과 일부 관문 기준은 OPEN으로 둔다)
+작성 기준일: 2026-09-04 (2026-09-10 코드 재검토 갱신: 후보 API·AI 배치·requirements 해석·Dependents major 표시·프런트 검증·저장소 배포 구성을 반영)
+문서 상태: Approved (effective_at: 2026-09-10. `DEC-IMPLEMENTATION-ALIGN-20260910-01`: 자유 입력 후 서버 검증, 후보 2개·기본 선택 없음·순위 표시, Dependents major 다중 선택, 104주 상한과 현행 Version Share 집계를 채택한다. 로그축·결측 단절·계열별 축적 상태·카드별 실패 격리·선택 기간 delta는 미구현 제품 계약으로 유지한다)
 연결 문서: `Pickage_요구사항_명세서_0910.md`, `Pickage_메뉴구조_IA_0910.md`, `Pickage_서비스_기획서_0910.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 서버의 실제 컴포넌트 배치와 물리 자원은 2026-09-10 개발팀 `서버 정보.pdf`를 우선 정본으로 하고, 그 위에 기존 0904 시스템 아키텍처의 데이터·모델·배포 결정을 결합한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -20,11 +20,11 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 
 | 구역 | v1 처리 | 이유 |
 |---|---|---|
-| 후보 검색 | 배치 임베딩 + 의미 검색 `search_k=N` + 구조적 관문 + cos 정렬 결과를 PostgreSQL에서 조회 | 검색 recall과 최종 노출 수를 분리하고 서빙 요청에서 모델 추론을 제거 |
+| 후보 검색 | `/packages/similar`가 PostgreSQL의 `similar_package`를 조회. AI 배치는 기본 `search_k=30`으로 결과 파일을 만들지만 DB 원자 게시 연결은 미완료 | API/화면 구현과 배치 게시 완료 상태를 구분 |
 | 후보 생태계 신호 | BigQuery deps.dev Snapshot + npm API를 EC2 #1 배치에서 수집·집계 | 외부 호출과 무거운 변환을 서빙 경로에서 분리 |
 | 보고서 1페이지 | Spark S1~S7 사전 변환·집계 → PostgreSQL 적재 | 모든 화면을 사전 집계 조회 중심으로 유지 |
 | Downloads | npm API 독립 cron 수집·PostgreSQL 적재 | 놓친 기간을 복구하기 어려운 데이터이므로 별도 주기 관리 |
-| Version Share | 최신 기준일 Snapshot 집계 | 시계열이 아니라 현재 공개 의존 조건 분포를 제공 |
+| Version Share | 최신 DB Snapshot의 version별 dependents를 major로 합산 | 시계열이 아닌 현재 구현의 관측 분포를 제공; requirement 해석 분포는 확장 |
 | 기능 비교 [확장] | Data + AI + RAG 우선, 불가 시 AI + RAG | 고비용 기능 분석을 MVP와 분리 |
 | GitHub 커뮤니티 [확장] | 짧은 TTL 갱신 캐시 | 최신성과 API 제한 균형 |
 | PDF | 완료 생태계 ReportSnapshot과 현재 선택 버전의 완료 기능 비교 결과 재사용 + EC2 #1(data) worker 생성 | 화면과 다른 재계산 방지; PDF 실행 부하는 app 서빙 경로와 분리 |
@@ -32,8 +32,8 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 ### 1.2 MVP 버전 상태
 
 1. 후보 단계: 버전 없음
-2. Dependency 표시 버전: 직접 의존 그래프의 `Total` 또는 특정 버전
-3. Version Share: 버전 선택 상태가 아니라 최신 Snapshot 기준일과 버전 계열 분포
+2. Dependency major 선택: 직접 의존 그래프의 `Total` 또는 선택한 하나 이상의 major 합계
+3. Version Share: 버전 선택 상태가 아니라 최신 DB Snapshot 기준일과 major별 분포
 
 기능 비교 버전은 확장 기능 내부 상태이며 생태계 화면 상태와 분리한다. 다만 PDF 적격성에서는 각 비교 패키지의 현재 선택 버전 결과가 완료되었는지 검사한다.
 
@@ -42,12 +42,12 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 **제품 계약**
 
 - 의미 유사도(cos)는 관문을 통과한 후보의 순서를 정하는 **유일한 연속 신호**다. 생존·실체·보완재 여부는 점수 계수가 아니라 통과/탈락 관문으로만 사용한다.
-- 검색 후보 수 `search_k=N`, 사용자 노출 최대 3개, 기본 선택 2개는 서로 다른 값이다.
+- 검색 후보 수 `search_k=N`과 사용자 노출 2개는 서로 다른 값이다. 현재 배치 기본 `N`은 30이고 화면 기본 선택은 없다.
 - 인기도·Downloads·채택도는 임베딩 학습, 의미 검색, 최종 정렬 score에 넣지 않는다. 화면의 생태계 맥락 정보로만 제공한다.
 - 후보 ranking은 기술 품질 점수나 최종 추천이 아니다.
 - 생성형 AI를 후보 검색·정렬에 사용하지 않는다.
 - 사용자 요청 시점에는 모델을 호출하지 않고 사전 계산된 후보 결과를 조회한다.
-- 내부 cos score와 관문 판정은 사용자에게 품질 점수로 노출하지 않는다.
+- API가 반환하는 수치 score와 관문 판정은 화면에 노출하지 않는다. 화면에는 정렬 결과인 유사도 순위를 표시한다.
 
 **시스템 확정안 — v1 랭커** (`DEC-RANK-20260910-01`)
 
@@ -58,13 +58,20 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 5. **최종 정렬**: 관문 통과 후보를 cos 유사도 내림차순으로만 정렬한다. cos가 같을 때만 dependents 수, 패키지명 순으로 결과를 안정화하며 score에는 더하지 않는다. `move_lift`도 사용하지 않는다.
 6. **채점 게이트**: Recall@N(순수 의미 검색)과 Recall@10(관문·정렬까지 포함), MRR을 측정해 직전 운영값과 비교한다. 하락 시 staging 게시를 중단하고 알림을 발생시킨다.
 7. **게시**: 게이트 통과분만 행수 가드를 거쳐 ERD의 현재 `similar_package` 한 벌로 원자 교체하고, 실행 manifest에 모델 버전·입력 snapshot·`search_k`·관문 활성 상태·검증 결과를 기록한다.
-8. **화면 출력**: 최종 유효 후보 최대 3개만 전달하고 상위 2개를 기본 선택한다.
+8. **화면 출력**: API는 기본 20·최대 50개를 반환하고 화면은 상위 2개만 미선택 카드로 표시한다.
+
+**2026-09-10 구현 체크포인트**
+
+- 구현됨: description+keywords 입력, 기본 `retrieve_k=30`, plugin/adapter 및 same-family 제거, cos 정렬, rank와 score 출력, `/packages/similar` 조회와 화면 상위 2개 표시.
+- 부분 구현: AI 출력은 `user_visible(rank<=3)`, `default_selected(rank<=2)`를 기록하지만 현재 DB/API/화면은 이 플래그를 소비하지 않는다.
+- 미구현: 직접 의존 겹침을 이용한 보완재 관문, 51K 평가셋 기반 scoring gate, S3 게시, PostgreSQL 원자 적재기.
+- 검증 경계: 평가셋이 확정되지 않아 scoring gate는 `SKIPPED`이며 명시적 `--allow-gate-skip` 없이는 성공 마커를 만들지 않는다.
 
 **유지되는 학습 원칙**: deprecated→대체 CSV와 migration pair는 “관련 있음”을 학습하는 positive pair로만 사용한다. 후보 가산점이나 별도 deprecated 추천 화면의 근거로 사용하지 않는다.
 
 **OPEN 파라미터**
 
-- `search_k=N`: 30·50·100 중 `S15P21A506-169`의 Recall@N·비용 측정으로 확정한다. 값이 정해질 때까지 top-K 20을 새 목표값으로 간주하지 않는다.
+- `search_k=N`: 현재 구현 기본값은 30이다. 최종 운영값은 30·50·100 중 `S15P21A506-169`의 Recall@N·비용 측정으로 확정한다.
 - 보완재 관문: dependents 교집합 `> 0.3`을 후보 기준으로 검증하되, 의존 그래프 준비 시점과 최종 threshold는 `S15P21A506-172`에서 확정한다.
 - 노후 관문: 코퍼스의 최근 12개월 자격 필터는 유지한다. 최종 정렬 직전 별도 노후 컷을 추가할지는 중복 배제 여부를 검증한 뒤 결정한다.
 - 평가셋: 현행 “deprecated 51K 홀드아웃”이라는 명칭의 실제 구성·누수·정답 정의를 `S15P21A506-169`에서 확인하기 전에는 검증 완료 데이터셋으로 단정하지 않는다.
@@ -89,19 +96,18 @@ GBDT LTR 같은 다중 신호 랭커는 별도 후속 결정이 필요한 v1 이
 2. Notion에서 `서버 반영`이 완료된 항목은 **Swagger**가 실제 구현의 최종 기준이다.
 3. 이 개발 구상안은 제품·클라이언트 요구를 설명하되, Notion에 없는 HTTP JSON 모양을 임의로 canonical 계약으로 만들지 않는다.
 
-**현재 구현 상태 경계**: 2026-09-10 전달받은 Notion endpoint export에서는 검색·개요·Downloads·Dependents·Version Share 5개 항목이 모두 `서버 반영 = No`다. 따라서 아래 표는 현재 합의된 **연동 방향/Notion 반영 대상**을 설명하며 서버 구현 완료를 뜻하지 않는다. `version`, `relationship_type`, 공통 `data_status`, 78주 validation은 Notion/Swagger에 실제 반영되기 전까지 `pending API alignment`로 취급한다.
+**현재 구현 상태 경계**: 2026-09-10 전달받은 Notion endpoint export는 기존 5개 항목을 `서버 반영 = No`로 표시했지만 이후 저장소에는 후보를 포함한 아래 6개 endpoint가 병합됐다. 표는 현재 코드 계약이며 Notion/Swagger가 다르면 `pending API alignment`로 추적한다.
 
 현재 확정된 MVP endpoint 방향은 다음과 같다.
 
 | 기능 | canonical endpoint 방향 | 클라이언트 사용 |
 |---|---|---|
-| 검색 자동완성 | `GET /packages/search?q={prefix}` | 입력 접두사 후보 표시. 분석 가능한 항목을 사용자가 선택해야 다음 단계 CTA 활성 |
+| 검색 자동완성 | `GET /packages/search?q={prefix}` | 입력 접두사 후보 표시. 목록 선택은 선택 사항 |
 | 패키지 개요 | `GET /packages?names=a,b,c` | 최대 3개 패키지 개요 |
-| Downloads | `GET /packages/downloads?names=a,b,c&from=&to=` | 공통 trend 응답. weekly 의미, 최대 78주 |
-| Dependents | `GET /packages/dependents?names=a,b,c&from=&to=` | Total 직접 의존 추이 |
-| Dependents 특정 버전 | `GET /packages/dependents?names={name}&from=&to=&version={version}` | 선택한 패키지의 특정 버전 추이. 패키지별 필터는 독립적으로 갱신 |
-| Version Share | `GET /packages/version?names=a,b,c` | MVP에서는 최신 Snapshot 분포 사용 |
-| 후보 ranking | **미정** | 임베딩 모델 실제 결과 검증 뒤 endpoint·schema 확정 |
+| Downloads | `GET /packages/downloads?names=a,b,c&from=&to=` | 공통 trend 응답. weekly 의미, 최대 104주 |
+| Dependents | `GET /packages/dependents?names=a,b,c&from=&to=` | package-major별 series 반환. 프런트가 Total/선택 major를 합산 |
+| Version Share | `GET /packages/version?names=a,b,c` | 최신 DB Snapshot의 version별 dependents를 major로 합산 |
+| 후보 ranking·존재 검증 | `GET /packages/similar?name={name}&limit={limit}` | 기본 20·최대 50, `COMPLETE|NO_DATA`, rank 순 후보와 `not_found` 반환 |
 
 **wire 표기 경계**
 
@@ -109,16 +115,16 @@ GBDT LTR 같은 다중 신호 랭커는 별도 후속 결정이 필요한 v1 이
 - HTTP wire field는 `snake_case`를 사용한다. 프론트 `api/types`도 서버가 보내는 모양을 그대로 보존한다.
 - UI/domain의 camelCase 변환은 `adapter.ts` 한 곳에서만 수행한다.
 - 아래 장의 camelCase pseudo-model은 별도 설명이 없는 한 **내부 도메인 모델 예시**이며 HTTP 정본이 아니다.
-- API 자료 상태는 `data_status = COMPLETE | PARTIAL | NO_DATA | COLLECTION_ERROR | CONFLICT | STALE` 6종으로 통일한다. `READY`는 data status가 아니며 PDF job/lifecycle 등 별도 상태에서만 사용한다.
-- `relationship_type = DIRECT`는 MVP Dependents 응답 메타로 포함하는 방향을 따른다. 확장-04 도입 전에도 scope 의미를 고정한다.
+- 게시 데이터 상태와 UI 요청 상태를 분리한다. 현재 후보 API의 `COMPLETE|NO_DATA`는 게시 데이터 상태이고, 화면의 `loading|success|empty|error` 및 원천이 지원할 때의 `partial|stale`은 UI 상태다.
+- 현재 Dependents 응답에는 `relationship_type`이 없고 endpoint 의미와 `sum_over_versions=true`로 직접 의존 major 합계임을 표현한다.
 
 ## 2. 사용자 여정과 시스템 책임
 
 | 단계 | 시스템 책임 | 주요 결과 | 범위 |
 |---|---|---|---|
-| 패키지 입력 | 접두사 자동완성 + 분석 가능 패키지 선택 gate | selected package | MVP |
+| 패키지 입력 | 접두사 자동완성 선택 또는 자유 입력 + `/packages/similar` 서버 검증 | selected package | MVP |
 | 후보 탐색 | 의미 후보 pool 검색 | semantic candidates | MVP |
-| 후보 ranking | 순수 의미 검색 + 구조적 자격 관문 + cos 정렬 | ranked candidates (HTTP endpoint/schema는 임베딩 결과 검증 후 확정) | MVP |
+| 후보 ranking | 사전 계산 결과를 `/packages/similar`로 조회 | ranked candidates; API/화면 구현됨, 배치→DB 게시 미연결 | MVP |
 | 비교 대상 확정 | 최대 3개·중복·존재 검증 | comparisonPackages | MVP |
 | 생태계 변화 | 직접 의존 사전 집계·기간 자료 결합 | Direct Dependency series + Snapshot delta, Downloads, Version Share Snapshot | MVP |
 | PDF | 생태계·현재 선택 버전 기능 비교 적격성 검사, 스냅샷·문서 생성 | reportSnapshot, pdfJob | 확장(기능 비교 제공 이후) |
@@ -158,9 +164,9 @@ GBDT LTR 같은 다중 신호 랭커는 별도 후속 결정이 필요한 v1 이
 
 ### 3.1 v1 실제 서버 기준 (`DEC-SERVER-ALIGN-20260910-01`)
 
-2026-09-10 개발팀 `서버 정보.pdf`의 **현재 배치와 실측 사양**을 서버 인프라 Source of Truth로 사용한다. 과거 문서의 `t4g.xlarge`, MinIO `EBS 200GB`, `Redis/History Server는 확장` 같은 가정은 현재 서버와 충돌하므로 폐기한다. 서버 정보 문서가 명시하지 않은 세부 포트·용량 예약·큐 구현은 이 결정만으로 새로 추정하지 않는다.
+2026-09-10 개발팀 `서버 정보.pdf`의 **서버 관측 배치와 실측 사양**을 인프라 근거로 사용한다. 과거 문서의 `t4g.xlarge`, MinIO `EBS 200GB` 같은 가정은 폐기한다. 다만 서버 관측과 저장소가 관리하는 재현 가능한 배포 선언은 구분한다. `deploy/prod/` compose에는 Redis·Spark History Server·임베딩/tarball/PDF worker 정의가 없고 `backend/build.gradle`의 Redis 의존성도 미사용 상태다. 이 구성들이 서버에 수동 배치됐는지는 별도 확인이 필요하다.
 
-| 서버 | 역할 | CPU | 메모리 | 스토리지 | 현재 컴포넌트 배치 |
+| 서버 | 역할 | CPU | 메모리 | 스토리지 | 서버 정보 PDF의 관측 배치 |
 |---|---|---|---|---|---|
 | **#2 app (기본)** | 사용자 요청·웹/API·상태 서빙 | 4 vCPU · Intel Xeon Platinum 8175M @ 2.50GHz | 15Gi · Swap 0 | NVMe block 320G · root partition 319G · `/` filesystem 약 309G | nginx, 프론트 정적, 백엔드 API, PostgreSQL+pgvector, Redis, Spark worker-2 |
 | **#1 data (추가)** | 데이터 처리·분석 worker·객체 저장 | 4 vCPU · Intel Xeon Platinum 8259CL @ 2.50GHz | 15Gi · Swap 0 | NVMe block 320G · root partition 319G · `/` filesystem 약 309G | Spark master, worker-1, History Server, 임베딩 추론·tarball 정적분석·PDF worker, MinIO |
@@ -190,7 +196,7 @@ flowchart LR
 
 위 다이어그램에서 GPU·MLflow는 기존 모델 학습/승격 계약을 유지하기 위한 논리 구성이다. **이번 서버 정보 문서가 GPU/MLflow의 물리 사양을 새로 확정한 것은 아니다.**
 
-### 3.2 #2 app — 서비스·상태 노드
+### 3.2 #2 app — 서버 관측 서비스·상태 노드
 
 | 구성 | 현재 역할/배치 |
 |---|---|
@@ -198,7 +204,7 @@ flowchart LR
 | 프론트 정적 | Pickage 데스크톱 웹 정적 자산 서빙 |
 | 백엔드 API | 패키지 검색·개요·생태계 보고서·PDF 요청 등 애플리케이션 API |
 | PostgreSQL + pgvector | 현재 app 서버의 상태/데이터 저장 구성. 기존 집계 결과 서빙 및 벡터 확장 사용 가능 기반 |
-| Redis | **현재 app 서버에 배치된 상태 서비스**. 구체 세션/캐시 책임은 실제 구현 계약을 따르며 `data_status`와 혼동하지 않음 |
+| Redis | 서버 정보 PDF에는 app 서버 배치로 기록. 저장소 compose·백엔드 사용 근거는 없어 수동 배치 여부 확인 필요 |
 | Spark worker-2 | #1 data의 Spark master와 함께 배치 처리에 참여 |
 
 **예외 — GitHub 커뮤니티 확장(확장-03)**: `DEC-COMMUNITY-20260909-01`에 따라 이 확장의 refresh 경로에 한해서만 Spring Boot가 bounded 실행 단위로 GMS(외부 LLM 요약) API를 직접 호출할 수 있다. 이 예외는 새 범용 LLM 서빙 경로가 아니며, 나머지 MVP/코어 서빙 경로는 PostgreSQL 사전 결과 조회 중심 원칙을 유지한다.
@@ -210,8 +216,8 @@ flowchart LR
 | 구성 | 현재 역할/배치 |
 |---|---|
 | Spark master + worker-1 | 데이터 변환·집계 실행의 중심 |
-| Spark History Server | **현재 서버에 배치된 운영 컴포넌트**. v1 제외 항목이 아님 |
-| 분석 worker | 임베딩 추론, tarball 정적 분석, PDF 생성 |
+| Spark History Server | 서버 정보 PDF에는 현재 배치로 기록되지만 저장소 compose에는 정의 없음 |
+| 분석 worker | 서버 정보 PDF에는 임베딩 추론, tarball 정적 분석, PDF 생성 역할로 기록되지만 저장소 compose에는 정의 없음 |
 | MinIO | #1 data의 객체 스토리지 |
 | cron/배치 스케줄 | 기존 P1 ETL·P2 downloads 등 정기 처리 실행 |
 | MLflow / 모델 평가 | 기존 후보 모델 등록·평가·승격 계약을 유지하되, 이번 서버 정보 문서는 별도 물리 사양을 추가 확정하지 않음 |
@@ -247,9 +253,9 @@ flowchart LR
 - PostgreSQL, Redis, Spark, MinIO, History Server 등 내부 컴포넌트 포트를 사용자 서비스 포트로 외부 공개하지 않는다.
 - 과거 `#2:443만 외부 인바운드`라는 문구는 현재 서버 구성과 맞지 않으므로 사용하지 않는다.
 
-### 3.8 현재 구성과 확장 구성의 경계
+### 3.8 서버 관측 구성과 저장소 관리 구성의 경계
 
-**현재 서버에 이미 배치된 구성**:
+**서버 정보 PDF에서 관측된 구성**:
 
 - PostgreSQL + pgvector
 - Redis
@@ -267,7 +273,12 @@ flowchart LR
 - blue-green 배포
 - Loki 등 추가 로그 스택
 
-Redis와 Spark History Server는 더 이상 `향후 확장`으로 분류하지 않는다.
+**현재 저장소 `deploy/prod/` compose로 재현되는 구성**:
+
+- #2 app: PostgreSQL, 백엔드 API, 프런트/nginx, Spark worker-2
+- #1 data: MinIO/minio-init, Spark master, Spark worker-1
+
+Redis·Spark History Server·임베딩/tarball/PDF worker는 서버 관측 목록에는 있지만 저장소 compose에는 없다. 따라서 제품 확장 여부와 무관하게 **배포 코드 관리 범위는 미확인**으로 둔다.
 
 ### 3.9 구현 미확정 인프라 항목
 
@@ -276,12 +287,19 @@ Redis와 Spark History Server는 더 이상 `향후 확장`으로 분류하지 �
 - `OPEN-SERVER-01` PDF: #2 app의 요청/상태 관리와 #1 data PDF worker 사이의 실제 job 전달·queue·polling/notification 방식
 - `OPEN-SERVER-02` Redis: 실제 사용 목적, key/TTL, 세션·캐시·job 상태 책임
 - `OPEN-SERVER-03` CI/CD: 실제 runner, container registry, 배포 명령 및 두 서버 배포 동기화 방식
+- `OPEN-SERVER-04` 서버 정보 PDF에는 있으나 compose에 없는 Redis·History Server·분석/PDF worker의 실제 프로세스·배포 소유권
 - MinIO 예약 용량·보존/정리 정책
 - 외부 GPU·MLflow의 물리 배치·사양
 
 서버가 현재 배치되어 있다는 사실만으로 위 구현 방식을 추정하거나 새 컴포넌트를 추가하지 않는다.
 
-### 3.10 클라이언트 경계
+### 3.10 2026-09-10 저장소 검증 차단 사항
+
+- `frontend`의 `npm run typecheck`는 `src/routes/analyze/analyze-page.tsx:212`의 미정의 `setError` 호출로 실패한다. 기획 변경이 아니라 코드 결함으로 추적한다.
+- `npm run lint`는 오류 없이 완료됐고 React 관련 경고 4건이 남았다.
+- 로컬에 `numpy`, `duckdb`, Java 실행 환경이 없어 AI·requirements·backend 테스트를 재실행하지 못했다. 기존 테스트 정의와 worklog 증거만 현재 상태 판단에 사용했다.
+
+### 3.11 클라이언트 경계
 
 - 사용자 클라이언트는 데스크톱 웹 브라우저 1종으로 한정한다.
 - 별도 소형 화면 전용 화면 구조나 클라이언트 상태 계약을 두지 않는다.
@@ -292,36 +310,38 @@ Redis와 Spark History Server는 더 이상 `향후 확장`으로 분류하지 �
 ### 4.0 입력 검색·자동완성 계약
 
 - 화면-01 입력은 `GET /packages/search?q={prefix}` 접두사 자동완성을 사용한다.
-- 사용자가 입력한 문자열 자체를 기준 패키지로 확정하지 않는다. **DB에서 다음 단계 분석이 가능한 검색 결과를 사용자가 직접 선택**해야 기준 패키지가 확정된다.
-- 검색 결과 없음과 다음 단계 분석에 필요한 DB 정보 부족은 모두 CTA 비활성 상태다. 이 둘을 보고서 진입 후 `package_not_found` 오류로 처리하는 흐름을 제품 계약으로 요구하지 않는다.
+- 자동완성 선택과 자유 입력을 모두 허용하며 Enter 또는 `패키지 확인`으로 제출한다.
+- 제출한 이름은 `GET /packages/similar?name=...`의 `not_found`로 존재를 검증한다. 검증 성공 전에는 후보 선택을 확정하지 않는다.
+- 자동완성 결과가 없어도 자유 입력을 막지 않으며 `not_found`·조회 실패는 입력 영역에서 표시한다.
 - 자동완성은 접두사 일치 목록 제시이며 오타 추측·다른 패키지 자동 교체·유사 패키지 추천과 구분한다.
-- 직접 추가 입력도 동일한 검색/선택 gate를 재사용한다.
+- 직접 추가 입력은 `/packages/search?q={name}&limit=5` 결과에 정확히 같은 이름이 포함됐는지 검증한다. 접두사가 같은 다른 패키지는 통과시키지 않는다.
 
 ### 4.1 후보 배치 파이프라인
 
-후보 생성은 사용자 요청 시 실시간 모델 호출이 아니라 **EC2 #1의 배치 결과**를 사용한다.
+후보 생성은 사용자 요청 시 실시간 모델 호출이 아니라 사전 계산 결과를 사용한다. 현재 `ai/similarity/similarity_batch_pipeline.py`의 상태는 다음과 같다.
 
-1. **코퍼스 자격 필터**: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외로 기준·후보 패키지 자격을 판단한다.
-2. **추론**: MLflow `@production` 모델을 pull하고 `text_hash`가 바뀐 description만(주간 변경분 수 %) ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
-3. **순수 의미 검색**: 정규화 벡터 행렬곱으로 패키지당 `search_k=N`개를 가져온다. `N`은 화면 노출 3개와 분리하며 30·50·100 실험 후 확정한다.
-4. **구조적 관문**: 보완재 → 노후 → 실체 미달 순으로 판정한다. 활성 기준을 통과하지 못한 후보는 drop하며 score 가·감점으로 우회하지 않는다.
-5. **최종 정렬**: 살아남은 후보를 cos 유사도 내림차순으로 정렬한다. dependents는 cos 동점 tie-break에만 사용한다.
-6. **채점 게이트**: Recall@N·Recall@10·MRR을 직전 운영값과 비교한다. 하락하면 게시를 중단하고 알림을 발생시킨다.
-7. **게시**: 게이트를 통과한 staging 결과만 행수 가드를 통과한 뒤 현재 `similar_package`로 원자 교체하고 실행 manifest에 모델 버전·입력 snapshot·`search_k`·관문 상태·검증 결과를 기록한다.
+1. **입력·추론**: description+keywords를 사용하고 raw text가 있으면 이를 우선한다. ONNX Runtime으로 임베딩한다.
+2. **순수 의미 검색**: 정규화 벡터 행렬곱으로 기본 30개를 가져온다. 최종 `search_k=N`은 평가 후 확정한다.
+3. **현재 구조적 관문**: plugin/adapter 및 same-family 후보를 drop한다.
+4. **미구현 관문**: dependency overlap을 사용하는 보완재 제거와 추가 노후·실체 기준은 후속 과제다.
+5. **최종 정렬**: 통과 후보를 cos 유사도 내림차순으로 정렬한다.
+6. **채점 게이트**: 구현 골격은 있으나 51K 평가셋이 확정되지 않아 `SKIPPED`다. `--allow-gate-skip` 없이는 성공 마커를 쓰지 않는다.
+7. **게시**: 결과 파일 생성까지 구현됐다. S3 게시와 PostgreSQL `similar_package` 원자 적재기는 아직 연결되지 않았다.
 
 ### 4.2 v1 구조적 관문과 최종 정렬
 
 **시스템 확정안**
 
-- 순서: 코퍼스 자격 필터 → 순수 의미 검색 `search_k=N` → 구조적 관문 → cos 최종 정렬
-- 관문: 보완재·노후·실체 미달. 판정 결과는 drop 또는 통과이며 작은 감점 계수를 사용하지 않는다.
+- 순서: 입력 자격 확인 → 순수 의미 검색 `search_k=N` → 현재 구현된 plugin/adapter·same-family 관문 → cos 최종 정렬
+- 목표 관문: 보완재·노후·실체 미달. 현재 dependency overlap 보완재 관문 등은 미구현이며 작은 감점 계수로 대체하지 않는다.
 - score: cos 유사도 단독. `move_lift`, popularity, Downloads, dependents 가산은 사용하지 않는다.
 - tie-break: cos가 같을 때만 dependents 내림차순, 패키지명 오름차순을 사용한다.
-- 검색 후보 수: `N`은 30·50·100 중 평가 후 확정하며 화면 노출 수와 별도 설정한다.
-- 사용자 노출 후보: 최대 3
-- 기본 선택: 최종 후보 상위 2개
+- 검색 후보 수: 현재 기본 30. 최종 `N`은 30·50·100 중 평가 후 확정하며 화면 노출 수와 별도 설정한다.
+- API 반환: 기본 20, 최대 50
+- 사용자 노출 후보: 상위 2개
+- 기본 선택: 없음
 
-cos score와 관문 판정은 **v1 내부 구현 계약**이며 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 사람이 이해할 수 있는 관련성 근거와 자료 상태만 제공한다.
+API의 수치 score와 관문 판정은 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 패키지명·설명·유사도 순위·최신 버전만 제공한다.
 
 ### 4.2.1 채점 게이트와 지표 정의
 
@@ -335,19 +355,19 @@ cos score와 관문 판정은 **v1 내부 구현 계약**이며 사용자에게 
 
 GBDT LTR는 별도 결정과 평가를 거쳐야 하는 v1 이후 고도화다. 도입하더라도 MLflow 모델 사이클과 서빙 조회 구조는 유지한다.
 
-### 4.3 후보 API 계약 상태 — 미정
+### 4.3 현재 후보 API 계약
 
-후보 제공은 MVP 제품 요구지만 **endpoint·HTTP 응답 schema는 현재 확정하지 않는다.** 임베딩 모델을 완성하고 실제 후보 결과를 확인한 뒤 다음 항목을 개발팀 Notion API 명세에서 구체화한다.
+현재 저장소에는 다음 endpoint와 응답이 구현되어 있다. Notion/Swagger 동기화 여부는 후속 확인한다.
 
-- 기준 패키지 식별 방식
-- 후보 package name 목록과 정렬 순서
-- 사용자 노출용 관련성 근거의 생성·전달 방식
-- 후보 자료 상태(`data_status`)와 신호 상태의 책임 경계
-- pagination/limit 필요 여부
+- `GET /packages/similar?name={name}&limit={limit}`
+- `limit`: 기본 20, 최대 50
+- 응답: `base`, `model_ver`, `data_status`, `candidates`, `not_found`
+- candidate: `rank`, `score`, `name`, `latest_version`, `description`
+- `data_status`: 후보 결과가 있으면 `COMPLETE`, 없으면 `NO_DATA`
 
-현재 고정되는 것은 제품 계약뿐이다. 기준 패키지는 후보 목록에 중복 포함하지 않고, 사용자 노출 후보는 최대 3개이며 상위 2개를 기본 선택한다. 내부 score·가중치·계수는 HTTP 응답에 품질 점수로 노출하지 않는다. 생성형 AI가 요청 시점에 후보 이름을 만들거나 순서를 임의 변경하지 않는다.
+기준 패키지는 후보 목록에 중복 포함하지 않고, 화면은 상위 2개를 미선택 카드로 표시한다. HTTP 응답에는 수치 score가 있지만 UI에는 표시하지 않는다. 생성형 AI가 요청 시점에 후보 이름을 만들거나 순서를 임의 변경하지 않는다.
 
-**금지**: 임베딩 결과를 보기 전에 `/similar` 등 임의 endpoint, `READY/PARTIAL` 같은 후보 전용 data status, 구체 JSON field를 이 문서에서 canonical API로 선확정하지 않는다.
+후보 API가 구현됐다는 사실과 AI 배치가 DB 게시까지 완료됐다는 상태를 혼동하지 않는다. 현재 API는 `similar_package` 테이블을 읽지만 그 테이블로 새 배치 결과를 원자 게시하는 경로는 미완료다.
 
 ### 4.4 비교 대상 확정 계약
 
@@ -356,8 +376,8 @@ GBDT LTR는 별도 결정과 평가를 거쳐야 하는 v1 이후 고도화다. 
 - 최종 패키지 수 1~3
 - 패키지명 중복 금지
 - 네 번째 패키지 요청은 기존 선택을 자동 제거하지 않고 `MAX_SELECTION_REACHED` 반환
-- 직접 추가 패키지는 화면-01과 같은 자동완성에서 분석 가능한 항목을 사용자가 선택한 뒤 `manualSelection`으로 추가하고 후보 ranking은 변경하지 않음
-- 후보 retrieval 실패, ranking 처리 실패, 유효 후보 0개를 서로 다른 상태로 반환
+- 직접 추가 패키지는 자동완성 선택 또는 자유 입력 후 `/packages/search` 정확 일치 검증에 성공하면 추가하고 후보 ranking은 변경하지 않음
+- 현재 후보 API는 후보 있음 `COMPLETE`, 후보 없음 `NO_DATA`, 존재하지 않는 이름 `not_found`를 구분함. 요청 실패는 UI `error`로 처리
 
 ## 5. 보고서 1페이지
 
@@ -383,7 +403,7 @@ GBDT LTR는 별도 결정과 평가를 거쳐야 하는 v1 이후 고도화다. 
 
 ### 5.2 Dependency 표시·API 계약
 
-MVP는 `relationship_type = DIRECT`로 고정한다. 직접/간접 범위 전환은 확장-04 활성화 전에는 사용자에게 노출하지 않는다. **Dependents 추이와 Downloads 추이는 서로 독립 endpoint로 유지**하며, 보고서 전체를 한 응답으로 묶지 않는다.
+MVP는 직접 의존으로 고정한다. 현재 응답에 `relationship_type` field는 없으며 endpoint 설명과 `sum_over_versions=true`로 범위를 표현한다. 직접/간접 범위 전환은 확장-04 활성화 전에는 사용자에게 노출하지 않는다. **Dependents 추이와 Downloads 추이는 서로 독립 endpoint로 유지**한다.
 
 #### Total 조회
 
@@ -391,19 +411,17 @@ MVP는 `relationship_type = DIRECT`로 고정한다. 직접/간접 범위 전환
 GET /packages/dependents?names=winston,pino,bunyan&from={from}&to={to}
 ```
 
-- `version` 생략 = 각 패키지의 전 버전 `dependents_count`를 합산한 Total 추이
+- API는 같은 패키지의 series를 major별로 반환한다.
+- 프런트의 기본 `Total`은 반환된 모든 major series를 날짜별로 합산한다.
 - Total은 고유 프로젝트 수가 아니므로 화면에서 `N개 프로젝트가 사용`으로 표현하지 않는다. `의존 수(버전별 합계)` 의미를 유지한다.
 
-#### 특정 버전 조회
+#### major 다중 선택
 
-```text
-GET /packages/dependents?names=winston&from={from}&to={to}&version=3.19.0
-```
-
-- 사용자 결정에 따라 `version` query parameter 방식으로 특정 버전의 추이를 요청한다.
-- 패키지별 드롭다운은 독립적이다. 한 패키지의 버전 필터가 바뀌면 그 패키지에 필요한 요청만 갱신하고 다른 패키지 series는 유지할 수 있다.
-- `version`을 생략하면 다시 Total로 복귀한다.
-- HTTP 응답의 실제 TrendResponse field는 Notion API 명세를 따른다. 이 문서에서 별도 bundle JSON을 만들지 않는다.
+- 패키지마다 사용 가능한 major 목록을 독립적으로 표시한다.
+- 하나 이상의 major를 선택하면 프런트가 해당 series들을 날짜별로 합산한다.
+- `Total`을 선택하면 모든 major를 합산한다.
+- 선택 변경은 이미 받은 응답을 사용하므로 새 API 요청을 만들지 않는다.
+- HTTP 응답은 같은 `name`이 major마다 반복되는 TrendResponse이며 `sum_over_versions=true`를 포함한다.
 
 #### signed 증감 계산
 
@@ -413,16 +431,17 @@ GET /packages/dependents?names=winston&from={from}&to={to}&version=3.19.0
 - 유효 point가 2개 미만이거나 자료 상태상 계산할 수 없으면 값 대신 해당 자료 상태를 표시한다.
 - UI 조회 기간 변경은 그래프 범위와 signed 증감 기준을 함께 변경하며, 두 기준일을 카드 메타에 표시한다.
 - `+/-`는 총수 증가·감소만 의미하며 retained/inflow/outflow를 뜻하지 않는다.
-- 여러 패키지의 비교 시계열은 규모 차이 때문에 작은 시리즈가 바닥에 눌리지 않도록 로그축을 사용한다.
-- 유효 Snapshot point가 2개 이하인 경우에는 선그래프 추세를 과장하지 않고 `데이터 축적 중 (N주차)` 또는 동등한 상태를 표시한다.
+- 여러 패키지의 비교 시계열은 규모 차이 때문에 작은 시리즈가 바닥에 눌리지 않도록 로그축을 사용한다. 현재 프런트는 선형축이다.
+- 유효 Snapshot point가 2개 이하인 경우에는 계열별로 선그래프 추세를 과장하지 않고 `데이터 축적 중 (N주차)`를 표시한다. 현재 프런트는 전체 series의 최대 point 수로 판단한다.
 
 #### required metadata
 
-- `relationship_type = DIRECT`
-- `data_status` 6종(`COMPLETE/PARTIAL/NO_DATA/COLLECTION_ERROR/CONFLICT/STALE`)
 - Snapshot point의 `snapshot_at`
+- series의 `major`
+- `sum_over_versions = true`
+- 패키지별 `not_found`
 
-위 metadata를 Notion canonical API에 반영하되, 실제 server response가 확정되면 Swagger를 따른다.
+현재 응답을 Notion canonical API와 동기화하고 Swagger로 확인한다.
 
 ### 5.3 Downloads
 
@@ -431,30 +450,30 @@ canonical endpoint: `GET /packages/downloads?names=a,b,c&from=&to=`
 - npm 공식 Downloads API 경로만 사용
 - npmjs.com 웹 화면, npmtrends 등 서드파티 집계 사이트 크롤링 금지(2026-09-08 팀 결정)
 - 한 point의 단위는 **직전 7일 다운로드 합계**이며 UI에는 `주간 Downloads` 또는 동등한 weekly 의미를 표시한다.
-- MVP 조회 상한은 **78주(약 18개월)**다. 기존 104주 예시는 폐기한다.
+- 조회 요청 상한은 현재 `SnapshotWindow.MAX_WEEKS`와 같은 **104주**다. 실제 보유 자료가 더 짧으면 확보된 구간만 반환한다.
 - 기간과 호출 기준일 기록
-- 누락 구간은 null/gap으로 보존
+- 누락 구간은 null/gap으로 보존하고 주간 관측 간격이 8일을 넘으면 차트 path를 끊는다. 현재 API/차트는 빠진 날짜를 명시적 gap으로 만들지 않아 후속 구현이 필요하다.
 - 0은 정상 응답에서 실제 값이 0일 때만 사용
 - Downloads와 Dependents는 공통 TrendResponse 계열을 재사용하되 metric/unit metadata로 의미를 구분한다. 구체 wire field는 Notion/Swagger 정본을 따른다.
-- 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다.
-- 유효 point가 2개 이하인 초기 수집 상태에서는 선 추세 대신 `데이터 축적 중 (N주차)` 또는 동등한 안내를 제공한다.
+- 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다. 현재 프런트는 선형축이므로 후속 구현이 필요하다.
+- 유효 point가 2개 이하인 초기 수집 상태에서는 **계열별로** 선 추세 대신 `데이터 축적 중 (N주차)`를 제공한다. 현재 코드는 전체 series 중 최대 point 수로 판단하므로 후속 수정이 필요하다.
 
 ### 5.4 Version Share Snapshot
 
 canonical endpoint: `GET /packages/version?names=a,b,c`
 
-Version Share는 MVP에서 **최신 집계 기준일 Snapshot**만 사용자 화면에 사용한다. HTTP 응답의 구체 JSON shape는 Notion API 명세를 따르며, 이 문서의 camelCase 예시 객체를 canonical 응답으로 사용하지 않는다.
+Version Share는 MVP에서 **최신 DB Snapshot**만 사용자 화면에 사용한다. 현재 API는 `package_version_snapshot`의 `MAX(snapshot_at)`에서 version별 dependents를 major로 합산한다.
 
 **제품 계약**
 
 - Version Share 화면에 시간축 series를 요구하지 않는다.
-- 각 패키지는 최신 Snapshot 기준일과 major 계열별 관측 비중을 제공한다.
+- 각 패키지는 최신 DB Snapshot 기준일과 major 계열별 관측 비중을 제공한다.
 - 기준은 dependents이며 실제 설치 버전·고유 사용 프로젝트 수로 표현하지 않는다.
 - major가 많을 경우 화면 표현상 상위 항목 + 기타로 접을 수 있다.
-- 해석할 수 없는 조건은 임의 계열에 넣지 않고 별도 상태/비중으로 보존한다. 이 산출 가능 여부는 실제 `/packages/version` schema와 대조해 확정한다.
-- `data_status`는 공통 6종을 따른다.
+- 현재 응답은 상위 major와 화면의 `기타` 묶음을 제공할 수 있으나 requirement 원문의 해석 불가 상태를 제공하지 않는다.
+- 현재 응답은 `items`, `slices`, `not_found`를 사용하며 공통 `data_status`는 없다.
 
-**확장 준비 설계**: ERD의 현행 `package_version_snapshot`은 구체 버전별 `dependents_count` 저장을 위한 기반이며, 조건 문자열의 최신 Snapshot 분포를 그대로 보존하는 산출물은 아직 별도다. 최신 Snapshot마다 `package_id`, `snapshot_at`, 원본 requirement, 해석 major, 해석 상태(`RESOLVED|UNKNOWN|AMBIGUOUS`), 가중치/분모 단위를 가진 Version Share 집계 산출물을 추가한다. 화면은 이 산출물의 **최신 완료 Snapshot**만 읽는다. 이 확장은 ERD에 예정된 개발로 관리하며, 기존 ERD를 현행 구현과 같아야 한다는 이유로 변경하지 않는다.
+**확장 준비 설계**: `pipeline/requirements_resolution/`에 requirement 문자열 해석 코드가 구현됐다. 다만 2026-09-10 전체 실행은 OOM 이후 `PARTIAL`이며 표준 게시·`_SUCCESS`·current 전환과 API serving이 완료되지 않았다. 확장 단계에는 원본 requirement, 해석 major, `RESOLVED|UNKNOWN|AMBIGUOUS`, 가중치/분모를 보존하고 **최신 완료 실행**만 읽도록 연결한다.
 
 ### 5.5 Issues 확장
 
@@ -972,7 +991,7 @@ MVP 직접 의존 집계와 별도 파이프라인·별도 결과로 둔다.
 - 확장-04는 화면-03A의 기존 Dependency 카드 안에서 `직접 | 간접·전이` 범위 전환으로 제공하며 별도 route를 만들지 않는다.
 - 범위 전환 시 Dependency 그래프·관련 메타만 갱신하고 보고서 탭·비교 대상·다른 카드 상태는 유지한다.
 - 현재 선택 범위를 응답에 명시한다.
-- MVP 직접 Dependency API의 `relationship_type=DIRECT` 계약을 변경하지 않는다. 확장 활성화 시에만 동일 카드의 별도 relationship scope를 조회한다.
+- MVP 응답에는 `relationship_type` field가 없다. 확장 활성화 시 직접/간접 범위를 구분할 endpoint·field 계약을 별도로 확정한다.
 
 **튜닝 가능**
 
@@ -1045,7 +1064,7 @@ BLOCKED:
 - VERSION_RESULT_MISMATCH
 ```
 
-일부 기간 없음, 일부 후보 신호 미검증, Version Share 해석 불가 조건은 차단 사유가 아니다. 상태를 PDF에 표시한다.
+일부 기간 없음, 후보 `NO_DATA`, Version Share의 `기타` major 또는 확장 해석 결과의 `UNKNOWN|AMBIGUOUS`는 차단 사유가 아니다. 상태를 PDF에 표시한다.
 
 기능 비교 확장의 `REANALYSIS_REQUIRED`, `ANALYSIS_RUNNING`, `VERSION_RESULT_MISMATCH`는 PDF를 차단한다. 기존 결과는 비교 화면에서 유지하지만, 현재 선택 버전의 분석이 완료될 때까지 동일 ReportSnapshot의 PDF를 만들지 않는다.
 
@@ -1065,7 +1084,7 @@ BLOCKED:
 2. 후보·비교 대상과 분석 범위
 3. Downloads
 4. 직접 Dependency·표시 필터·Snapshot 간 signed 증감
-5. 최신 Version Share Snapshot과 기준일
+5. 최신 DB Snapshot 기반 Version Share와 기준일
 6. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
 7. 판정 또는 narrative에 연결된 근거 요약
 8. 자료 상태·해석 한계
@@ -1125,16 +1144,16 @@ Pickage_winston-pino-bunyan_2026-09-04.pdf
 
 - 직접 Dependency 시계열/Snapshot point (**signed delta 자체는 프론트 adapter 계산이며 별도 집계 필드로 강제하지 않음**)
 - Downloads 집계
-- 최신 Version Share Snapshot
-- 현재 `similar_package` 결과와 실행 manifest의 모델 버전·검증 결과(후보 API schema는 임베딩 실결과 확인 뒤 확정)
+- 최신 DB Snapshot 기반 Version Share
+- 현재 `similar_package` 결과와 API의 모델 버전·rank·score. 배치 실행 manifest와 DB 게시 연결은 후속 구현
 - 생태계 ReportSnapshot·PDF 메타데이터
 - 확장 기능이 실제 제공될 경우 필요한 결과 메타데이터
 
-pgvector가 현재 설치/배치되어 있다는 사실과 후보 알고리즘에서 실제 어떤 벡터 조회를 사용할지는 구분한다. 임베딩 결과 검증 전 HTTP 후보 계약이나 pgvector 사용 방식을 선확정하지 않는다.
+pgvector가 설치/배치되어 있다는 사실과 현재 후보 API가 `similar_package` 관계 테이블을 조회한다는 사실을 구분한다. HTTP 후보 API는 구현됐지만 새 배치 결과를 PostgreSQL에 원자 게시하는 연결은 아직 없다.
 
 ### 14.2 Redis — app 상태 서비스
 
-Redis는 **#2 app에 현재 배치된 구성**이다. 과거 문서처럼 운영 확장으로 분류하지 않는다. 다만 `서버 정보.pdf`는 Redis의 구체 사용처(세션, 캐시, 작업 상태 등)를 확정하지 않으므로 이 문서도 책임을 임의로 만들지 않는다. 실제 코드가 사용하는 key/TTL/일관성 정책을 구현 정본으로 추가 확정한다.
+Redis는 `서버 정보.pdf`에는 #2 app 배치로 기록됐지만 현재 `deploy/prod/app/compose.yaml`에는 없고 백엔드 의존성도 미사용이다. 실제 서버의 수동 프로세스인지, 과거 구성인지 확인하기 전에는 현재 애플리케이션이 Redis를 사용한다고 단정하지 않는다. 도입할 경우 key/TTL/일관성 정책을 구현 정본에 추가한다.
 
 ### 14.3 MinIO — data 객체 스토리지
 
@@ -1257,13 +1276,13 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 | 단계 | 작업 | 완료 기준 |
 |---|---|---|
 | 1 | 실서버 기준 고정: #2 app / #1 data, Docker Compose, 네트워크 | 두 서버 모두 4 vCPU·15Gi·320G 확인; 서비스 노출 #2 80/443, #1 없음 |
-| 2 | #2 PostgreSQL+pgvector·Redis / #1 MinIO·Spark History·모델 운영 구성 확인 | 실제 컴포넌트 배치가 서버 정보와 일치하고 컨테이너/프로세스 상태 확인 |
+| 2 | 서버 관측 구성과 `deploy/prod/` compose 대조 | Redis·History Server·분석/PDF worker의 실제 배치·소유권 확인 |
 | 3 | P1 BigQuery ETL·P2 npm downloads cron | dry-run/max-bytes cap, downloads 독립 실패 처리 |
 | 4 | #1 Spark master+worker-1+History / #2 worker-2 배치 | 4 vCPU·15Gi 자원 안에서 job 실행, 집계·training_pairs·pkg_vectors 생성 |
 | 5 | GPU 학습·MLflow 등록·평가/승격 사이클 | GPU 등록과 #1 승격 권한 분리, Recall@10·MRR 평가 |
-| 6 | 유사도 배치 v1 | 자격 필터(deprecated 제외) → ONNX 추론 → 순수 의미 검색 `search_k=N` → 구조적 관문 → cos 정렬 → 채점 게이트(Recall@N/10·MRR) → 스왑 |
-| 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 서빙 요청에서 PG 외 모델/MinIO 접촉 없음 |
-| 8 | 직접 Dependency·Downloads·Version Share 보고서 | 사전 집계 조회와 화면 상태 일치 |
+| 6 | 유사도 배치 v1 후속 | dependency overlap 관문·평가셋/채점 게이트·S3/PG 원자 게시 연결 |
+| 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 현재 6개 endpoint와 자유 입력 검증·후보 2개 미선택 UX 정합, 프런트 typecheck 통과 |
+| 8 | 직접 Dependency·Downloads·Version Share 보고서 | major 다중 선택·104주·현행 Version Share와 로그축/결측/상태 후속 계약 정합 |
 | 9 | RAG 기능 비교 [확장] | 현재 선택 버전별 완료 결과와 근거 계약 |
 | 10 | PDF Snapshot·#1 data worker 생성 [확장] | 생태계 결과와 현재 선택 버전의 완료 기능 비교 결과가 모두 있어야 READY이며, app 요청 경로와 생성 실행 분리 |
 | 11 | GitHub 커뮤니티·간접 Dependency [확장] | v1 코어와 분리된 추가 서비스·TTL 계약 |
@@ -1273,38 +1292,39 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 
 ### 기본·통합 계약
 
-1. 기준 패키지와 후보 ranking 상위 2개 기본 선택
+1. 기준 패키지만 최초 선택되고 후보 ranking 상위 2개는 미선택 카드로 표시
 2. 기준 패키지 해제 요청 거부
 3. 네 번째 패키지 추가 차단과 수동 해제
 4. 후보 0개, 의미 retrieval 실패, ranking 처리 실패 상태 분리
 5. `text_hash`가 바뀐 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
-6. `search_k=N`이 화면 노출 3개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
-7. 보완재·노후·실체 미달 관문이 score 감점이 아니라 통과/drop으로 작동하고, 통과 후보가 cos 단독으로 정렬되는지 검증
-8. 식별된 평가셋의 Recall@N/Recall@10·MRR 하락 시 적재를 중단하고 알림을 발생시키는지 검증
-9. MVP Dependents 응답 메타가 `relationship_type=DIRECT`로 고정되고 직접/간접 전환 요청이 MVP 계약에 없는지 확인
-10. Dependency 기본 Total 조회와 `version` query parameter 특정 버전 조회가 패키지별로 독립 변경되는지 확인
+6. 현재 기본 `search_k=30`이 화면 노출 2개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
+7. 현재 plugin/adapter·same-family 관문과 후속 dependency overlap 관문을 구분하고, 통과 후보가 cos로 정렬되는지 검증
+8. 평가셋 확정 전 scoring gate가 `SKIPPED`로 기록되고 명시적 허용 없이 성공 게시되지 않는지 검증
+9. MVP Dependents가 `sum_over_versions=true`와 major별 series를 반환하고 직접/간접 전환 요청이 없는지 확인
+10. Dependency의 `Total`/major 다중 선택이 이미 받은 series를 패키지별로 독립 합산하며 재호출하지 않는지 확인
 11. 프론트 `adapter.ts`가 현재 표시 필터의 dependents trend에서 조회 구간 첫·마지막 유효 point만 사용해 signed 증감을 계산하고, 유효 point가 하나일 때 0으로 대체하지 않는지 확인
 12. Version Share 응답에 최신 `snapshot_at`이 있고 시계열 series가 없는지 확인
-13. Version Share 해석 불가 조건을 임의 버전에 포함하지 않는지 확인
+13. MVP Version Share가 최신 DB Snapshot의 version별 dependents를 major로 합산하고 실제 설치·고유 프로젝트·requirement 해석 비중으로 오인되지 않는지 확인
 14. Notion API 명세/Swagger의 endpoint와 HTTP wire `snake_case`를 정본으로 사용하고 `api/types`가 wire shape를 보존하며 camelCase 변환이 `adapter.ts`에만 있는지 확인
-15. 검색 자동완성에서 분석 가능한 DB 결과를 사용자가 선택하기 전 다음 단계 CTA가 활성화되지 않고, 접두사 제시가 이름 자동 교체로 동작하지 않는지 확인
-16. Downloads 조회가 최대 78주이고 각 point가 weekly(직전 7일 합계) 의미로 표시되는지 확인
-17. 공통 API `data_status`가 6종으로 통일되고 후보/PDF lifecycle의 `READY`와 혼용되지 않는지 확인
-18. 후보 ranking HTTP endpoint/schema가 임베딩 모델 실제 결과 검증 전 canonical로 선확정되지 않았는지 확인
+15. 자동완성 선택과 자유 입력 모두 서버 검증을 거치고 `not_found`가 입력 오류로 표시되며 이름 자동 교체가 일어나지 않는지 확인
+16. Downloads 조회가 최대 104주이고 각 point가 weekly(직전 7일 합계) 의미로 표시되는지 확인
+17. 후보 게시 데이터 상태, UI 요청 상태, PDF lifecycle이 서로 혼용되지 않는지 확인
+18. `/packages/similar`의 default/max limit과 응답 field가 구현·Notion·Swagger에서 일치하고 화면이 수치 score를 숨기는지 확인
 19. 기능 비교의 현재 선택 버전 결과가 완료되기 전에는 PDF가 BLOCKED이며, 완료 후 READY가 되는지 확인
 20. PDF 부분 결과 생성과 자료 상태 경고
 21. PDF 다운로드 실패 후 동일 파일 재다운로드
-22. #2 app에 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가 의도한 배치로 실행되는지 확인
-23. #1 data에 Spark master·worker-1·History Server·분석/PDF worker·MinIO가 의도한 배치로 실행되는지 확인
+22. #2 app의 실제 프로세스를 compose와 대조해 Redis를 포함한 수동 배치 여부를 확인
+23. #1 data의 실제 프로세스를 compose와 대조해 History Server·분석/PDF worker의 수동 배치 여부를 확인
 24. 서비스 외부 노출이 #2의 80/443이고 #1 data 서비스 포트는 외부 노출되지 않는지 확인
 25. 두 서버가 각각 4 vCPU·15Gi·Swap 0·320G NVMe 실측 기준을 유지하는지 확인
 26. PDF 생성이 #1 data worker에서 실행되고 app API 요청과 무거운 생성 실행이 분리되는지 확인
 27. Dependency/Downloads 비교 그래프가 로그축 계약을 따르고 유효 point 2개 이하에서 `데이터 축적 중 (N주차)` 상태로 전환되는지 확인
 28. 표시한 trend의 8일 초과 관측 공백이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인
 29. GitHub 커뮤니티 refresh의 Spring→GMS 직접 호출이 확장-03 bounded 예외에만 한정되고 코어 서빙 경로로 확산되지 않는지 확인
-30. Notion export에서 `서버 반영=No`인 API를 구현 완료로 오기하지 않고 Swagger 반영 전까지 pending alignment로 관리하는지 확인
-31. 새 모델 승격이 `@production` alias와 검증된 `similar_package` 원자 게시로 반영되고 서빙 재기동이 없는지 검증
-32. 두 EC2의 배포 아티팩트/런타임 버전 호환성이 유지되는지 검증
+30. 저장소에 구현된 6개 endpoint와 Notion/Swagger의 차이를 pending alignment로 관리하는지 확인
+31. 새 모델 결과의 S3·`similar_package` 원자 게시와 실행 manifest 연결을 구현·검증
+32. `frontend` typecheck가 통과하고 선택 기간 delta·카드별 오류 격리·계열별 축적 판정이 계약대로 동작하는지 검증
+33. 두 EC2의 배포 아티팩트/런타임 버전 호환성이 유지되는지 검증
 
 ### 확장
 
@@ -1335,4 +1355,4 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - Node.js packages: https://nodejs.org/api/packages.html
 - GitHub REST API: https://docs.github.com/en/rest
 
-> **최종 개발 기준** v1의 실제 인프라는 **#2 app(4 vCPU, 15Gi, 320G NVMe)**과 **#1 data(4 vCPU, 15Gi, 320G NVMe)** 두 서버를 기준으로 한다. #2에는 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가, #1에는 Spark master·worker-1·History Server·임베딩 추론/tarball 정적분석/PDF worker·MinIO가 배치된다. 서비스 외부 노출은 #2의 80/443이며 #1 data는 서비스 포트를 외부 노출하지 않는다. API는 Notion 명세를 정본으로 하되 현재 export의 `서버 반영=No` 항목과 pending field를 구현 완료로 간주하지 않고 Swagger 반영 후 확정한다. Dependency signed delta는 프론트 adapter가 조회 구간의 첫·마지막 유효 point로 계산한다. 후보 ranking은 순수 의미 검색 `search_k=N`과 구조적 관문을 분리하고 관문 통과분을 cos로만 정렬한 뒤, ERD의 현재 `similar_package` 결과 한 벌을 원자 게시한다. 실행 manifest에는 모델 버전·`search_k`·관문 상태를 남긴다. 최신 Version Share는 별도 확장 집계 산출물의 완료 Snapshot을 기준으로 제공한다. 기능 비교의 현재 선택 버전 분석이 끝나기 전 PDF는 BLOCKED다. `search_k` 최종값·보완재 관문 활성 기준·추가 노후 컷·평가셋 정체, 외부 GPU·MLflow 모델 사이클, GitHub 커뮤니티, Redis 책임, PDF #2→#1 job 전달, CI/CD 상세 등 근거가 없는 구현은 OPEN으로 남긴다.
+> **최종 개발 기준** v1은 두 서버의 실측 사양과 저장소 배포 선언을 함께 본다. 서버 정보 PDF의 관측 구성과 compose에 재현되는 구성을 구분하며 Redis·History Server·분석/PDF worker의 실제 배포 소유권은 확인 전 OPEN이다. 현재 API는 자유 입력을 `/packages/similar`로 검증하고 후보 상위 2개를 미선택 카드로 표시하며, Dependents major series를 프런트에서 합산하고 Downloads는 최대 104주를 허용한다. 후보 API·AI 배치 본체는 구현됐지만 dependency overlap 관문·평가셋 게이트·S3/PG 게시 연결은 미완료다. Version Share MVP는 최신 DB Snapshot의 version별 dependents를 major로 합산하고 requirement 해석 기반 최신 완료 분포는 확장으로 둔다. 로그축·8일 초과 결측 단절·계열별 축적 상태·카드별 실패 격리·선택 기간 delta는 미구현 제품 계약으로 유지한다. 기능 비교 결과가 끝나기 전 PDF는 BLOCKED다.

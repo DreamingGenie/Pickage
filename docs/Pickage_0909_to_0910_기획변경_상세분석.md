@@ -1,7 +1,7 @@
 # Pickage 0909→0910 기획변경 상세분석
 
 작성 기준일: 2026-09-10
-연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`
+연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`, `DEC-IMPLEMENTATION-ALIGN-20260910-01`
 유지 결정: `DEC-COMMUNITY-20260909-01`
 
 이 문서는 2026-09-09 기획 세트(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)에서
@@ -11,7 +11,37 @@ Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서�
 기술 제안을 수용해 검색·관문 2단계 구조로 개정했다. GitHub 커뮤니티 단일 패키지/Spring-GMS 한정
 예외는 유지한다.
 
-## 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`)
+## 코드 정밀검토 후속 확정 — 2026-09-10 (`DEC-IMPLEMENTATION-ALIGN-20260910-01`, `S15P21A506-307`)
+
+S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·305·168·306의 86개 변경 파일을 API→배치→프런트→기획 문서 순으로 다시 검토했다. 근거와 판정은 `docs/worklogs/S15P21A506-307/정밀검토_결과서_260910.md`에 기록했다. 이 절의 후속 결정은 아래 0910 당일 초기 결정 중 충돌하는 항목보다 우선한다.
+
+### 현재 코드 계약을 채택한 항목
+
+1. **입력**: 자동완성 목록 선택을 강제하지 않는다. 자유 입력 또는 목록 선택 후 `/packages/similar`의 `not_found`로 서버 검증한다.
+2. **후보 화면**: 기준 패키지 외 후보는 상위 2개만 표시하고 기본 선택하지 않는다. 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다.
+3. **Dependents**: 정확 버전 `version` query를 사용하지 않는다. API가 package-major별 series를 반환하고 프런트가 `Total` 또는 선택한 여러 major를 합산한다.
+4. **Downloads**: 조회 요청 상한은 서버 `SnapshotWindow.MAX_WEEKS`와 같은 104주다.
+5. **Version Share MVP**: 최신 DB Snapshot의 version별 `dependents_count`를 major로 합산한다. requirement 해석 기반 최신 완료 분포와 `UNKNOWN|AMBIGUOUS` 보존은 확장으로 이동한다.
+6. **상태 경계**: 후보의 `COMPLETE|NO_DATA` 같은 게시 데이터 상태와 화면의 `loading|success|empty|error` 요청 상태를 별도 축으로 관리한다.
+
+### 기획 계약을 유지하고 구현 미달로 판정한 항목
+
+- Downloads·Dependents 비교 그래프의 로그축
+- 주간 관측에서 8일을 넘는 결측 구간 단절
+- 유효 point 2개 이하인 **계열별** `데이터 축적 중` 표시
+- 한 지표 실패가 다른 카드 결과를 숨기지 않는 카드별 오류 격리
+- 사용자가 선택한 표시 기간의 첫·마지막 유효 point로 계산하는 signed delta
+
+현재 프런트는 선형축, 명시적 null만 단절, 전체 series의 최대 point 수 기준 축적 판정, 생태계 탭 단위 오류 처리, 기간 필터 전 delta 계산 상태다. 이 차이는 요구사항을 코드 수준으로 낮추지 않고 구현 과제로 관리한다. 또한 `analyze-page.tsx`의 미정의 `setError`로 typecheck가 실패하는 문제는 별도 코드 결함이다.
+
+### 구현 상태로 새로 반영한 항목
+
+- `/packages/similar` API와 프런트 후보 조회는 구현됨. Notion/Swagger 동기화와 AI 배치→PostgreSQL 게시 연결은 미완료.
+- AI 배치는 기본 `search_k=30`, plugin/adapter·same-family 관문, cos 정렬까지 구현됨. dependency overlap 보완재 관문·평가셋 scoring gate·S3/PG 게시는 미완료.
+- `pipeline/requirements_resolution/` 구현은 존재하지만 전체 실행은 `PARTIAL`이며 표준 게시·serving에 연결되지 않음.
+- 서버 정보 PDF의 관측 구성과 저장소 `deploy/prod/` compose를 분리한다. Redis·History Server·분석/PDF worker는 PDF에는 있으나 compose에는 없어 실제 배포 소유권 확인이 필요함.
+
+## 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`, 일부 조항은 후속 결정으로 대체)
 
 정합성 검수 뒤 제품·개발팀과 다음을 확정했다. 이 절은 아래의 당시 변경 이력을 지우지 않고, 이후
 후속 구현 계약과 Figma·0910 문서에 적용할 최종 해석을 기록한다.
@@ -33,7 +63,7 @@ Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서�
 
 이번 기획 작업의 수정 대상은 요구사항·서비스 기획서·IA·개발 구상안·Figma다. 프런트·백엔드·데이터·배포 등 실제 구현 파일은 수정하지 않으며, 78주 상한·차트·입력·상태 처리 등 구현 필요사항은 WORKLOGS의 후속 목록으로 관리한다. API wire와 Version Share 확장 스키마는 개발팀 Notion/Swagger 반영 전까지 OPEN으로 남긴다.
 
-## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`)
+## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`, UI/API 조항은 후속 결정으로 대체)
 
 `DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20 고정과
 보완재 감점은 다음 구조로 대체한다.
@@ -224,9 +254,9 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 - 같은 결정의 Spring→GMS 직접 호출은 확장-03 refresh에 한정된 bounded 예외로 유지한다.
 - 기준 패키지는 항상 비교 대상에 포함되고 해제할 수 없다.
 - 한 보고서의 최종 비교 대상은 기준 패키지 포함 최대 3개다.
-- 후보 상위 2개 기본 선택은 최종 추천이나 기술 품질 순위가 아니다.
+- 후보 상위 2개는 미선택 카드로 표시하며 유사도 순위는 기술 품질 순위가 아니다.
 - 후보 단계에서는 버전을 선택하지 않는다.
-- Version Share UI는 최신 Snapshot이고 시계열이 아니다.
+- Version Share MVP는 최신 DB Snapshot의 version별 dependents를 major로 합산하며 시계열이 아니다.
 - 기능 비교와 GitHub 커뮤니티는 MVP가 아닌 확장이다.
 - Pickage는 “가장 좋은 패키지”를 자동 선택하거나 승자를 선언하지 않는다.
 
@@ -252,17 +282,19 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 
 ## 후속 필요 항목 (현재 의도적으로 OPEN)
 
-- 후보 ranking API endpoint/schema/관련성 근거 전달 field — 임베딩 모델 실결과 확인 후 확정.
+- `/packages/similar`의 현재 구현 schema와 Notion/Swagger 동기화.
+- AI 후보 배치 결과의 S3 게시·PostgreSQL 원자 적재와 실행 manifest 연결.
 - `search_k=N` — 30·50·100 중 Recall@N·실행 비용 실험 후 `S15P21A506-169`에서 확정.
 - 보완재 관문의 최종 threshold·그래프 준비 전 적용 정책 — `S15P21A506-172`에서 확정.
 - 최근 12개월 코퍼스 컷 외 별도 노후 관문 필요 여부.
 - 현행 “deprecated 51K 홀드아웃” 평가셋의 구성·누수·정답 정의와 고정 식별자.
 - Version Share API의 historical `snapshot_at` 지원 여부.
-- Version Share `해석 불가` bucket의 실제 HTTP wire 표현.
+- requirement 해석 기반 Version Share 확장의 `UNKNOWN|AMBIGUOUS` HTTP wire와 최신 완료 실행 선택.
 - `OPEN-SERVER-01`: #2 app → #1 data PDF worker의 job 전달/queue/polling과 UI-derived delta를
   동일 PDF Snapshot으로 넘기는 방식.
 - `OPEN-SERVER-02`: Redis 실제 key/TTL 및 세션·캐시·job 책임.
 - `OPEN-SERVER-03`: 실제 CI runner/container registry/deploy command.
+- `OPEN-SERVER-04`: 서버 정보 PDF에는 있으나 compose에는 없는 Redis·History Server·분석/PDF worker의 실제 배포 소유권.
 - MinIO 예약 용량·보존/정리 정책.
 - 외부 GPU/MLflow 물리 사양.
 
