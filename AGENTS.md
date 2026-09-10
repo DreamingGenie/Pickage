@@ -1,8 +1,14 @@
-# S15P21A506 팀 공통 에이전트 규칙 (초안)
+# S15P21A506 팀 공통 에이전트 규칙
 
-이 문서는 아직 팀 전체 합의가 끝나지 않은 **초안**입니다. 현재는 아래 "기록 언어 규칙",
-"작업 전 Jira 연동 워크플로우", "MR 템플릿", "Jira 이슈 템플릿"이 확정되어 있습니다. Git 브랜치/커밋 컨벤션,
-MR 리뷰 규칙, 스펙 주도 개발 여부 등 나머지 협업 규칙은 팀원들과 논의 후 이 문서에 추가합니다.
+사람 팀원과 AI 에이전트가 함께 지키는 협업 규칙입니다. **작업을 시작하기 전에 읽어 주세요.**
+
+- **AI 에이전트용**: 이 파일이 규칙 정본입니다. Claude Code 는 루트 [`CLAUDE.md`](CLAUDE.md) 를 통해,
+  Codex 등 다른 도구는 저장소 루트의 이 `AGENTS.md` 를 직접 읽습니다.
+  (~2026-09-09 까지 이 문서는 `.agents/AGENTS.md` 에 있었고, 그 경로는 어느 도구도
+  자동으로 읽지 않아 규칙이 지켜지지 않았습니다. 그래서 루트로 옮겼습니다.)
+- **확정**: 기록 언어 규칙 · 작업 전 Jira 연동 워크플로우 · Git 브랜치·커밋 컨벤션 ·
+  MR 템플릿 · Jira 이슈 템플릿
+- 아직 합의되지 않은 항목은 8번 항목에 모여 있습니다.
 
 ## 1. Jira 프로젝트 정보
 
@@ -38,11 +44,27 @@ MR 리뷰 규칙, 스펙 주도 개발 여부 등 나머지 협업 규칙은 팀
 
 커밋 메시지 자체의 언어(영어/한국어)는 이 규칙과 별개이며 기존 관례를 따릅니다.
 
-**구현 참고 (에이전트용):** `git push -o merge_request.description="..."`는
-실제 개행문자를 포함할 수 없다(git이 거부함). 여러 항목을 나열해야 하는 본문은
-줄바꿈 대신 번호(`1)`, `2)`...)나 가운뎃점(`·`) 구분자로 한 줄에 작성하거나,
-push 이후 GitLab 웹 UI/API로 본문을 갱신한다. 이때 저장된 git 자격증명을
-추출해 API를 직접 호출하는 것은 지양한다.
+**구현 참고 (에이전트용): MR 본문은 push 옵션으로 쓰지 않는다.**
+
+`git push -o merge_request.description="..."` 는 실제 개행문자를 담을 수 없다(git이 거부함).
+그래서 개행을 번호(`1)`, `2)`)나 가운뎃점(`·`)으로 눌러 한 줄에 우겨넣게 되는데, 그러면
+5번 항목의 MR 템플릿 섹션 구성을 지킬 수 없다. **2026-09-08 MR !80~!82 가 이 방식으로
+한 줄짜리 본문이 되어 리뷰하기 어려웠다.**
+
+절차는 이렇게 한다.
+
+1. push 할 때는 **제목만** 옵션으로 준다.
+   ```bash
+   git push -u origin HEAD \
+     -o merge_request.create \
+     -o merge_request.target=develop \
+     -o merge_request.title="chore: 제목 (S15P21A506-000)"
+   ```
+2. 본문은 GitLab 웹의 MR 편집 화면에서 채운다. 편집기를 **플레인텍스트 모드로 전환**한 뒤
+   템플릿 원문을 넣는다 — 리치텍스트 모드에 마크다운을 붙여넣으면 깨진다.
+   (전환 버튼은 편집기 왼쪽 아래 "Switch to plain text editing")
+3. 한글 본문에 `\uXXXX` 손이스케이프를 쓰지 않는다. 조용히 오타가 난다.
+4. 저장된 git 자격증명을 추출해 API를 직접 호출하는 것은 지양한다.
 
 ## 3. 작업 전 Jira 연동 워크플로우 (AI 에이전트 필수 준수)
 
@@ -71,11 +93,101 @@ push 이후 GitLab 웹 UI/API로 본문을 갱신한다. 이때 저장된 git �
 4. **작업 종료 후**: 완료되면 `transitionJiraIssue`로 상태를 "완료"로 전이하고,
    필요하면 `addCommentToJiraIssue`로 결과를 요약합니다.
 
-## 4. MR 템플릿 (확정)
+## 4. Git 브랜치·커밋 컨벤션 (확정)
+
+정본은 노션 문서 **"repo 구조 & 브랜치 규칙"**·**"커밋 컨벤션"** 이고, 이 절은 그 규칙을
+저장소에서 바로 참조할 수 있게 옮겨 둔 것입니다. 둘이 어긋나면 노션을 따르고 이 절을 고칩니다.
+
+### 4.1 병합 흐름
+
+```
+기능 브랜치 → develop → main
+```
+
+`develop`·`main` 에 직접 push 하지 않습니다. MR을 만들어 리뷰를 거칩니다.
+
+### 4.2 브랜치 이름
+
+```
+<part>/<type>/<issue_no>-작업내용
+```
+
+예) `data/feat/S15P21A506-290-downloads-bronze-ingest`
+
+| 자리 | 값 |
+| --- | --- |
+| `part` | `frontend` `api` `data` `ai` `worker` `infra` `docs` `plan` |
+| `type` | `feat` `fix` `refactor` `test` `chore` `docs` `style` `config` |
+| `issue_no` | Jira 이슈 키 — `S15P21A506-290`. 숫자만(`290-...`) 쓰지 않습니다 |
+| `작업내용` | 영문 kebab-case. 브랜치명의 한글·공백·대문자는 도구 호환 문제가 있습니다 |
+
+**`part` 는 폴더명이 아니라 담당 파트입니다.** 노션 폴더 구조 안(`api/`·`worker/`·`infra/`)과
+현재 저장소 배치(`backend/`·`pipeline/`·`deploy/`)가 아직 다르므로 아래 대응을 씁니다.
+
+| `part` | 실제 폴더 |
+| --- | --- |
+| `frontend` | `frontend/` |
+| `api` | `backend/` |
+| `data` | `pipeline/`, `datasets/` |
+| `ai` | (미착수) |
+| `worker` | (미착수) |
+| `infra` | `deploy/`, `compose.yaml`, `.githooks/`, `scripts/` |
+| `plan` | `docs/` 중 기획·요구사항·구상안 |
+| `docs` | `docs/` 중 그 외, 루트 문서·README |
+
+손으로 만들지 말고 헬퍼를 쓰면 규칙을 외우지 않아도 됩니다.
+
+```bash
+sh scripts/new-branch.sh data feat 290 downloads-bronze-ingest
+# → origin/develop 에서 data/feat/S15P21A506-290-downloads-bronze-ingest 생성
+```
+
+`.githooks/pre-push` 가 **새 브랜치를 처음 push 할 때** 이름을 검사합니다. 이미 원격에 있는
+브랜치의 추가 push 는 검사하지 않으므로, 규칙 도입 전에 만든 브랜치의 작업은 막히지 않습니다.
+
+### 4.3 커밋 메시지
+
+```
+type: subject
+
+body
+
+footer
+```
+
+- **type** — 브랜치의 `type` 과 같은 목록. 콜론 **뒤에만** 공백을 둡니다 (`feat: …`, `feat : …` 아님).
+- **subject** — 50자 이내, 끝에 마침표를 붙이지 않습니다. 영문이면 동사원형으로 시작하고
+  과거시제를 쓰지 않습니다 (`Fixed` 아니라 `Fix`).
+- **body** — 어떻게가 아니라 **무엇을·왜** 바꿨는지 씁니다. 분량 제한 없음.
+- **footer** — 선택. `Fixes:` `Resolves:` `Ref:` `Related to:`
+
+**Jira 이슈 키는 제목 맨 끝 괄호에 붙입니다.**
+
+```
+feat: deps.dev BigQuery 수집기 추가 (S15P21A506-122)
+```
+
+노션 커밋 컨벤션의 footer 예시(`Resolves: #45`)는 GitHub 이슈 번호 기준이라 이 저장소에는
+맞지 않습니다. 제목 끝 괄호를 쓰는 이유는 ①GitLab↔Jira 연동이 제목의 키를 읽어 커밋을
+이슈에 자동 연결하고(`S15P21A506-47`), ②`.githooks/commit-msg` 가 브랜치명에서 키를 읽어
+**자동으로 삽입**해 주므로 손으로 적을 일이 거의 없기 때문입니다.
+
+### 4.4 훅 설치 (클론 후 1회)
+
+훅은 저장소에 들어 있지만 git 이 자동으로 켜 주지 않습니다. 각자 1회 실행해야 합니다.
+
+```bash
+sh scripts/setup-hooks.sh      # macOS / Linux / Git Bash
+scripts\setup-hooks.bat        # Windows CMD / PowerShell
+```
+
+검사 내용과 우회 방법은 [`README.md`](README.md) 의 "브랜치·커밋 규칙" 절에 있습니다.
+
+## 5. MR 템플릿 (확정)
 
 모든 Merge Request는 저장소의 기본 템플릿을 사용합니다.
 
-- 위치: [`.gitlab/merge_request_templates/default.md`](../.gitlab/merge_request_templates/default.md)
+- 위치: [`.gitlab/merge_request_templates/default.md`](.gitlab/merge_request_templates/default.md)
 - GitLab에서 MR을 생성하면 Description 템플릿 드롭다운에서 `default`를 고를 수 있고,
   프로젝트 설정에서 기본 템플릿으로 지정되어 있으면 자동으로 채워집니다.
 - 본문 작성 언어는 2번 항목(한국어)을 따릅니다.
@@ -85,14 +197,14 @@ push 이후 GitLab 웹 UI/API로 본문을 갱신한다. 이때 저장된 git �
   - **데이터·파이프라인 영향**: 스키마 변경·backfill·외부 교통 API 호출량·배치 주기 변화는
     머지 후 되돌리는 비용이 크므로 해당하면 반드시 기재하고, 없으면 "없음"이라고 적습니다.
   - **체크리스트**: API 키 등 시크릿이 커밋에 포함되지 않았는지 확인하고, 리뷰어·라벨을 지정합니다.
-- 에이전트가 `git push -o merge_request.description=...`로 MR을 만들 때도 이 템플릿의
-  섹션 구성을 따릅니다(개행 제약은 2번 항목의 구현 참고를 볼 것).
+- 에이전트가 MR을 만들 때도 이 템플릿의 섹션 구성을 그대로 따릅니다. 본문을 넣는 방법은
+  2번 항목의 구현 참고를 볼 것 — push 옵션이 아니라 웹 편집입니다.
 
-## 5. Jira 이슈 템플릿 (확정)
+## 6. Jira 이슈 템플릿 (확정)
 
 Jira 이슈를 만들 때는 저장소의 템플릿을 기준으로 설명(Description)을 작성합니다.
 
-- 위치: [`docs/templates/jira/`](../docs/templates/jira/) — `스토리.md`, `작업.md`, `버그.md`
+- 위치: [`docs/templates/jira/`](docs/templates/jira/) — `스토리.md`, `작업.md`, `버그.md`
 - **자동 삽입은 되지 않습니다.** 이 프로젝트는 company-managed(classic) 프로젝트라 이슈 생성
   화면에서 설명을 미리 채워 주는 Jira 기본 기능이 없습니다(team-managed 프로젝트 전용 기능).
   따라서 이슈를 만들 때 해당 템플릿 본문을 **복사해 붙여넣고** 채웁니다.
@@ -109,7 +221,7 @@ Jira 이슈를 만들 때는 저장소의 템플릿을 기준으로 설명(Descr
   "이슈 생성됨 → 설명이 비어 있으면 → 이슈 편집으로 템플릿 삽입"으로 생성 **직후** 자동 삽입이
   가능합니다. 생성 화면에서 미리 보이지는 않습니다.
 
-## 6. 알려진 환경 차이 (AI 에이전트 필수 확인)
+## 7. 알려진 환경 차이 (AI 에이전트 필수 확인)
 
 로컬과 운영이 **의도적으로 다른** 지점이다. 여기서 비롯되는 증상을 디버깅할 때는
 코드보다 이 표를 먼저 볼 것. "로컬에서는 되는데 서버에서 안 된다" 의 후보 목록이다.
@@ -137,9 +249,8 @@ S3 API 동작이 두 버전 사이에 달라질 수 있다. **로컬에서 검�
 **맞출 때는 로컬을 운영 버전으로 내리는 쪽을 먼저 검토한다.** 운영을 올리려면
 백업 → 콘솔 확인 순서가 필요하고, 데이터 디렉터리 형식이 바뀌면 되돌릴 수 없다.
 
-## 7. 향후 추가 예정 (팀 합의 필요)
+## 8. 향후 추가 예정 (팀 합의 필요)
 
-- Git 브랜치/커밋 컨벤션
-- MR 리뷰 규칙 (리뷰어 지정 인원, 승인 수 등 — 템플릿 자체는 4번 항목에서 확정)
+- MR 리뷰 규칙 (리뷰어 지정 인원, 승인 수 등 — 템플릿 자체는 5번 항목에서 확정)
 - 스펙 주도 개발(Spec-Driven Development) 여부
 - 시크릿/보안 관리 규칙
