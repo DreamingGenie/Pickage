@@ -1,0 +1,49 @@
+{
+  "status": "PUBLISHED",
+  "action": "LOADED",
+  "execution_id": "load-288-20260831-v1",
+  "attempt_id": "9ca49ab318094dbb9db7bde60303ed50",
+  "started_at": "2026-09-09T05:47:17.051395+00:00",
+  "finished_at": "2026-09-09T05:55:11.323701+00:00",
+  "elapsed_seconds": 474.266,
+  "contract_sha256": "2bbb495af5e5fc99dae36730d83dc88ba37cff5e1c124c2f197d4dec1e4c7b19",
+  "counts": {
+    "package_snapshot": 11080940,
+    "inserted": 11080940,
+    "verified_rows": 11080940
+  },
+  "validation": {
+    "rows": 11080940,
+    "nonnull": {
+      "downloads": 97728,
+      "stars": 7150485,
+      "open_issues": 7150485
+    },
+    "sums": {
+      "downloads": "213093115787",
+      "stars": "33485871365",
+      "open_issues": "579209553"
+    },
+    "verification": "ALL_KEYS_SCHEMA_COUNTS_VALUES"
+  },
+  "verification_scope": "ALL_SERVICE_ROWS_NULL_SAFE",
+  "db_verification": {
+    "database": "pickage_267_full_defaulted",
+    "status": "PUBLISHED",
+    "attempt_status": "PUBLISHED",
+    "actual_counts": {
+      "inserted": 11080940,
+      "verified_rows": 11080940,
+      "package_snapshot": 11080940
+    }
+  },
+  "input": {
+    "dataset": "package-snapshot",
+    "snapshot": "2026-08-31",
+    "snapshot_timestamp": "2026-08-31T21:01:10.517131",
+    "curated_run_id": "package-snapshot-288-20260909-v1",
+    "run_prefix": "depsdev/v1/package-snapshot/snapshot=2026-08-31/run_id=package-snapshot-288-20260909-v1",
+    "manifest_sha256": "53b04df38d126128b30e49bd31dde4cd0354b3711317753f8165b86d9c433357"
+  },
+  "local_only": true
+}

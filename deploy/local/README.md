@@ -81,13 +81,16 @@ docker volume rm pickage-local_pgdata
 
 ### 샘플 데이터 — 목적이 다른 세 벌
 
-**셋을 같이 쓸 수 없다.** 전부 기존 행을 비우고 시작하므로 나중에 돌린 쪽만 남는다.
+**아래 셋을 같이 쓸 수 없다.** 전부 기존 행을 비우고 시작하므로 나중에 돌린 쪽만 남는다.
+(그 아래 두 개는 데이터를 넣지 않는 **비우기 전용**이라 셋 중 무엇 위에도 얹을 수 있다.)
 
 | 파일 | 규모 | 무엇을 보려고 |
 | --- | --- | --- |
 | `seed_sample.sql` | 패키지 3 × 스냅샷 2 | **자료가 모자란 상태.** 추이 그래프가 "데이터 축적 중" 으로 뜨는지, `repo_url` 이 없는 패키지가 "미확인" 으로 뜨는지 |
 | `seed_mock_parity.sql` | 패키지 369 × 스냅샷 130 | **mock 과 같은 숫자.** `VITE_USE_MOCK=true` 인 화면과 번갈아 보며 다른 곳을 찾는 대조 검증 |
 | `seed_service_full.sql` | 패키지 322 × 스냅샷 130 | **목업을 굴려 보는 상태.** 메인 6개 테이블을 전부 채우고(`similar_package` 포함) 경계 사례를 일부러 심어 두었다 |
+| `seed_clear_snapshots.sql` | 넣지 않음 | **자료가 아예 없는 상태.** 위 시드 뒤에 얹으면 이름은 남고 스냅샷만 사라진다. 적재 전·첫 스냅샷 대기 중의 정상 상태이며, 이때 5개 엔드포인트가 전부 200 이어야 한다 (S15P21A506-298) |
+| `seed_reset.sql` | 넣지 않음 | **목업을 실데이터로 교체하기 직전 1회.** 6개 테이블을 전부 비운다. 아래 "목업에서 실데이터로" 참고 |
 
 `seed_mock_parity` 와 `seed_service_full` 은 규모가 비슷하지만 쓰임이 다르다. 앞은 **mock 과
 숫자가 같아야** 의미가 있어서 값을 바꾸려면 `frontend/src/api/mock/dataset.ts` 부터 고쳐야
@@ -98,7 +101,22 @@ docker volume rm pickage-local_pgdata
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_service_full.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_clear_snapshots.sql
 ```
+
+### 목업에서 실데이터로
+
+실적재기(`pipeline/postgresql`)는 전량 교체가 아니라 임시 staging + upsert 라 **목업 행을
+스스로 걷어내지 않는다.** 그래서 정제 데이터를 처음 적재하기 직전에 `seed_reset.sql` 을
+한 번 돌린다.
+
+잊고 적재하면 **조용히 섞이지 않는다.** 적재기가 게시 직전에 `package_id` ↔ `name` 짝을
+검사해 `package_id/name collision` 으로 예외를 던지고 트랜잭션을 통째로 롤백한다. 목업은
+`package_id` 를 1 부터 제 순서대로 배정하므로 거의 확실히 걸린다 — 그 메시지를 보면 여기로
+올 것.
+
+반대 방향은 막혀 있다. 실적재가 한 번 성공하면 `etl_snapshot_reference` 에 이력이 남고,
+그 뒤로는 모든 시드의 `DELETE FROM snapshot` 이 FK 위반으로 멈춘다.
 
 > 시드는 **메인 서비스 6개 테이블만** 건드린다. 적재 추적(`etl_*`) 4개는 파이프라인이
 > 소유하므로 비우지도 채우지도 않는다. 그래서 `snapshot` 은 `TRUNCATE` 가 아니라 `DELETE`
@@ -131,6 +149,48 @@ Flyway 의 반복 마이그레이션(`R__`)으로 두면 파일이 바뀔 때마
 - 체크섬·적용 이력이 없어서 "시드를 고쳤는데 기동이 막힌다" 류의 함정이 생기지 않는다.
 
 </details>
+
+### mock 을 끄고 화면까지 확인하기
+
+프런트는 기본이 mock 이다. **서버를 거치는지 보려면 꺼야 한다** — 켜 두면 화면이 예쁘게
+떠도 그것은 `src/api/mock` 이 만든 값이다.
+
+```bash
+printf 'VITE_API_BASE_URL=/api\nVITE_USE_MOCK=false\n' > frontend/.env.local
+```
+
+`.env.local` 은 `.gitignore` 에 걸려 있어 커밋되지 않는다. **값을 바꾸면 dev 서버를 다시
+띄운다** — Vite 는 기동 시점에 이 파일을 읽는다.
+
+그다음 셋을 순서대로 올린다.
+
+```bash
+docker compose --profile api up -d postgres
+docker compose exec -T postgres psql -U postgres -d pickage -f seed/seed_service_full.sql
+cd backend && ./gradlew bootRun          # 8080
+cd frontend && npm run dev               # 5173, /api 는 8080 으로 프록시된다
+```
+
+`http://localhost:5173/report/draft` 로 바로 들어가면 기본 조합(winston·pino·bunyan)으로
+생태계 탭이 뜬다. **화면-01·02 를 거칠 필요가 없다** — 그쪽은 아직
+`routes/analyze/sample-registry.ts` 하드코딩이라 서버를 타지 않는다(S15P21A506-120).
+
+시드를 갈아 끼우면 같은 화면에서 상태 네 가지를 다 볼 수 있다.
+
+| 시드 | 화면에 떠야 하는 것 |
+| --- | --- |
+| `seed_service_full` | 차트 두 개에 104주치 선 3개, 카드 3장 |
+| `seed_sample` | 기본 조합 이름이 하나도 없어 **"찾지 못한 패키지: …"** 만 뜬다. 500 이 아니다 |
+| `seed_sample` + 화면-01 에서 `lodash` | **"데이터 축적 중 · 2주차"** — 점이 3개 미만이면 선을 그리지 않는다 |
+| `seed_clear_snapshots` | **"기준 스냅샷 없음 — 데이터 축적 중"** (S15P21A506-298) |
+
+`/api/dict-manifest` 는 아직 404 다(S15P21A506-291). **그래도 검색창은 동작해야 한다** —
+사전은 최적화이지 의존성이 아니라서, 실패하면 전량 `/api/packages/search` 폴백으로 돈다.
+개발자 도구 네트워크 탭에서 404 하나와 그 뒤의 `search` 200 이 같이 보이면 정상이다.
+
+> 보고서를 한 번 열 때 나가는 요청은 **4개**다(개요 1 + 추이 2 + 버전 분포 1).
+> 그보다 많으면 기준일이 오기 전에 추이가 먼저 나간 것이다 — 예전에 7개였고
+> 세 개는 화면에 뜨지도 못한 채 버려졌다(S15P21A506-303).
 
 ## Curated package·version 적재
 

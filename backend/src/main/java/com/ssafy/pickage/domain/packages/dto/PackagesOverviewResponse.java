@@ -17,6 +17,7 @@ import java.util.List;
  * @param notFound   0.2 — 못 찾은 이름. 일부가 없어도 200 이다.
  */
 public record PackagesOverviewResponse(
+	// 적재 전에는 null 이다 (S15P21A506-298). 프론트 타입도 nullable 이다.
 	LocalDate snapshotAt,
 	List<Item> items,
 	List<String> notFound

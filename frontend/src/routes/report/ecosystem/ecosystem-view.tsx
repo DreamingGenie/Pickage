@@ -83,12 +83,20 @@ export function EcosystemView({
 
   return (
     <div className={cn('flex flex-col gap-5', className)}>
-      {/* 0.2 — 부분 실패. 못 찾은 이름은 조용히 사라지면 안 된다 */}
+      {/*
+        0.2 — 부분 실패. 못 찾은 이름은 조용히 사라지면 안 된다.
+
+        **"나머지" 가 실제로 있을 때만 그렇게 말한다.** 요청한 이름이 전부 없으면
+        부분 실패가 아니라 전부 실패이고, 그때 "나머지는 그대로 표시했습니다" 는
+        화면에 보이지도 않는 무언가가 있다고 말하는 셈이다. 적재 직후 이름이
+        하나도 안 맞는 구간에서 실제로 밟힌다.
+      */}
       {model.notFound.length > 0 && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
           찾지 못한 패키지:{' '}
           <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> — 이름을
-          확인해 주세요. 나머지는 그대로 표시했습니다.
+          확인해 주세요.
+          {model.packages.length > 0 && ' 나머지는 그대로 표시했습니다.'}
         </p>
       )}
 
@@ -142,16 +150,27 @@ export function EcosystemView({
         ))}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
-        {expanded.length === 0
-          ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
-          : expanded.length < model.packages.length
-            ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
-            : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
-      </p>
+      {/*
+        카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
+
+        `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
+        두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
+        하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
+        실제로 그렇게 떴다.
+      */}
+      {model.packages.length > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {expanded.length === 0
+            ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
+            : expanded.length < model.packages.length
+              ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
+              : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
+        </p>
+      )}
 
       <p className="font-mono text-[10.5px] text-muted-foreground">
-        기준 스냅샷 {model.snapshotAt}
+        {/* 기준일이 없다 = 아직 첫 스냅샷을 못 받았다. 장애가 아니라 자료 축적 중이다. */}
+        {model.snapshotAt ? `기준 스냅샷 ${model.snapshotAt}` : '기준 스냅샷 없음 — 데이터 축적 중'}
       </p>
     </div>
   )

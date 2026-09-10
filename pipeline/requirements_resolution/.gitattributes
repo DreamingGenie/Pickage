@@ -1,0 +1,3 @@
+# Keep runtime fingerprint bytes stable across Windows checkouts.
+*.py text eol=lf
+*.cjs text eol=lf

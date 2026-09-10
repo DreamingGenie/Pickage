@@ -1,0 +1,4 @@
+# Preserve verification helpers and recorded evidence hashes across checkouts.
+*.py text eol=lf
+evidence/*.json text eol=lf
+evidence/*.log text eol=lf

@@ -1,0 +1,64 @@
+{
+  "recorded_at": "2026-09-09T00:15:55.985970+00:00",
+  "source_run": "2026-09-02",
+  "bronze_run_id": "downloads-278-20260909-v1",
+  "manifest_sha256": "0617c12a1c810ecc11fcc01e281e375a8c1aa53bdb5ba57dab15a61120eec35d",
+  "manifest_uri": "s3://pickage-raw/npm-downloads/v1/run_id=downloads-278-20260909-v1/run_manifest.json",
+  "local_manifest": "data/downloads/executions/downloads-278-20260909-v1/1d9e2ef37dd6442590897000cb4ad648/input-manifest.json",
+  "contract_sha256": "cb73c31fdacaa05466164d1925fa872f71b2967018edadada9a2d92b28805648",
+  "provenance": {
+    "generator_candidate": {
+      "blob_sha": "d9562f12af10e62eac98e81f604c9635522ba56a",
+      "commit": "33b49adef8ea6f6f01bf1f91048ffcf239c7a73d",
+      "path": "pipeline/collectors/downloads/to_parquet.py",
+      "status": "HISTORY_ONLY_CANDIDATE"
+    },
+    "generator_execution_version": "UNVERIFIED",
+    "rules": [
+      "status=ok responses are unnested",
+      "(name,date) latest fetched_at wins",
+      "ROWS BETWEEN 7 PRECEDING AND 7 FOLLOWING median >= 1000 changes zero to NULL + imputed_gap=true"
+    ],
+    "unverified": [
+      "historical generator was found but its use for this input run and full rebuild were not verified"
+    ]
+  },
+  "summary": {
+    "daily_row_count_is_not_inferred": true,
+    "declared_end_max": "2026-08-31",
+    "declared_start_min": "2024-09-01",
+    "extra_sample_keys": [],
+    "max_date": "2026-08-31",
+    "min_date": "2024-09-01",
+    "missing_sample_keys": [],
+    "response_row_count": 145504,
+    "sample_compared": true,
+    "sample_match": true,
+    "sample_package_names": [
+      "-",
+      "0http",
+      "0x",
+      "0xsequence",
+      "0xtrails",
+      "100xprompt-cli",
+      "101",
+      "10up-toolkit"
+    ],
+    "status_counts": {
+      "not_found": 1158,
+      "ok": 144346
+    },
+    "target": {
+      "raw_only_names": [],
+      "status": "CHECKED",
+      "target_unique_name_count": 99996,
+      "target_without_raw_names": []
+    },
+    "unique_package_count": 99996
+  },
+  "sample_rows": 5840,
+  "matched_sample_rows": 5840,
+  "sample_sha256": "6c22e4975b1884bdd2a62a75eef03ec9e31add331efc8433028d52271668db1c",
+  "sample_hash_encoding": "UTF-8 JSON, sort_keys=true, separators=comma/colon, ensure_ascii=false",
+  "scope_note": "All raw response structures were scanned; transformation was compared for 8 packages, not all daily rows. Actual generator execution version and full rebuild remain unverified."
+}

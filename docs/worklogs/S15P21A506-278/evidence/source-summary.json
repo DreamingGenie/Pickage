@@ -1,0 +1,367 @@
+{
+  "recorded_at": "2026-09-09T00:15:55.985970+00:00",
+  "source_run": "2026-09-02",
+  "bronze_run_id": "downloads-278-20260909-v1",
+  "manifest_sha256": "0617c12a1c810ecc11fcc01e281e375a8c1aa53bdb5ba57dab15a61120eec35d",
+  "manifest_uri": "s3://pickage-raw/npm-downloads/v1/run_id=downloads-278-20260909-v1/run_manifest.json",
+  "local_manifest": "data/downloads/executions/downloads-278-20260909-v1/1d9e2ef37dd6442590897000cb4ad648/input-manifest.json",
+  "contract_sha256": "cb73c31fdacaa05466164d1925fa872f71b2967018edadada9a2d92b28805648",
+  "validation_status": "PASSED",
+  "file_count": 768,
+  "input_bytes": 1597476963,
+  "roles": {
+    "daily_parquet": {
+      "file_count": 730,
+      "bytes": 1308015307,
+      "row_count": 62616750,
+      "min_date": "2024-09-01",
+      "max_date": "2026-08-31"
+    },
+    "raw_response": {
+      "file_count": 34,
+      "bytes": 283472340,
+      "row_count": 145504,
+      "min_date": "2024-09-01",
+      "max_date": "2026-08-31"
+    },
+    "source_metadata": {
+      "file_count": 2,
+      "bytes": 748,
+      "row_count": null,
+      "min_date": null,
+      "max_date": null
+    },
+    "status_parquet": {
+      "file_count": 1,
+      "bytes": 2147343,
+      "row_count": 99996,
+      "min_date": "2024-09-01",
+      "max_date": "2026-08-31"
+    },
+    "target_csv": {
+      "file_count": 1,
+      "bytes": 3841225,
+      "row_count": 100000,
+      "min_date": null,
+      "max_date": null
+    }
+  },
+  "excluded_count": 742,
+  "excluded_reasons": {
+    "smoke output": 733,
+    "execution log": 2,
+    "checkpoint or smoke fixture": 3,
+    "broken partial output": 4
+  },
+  "quality": {
+    "consistency_checks": {
+      "daily_keys_unique": true,
+      "daily_names_are_targets": true,
+      "daily_names_have_status": true,
+      "daily_physical_schemas_equal": true,
+      "downloads_nonnegative": true,
+      "imputed_gap_matches_null_downloads": true,
+      "not_found_has_no_daily_rows": true,
+      "physical_date_matches_partition": true,
+      "status_date_range_matches_daily": true,
+      "status_names_are_targets": true,
+      "status_values_allowlisted": true,
+      "target_and_status_name_sets_equal": true,
+      "target_names_are_nonblank": true
+    },
+    "daily_duplicate_keys": [],
+    "daily_max_date": "2026-08-31",
+    "daily_min_date": "2024-09-01",
+    "daily_physical_schema_files": 730,
+    "daily_rows": 62616750,
+    "downloads_imputed_gap": 437786,
+    "downloads_null": 437786,
+    "downloads_zero": 5322058,
+    "imputed_gap_downloads_disagreement": 0,
+    "negative_downloads": 0,
+    "not_found_with_daily_rows": [],
+    "physical_date_path_mismatch": 0,
+    "ready_period_coverage": {
+      "complete_packages": 21597,
+      "expected_days": 62616750,
+      "incomplete_examples": [
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "-",
+          "null_values": 12,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "0http",
+          "null_values": 5,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "0x",
+          "null_values": 5,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "0xsequence",
+          "null_values": 1,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "101",
+          "null_values": 5,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "10up-toolkit",
+          "null_values": 1,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "12factor-env",
+          "null_values": 1,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2",
+          "null_values": 8,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2-thenable",
+          "null_values": 16,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "20",
+          "null_values": 1,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2captcha",
+          "null_values": 7,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2captcha-ts",
+          "null_values": 6,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2d-polygon-area",
+          "null_values": 1,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "2fa",
+          "null_values": 7,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "3",
+          "null_values": 2,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "360dialog-connect-button",
+          "null_values": 3,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "3d-force-graph",
+          "null_values": 6,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "3d-force-graph-ar",
+          "null_values": 7,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "3d-force-graph-vr",
+          "null_values": 5,
+          "observed_days": 730
+        },
+        {
+          "expected_days": 730,
+          "missing_days": 0,
+          "name": "3d-tiles-renderer",
+          "null_values": 5,
+          "observed_days": 730
+        }
+      ],
+      "missing_days": 0,
+      "observed_days": 62616750,
+      "packages": 99215,
+      "packages_with_missing_days": 0,
+      "packages_with_null_values": 77618
+    },
+    "ready_without_daily_rows": 0,
+    "status_counts": {
+      "NOT_FOUND": 781,
+      "READY": 99215
+    },
+    "status_max_date": "2026-08-31",
+    "status_min_date": "2024-09-01",
+    "status_rows": 99996,
+    "status_unique_names": 99996,
+    "target_duplicate_names": [
+      {
+        "name": "@capgo/capacitor-mqtt",
+        "occurrences": 2
+      },
+      {
+        "name": "@realfavicongenerator/inject-markups",
+        "occurrences": 2
+      },
+      {
+        "name": "lavalink-client",
+        "occurrences": 2
+      },
+      {
+        "name": "start-authjs",
+        "occurrences": 2
+      }
+    ],
+    "target_null_or_blank_names": 0,
+    "target_reference_missing": [],
+    "target_rows": 100000,
+    "target_status_name_set_equal": true,
+    "target_unique_names": 99996
+  },
+  "schemas": {
+    "daily_downloads": [
+      {
+        "column": "name",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "downloads",
+        "nullable": true,
+        "type": "BIGINT"
+      },
+      {
+        "column": "imputed_gap",
+        "nullable": true,
+        "type": "BOOLEAN"
+      },
+      {
+        "column": "tier",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "fetched_at",
+        "nullable": true,
+        "type": "TIMESTAMP"
+      },
+      {
+        "column": "date",
+        "nullable": true,
+        "type": "DATE"
+      }
+    ],
+    "download_status": [
+      {
+        "column": "name",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "tier",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "status",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "first_date",
+        "nullable": true,
+        "type": "DATE"
+      },
+      {
+        "column": "last_date",
+        "nullable": true,
+        "type": "DATE"
+      },
+      {
+        "column": "last_fetched_at",
+        "nullable": true,
+        "type": "TIMESTAMP"
+      }
+    ],
+    "targets": [
+      {
+        "column": "rank",
+        "nullable": true,
+        "type": "BIGINT"
+      },
+      {
+        "column": "name",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "column": "downloads_last_month",
+        "nullable": true,
+        "type": "BIGINT"
+      },
+      {
+        "column": "dependent_packages_count",
+        "nullable": true,
+        "type": "BIGINT"
+      },
+      {
+        "column": "status",
+        "nullable": true,
+        "type": "VARCHAR"
+      }
+    ]
+  },
+  "scope_notes": [
+    "Rows have different meanings by file role; source_metadata row_count is not applicable.",
+    "READY coverage compares each status first_date..last_date request interval, not 730 days for every package.",
+    "A later snapshot [P,S) requires its own date and non-NULL coverage check.",
+    "The exact selected and excluded file lists and file hashes are in the referenced immutable manifest."
+  ]
+}

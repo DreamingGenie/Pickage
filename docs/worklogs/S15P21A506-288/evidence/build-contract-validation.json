@@ -1,0 +1,112 @@
+{
+  "verified_at_utc": "2026-09-10T04:44:42.813750+00:00",
+  "issue": "S15P21A506-288",
+  "base_commit": "a8c25ec744ec9039a60a7c63e9735530acc232c1",
+  "source_state": "이번 수정 후 테스트한 워킹 트리. source_sha256으로 파일별 내용을 고정하며 base_commit은 변경 전 기준이다.",
+  "scope": [
+    "생성 계약 일치가 증명된 과거 산출물만 재사용",
+    "검증 계약 변경은 새 attempt에 기록",
+    "Git LF 기준 소스 검증 증거와 실패 감지 도구"
+  ],
+  "suites": [
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_input pipeline.package_snapshot.test_build pipeline.package_snapshot.test_load pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume pipeline.package_snapshot.test_contract pipeline.package_snapshot.test_history_contract scripts.test_source_evidence -q",
+      "tests": 74,
+      "seconds": 15.396,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_postgres pipeline.package_snapshot.test_history_postgres -q",
+      "environment": {
+        "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER": "pickage-267-validation"
+      },
+      "tests": 23,
+      "seconds": 101.273,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "distinct_tests_passed": 97,
+  "syntax_checked_files": 35,
+  "structural_checks": {
+    "history_build_substantive_ast_unchanged": true,
+    "quality_schema_and_projection_unchanged": true
+  },
+  "git_clean_normalized_bytes_equal": {
+    "files": 35,
+    "status": "PASSED",
+    "staging_modified": false
+  },
+  "historical_evidence_verification": {
+    "path": "docs/worklogs/S15P21A506-288/evidence/review-fixes-validation.json",
+    "source_revision": "a8c25ec744ec9039a60a7c63e9735530acc232c1",
+    "files": 16,
+    "status": "PASSED"
+  },
+  "contract_sha256": {
+    "build": "5694e9fdb74f9624756b8a0b984733a6f4f70467af0597df88880df9b285333f",
+    "validator": "fb89de1b5e18c5baa999fc5b08bdec32a44c61e5b73e1c0210953f83b3f13710"
+  },
+  "source_hash_basis": "UTF-8 text with CRLF and CR normalized to LF, then SHA-256",
+  "source_sha256": {
+    "pipeline/curated/build.py": "5049b02ac5a235e6e77dd5786e36edba76141243803bc4ce4cb54c2b0c361f6f",
+    "pipeline/curated/storage.py": "4c1653604a6c32cf84bfdaa081817588481b1c2dbc7211af4179d6d5358331c2",
+    "pipeline/downloads/bronze.py": "8259be7eb06c0766ba7de861f94bb709f652f77f0cbdbecbac97a9209dcb8abb",
+    "pipeline/downloads_interval/aggregate.py": "83bc94f975660d612ed5a84515300b825fef170d9dd29e641d83d587a474420a",
+    "pipeline/package_snapshot/__init__.py": "bf037293ef3f6995ac2c9a6ff018fa574a8c84a92cfd01673f842c3413cc6f58",
+    "pipeline/package_snapshot/build.py": "7fc12d0872e7ebb19d5167ccdb933601cca5eeebfa1fdd0939a3a66b08c06a82",
+    "pipeline/package_snapshot/history.py": "dbce08e55ce97814c4f31e88499b6a763c7ac3300706c23bf800672f7b64e28a",
+    "pipeline/package_snapshot/history_build.py": "bf70df06367e6a83831f8840f4960cd8ac11e8e0b637b30158c15d7f1d8adcf8",
+    "pipeline/package_snapshot/history_contract.py": "f43baba2fda82d6682f68263e7b9c046a5a13571df0a73af17d5bcf649515047",
+    "pipeline/package_snapshot/history_inputs.py": "1f6c7f2dcb9e9aa181c287e0e78040c8b6965f163d57d6669e39ee5225250be1",
+    "pipeline/package_snapshot/history_load.py": "918c1332eb0b112fe39ca4618b555a4e6176e951bc69181799e5fcbbf51fbc51",
+    "pipeline/package_snapshot/history_policy.py": "36085ebbd2f38e0309b033515bf88dcc9c963e51f2349a526c9c1ab0346b2261",
+    "pipeline/package_snapshot/input.py": "57b67c7dc3dcfa73302b6d4aebbdeb5e8ed1a084432ce1dcfdb0e0280ac7af2e",
+    "pipeline/package_snapshot/load.py": "9f6ed1c5ee4d724c55cb12f8993a65ef8aee8a64d0ce98ef6cbc1dfcbf952f1e",
+    "pipeline/package_snapshot/policy.py": "1454198b9629043947972aa5c4112a828d644a4ad8f206dc2caa0d6e23892c05",
+    "pipeline/package_snapshot/postgres.py": "635fa24eb8d80669bcdacb58aa62357a0cfb8e8de3859cf2b6e695d42f29811f",
+    "pipeline/package_snapshot/quality.py": "c0f880b8d9949b83851d08d248f51524711fcad3a3701bd1485939a0d9e08450",
+    "pipeline/package_snapshot/quality_schema.py": "72af8ce683af530d01e09e051b640be83bd038bb6809e67e668638652fb609b7",
+    "pipeline/package_snapshot/test_build.py": "e846c622075e4f070bfe7e4179ecfafed0ac3b21d63f1234700276dab22783fa",
+    "pipeline/package_snapshot/test_contract.py": "d41e5520a2e8b80564ead19f40b7996f3c94e31beb479a24c037071f5a77c6c0",
+    "pipeline/package_snapshot/test_history_build.py": "1185e83760d47186eb6072c0fc844a7647d4a12cfd2008798313452d744acdcc",
+    "pipeline/package_snapshot/test_history_contract.py": "056cadc0dc1c98f5dd75631c77ae785b2cafa2446aebc8d6fde8de92caeba30e",
+    "pipeline/package_snapshot/test_history_postgres.py": "8171727f339d9839ea169a374ad7acfdf2350e95bf6a18a1dc232798f24d170e",
+    "pipeline/package_snapshot/test_history_resume.py": "59f72c58842d3b91438877f26b3a162cced7c3fc1d497e502bea8295bcf2400b",
+    "pipeline/package_snapshot/test_input.py": "f217864dea6b1c95d434ec9de790ba4c09623133f7ad3652069cdb4b959540fe",
+    "pipeline/package_snapshot/test_load.py": "209605e155ef0fcc8539a870dfe8713542432877ef295f4c4b84d95477e64acc",
+    "pipeline/package_snapshot/test_postgres.py": "4deddbffa2bcdff7118fb0a29253c4d99dfe0bca0745b23312871ae00e321439",
+    "pipeline/package_snapshot/test_quality.py": "854dcfe47a03c9843886b1c462a547e5e927ee41aa32b5bdcae14a8a40a80c94",
+    "pipeline/postgresql/input.py": "c54a8a4a95cc58536f49931fb4be5c25fb2f4ab3ad11f5525b525d3ff0468562",
+    "pipeline/snapshot/build.py": "be9c07ad2ff17f8466d2e25b894004546ec11d1a6330637f0954e5b4efae32d5",
+    "pipeline/snapshot/input.py": "3a31e42d33874f691c106517e1111090be735935cdd1b1a236499b5b8c2095ba",
+    "pipeline/snapshot/policy.py": "47585ff3885acb97237fb26e2b7f13c823388d4f32ba8918dbc5a1af7c9a552b",
+    "pipeline/snapshot/projects.py": "8754b7a0a25128607ceb78200e2ea33f9a6d67bc994979280c7c2b29ac3612b7",
+    "scripts/source_evidence.py": "4299bb3c9d436b99afd56d84ecf81e8dac1d39cf13ec2adb1ad9b08e64a6989c",
+    "scripts/test_source_evidence.py": "831a8fc7db181544f584e24c1224172491b7b419c4127d6a446a2e87c32f3744"
+  },
+  "diff_check": "PASSED",
+  "remaining_test_databases": [],
+  "boundaries": {
+    "legacy_without_build_hash": "새 history 진입점은 거부한다. 이전 quality 읽기 어댑터는 별도 유지한다.",
+    "history_resume": "작은 Parquet fixture, 실제 history.run/prepare_copy; 원격 게시 및 DB dispatch만 대체",
+    "postgres_tests": "pickage_288_test_<UUID> 격리 DB 생성·검증·삭제",
+    "existing_full_history_reverified": false,
+    "existing_data_reloaded": false,
+    "minio_data_changed": false,
+    "backend_api_modified": false,
+    "server_deployed": false,
+    "review_C_modified": false,
+    "committed": false
+  },
+  "pre_commit_revalidation": {
+    "reason": "스테이징된 새 quality_schema.py의 마지막 빈 줄을 제거해 소스 해시가 달라졌다. 최종 코드로 97개 테스트를 다시 실행하고 해시를 갱신했다.",
+    "tests_rerun": 97,
+    "source_files_changed_since_previous_validation": [
+      "pipeline/package_snapshot/quality_schema.py"
+    ]
+  }
+}

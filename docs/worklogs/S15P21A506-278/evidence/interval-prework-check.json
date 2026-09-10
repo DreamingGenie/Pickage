@@ -1,0 +1,381 @@
+{
+  "recorded_at": "2026-09-09T01:32:21.809223+00:00",
+  "status": "PASSED",
+  "scope": "S15P21A506-278 team documentation for downloads source validation, Bronze ingestion, and snapshot interval aggregation with Curated publication.",
+  "bronze_ingestion_commit": "a173015",
+  "bronze_ingestion_result": "COMPLETED",
+  "interval_aggregation_status": "PREWORK_DOCUMENTED_NOT_IMPLEMENTED",
+  "remote_jira_updated": false,
+  "interval_aggregation_tests_run": 0,
+  "interval_aggregation_or_curated_publication_executed": false,
+  "markdown_files_checked": 11,
+  "local_links_checked": 64,
+  "acceptance_ids": [
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-07",
+    "AC-08",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "AC-12",
+    "AC-13",
+    "AC-14",
+    "AC-15",
+    "AC-16",
+    "AC-17",
+    "AC-18",
+    "AC-19"
+  ],
+  "plan_ids": [
+    "P-00",
+    "P-01",
+    "P-02",
+    "P-03",
+    "P-04",
+    "P-05",
+    "P-06",
+    "P-07",
+    "P-08",
+    "P-09",
+    "P-10",
+    "P-11",
+    "P-12",
+    "P-13",
+    "P-14"
+  ],
+  "protected_implementation_and_prior_evidence_files": 17,
+  "protected_hashes_unchanged": true,
+  "bronze_contract_unchanged": true,
+  "prior_package_version_snapshot_and_backend_diff_empty": true,
+  "git_diff_check_exit_code": 0,
+  "temporary_jira_references": 0,
+  "temporary_roadmap_task_numbers": 0,
+  "trailing_whitespace_errors": 0,
+  "local_links": [
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "../../../pipeline/snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "../../../pipeline/minio/ingest_raw.py",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/01-scope.md",
+      "target": "07-jira-ticket.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "04-work-log.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "../../../pipeline/minio/ingest_raw.py",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/02-plan.md",
+      "target": "06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/03-issues.md",
+      "target": "07-jira-ticket.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/03-issues.md",
+      "target": "01-scope.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/03-issues.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/documentation-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/04-work-log.md",
+      "target": "evidence/interval-prework-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/tests.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/tests.log",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/documentation-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "07-jira-ticket.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/05-results.md",
+      "target": "evidence/interval-prework-check.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/06-interval-contract.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/06-interval-contract.md",
+      "target": "../../../pipeline/snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/06-interval-contract.md",
+      "target": "07-jira-ticket.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/bronze-load.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/source-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/lineage-summary.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "evidence/tests.json",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "01-scope.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "02-plan.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "03-issues.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "04-work-log.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "05-results.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "07-jira-ticket.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../S15P21A506-267/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../S15P21A506-269/06-history-contract.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/minio/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/worklogs/S15P21A506-278/README.md",
+      "target": "../../../pipeline/downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/README.md",
+      "target": "worklogs/S15P21A506-267/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/README.md",
+      "target": "worklogs/S15P21A506-278/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "downloads/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "../docs/worklogs/S15P21A506-278/06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "postgresql/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "curated/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "../deploy/local/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/README.md",
+      "target": "../docs/worklogs/S15P21A506-267/05-results.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../../docs/worklogs/S15P21A506-278/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../../docs/worklogs/S15P21A506-278/06-interval-contract.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../snapshot/README.md",
+      "exists": true
+    },
+    {
+      "document": "pipeline/downloads/README.md",
+      "target": "../../docs/worklogs/S15P21A506-278/05-results.md",
+      "exists": true
+    }
+  ]
+}
