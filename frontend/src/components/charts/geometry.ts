@@ -75,27 +75,70 @@ export const scaleY = (v: number, d: Domain, b: Box) =>
   d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
 
 /**
- * null 을 만나면 선을 끊는다. 이어 그리면 없는 관측을 있는 것처럼 만든다.
- * 반환은 단일 path d 문자열이며 구간마다 새 M 으로 시작한다.
+ * 관측 공백으로 볼 간격의 기본값(일).
+ *
+ * 수집은 주 1회이므로 정상 간격은 7일이다. 8일을 넘으면 그 사이 주를 못 받은 것이다
+ * (`DEC-RECONCILIATION-20260910-01` 7번). 하루의 여유는 수집 시각이 밀리는 경우를 위한 것이다.
  */
-export function buildLine(points: TimePoint[], xd: Domain, yd: Domain, b: Box): string {
+export const MAX_GAP_DAYS = 8
+
+const DAY_MS = 86_400_000
+
+/**
+ * 선을 끊어야 하는가.
+ *
+ * **값이 `null` 인 경우와 행 자체가 없는 경우는 다르다.** 앞은 서버가 "관측했으나 값이
+ * 없다" 고 말한 것이고, 뒤는 아무 말도 하지 않은 것이다. 지금까지는 앞만 끊었기 때문에,
+ * 주간 수집이 통째로 빠진 구간이 양옆을 잇는 직선으로 그려져 **연속 관측처럼 보였다.**
+ *
+ * 원인을 단정하지 않는다 — 수집 실패인지 그 주에 스냅샷을 만들지 않은 것인지 화면은
+ * 알 수 없다. 그저 잇지 않을 뿐이다.
+ */
+const broken = (prev: TimePoint | null, cur: TimePoint, maxGapDays: number) =>
+  prev !== null && ms(cur.t) - ms(prev.t) > maxGapDays * DAY_MS
+
+/**
+ * null 을 만나거나 간격이 벌어지면 선을 끊는다. 이어 그리면 없는 관측을 있는 것처럼 만든다.
+ * 반환은 단일 path d 문자열이며 구간마다 새 M 으로 시작한다.
+ *
+ * @param maxGapDays 이 일수를 넘게 벌어진 이웃은 잇지 않는다. 화면이 스냅샷을 솎아 그릴
+ *                   때는(`sampleEvery`) 정상 간격 자체가 넓어지므로 호출하는 쪽이 그 간격에
+ *                   맞춰 올려 준다. 안 그러면 4주 간격 보기에서 모든 구간이 끊긴다.
+ */
+export function buildLine(
+  points: TimePoint[],
+  xd: Domain,
+  yd: Domain,
+  b: Box,
+  maxGapDays: number = MAX_GAP_DAYS,
+): string {
   let d = ''
   let pen = false
+  let prev: TimePoint | null = null
   for (const p of points) {
     if (p.v === null) {
       pen = false
+      prev = null
       continue
     }
+    if (broken(prev, p, maxGapDays)) pen = false
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
     const y = scaleY(p.v, yd, b).toFixed(2)
     d += `${pen ? 'L' : 'M'}${x} ${y}`
     pen = true
+    prev = p
   }
   return d
 }
 
-/** 선 아래 옅은 면. 끊긴 구간은 면도 끊는다. */
-export function buildArea(points: TimePoint[], xd: Domain, yd: Domain, b: Box): string {
+/** 선 아래 옅은 면. 끊긴 구간은 면도 끊는다 — 선과 같은 판정을 쓴다. */
+export function buildArea(
+  points: TimePoint[],
+  xd: Domain,
+  yd: Domain,
+  b: Box,
+  maxGapDays: number = MAX_GAP_DAYS,
+): string {
   const base = (b.y + b.h).toFixed(2)
   let d = ''
   let run: { x: string; y: string }[] = []
@@ -111,15 +154,19 @@ export function buildArea(points: TimePoint[], xd: Domain, yd: Domain, b: Box): 
     run = []
   }
 
+  let prev: TimePoint | null = null
   for (const p of points) {
     if (p.v === null) {
       flush()
+      prev = null
       continue
     }
+    if (broken(prev, p, maxGapDays)) flush()
     run.push({
       x: scaleX(ms(p.t), xd, b).toFixed(2),
       y: scaleY(p.v, yd, b).toFixed(2),
     })
+    prev = p
   }
   flush()
   return d

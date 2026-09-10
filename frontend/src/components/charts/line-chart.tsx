@@ -7,6 +7,7 @@ import {
   compact,
   extentX,
   extentY,
+  MAX_GAP_DAYS,
   ms,
   pointSize,
   scaleX,
@@ -34,6 +35,13 @@ export interface LineChartProps {
    * 패키지 카드를 접으면 그 선이 차트에서도 물러난다.
    */
   emphasisKeys?: readonly string[] | null
+  /**
+   * 이 일수를 넘게 벌어진 이웃 스냅샷은 잇지 않는다(기본 8일 = 주간 수집 + 하루 여유).
+   *
+   * 화면이 스냅샷을 솎아 그릴 때는 정상 간격 자체가 넓어지므로 부르는 쪽이 올려 준다.
+   * 그대로 두면 "4주" 보기에서 모든 구간이 공백으로 판정돼 선이 사라진다.
+   */
+  maxGapDays?: number
   className?: string
   ariaLabel: string
 }
@@ -58,6 +66,7 @@ export function LineChart({
   bare = false,
   observedFrom,
   emphasisKeys = null,
+  maxGapDays = MAX_GAP_DAYS,
   className,
   ariaLabel,
 }: LineChartProps) {
@@ -260,10 +269,14 @@ export function LineChart({
                 style={{ transition: 'opacity 200ms ease' }}
               >
                 {(single || focused) && (
-                  <path d={buildArea(s.points, xd, yd, box)} fill={st.color} fillOpacity={0.08} />
+                  <path
+                    d={buildArea(s.points, xd, yd, box, maxGapDays)}
+                    fill={st.color}
+                    fillOpacity={0.08}
+                  />
                 )}
                 <path
-                  d={buildLine(s.points, xd, yd, box)}
+                  d={buildLine(s.points, xd, yd, box, maxGapDays)}
                   fill="none"
                   stroke={st.color}
                   strokeWidth={bare ? 1.6 : focused ? 2.6 : 1.8}

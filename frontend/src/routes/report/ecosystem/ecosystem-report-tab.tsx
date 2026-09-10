@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ApiError } from '@/api/client'
+import { errorNotice } from '@/api/client'
 import { USE_MOCK } from '@/api/endpoints'
 import {
   useDependentsTrend,
@@ -12,7 +12,7 @@ import { MAX_NAMES } from '@/api/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
-import { FETCH_WEEKS } from '@/routes/report/ecosystem/model'
+import { FETCH_WEEKS, type MetricKey, type MetricState } from '@/routes/report/ecosystem/model'
 
 /**
  * 생태계 변화 탭.
@@ -64,18 +64,28 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
   }
 
-  const error = overview.error ?? downloads.error ?? dependents.error
-  if (error) return <ErrorState error={error} onRetry={() => void overview.refetch()} />
+  /**
+   * **개요 실패만 화면 전체를 막는다.** 패키지 카드를 만들 재료가 없기 때문이다.
+   *
+   * 추이 둘은 각자 카드 안에서 실패한다. 예전에는 셋 중 하나만 실패해도 탭 전체가
+   * 오류 화면으로 바뀌어, 명세 §1 이 엔드포인트를 지표별로 나눠 둔 이득을 화면이
+   * 통째로 버리고 있었다(`DEC-RECONCILIATION-20260910-01` 8번).
+   */
+  if (overview.error) {
+    return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
+  }
+  if (!overview.data) return <LoadingState />
 
-  if (!overview.data || !downloads.data || !dependents.data) {
-    return <LoadingState />
+  const metricState: Record<MetricKey, MetricState> = {
+    downloads: stateOf(downloads),
+    dependents: stateOf(dependents),
   }
 
   const model = toEcosystemModel({
     overview: overview.data,
+    // 아직 안 왔거나 실패한 지표는 넘기지 않는다. 그 카드만 비고 나머지는 그대로 뜬다.
     downloads: downloads.data,
     dependents: dependents.data,
-    // 실패하면 카드의 Version Share 자리만 비고 나머지는 그대로 뜬다.
     versionShare: versionShare.data,
   })
 
@@ -87,7 +97,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
           것이고, 모양만 v1 API 명세를 따릅니다.
         </p>
       )}
-      <EcosystemView model={model} />
+      <EcosystemView model={model} metricState={metricState} />
     </div>
   )
 }
@@ -103,18 +113,32 @@ function LoadingState() {
 }
 
 /**
+ * 추이 한 개의 처지를 카드가 알아들을 모양으로 옮긴다.
+ *
+ * `isPending` 이 아니라 데이터 유무로 판정한다 — 개요가 오기 전에는 `ready` 가 아니라
+ * 아예 꺼져 있고(`enabled: false`), 그때 react-query 의 상태는 `pending` 이지만
+ * 가져오는 중은 아니다. 화면에는 둘 다 "기다리는 중" 으로 보이는 게 맞다.
+ */
+function stateOf(q: { data: unknown; error: unknown; refetch: () => unknown }): MetricState {
+  const onRetry = () => void q.refetch()
+  // 받아 둔 자료가 있으면 그것을 먼저 친다. 갱신 실패로 이미 그린 차트를 지우지 않는다.
+  if (q.data) return { status: 'ready', refreshError: q.error ?? undefined, onRetry }
+  if (q.error) return { status: 'error', error: q.error, onRetry }
+  return { status: 'loading' }
+}
+
+/**
  * 400 계열은 사용자가 고칠 수 있는 것이라(이름 형식·개수) 서버 문구를 그대로 보여준다.
  * 그 밖의 오류만 재시도를 권한다 — 같은 요청을 다시 보내도 결과가 같기 때문이다.
  */
 function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const api = error instanceof ApiError ? error : null
-  const retryable = !api?.isValidation
+  const notice = errorNotice(error)
 
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
-      <p className="text-sm">{api?.message ?? '자료를 불러오지 못했습니다.'}</p>
-      {api && <p className="font-mono text-base text-muted-foreground">{api.code}</p>}
-      {retryable && (
+      <p className="text-sm">{notice.message}</p>
+      {notice.code && <p className="font-mono text-base text-muted-foreground">{notice.code}</p>}
+      {notice.retryable && (
         <button
           type="button"
           onClick={onRetry}
