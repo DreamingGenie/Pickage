@@ -55,7 +55,31 @@ DB 커밋 이후 확인 연결에 실패한 경우 보고서의 `COMMITTED_UNVER
 
 동일 실행 ID·입력·적재 계약으로 재실행하면 DB의 모든 서비스 값을 다시 비교하며 행을 고치지 않는다.
 다른 입력·코드 계약을 같은 실행 ID로 실행하거나 같은 기준일의 다른 출처 값을 덮어쓰면 실패한다.
-새 입력에는 새 run·실행 ID를 사용한다. 현재 모집단으로 과거 전체 기간을 채우지 않는다.
+새 입력에는 새 run·실행 ID를 사용한다. 이 관측 기반 경로에서 현재 모집단을 과거 관측 목록으로 복제하지 않는다.
+
+## 배포일로 재구성한 전체 기간
+
+`python -m pipeline.package_snapshot.history --help`는 별도 승인 정책인
+`package-snapshot-history-v1`으로 과거 기준일을 처리한다. 현재 승인 버전 중 정확한 기준 시각까지
+배포된 버전이 있는 패키지를 포함한다. 저장소가 없어도 패키지는 유지하고, 배포일을 모두 모르는
+패키지는 과거에서 제외한다. 대표 저장소는 당시 배포된 유효 후보의 기존 우선순위로 선택한다.
+
+패키지 대상·저장소 연결은 **재구성한 이력**이고, stars·open_issues는 해당 시각의 실제 Projects 관측,
+다운로드는 실제 `[P,S)`의 유효 날짜 합계다. 과거 원천의 부재나 현재 패키지 목록에서 사라진 대상을
+복원할 수 없다는 한계를 manifest에 기록한다. 기존 최신 관측 스냅샷과 게시 포인터는 유지한다.
+
+명시적인 입력 설정은 `population`, `repository`, `downloads`의 승인 run/SHA, `candidate_path`와
+`candidate_sha256`, 로컬 `curated_output_root`·`repository_local_root`·`projects_root`·`downloads_root`,
+날짜별 `projects_runs`를 받는다. `expected_date_counts`를 지정하면 독립 산정한 날짜별 모집단과도 대조한다.
+전체 입력을 승인 manifest의 파일 SHA로 검사한 뒤 상태를 고정하고, 날짜별로 생성·검증·게시·DB 적재한다.
+실패한 실행은 같은 설정과 run ID로 재개한다. 중단 후에는 DB의 PUBLISHED 날짜를 제외한 목록을
+`--snapshots <날짜> ...`에 지정한다. 옵션을 생략하면 이미 완료한 날짜까지 전수 대조하며 중복 삽입하지 않는다.
+선택 실행의 결과는 `SELECTED_DATES_PUBLISHED`이므로 전체 완료는 승인 달력·날짜별 실제 건수·
+최신 기준일 보존 결과를 함께 확인한다. 이전 `result.json`은 새 실행이 끝날 때까지 남아 있을 수 있다.
+
+실제 명령·날짜별 목표 건수·대표 날짜 검증·전체 실행 결과는
+[전체 기간 작업 기록](../../docs/worklogs/S15P21A506-288/08-full-history-plan.md)과
+[직접 조회 SQL](../../docs/worklogs/S15P21A506-288/09-inspect-history.sql)에 남긴다.
 
 ## 검증과 기록
 
@@ -63,6 +87,7 @@ DB 커밋 이후 확인 연결에 실패한 경우 보고서의 `COMMITTED_UNVER
 python -m unittest pipeline.package_snapshot.test_input pipeline.package_snapshot.test_build pipeline.package_snapshot.test_load -v
 $env:PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER = '<기존-검증-컨테이너>'
 python -m unittest pipeline.package_snapshot.test_postgres -v
+python -m unittest pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_history_postgres -v
 ```
 
 DB 테스트는 `pickage_288_test_<UUID>`라는 새 격리 DB를 만들고 종료 시 해당 DB만 삭제한다.

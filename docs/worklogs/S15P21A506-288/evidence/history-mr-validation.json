@@ -1,0 +1,38 @@
+{
+  "checked_on": "2026-09-10",
+  "scope": "local MR preparation; full history final reconciliation remains pending",
+  "history_run_id": "full-history-288-20260909-v1",
+  "input_sha256": "f3cd069f5d9eae475b55d615c2597e922a423554838b2f722686e747412023d1",
+  "contract_sha256": "285b6da0ed63f862e1fe18e3942e88fd98a059b9c3f0bf572d8679a0b32de518",
+  "postgresql": {
+    "container": "pickage-267-validation",
+    "database": "pickage_267_full_defaulted",
+    "measurement": "etl_load_execution publication counts; no repeated full service table count in this check",
+    "published_dates": 226,
+    "published_rows": 634222702,
+    "preparing_dates": 1,
+    "expected_dates": 229,
+    "expected_rows": 646219939,
+    "current_package_version": "load-267-full-defaulted-v1",
+    "current_package_snapshot": "load-288-20260831-v1",
+    "current_snapshot_date": "2026-08-31"
+  },
+  "resume": {
+    "reboot_completed_dates": 219,
+    "reboot_completed_rows": 606965179,
+    "selected_dates": ["2026-06-15", "2026-06-23", "2026-06-29", "2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27", "2026-08-03", "2026-08-10", "2026-08-17"],
+    "reason": "Resume only unpublished dates; previously published dates are excluded from the CLI selection",
+    "completion_status_semantics": "SELECTED_DATES_PUBLISHED does not by itself prove complete calendar coverage"
+  },
+  "tests": {
+    "command": "python -m unittest pipeline.package_snapshot.test_input pipeline.package_snapshot.test_build pipeline.package_snapshot.test_load pipeline.package_snapshot.test_postgres pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_history_postgres -v",
+    "environment": "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER=pickage-267-validation; disposable pickage_288_test_<UUID> databases",
+    "tests": 61,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 107.558,
+    "result": "OK"
+  },
+  "not_verified": ["full history final reconciliation", "production deployment", "Spring/Flyway application startup", "remote Jira status"]
+}
