@@ -341,6 +341,38 @@ class IsPluginAdapter(unittest.TestCase):
         self.assertFalse(sbp.is_plugin_adapter("some-tool", ["pluginless", "explaining"]))
 
 
+class IsSameFamily(unittest.TestCase):
+    def test_flags_submodule_and_repackage(self):
+        for a, b in (
+            ("d3", "d3-axis"),
+            ("lodash", "lodash.pickby"),
+            ("lodash", "lodash-es"),
+            ("react", "react-dom"),
+            ("chalk", "chalk-animation"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertTrue(sbp.is_same_family(a, b))
+
+    def test_flags_same_npm_scope(self):
+        self.assertTrue(sbp.is_same_family("@babel/core", "@babel/preset-env"))
+        self.assertTrue(sbp.is_same_family("@aws-sdk/client-s3", "@aws-sdk/client-dynamodb"))
+
+    def test_does_not_flag_genuine_alternatives(self):
+        for a, b in (
+            ("react", "preact"),
+            ("express", "fastify"),
+            ("vue", "vuex"),
+            ("moment", "dayjs"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertFalse(sbp.is_same_family(a, b))
+
+    def test_symmetric(self):
+        self.assertEqual(
+            sbp.is_same_family("d3", "d3-scale"), sbp.is_same_family("d3-scale", "d3")
+        )
+
+
 class GateAllowsSuccess(unittest.TestCase):
     def test_passed_gate_allows(self):
         self.assertTrue(sbp.gate_allows_success({"status": "PASSED"}, allow_gate_skip=False))

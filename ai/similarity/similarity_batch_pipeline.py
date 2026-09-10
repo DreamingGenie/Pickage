@@ -297,6 +297,24 @@ def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
     return False
 
 
+def is_same_family(a: str, b: str) -> bool:
+    """두 패키지가 같은 계열인가 — 우산↔하위모듈·같은 포장·같은 스코프.
+
+    'd3'↔'d3-axis', 'lodash'↔'lodash.pickby', 'lodash'↔'lodash-es',
+    '@babel/core'↔'@babel/preset-env'. 대안이 아니다. 'react'↔'preact' 는 계열 아님.
+    """
+    a, b = a.lower(), b.lower()
+    if a == b:
+        return True
+    if a.startswith("@") and b.startswith("@") and a.split("/", 1)[0] == b.split("/", 1)[0]:
+        return True
+    ba, bb = a.rsplit("/", 1)[-1], b.rsplit("/", 1)[-1]
+    for x, y in ((ba, bb), (bb, ba)):
+        if len(y) > len(x) and y.startswith(x) and y[len(x)] in "-._":
+            return True
+    return False
+
+
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
 
 def scoring_gate(candidates: list[dict]) -> dict:
