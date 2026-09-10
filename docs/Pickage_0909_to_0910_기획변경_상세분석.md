@@ -17,8 +17,8 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 
 ### 현재 코드 계약을 채택한 항목
 
-1. **입력**: 자동완성 목록 선택을 강제하지 않는다. 자유 입력 또는 목록 선택 후 `/packages/similar`의 `not_found`로 서버 검증한다.
-2. **후보 화면**: 기준 패키지 외 후보는 상위 2개만 표시하고 기본 선택하지 않는다. 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다.
+1. **기준 패키지 입력**: 자동완성 목록 선택을 강제하지 않는다. 자유 입력 또는 목록 선택 후 `/packages/similar`의 `not_found`로 서버 검증한다.
+2. **후보 화면·직접 추가**: 기준 패키지 외 후보는 상위 2개만 표시하고 기본 선택하지 않는다. 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다. 직접 추가 패키지는 `/packages/search?q={name}&limit=5` 결과의 exact match로 검증한다.
 3. **Dependents**: 정확 버전 `version` query를 사용하지 않는다. API가 package-major별 series를 반환하고 프런트가 `Total` 또는 선택한 여러 major를 합산한다.
 4. **Downloads**: 조회 요청 상한은 서버 `SnapshotWindow.MAX_WEEKS`와 같은 104주다.
 5. **Version Share MVP**: 최신 DB Snapshot의 version별 `dependents_count`를 major로 합산한다. requirement 해석 기반 최신 완료 분포와 `UNKNOWN|AMBIGUOUS` 보존은 확장으로 이동한다.
@@ -32,7 +32,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 - 한 지표 실패가 다른 카드 결과를 숨기지 않는 카드별 오류 격리
 - 사용자가 선택한 표시 기간의 첫·마지막 유효 point로 계산하는 signed delta
 
-현재 프런트는 선형축, 명시적 null만 단절, 전체 series의 최대 point 수 기준 축적 판정, 생태계 탭 단위 오류 처리, 기간 필터 전 delta 계산 상태다. 이 차이는 요구사항을 코드 수준으로 낮추지 않고 구현 과제로 관리한다. 또한 `analyze-page.tsx`의 미정의 `setError`로 typecheck가 실패하는 문제는 별도 코드 결함이다.
+현재 프런트는 선형축, 명시적 null만 단절, 전체 series의 최대 point 수 기준 축적 판정, 생태계 탭 단위 오류 처리, 기간 필터 전 delta 계산 상태다. 이 차이는 요구사항을 코드 수준으로 낮추지 않고 구현 과제로 관리한다. 또한 `analyze-page.tsx`의 미정의 `setError`로 typecheck가 실패하는 문제는 별도 코드 결함 `S15P21A506-308`로 기록했다.
 
 ### 구현 상태로 새로 반영한 항목
 
