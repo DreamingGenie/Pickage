@@ -1,15 +1,19 @@
+import type { ApiEnvelope, ApiErrorCode, ClientErrorCode } from '@/api/types'
+
+/**
+ * HTTP 밑바닥.
+ *
+ * 이 파일은 **봉투를 벗기는 일까지만** 한다(명세 0.3).
+ * 어떤 엔드포인트가 있는지, mock 을 쓸지는 `api/endpoints.ts` 가 정한다.
+ */
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 const DEFAULT_TIMEOUT_MS = 15_000
 
-export interface ApiErrorBody {
-  code: string
-  message: string
-}
-
 export class ApiError extends Error {
   readonly status: number
-  readonly code: string
+  readonly code: ApiErrorCode | ClientErrorCode | string
 
   constructor(status: number, code: string, message: string) {
     super(message)
@@ -17,9 +21,22 @@ export class ApiError extends Error {
     this.status = status
     this.code = code
   }
+
+  /** 0.4 — 400 계열은 전부 클라이언트가 규칙을 어긴 것이다. 재시도해도 같은 결과다. */
+  get isValidation(): boolean {
+    return this.code.startsWith('V')
+  }
 }
 
-type Params = Record<string, unknown> | undefined
+/**
+ * 쿼리 파라미터 값.
+ *
+ * 배열은 **쉼표로 이어 붙인다**(0.1). Spring 은 `?names=a,b,c` 와 `?names=a&names=b` 를
+ * 둘 다 `List<String>` 으로 받지만, 캐시 키가 URL 이므로 형태를 하나로 고정해야
+ * 같은 요청이 같은 캐시 항목에 떨어진다.
+ */
+type ParamValue = string | number | boolean | readonly string[] | null | undefined
+type Params = Record<string, ParamValue> | undefined
 
 function buildUrl(path: string, params: Params): string {
   const url = `${API_BASE_URL}${path}`
@@ -28,20 +45,55 @@ function buildUrl(path: string, params: Params): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null) continue
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue
+      search.append(key, value.join(','))
+      continue
+    }
     search.append(key, String(value))
   }
   const qs = search.toString()
   return qs ? `${url}?${qs}` : url
 }
 
-async function toApiError(res: Response): Promise<ApiError> {
-  let body: Partial<ApiErrorBody> = {}
+/**
+ * 0.3 — 봉투를 벗긴다.
+ *
+ * 명세상 실패는 `success: false` 로 오고 상태코드도 함께 바뀌지만, 둘 중 하나만
+ * 어긋나는 경우가 실제로 생긴다(프록시가 만든 502, 본문 없는 500 등).
+ * 그래서 **상태코드와 본문을 둘 다** 본다.
+ */
+async function unwrap<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as T
+
+  let body: unknown
   try {
-    body = (await res.json()) as Partial<ApiErrorBody>
+    body = await res.json()
   } catch {
-    // 본문이 비었거나 JSON 이 아닌 경우 — 상태코드로만 판단한다.
+    throw new ApiError(
+      res.status,
+      `HTTP_${res.status}`,
+      res.statusText || '응답을 읽지 못했습니다.',
+    )
   }
-  return new ApiError(res.status, body.code ?? `HTTP_${res.status}`, body.message ?? res.statusText)
+
+  const envelope = body as Partial<ApiEnvelope<T>> & { code?: string; message?: string }
+
+  if (envelope?.success === true) return (envelope as { data: T }).data
+  if (envelope?.success === false) {
+    throw new ApiError(
+      res.status,
+      envelope.code ?? 'S001',
+      envelope.message ?? '오류가 발생했습니다.',
+    )
+  }
+
+  // 봉투가 아닌 응답. 게이트웨이·프록시가 끼어든 경우다.
+  throw new ApiError(
+    res.status,
+    `HTTP_${res.status}`,
+    res.ok ? '서버 응답 형식이 올바르지 않습니다.' : res.statusText,
+  )
 }
 
 async function request<T>(
@@ -66,16 +118,29 @@ async function request<T>(
     )
   }
 
-  if (!res.ok) throw await toApiError(res)
-  if (res.status === 204) return undefined as T
-
-  return (await res.json()) as T
+  return unwrap<T>(res)
 }
 
+/** 봉투를 벗겨 `data` 를 돌려준다. */
 export function get<T>(path: string, params?: Params): Promise<T> {
   return request<T>('GET', path, { params })
 }
 
 export function post<T>(path: string, body?: unknown): Promise<T> {
   return request<T>('POST', path, { body })
+}
+
+/**
+ * 봉투를 쓰지 않는 정적 파일용(사전 파일 본문 등).
+ * `API_BASE_URL` 을 붙이지 않고 경로를 그대로 쓴다.
+ */
+export async function getRaw<T>(url: string): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS) })
+  } catch {
+    throw new ApiError(0, 'NETWORK', '파일을 내려받지 못했습니다.')
+  }
+  if (!res.ok) throw new ApiError(res.status, `HTTP_${res.status}`, res.statusText)
+  return (await res.json()) as T
 }

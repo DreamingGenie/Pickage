@@ -1,0 +1,83 @@
+#!/bin/sh
+#
+# pre-push — 브랜치 이름 규칙 훅
+#
+# 규칙: <part>/<type>/<S15P21A506-번호>-작업내용
+#   예) data/feat/S15P21A506-290-downloads-bronze-ingest
+#
+# 동작:
+#   · 새 브랜치를 처음 push 할 때만 이름을 검사한다.
+#     (이미 원격에 있는 브랜치의 추가 push 는 검사하지 않으므로,
+#      규칙 도입 전에 만든 브랜치의 작업이 막히지 않는다)
+#   · develop / main 직접 push 는 막지 않고 경고만 한다 — MR 리뷰가 규칙이다.
+#   · 브랜치 삭제 push 와 태그 push 는 검사하지 않는다.
+#
+# stdin 한 줄 형식: <local_ref> <local_sha> <remote_ref> <remote_sha>
+#   remote_sha 가 전부 0 이면 원격에 없는 = 새 브랜치.
+#
+# 활성화: git config core.hooksPath .githooks
+#   (또는 scripts/setup-hooks.sh / setup-hooks.bat 실행)
+#
+# 예외가 꼭 필요하면: git push --no-verify
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || ROOT="."
+CHECKER="${ROOT}/scripts/lib/check-branch-name.sh"
+
+if [ ! -f "$CHECKER" ]; then
+  echo "[pre-push] 경고: ${CHECKER} 가 없어 브랜치명 검사를 건너뜁니다." >&2
+  exit 0
+fi
+
+FAILED=0
+
+is_zero() {
+  # sha 가 전부 0 인지 (sha1/sha256 길이 모두 대응)
+  printf '%s' "$1" | grep -qE '^0+$'
+}
+
+while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+  # 빈 줄 방어
+  [ -z "$REMOTE_REF" ] && continue
+
+  # 브랜치 삭제 (git push origin :branch) → 검사 없음
+  is_zero "$LOCAL_SHA" && continue
+
+  # 브랜치가 아닌 ref (태그 등) → 검사 없음
+  case "$REMOTE_REF" in
+    refs/heads/*) ;;
+    *) continue ;;
+  esac
+
+  BRANCH=${REMOTE_REF#refs/heads/}
+
+  # 통합 브랜치 직접 push → 경고만
+  case "$BRANCH" in
+    main|develop)
+      echo "" >&2
+      echo "[pre-push] 경고: '${BRANCH}' 에 직접 push 하고 있습니다." >&2
+      echo "           팀 규칙은 기능 브랜치 → MR 리뷰 → 병합입니다." >&2
+      echo "           MR 의 머지 버튼으로 반영하려던 것이 아닌지 확인해 주세요." >&2
+      echo "" >&2
+      continue
+      ;;
+  esac
+
+  # 원격에 이미 있는 브랜치 → 이름 검사 없음 (진행 중인 작업을 막지 않는다)
+  is_zero "$REMOTE_SHA" || continue
+
+  if ! sh "$CHECKER" "$BRANCH"; then
+    FAILED=1
+  fi
+done
+
+if [ "$FAILED" -ne 0 ]; then
+  echo "push 가 거부되었습니다 — 새 브랜치 이름이 규칙과 다릅니다." >&2
+  echo "" >&2
+  echo "  이름만 바꿔 다시 올리려면:" >&2
+  echo "    git branch -m <규칙에 맞는 이름>" >&2
+  echo "    git push -u origin <규칙에 맞는 이름>" >&2
+  echo "" >&2
+  exit 1
+fi
+
+exit 0

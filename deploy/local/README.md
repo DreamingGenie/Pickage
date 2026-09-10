@@ -35,6 +35,14 @@ Postgres·API 값은 로컬 전용이라 커밋되어 있다. **운영 서버 �
 | MinIO | `http://localhost:9000` | `pipeline/minio/.env` 의 값 |
 | MinIO 콘솔 | http://localhost:9001 | 위와 같음 |
 
+> **서버 MinIO 에 넣으려는 것이면 이 문서가 아니다.** 서버는 외부 포트가 없어 SSH 터널로
+> 붙고, 자격증명 파일도 따로 쓴다. 절차는
+> [pipeline/minio/README.md](../../pipeline/minio/README.md) 의 "서버 MinIO 로 적재하기".
+>
+> 터널의 **내 PC 쪽 입구를 19000** 으로 낸다(서버는 9000 그대로다). 입구를 9000 으로
+> 잡으면 아래 로컬 MinIO 와 같은 주소가 되어, 터널을 잊었을 때 서버로 갈 데이터가
+> **오류 없이 로컬로 들어간다.**
+
 버킷 5종은 `minio-init` 이 기동 시 **없는 것만** 만든다. 기존 버킷과 객체는 유지된다.
 `minio-init` 이 `Exited (0)` 인 것은 초기화 성공을 뜻한다.
 
@@ -66,16 +74,35 @@ docker volume rm pickage-local_pgdata
 
 | | 파일 | 누가 적용하나 |
 | --- | --- | --- |
-| 스키마 (ERD 5개 테이블) | `backend/src/main/resources/db/migration/V1__init.sql` | 앱이 뜰 때 Flyway 가 자동 |
-| 샘플 데이터 | `deploy/local/seed/seed_sample.sql` | **아래 명령으로 직접** |
+| 스키마 | `backend/src/main/resources/db/migration/` 의 `V1__init.sql` · `V2__add_curated_load_execution.sql` · `V3__add_snapshot_reference_execution.sql` · `V4__index_similar_package.sql` | 앱이 뜰 때 Flyway 가 자동 |
+| 샘플 데이터 | `deploy/local/seed/*.sql` | **아래 명령으로 직접** |
 
 **테이블은 손으로 만들지 않는다.** 로컬과 운영이 같은 마이그레이션 파일을 쓰므로 스키마가 갈라질 수 없다.
 
-### 샘플 데이터 넣기
+### 샘플 데이터 — 목적이 다른 세 벌
+
+**셋을 같이 쓸 수 없다.** 전부 기존 행을 비우고 시작하므로 나중에 돌린 쪽만 남는다.
+
+| 파일 | 규모 | 무엇을 보려고 |
+| --- | --- | --- |
+| `seed_sample.sql` | 패키지 3 × 스냅샷 2 | **자료가 모자란 상태.** 추이 그래프가 "데이터 축적 중" 으로 뜨는지, `repo_url` 이 없는 패키지가 "미확인" 으로 뜨는지 |
+| `seed_mock_parity.sql` | 패키지 369 × 스냅샷 130 | **mock 과 같은 숫자.** `VITE_USE_MOCK=true` 인 화면과 번갈아 보며 다른 곳을 찾는 대조 검증 |
+| `seed_service_full.sql` | 패키지 322 × 스냅샷 130 | **목업을 굴려 보는 상태.** 메인 6개 테이블을 전부 채우고(`similar_package` 포함) 경계 사례를 일부러 심어 두었다 |
+
+`seed_mock_parity` 와 `seed_service_full` 은 규모가 비슷하지만 쓰임이 다르다. 앞은 **mock 과
+숫자가 같아야** 의미가 있어서 값을 바꾸려면 `frontend/src/api/mock/dataset.ts` 부터 고쳐야
+하고, 뒤는 **화면이 깨지는 데이터를 일부러 담는 쪽**이라 시드 파일만 고치면 된다
+(deprecated·NULL 지표·신규 패키지·스냅샷 없는 패키지·스코프 이름 등 — 목록은 파일 머리말).
 
 ```bash
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_service_full.sql
 ```
+
+> 시드는 **메인 서비스 6개 테이블만** 건드린다. 적재 추적(`etl_*`) 4개는 파이프라인이
+> 소유하므로 비우지도 채우지도 않는다. 그래서 `snapshot` 은 `TRUNCATE` 가 아니라 `DELETE`
+> 다 — 적재 이력이 있는 DB 에서는 FK 위반으로 **멈춘다.** 조용히 덮어쓰지 않는 쪽이 맞다.
 
 이 명령은 샘플 DB를 재설정할 때만 사용한다. `TRUNCATE` 후 샘플 행을 다시 넣으므로,
 값을 고치고 다시 실행하면 기존 샘플 데이터가 교체된다.

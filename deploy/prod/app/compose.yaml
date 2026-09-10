@@ -1,0 +1,171 @@
+# Pickage 운영 — `app` 노드 (j15a506.p.ssafy.io)
+#
+#   cd deploy/prod/app
+#   docker compose up -d
+#
+# 명령 모음과 배포·롤백 절차: deploy/prod/README.md
+#
+# ⚠ `data` 노드는 j15a506a 다 — 뒤에 a 가 하나 붙는다 (deploy/prod/data/).
+#   붙기 전에 `hostname` 을 한 번 볼 것.
+
+# 로컬은 pickage-local 이다. 이름이 환경을 드러내므로
+# 운영 compose 를 실수로 로컬에서 띄우면 `docker ps` 에서 바로 보인다.
+#
+# ⚠ 이 이름을 바꾸면 볼륨 이름도 같이 바뀌어 운영 DB 가 통째로 고아가 된다.
+name: pickage-app
+
+services:
+  postgres:
+    # 로컬과 같은 메이저 버전. 로컬에서 되는 SQL 이 서버에서 안 되는 일을 막는다.
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?.env 를 만들고 POSTGRES_DB 를 채울 것 (cp .env.example .env)}
+      POSTGRES_USER: ${POSTGRES_USER:?.env 에 POSTGRES_USER 를 채울 것}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 채울 것 — openssl rand -base64 24}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # 호스트에 포트를 열지 않는다 — `ports:` 가 없는 것이 의도다.
+    # api 는 같은 compose 네트워크 안에서 postgres:5432 로 붙으므로 열 이유가 없고,
+    # 127.0.0.1 로라도 열면 서버에 들어온 사람 누구나 붙을 수 있다.
+    # psql 이 필요하면 컨테이너 안으로 들어간다 (README 참고).
+    healthcheck:
+      # 컨테이너 안의 셸이 풀어야 하는 변수라 $ 를 두 번 쓴다.
+      # $POSTGRES_USER 라고 쓰면 compose 가 먼저 먹어 버린다.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: 2g
+
+  api:
+    # 로컬처럼 build: 만 두지 않는다. 운영에서 뜨는 것은 "지금 체크아웃된 소스" 가 아니라
+    # "태그가 가리키는 이미지" 여야 한다. 그래야 롤백이 성립한다.
+    #
+    # build: 를 같이 둔 이유는 레지스트리가 없기 때문이다.
+    # `docker compose build` 가 여기서 만든 이미지에 곧바로 이 태그를 붙인다.
+    image: pickage-api:${API_TAG:?.env 에 API_TAG 를 채울 것 — 배포 job 이 커밋 SHA 로 갈아 끼운다}
+    build:
+      context: ../../../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # "컨테이너가 떴다" 가 아니라 "DB 가 연결을 받는다" 를 기다린다.
+        # 이게 없으면 첫 up 이 항상 실패한다.
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 컨테이너 안에서 localhost 는 컨테이너 자신이다. 호스트가 아니다.
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # 컨테이너 상한의 몇 %를 힙으로 쓸지. 기본값이 25% 라 그냥 두면
+      # 1.6g 중 400MB 만 힙으로 쓰고 나머지를 놀린다.
+      # 100 으로 두지 않는 이유: 힙 밖에도 메타스페이스·스레드 스택·GC 구조가 있고,
+      # 이 서버는 Swap 이 0 이라 상한을 넘기는 순간 완충 없이 즉시 OOM Kill 이다.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70"
+    ports:
+      # 루프백에만 연다. 밖에서 오는 요청은 전부 nginx(443)를 지난다.
+      # 이 줄을 "8080:8080" 으로 쓰면 TLS 도 인증도 없는 문이 하나 열린다.
+      # 여기 남겨 둔 건 nginx 를 건너뛰고 앱만 확인하기 위해서다(장애 구분용).
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      # 베이스 이미지(eclipse-temurin:21-jre)에 curl 이 이미 들어 있다. 확인함.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # 스프링 기동 + Flyway 마이그레이션이 끝나기 전까지는 실패를 세지 않는다.
+      # 이게 짧으면 정상 기동 중인 컨테이너가 unhealthy 로 죽어서 재시작 루프에 빠진다.
+      start_period: 60s
+    mem_limit: 1.6g
+    # ↑ 로컬 compose.yaml 의 api 와 같은 값. 로컬에서 미리 걸리라고 맞춰 둔 것이다.
+
+  web:
+    # 이 서비스가 nginx 다. 프런트 정적 파일을 담은 이미지 위에 nginx 가 올라가 있다
+    # (frontend/Dockerfile 2단계). 호스트 nginx 는 꺼 둔다 — 아래 README 참고.
+    image: pickage-web:${WEB_TAG:?.env 에 WEB_TAG 를 채울 것 — 배포 job 이 커밋 SHA 로 갈아 끼운다}
+    build:
+      context: ../../../frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        # nginx 는 proxy_pass 의 호스트 이름을 기동할 때 한 번 푼다.
+        # api 컨테이너가 없으면 "host not found in upstream" 으로 아예 못 뜬다.
+        condition: service_healthy
+    ports:
+      # 여기만 0.0.0.0 이다. 밖에서 들어오는 문은 이 둘뿐이다.
+      - "80:80"
+      - "443:443"
+    volumes:
+      # 설정은 이미지에 굽지 않는다. 설정만 고칠 때 프런트를 다시 빌드하지 않기 위해서다.
+      #   고친 뒤: docker compose exec web nginx -s reload
+      - ./nginx/app.conf:/etc/nginx/conf.d/default.conf:ro
+      # 호스트 certbot 이 만든 인증서를 그대로 쓴다. 읽기 전용이다.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    healthcheck:
+      # 80 의 리다이렉트를 타지 않는 전용 경로. nginx/app.conf 를 볼 것.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    mem_limit: 256m
+
+  # ── Spark worker② (상시) ───────────────────────────────────────
+  #
+  # 09-09 결정: **배치 시각에만 띄우지 않고 상시로 둔다.**
+  #
+  # 원래는 profiles 에 넣어 배치 전후로 사람이 켜고 끄게 했다. 뒤집은 이유가 셋이다.
+  #
+  # 1. **켜고 끄는 주체가 문제다.** 그 코드는 data 노드의 배치 cron 에서 돌 텐데,
+  #    다른 호스트의 컨테이너를 조작하려면 SSH 키를 주거나 Docker 소켓을 줘야 한다.
+  #    소켓은 호스트 root 와 동등한 권한이다. **1GB 아끼자고 치를 값이 아니다.**
+  # 2. **아끼는 게 생각보다 없다.** mem_limit 은 상한이지 예약이 아니라서,
+  #    놀고 있는 worker 데몬은 6.5g 가 아니라 1GB 안팎을 쓴다.
+  # 3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과
+  #    부딪히는 것인데, 그건 컨테이너를 5분 전에 띄웠든 5일 전에 띄웠든 똑같다.
+  #
+  # 되돌릴 조건: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
+  # 그때는 실측이 있으니 판단 근거가 생긴다. (설계 문서는 "배치 시각만" 으로 되어 있다)
+  #
+  # ⚠ 이 노드의 여유는 얇다. postgres 2g + api 1.6g + web 0.25g 위에 배치 중
+  #   executor 6g 가 얹히고 **Swap 이 0** 이다. 배치 중에 배포까지 겹치면 빌드가
+  #   메모리를 더 먹는다 — 배치 시각에는 배포하지 않는 것이 맞다.
+  #
+  # ⚠ network_mode: host 다. 이유는 data 노드 compose 의 같은 주석 참고.
+  #   웹 UI(8081)가 0.0.0.0 에 붙지만 이 노드는 80·443·22 만 열려 있다.
+  spark-worker-2:
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://${SPARK_MASTER_HOST:?.env 에 data 노드의 사설 IP 를 넣을 것}:7077
+      - --cores
+      - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
+      - --memory
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 6g}"
+      # master 가 executor 를 띄우라고 이 포트로 되연결한다. 고정하지 않으면
+      # 임의 포트라 방화벽을 통과하지 못하고 job 이 조용히 멈춘다.
+      - --port
+      - "40020"
+      - --webui-port
+      - "8081"
+    environment:
+      # 자동 탐지에 맡기면 docker0(172.17.0.1)를 광고할 수 있다.
+      # 그러면 master 와 driver 가 이 worker 에 되연결하지 못한다.
+      SPARK_LOCAL_IP: ${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것}
+    volumes:
+      # 두 노드가 **같은 설정 파일**을 쓴다. 갈라지면 executor 만 설정이 다른
+      # 상태가 되고, 그건 "일부 파티션만 실패" 로 나타난다.
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+    env_file: ./.env
+    mem_limit: 6.5g
+
+volumes:
+  # 운영 DB. `down -v` 를 치면 여기가 사라진다 — README 의 경고를 볼 것.
+  pgdata:

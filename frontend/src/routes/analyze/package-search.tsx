@@ -1,20 +1,22 @@
 import { SearchIcon } from 'lucide-react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
-import { searchPackages } from '@/routes/analyze/sample-registry'
+import { usePackageAutocomplete } from '@/api/autocomplete'
 import { cn } from '@/lib/utils'
 
 /**
  * 패키지명 검색창.
  *
- * 레지스트리에서 이름이 같거나 가까운 것을 찾아 아래에 편다.
- * 이건 **검색**이지 추천이 아니다. 어느 쪽이 낫다는 정렬을 하지 않는다.
+ * 명세 §2.3 의 두 겹 구조를 그대로 쓴다 — 사전(메모리)에서 먼저 찾고,
+ * 결과가 모자랄 때만 서버에 물어 아래에 이어붙인다. 실제 흐름은
+ * `api/autocomplete.ts` 에 있고 여기는 그 결과를 그리기만 한다.
  *
- * 어떤 규칙으로 걸렸는지는 적지 않는다. 여기서 관련성을 따지는 게 아니라
- * 이름을 고르기만 하면 되기 때문이다. 관련성 근거는 후보 카드에서 다룬다.
+ * **접두사 검색만 한다.** 중간 일치("dash"로 lodash 찾기)는 v1 범위 밖이다 —
+ * 서버 인덱스(`text_pattern_ops`)와 사전 배포가 둘 다 접두사 전제로 설계돼 있어서,
+ * 화면만 중간 일치를 흉내내면 사전에 있는 이름과 없는 이름이 다르게 동작한다.
  *
- * 목록에 없는 이름도 그대로 확인할 수 있다. 레지스트리 사본이 최신이 아닐 수 있어서,
- * 검색 결과가 없다고 입력을 막지 않는다.
+ * 목록에 없는 이름도 그대로 확인할 수 있다. 사전은 상위 N개뿐이고 서버 폴백도
+ * 상한이 있어서, 검색 결과가 없다고 입력을 막지 않는다.
  */
 export function PackageSearch({
   value,
@@ -40,14 +42,14 @@ export function PackageSearch({
   const [open, setOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
 
-  const hits = useMemo(() => searchPackages(value), [value])
+  const { suggestions, fallbackPending } = usePackageAutocomplete(value)
 
   /**
    * 강조된 항목. 질의가 바뀌면 0 으로 돌아가야 하는데, effect 로 되돌리면
    * 한 프레임 어긋난다. 어느 질의에 대한 선택인지 함께 들고 렌더에서 파생시킨다.
    */
   const [mark, setMark] = useState({ q: '', i: 0 })
-  const active = mark.q === value ? Math.min(mark.i, Math.max(hits.length - 1, 0)) : 0
+  const active = mark.q === value ? Math.min(mark.i, Math.max(suggestions.length - 1, 0)) : 0
   const setActive = (i: number) => setMark({ q: value, i })
 
   useEffect(() => {
@@ -69,20 +71,31 @@ export function PackageSearch({
       setOpen(false)
       return
     }
-    if (!open || hits.length === 0) return
+    if (e.key === 'Enter' && (!open || suggestions.length === 0)) {
+      // 목록에 없어도 입력한 이름 그대로 확정할 수 있다.
+      const typed = value.trim()
+      if (typed) {
+        e.preventDefault()
+        choose(typed)
+      }
+      return
+    }
+    if (!open || suggestions.length === 0) return
+
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActive((active + 1) % hits.length)
+      setActive((active + 1) % suggestions.length)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActive((active - 1 + hits.length) % hits.length)
+      setActive((active - 1 + suggestions.length) % suggestions.length)
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      choose(hits[active].entry.name)
+      choose(suggestions[active].name)
     }
   }
 
-  const showList = open && value.trim().length > 0
+  const query = value.trim()
+  const showList = open && query.length > 0
 
   return (
     <div ref={boxRef} className={cn('relative flex-1', className)}>
@@ -106,64 +119,65 @@ export function PackageSearch({
         aria-expanded={showList}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={showList && hits.length ? `${listId}-${active}` : undefined}
+        aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
         className="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 font-mono text-[15px] transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50"
       />
 
       {showList && (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-label="검색 결과"
-          className="absolute top-full right-0 left-0 z-30 mt-1.5 max-h-[320px] overflow-y-auto rounded-xl border bg-background p-1 shadow-lg"
-        >
-          {hits.length === 0 ? (
-            <li className="px-3 py-4 text-[12.5px] text-muted-foreground">
-              레지스트리 사본에서 <span className="font-mono">{value.trim()}</span> 을(를) 찾지
-              못했습니다. 그대로 확인해 볼 수 있습니다.
-            </li>
-          ) : (
-            hits.map((h, i) => (
-              <li
-                key={h.entry.name}
-                id={`${listId}-${i}`}
-                role="option"
-                aria-selected={i === active}
-              >
-                <button
-                  type="button"
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => choose(h.entry.name)}
-                  className={cn(
-                    'flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left transition-colors',
-                    i === active && 'bg-muted',
-                  )}
-                >
-                  <span className="font-mono text-[13.5px]">
-                    <Highlight name={h.entry.name} hit={h.hit} />
-                  </span>
-                  <span className="truncate text-[11.5px] text-muted-foreground">
-                    {h.entry.description}
-                  </span>
-                </button>
+        <div className="absolute top-full right-0 left-0 z-30 mt-1.5 overflow-hidden rounded-xl border bg-background shadow-lg">
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="검색 결과"
+            className="max-h-[320px] overflow-y-auto p-1"
+          >
+            {suggestions.length === 0 ? (
+              <li className="px-3 py-4 text-[12.5px] leading-relaxed text-muted-foreground">
+                {fallbackPending ? (
+                  '찾는 중…'
+                ) : (
+                  <>
+                    <span className="font-mono">{query}</span> 로 시작하는 패키지를 찾지 못했습니다.
+                    Enter 로 그대로 확인해 볼 수 있습니다.
+                  </>
+                )}
               </li>
-            ))
+            ) : (
+              suggestions.map((s, i) => (
+                <li key={s.name} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => choose(s.name)}
+                    className={cn(
+                      'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors',
+                      i === active && 'bg-muted',
+                    )}
+                  >
+                    <span className="truncate font-mono text-[13.5px]">
+                      {/* 접두사 검색이라 강조 구간은 항상 앞에서부터 질의 길이만큼이다 */}
+                      <mark className="bg-transparent font-semibold underline underline-offset-2">
+                        {s.name.slice(0, query.length)}
+                      </mark>
+                      {s.name.slice(query.length)}
+                    </span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+
+          {/*
+            사전 결과를 이미 띄운 채로 서버를 기다리는 중.
+            목록을 지우고 로딩으로 바꾸면 방금 보이던 후보가 깜빡이며 사라진다.
+          */}
+          {fallbackPending && suggestions.length > 0 && (
+            <p className="border-t px-3 py-1.5 text-[10.5px] text-muted-foreground" role="status">
+              더 찾는 중…
+            </p>
           )}
-        </ul>
+        </div>
       )}
     </div>
-  )
-}
-
-function Highlight({ name, hit }: { name: string; hit?: [number, number] }) {
-  if (!hit) return <>{name}</>
-  return (
-    <>
-      {name.slice(0, hit[0])}
-      <mark className="bg-transparent font-semibold underline underline-offset-2">
-        {name.slice(hit[0], hit[1])}
-      </mark>
-      {name.slice(hit[1])}
-    </>
   )
 }

@@ -25,7 +25,20 @@
 -- 다섯 테이블이 FK 로 묶여 있어 하나씩은 비울 수 없다. 한 번에 비운다.
 -- CASCADE 를 쓰지 않는 이유: 나중에 추가된 테이블까지 말없이 같이 비워 버린다.
 -- 여기 전부 적어 두면 새 테이블이 생겼을 때 이 파일이 에러로 알려 준다.
-TRUNCATE package_version_snapshot, package_snapshot, version, package, snapshot;
+-- 2026-09-09: V2 에서 similar_package 가 생겨 목록에 추가했다.
+-- 이 파일이 의도대로 동작한 사례다 — 빠져 있는 동안 TRUNCATE 가 FK 오류로 멈춰서
+-- "새 테이블이 생겼다" 는 사실이 조용히 지나가지 않았다.
+TRUNCATE similar_package, package_version_snapshot, package_snapshot, version, package;
+
+-- ⚠ snapshot 만 TRUNCATE 가 아니라 DELETE 다 (2026-09-09, S15P21A506-289).
+--
+-- V3 가 etl_snapshot_reference.snapshot_at → snapshot 의 FK 를 만들었다. PostgreSQL 의
+-- TRUNCATE 는 참조하는 테이블이 **비어 있어도** 같이 지정하지 않으면 거절한다. 목록에
+-- etl_snapshot_reference 를 넣으면 시드가 파이프라인의 적재 이력을 지우게 되므로 넣지 않는다.
+--
+-- DELETE 는 참조가 실제로 있을 때만 FK 위반으로 실패한다. 즉 적재 이력이 있는 DB 에서
+-- 이 시드는 조용히 덮어쓰지 않고 에러로 멈춘다.
+DELETE FROM snapshot;
 
 -- 모든 스냅샷의 기준일. 다른 표가 전부 이 날짜를 참조한다.
 INSERT INTO snapshot (snapshot_at) VALUES

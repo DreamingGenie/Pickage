@@ -1,6 +1,7 @@
 import {
-  ActivityIcon,
+  CircleAlertIcon,
   CircleHelpIcon,
+  DownloadIcon,
   PackageCheckIcon,
   ShieldAlertIcon,
   StarIcon,
@@ -14,9 +15,11 @@ import { cn } from '@/lib/utils'
 /**
  * 관측 뱃지 타일.
  *
- * 전부 관측 사실만 적는다. "건강함" 같은 판정 문구를 쓰지 않는다(IA 1.10).
- * 색은 보조 신호일 뿐이고 값과 라벨이 항상 문자로 나온다(IA 1.11).
- * 미확인은 실패색을 쓰지 않고 점선 테두리로 구분한다.
+ * 전부 관측 사실만 적는다. "건강함" 같은 판정 문구를 쓰지 않는다.
+ * 색은 보조 신호일 뿐이고 값과 라벨이 항상 문자로 나온다.
+ *
+ * **null 은 0 이 아니다.** 스냅샷 미수신은 "집계 대기 중"으로 적고 점선 테두리로
+ * 구분한다 — 없는 것과 못 본 것을 같은 모양으로 그리면 안 된다(명세 0.5).
  */
 
 type Tone = 'neutral' | 'notable' | 'unknown'
@@ -79,6 +82,14 @@ function BadgeTile({
   )
 }
 
+/** 증감 꼬리표. null 이면 아무것도 붙이지 않는다 — 첫 스냅샷이라 직전 값이 없는 것이다. */
+function deltaSuffix(delta: number | null): string {
+  if (delta === null || delta === 0) return ''
+  return ` · 직전 주 ${delta > 0 ? '+' : '−'}${compact(Math.abs(delta))}`
+}
+
+const PENDING = '집계 대기'
+
 export function ObservationBadges({
   model,
   className,
@@ -87,26 +98,60 @@ export function ObservationBadges({
   className?: string
 }) {
   return (
-    <div className={cn('grid grid-cols-3 gap-2.5', className)}>
-      <StarsTile stars={model.stars} delta={model.starsDelta52w} />
-      <IssueTile count={model.recentIssues12w} scope={model.repositoryScope} />
-      <DeprecationTile
-        deprecated={model.deprecatedLatest}
-        observedAt={model.deprecationObservedAt}
-      />
+    <div className={cn('grid grid-cols-2 gap-2.5 sm:grid-cols-4', className)}>
+      <DownloadsTile downloads={model.downloads} />
+      <StarsTile stars={model.stars} delta={model.starsDelta} repoUrl={model.repoUrl} />
+      <IssuesTile count={model.openIssues} delta={model.openIssuesDelta} repoUrl={model.repoUrl} />
+      <DeprecationTile deprecated={model.isDeprecated} />
     </div>
   )
 }
 
-function StarsTile({ stars, delta }: { stars: number | null; delta: number | null }) {
+/**
+ * 주간 다운로드.
+ *
+ * 명세 §3 — 이 값은 **직전 7일 합계**다. 라벨을 "주간"으로 고정한다.
+ * 일별로 오해되면 규모 감각이 7배 틀어진다.
+ */
+function DownloadsTile({ downloads }: { downloads: number | null }) {
+  if (downloads === null) {
+    return (
+      <BadgeTile
+        icon={<CircleHelpIcon className="size-[18px]" />}
+        value={PENDING}
+        label="주간 다운로드"
+        tone="unknown"
+        title="패키지는 있으나 아직 스냅샷이 없습니다"
+      />
+    )
+  }
+  return (
+    <BadgeTile
+      icon={<DownloadIcon className="size-[18px]" />}
+      value={compact(downloads)}
+      label="주간 다운로드"
+      title="직전 7일 합계 · npm 공식 자료"
+    />
+  )
+}
+
+function StarsTile({
+  stars,
+  delta,
+  repoUrl,
+}: {
+  stars: number | null
+  delta: number | null
+  repoUrl: string | null
+}) {
   if (stars === null) {
     return (
       <BadgeTile
         icon={<CircleHelpIcon className="size-[18px]" />}
-        value="미확인"
+        value={repoUrl ? PENDING : '미확인'}
         label="저장소 별"
         tone="unknown"
-        title="저장소 연결이 검증되지 않았습니다"
+        title={repoUrl ? '아직 스냅샷이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
       />
     )
   }
@@ -114,78 +159,67 @@ function StarsTile({ stars, delta }: { stars: number | null; delta: number | nul
     <BadgeTile
       icon={<StarIcon className="size-[18px]" />}
       value={compact(stars)}
-      label={
-        delta === null
-          ? '저장소 별'
-          : `저장소 별 · 52주 ${delta >= 0 ? '+' : '−'}${compact(Math.abs(delta))}`
-      }
-      title="Projects 스냅샷 기준"
+      label={`저장소 별${deltaSuffix(delta)}`}
+      title="최신 스냅샷 기준"
     />
   )
 }
 
 /**
- * 이슈 활동. 등록 건수만 적는다.
- * 0건과 미확인을 가르는 게 이 타일의 핵심이다 — 없는 것과 못 본 것은 다르다.
+ * 열린 이슈.
+ *
+ * **등록 건수가 아니라 현재 열려 있는 수**다. 늘었다고 나쁜 것도, 줄었다고 좋은 것도
+ * 아니어서(닫아서 줄 수도, 관심이 식어서 줄 수도 있다) 방향에 색을 입히지 않는다.
+ * 0건과 미확인을 가르는 것이 이 타일의 핵심이다.
  */
-function IssueTile({
+function IssuesTile({
   count,
-  scope,
+  delta,
+  repoUrl,
 }: {
   count: number | null
-  scope: PackageCardModel['repositoryScope']
+  delta: number | null
+  repoUrl: string | null
 }) {
-  if (count === null || scope === 'UNVERIFIED') {
+  if (count === null) {
     return (
       <BadgeTile
         icon={<CircleHelpIcon className="size-[18px]" />}
-        value="미확인"
-        label="저장소 미검증"
+        value={repoUrl ? PENDING : '미확인'}
+        label="열린 이슈"
         tone="unknown"
+        title={repoUrl ? '아직 스냅샷이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
       />
     )
   }
   if (count === 0) {
     return (
       <BadgeTile
-        icon={<ActivityIcon className="size-[18px]" />}
+        icon={<CircleAlertIcon className="size-[18px]" />}
         value="0건"
-        label="최근 12주 이슈"
+        label="열린 이슈"
         tone="unknown"
-        title="등록이 없다는 관측이며, 문제가 있다는 뜻이 아닙니다"
+        title="열린 이슈가 없다는 관측이며, 문제가 있다는 뜻이 아닙니다"
       />
     )
   }
   return (
     <BadgeTile
-      icon={<ActivityIcon className="size-[18px]" />}
-      value={`${count}건`}
-      label={scope === 'REPOSITORY_WIDE' ? '최근 12주 · 저장소 전체' : '최근 12주 이슈'}
+      icon={<CircleAlertIcon className="size-[18px]" />}
+      value={`${count.toLocaleString()}건`}
+      label={`열린 이슈${deltaSuffix(delta)}`}
     />
   )
 }
 
 /**
- * 폐기 표시. 버전 단위 값이라 "패키지가 폐기됐다"고 말하지 않고
- * "최신 안정 버전에 표시가 있는지"만 적는다. 시점은 과거 스냅샷이 없어 알 수 없다.
+ * 폐기 표시.
+ *
+ * 버전 단위 값이라 "패키지가 폐기됐다"고 말하지 않고
+ * "최신 버전에 표시가 있는지"만 적는다. 표시가 붙은 시점은 알 수 없다 —
+ * 과거 버전의 폐기 여부를 스냅샷으로 받지 않기 때문이다.
  */
-function DeprecationTile({
-  deprecated,
-  observedAt,
-}: {
-  deprecated: boolean | null
-  observedAt: string | null
-}) {
-  if (deprecated === null) {
-    return (
-      <BadgeTile
-        icon={<CircleHelpIcon className="size-[18px]" />}
-        value="미확인"
-        label="폐기 표시"
-        tone="unknown"
-      />
-    )
-  }
+function DeprecationTile({ deprecated }: { deprecated: boolean }) {
   if (deprecated) {
     return (
       <BadgeTile
@@ -193,7 +227,7 @@ function DeprecationTile({
         value="있음"
         label="최신 버전 폐기 표시"
         tone="notable"
-        title={observedAt ? `${observedAt} 관측` : undefined}
+        title="표시가 붙은 시점은 알 수 없습니다"
       />
     )
   }
@@ -202,7 +236,6 @@ function DeprecationTile({
       icon={<PackageCheckIcon className="size-[18px]" />}
       value="없음"
       label="최신 버전 폐기 표시"
-      title={observedAt ? `${observedAt} 관측` : undefined}
     />
   )
 }
