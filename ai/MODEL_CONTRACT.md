@@ -67,7 +67,7 @@ emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
 ## 실행 환경
 
 - EC2 #1: Intel Xeon Platinum 8259CL @ 2.5GHz, **4 vCPU / 15 GiB RAM / swap 0**, x86_64
-  (2026-09-09 확인. 0904 문서·티켓은 `t4g.xlarge` ARM 전제 — 크기는 동급, arch만 x86)
+  (2026-09-09 확인. 0909 문서 §3.1·일부 티켓은 `t4g.xlarge` ARM 전제 — 크기는 동급, arch만 x86)
 - `onnxruntime` `CPUExecutionProvider`
 - 처리량 (이 스펙 실측): 10만건 재임베딩 ~20.7분 (batch 32). flat cosine top-20 별도 ~110초 (S15P21A506-169)
 - ⚠️ EC2 #1은 Spark(master+worker①, ~10G)·MinIO·MLflow·cron ETL과 공유. swap 0이라

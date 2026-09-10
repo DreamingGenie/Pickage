@@ -4,13 +4,13 @@
 → 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지 않는다(방식 C).
 
 모델 I/O·전처리 규격: ai/MODEL_CONTRACT.md
-설계: docs/Pickage_기능별_개발_구상안_0904.md §3.3, §4.1, §4.2
+설계: docs/Pickage_기능별_개발_구상안_0909.md §3.3, §4.1, §4.2 (DEC-RANK-20260909-01)
 
 현재 구현 상태 (S15P21A506-168):
-  1 자격 필터        구현
+  1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 top-K 20         구현 (정규화 벡터 블록 행렬곱)
-  4 재랭킹           부분 — cos + deprecated 지목 가산(옵션) 구현.
+  4 재랭킹           부분 — cos 유사도 기반. move_lift·deprecated 지목 가산 없음 (0909).
                       보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
   6 산출물           구현 (로컬 디렉터리. s3:// 출력은 후속)
@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import datetime as dt
 import hashlib
 import json
@@ -84,7 +83,10 @@ def _parse_date(value) -> dt.date | None:
 
 
 def qualify(rows: list[dict], min_dependents: int, max_age_months: int) -> list[dict]:
-    """dependents 하한 · 최근 N개월 릴리스 · deprecated 제외 로 코퍼스를 좁힌다."""
+    """dependents 하한 · 최근 N개월 릴리스 · deprecated 제외 로 코퍼스를 좁힌다.
+
+    deprecated 는 여기서 코퍼스째 제외한다 (DEC-RANK-20260909-01 — 지목 가산 아님).
+    """
     cutoff = dt.date.today() - dt.timedelta(days=int(max_age_months * 30.44))
     kept, drop_dep, drop_age, drop_status = [], 0, 0, 0
     for r in rows:
@@ -215,42 +217,28 @@ def top_k(vectors: np.ndarray, names: list[str], k: int, query_block: int) -> li
 
 # ── 4. 재랭킹 (§4.2) ──────────────────────────────────────────────────
 
-def load_deprecated_replacement(path: str | None) -> dict[str, set[str]]:
-    """deprecated 패키지 → 지목된 대체 패키지명 집합. §4.2 '가산: deprecated 지목'."""
-    if not path or not os.path.exists(path):
-        return {}
-    out: dict[str, set[str]] = {}
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        for r in csv.DictReader(f):
-            name, repl = r.get("name"), r.get("replacement")
-            if name and repl:
-                out.setdefault(name, set()).add(repl.strip().lower())
-    log(f"deprecated→대체 사전: {len(out)} 개")
-    return out
-
-
 def rerank(
     hits: list[tuple[int, int, float]],
     names: list[str],
     k_user: int,
-    deprecated_repl: dict[str, set[str]],
-    deprecated_bonus: float,
 ) -> list[dict]:
-    """v1 재랭킹. move_lift 배제 확정(DEC-RANK-20260907-01).
+    """v1 재랭킹 (§4.2, DEC-RANK-20260909-01).
 
-    구현: cos 기반 + candidate 가 base 관련 deprecated 지목이면 가산.
+    구현: cos 유사도를 그대로 score 로 쓴다.
+      - move_lift(대체 이동 쌍 관측 가산) 배제 확정 (DEC-RANK-20260907-01)
+      - deprecated 지목 가산 없음 (0909) — deprecated 는 1단계 qualify() 에서 코퍼스째
+        제외되므로 여기까지 후보로 올라오지 않는다. 별도 drop 불필요.
     TODO(S15P21A506-168): 보완재 감점 — dependents 교집합 >0.3. 의존 그래프 필요.
     """
-    all_replacements: set[str] = set().union(*deprecated_repl.values()) if deprecated_repl else set()
     by_base: dict[int, list[dict]] = {}
     for base_idx, cand_idx, cos in hits:
-        score = cos
-        reason = ["SEMANTIC_RELEVANCE"]
-        if names[cand_idx].lower() in all_replacements:
-            score += deprecated_bonus
-            reason.append("DEPRECATED_REPLACEMENT_SIGNAL")
         by_base.setdefault(base_idx, []).append(
-            {"candidate": names[cand_idx], "cos": round(cos, 6), "score": round(score, 6), "reason": reason}
+            {
+                "candidate": names[cand_idx],
+                "cos": round(cos, 6),
+                "score": round(cos, 6),
+                "reason": ["SEMANTIC_RELEVANCE"],
+            }
         )
 
     out: list[dict] = []
@@ -334,12 +322,10 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--raw-text-column", default=None,
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
-    p.add_argument("--deprecated-replacement", default=None, help="deprecated→대체 CSV (name,replacement)")
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--top-k", type=int, default=20)
     p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
-    p.add_argument("--deprecated-bonus", type=float, default=0.05)
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--query-block", type=int, default=2000)
     p.add_argument("--allow-gate-skip", action="store_true",
@@ -367,8 +353,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     hits = top_k(vectors, names, args.top_k, args.query_block)
     log(f"top-{args.top_k}: {len(hits)} 쌍 ({len(names)} base)")
 
-    deprecated_repl = load_deprecated_replacement(args.deprecated_replacement)
-    candidates = rerank(hits, names, args.user_k, deprecated_repl, args.deprecated_bonus)
+    candidates = rerank(hits, names, args.user_k)
 
     gate = scoring_gate(candidates)
     log(f"채점 게이트: {gate['status']} ({gate.get('reason', '')})")
@@ -381,7 +366,6 @@ def main(argv: Iterable[str] | None = None) -> int:
             "min_dependents": args.min_dependents,
             "max_age_months": args.max_age_months,
             "top_k": args.top_k,
-            "deprecated_bonus": args.deprecated_bonus,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
