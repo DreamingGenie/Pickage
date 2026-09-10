@@ -212,22 +212,44 @@ protocol error는 기존 envelope를 따르고 package 없음은 실제 `C006`�
 
 | namespace | 값 |
 |---|---|
-| `view_status` | `PROCESSING`, `RESULT`, `FAILED` |
+| `view_status` | `IDLE`, `PROCESSING`, `RESULT`, `FAILED` |
 | `freshness` | 결과가 있을 때 `FRESH`, `STALE`; 없으면 null |
-| `refresh.status` | `NOT_STARTED`, `QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CAPACITY_LIMITED` |
+| `refresh.status` | `QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CAPACITY_LIMITED` |
 | `data_status` | DB persistent 6개 상태 |
 | topic collection | `COMPLETE`, `TRUNCATED`, `FAILED` |
 | topic summary | `READY`, `FAILED`, `SKIPPED` |
+| result summary | `READY`, `PARTIAL`, `FAILED`, `SKIPPED` |
 
 refresh error는 `GITHUB_RATE_LIMITED`, `GITHUB_UNAVAILABLE`, `NPM_UNAVAILABLE`, `GMS_UNAVAILABLE`,
-`REFRESH_DEADLINE_EXCEEDED`, `PUBLISH_FAILED`, `CAPACITY_LIMITED`, `LOCAL_RATE_LIMITED`로 제한한다.
-`FETCH_LIMITED`를 persistent data_status로 쓰지 않는다. 제한 전면 실패는 refresh error, 일부 게시
-가능 결과는 `PARTIAL` + limitation이다.
+`REFRESH_DEADLINE_EXCEEDED`, `PUBLISH_FAILED`, `CAPACITY_LIMITED`, `LOCAL_RATE_LIMITED`,
+`COMMUNITY_DISABLED`로 제한한다. `FETCH_LIMITED`를 persistent data_status로 쓰지 않는다. 제한 전면
+실패는 refresh error, 일부 게시 가능 결과는 `PARTIAL` + limitation이다.
 
-진행·최초 실패는 `result=null`이다. stale 갱신은 이전 result와 refresh를 함께 제공한다. 배열은
-빈 경우 `[]`, 시각은 UTC ISO 8601 `Z`, wire는 전역 snake_case다. topics는 comments·updated_at·
-number 내림차순, messages는 created_at·내부 source ID 오름차순이다. package_id·raw source·내부
-source ID·외부 응답 원형은 공개하지 않는다.
+아직 POST가 없고 게시 결과도 없으면 `view_status=IDLE`, `refresh=null`, `result=null`이다. 진행·최초
+실패는 `result=null`이다. stale 갱신은 이전 result와 refresh를 함께 제공한다. refresh의 stage는
+`VERIFYING_REPOSITORY`, `SEARCHING_ISSUES`, `COLLECTING_COMMENTS`, `SUMMARIZING`, `VALIDATING`,
+`PUBLISHING` 중 하나이며 QUEUED와 종료 상태에서는 null일 수 있다. 배열은 빈 경우 `[]`, 시각은 UTC
+ISO 8601 `Z`, wire는 전역 snake_case다. topics는 comments·updated_at·number 내림차순, messages는
+created_at·내부 source ID 오름차순이다. package_id·raw source·내부 source ID·외부 응답 원형은
+공개하지 않는다.
+
+wire의 최소 구조는 다음과 같이 고정한다. `ApiResponseBody.data` 아래 필드이며 optional 표현은
+nullable이지 필드 생략이 아니다.
+
+```text
+CommunityResponse
+├─ package_name, view_status, freshness
+├─ refresh: null | { refresh_id, status, stage, stage_message,
+│                    started_at, last_updated_at, poll_after_seconds,
+│                    retry_at, error_code }
+└─ result: null | { snapshot_id, collected_at, fresh_until, serve_until,
+                    data_status, summary_status, repository, summary,
+                    topics[], limitations[], data_limits }
+```
+
+`summary_status=PARTIAL`은 일부 topic 요약만 성공했을 때다. 모든 topic이 SKIPPED이면 SKIPPED, 요약
+대상이 있었으나 모두 실패하면 FAILED, 모든 대상이 성공하면 READY다. 각 topic은 전체 상태와 별개로
+READY/FAILED/SKIPPED를 가진다.
 
 ## 9. backend 구조·동시성
 
@@ -288,9 +310,11 @@ Figma `485:936`에서는 `02-package-intro`~`05-discussion-threads`만 참고하
 compose api, prod app `.env.example`, prod compose api, Spring `CommunityProperties`에 연결한다. 실제
 값은 추적 파일이나 frontend에 두지 않는다.
 
-운영 key 누락 시 core API가 아닌 community 시작만 비활성화하고 명확한 상태를 반환한다. 배포 smoke는
-운영 key 연결을 별도 실패 gate로 확인한다. GitHub 원문은 비신뢰 입력으로 취급해 raw HTML을 렌더링하지
-않고 모델 URL을 따라가지 않는다. secret/header/raw prompt/source 전체를 log에 남기지 않는다.
+운영 key 누락 시 core API가 아닌 community 시작만 비활성화한다. POST는 `COMMUNITY_DISABLED`를
+반환하며, 게시된 fresh/stale 결과가 있으면 결과와 실패 refresh를 함께 반환하고 결과가 없으면
+`view_status=FAILED`다. 배포 smoke는 운영 key 연결을 별도 실패 gate로 확인한다. GitHub 원문은
+비신뢰 입력으로 취급해 raw HTML을 렌더링하지 않고 모델 URL을 따라가지 않는다.
+secret/header/raw prompt/source 전체를 log에 남기지 않는다.
 
 refresh id, package id, stage/duration, cache/freshness, 정제 failure, retry_at, GitHub remaining/reset,
 model/prompt version, source count·입력 길이를 구조화 로그로 남긴다. 1.6 GiB·Swap 0에서 peak heap,
