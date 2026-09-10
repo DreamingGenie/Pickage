@@ -15,9 +15,10 @@ from pipeline.minio.ingest_raw import client
 from .history_build import prepare_state, build_snapshot
 from .history_inputs import prepare, revalidate_files
 from .history_load import load_snapshot, prepare_copy
-from .history_policy import contract_sha256, policy_document, policy_sha256
+from .history_contract import build_contract_sha256, validator_contract_sha256
+from .history_policy import policy_document, policy_sha256
 from .policy import canonical_bytes
-from .quality import QUALITY_SCHEMA_ID
+from .quality_schema import QUALITY_SCHEMA_ID
 
 
 def event(phase, **values):
@@ -63,7 +64,8 @@ def state_cache(prepared, directory, contract, memory, threads):
     saved = directory / 'state.json'
     if saved.exists():
         document = json.loads(saved.read_text(encoding='utf-8'))
-        if document['input_sha256'] != prepared['input_sha256'] or document['contract_sha256'] != contract:
+        if (document['input_sha256'] != prepared['input_sha256'] or
+                document.get('build_contract_sha256') != contract):
             raise ValueError('history state belongs to different input or code; use a new run directory')
         for rec in document['file_records']:
             if _file_hash(Path(rec['path'])) != (rec['bytes'], rec['sha256']):
@@ -75,14 +77,22 @@ def state_cache(prepared, directory, contract, memory, threads):
     for role, path in state['files'].items():
         size, sha = _file_hash(Path(path))
         file_records.append({'role': role, 'path': str(path), 'bytes': size, 'sha256': sha})
-    write_json(saved, {'input_sha256': prepared['input_sha256'], 'contract_sha256': contract,
+    write_json(saved, {'input_sha256': prepared['input_sha256'], 'build_contract_sha256': contract,
                        'file_records': file_records, 'state': state})
     event('ASOF_STATE_READY', counts=state.get('counts'))
     return state
 
 
-def validate_saved_manifest(manifest, prepared, interval, run_id):
-    """Reuse approved bytes across validator updates, never across input/policy changes."""
+def validate_saved_manifest(manifest, prepared, interval, run_id, *, build_contract=None):
+    """Reuse only a proven matching build; a validator hash alone is insufficient."""
+    saved_build = manifest.get('build_contract_sha256')
+    if not re.fullmatch(r'[0-9a-f]{64}', str(saved_build or '')):
+        raise ValueError('saved history output has no valid build contract; '
+                         'legacy provenance must be established separately; do not stamp the current hash')
+    current_build = build_contract if build_contract is not None else build_contract_sha256()
+    if saved_build != current_build:
+        raise ValueError('saved history output build contract differs; '
+                         'preserve the old run and use a new run ID to rebuild')
     sources = prepared['input_manifest']
     expected = {'dataset': 'package-snapshot', 'format_version': 1, 'status': 'PASSED',
                 'run_id': run_id, 'snapshot': interval['snapshot_at'],
@@ -93,7 +103,7 @@ def validate_saved_manifest(manifest, prepared, interval, run_id):
                 'projects_input': sources['projects'][interval['snapshot_at']],
                 'required_remote_verification': 'GET_SHA256_ALL_FILES'}
     if (any(manifest.get(key) != value for key, value in expected.items()) or
-            manifest.get('quality_schema') not in (None, QUALITY_SCHEMA_ID) or
+            manifest.get('quality_schema') != QUALITY_SCHEMA_ID or
             not re.fullmatch(r'[0-9a-f]{64}', str(manifest.get('contract_sha256', '')))):
         raise ValueError('saved history output belongs to different input, date, policy or schema')
     records = manifest.get('files', [])
@@ -109,7 +119,8 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
     started = time.monotonic()
     root = Path(work_dir).resolve() / run_id
     root.mkdir(parents=True, exist_ok=True)
-    contract = contract_sha256()
+    build_contract = build_contract_sha256()
+    validator_contract = validator_contract_sha256()
     event('INPUT_PREFLIGHT', run_id=run_id)
     prepared = prepare(config, root / 'inputs', s3)
     expected_counts = config.get('expected_date_counts', {})
@@ -117,6 +128,19 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
     days = {r['snapshot_at'] for r in prepared['calendar']}
     if snapshots and not set(snapshots).issubset(days - {base_date}):
         raise ValueError('requested history dates must belong to the calendar before the preserved base')
+    # Reject unproven/mismatched saved builds before scanning the large DB or
+    # writing any remote objects. Keep the original manifests immutable.
+    saved_outputs = {}
+    for interval in prepared['calendar']:
+        day = interval['snapshot_at']
+        if day == base_date or (snapshots and day not in snapshots):
+            continue
+        saved = root / day / 'run_manifest.json'
+        if saved.exists():
+            manifest = json.loads(saved.read_text(encoding='utf-8'))
+            validate_saved_manifest(manifest, prepared, interval, run_id + '-' + day.replace('-', ''),
+                                    build_contract=build_contract)
+            saved_outputs[day] = manifest
     before = database_state(command, base_date)
     baseline_path = root / 'database-before.json'
     if baseline_path.exists():
@@ -133,7 +157,7 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
     _same_or_put(s3, 'pickage-curated', input_key.rsplit('/', 1)[0] + '/_SUCCESS',
                  (prepared['input_sha256'] + '\n').encode())
     # Revalidating saved outputs needs no population-state rebuild. New dates get
-    # a cache tied to the current code, leaving older caches and artifacts intact.
+    # a cache tied to generation code, leaving older caches and artifacts intact.
     state = None
     reports = []
     for interval in prepared['calendar']:
@@ -146,13 +170,12 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
         prefix = f'depsdev/v1/package-snapshot-history/snapshot={day}/run_id={day_run}'
         execution_id = 'load-' + day_run
         event('SNAPSHOT_START', snapshot=day, completed_in_this_invocation=len(reports))
-        if saved_manifest.exists():
-            manifest = json.loads(saved_manifest.read_text(encoding='utf-8'))
-            validate_saved_manifest(manifest, prepared, interval, day_run)
+        if day in saved_outputs:
+            manifest = saved_outputs[day]
             files = {r['role']: str(day_root / 'output' / r['path']) for r in manifest['files']}
         else:
             if state is None:
-                state = state_cache(prepared, root / 'state' / contract, contract, memory, threads)
+                state = state_cache(prepared, root / 'state' / build_contract, build_contract, memory, threads)
             # Check consumed raw partitions immediately before building this date.
             paths = set(prepared['project_files'][day])
             for date, items in prepared['daily_files'].items():
@@ -175,7 +198,9 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
                         'quality_schema': built['quality_schema'],
                         'run_id': day_run, 'snapshot': day, 'snapshot_timestamp': interval['snapshot_timestamp'],
                         'interval': interval, 'history_policy': policy_document(),
-                        'history_policy_sha256': policy_sha256(), 'contract_sha256': contract,
+                        'history_policy_sha256': policy_sha256(),
+                        'build_contract_sha256': build_contract,
+                        'contract_sha256': validator_contract,
                         'input_manifest_sha256': prepared['input_sha256'],
                         'input_manifest': {k: inputs[k] for k in ('population', 'candidate', 'repository', 'downloads')},
                         'history_input': {'key': input_key, 'sha256': prepared['input_sha256']},
@@ -192,7 +217,7 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
         event('SNAPSHOT_CURATED', snapshot=day, rows=manifest['counts']['package_snapshot'])
         db_report = load_snapshot(s3, prefix=prefix, manifest=manifest, files=files,
                                   work_dir=day_root / 'postgresql', command=command,
-                                  contract_hash=contract, execution_id=execution_id, copy_input=copy_input)
+                                  contract_hash=validator_contract, execution_id=execution_id, copy_input=copy_input)
         report = {'snapshot': day, 'rows': manifest['counts']['package_snapshot'],
                   'publication': publication, 'database': db_report}
         write_json(day_root / 'result.json', report)
@@ -213,7 +238,8 @@ def run(config, *, run_id, work_dir, command, s3, memory='8GB', threads=4, snaps
         raise ValueError('full history calendar has missing or unexpected DB dates')
     revalidate_files(prepared['verified_files'])
     result = {'status': 'PUBLISHED' if not snapshots else 'SELECTED_DATES_PUBLISHED', 'run_id': run_id,
-              'input_sha256': prepared['input_sha256'], 'contract_sha256': contract,
+              'input_sha256': prepared['input_sha256'], 'contract_sha256': validator_contract,
+              'build_contract_sha256': build_contract, 'validator_contract_sha256': validator_contract,
               'calendar_dates': len(days), 'loaded_dates': len(actual), 'rows': sum(actual.values()),
               'preserved_observed_base': base_date, 'reconstructed_dates': len(actual) - 1,
               'elapsed_seconds': round(time.monotonic() - started, 3), 'dates': after['dates'],

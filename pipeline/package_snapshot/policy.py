@@ -35,6 +35,7 @@ def contract_sha256() -> str:
     root = Path(__file__).resolve().parents[2]
     paths = [Path(__file__), Path(__file__).with_name("input.py"),
              Path(__file__).with_name("quality.py"),
+             Path(__file__).with_name("quality_schema.py"),
              Path(__file__).with_name("build.py"), root / "pipeline/downloads/bronze.py",
              root / "pipeline/downloads_interval/input.py", root / "pipeline/curated/storage.py",
              root / "pipeline/postgresql/input.py", root / "pipeline/snapshot/input.py",

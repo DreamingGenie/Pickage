@@ -16,7 +16,7 @@ from pipeline.minio.ingest_raw import client
 from pipeline.postgresql.input import _sql_path, _sql_paths
 from .input import BUCKET, RUN, SHA, prepare, revalidate
 from .policy import canonical_bytes, contract_sha256, policy_document, policy_sha256
-from .quality import (DOWNLOAD_FIELDS, QUALITY_SCHEMA, QUALITY_SCHEMA_ID, SELECTION_FIELDS,
+from .quality_schema import (DOWNLOAD_FIELDS, QUALITY_SCHEMA, QUALITY_SCHEMA_ID, SELECTION_FIELDS,
                       require_schema)
 
 ROOT = Path(__file__).resolve().parents[2]

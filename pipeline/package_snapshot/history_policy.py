@@ -2,10 +2,6 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
-
-import duckdb
-
 from .policy import canonical_bytes
 
 
@@ -31,17 +27,3 @@ def policy_document():
 
 def policy_sha256():
     return hashlib.sha256(canonical_bytes(policy_document())).hexdigest()
-
-
-def contract_sha256():
-    root = Path(__file__).resolve().parents[2]
-    names = ('history_policy.py', 'history_inputs.py', 'history_build.py', 'history_load.py', 'history.py', 'quality.py')
-    paths = [Path(__file__).with_name(name) for name in names]
-    paths += [Path(__file__).with_name('postgres.py'), root / 'pipeline/postgresql/postgres.py',
-              root / 'pipeline/downloads/bronze.py', root / 'pipeline/downloads_interval/aggregate.py']
-    digest = hashlib.sha256()
-    for path in paths:
-        digest.update(path.relative_to(root).as_posix().encode() + b'\0')
-        digest.update(path.read_text(encoding='utf-8').encode() + b'\0')
-    digest.update(canonical_bytes({'policy': policy_document(), 'duckdb': duckdb.__version__}))
-    return digest.hexdigest()

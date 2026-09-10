@@ -36,6 +36,7 @@
 | [11 리뷰 보완 작업](11-review-fixes.md) | 재검증 계약·품질 공통 형식의 변경 범위와 검증 결과 |
 | [12 백엔드 인계 메모](12-backend-history-handoff.md) | 재구성 이력 표시·저장소 변경 시 증감 비교 조건과 확인 예시 |
 | [13 품질 공통 형식](13-quality-schema.md) | 새 quality 컬럼 계약과 기존 승인 파일의 읽기 호환 |
+| [14 생성·검증 계약 분리](14-build-validation-contracts.md) | 생성 코드가 다른 파일의 재사용 차단과 소스 해시 기록 보정 |
 | [전체 기간 최종 검증](evidence/history-full-load-validation.json) | 229개 기준일·646,219,939행과 기존 최신 값·포인터 보존 확인 |
 | [선행 입력 기록](evidence/input-handoff.json) | 선택할 run·manifest SHA·기존 측정값·확인 범위 |
 | [병합·검증 기록](evidence/merge-validation.json) | 합류 커밋·코드 해시·테스트·변경 및 보존 범위 |

@@ -80,7 +80,15 @@ PUBLISHED 실행은 현재 검증 코드 해시가 달라도 입력·서비스 �
 `candidate_sha256`, 로컬 `curated_output_root`·`repository_local_root`·`projects_root`·`downloads_root`,
 날짜별 `projects_runs`를 받는다. `expected_date_counts`를 지정하면 독립 산정한 날짜별 모집단과도 대조한다.
 전체 입력을 승인 manifest의 파일 SHA로 검사한 뒤 상태를 고정하고, 날짜별로 생성·검증·게시·DB 적재한다.
-실패한 실행은 같은 설정과 run ID로 재개한다. 중단 후에는 DB의 PUBLISHED 날짜를 제외한 목록을
+저장된 날짜 산출물은 `build_contract_sha256`가 현재 생성 계약과 같을 때만 재개한다.
+생성 계약은 입력 선택·정책·집계 SQL·품질 투영·호출 흐름을 포함한다. 검증 함수만 바뀌면
+원래 파일과 manifest를 보존하면서 현재 검증 계약을 새 DB attempt에 기록한다.
+생성 해시가 없는 이전 manifest나 다른 생성 계약은 DB 조회·원격 게시 전에 거부한다.
+기존 파일에 현재 해시를 붙이지 않으며, 생성 코드를 바꿔 다시 만들려면 새 run ID를 사용한다.
+새 run ID로도 기존 DB 값을 덮어쓰지는 않는다. 이미 적재한 데이터의 조회는 그대로 가능하다.
+상세 조건과 이전 산출물 처리 한계는 [계약 분리 기록](../../docs/worklogs/S15P21A506-288/14-build-validation-contracts.md)을 따른다.
+
+위 생성 계약 조건을 만족하면 같은 설정과 run ID로 재개한다. 중단 후에는 DB의 PUBLISHED 날짜를 제외한 목록을
 `--snapshots <날짜> ...`에 지정한다. 옵션을 생략하면 이미 완료한 날짜까지 전수 대조하며 중복 삽입하지 않는다.
 선택 실행의 결과는 `SELECTED_DATES_PUBLISHED`이므로 전체 완료는 승인 달력·날짜별 실제 건수·
 최신 기준일 보존 결과를 함께 확인한다. 이번 실행은 이 검증을 통과해 229개 기준일·646,219,939행의
@@ -101,6 +109,7 @@ $env:PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER = '<기존-검증-컨테이너>'
 python -m unittest pipeline.package_snapshot.test_postgres -v
 python -m unittest pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_history_postgres -v
 python -m unittest pipeline.package_snapshot.test_contract pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume -v
+python -m unittest pipeline.package_snapshot.test_history_contract scripts.test_source_evidence -v
 ```
 
 DB 테스트는 `pickage_288_test_<UUID>`라는 새 격리 DB를 만들고 종료 시 해당 DB만 삭제한다.

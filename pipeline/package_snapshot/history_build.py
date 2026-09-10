@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 import duckdb
 from pipeline.downloads_interval.aggregate import reject, require_schema, MAX_BIGINT
-from .quality import (COMMON_SCHEMA, HISTORY_FIELDS, QUALITY_SCHEMA_ID,
+from .quality_schema import (COMMON_SCHEMA, HISTORY_FIELDS, QUALITY_SCHEMA_ID,
                       history_quality_projection, require_schema as require_quality_schema)
 
 

@@ -45,6 +45,7 @@ def contract_sha256():
     digest = hashlib.sha256()
     paths = [Path(__file__), Path(__file__).with_name('postgres.py'),
              Path(__file__).with_name('quality.py'),
+             Path(__file__).with_name('quality_schema.py'),
              ROOT / 'pipeline/postgresql/postgres.py', ROOT / 'pipeline/postgresql/input.py',
              ROOT / 'pipeline/postgresql/load.py', ROOT / 'pipeline/downloads_interval/input.py',
              ROOT / 'pipeline/curated/storage.py']
