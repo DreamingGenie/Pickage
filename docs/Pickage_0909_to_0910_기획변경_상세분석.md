@@ -1,21 +1,70 @@
 # Pickage 0909→0910 기획변경 상세분석
 
-작성 기준일: 2026-09-10
-연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`, `DEC-IMPLEMENTATION-ALIGN-20260910-01`, `DEC-RANK-UI-20260910-01`
-유지 결정: `DEC-COMMUNITY-20260909-01`
+최종 재검수: 2026-09-11 · 문서 작업 `S15P21A506-307`
 
-이 문서는 2026-09-09 기획 세트(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)에서
-2026-09-10 최종 재검수 세트로 바뀐 지점만 추적한다. 0910 변경은 단순 UI 문구 수정이 아니라
-Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서버 사양 정합, 확장 기능의 화면 소유권
-정리까지 포함한다. 최초 0910 정합 검수에서는 0909 후보 ranking 결정을 유지했으나, 같은 날 후속
-기술 제안을 수용해 검색·관문 2단계 구조로 개정했다. GitHub 커뮤니티 단일 패키지/Spring-GMS 한정
-예외는 유지한다.
+이 문서는 **현재 적용할 결론**과 **당시 결정 이력**을 분리한다.
+본문은 현행 계약의 길잡이이고 부록의 78주·선택 강제·정확 버전 필터 등 대체된 문구는 구현 지시가 아니다.
+충돌 시 사용자의 최신 결정 → AI 결정 → 현행 기획 순으로 적용한다.
+서비스/요구사항/IA/개발 구상안은 현행 제품 계약이며 community의 실행 상세는 구현계획을 따른다.
 
-## 코드 정밀검토 후속 확정 — 2026-09-10 (`DEC-IMPLEMENTATION-ALIGN-20260910-01`, `S15P21A506-307`)
+## 1. 현재 적용할 계약
+
+| 영역 | 현행 계약 | 코드와의 경계 |
+|---|---|---|
+| 기준 입력 | 자동완성 또는 자유 입력 후 similar의 not_found로 존재 검증 | deprecated 기준 차단은 별도 미달 |
+| 후보/선택 | 기준 외 최대 3개 노출, 모두 미선택, 기준만 초기 선택, 총 비교 1~3개 | 프런트 2개 노출/AI default_selected는 목표 미달 |
+| 랭커 | description·keywords 의미 검색 → 구조 관문 → cos 정렬, cos 동점만 dependents | overlap 관문·동점 정렬·평가/게시 연결 미완료 |
+| 직접 추가 | 검증된 정확 이름만 추가, 기준·기존 선택 자동 교체 금지 | 상위 5개 검색의 미일치는 부재 증명 아님; 비동기 완료 시 한도 재검증 필요 |
+| Downloads | 최대 104주 요청, 주간 실제 보유 관측만 표시 | 과거 78주는 시안의 관측 범위일 뿐 요청 상한 아님 |
+| Dependents | major series의 Total/복수 major 합계, 표시 기간 첫·마지막 signed delta | 고유 프로젝트/유입·이탈 아님; 누락 major·전체 0 의미는 데이터 계약 후속 |
+| 시계열 | log1p·원시 주간 8일 공백 단절·계열별 2점 이하 축적·카드별 오류 격리 | 유지하기로 한 미구현 목표, 다운샘플링 후 판단 금지 |
+| Version Share | 최신 DB 달력 기준의 version dependents major 분포; 최신 전용 UI | 공통 snapshot MAX 사용, 지표 완료 보장 아님; API snapshot_at 과거 조회는 구현됨 |
+| 기능 비교/PDF | 기능 비교는 확장; 현재 선택 버전의 완료 결과가 있어야 통합 PDF 가능 | feature version/run/evidence는 PDF 필수, community만 선택 포함 |
+| community | 최초 기준 하나, PR 제외 Issue 2·댓글 100·대표 댓글 3, fallback 금지 | community 구현 자체는 아직 없음 |
+| community 상태 | 수집/요약/refresh 분리, 사실 자료 보존, 24시간 fresh·7일 미만 stale | 전체 요약 실패는 완료 5분 뒤 사용자 재시도 |
+| 배포 | GitLab 저장소·현재 compose와 실측 자료를 구분 | 자동 CI/분석·PDF worker 배포 완료를 추정하지 않음 |
+
+표의 미달을 현행 코드 동작으로 기획에 흡수하지 않는다.
+과거 승인 gap과 새 발견의 증거/후속 담당은
+[최종 검수 결과](worklogs/S15P21A506-307/최종6문서_검수결과_260911.md)에 분리했다.
+
+## 2. 이번 재검수의 수정 사항
+
+- 서비스의 PR 포함·MAINTAINER 추정과 community Issue-only/association 계약 충돌을 해소했다.
+- 구상안의 별도 community pseudo schema를 제거하고
+  [커뮤니티 구현계획](for_community/Pickage_GitHub커뮤니티_구현계획_260908.md)으로 상세 정본을 통합했다.
+- 구현계획 본문에 파트별 파일·전달물·실패 상태·wire·GMS schema·최신 댓글 pagination·bounded 자원·DB 원자성·배포 시험을 보강했다.
+- 구현계획의 현재 코드 관찰·과거 결정·보관 일정·허용 한계를 부록으로 이동했다.
+- PDF 필수 기능 비교 metadata, IA의 미지원 판정과 기능 화면 순서, Version Share 실제 기준 테이블/과거 query 사실을 바로잡았다.
+- 의미 검증의 자동 보장, JDBC-only 테이블의 Hibernate validate 보장, root package 일치의 Issue 전용성 보장처럼 성립하지 않는 주장을 제거했다.
+- 루트 문서·구현계획만 수정했다. 코드/DB/배포/Figma 변경이나 신규 기능 구현을 완료했다고 주장하지 않는다.
+
+## 3. 남은 확인과 책임
+
+| 항목 | 담당 / 처리 |
+|---|---|
+| GMS 실제 method/path/auth/model/envelope | BE+AI 확인, infra secret 주입. key 신규 발급이 아니라 기존 보유 key의 실연결 계약 확인 |
+| community 신규 API 정본 등록·schema fixture | BE+FE, 구현계획 §6 그대로 등록 후 개발 |
+| 랭커 N/관문 threshold/평가셋·게시 | 기존 AI 이슈 169/172 및 관련 구현 이슈에서 검증 |
+| 승인된 그래프 gap·신규 입력/데이터 gap | FE/BE/data가 검수 결과 목록으로 별도 구현 추적 |
+| PDF job 전달·Redis·실제 CI·compose 외 배포 소유권 | OPEN-SERVER-01~04 유지 |
+| Figma 후보 기본 선택 등 재동기화 | 이전 후속 과제 유지; 이번 문서 검수에서 Figma 수정 안 함 |
+
+Version Share historical snapshot_at 지원은 더 이상 “코드 확인 필요 OPEN”이 아니다.
+실제 운영 배포 여부와 Notion 동기화는 로컬 코드 존재와 별개다.
+외부 사실의 미확인 값을 채워 넣거나 기존 기술 선택을 새 인프라 구축으로 확대하지 않는다.
+
+## 부록 A. 2026-09-10 결정 기록 — 현행 본문보다 우선하지 않음
+
+아래는 변경 이유와 토론 추적용이다. 당시의 “최종/확정/OPEN”은 그 시점의 표현이며
+현행 지시는 위 §1~3을 따른다. 특히 78주 상한·목록 선택 강제·최신 완료 requirement 분포 MVP는 대체됐다.
+당시 Figma 변경 기록은 이력이지 이번 작업에서 수행한 변경이 아니다.
+
+### 코드 정밀검토 후속 확정 — 2026-09-10 (`DEC-IMPLEMENTATION-ALIGN-20260910-01`, `S15P21A506-307`)
 
 S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·305·168·306의 86개 변경 파일을 API→배치→프런트→기획 문서 순으로 다시 검토했다. 근거와 판정은 `docs/worklogs/S15P21A506-307/정밀검토_결과서_260910.md`에 기록했다. 이 절의 후속 결정은 아래 0910 당일 초기 결정 중 충돌하는 항목보다 우선한다.
 
-### 현재 코드 계약을 채택한 항목
+#### 현재 코드 계약을 채택한 항목
 
 1. **기준 패키지 입력**: 자동완성 목록 선택을 강제하지 않는다. 자유 입력 또는 목록 선택 후 `/packages/similar`의 `not_found`로 서버 검증한다.
 2. **후보 화면·직접 추가**: 기준 패키지 외 후보는 상위 최대 3개를 표시하고 모두 기본 선택하지 않는다(`DEC-RANK-UI-20260910-01`). 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다. 직접 추가 패키지는 `/packages/search?q={name}&limit=5` 결과의 exact match로 검증한다.
@@ -24,7 +73,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 5. **Version Share MVP**: 최신 DB Snapshot의 version별 `dependents_count`를 major로 합산한다. requirement 해석 기반 최신 완료 분포와 `UNKNOWN|AMBIGUOUS` 보존은 확장으로 이동한다.
 6. **상태 경계**: 후보의 `COMPLETE|NO_DATA` 같은 게시 데이터 상태와 화면의 `loading|success|empty|error` 요청 상태를 별도 축으로 관리한다.
 
-### 기획 계약을 유지하고 구현 미달로 판정한 항목
+#### 기획 계약을 유지하고 구현 미달로 판정한 항목
 
 - Downloads·Dependents 비교 그래프의 로그축
 - 주간 관측에서 8일을 넘는 결측 구간 단절
@@ -34,14 +83,14 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 
 현재 프런트는 선형축, 명시적 null만 단절, 전체 series의 최대 point 수 기준 축적 판정, 생태계 탭 단위 오류 처리, 기간 필터 전 delta 계산 상태다. 이 차이는 요구사항을 코드 수준으로 낮추지 않고 구현 과제로 관리한다. 또한 `analyze-page.tsx`의 미정의 `setError`로 typecheck가 실패하는 문제는 별도 코드 결함 `S15P21A506-308`로 기록했다.
 
-### 구현 상태로 새로 반영한 항목
+#### 구현 상태로 새로 반영한 항목
 
 - `/packages/similar` API와 프런트 후보 조회는 구현됨. Notion/Swagger 동기화와 AI 배치→PostgreSQL 게시 연결은 미완료.
 - AI 배치는 기본 `search_k=30`, plugin/adapter·same-family 관문, cos 정렬까지 구현됨. dependency overlap 보완재 관문·평가셋 scoring gate·S3/PG 게시는 미완료.
 - `pipeline/requirements_resolution/` 구현은 존재하지만 전체 실행은 `PARTIAL`이며 표준 게시·serving에 연결되지 않음.
 - 서버 정보 PDF의 관측 구성과 저장소 `deploy/prod/` compose를 분리한다. Redis·History Server·분석/PDF worker는 PDF에는 있으나 compose에는 없어 실제 배포 소유권 확인이 필요함.
 
-## 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`, 일부 조항은 후속 결정으로 대체)
+### 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`, 일부 조항은 후속 결정으로 대체)
 
 정합성 검수 뒤 제품·개발팀과 다음을 확정했다. 이 절은 아래의 당시 변경 이력을 지우지 않고, 이후
 후속 구현 계약과 Figma·0910 문서에 적용할 최종 해석을 기록한다.
@@ -63,7 +112,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 
 이번 기획 작업의 수정 대상은 요구사항·서비스 기획서·IA·개발 구상안·Figma다. 프런트·백엔드·데이터·배포 등 실제 구현 파일은 수정하지 않으며, 78주 상한·차트·입력·상태 처리 등 구현 필요사항은 WORKLOGS의 후속 목록으로 관리한다. API wire와 Version Share 확장 스키마는 개발팀 Notion/Swagger 반영 전까지 OPEN으로 남긴다.
 
-## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`, 기본 선택 조항은 후속 결정으로 대체)
+### 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`, 기본 선택 조항은 후속 결정으로 대체)
 
 `DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20 고정과
 보완재 감점은 다음 구조로 대체한다.
@@ -83,7 +132,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 후보 화면의 최대 후보 3개·수동 추가·내부 점수 비노출 구조는 유지한다. 초기 선택은 후속 사용자 결정에 따라 기준 패키지만 선택하도록 바뀌었으므로 Figma의 기본 선택 상태를 재동기화해야 한다. 현재 AI 코드·README와 관련 구현 티켓의 차이는
 `docs/worklogs/S15P21A506-306/`에 후속 개발 항목으로만 기록하며 이번 기획 작업에서 코드를 수정하지 않는다.
 
-## 결정 1 — Dependency 유지·유입·이탈을 MVP에서 제거하고 Snapshot signed 증감으로 전환 (`DEC-DEPENDENCY-DELTA-20260910-01`)
+### 결정 1 — Dependency 유지·유입·이탈을 MVP에서 제거하고 Snapshot signed 증감으로 전환 (`DEC-DEPENDENCY-DELTA-20260910-01`)
 
 **무엇이 바뀌었나**: 0909 MVP는 Direct Dependency 카드 하단에서 `유지·유입·이탈`을 각각 계산해
 보여주는 계약이었다. 개발팀이 실제 서빙 데이터는 Snapshot별 `dependents_count` 개수만 갖고 있고
@@ -112,7 +161,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 **추가로 명확해진 것**: delta는 그래프에 표시된 조회 범위와 같은 trend에서 첫·마지막 유효 point를
 사용한다. 별도의 직전 Snapshot을 숨겨서 가져오거나 새 endpoint를 임의로 만들지 않는다.
 
-## 결정 2 — API 정본을 개발팀 Notion 명세로 올리고 UI/API 책임 경계 정리 (`DEC-API-ALIGN-20260910-01`)
+### 결정 2 — API 정본을 개발팀 Notion 명세로 올리고 UI/API 책임 경계 정리 (`DEC-API-ALIGN-20260910-01`)
 
 **무엇이 바뀌었나**: 0909 개발 구상안에는 화면 요구와 API JSON 스케치가 섞여 있었다. 0910부터
 endpoint·request·response wire·오류 코드는 개발팀 Notion API 명세를 canonical source로 두고,
@@ -145,7 +194,7 @@ endpoint·request·response wire·오류 코드는 개발팀 Notion API 명세�
 Version Share 5개 항목은 모두 `서버 반영=No`였다. 따라서 `version`, `relationship_type`, 공통
 `data_status`, 78주 validation 등은 **기획 결정이 확정됐다는 뜻이지 구현 완료됐다는 뜻이 아니다.**
 
-## 결정 3 — 패키지 입력을 수동 존재 확인에서 autocomplete selection gate로 변경
+### 결정 3 — 패키지 입력을 수동 존재 확인에서 autocomplete selection gate로 변경
 
 **무엇이 바뀌었나**: 0909 화면-01은 패키지명을 입력하고 `패키지 확인` 버튼으로 존재 여부를 검증한
 뒤 다음 단계로 이동하는 구조였다. 0910은 사용자가 접두사를 입력하면 DB의 분석 가능한 패키지 목록을
@@ -167,7 +216,7 @@ Version Share 5개 항목은 모두 `서버 반영=No`였다. 따라서 `version
 | 기능별 개발 구상안 | §4.0 | npm 존재 확인 중심 | `/packages/search?q=` selection gate, 직접 추가도 재사용 |
 | Figma | `485:275`, 화면00/Requirement Map | 입력 + `패키지 확인` + “npm에서 확인됨” | `pin` → 목록 → `pino` 선택 → 다음 CTA |
 
-## 결정 4 — EXT-01/02/04를 “새 화면”이 아니라 생태계 보고서 내부 확장으로 재정의 (`DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`)
+### 결정 4 — EXT-01/02/04를 “새 화면”이 아니라 생태계 보고서 내부 확장으로 재정의 (`DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`)
 
 **무엇이 바뀌었나**: 0909 IA/Figma에서는 간접·전이 Dependency 등 일부 확장 기능이 별도 분석
 화면처럼 읽혔다. 0910은 확장 기능의 UI 소유권을 다음과 같이 고정했다.
@@ -194,7 +243,7 @@ scope 변경이다. 이들을 route/tab으로 만들면 제품 IA가 실제 의�
 | 기능별 개발 구상안 | §12.1~12.2/§12.5 | 분석 로직 중심 | UI ownership + directed edge/focus 계약 추가 |
 | Figma | `485:1058`, `489:292` | Future Modules / 별도 확장 페이지 인상 | in-page modules / Dependency scope states |
 
-## 결정 5 — 실제 서버 사양·컴포넌트 배치로 인프라 정합 (`DEC-SERVER-ALIGN-20260910-01`)
+### 결정 5 — 실제 서버 사양·컴포넌트 배치로 인프라 정합 (`DEC-SERVER-ALIGN-20260910-01`)
 
 **무엇이 바뀌었나**: 0909 개발 구상안은 두 대의 `t4g.xlarge`, #1 MinIO `EBS 200GB`,
 `#2:443` 단일 외부 인바운드 등을 시스템 확정안으로 적고 있었고 Redis와 Spark History Server를
@@ -226,7 +275,7 @@ scope 변경이다. 이들을 route/tab으로 만들면 제품 IA가 실제 의�
 CI runner/registry/deploy command, 외부 GPU/MLflow 물리 사양은 서버 자료가 보장하지 않으므로
 OPEN으로 남겼다.
 
-## 결정 6 — 최종 재검수에서 데이터 해석·상태·PDF 세부 계약 보강
+### 결정 6 — 최종 재검수에서 데이터 해석·상태·PDF 세부 계약 보강
 
 **무엇이 바뀌었나**: 핵심 0910 결정을 반영한 뒤 API 자료·서버 자료·Figma를 다시 교차검사하면서
 기능을 새로 추가한 것이 아니라 **오해 가능성이 있는 경계 조건**을 보강했다.
@@ -244,7 +293,7 @@ OPEN으로 남겼다.
 PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간이 남아 있었다. 이 단계에서는 새로운
 알고리즘을 만들지 않고 기존 정본이 이미 말하는 의미를 문서에 전달하는 데만 집중했다.
 
-## 유지되거나 후속 결정으로 이어진 것
+### 유지되거나 후속 결정으로 이어진 것
 
 - `DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20·Recall@20
   고정과 보완재 감점은 `DEC-RANK-20260910-01`의 `search_k=N`·Recall@N·구조적 관문으로 대체한다.
@@ -259,7 +308,7 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 - 기능 비교와 GitHub 커뮤니티는 MVP가 아닌 확장이다.
 - Pickage는 “가장 좋은 패키지”를 자동 선택하거나 승자를 선언하지 않는다.
 
-## 문서별 변경 규모 참고
+### 문서별 변경 규모 참고
 
 아래 line diff는 변경량을 이해하기 위한 참고치이며 기능 수를 의미하지 않는다.
 
@@ -270,7 +319,7 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 | 메뉴구조 IA | 580 | 634 | 94 | 40 |
 | 기능별 개발 구상안 | 1,156 | 1,316 | 370 | 210 |
 
-## 변경 대상에서 제외하거나 보존한 것
+### 변경 대상에서 제외하거나 보존한 것
 
 - 0909 네 원본 문서는 비교 baseline으로 보존하고 덮어쓰지 않았다.
 - 최초 API·서버 정합 단계에서는 0909 ranking 구조를 바꾸지 않았다. 이후 `S15P21A506-306` 후속
@@ -279,7 +328,7 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 - 기능 비교 POC 결과는 확장 기술 가능성 참고 자료로 유지하되 MVP 완료 조건으로 승격하지 않았다.
 - Figma V1 archive는 변경 대상이 아니며 V2만 제품 정본 화면으로 검수했다.
 
-## 후속 필요 항목 (현재 의도적으로 OPEN)
+### 후속 필요 항목 (현재 의도적으로 OPEN)
 
 - `/packages/similar`의 현재 구현 schema와 Notion/Swagger 동기화.
 - AI 후보 배치 결과의 S3 게시·PostgreSQL 원자 적재와 실행 manifest 연결.
@@ -287,7 +336,7 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 - 보완재 관문의 최종 threshold·그래프 준비 전 적용 정책 — `S15P21A506-172`에서 확정.
 - 최근 12개월 코퍼스 컷 외 별도 노후 관문 필요 여부.
 - 현행 “deprecated 51K 홀드아웃” 평가셋의 구성·누수·정답 정의와 고정 식별자.
-- Version Share API의 historical `snapshot_at` 지원 여부.
+- [2026-09-11 확인으로 종료] Version Share API의 historical `snapshot_at`은 코드에 이미 구현되어 있다. 최신 전용 UI와 모순되지 않는다.
 - requirement 해석 기반 Version Share 확장의 `UNKNOWN|AMBIGUOUS` HTTP wire와 최신 완료 실행 선택.
 - `OPEN-SERVER-01`: #2 app → #1 data PDF worker의 job 전달/queue/polling과 UI-derived delta를
   동일 PDF Snapshot으로 넘기는 방식.

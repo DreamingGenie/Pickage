@@ -2,6 +2,7 @@
 
 작성 기준일: 2026-09-04 (2026-09-10 코드 재검토 갱신: 후보 API·AI 배치·requirements 해석·Dependents major 표시·프런트 검증·저장소 배포 구성을 반영)
 문서 상태: Approved (effective_at: 2026-09-10. `DEC-RANK-UI-20260910-01`: 후보는 최대 3개를 노출하되 초기에는 기준 패키지만 선택한다. 이 사용자 결정은 `DEC-RANK-20260910-01`의 상위 2개 기본 선택 조항만 대체한다. 나머지 랭커 계약과 `DEC-IMPLEMENTATION-ALIGN-20260910-01` 계약은 유지한다)
+실행 계약 재검수일: 2026-09-11
 연결 문서: `Pickage_요구사항_명세서_0910.md`, `Pickage_메뉴구조_IA_0910.md`, `Pickage_서비스_기획서_0910.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 서버의 실제 컴포넌트 배치와 물리 자원은 2026-09-10 개발팀 `서버 정보.pdf`를 우선 정본으로 하고, 그 위에 기존 0904 시스템 아키텍처의 데이터·모델·배포 결정을 결합한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -52,7 +53,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 **시스템 확정안 — v1 랭커** (`DEC-RANK-20260910-01`)
 
 1. **코퍼스 자격 필터**: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외를 적용한다. deprecated 패키지는 기준 패키지와 후보 모두에서 제외하며 별도 추천 경로도 만들지 않는다.
-2. **변경분 재임베딩**: MLflow `@production` 모델로 `text_hash`가 바뀐 description만 ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
+2. **변경분 재임베딩**: MLflow `@production` 모델로 `text_hash`가 바뀐 정규화 입력(description·keywords)만 ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
 3. **순수 의미 검색**: 정규화 벡터 행렬곱으로 패키지별 `search_k=N` 후보를 넓게 가져온다. 이 단계에는 popularity·Downloads·dependents 가산을 넣지 않는다.
 4. **구조적 관문**: 보완재, 노후, 실체 미달을 순서대로 판정해 탈락시킨다. 작은 가·감점 계수를 누적하지 않는다.
 5. **최종 정렬**: 관문 통과 후보를 cos 유사도 내림차순으로만 정렬한다. cos가 같을 때만 dependents 수를 tie-break로 사용하며 score에는 더하지 않는다. `move_lift`도 사용하지 않는다.
@@ -66,6 +67,19 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 - 부분 구현: AI 출력의 `user_visible(rank<=3)`은 최종 후보 노출 수와 일치하지만 현재 프런트는 2개만 표시한다. `default_selected(rank<=2)`는 이번 사용자 결정으로 제품 계약에서 제외됐으며 UI가 소비해서는 안 되는 기존 출력이다.
 - 미구현: 직접 의존 겹침을 이용한 보완재 관문, 51K 평가셋 기반 scoring gate, S3 게시, PostgreSQL 원자 적재기.
 - 검증 경계: 평가셋이 확정되지 않아 scoring gate는 `SKIPPED`이며 명시적 `--allow-gate-skip` 없이는 성공 마커를 만들지 않는다.
+
+**추가 확인한 코드 차이 — 2026-09-11**
+
+- 기준 이름 존재 조회는 package 존재만 검사하며 deprecated 차단을 보장하지 않는다. 제품의 deprecated 기준/후보 제외는 유지한다.
+- 현재 rerank는 반올림 score 정렬이며 dependents 동점 정렬을 구현하지 않는다. 원래 cos 동점만 tie-break하는 목표 계약은 유지한다.
+- 직접 추가의 검색 상위 5개 exact match는 존재 증명은 가능하지만 부재 증명은 아니다. 정확 이름 우선 조회와 요청 완료 시 중복/최대 3개 재검증은 후속 결함이다.
+- 보고서 직접 진입 fixture·비교 대상과 미연결된 기능 비교 sample/timer·누락된 PDF는 실제 분석 완료가 아니다.
+- 탭 unmount 시 기간/major 필터 초기화, 실제 보고서 header의 비교 대상 표시 부족은 IA 목표와의 차이다.
+- 기준일 달력 존재는 지표 완료 증거가 아니다. Version Share 과거 query는 이미 있지만 최신 완료 지표 선택은 구현됐다고 보지 않는다.
+
+세부 증거와 기존 승인 gap의 구분은
+[최종 6문서 검수 결과](worklogs/S15P21A506-307/최종6문서_검수결과_260911.md)에 기록한다.
+이번 문서 작업에서 코드를 수정하거나 미구현을 자동 승인하지 않는다.
 
 **유지되는 학습 원칙**: deprecated→대체 CSV와 migration pair는 “관련 있음”을 학습하는 positive pair로만 사용한다. 후보 가산점이나 별도 deprecated 추천 화면의 근거로 사용하지 않는다.
 
@@ -108,7 +122,7 @@ GBDT LTR 같은 다중 신호 랭커는 별도 후속 결정이 필요한 v1 이
 | Downloads | `GET /packages/downloads?names=a,b,c&from=&to=` | 공통 trend 응답. weekly 의미, 최대 104주 |
 | Dependents | `GET /packages/dependents?names=a,b,c&from=&to=` | package-major별 series 반환. 프런트가 Total/선택 major를 합산 |
 | Version Share | `GET /packages/version?names=a,b,c` | 최신 DB Snapshot의 version별 dependents를 major로 합산 |
-| 후보 ranking·존재 검증 | `GET /packages/similar?name={name}&limit={limit}` | 기본 20·최대 50, `COMPLETE|NO_DATA`, rank 순 후보와 `not_found` 반환 |
+| 후보 ranking·존재 검증 | `GET /packages/similar?name={name}&limit={limit}` | 기본 20·최대 50, `COMPLETE\|NO_DATA`, rank 순 후보와 `not_found` 반환 |
 
 **wire 표기 경계**
 
@@ -243,7 +257,7 @@ flowchart LR
 ### 3.6 배포·실행 기준
 
 - 두 EC2 모두 Docker와 Docker Compose 사용을 전제로 한다.
-- 기존 `GitHub → CI/CD → 컨테이너 배포` 흐름은 유지하되, 실제 CI 도구·레지스트리·배포 명령은 현재 운영 저장소 설정을 최종 기준으로 한다.
+- 저장소는 GitLab이며 현재 `.gitlab-ci.yml`은 없다. CI/CD는 구축 목표이고 자동 배포가 구현됐다고 가정하지 않는다. runner·레지스트리·배포 명령은 `OPEN-SERVER-03`에서 확정한다.
 - 동일 Spark job이 두 노드에서 호환되도록 Spark/Java/Python 등 런타임 버전 차이를 관리한다.
 
 ### 3.7 네트워크·노출 기준
@@ -460,18 +474,32 @@ canonical endpoint: `GET /packages/downloads?names=a,b,c&from=&to=`
 - 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다. 현재 프런트는 선형축이므로 후속 구현이 필요하다.
 - 유효 point가 2개 이하인 초기 수집 상태에서는 **계열별로** 선 추세 대신 `데이터 축적 중 (N주차)`를 제공한다. 현재 코드는 전체 series 중 최대 point 수로 판단하므로 후속 수정이 필요하다.
 
+#### 시계열 계산 순서와 결측 경계
+
+1. 표시 기간으로 원시 주간 관측을 제한한다.
+2. null·8일 초과 관측 공백을 구간으로 분리한다. 관측 없는 major를 0으로 확정하지 않는다.
+3. 같은 기간/필터의 유효 point로 계열별 축적 상태와 첫·마지막 signed delta를 계산한다.
+4. 구간별 화면 다운샘플링 후 `log1p(x)` 좌표로 그린다. 눈금·툴팁·delta는 원래 단위다.
+
+2주 이상 표시 간격을 8일 결측으로 오인하거나 다운샘플링 후 2점이라는 이유로 축적 중 판정하지 않는다.
+현재 major 합산은 없는 날짜를 0으로 대체할 수 있고 SQL은 첫 non-zero 전 값을 제거하므로,
+완전한 0 시계열/부분 major의 실제 의미가 현재 응답만으로 확정되지 않는다.
+이 차이는 실제 0과 결측을 구분해야 한다는 제품 계약의 이행 과제이며, 임의로 0을 채워 해결하지 않는다.
+
 ### 5.4 Version Share Snapshot
 
 canonical endpoint: `GET /packages/version?names=a,b,c`
 
-Version Share는 MVP에서 **최신 DB Snapshot**만 사용자 화면에 사용한다. 현재 API는 `package_version_snapshot`의 `MAX(snapshot_at)`에서 version별 dependents를 major로 합산한다.
+Version Share는 MVP에서 **최신 DB Snapshot**만 사용자 화면에 사용한다. 현재 API는 공통 `snapshot` 달력 테이블의 `MAX(snapshot_at)`을 기준일로 고르고, 그 날짜의 `package_version_snapshot`에서 version별 dependents를 major로 합산한다. 패키지별 지표의 최신 완료일을 선택하거나 데이터가 있는 과거 날짜로 자동 fallback하지 않는다. 따라서 최신 달력만 있고 해당 지표가 없을 수 있다.
+
+API의 선택적 `snapshot_at` 과거 날짜 조회는 `PackageController`·`PackageService`·SQL·frontend endpoint에 이미 구현돼 있다. MVP UI의 최신 전용 계약과 충돌하지 않으며 과거 조회 UI를 추가하라는 뜻은 아니다.
 
 **제품 계약**
 
 - Version Share 화면에 시간축 series를 요구하지 않는다.
 - 각 패키지는 최신 DB Snapshot 기준일과 major 계열별 관측 비중을 제공한다.
 - 기준은 dependents이며 실제 설치 버전·고유 사용 프로젝트 수로 표현하지 않는다.
-- major가 많을 경우 화면 표현상 상위 항목 + 기타로 접을 수 있다.
+- 현재 frontend는 상위 5개 major + 기타로 접는다. API가 개별 비율을 소수점 1자리 반올림하므로 표시 합계가 99.9%/100.1%일 수 있다. 원본 분모와 반올림을 설명하고 이를 누락 데이터나 정확한 100%로 조작하지 않는다.
 - 현재 응답은 상위 major와 화면의 `기타` 묶음을 제공할 수 있으나 requirement 원문의 해석 불가 상태를 제공하지 않는다.
 - 현재 응답은 `items`, `slices`, `not_found`를 사용하며 공통 `data_status`는 없다.
 
@@ -897,90 +925,34 @@ MVP Version Share의 원자료와 버전 조건 해석 결과를 재사용하되
 
 ### 12.3 GitHub 저장소 연결 검증
 
-가능한 보조 정보:
+최초 기준 패키지 하나만 대상으로 하고 npm repository와 DB repo_url의 출처·경로를 검증한다.
+npm의 명시 비 GitHub 주소를 DB GitHub 값으로 우회하지 않는다.
+명시 directory 파일 불일치와 directory 자체 미지정을 구분한다.
+root package 이름 일치만으로 저장소 전체 Issue가 해당 패키지 전용이라고 증명하지 않는다.
 
-- Registry repository
-- provenance
-- gitHead
-- 검증된 tag·commit
-- 모노레포 패키지 경로
+연결을 확인한 scope는 `PACKAGE_SCOPED` 또는 `REPOSITORY_WIDE`이고,
+연결/범위 실패는 자료 상태 `UNVERIFIED_REPOSITORY`/`AMBIGUOUS_SCOPE`로 구분한다.
+서로 다른 namespace를 하나의 scope enum으로 합치지 않는다.
 
-검증 결과에 repository scope를 저장한다.
+### 12.4 GitHub 커뮤니티 구현 계약
 
-```text
-PACKAGE_SCOPED
-REPOSITORY_WIDE
-AMBIGUOUS
-UNVERIFIED
-```
+실행 상세 정본은 [커뮤니티 구현계획](for_community/Pickage_GitHub커뮤니티_구현계획_260908.md)이다.
+이 구상안에 별도의 CommunitySummary/Topic/Message wire를 중복 정의하지 않는다.
+CommunityResponse는 기존 success/data와 snake_case를 사용하며 내부 source ID는 wire에서 제외한다.
 
-### 12.4 GitHub 커뮤니티 출력 계약
+- 기존 report shell의 세 번째 lazy tab; 별도 route·공통 header 복제 없음.
+- 180일(완전 검색 원시 0건만 365일 1회), Issue 최대 2개, 최신 댓글 최대 100개, 대표 댓글 최대 3개. PR 제외.
+- PostgreSQL `community_snapshot` 한 행 JSONB, JdbcTemplate 원자 게시. 새 장기 이력/원문 테이블·Redis·별도 worker 없음.
+- data_status: AVAILABLE, PARTIAL, UNVERIFIED_REPOSITORY, AMBIGUOUS_SCOPE, UNSUPPORTED_HOST, NO_DISCUSSION_DATA.
+- view/refresh/자료/요약 상태를 분리한다. FETCH_LIMITED를 저장 자료 상태로 만들지 않는다.
+- 요약 실패여도 사실 자료는 게시 가능하다. 원문 ID 검사만으로 의미 왜곡이 사라진다고 보지 않고 사람 평가를 병행한다.
+- 24시간 fresh, 수집 후 7일 미만 stale. 전체 요약 실패는 실패 완료 5분 뒤 사용자 재시도, 외부 rate cooldown이 더 늦으면 우선.
+- bounded refresh에서만 Spring→GMS 허용. 실제 GMS 경로·인증·model은 보유 key와 별개로 연결 확인이 필요하다.
+- raw 미보존의 장기 감사 한계를 표시한다. 대표 메시지는 실제 댓글이며 역할·시각·수치는 서버 원본에서 붙인다.
+- 장기 Issue 시계열은 Activity 확장 소유다.
 
-GitHub 커뮤니티 확장은 Figma 최신 화면 구조에 맞춰 세 개의 결과 계층을 한 snapshot으로 구성한다.
-
-#### A. CommunitySummary — 상단 보고서 요약·수치
-
-```text
-communitySnapshotId
-package
-repositoryScope
-repositoryIdentifier
-collectedAt
-analyzedIssueIds
-analyzedIssueCount
-commentCount
-reactionCount
-openIssueCount
-dataStatus
-```
-
-집계 수치는 **`analyzedIssueIds`에 포함된 Issue 집합만** 기준으로 계산한다. 저장소 전체 통계와 분석 대상 통계를 섞지 않는다.
-
-#### B. CommunityTopic — 핵심 이슈와 쟁점
-
-```text
-topicId
-communitySnapshotId
-issueId
-issueNumber
-issueState
-commentCount
-reactionCount
-title
-summary
-discussionFlow
-sourceStatus
-```
-
-`summary`는 현재 문제·충돌 지점을 짧게 설명한다. `discussionFlow`는 실제 Issue 본문과 댓글의 전개를 근거로 `문제 제기 → 유지보수자 설명 → 대안 공유 → 해결 방향 논의` 같은 단계형 문장으로 압축한다. 원문에 없는 단계나 합의는 만들지 않는다.
-
-#### C. DiscussionMessage — 실제 논의 흐름
-
-```text
-messageId
-topicId
-sourceCommentId
-authorLogin
-authorRole
-sequence
-summaryKo
-sourceCollectedAt
-```
-
-- `sequence`는 실제 공개 댓글 순서를 유지한다.
-- `authorRole`은 Issue 작성자·저장소 유지관리자·기여자 등 **확인 가능한 경우에만** 채운다.
-- `summaryKo`는 원문 댓글의 핵심 논지를 한국어로 축약한 것이며 새로운 발화를 생성하지 않는다.
-- 모든 대화 항목은 `sourceCommentId`로 원본 record에 추적 가능해야 한다.
-
-#### snapshot 정합성
-
-1. 상단 요약 수치, 핵심 Issue 카드, 대화형 댓글 기록은 동일한 `communitySnapshotId`를 사용한다.
-2. 일부 댓글 수집이 실패하면 해당 topic/message에 부분 상태를 남기고 완전한 논의로 단정하지 않는다.
-3. `AVAILABLE`, `UNVERIFIED_REPOSITORY`, `AMBIGUOUS_SCOPE`, `FETCH_LIMITED`, `NO_DISCUSSION_DATA` 상태를 유지한다.
-4. 기준 패키지 하나만 대상으로 하며 다른 패키지 snapshot을 대신 보여주지 않는다(`DEC-COMMUNITY-20260909-01`).
-5. Issue 장기 시계열은 Activity용 별도 출력으로 유지하고 커뮤니티 대화 snapshot과 혼합하지 않는다.
-
-기본 브랜치 최신 문서를 과거 기능 비교의 확정 근거로 재사용하지 않는다.
+현재 community API·table·client·tab·배포 설정은 없다.
+파트별 파일/전달물·migration/seed·API fixture·동시성·실패 시험은 구현계획 §3~12에서 인수한다.
 
 ### 12.5 간접·전이 Dependency 확장
 
@@ -1035,12 +1007,12 @@ PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 �
 - 최신 Version Share snapshotAt
 - 후보·생태계 data status summary
 - createdAt
-
-확장 결과가 완료되어 PDF에 포함되는 경우에만 선택적으로 포함:
-
 - featureVersions, completedAnalysisRunIds
 - assessment/evidence references, narrative
-- communitySnapshotIds
+
+선택적으로 포함:
+
+- 완료되어 제공 가능한 communitySnapshotIds와 해당 자료 상태. community 미완료는 PDF 필수 기능 비교 조건을 대신하지도, 별도 차단 사유가 되지도 않음
 
 제외:
 
@@ -1189,7 +1161,7 @@ mlflow-artifacts
 
 - 사용자 요청에서는 PostgreSQL의 사전 계산 현재 `similar_package`만 조회한다.
 - 모델 inference·순수 의미 검색·구조적 관문·cos 정렬은 #1 data의 분석 worker/배치 범위에서 수행한다.
-- 변경 description만 재임베딩하고 전수 재임베딩은 모델 승격 시에만 수행한다.
+- 변경된 정규화 입력(description·keywords)만 재임베딩하고 전수 재임베딩은 모델 승격 시에만 수행한다.
 - 후보 1건 조회를 위해 BigQuery·npm API·MLflow·MinIO를 실시간 호출하지 않는다.
 
 ### 보고서 1페이지
@@ -1298,7 +1270,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 2. 기준 패키지 해제 요청 거부
 3. 네 번째 패키지 추가 차단과 수동 해제
 4. 후보 0개, 의미 retrieval 실패, ranking 처리 실패 상태 분리
-5. `text_hash`가 바뀐 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
+5. `text_hash`가 바뀐 정규화 입력(description·keywords)만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
 6. 현재 기본 `search_k=30`이 화면 노출 최대 3개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
 7. 현재 plugin/adapter·same-family 임시 관문과 AI팀 목표인 dependency overlap·노후·실체 관문을 구분하고, 통과 후보가 cos로 정렬되는지 검증
 8. 평가셋 확정 전 scoring gate가 `SKIPPED`로 기록되고 명시적 허용 없이 성공 게시되지 않는지 검증
