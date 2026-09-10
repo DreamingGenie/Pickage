@@ -14,7 +14,7 @@
 | 최신 버전 하나로 되나 | **안 된다.** 이동쌍은 "연속 두 버전의 차이"라 버전별 선언이 필요하다. 다만 이 저장소는 **요청 한 번에 전 버전을 준다**. 패키지당 1회 요청으로 시계열이 확보된다. |
 | 누구를 받나 | 다운로드 순위 상위 10만(`datasets/targets/rank_top100k_20260902.csv`). 개발용 의존의 변화는 X가 아니라 **X를 쓰던 쪽(dependent)** 의 문서에 있으므로, "누가 도구를 바꿨나"를 보려면 dependent 집단을 받아야 한다. 전이가 있는 dependent 250만 개는 29일이 걸려 불가능하고, 상위 10만은 활발히 관리되는 라이브러리라 신호가 가장 진한 집단이다. |
 | 얼마나 걸리나 | 요청 10만 건. 간격 0.5초면 약 14시간, 1초면 약 28시간. 문서 크기는 패키지마다 수 KB~수십 MB로 편차가 커서 **스모크 20건으로 먼저 잰다**(§3-1). |
-| 결과는 어디에 | 원본은 남기지 않고 필요한 열만 `data/registry/raw/run=<날짜>/part-*.jsonl.gz`, 변환 결과는 `data/registry/parquet/`. `data/`는 gitignore, 팀 공유는 GCS. |
+| 결과는 어디에 | 원본은 남기지 않고 필요한 열만 `data/registry/raw/run=<날짜>/part-*.jsonl.gz`, 변환 결과는 `data/registry/parquet/`. `data/`는 gitignore. 팀 공유 보존은 downloads(S15P21A506-278)와 같이 서버 MinIO `pickage-raw` Bronze 입고로 하며(별도 티켓), GCS에는 올리지 않는다. |
 
 ---
 
@@ -152,7 +152,7 @@
 - **이 수집은 X가 아니라 dependent를 받는 것이다.** "enzyme의 이동"을 보려고 enzyme 문서를 받는 게 아니라, enzyme을 쓰던 상위 10만 패키지들의 문서를 받는다. 결과적으로 상위 10만 밖의 패키지가 개발용 의존을 어떻게 바꿨는지는 알 수 없다(범위 한계, 문서에 적어 둘 것).
 - **이동쌍 빌더 반영은 S15P21A506-136 착수 때.** 이 수집만으로 결과가 바로 바뀌지 않는다. 빌더에 "의존 종류(kind: regular/dev)" 열을 넣어 개발용 의존 제거·추가를 같은 절차로 세는 확장이 필요하다.
 - **브랜치.** 이 수집기는 develop에서 새 브랜치(`feat/S15P21A506-280-registry-collector`)로 작업한다. !81(이동쌍) 브랜치와 파일이 겹치지 않는다. `pipeline/README.md`의 폴더 표와 `docs/README.md` 목록에 한 줄씩 추가한다(둘 다 develop 기준 최신본을 수정).
-- **GCS 업로드**는 수집 완료 후 `gs://oss-shift-a506-raw/raw/registry/run=<날짜>/`. S15P21A506-142에 남은 downloads·keywords 업로드와 함께 한 번에 올리면 된다.
+- **원본 보존은 GCS가 아니라 서버 MinIO.** 처음 계획은 `gs://oss-shift-a506-raw/raw/registry/`였지만, downloads·keywords가 GCS에 올라가지 않고 서버 MinIO `pickage-raw` Bronze로 입고된 뒤라(S15P21A506-278, `pipeline/downloads/`) registry도 같은 경로를 따른다(2026-09-10 결정). 입고는 검증 절차(압축·JSON 구조·체크포인트 대조)를 포함하므로 이 이슈가 아니라 별도 티켓에서 downloads 입고 모듈을 본떠 만든다. 그때까지 정본은 전진님 PC `data/registry/raw/run=2026-09-09/`(765 MB) + `checkpoint.sqlite`·`manifest.json`.
 
 ---
 

@@ -48,8 +48,7 @@ pipeline\collectors\registry\start_registry.cmd
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/to_parquet.py --raw data/registry/raw/run=2026-09-09 --out data/registry/parquet
 .venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py -c "select count(*) from registry_versions"
 
-# GCS 업로드 (계획 §6 경로)
-gcloud storage rsync -r data/registry/raw/run=2026-09-09 gs://oss-shift-a506-raw/raw/registry/run=2026-09-09
+# 원본 보존: GCS 가 아니라 서버 MinIO pickage-raw Bronze 입고 (downloads 와 동일, pipeline/downloads/ 방식). 별도 티켓에서 진행 — 계획 §6
 ```
 
 Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 띄운다. **Claude Code 세션이 띄운 프로세스는 앱을 닫으면 함께 죽을 수 있으니**, 밤새 돌릴 때는 전진님 터미널이나 더블클릭으로 직접 띄운다. PC 절전 시 멈추고 깨어나면 이어간다.
