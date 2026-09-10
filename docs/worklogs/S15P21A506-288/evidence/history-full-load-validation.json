@@ -1,0 +1,1042 @@
+{
+  "checked_at": "2026-09-10T00:54:05.177679+00:00",
+  "live_service_count_checked_at": "2026-09-10T00:52:50.837108+00:00",
+  "verdict": "FULL_HISTORY_VERIFIED",
+  "history_run_id": "full-history-288-20260909-v1",
+  "run_completed_at": "2026-09-10T00:38:39.364523+00:00",
+  "loader_result_status": "SELECTED_DATES_PUBLISHED",
+  "status_explanation": "Selected-date resume retains SELECTED_DATES_PUBLISHED; full completion is independently checked against the entire approved calendar and expected counts.",
+  "database": "pickage_267_full_defaulted",
+  "container": "pickage-267-validation",
+  "snapshot_range": [
+    "2022-05-08",
+    "2026-08-31"
+  ],
+  "calendar_dates": 229,
+  "published_dates": 229,
+  "actual_service_rows": 646219939,
+  "reconstructed_dates": 228,
+  "reconstructed_rows": 635138999,
+  "preserved_observed_base": "2026-08-31",
+  "preserved_observed_base_rows": 11080940,
+  "input_sha256": "f3cd069f5d9eae475b55d615c2597e922a423554838b2f722686e747412023d1",
+  "contract_sha256": "285b6da0ed63f862e1fe18e3942e88fd98a059b9c3f0bf572d8679a0b32de518",
+  "checks": {
+    "live_service_date_set_matches_approved_calendar": true,
+    "live_service_per_date_counts_match_independent_plan": true,
+    "live_service_counts_match_final_loader_report": true,
+    "all_229_execution_statuses_published": true,
+    "all_228_history_reports_link_to_successful_db_attempts": true,
+    "execution_counts_match_live_service_counts": true,
+    "all_228_history_manifest_hashes_match_db": true,
+    "all_228_history_per_date_reports_record_full_service_value_verification": true,
+    "preserved_base_value_fingerprint_sums_and_count_match_before_run": true,
+    "current_pointer_records_unchanged": true,
+    "snapshot_and_reference_counts_unchanged": true,
+    "primary_index_valid_and_ready": true,
+    "table_constraints_validated": true,
+    "source_input_sha_revalidated_by_successful_loader_finalization": true
+  },
+  "missing_dates": [],
+  "unexpected_dates": [],
+  "date_count_differences": [],
+  "current_pointers": [
+    {
+      "dataset": "package-snapshot",
+      "snapshot_at": "2026-08-31",
+      "execution_id": "load-288-20260831-v1"
+    },
+    {
+      "dataset": "package-version",
+      "snapshot_at": "2026-08-31",
+      "execution_id": "load-267-full-defaulted-v1"
+    }
+  ],
+  "preserved_base_values": {
+    "rows": 11080940,
+    "downloads": 213093115787,
+    "stars": 33485871365,
+    "issues": 579209553,
+    "hash_sum": 15833969501426534281439
+  },
+  "attempt_status_counts": {
+    "FAILED": 2,
+    "REVERIFIED": 10,
+    "PUBLISHED": 229
+  },
+  "latest_attempt_status_counts": {
+    "REVERIFIED": 9,
+    "FAILED": 1,
+    "PUBLISHED": 219
+  },
+  "interrupted_reverification": [
+    {
+      "snapshot_at": "2022-06-27",
+      "execution_status": "PUBLISHED",
+      "latest_attempt_status": "FAILED",
+      "latest_attempt_phase": "ABANDONED"
+    }
+  ],
+  "attempt_note": "One previously published date has a later FAILED/ABANDONED attempt because full revalidation was intentionally stopped. Its successful publication and matching report remain preserved. Execution publication status, prior successful attempt and service counts determine data completion; failed attempt history is not rewritten.",
+  "constraints": [
+    {
+      "name": "PK_PACKAGE_SNAPSHOT",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (package_id, snapshot_at)"
+    },
+    {
+      "name": "FK_PACKAGE_PACKAGE_SNAPSHOT",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (package_id) REFERENCES package(package_id)"
+    },
+    {
+      "name": "FK_SNAPSHOT_PACKAGE_SNAPSHOT",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)"
+    }
+  ],
+  "resume_selected_dates": [
+    "2026-06-15",
+    "2026-06-23",
+    "2026-06-29",
+    "2026-07-06",
+    "2026-07-13",
+    "2026-07-20",
+    "2026-07-27",
+    "2026-08-03",
+    "2026-08-10",
+    "2026-08-17"
+  ],
+  "resume_rows": 39254760,
+  "resume_elapsed_seconds": 3205.407,
+  "metadata_reconciliation_elapsed_seconds": 1.187,
+  "verification_scope": "Fresh full service date/count query and latest-snapshot fingerprint; metadata/report/hash reconciliation. Full history metrics were compared to output at each publication. Independent raw-source recomputation remains limited to the three representative dates.",
+  "not_run": [
+    "independent raw-source recomputation for all historical dates",
+    "production deployment",
+    "Spring/Flyway application startup",
+    "backend API checks",
+    "Jira status update"
+  ],
+  "dates": [
+    {
+      "snapshot_at": "2022-05-08",
+      "rows": 1812444
+    },
+    {
+      "snapshot_at": "2022-05-15",
+      "rows": 1819107
+    },
+    {
+      "snapshot_at": "2022-05-22",
+      "rows": 1825963
+    },
+    {
+      "snapshot_at": "2022-05-29",
+      "rows": 1832317
+    },
+    {
+      "snapshot_at": "2022-06-05",
+      "rows": 1838031
+    },
+    {
+      "snapshot_at": "2022-06-13",
+      "rows": 1845413
+    },
+    {
+      "snapshot_at": "2022-06-20",
+      "rows": 1851790
+    },
+    {
+      "snapshot_at": "2022-06-27",
+      "rows": 1857868
+    },
+    {
+      "snapshot_at": "2022-07-04",
+      "rows": 1864553
+    },
+    {
+      "snapshot_at": "2022-07-12",
+      "rows": 1871512
+    },
+    {
+      "snapshot_at": "2022-07-18",
+      "rows": 1877164
+    },
+    {
+      "snapshot_at": "2022-07-26",
+      "rows": 1883991
+    },
+    {
+      "snapshot_at": "2022-08-01",
+      "rows": 1908624
+    },
+    {
+      "snapshot_at": "2022-08-08",
+      "rows": 1915440
+    },
+    {
+      "snapshot_at": "2022-08-15",
+      "rows": 1934093
+    },
+    {
+      "snapshot_at": "2022-08-22",
+      "rows": 1940685
+    },
+    {
+      "snapshot_at": "2022-08-29",
+      "rows": 1947060
+    },
+    {
+      "snapshot_at": "2022-09-05",
+      "rows": 1953744
+    },
+    {
+      "snapshot_at": "2022-09-13",
+      "rows": 1961016
+    },
+    {
+      "snapshot_at": "2022-09-19",
+      "rows": 1966295
+    },
+    {
+      "snapshot_at": "2022-09-26",
+      "rows": 1973702
+    },
+    {
+      "snapshot_at": "2022-10-03",
+      "rows": 1979583
+    },
+    {
+      "snapshot_at": "2022-10-10",
+      "rows": 1985412
+    },
+    {
+      "snapshot_at": "2022-10-17",
+      "rows": 1992183
+    },
+    {
+      "snapshot_at": "2022-10-24",
+      "rows": 1998228
+    },
+    {
+      "snapshot_at": "2022-10-31",
+      "rows": 2004195
+    },
+    {
+      "snapshot_at": "2022-11-07",
+      "rows": 2010227
+    },
+    {
+      "snapshot_at": "2022-11-14",
+      "rows": 2016738
+    },
+    {
+      "snapshot_at": "2022-11-21",
+      "rows": 2022664
+    },
+    {
+      "snapshot_at": "2022-11-28",
+      "rows": 2029065
+    },
+    {
+      "snapshot_at": "2022-12-05",
+      "rows": 2035664
+    },
+    {
+      "snapshot_at": "2022-12-12",
+      "rows": 2042034
+    },
+    {
+      "snapshot_at": "2022-12-19",
+      "rows": 2047660
+    },
+    {
+      "snapshot_at": "2022-12-26",
+      "rows": 2052562
+    },
+    {
+      "snapshot_at": "2023-01-02",
+      "rows": 2057480
+    },
+    {
+      "snapshot_at": "2023-01-09",
+      "rows": 2063651
+    },
+    {
+      "snapshot_at": "2023-01-16",
+      "rows": 2069744
+    },
+    {
+      "snapshot_at": "2023-01-23",
+      "rows": 2075076
+    },
+    {
+      "snapshot_at": "2023-01-29",
+      "rows": 2079943
+    },
+    {
+      "snapshot_at": "2023-02-06",
+      "rows": 2088150
+    },
+    {
+      "snapshot_at": "2023-02-13",
+      "rows": 2095173
+    },
+    {
+      "snapshot_at": "2023-02-20",
+      "rows": 2102815
+    },
+    {
+      "snapshot_at": "2023-02-27",
+      "rows": 2110939
+    },
+    {
+      "snapshot_at": "2023-03-06",
+      "rows": 2118125
+    },
+    {
+      "snapshot_at": "2023-03-13",
+      "rows": 2125013
+    },
+    {
+      "snapshot_at": "2023-03-21",
+      "rows": 2135243
+    },
+    {
+      "snapshot_at": "2023-03-27",
+      "rows": 2143763
+    },
+    {
+      "snapshot_at": "2023-04-03",
+      "rows": 2162057
+    },
+    {
+      "snapshot_at": "2023-04-10",
+      "rows": 2171837
+    },
+    {
+      "snapshot_at": "2023-04-17",
+      "rows": 2179805
+    },
+    {
+      "snapshot_at": "2023-04-20",
+      "rows": 2183128
+    },
+    {
+      "snapshot_at": "2023-05-01",
+      "rows": 2203308
+    },
+    {
+      "snapshot_at": "2023-05-02",
+      "rows": 2204752
+    },
+    {
+      "snapshot_at": "2023-05-08",
+      "rows": 2217336
+    },
+    {
+      "snapshot_at": "2023-05-15",
+      "rows": 2223478
+    },
+    {
+      "snapshot_at": "2023-05-22",
+      "rows": 2230324
+    },
+    {
+      "snapshot_at": "2023-05-29",
+      "rows": 2236538
+    },
+    {
+      "snapshot_at": "2023-06-05",
+      "rows": 2242425
+    },
+    {
+      "snapshot_at": "2023-06-12",
+      "rows": 2248231
+    },
+    {
+      "snapshot_at": "2023-06-20",
+      "rows": 2255413
+    },
+    {
+      "snapshot_at": "2023-06-26",
+      "rows": 2259942
+    },
+    {
+      "snapshot_at": "2023-07-03",
+      "rows": 2265813
+    },
+    {
+      "snapshot_at": "2023-07-10",
+      "rows": 2271738
+    },
+    {
+      "snapshot_at": "2023-07-17",
+      "rows": 2277993
+    },
+    {
+      "snapshot_at": "2023-07-24",
+      "rows": 2283896
+    },
+    {
+      "snapshot_at": "2023-07-31",
+      "rows": 2289939
+    },
+    {
+      "snapshot_at": "2023-08-07",
+      "rows": 2296538
+    },
+    {
+      "snapshot_at": "2023-08-14",
+      "rows": 2302744
+    },
+    {
+      "snapshot_at": "2023-08-21",
+      "rows": 2308761
+    },
+    {
+      "snapshot_at": "2023-08-28",
+      "rows": 2315196
+    },
+    {
+      "snapshot_at": "2023-09-04",
+      "rows": 2321470
+    },
+    {
+      "snapshot_at": "2023-09-11",
+      "rows": 2327803
+    },
+    {
+      "snapshot_at": "2023-09-18",
+      "rows": 2333960
+    },
+    {
+      "snapshot_at": "2023-09-26",
+      "rows": 2341681
+    },
+    {
+      "snapshot_at": "2023-10-02",
+      "rows": 2346407
+    },
+    {
+      "snapshot_at": "2023-10-09",
+      "rows": 2351991
+    },
+    {
+      "snapshot_at": "2023-10-16",
+      "rows": 2358033
+    },
+    {
+      "snapshot_at": "2023-10-23",
+      "rows": 2363835
+    },
+    {
+      "snapshot_at": "2023-10-30",
+      "rows": 2369721
+    },
+    {
+      "snapshot_at": "2023-11-06",
+      "rows": 2375665
+    },
+    {
+      "snapshot_at": "2023-11-13",
+      "rows": 2381338
+    },
+    {
+      "snapshot_at": "2023-11-20",
+      "rows": 2387033
+    },
+    {
+      "snapshot_at": "2023-11-27",
+      "rows": 2392998
+    },
+    {
+      "snapshot_at": "2023-12-04",
+      "rows": 2398641
+    },
+    {
+      "snapshot_at": "2023-12-11",
+      "rows": 2404689
+    },
+    {
+      "snapshot_at": "2023-12-18",
+      "rows": 2410324
+    },
+    {
+      "snapshot_at": "2023-12-25",
+      "rows": 2415672
+    },
+    {
+      "snapshot_at": "2024-01-01",
+      "rows": 2420146
+    },
+    {
+      "snapshot_at": "2024-01-08",
+      "rows": 2425696
+    },
+    {
+      "snapshot_at": "2024-01-15",
+      "rows": 2431619
+    },
+    {
+      "snapshot_at": "2024-01-22",
+      "rows": 2437469
+    },
+    {
+      "snapshot_at": "2024-01-29",
+      "rows": 2443659
+    },
+    {
+      "snapshot_at": "2024-02-05",
+      "rows": 2449940
+    },
+    {
+      "snapshot_at": "2024-02-12",
+      "rows": 2455249
+    },
+    {
+      "snapshot_at": "2024-02-19",
+      "rows": 2460657
+    },
+    {
+      "snapshot_at": "2024-02-26",
+      "rows": 2468272
+    },
+    {
+      "snapshot_at": "2024-03-04",
+      "rows": 2477782
+    },
+    {
+      "snapshot_at": "2024-03-05",
+      "rows": 2479381
+    },
+    {
+      "snapshot_at": "2024-03-11",
+      "rows": 2500431
+    },
+    {
+      "snapshot_at": "2024-03-18",
+      "rows": 2517080
+    },
+    {
+      "snapshot_at": "2024-03-25",
+      "rows": 2541522
+    },
+    {
+      "snapshot_at": "2024-04-01",
+      "rows": 2561582
+    },
+    {
+      "snapshot_at": "2024-04-09",
+      "rows": 2580784
+    },
+    {
+      "snapshot_at": "2024-04-15",
+      "rows": 2589141
+    },
+    {
+      "snapshot_at": "2024-04-21",
+      "rows": 2604590
+    },
+    {
+      "snapshot_at": "2024-04-29",
+      "rows": 2626547
+    },
+    {
+      "snapshot_at": "2024-05-09",
+      "rows": 2680587
+    },
+    {
+      "snapshot_at": "2024-05-13",
+      "rows": 2695393
+    },
+    {
+      "snapshot_at": "2024-05-20",
+      "rows": 2729283
+    },
+    {
+      "snapshot_at": "2024-05-27",
+      "rows": 2771325
+    },
+    {
+      "snapshot_at": "2024-06-03",
+      "rows": 2791129
+    },
+    {
+      "snapshot_at": "2024-06-10",
+      "rows": 2817749
+    },
+    {
+      "snapshot_at": "2024-06-17",
+      "rows": 2837231
+    },
+    {
+      "snapshot_at": "2024-06-24",
+      "rows": 2866924
+    },
+    {
+      "snapshot_at": "2024-07-01",
+      "rows": 2883321
+    },
+    {
+      "snapshot_at": "2024-07-08",
+      "rows": 2903691
+    },
+    {
+      "snapshot_at": "2024-07-09",
+      "rows": 2910263
+    },
+    {
+      "snapshot_at": "2024-07-15",
+      "rows": 2923777
+    },
+    {
+      "snapshot_at": "2024-07-23",
+      "rows": 2937696
+    },
+    {
+      "snapshot_at": "2024-07-29",
+      "rows": 2947721
+    },
+    {
+      "snapshot_at": "2024-08-05",
+      "rows": 2958467
+    },
+    {
+      "snapshot_at": "2024-08-12",
+      "rows": 2968435
+    },
+    {
+      "snapshot_at": "2024-08-19",
+      "rows": 2976065
+    },
+    {
+      "snapshot_at": "2024-08-29",
+      "rows": 2984901
+    },
+    {
+      "snapshot_at": "2024-09-02",
+      "rows": 2988876
+    },
+    {
+      "snapshot_at": "2024-09-09",
+      "rows": 2995688
+    },
+    {
+      "snapshot_at": "2024-09-16",
+      "rows": 3001727
+    },
+    {
+      "snapshot_at": "2024-09-23",
+      "rows": 3007884
+    },
+    {
+      "snapshot_at": "2024-09-30",
+      "rows": 3013673
+    },
+    {
+      "snapshot_at": "2024-10-07",
+      "rows": 3019063
+    },
+    {
+      "snapshot_at": "2024-10-14",
+      "rows": 3024810
+    },
+    {
+      "snapshot_at": "2024-10-21",
+      "rows": 3030721
+    },
+    {
+      "snapshot_at": "2024-10-28",
+      "rows": 3036595
+    },
+    {
+      "snapshot_at": "2024-11-04",
+      "rows": 3042306
+    },
+    {
+      "snapshot_at": "2024-11-11",
+      "rows": 3047603
+    },
+    {
+      "snapshot_at": "2024-11-19",
+      "rows": 3053199
+    },
+    {
+      "snapshot_at": "2024-11-25",
+      "rows": 3058922
+    },
+    {
+      "snapshot_at": "2024-12-02",
+      "rows": 3064353
+    },
+    {
+      "snapshot_at": "2024-12-09",
+      "rows": 3070365
+    },
+    {
+      "snapshot_at": "2024-12-16",
+      "rows": 3075922
+    },
+    {
+      "snapshot_at": "2024-12-23",
+      "rows": 3081677
+    },
+    {
+      "snapshot_at": "2024-12-30",
+      "rows": 3086352
+    },
+    {
+      "snapshot_at": "2025-01-06",
+      "rows": 3091097
+    },
+    {
+      "snapshot_at": "2025-01-13",
+      "rows": 3096715
+    },
+    {
+      "snapshot_at": "2025-01-20",
+      "rows": 3102827
+    },
+    {
+      "snapshot_at": "2025-01-27",
+      "rows": 3108379
+    },
+    {
+      "snapshot_at": "2025-02-03",
+      "rows": 3114137
+    },
+    {
+      "snapshot_at": "2025-02-10",
+      "rows": 3120194
+    },
+    {
+      "snapshot_at": "2025-02-18",
+      "rows": 3126694
+    },
+    {
+      "snapshot_at": "2025-02-25",
+      "rows": 3133573
+    },
+    {
+      "snapshot_at": "2025-03-03",
+      "rows": 3140626
+    },
+    {
+      "snapshot_at": "2025-03-10",
+      "rows": 3148994
+    },
+    {
+      "snapshot_at": "2025-03-18",
+      "rows": 3155691
+    },
+    {
+      "snapshot_at": "2025-03-24",
+      "rows": 3162468
+    },
+    {
+      "snapshot_at": "2025-03-31",
+      "rows": 3169617
+    },
+    {
+      "snapshot_at": "2025-04-07",
+      "rows": 3176237
+    },
+    {
+      "snapshot_at": "2025-04-14",
+      "rows": 3183171
+    },
+    {
+      "snapshot_at": "2025-04-22",
+      "rows": 3190998
+    },
+    {
+      "snapshot_at": "2025-04-28",
+      "rows": 3197852
+    },
+    {
+      "snapshot_at": "2025-05-05",
+      "rows": 3203432
+    },
+    {
+      "snapshot_at": "2025-05-12",
+      "rows": 3210407
+    },
+    {
+      "snapshot_at": "2025-05-19",
+      "rows": 3217100
+    },
+    {
+      "snapshot_at": "2025-05-26",
+      "rows": 3224113
+    },
+    {
+      "snapshot_at": "2025-06-02",
+      "rows": 3230559
+    },
+    {
+      "snapshot_at": "2025-06-09",
+      "rows": 3237214
+    },
+    {
+      "snapshot_at": "2025-06-16",
+      "rows": 3243650
+    },
+    {
+      "snapshot_at": "2025-06-23",
+      "rows": 3250690
+    },
+    {
+      "snapshot_at": "2025-06-30",
+      "rows": 3258676
+    },
+    {
+      "snapshot_at": "2025-07-07",
+      "rows": 3266053
+    },
+    {
+      "snapshot_at": "2025-07-14",
+      "rows": 3273102
+    },
+    {
+      "snapshot_at": "2025-07-21",
+      "rows": 3280111
+    },
+    {
+      "snapshot_at": "2025-07-28",
+      "rows": 3287438
+    },
+    {
+      "snapshot_at": "2025-08-04",
+      "rows": 3294268
+    },
+    {
+      "snapshot_at": "2025-08-11",
+      "rows": 3301690
+    },
+    {
+      "snapshot_at": "2025-08-18",
+      "rows": 3308647
+    },
+    {
+      "snapshot_at": "2025-08-25",
+      "rows": 3315681
+    },
+    {
+      "snapshot_at": "2025-09-01",
+      "rows": 3322345
+    },
+    {
+      "snapshot_at": "2025-09-08",
+      "rows": 3328943
+    },
+    {
+      "snapshot_at": "2025-09-15",
+      "rows": 3335546
+    },
+    {
+      "snapshot_at": "2025-09-22",
+      "rows": 3341827
+    },
+    {
+      "snapshot_at": "2025-09-29",
+      "rows": 3348163
+    },
+    {
+      "snapshot_at": "2025-10-06",
+      "rows": 3354388
+    },
+    {
+      "snapshot_at": "2025-10-13",
+      "rows": 3361899
+    },
+    {
+      "snapshot_at": "2025-10-20",
+      "rows": 3368977
+    },
+    {
+      "snapshot_at": "2025-10-27",
+      "rows": 3376593
+    },
+    {
+      "snapshot_at": "2025-11-03",
+      "rows": 3384458
+    },
+    {
+      "snapshot_at": "2025-11-10",
+      "rows": 3392321
+    },
+    {
+      "snapshot_at": "2025-11-17",
+      "rows": 3400594
+    },
+    {
+      "snapshot_at": "2025-11-24",
+      "rows": 3408445
+    },
+    {
+      "snapshot_at": "2025-12-01",
+      "rows": 3417058
+    },
+    {
+      "snapshot_at": "2025-12-08",
+      "rows": 3425515
+    },
+    {
+      "snapshot_at": "2025-12-15",
+      "rows": 3433649
+    },
+    {
+      "snapshot_at": "2025-12-22",
+      "rows": 3441357
+    },
+    {
+      "snapshot_at": "2025-12-29",
+      "rows": 3449536
+    },
+    {
+      "snapshot_at": "2026-01-05",
+      "rows": 3457621
+    },
+    {
+      "snapshot_at": "2026-01-12",
+      "rows": 3467140
+    },
+    {
+      "snapshot_at": "2026-01-19",
+      "rows": 3477802
+    },
+    {
+      "snapshot_at": "2026-01-26",
+      "rows": 3488080
+    },
+    {
+      "snapshot_at": "2026-02-13",
+      "rows": 3521229
+    },
+    {
+      "snapshot_at": "2026-02-16",
+      "rows": 3528462
+    },
+    {
+      "snapshot_at": "2026-02-23",
+      "rows": 3543395
+    },
+    {
+      "snapshot_at": "2026-03-02",
+      "rows": 3559804
+    },
+    {
+      "snapshot_at": "2026-03-09",
+      "rows": 3577682
+    },
+    {
+      "snapshot_at": "2026-03-10",
+      "rows": 3578942
+    },
+    {
+      "snapshot_at": "2026-03-16",
+      "rows": 3597134
+    },
+    {
+      "snapshot_at": "2026-03-23",
+      "rows": 3616712
+    },
+    {
+      "snapshot_at": "2026-03-30",
+      "rows": 3635802
+    },
+    {
+      "snapshot_at": "2026-04-06",
+      "rows": 3654501
+    },
+    {
+      "snapshot_at": "2026-04-13",
+      "rows": 3672829
+    },
+    {
+      "snapshot_at": "2026-04-14",
+      "rows": 3673521
+    },
+    {
+      "snapshot_at": "2026-04-20",
+      "rows": 3690137
+    },
+    {
+      "snapshot_at": "2026-04-28",
+      "rows": 3708059
+    },
+    {
+      "snapshot_at": "2026-05-05",
+      "rows": 3724439
+    },
+    {
+      "snapshot_at": "2026-05-11",
+      "rows": 3740827
+    },
+    {
+      "snapshot_at": "2026-05-18",
+      "rows": 3760401
+    },
+    {
+      "snapshot_at": "2026-06-01",
+      "rows": 3796323
+    },
+    {
+      "snapshot_at": "2026-06-11",
+      "rows": 3824871
+    },
+    {
+      "snapshot_at": "2026-06-15",
+      "rows": 3835488
+    },
+    {
+      "snapshot_at": "2026-06-23",
+      "rows": 3855679
+    },
+    {
+      "snapshot_at": "2026-06-29",
+      "rows": 3873444
+    },
+    {
+      "snapshot_at": "2026-07-06",
+      "rows": 3892940
+    },
+    {
+      "snapshot_at": "2026-07-13",
+      "rows": 3912645
+    },
+    {
+      "snapshot_at": "2026-07-20",
+      "rows": 3932446
+    },
+    {
+      "snapshot_at": "2026-07-27",
+      "rows": 3954881
+    },
+    {
+      "snapshot_at": "2026-08-03",
+      "rows": 3977338
+    },
+    {
+      "snapshot_at": "2026-08-10",
+      "rows": 3998458
+    },
+    {
+      "snapshot_at": "2026-08-17",
+      "rows": 4021441
+    },
+    {
+      "snapshot_at": "2026-08-24",
+      "rows": 4044975
+    },
+    {
+      "snapshot_at": "2026-08-31",
+      "rows": 11080940
+    }
+  ]
+}
