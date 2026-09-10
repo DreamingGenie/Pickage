@@ -66,12 +66,13 @@ emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
 
 ## 실행 환경
 
-- EC2 #1: Intel Xeon Platinum 8259CL @ 2.5GHz, **4 vCPU / 15 GiB RAM / swap 0**, x86_64
+- EC2 #1: Intel Xeon Platinum 8259CL @ 2.5GHz, **4 vCPU / 15 GiB RAM / swap 2 GiB**, x86_64
   (2026-09-09 확인. 0904 문서·티켓은 `t4g.xlarge` ARM 전제 — 크기는 동급, arch만 x86)
 - `onnxruntime` `CPUExecutionProvider`
 - 처리량 (이 스펙 실측): 10만건 재임베딩 ~20.7분 (batch 32). flat cosine top-20 별도 ~110초 (S15P21A506-169)
-- ⚠️ EC2 #1은 Spark(master+worker①, ~10G)·MinIO·MLflow·cron ETL과 공유. swap 0이라
-  동시 실행 시 OOM 위험 → AI 배치는 Spark ETL과 시간이 겹치지 않게 cron 스케줄 분리 필요 (미정)
+- ⚠️ EC2 #1은 Spark(master+worker①, ~10G)·MinIO·MLflow·cron ETL과 공유. **swap 은 호스트에만
+  2 GiB 있고 컨테이너에는 `memswap_limit` 으로 0을 준다**(deploy/prod/README.md 의 "Swap") —
+  동시 실행 시 OOM 위험은 그대로다 → AI 배치는 Spark ETL과 시간이 겹치지 않게 cron 스케줄 분리 필요 (미정)
 
 ## 검증 기록 (2026-09-09, S15P21A506-287)
 

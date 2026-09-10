@@ -233,7 +233,7 @@ Jira 이슈를 만들 때는 저장소의 템플릿을 기준으로 설명(Descr
 | nginx | 없음 (프런트는 `npm run dev`) | **컨테이너 + TLS 종단** | 로컬에서는 프록시를 거치지 않는다 → `X-Forwarded-Proto` 관련 문제는 **로컬에서 재현되지 않는다** |
 | **Spark 구성** | 컨테이너 **하나** (local mode, `exec` 해서 쓴다) | **master + worker 둘, `network_mode: host`** | 로컬은 분산이 아니다. **크로스 호스트 네트워킹은 로컬에서 재현되지 않는다** — worker 가 컨테이너 IP(172.19.x.x)를 광고해 상대 호스트가 못 찾는 문제는 서버에서만 드러난다 |
 | Spark s3a endpoint | `http://minio:9000` (서비스 이름) | `http://172.26.8.249:9000` (사설 IP) | 다른 호스트의 executor 는 compose 네트워크 이름을 못 푼다 |
-| Swap | PC 에 있음 | **양 서버 0 B** | 메모리 상한을 넘기면 완충 없이 즉시 OOM Kill 이다 |
+| Swap | PC 에 있음 (컨테이너도 씀) | **호스트 2 GiB, 컨테이너 0** | 호스트에만 완충을 뒀다. 모든 서비스에 `memswap_limit` = `mem_limit` 이라 **컨테이너는 상한을 넘기면 즉시 OOM Kill** — 이유는 deploy/prod/README.md 의 "Swap" |
 | 프런트 서빙 | Vite dev server | **정적 파일 + nginx** | SPA 딥링크(`/analyze` 새로고침)는 **`try_files` 가 있어야 200 이다.** dev server 는 알아서 처리해서 로컬에서 안 드러난다 |
 
 ### MinIO 버전 차이가 문제를 일으킬 수 있는 지점

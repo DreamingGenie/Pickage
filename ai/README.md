@@ -58,7 +58,7 @@
 | B4 | MinIO **읽기전용** curated 키 (admin 아님 — §3.7). 공유 서버라 중요 | 인프라 |
 | B5 | `pickage-curated`에 `training_pairs` 존재 여부 — S7 Spark 잡 미구현 → v6 학습셋이 GPU 로컬에만 있을 가능성 | AI |
 | B6 | EC2 #1 MLflow(5000) 배포 — 미배포. `run_pipeline.sh` 5단계·S15P21A506-236 공통 블로커 | 인프라 |
-| B7 | EC2 #1 = 4 vCPU / 15 GiB / **swap 0** (Intel Xeon 8259CL, x86_64). Spark(~10G)·MinIO·MLflow·cron ETL과 공유 → 동시 실행 시 OOM 위험. AI 배치를 Spark ETL과 시간 겹치지 않게 cron 스케줄 분리 필요 (미정) | AI + 인프라 |
+| B7 | EC2 #1 = 4 vCPU / 15 GiB / **swap 2 GiB (컨테이너에는 0)** (Intel Xeon 8259CL, x86_64). Spark(~10G)·MinIO·MLflow·cron ETL과 공유 → 동시 실행 시 OOM 위험은 그대로다. AI 배치를 Spark ETL과 시간 겹치지 않게 cron 스케줄 분리 필요 (미정). **AI 배치를 compose 에 올릴 때 `mem_limit` 과 `memswap_limit` 을 짝으로 쓸 것** — 한쪽만 쓰면 상한이 조용히 2배가 된다 (deploy/prod/README.md 의 "Swap") | AI + 인프라 |
 
 ## 앞으로의 단계
 

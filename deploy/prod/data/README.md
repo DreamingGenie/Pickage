@@ -219,6 +219,15 @@ Spark 는 `fs.s3a.path.style.access=true`. 버킷별 역할과 경로 규칙은
 | MinIO 버전 올리기 | 콘솔 기능이 축소된 이력이 있다. 백업 → 콘솔 확인 순서로, **이관과 다른 날에** |
 | `ports` 의 `127.0.0.1:` 제거 | 자격증명만 통과하면 버킷 전체를 읽고 쓸 수 있는 문이 열린다 |
 
+## Swap — 이 노드는 파티션을 같이 쓴다
+
+두 노드에 스왑 2 GiB 가 있고, **모든 컨테이너에는 `memswap_limit` 으로 스왑을 0 준다.**
+절차와 이유는 [../README.md](../README.md) 의 "Swap" — **두 노드에서 같은 절차를 돈다.**
+
+이 노드에서만 추가로 걸리는 것: `/swapfile` 이 **MinIO 데이터(`/srv/minio/data`)·Docker·
+Spark 셔플과 같은 파티션**에 놓인다. 스왑을 실제로 쓰기 시작하면 MinIO 읽기와 셔플 쓰기의
+IOPS 를 같이 갉아먹는다. `df -h /` 를 먼저 보고, 스왑을 2 GiB 보다 크게 잡지 말 것.
+
 ## Spark (배치)
 
 이 노드에 master 와 worker① 이 있고, `app` 노드에 worker② 가 있다.
