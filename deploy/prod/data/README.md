@@ -6,6 +6,7 @@
 | --- | --- |
 | `minio` | S3 호환 저장소. 9000 = API(코드가 붙는 곳), 9001 = 웹 콘솔(사람이 보는 곳) |
 | `minio-init` | 없는 버킷만 만드는 일회성 컨테이너. `Exited (0)` 이 정상이다 |
+| `mlflow` | 모델 레지스트리. 5000 = API·웹 UI, 루프백만 (터널로 붙는다). **어느 모델이 `@production` 인지 아는 유일한 곳** |
 
 `app` 노드는 `j15a506` 이다 — **뒤에 `a` 가 없다.** 붙은 다음 `hostname` 을 먼저 확인할 것.
 
@@ -174,7 +175,7 @@ cd ~/S15P21A506/deploy/prod/data
 ```
 
 ```bash
-docker compose ps -a                 # minio = Up (healthy), minio-init = Exited (0)
+docker compose ps -a                 # minio·mlflow = Up (healthy), minio-init = Exited (0)
 docker compose logs -f minio
 docker compose restart minio
 docker compose down                  # 내린다. 데이터는 남는다 (바인드 마운트)
@@ -192,10 +193,11 @@ df -h /                              # 디스크. MinIO·Spark 셔플·Docker �
 포트를 열지 않는다. 터널을 쓴다.
 
 ```bash
-ssh -L 9000:localhost:9000 -L 9001:localhost:9001 <user>@j15a506a.p.ssafy.io
+ssh -L 9000:localhost:9000 -L 9001:localhost:9001 -L 5000:localhost:5000 <user>@j15a506a.p.ssafy.io
 ```
 
-터널을 연 채로 브라우저에서 `http://localhost:9001`. **터널을 닫으면 안 보이는 것까지
+터널을 연 채로 브라우저에서 MinIO 콘솔은 `http://localhost:9001`,
+MLflow UI 는 `http://localhost:5000`. **터널을 닫으면 안 보이는 것까지
 확인할 것** — 보이는 것만 확인하면 포트가 열려 있어서 보이는 건지 구분이 안 된다.
 
 코드로 붙을 때는 **path-style 접근을 켜야 한다.** boto3·s3fs·Spark 의 기본값은
@@ -209,11 +211,153 @@ config=boto3.session.Config(s3={"addressing_style": "path"})
 Spark 는 `fs.s3a.path.style.access=true`. 버킷별 역할과 경로 규칙은
 [pipeline/minio/README.md](../../../pipeline/minio/README.md).
 
+## MLflow — 모델 레지스트리
+
+GPU(jupyter05)가 학습한 ONNX 를 `@candidate` 로 등록하고, 평가를 통과한 것을
+`@production` 으로 승격한다. 유사도 배치는 `@production` 이 가리키는 것을 받아 쓴다.
+
+`docker compose up -d` 에 같이 뜬다. 배치 전용이 아니다 — GPU 가 학습을 끝낼 때마다 붙는다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose up -d mlflow
+docker compose ps mlflow                 # Up (healthy) 여야 한다
+```
+
+**첫 기동은 30초쯤 걸린다.** alembic 이 스키마를 처음부터 만든다 —
+그동안은 `health: starting` 이고 정상이다 (`start_period: 90s`).
+
+### 이게 보이면 성공
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5000/health      # 200
+curl -fsS -X POST http://127.0.0.1:5000/api/2.0/mlflow/experiments/search \
+  -H 'Content-Type: application/json' -d '{"max_results":1}' | tr ',' '\n' | grep artifact
+# "artifact_location": "s3://pickage-mlflow-artifacts/mlflow/0"
+```
+
+두 번째 명령의 `s3://` 가 중요하다. 여기가 로컬 경로(`/mlflow/...`)로 나오면
+`--default-artifact-root` 가 안 먹은 것이고, **모델이 컨테이너 안에 쌓이다가
+볼륨과 함께 사라진다.**
+
+주소만 맞는 것과 실제로 올라가는 것은 다르다. **한 번은 올려서 MinIO 에 떨어지는지 본다.**
+
+```bash
+docker run --rm --network pickage-data_default \
+  -e MLFLOW_TRACKING_URI=http://mlflow:5000 \
+  -e MLFLOW_S3_ENDPOINT_URL=http://minio:9000 \
+  -e AWS_ACCESS_KEY_ID=<MinIO 키> -e AWS_SECRET_ACCESS_KEY=<MinIO 시크릿> \
+  python:3.11-slim sh -c 'pip install -q mlflow-skinny==3.1.0 boto3 && python - <<PY
+import mlflow, pathlib
+mlflow.set_tracking_uri("http://mlflow:5000"); mlflow.set_experiment("artifact-smoke")
+p = pathlib.Path("/tmp/x.bin"); p.write_bytes(b"x" * 1024)
+with mlflow.start_run() as r: mlflow.log_artifact(str(p), artifact_path="onnx")
+print([a.path for a in mlflow.MlflowClient().list_artifacts(r.info.run_id, "onnx")])
+PY'
+```
+
+`['onnx/x.bin']` 이 나오고, **MinIO 에 실물이 있어야 한다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-mlflow-artifacts'
+# mlflow/1/<run_id>/artifacts/onnx/x.bin
+```
+
+끝나면 지운다.
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm -r --force l/pickage-mlflow-artifacts/mlflow/'
+```
+
+### 노트북·GPU 에서 붙기
+
+포트를 열지 않는다. 터널을 쓴다.
+
+```bash
+ssh -L 5000:localhost:5000 <user>@j15a506a.p.ssafy.io
+```
+
+터널을 연 채로 브라우저에서 `http://localhost:5000`.
+GPU 쪽은 `ai/training/run_pipeline.sh` 가 이 터널을 알아서 연다 (`-L 5000` + `-L 9000`).
+
+### ⚠ 아티팩트는 서버를 거치지 않는다
+
+`--no-serve-artifacts` 로 띄웠다. **서버는 `s3://...` 주소를 문자열로만 들고 있고,
+실제 업로드·다운로드는 클라이언트가 자기 자격증명으로 MinIO 에 직접 한다.**
+
+| | 서버가 하는 일 | 클라이언트가 해야 하는 일 |
+| --- | --- | --- |
+| 실험·런·등록모델·별칭 | 전부 서버(sqlite) | — |
+| 모델 파일 | 주소만 기록 | **MinIO 에 직접 읽고 쓴다** |
+
+그래서 클라이언트(GPU·배치)에는 MLflow 주소만으로 부족하다. 아래가 같이 필요하다.
+
+```
+MLFLOW_TRACKING_URI=http://<mlflow>:5000
+MLFLOW_S3_ENDPOINT_URL=http://<minio>:9000
+AWS_ACCESS_KEY_ID=<MinIO 키>          # boto3 가 읽는 이름이다. MINIO_* 가 아니다
+AWS_SECRET_ACCESS_KEY=<MinIO 시크릿>
+```
+
+> **여기서는 path-style 을 따로 켜지 않아도 된다 (확인함).** 위 "노트북에서 붙기" 는
+> path-style 을 켜라고 하는데, 그건 `endpoint_url` 을 직접 다룰 때의 이야기다.
+> MLflow 아티팩트 경로는 `MLFLOW_S3_ENDPOINT_URL` 이 **호스트명**(`minio`)이라
+> botocore 가 알아서 path-style 로 보낸다 — 업로드가 그대로 통했다.
+>
+> **`endpoint_url` 에 버킷명이 붙을 수 있는 주소(도메인)를 쓰게 되면 이 줄을 다시 볼 것.**
+
+왜 이렇게 했나: 서버가 아티팩트를 중계하게 하려면 boto3 가 필요한데
+**공식 이미지에 boto3 가 없다**(확인함). 커스텀 이미지를 만들어 유지하는 대신,
+어차피 MinIO 자격증명을 갖고 있는 클라이언트에게 맡겼다.
+
+### ⚠ `mlflow.db` 는 모델 파일이 아니다 — 더 잃기 쉬운 것이다
+
+`mlflowdb` 볼륨의 sqlite 파일이 **"어느 모델이 `@production` 인가" 를 아는 유일한 곳**이다.
+모델 파일은 MinIO 에 있어서 남지만, 이걸 잃으면 **어느 게 운영인지 모르게 된다.**
+
+`minio-data` 와 달리 이 볼륨은 호스트 경로로 도망갈 곳이 없다 —
+`down -v` 경고가 **글자 그대로 적용된다.**
+
+학습을 돌린 날 한 번 백업한다.
+
+```bash
+docker compose exec mlflow python -c "import shutil;shutil.copy('/mlflow/mlflow.db','/mlflow/backup.db')"
+docker cp $(docker compose ps -q mlflow):/mlflow/backup.db ~/mlflow-$(date +%F).db
+ls -lh ~/mlflow-*.db
+```
+
+### backend store 를 sqlite 로 둔 이유
+
+**먼저 MinIO 는 후보가 아니다.** backend store 는 `s3://` 를 못 받는다 — 지원 스킴이
+아니다. 넣어 보면 기동 자체가 안 된다.
+
+```
+Model registry functionality is unavailable; got unsupported URI 's3://...'
+Supported URI schemes are: ['', 'file', 'postgresql', 'mysql', 'sqlite', 'mssql']
+```
+
+모델 **파일**은 MinIO 에 있지만, "몇 번째 버전이고 무엇이 `@production` 인가" 를 적는 장부는
+저기 못 둔다. 그래서 선택지가 셋이었다.
+
+| | 되나 | 왜 골랐나 / 왜 뺐나 |
+| --- | --- | --- |
+| **PostgreSQL** | 됨 | **뺐다.** `app` 노드의 **5432 를 열어야 한다** — 로더를 `app` 노드에 두어 그 포트를 닫아 두기로 한 결정과 정면으로 맞바꾼다 ([../README.md](../README.md) 의 "유사도 결과 로더는 어디서 도나") |
+| **`file`** | **됨** (버전·별칭까지 동작하는 것을 확인했다) | 안 골랐다. 아래 한 줄 차이뿐이다 |
+| **sqlite** | 됨 | **골랐다.** DB 가 **파일 하나**라 백업·복구가 `mlflow.db` 하나로 끝난다 |
+
+**`file` 과의 차이는 그것뿐이다.** 지금 규모(학습 몇 회/일, 쓰는 주체는 GPU 하나)에서
+둘의 실질 차이는 크지 않다 — 바꾸고 싶으면 `--backend-store-uri` 한 줄이다.
+
+PostgreSQL 로 옮겨야 할 만큼 커지면 **그 시점에 포트 결정을 다시 본다.** 다만
+**MLflow 에 sqlite → PostgreSQL 데이터 이관 명령은 없다** (`mlflow db upgrade` 는 한 DB 의
+스키마를 올리는 것뿐이다). 옮길 때는 손으로 덤프·적재해야 하고, 그건 `file` 에서 옮기는
+것과 난이도가 비슷하다.
+
 ## 하지 말 것
 
 | | 무슨 일이 생기나 |
 | --- | --- |
-| `docker compose down -v` | 지금 구성에서는 볼륨 정의만 지우고 `/srv/minio/data` 의 파일은 남는다 (확인함). **단 누가 `driver_opts` 를 지운 뒤라면 진짜로 지워진다** — 습관으로 치지 말 것 |
+| `docker compose down -v` | MinIO 는 `/srv/minio/data` 의 파일이 남는다 (확인함). **하지만 `mlflowdb` 볼륨은 진짜로 지워진다** — 어느 모델이 `@production` 인지 잃는다. 위 "MLflow" 를 볼 것 |
 | `volumes:` 의 `device:` 변경·`driver_opts` 삭제 | MinIO 가 빈 스토리지로 뜬다. **데이터는 `/srv/minio/data` 에 그대로 있는데 컨테이너가 다른 곳을 보는** 상태다 |
 | 루트 자격증명 교체 | 발급한 서비스 계정이 못 쓰게 될 수 있다. **수집이 그 키로 붙고 있다** |
 | MinIO 버전 올리기 | 콘솔 기능이 축소된 이력이 있다. 백업 → 콘솔 확인 순서로, **이관과 다른 날에** |
@@ -424,7 +568,11 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 ## 아직 없는 것
 
-MLflow 와 수집 cron 이 이 노드에 올라올 예정이고,
-그때 이 `compose.yaml` 에 서비스로 추가된다.
+| | 지금은 어떻게 되어 있나 |
+| --- | --- |
+| 유사도 배치(`ai/similarity`) 서비스 | 이 `compose.yaml` 에 아직 없다. 이미지 골격은 `ai/similarity/` 에 있고, `mem_limit` 과 `memswap_limit` 을 **짝으로** 넣어 올려야 한다 (`ai/README.md` 의 B7) |
+| 수집 cron · 배치 cron | 없다. 사람이 실행한다. AI 배치는 Spark ETL 과 **시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
+| `ai` 전용 MinIO 읽기전용 키 | 없다. 루트 자격증명뿐이다. GPU 가 공유 서버라 특히 중요하다 (`ai/README.md` 의 B4) |
+| MLflow 를 **서버에서** 확인하기 | 로컬 compose 로 업로드까지 확인했다. 서버에서는 아직 안 띄웠다 — `.env` 의 `MLFLOW_TRACKING_URI` 를 채우고 올릴 것 |
 
 배포 명령 전반은 [../README.md](../README.md).

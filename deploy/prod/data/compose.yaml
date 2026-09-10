@@ -85,6 +85,71 @@ services:
     volumes:
       - ../../../pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
 
+  # ── MLflow (모델 레지스트리) ───────────────────────────────────
+  #
+  # GPU(jupyter05)가 학습한 ONNX 를 @candidate 로 등록하고, 평가를 통과한 것을
+  # @production 으로 승격한다. 유사도 배치는 @production 이 가리키는 모델을 받아 쓴다.
+  #
+  # 상주다. 배치 때만 필요한 게 아니라 GPU 가 학습을 끝낼 때마다 붙는다.
+  mlflow:
+    # 공식 이미지. 태그를 고정한다 — latest 로 두면 스키마 마이그레이션이
+    # 어느 날 저절로 돌아 버린다(아래 backend store 주석 참고).
+    image: ghcr.io/mlflow/mlflow:v3.1.0
+    restart: unless-stopped
+    command:
+      - mlflow
+      - server
+      - --host
+      - "0.0.0.0"          # 컨테이너 안에서만 0.0.0.0 이다. 호스트 노출은 ports: 가 정한다
+      - --port
+      - "5000"
+      - --workers
+      - "2"                # 4(기본)에서 2 로 줄였다. 실측 518MiB → 318MiB
+      # ── backend store: 실험·런·등록모델·별칭이 사는 곳 ──
+      #
+      # ⚠ **이 파일이 "무엇이 @production 인가" 를 아는 유일한 곳이다.**
+      #   날리면 모델 파일은 MinIO 에 남아 있는데 어느 게 운영인지 모르게 된다.
+      #   PostgreSQL 을 쓸 수도 있지만 그러면 app 노드의 5432 를 열어야 한다 —
+      #   그 포트를 닫아 두기로 한 결정(로더를 app 노드에 두는 선택)과 맞바꾸게 된다.
+      #   지금 규모(학습 몇 회/일)에서 sqlite 로 충분하다.
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      # ── artifact store: 모델 파일이 사는 곳 ──
+      #
+      # 서버는 이 주소를 **문자열로만 들고 있는다.** 실제 업로드·다운로드는
+      # 클라이언트(GPU·배치)가 자기 자격증명으로 MinIO 에 직접 한다.
+      - --default-artifact-root
+      - s3://pickage-mlflow-artifacts/mlflow
+      # ⚠ 이 플래그가 위 문장을 성립시킨다. 빼면(기본값이 serve-artifacts 다)
+      #   서버가 아티팩트를 중계하려 하고 **boto3 를 찾다가 실패한다** —
+      #   공식 이미지에 boto3 가 없다(확인함). 그때는 커스텀 이미지를 만들어야 한다.
+      - --no-serve-artifacts
+    ports:
+      # 루프백만. GPU 는 SSH 터널로 붙는다 (ai/training/run_pipeline.sh 가
+      # -L 5000:localhost:5000 을 연다). 같은 노드의 배치는 compose 네트워크
+      # 이름으로 붙으므로 포트가 필요 없다.
+      #
+      # 사설 IP 에 묶지 않는다 — app 노드에서 MLflow 를 볼 일이 없다.
+      # 이 노드에 "외부로 열린 포트가 없다" 는 전제가 그대로 유지된다.
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflowdb:/mlflow
+    healthcheck:
+      # ⚠ 이 이미지에는 curl 도 wget 도 없다(확인함). python 만 있다.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health',timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      # 첫 기동에서 alembic 이 스키마를 처음부터 만든다 — 30초쯤 걸린다.
+      # 짧게 두면 정상 기동 중인 컨테이너가 unhealthy 로 죽는다.
+      start_period: 90s
+    # minio 에 depends_on 을 걸지 않는다. --no-serve-artifacts 라서 서버는
+    # S3 를 아예 건드리지 않는다 — 없는 의존을 적으면 기동 순서만 묶인다.
+    mem_limit: 512m
+    memswap_limit: 512m   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 실측 318MiB(워커 2개) 위의 여유. 이 노드는 배치 시각에 12g 를 이미 쓴다.
+
   # ── Spark (배치) ───────────────────────────────────────────────
   #
   # ⚠ network_mode: host 다. 이 셋은 compose 네트워크에 없다.
@@ -204,3 +269,14 @@ volumes:
 
   # 내려받은 JAR 캐시. 없으면 배치를 돌릴 때마다 Maven 에서 다시 받는다.
   sparkivy:
+
+  # MLflow 의 sqlite 파일. **모델 파일이 아니라 "어느 모델이 @production 인가" 다.**
+  #
+  # ⚠ 이걸 잃으면 MinIO 의 모델 파일은 그대로 남는데 어느 게 운영인지 모르게 된다.
+  #   위 `하지 말 것` 의 `down -v` 경고가 이 볼륨에는 **글자 그대로 적용된다** —
+  #   minio-data 처럼 호스트 경로로 도망갈 곳이 없다.
+  #
+  # 백업(학습을 돌린 날 한 번):
+  #   docker compose exec mlflow python -c "import shutil;shutil.copy('/mlflow/mlflow.db','/mlflow/backup.db')"
+  #   docker cp $(docker compose ps -q mlflow):/mlflow/backup.db ~/mlflow-$(date +%F).db
+  mlflowdb:
