@@ -33,9 +33,13 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
    * 이 조회는 패키지 조합이 바뀔 때만 다시 나간다.
    *
    * <p>`from` 은 오늘이 아니라 **최신 스냅샷**을 기준으로 세어야 하는데, 그 날짜는 개요
-   * 응답이 알려준다. 개요가 오기 전에는 `from` 을 비워 서버 기본값에 맡긴다 — 명세 §4 가
-   * 그 경우를 정의해 두었으므로 클라이언트가 날짜를 지어낼 이유가 없다. 개요가 도착하면
-   * 104주로 다시 한 번 나가는데, 그 뒤로는 조작을 아무리 해도 더 나가지 않는다.
+   * 응답이 알려준다. 그래서 **개요가 올 때까지 추이를 아예 보내지 않는다.**
+   *
+   * <p>예전에는 개요를 기다리지 않고 `from` 없이 먼저 한 번 보내 서버 기본값(26주)에
+   * 맡겼다. "카드가 먼저 뜨게 하려고" 였는데 <b>실제로는 그런 적이 없다</b> — 아래 렌더
+   * 게이트가 개요·다운로드·의존 세 응답을 모두 기다리므로, 먼저 온 26주 응답은 화면에
+   * 뜨지 못한 채 개요 도착과 함께 질의 키가 바뀌며 버려졌다. 2026-09-10 실측에서 보고서
+   * 한 번 여는 데 추이 3종이 두 번씩, 즉 요청 7개가 나갔다(필요한 것은 4개).
    */
   const overview = usePackagesOverview(names)
   const from = useMemo(() => {
@@ -44,10 +48,17 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     return new Date(Date.parse(latest) - (FETCH_WEEKS - 1) * 7 * 864e5).toISOString().slice(0, 10)
   }, [overview.data?.snapshot_at])
 
-  const downloads = useDownloadsTrend(names, from)
-  const dependents = useDependentsTrend(names, from)
+  /**
+   * 적재 전에는 개요가 성공해도 `snapshot_at` 이 null 이라 `from` 이 계속 비어 있다.
+   * 그래서 `from` 이 아니라 **개요가 왔는지**로 문을 연다 — 그러지 않으면 자료가 없을 때
+   * 추이가 영원히 안 나가고 화면이 로딩에서 멈춘다.
+   */
+  const ready = overview.isSuccess
+
+  const downloads = useDownloadsTrend(names, from, undefined, ready)
+  const dependents = useDependentsTrend(names, from, undefined, ready)
   // 적재 전에는 snapshot_at 이 null 이다. 서버 기본값(최신 스냅샷)에 맡긴다.
-  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined)
+  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined, ready)
 
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>

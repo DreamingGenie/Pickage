@@ -93,29 +93,48 @@ export function usePackagesOverview(names: readonly string[]) {
   })
 }
 
-export function useDownloadsTrend(names: readonly string[], from?: string, to?: string) {
+/**
+ * 아래 세 조회(`useDownloadsTrend` · `useDependentsTrend` · `useVersionShare`)는
+ * **기준일(최신 스냅샷)을 알아야 파라미터가 확정된다.** 그 값은 개요 응답이 알려주므로,
+ * 개요보다 먼저 보내면 파라미터가 다른 요청을 한 번 더 보내게 되고 먼저 온 응답은
+ * 쓰이지 못한 채 버려진다. 그래서 호출하는 쪽이 `ready` 로 "이제 보내도 된다" 를 넘긴다.
+ *
+ * 기본값이 `true` 인 이유는 기준일이 필요 없는 호출을 막지 않기 위해서다 —
+ * 넘기지 않으면 예전과 똑같이 동작한다.
+ */
+export function useDownloadsTrend(
+  names: readonly string[],
+  from?: string,
+  to?: string,
+  ready = true,
+) {
   return useQuery({
     queryKey: queryKeys.packages.downloads(names, from, to),
     queryFn: () => fetchDownloadsTrend({ names: [...names], from, to }),
-    enabled: usable(names),
+    enabled: ready && usable(names),
     retry,
   })
 }
 
-export function useDependentsTrend(names: readonly string[], from?: string, to?: string) {
+export function useDependentsTrend(
+  names: readonly string[],
+  from?: string,
+  to?: string,
+  ready = true,
+) {
   return useQuery({
     queryKey: queryKeys.packages.dependents(names, from, to),
     queryFn: () => fetchDependentsTrend({ names: [...names], from, to }),
-    enabled: usable(names),
+    enabled: ready && usable(names),
     retry,
   })
 }
 
-export function useVersionShare(names: readonly string[], snapshotAt?: string) {
+export function useVersionShare(names: readonly string[], snapshotAt?: string, ready = true) {
   return useQuery({
     queryKey: queryKeys.packages.versionShare(names, snapshotAt),
     queryFn: () => fetchVersionShare(names, snapshotAt),
-    enabled: usable(names),
+    enabled: ready && usable(names),
     retry,
   })
 }
