@@ -37,14 +37,22 @@ public record TrendResponse(
 	}
 
 	/**
-	 * 패키지 하나의 선.
+	 * 선 하나.
 	 *
 	 * <p><b>시리즈마다 길이가 다를 수 있다.</b> 신규 패키지는 옛 스냅샷에 행이 아예 없다.
 	 * 없는 점을 0 으로 채워 보내지 않는다 — 채우면 "그 주에 아무도 안 받았다" 가 되어
 	 * 화면에 없는 급락이 그려진다. 대신 행을 빼고, 클라이언트가 x축을 인덱스가 아니라
 	 * {@code snapshot_at} 값으로 잡아 선을 맞춘다(§4).
+	 *
+	 * @param major dependents 전용. <b>같은 {@code name} 이 major 개수만큼 반복된다.</b>
+	 *              downloads 는 버전으로 쪼갤 수 없어 {@code null} 이고 직렬화에서 빠진다.
+	 *              <p>존재하지만 구간에 점이 하나도 없는 패키지도 {@code null} 이다 —
+	 *              쪼갤 것이 없기 때문이다. 즉 <b>{@code major} 가 {@code null} 인데
+	 *              {@code metric} 이 {@code dependents} 면 그 패키지는 자료가 없는 것</b>이며,
+	 *              {@code not_found} 와는 다르다(이름은 존재한다).
 	 */
-	public record Series(String name, List<Point> points) {
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public record Series(String name, String major, List<Point> points) {
 	}
 
 	public record Point(LocalDate snapshotAt, long value) {

@@ -56,27 +56,33 @@ function BadgeTile({
   title?: string
 }) {
   const t = TONE[tone]
+  /*
+    아이콘을 위에 얹지 않고 **왼쪽에 둔다.** 세로로 쌓으면 타일이 높아지는데 폭은 그대로라
+    긴 라벨이 여전히 접힌다. 가로로 두면 남는 폭을 글자가 쓴다.
+  */
   return (
     <div
       title={title}
       className={cn(
-        'flex flex-col items-center gap-2 rounded-xl border bg-background px-2 py-4 text-center',
+        'flex items-center gap-3 rounded-xl border bg-background px-3 py-3',
         t.tile,
       )}
     >
-      <span className={cn('grid size-9 place-items-center rounded-full', t.ring, t.icon)}>
+      <span
+        className={cn('grid size-9 shrink-0 place-items-center rounded-full', t.ring, t.icon)}
+      >
         {icon}
       </span>
-      <span className="flex flex-col gap-0.5">
+      <span className="flex min-w-0 flex-col gap-0.5">
         <span
           className={cn(
-            'text-[13px] leading-none font-semibold tabular-nums',
+            'leading-none font-semibold tabular-nums',
             tone === 'unknown' && 'font-medium text-muted-foreground',
           )}
         >
           {value}
         </span>
-        <span className="text-[10.5px] leading-tight text-muted-foreground">{label}</span>
+        <span className="leading-snug text-muted-foreground">{label}</span>
       </span>
     </div>
   )
@@ -98,7 +104,15 @@ export function ObservationBadges({
   className?: string
 }) {
   return (
-    <div className={cn('grid grid-cols-2 gap-2.5 sm:grid-cols-4', className)}>
+    /*
+      **2열 고정이다.** 예전에는 넓어지면 4열이 됐는데, 카드가 우측 열로 가고 글자가
+      16px 로 커지면서 타일 하나에 90px 남짓만 남았다. "최신 버전 폐기 표시" 같은 라벨이
+      두 줄로 접히고 값과 라벨이 서로 밀려난다.
+
+      2열이면 타일이 두 배 넓어져 라벨이 한 줄에 들어간다. 세로로 한 줄 늘어나는 대신
+      가로로 안 접힌다 — 읽는 사람에게는 그쪽이 낫다.
+    */
+    <div className={cn('grid grid-cols-2 gap-2.5', className)}>
       <DownloadsTile downloads={model.downloads} />
       <StarsTile stars={model.stars} delta={model.starsDelta} repoUrl={model.repoUrl} />
       <IssuesTile count={model.openIssues} delta={model.openIssuesDelta} repoUrl={model.repoUrl} />

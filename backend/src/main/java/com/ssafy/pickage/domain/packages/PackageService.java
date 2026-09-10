@@ -157,22 +157,43 @@ public class PackageService {
 	}
 
 	/**
-	 * 평평한 행을 이름별로 묶는다.
+	 * 평평한 행을 <b>(이름, major)</b> 별로 묶는다.
 	 *
-	 * <p>존재하지만 구간에 점이 하나도 없는 패키지는 <b>빈 시리즈</b>로 내보낸다.
-	 * 빼버리면 프론트가 그 이름을 못 찾은 것으로 오해할 여지가 생긴다.
+	 * <p>downloads 는 {@code major} 가 항상 {@code null} 이라 이름당 하나로 묶이고,
+	 * dependents 는 major 개수만큼 갈라진다. <b>SQL 이 이미 정렬해 보낸 순서를 그대로 지킨다</b> —
+	 * 여기서 다시 정렬하면 major 를 숫자로 세우려고 SQL 에 넣은 규칙이 무의미해진다.
+	 *
+	 * <p>존재하지만 구간에 점이 하나도 없는 패키지는 <b>{@code major} 가 {@code null} 인 빈
+	 * 시리즈</b> 하나로 내보낸다. 빼버리면 프론트가 그 이름을 못 찾은 것으로 오해할 여지가
+	 * 생긴다. 쪼갤 행이 없으므로 major 를 지어내지 않는다.
 	 */
 	private static List<TrendResponse.Series> toSeries(List<TrendRow> rows, Existing existing) {
-		Map<String, List<TrendResponse.Point>> byName = new LinkedHashMap<>();
-		for (String name : existing.names()) byName.put(name, new java.util.ArrayList<>());
-
+		// 행이 하나라도 온 이름. 그렇지 않은 이름만 빈 시리즈를 받는다.
+		Map<SeriesKey, List<TrendResponse.Point>> byKey = new LinkedHashMap<>();
 		for (TrendRow r : rows) {
-			List<TrendResponse.Point> points = byName.get(r.name());
-			if (points != null) points.add(new TrendResponse.Point(r.snapshotAt(), r.value()));
+			if (!existing.names().contains(r.name())) continue;
+			byKey.computeIfAbsent(new SeriesKey(r.name(), r.major()), k -> new java.util.ArrayList<>())
+				.add(new TrendResponse.Point(r.snapshotAt(), r.value()));
 		}
-		return byName.entrySet().stream()
-			.map(e -> new TrendResponse.Series(e.getKey(), List.copyOf(e.getValue())))
-			.toList();
+
+		List<TrendResponse.Series> series = new java.util.ArrayList<>();
+		for (String name : existing.names()) {
+			List<Map.Entry<SeriesKey, List<TrendResponse.Point>>> mine = byKey.entrySet().stream()
+				.filter(e -> e.getKey().name().equals(name))
+				.toList();
+
+			if (mine.isEmpty()) {
+				series.add(new TrendResponse.Series(name, null, List.of()));
+				continue;
+			}
+			for (var e : mine) {
+				series.add(new TrendResponse.Series(name, e.getKey().major(), List.copyOf(e.getValue())));
+			}
+		}
+		return List.copyOf(series);
+	}
+
+	private record SeriesKey(String name, String major) {
 	}
 
 	/* ------------------------------------------------------------------ *

@@ -42,14 +42,14 @@ export function AnalysisProgress({
               {compactCard ? '선택한 버전으로 재분석 중' : '기능 비교 분석 중'}
             </h3>
           </div>
-          <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+          <span className="font-mono text-base text-muted-foreground tabular-nums">
             {run.doneCount} / {total} 단계 · {run.elapsedSec}초
           </span>
         </header>
 
         <div className="flex flex-wrap gap-1.5">
           {packages.map((p) => (
-            <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-[11px]">
+            <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-base">
               {p}
             </span>
           ))}
@@ -78,7 +78,7 @@ export function AnalysisProgress({
               <li
                 key={s.key}
                 className={cn(
-                  'flex items-center gap-2.5 text-[13px] transition-opacity duration-300',
+                  'flex items-center gap-2.5 text-base transition-opacity duration-300',
                   !done && !current && 'text-muted-foreground opacity-45',
                   current && 'font-medium',
                 )}
@@ -102,7 +102,7 @@ export function AnalysisProgress({
           })}
         </ol>
 
-        <p className="border-t pt-3 text-[11.5px] leading-relaxed text-muted-foreground">
+        <p className="border-t pt-3 text-base leading-relaxed text-muted-foreground">
           {compactCard
             ? '이전 결과는 그대로 두었습니다. 새 분석이 성공해야만 표가 교체됩니다.'
             : '정확한 버전의 배포본을 내려받아 정적으로 읽는 중입니다. 패키지를 설치하거나 실행하지 않습니다. 생태계 변화 탭은 지금 바로 볼 수 있습니다.'}

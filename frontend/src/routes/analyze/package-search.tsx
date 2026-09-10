@@ -120,7 +120,7 @@ export function PackageSearch({
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
-        className="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 font-mono text-[15px] transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50"
+        className="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50"
       />
 
       {showList && (
@@ -132,7 +132,7 @@ export function PackageSearch({
             className="max-h-[320px] overflow-y-auto p-1"
           >
             {suggestions.length === 0 ? (
-              <li className="px-3 py-4 text-[12.5px] leading-relaxed text-muted-foreground">
+              <li className="px-3 py-4 text-base leading-relaxed text-muted-foreground">
                 {fallbackPending ? (
                   '찾는 중…'
                 ) : (
@@ -154,7 +154,7 @@ export function PackageSearch({
                       i === active && 'bg-muted',
                     )}
                   >
-                    <span className="truncate font-mono text-[13.5px]">
+                    <span className="truncate font-mono text-base">
                       {/* 접두사 검색이라 강조 구간은 항상 앞에서부터 질의 길이만큼이다 */}
                       <mark className="bg-transparent font-semibold underline underline-offset-2">
                         {s.name.slice(0, query.length)}
@@ -172,7 +172,7 @@ export function PackageSearch({
             목록을 지우고 로딩으로 바꾸면 방금 보이던 후보가 깜빡이며 사라진다.
           */}
           {fallbackPending && suggestions.length > 0 && (
-            <p className="border-t px-3 py-1.5 text-[10.5px] text-muted-foreground" role="status">
+            <p className="border-t px-3 py-1.5 text-base text-muted-foreground" role="status">
               더 찾는 중…
             </p>
           )}

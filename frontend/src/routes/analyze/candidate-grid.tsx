@@ -37,7 +37,7 @@ export function CandidateGrid({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="font-mono text-[22px] leading-none font-bold tracking-tight">
+                <span className="font-mono text-2xl leading-none font-bold tracking-tight">
                   {c.package}
                 </span>
                 <span
@@ -53,16 +53,16 @@ export function CandidateGrid({
 
               <dl className="flex flex-col gap-3.5">
                 <Row label="설명 유사도">
-                  <span className="text-[15px] font-semibold tabular-nums">
+                  <span className="text-base font-semibold tabular-nums">
                     {c.descriptionSimilarity.toFixed(2)}
                   </span>
                 </Row>
                 <div className="flex flex-col gap-1">
-                  <dt className="text-[11.5px] text-muted-foreground">공통 키워드</dt>
-                  <dd className="font-mono text-[12.5px]">{c.sharedKeywords.join(' · ')}</dd>
+                  <dt className="text-base text-muted-foreground">공통 키워드</dt>
+                  <dd className="font-mono text-base">{c.sharedKeywords.join(' · ')}</dd>
                 </div>
                 <Row label="최근 배포">
-                  <span className="font-mono text-[12.5px] tabular-nums">{c.publishedAt}</span>
+                  <span className="font-mono text-base tabular-nums">{c.publishedAt}</span>
                 </Row>
               </dl>
 
@@ -78,7 +78,7 @@ export function CandidateGrid({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-[11.5px] text-muted-foreground">{label}</dt>
+      <dt className="text-base text-muted-foreground">{label}</dt>
       <dd>{children}</dd>
     </div>
   )
@@ -90,13 +90,13 @@ function DataStatusPill({ status }: { status: Candidate['dataStatus'] }) {
   return (
     <span
       className={cn(
-        'mt-auto inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]',
+        'mt-auto inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-base',
         ready
           ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
           : 'border-amber-200 bg-amber-50 text-amber-700',
       )}
     >
-      <span aria-hidden className="text-[9px]">
+      <span aria-hidden className="text-base">
         {ready ? '●' : '▲'}
       </span>
       {ready ? '분석 가능' : '일부 자료 제한'}

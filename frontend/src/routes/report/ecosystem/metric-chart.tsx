@@ -61,7 +61,7 @@ export function MetricChart({
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="font-mono text-[10.5px] text-muted-foreground">{unit}</span>
+        <span className="font-mono text-base text-muted-foreground">{unit}</span>
       </header>
 
       {showLegend && <SeriesLegend series={series} emphasisKeys={emphasisKeys} />}
@@ -90,7 +90,7 @@ export function MetricChart({
         />
       )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-[10.5px] text-muted-foreground">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-base text-muted-foreground">
         <span className="font-mono">
           {allDates.length ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : '자료 없음'}
         </span>
@@ -100,7 +100,7 @@ export function MetricChart({
       </div>
 
       {clamped && (
-        <p className="-mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+        <p className="-mt-1.5 text-base leading-relaxed text-muted-foreground">
           {coverageNote ?? '수집된 구간을 넘습니다'} — 이 지표는 {observedFrom} 부터 있어 그 뒤만
           그렸습니다.
         </p>
@@ -113,7 +113,7 @@ function EmptyState({ height, children }: { height: number; children: React.Reac
   return (
     <div
       style={{ height }}
-      className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-4 text-center text-[11.5px] leading-relaxed text-muted-foreground"
+      className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-4 text-center text-base leading-relaxed text-muted-foreground"
     >
       {children}
     </div>

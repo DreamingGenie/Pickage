@@ -153,6 +153,17 @@ export interface TrendPoint {
  */
 export interface TrendSeries {
   name: string
+  /**
+   * §5 dependents 전용. **같은 `name` 이 major 개수만큼 반복된다.**
+   *
+   * downloads 는 버전으로 쪼갤 수 없어 항상 없다. dependents 인데 없으면
+   * **그 패키지에 자료가 없다는 뜻**이며(쪼갤 행이 없다), `not_found`(이름 자체가 없음)와
+   * 다르다 — 이름은 존재한다.
+   *
+   * 순서는 서버가 숫자로 세워 보낸 것이다(`'1' < '10' < '2'` 를 피하려고).
+   * 화면에서 다시 정렬하지 않는다.
+   */
+  major?: string
   points: TrendPoint[]
 }
 
@@ -167,12 +178,16 @@ export interface DownloadsTrendResponse {
 export interface DependentsTrendResponse {
   metric: 'dependents'
   /**
-   * §5 — 스냅샷별로 그 패키지의 전 버전 `dependents_count` 를 합산한 값이다.
-   * 한 프로젝트가 `^4.17.0` 으로 여러 버전에 걸리므로 **실제 사용처 수보다 크다**.
-   * 기울기는 유효하지만 절대수는 부풀려져 있다 —
+   * §5 — 그 major 안의 `dependents_count` 를 합산한 값이다.
+   * 한 프로젝트가 `^4.17.0` 으로 4.x 의 여러 버전에 걸리므로 **실제 사용처 수보다 크다**.
+   * major 로 접어도 그 중복은 그대로다. 기울기는 유효하지만 절대수는 부풀려져 있다 —
    * 축 라벨을 "N개 프로젝트가 사용"으로 쓰면 안 되고 "의존 수(버전별 합계)"로 적는다.
    */
   sum_over_versions: true
+  /**
+   * **major 별로 쪼개져 온다.** 패키지 카드마다 표시 버전을 독립적으로 고르므로(구상안 §5.2),
+   * 고를 때마다 서버에 묻지 않도록 한 번에 다 받는다. `TOTAL` 은 화면에서 날짜별로 더한다.
+   */
   series: TrendSeries[]
   not_found: string[]
 }
