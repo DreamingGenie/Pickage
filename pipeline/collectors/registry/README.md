@@ -19,6 +19,11 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 | `start_registry.cmd` | 시작·재시작(더블클릭). 이미 돌고 있으면 새로 띄우지 않음. `OSS_SHIFT_UA_CONTACT` 없으면 안내 후 종료. 간격은 파일 머리의 `INTERVAL` |
 | `status_watch.cmd` | 현황 창(더블클릭). 60초 갱신, 닫아도 수집기 영향 없음 |
 
+## 실측 (run=2026-09-09, 2026-09-10 완료)
+
+READY 99,209 · NOT_FOUND 358 · UNPUBLISHED 429 · FAILED 0. 버전 행 21,435,587(unpublish 827,939), 원본 73.4 GB 전송 → jsonl.gz 765 MB → Parquet 403 MB. 간격 0.5초, 429 0건, 순 수집 약 18시간(최대 문서 115 MB, `rendition`).
+deps.dev `requirements`(스냅샷 08-31)와 표본 2,000 대조 100% 일치, enzyme 개발용 의존 제거 전이 1,999건 검출. 상세는 계획 문서 §7.
+
 ## 대상 목록
 
 ecosyste.ms 다운로드 순위 상위 10만 `datasets/targets/rank_top100k_20260902.csv`(컬럼 `rank,name,downloads_last_month,dependent_packages_count,status`). downloads 수집과 같은 목록이다(만든 경위는 `../downloads/README.md`).
