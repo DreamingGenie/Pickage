@@ -25,8 +25,8 @@
         ▼                                                        ▼
 [EC2 #1 CPU]  MLflow @candidate 등록·평가·@production 승격         │
         │                                                        │
-        ├── ai/similarity 배치: 변경분 재임베딩 → flat cosine top-20 →
-        │   재랭킹(§4.2) → 채점 게이트(Recall@20/@10) → MinIO 산출물 + manifest
+        ├── ai/similarity 배치: 변경분 재임베딩 → 의미 검색 top-30 → 구조적 관문 →
+        │   cos 정렬(§4.2) → 채점 게이트(Recall@N/@10) → MinIO 산출물 + manifest
         ▼
 [별도 로더]  manifest 읽어 similar_packages staging → RENAME + model_production 포인터 전환
         ▼
@@ -78,22 +78,22 @@
 
 **손대지 말 것 (지금)**: 리랭킹(S15P21A506-170, 보류), 근거 카드·RAG(147, 175~180 — 확장), 재파인튜닝 자동 트리거(236의 자동화 부분).
 
-## 재랭킹 규칙 (§4.2, 확정 `DEC-RANK-20260909-01`)
+## 재랭킹 규칙 (§4.2)
 
-- score: cos 유사도 기반
-- 감점: dependents 교집합 `> 0.3` 인 보완재
-- drop: 코퍼스 자격 미달 (deprecated 완전 제외 포함 — 1단계 필터에서 코퍼스째 제외)
-- **`move_lift`(대체 이동 쌍 관측 가산) 배제 확정** — 더 이상 사용하지 않는다
-- deprecated 지목 가산 없음 (`DEC-RANK-20260909-01` — 0907의 가산 조항 폐지)
-- 내부 top-K 20 → 사용자 노출 최대 3 → 상위 2개 기본 선택
-- 내부 score·계수는 API에 노출하지 않는다
+2단계 랭커 (`제안_유사후보_v1랭커_2단계분리_260910.md`, **2026-09-10 팀 승인**). `DEC-RANK-20260909-01` 의
+deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50→20 조항을 검색/노출 분리로 대체한다.
 
-### 제안 (미승인 — `제안_유사후보_v1랭커_2단계분리_260910.md`)
+1. **의미 검색** — cos 유사도로 `--retrieve-k`(기본 **30**) 개를 뽑는다. 최종 노출(3)보다 넉넉히.
+2. **구조적 관문** (`--gate`, 기본 **on**) — 점수 조정이 아니라 통과/탈락:
+   - plugin/adapter/preset/loader·비말단 config (이름·keywords) → drop
+   - same-family: 우산↔하위모듈(`d3`↔`d3-axis`)·같은 포장(`lodash`↔`lodash-es`)·같은 `@scope` → drop
+   - 보완재 감점(dependents 교집합 `> 0.3`) → **의존 그래프(Spark) 준비 후 추가** (`S15P21A506-173`)
+3. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
+4. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 
-`similarity_batch_pipeline.py` 에 아래가 **플래그 뒤로만** 들어가 있다. 기본값에서는 위 확정 규칙 그대로 동작한다.
-
-- `--retrieve-k` : 검색 단계 후보 수를 최종 노출 수와 분리 (기본 = `--top-k`)
-- `--gate` : `rerank` 전에 구조적 관문 적용 — 이름·keywords 로 plugin/adapter·same-family(우산·하위모듈·스코프) 후보를 drop (기본 off). 보완재 감점(의존 그래프)은 미구현
+- **인기도·다운로드·채택도를 순위 신호로 쓰지 않는다** (제안 §3.3). 생존·실체는 1단계 자격 필터의 관문일 뿐.
+- deprecated 지목 가산 없음 (`DEC-RANK-20260909-01`).
+- `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬.
 
 ## 관련 문서
 
