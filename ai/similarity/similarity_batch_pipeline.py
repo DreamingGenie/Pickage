@@ -268,6 +268,35 @@ def rerank(
     return out
 
 
+# ── 4.5 구조적 관문 (제안 §2.2 — --gate 플래그 뒤, 기본 off) ─────────────
+#
+# 재랭킹 결과 중 "설명은 비슷하지만 대안이 아닌" 후보를 점수 조정이 아니라
+# 통과/탈락으로 걸러낸다. 각 판정은 순수 함수 — 파이프라인 연결은 뒤(§main).
+
+_PLUGIN_MARKERS = {"plugin", "adapter", "preset", "loader"}
+
+
+def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
+    """이름·keywords 로 플러그인/어댑터/프리셋/로더/설정을 판별 (S15P21A506-173).
+
+    'eslint-plugin-react', 'css-loader', 'babel-preset-env', '@sveltejs/adapter-node',
+    'eslint-config-airbnb' 처럼 다른 패키지에 얹혀 동작하는 것 = 대안이 아니다.
+    """
+    base = name.rsplit("/", 1)[-1].lower()
+    parts = base.replace("_", "-").split("-")
+    if len(parts) >= 2:
+        for i, p in enumerate(parts):
+            if p in _PLUGIN_MARKERS:
+                return True
+            if p == "config" and i != len(parts) - 1:  # 'node-config'(단독) 오탐 방지
+                return True
+    for k in keywords or []:
+        toks = str(k).lower().replace("-", " ").split()
+        if any(t in _PLUGIN_MARKERS for t in toks):
+            return True
+    return False
+
+
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
 
 def scoring_gate(candidates: list[dict]) -> dict:

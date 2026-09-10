@@ -306,6 +306,41 @@ class EmbedCorpus(QuietMixin, unittest.TestCase):
         self.assertEqual(vecs.shape, (3, 384))
 
 
+class IsPluginAdapter(unittest.TestCase):
+    def test_flags_plugin_names(self):
+        for name in (
+            "eslint-plugin-react",
+            "@babel/plugin-transform-runtime",
+            "rollup-plugin-node-resolve",
+            "vite-plugin-svgr",
+            "@nx/webpack-plugin",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(sbp.is_plugin_adapter(name, []))
+
+    def test_flags_loader_preset_adapter_config_names(self):
+        for name in (
+            "css-loader",
+            "babel-preset-env",
+            "postcss-preset-env",
+            "@sveltejs/adapter-node",
+            "eslint-config-airbnb",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(sbp.is_plugin_adapter(name, []))
+
+    def test_does_not_flag_standalone_packages(self):
+        for name in ("react", "lodash", "webpack", "eslint", "vite", "plugin", "adapter"):
+            with self.subTest(name=name):
+                self.assertFalse(sbp.is_plugin_adapter(name, []))
+
+    def test_flags_via_plugin_keyword(self):
+        self.assertTrue(sbp.is_plugin_adapter("some-tool", ["logging", "plugin"]))
+
+    def test_keyword_substring_does_not_flag(self):
+        self.assertFalse(sbp.is_plugin_adapter("some-tool", ["pluginless", "explaining"]))
+
+
 class GateAllowsSuccess(unittest.TestCase):
     def test_passed_gate_allows(self):
         self.assertTrue(sbp.gate_allows_success({"status": "PASSED"}, allow_gate_skip=False))
