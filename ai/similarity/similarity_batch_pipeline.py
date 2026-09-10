@@ -28,9 +28,10 @@ import time
 from typing import Iterable
 
 import numpy as np
-import onnxruntime as ort
-import pyarrow.parquet as pq
-from transformers import AutoTokenizer
+
+# onnxruntime · transformers · pyarrow 는 무겁고 배치 실행 노드에만 설치된다.
+# 순수 로직(자격 필터·top-K·재랭킹·게이트)을 numpy 만으로 테스트할 수 있도록
+# 각 호출부에서 지연 import 한다.
 
 MAX_LENGTH = 512  # ai/MODEL_CONTRACT.md — SentenceTransformer.max_seq_length
 DEPRECATED_STATUSES = {"deprecated", "removed", "unpublished"}
@@ -48,6 +49,8 @@ def load_package_text(path: str) -> list[dict]:
     기대 컬럼: name, description, keywords, dependent_packages_count,
     latest_release_published_at, status (일부는 없을 수 있음).
     """
+    import pyarrow.parquet as pq
+
     table = pq.read_table(path)
     rows = table.to_pylist()
     log(f"package_text: {len(rows)} 행  ({path})")
@@ -121,6 +124,8 @@ def load_state(path: str | None) -> dict[str, dict]:
     """이전 실행의 name → {hash, vector} 상태. 없으면 빈 dict (전수 임베딩)."""
     if not path or not os.path.exists(path):
         return {}
+    import pyarrow.parquet as pq
+
     tbl = pq.read_table(path).to_pylist()
     state = {r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)} for r in tbl}
     log(f"이전 상태: {len(state)} 개 (재임베딩 생략 후보)")
@@ -132,6 +137,9 @@ class OnnxEmbedder:
     후처리는 여기서 (CLS pooling + L2 정규화). ONNX 밖."""
 
     def __init__(self, model_dir: str):
+        import onnxruntime as ort
+        from transformers import AutoTokenizer
+
         self.tok = AutoTokenizer.from_pretrained(model_dir)
         self.sess = ort.InferenceSession(
             os.path.join(model_dir, "model.onnx"), providers=["CPUExecutionProvider"]
@@ -287,6 +295,7 @@ def write_output(
     os.makedirs(out_dir, exist_ok=True)
 
     import pyarrow as pa
+    import pyarrow.parquet as pq
 
     pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
     pq.write_table(
