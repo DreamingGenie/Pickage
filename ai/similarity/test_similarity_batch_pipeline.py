@@ -11,11 +11,24 @@ import contextlib
 import datetime as dt
 import importlib
 import io
+import os
+import tempfile
 import unittest
 
 import numpy as np
 
 sbp = importlib.import_module("ai.similarity.similarity_batch_pipeline")
+
+
+class _FakeEmbedder:
+    """embed_corpus 테스트용 스텁. 텍스트 길이로 채운 384차원 벡터를 낸다."""
+
+    def __init__(self):
+        self.calls = []
+
+    def encode(self, texts, batch_size=32):
+        self.calls.append(list(texts))
+        return np.array([[float(len(t))] * 384 for t in texts], dtype=np.float32)
 
 
 class QuietMixin:
@@ -225,6 +238,72 @@ class Rerank(unittest.TestCase):
         bases = {r["base_package"]: [x["candidate_package"] for x in out if x["base_package"] == r["base_package"]] for r in out}
         self.assertEqual(bases["base"], ["x"])
         self.assertEqual(bases["y"], ["z", "w"])
+
+
+class TextHash(unittest.TestCase):
+    def test_stable_for_same_input(self):
+        self.assertEqual(sbp.text_hash("hello"), sbp.text_hash("hello"))
+
+    def test_differs_for_different_input(self):
+        self.assertNotEqual(sbp.text_hash("a"), sbp.text_hash("b"))
+
+
+class LoadState(QuietMixin, unittest.TestCase):
+    def test_none_path_returns_empty(self):
+        self.assertEqual(sbp.load_state(None), {})
+
+    def test_missing_file_returns_empty(self):
+        self.assertEqual(sbp.load_state("no/such/file.parquet"), {})
+
+    def test_reads_name_hash_vector(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "state.parquet")
+            pq.write_table(
+                pa.table({"name": ["p"], "text_hash": ["abc"], "vector": [[1.0, 2.0, 3.0]]}),
+                path,
+            )
+            state = sbp.load_state(path)
+        self.assertEqual(state["p"]["hash"], "abc")
+        np.testing.assert_array_equal(state["p"]["vector"], np.array([1.0, 2.0, 3.0], dtype=np.float32))
+
+
+class EmbedCorpus(QuietMixin, unittest.TestCase):
+    def test_all_rows_embedded_when_state_empty(self):
+        rows = [{"name": "a"}, {"name": "b"}]
+        emb = _FakeEmbedder()
+        sbp.embed_corpus(rows, ["ta", "tbb"], emb, state={}, batch_size=8)
+        self.assertEqual(emb.calls, [["ta", "tbb"]])
+
+    def test_row_with_matching_hash_reuses_state_vector(self):
+        rows = [{"name": "a"}, {"name": "b"}]
+        texts = ["ta", "tbb"]
+        cached = np.arange(384, dtype=np.float32)
+        state = {"a": {"hash": sbp.text_hash("ta"), "vector": cached}}
+        emb = _FakeEmbedder()
+        vecs = sbp.embed_corpus(rows, texts, emb, state, batch_size=8)
+        self.assertEqual(emb.calls, [["tbb"]])  # only b re-embedded
+        np.testing.assert_array_equal(vecs[0], cached)
+
+    def test_row_with_stale_hash_is_reembedded(self):
+        rows = [{"name": "a"}]
+        state = {"a": {"hash": "stale", "vector": np.zeros(384, dtype=np.float32)}}
+        emb = _FakeEmbedder()
+        sbp.embed_corpus(rows, ["fresh"], emb, state, batch_size=8)
+        self.assertEqual(emb.calls, [["fresh"]])
+
+    def test_writes_text_hash_onto_every_row(self):
+        rows = [{"name": "a"}, {"name": "b"}]
+        sbp.embed_corpus(rows, ["x", "y"], _FakeEmbedder(), state={}, batch_size=8)
+        self.assertEqual(rows[0]["_text_hash"], sbp.text_hash("x"))
+        self.assertEqual(rows[1]["_text_hash"], sbp.text_hash("y"))
+
+    def test_output_shape_is_n_by_384(self):
+        rows = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
+        vecs = sbp.embed_corpus(rows, ["a", "b", "c"], _FakeEmbedder(), state={}, batch_size=8)
+        self.assertEqual(vecs.shape, (3, 384))
 
 
 if __name__ == "__main__":
