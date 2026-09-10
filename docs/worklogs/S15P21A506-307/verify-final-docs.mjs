@@ -77,5 +77,28 @@ const view = (result, active, failure) => result ? 'RESULT' : active ? 'PROCESSI
 for (const [args, expected] of [[[true, true, false], 'RESULT'], [[true, false, true], 'RESULT'], [[false, true, false], 'PROCESSING'], [[false, false, true], 'FAILED'], [[false, false, false], 'IDLE']]) {
   assert.equal(view(...args), expected); cases++;
 }
+const community = readFileSync(files[5], 'utf8');
+const fixtures = [...community.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map(m => JSON.parse(m[1]));
+const result = fixtures.find(x => x.data?.result)?.data.result;
+assert.ok(result, 'Complete public wire fixture is required');
+assert.equal(Date.parse(result.fresh_until) - Date.parse(result.collected_at), 24 * hour);
+assert.equal(Date.parse(result.serve_until) - Date.parse(result.collected_at), 7 * 24 * hour);
+cases++;
+assert.equal(result.summary.comment_count, result.topics.reduce((sum, t) => sum + t.comments_count, 0));
+assert.equal(result.summary.reaction_count, result.topics.reduce((sum, t) => sum + t.reactions_count, 0));
+assert.equal(result.summary.issue_count, result.topics.length);
+assert.equal(result.summary.open_issue_count, result.topics.filter(t => t.state === 'OPEN').length);
+cases++;
+assert.equal(result.summary_status, summary(result.topics.map(t => t.summary_status)));
+assert.ok(Date.parse(result.summary_retry_at) > Date.parse(result.collected_at) + 5 * 60000);
+assert.equal(Date.parse(JSON.parse(JSON.stringify(result)).summary_retry_at), Date.parse(result.summary_retry_at));
+cases++;
+assert.doesNotMatch(JSON.stringify(result), /source_comment_id|source_issue_id|author_association|is_issue_author|summary_support/);
+assert.ok(result.topics.every(t => t.title_ko === null && t.summary_ko === null && t.messages.length === 0 && t.flow.length === 0));
+cases++;
+const saved = JSON.parse(JSON.stringify({ policy_version: 'github-active-v1', lookback_days: 365, is_issue_author: true, author_association: 'NONE' }));
+assert.equal(saved.lookback_days, 365);
+assert.equal(saved.is_issue_author ? 'ISSUE_AUTHOR' : null, 'ISSUE_AUTHOR');
+cases++;
 console.log(`PASS: ${files.length} docs, ${tableRows} table rows, ${links} local links, ${jsonBlocks} JSON blocks, ${cases} contract-model cases`);
 console.log('These checks do not establish semantic accuracy, live API connectivity, or application implementation correctness.');

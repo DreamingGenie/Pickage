@@ -32,7 +32,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 
 ### 1.2 MVP 버전 상태
 
-1. 후보 단계: 버전 없음
+1. 후보 단계: 분석 버전 선택 없음. 카드에는 최신 버전을 참고 metadata로 표시
 2. Dependency major 선택: 직접 의존 그래프의 `Total` 또는 선택한 하나 이상의 major 합계
 3. Version Share: 버전 선택 상태가 아니라 최신 DB Snapshot 기준일과 major별 분포
 

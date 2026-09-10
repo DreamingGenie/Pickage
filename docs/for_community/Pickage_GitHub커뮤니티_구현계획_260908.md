@@ -106,7 +106,7 @@ Issue별 comments endpoint는 오름차순으로 반환하므로 첫 page만 읽
 
 1. last가 없으면 page 1을 사용한다.
 2. last가 있으면 마지막 page를 읽는다. 마지막 page가 100개 미만이면 직전 page를 한 번 읽는다.
-3. page 1이 직전 page면 재요청하지 않고 재사용한다. Issue당 comments 호출은 최대 3회다.
+3. page 1이 직전 page면 재요청하지 않고 재사용한다. Issue당 comments 호출은 최대 3회다. Link URL을 그대로 fetch하지 않고 검증한 page 정수만 고정 API path에 적용한다.
 4. source ID로 중복 제거하고 created_at·수치 ID 오름차순 정렬 후 끝 100개를 선택한다.
 5. 101개면 마지막 1개+직전 99개, 199개면 마지막 99개+직전 1개, 301개면 마지막 1개+page 3의 99개가 된다.
 
@@ -147,6 +147,8 @@ Issue body와 comment는 같은 숫자 ID여도 source type을 포함해 구분�
 
 외부 원문은 명령이 아니라 데이터로 경계 표시한다. system prompt에 새 지시·링크 따라가기·역할 추정 금지를 둔다.
 Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에 없다.
+실제 model context 한도에서 system prompt와 출력 2,048 tokens를 뺀 입력 token 예산도 지킨다.
+48,000자는 token 상한을 대신하지 않는다. token 계산/허용 context는 C1 실연결 계약에 포함한다.
 
 ### 4.2 모델 JSON 계약
 
@@ -227,11 +229,16 @@ support 목록은 생성 시 메모리 검증 후 폐기한다. 장기 저장에
 
 `collected_at` index를 추가한다. 7일 정리 조건과 배치 DELETE 계획을 확인한다.
 result JSON은 §6의 repository/topics/limitations를 저장하되 각 topic에 내부 `source_issue_id`,
-각 message에 `source_comment_id`·원본 `author_association`을 추가한다.
-표시 role/order, summary 합계, data_limits, fresh_until/serve_until은 저장하지 않고 조회 때 계산한다.
+각 message에 `source_comment_id`·원본 `author_association`·검증된 `is_issue_author:boolean`을 추가한다.
+message의 author_login/created_at/kind/text는 보존하고 role은 is_issue_author와 association으로 재계산한다.
+원본 author ID 전체를 저장하지 않아도 재시작 후 ISSUE_AUTHOR를 복원할 수 있어야 한다.
+result 최상위에는 `policy_version`, `lookback_days`, `summary_retry_at:nullable timestamp`도 저장한다.
+365일 확장 여부를 메모리만 기억하면 재시작 때 180일로 오표시되므로 실제 정책 입력을 보존한다.
+표시 role/order, summary 합계, data_limits의 표시 문구·상한, fresh_until/serve_until은 조회 때 계산한다.
+data_limits 상한은 저장된 policy_version의 상수로 복원한다. 정책 변경은 version과 fixture를 함께 올린다.
 raw body·raw comment·prompt·hash·외부 response·URL은 저장하지 않는다.
 
-알 수 없는 payload_version은 변환을 추측하지 않고 결과 없음으로 취급해 refresh 자격을 부여한다.
+알 수 없는 payload_version 또는 등록하지 않은 policy_version은 변환을 추측하지 않고 결과 없음으로 취급해 refresh 자격을 부여한다.
 지원 version의 JSON이 깨졌으면 S001로 처리하고 snapshot ID와 정제 원인만 log에 남긴다.
 Jackson typed payload 검증은 쓰기와 읽기 모두 수행한다.
 
@@ -263,13 +270,14 @@ collected_at은 worker가 실제 수집을 시작한 UTC 시각이다. 완료 �
 외부 I/O는 transaction 밖에서 수행한다. 게시만 짧은 transaction으로 아래를 수행한다.
 
 1. 현재 task 소유권·취소·남은 게시 예산을 확인한다.
-2. 같은 DataSource의 transaction 안에서 SET LOCAL lock_timeout/statement_timeout을 남은 시간 이내로 설정한다(각 최대 1초/2초).
-3. package ID 기반 PostgreSQL transaction advisory lock을 잡고 INSERT ... ON CONFLICT UPDATE한다.
+2. connection 획득도 남은 게시 예산 이내로 제한한다. 같은 DataSource의 transaction 안에서 SET LOCAL lock_timeout/statement_timeout을 남은 시간 이내로 설정한다(각 최대 1초/2초).
+3. package ID 기반 PostgreSQL transaction advisory lock을 잡고 남은 시간을 다시 확인해 INSERT ... ON CONFLICT UPDATE한다. SELECT형 lock 요청도 timeout 시험 대상이다.
 4. commit 성공 후 registry COMPLETED. rollback 시 이전 행을 그대로 남긴다.
 
 refresh의 마지막 2초는 게시용으로 예약한다. 기한 뒤 도착한 외부 future는 게시할 수 없다.
 JPA transaction manager에 JdbcTemplate이 같은 connection으로 참여하는지 강제 rollback 시험으로 입증한다.
-annotation만 붙이고 원자성 검증을 생략하지 않는다.
+connection 고갈·lock 경합·statement 지연을 각각 주입해 게시 예산을 시험한다.
+annotation만 붙이고 원자성 검증을 생략하거나 pool 기본 대기를 그대로 두고 deadline을 보장하지 않는다.
 
 | 경계 | 반환 |
 |---|---|
@@ -280,7 +288,10 @@ annotation만 붙이고 원자성 검증을 생략하지 않는다.
 정상 FRESH는 재수집하지 않는다. **전체 summary FAILED인 FRESH는 수집 시작 후가 아니라 해당 실패 완료 후 5분부터 사용자 요청으로 재수집**할 수 있다.
 재시도 시 raw가 없으므로 저장소/Issue부터 다시 수집한다. 일부 요약 성공 PARTIAL은 기본 24시간 재사용한다.
 일시 refresh 실패는 기존 collected_at을 바꾸지 않는다. rate limit retry_at이 더 늦으면 그것을 따른다.
-프로세스 재시작으로 실패 완료 시각을 잃은 경우 summary FAILED의 collected_at+5분을 보수적 대체 기준으로 사용한다.
+전체 요약 실패를 확정한 시각 + 5분을 summary_retry_at에 저장하고 wire에도 제공한다.
+그 외 결과는 summary_retry_at=null이다. collected_at+5분으로 추정하지 않는다.
+POST와 UI 버튼은 summary_retry_at 및 최근 refresh 실패/외부 gate의 retry_at 중 늦은 시각을 따른다.
+재시작으로 registry를 잃어도 저장된 summary_retry_at 이전에 다시 요약하지 않는다.
 
 매시간 `collected_at <= now - 7d`인 행을 정렬해 최대 500개 삭제한다. GET의 TTL 검사를 정리 작업으로 대체하지 않는다.
 현재 package TRUNCATE가 있는 seed_sample/seed_mock_parity/seed_service_full/seed_reset **4개**의 같은 목록에 새 테이블을 추가한다.
@@ -300,7 +311,8 @@ BE 담당자가 구현 전 동일 계약을 등록하고 FE/QA가 fixture와 함
 
 CommunityController를 별도로 둔다. name은 PackageNames.isValidName을 재사용하되 단일 이름만 받는다.
 없는 DB package는 기존 C006/404를 재사용한다. 이 신규 적용 범위는 ExceptionType 설명·Swagger에도 반영한다.
-missing name/trigger는 V001/400, 잘못된 name 형식은 V004/400, 알 수 없는 trigger는 요청 바인딩 오류 400으로 명시하고 기존 error envelope를 사용한다.
+name/trigger 누락 또는 빈 값은 V001/400, 잘못된 name 형식·알 수 없는 trigger는 V004/400이다.
+trigger enum 바인딩은 현재 GlobalExceptionHandler.typeMismatch의 V004 매핑을 따른다. 기존 error envelope를 사용한다.
 내부 오류는 S001/500. API 계층 오류와 아래 정상 data 안의 refresh 실패를 섞지 않는다.
 
 POST가 새 task를 수락하면 202, fresh hit·기존 작업 참여·정상적인 admission 거절이면 200이다.
@@ -318,7 +330,7 @@ Java long을 무조건 JS number로 내리지 않는다. GitHub source ID는 공
 |---|---|
 | CommunityResponse | package_name:string, view_status:enum, freshness:nullable enum, refresh:nullable Refresh, result:nullable Result |
 | Refresh | refresh_id:nullable UUID string, status:enum, stage:nullable enum, stage_message:string, started_at:nullable timestamp, last_updated_at:timestamp, poll_after_seconds:nullable integer, retry_at:nullable timestamp, error_code:nullable enum |
-| Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
+| Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, summary_retry_at:nullable timestamp, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
 | Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean |
 | Summary | issue_count:integer, open_issue_count:integer, comment_count:integer, reaction_count:integer |
 | Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, flow:Flow[], messages:Message[] |
@@ -364,6 +376,73 @@ FETCH_LIMITED는 저장 자료 상태가 아니다. 원인별 refresh error 또�
 refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 후에도 DB 결과는 RESULT로 조회한다.
 동일 package의 종료 task는 10분간 조회 가능하며 그 뒤 result만 남는다.
 이미 active task가 있으면 뒤늦은 실패 요청이 registry를 덮어쓰지 않고 그 task를 반환한다.
+
+### 6.4 완전한 wire 예시
+
+아래는 FE/BE 계약 시험용 합성 데이터다. 실제 npm/GitHub 현황을 주장하지 않는다.
+서버 재시작 후 task가 없어도 사실 결과와 전체 요약 실패의 재시도 시각을 복원한 GET이다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "package_name": "community-fixture",
+    "view_status": "RESULT",
+    "freshness": "FRESH",
+    "refresh": null,
+    "result": {
+      "snapshot_id": "00000000-0000-4000-8000-000000000001",
+      "collected_at": "2026-09-11T00:00:00Z",
+      "fresh_until": "2026-09-12T00:00:00Z",
+      "serve_until": "2026-09-18T00:00:00Z",
+      "data_status": "AVAILABLE",
+      "summary_status": "FAILED",
+      "summary_retry_at": "2026-09-11T00:05:12Z",
+      "repository": {
+        "owner": "pickage-fixture",
+        "name": "community-fixture",
+        "full_name": "pickage-fixture/community-fixture",
+        "scope": "PACKAGE_SCOPED",
+        "archived": false
+      },
+      "summary": {"issue_count": 1, "open_issue_count": 1, "comment_count": 2, "reaction_count": 1},
+      "topics": [{
+        "issue_number": 7,
+        "title_original": "Configuration question",
+        "title_ko": null,
+        "summary_ko": null,
+        "state": "OPEN",
+        "comments_count": 2,
+        "reactions_count": 1,
+        "created_at": "2026-09-01T00:00:00Z",
+        "updated_at": "2026-09-10T00:00:00Z",
+        "collection_status": "COMPLETE",
+        "summary_status": "FAILED",
+        "flow": [],
+        "messages": []
+      }],
+      "limitations": [
+        {"code": "ROOT_PACKAGE_SCOPE_HEURISTIC", "message": "루트 패키지 연결에 기반하며 모든 Issue의 주제를 보장하지 않습니다.", "issue_number": null},
+        {"code": "SUMMARY_UNAVAILABLE", "message": "요약을 제공하지 못해 확인된 제목과 수치만 표시합니다.", "issue_number": 7}
+      ],
+      "data_limits": {
+        "policy_version": "github-active-v1",
+        "lookback_days": 180,
+        "max_issues": 2,
+        "max_comments_per_issue": 100,
+        "max_messages_per_issue": 3,
+        "source_note": "수치는 선택한 Issue 집합의 값이며 저장소 전체나 고유 참여자 수가 아닙니다."
+      }
+    }
+  }
+}
+```
+
+결과도 작업도 없는 최초 GET은 다음과 같다. 이 응답 때문에 GET이 자동 수집을 시작하지 않는다.
+
+```json
+{"success": true, "data": {"package_name": "community-fixture", "view_status": "IDLE", "freshness": null, "refresh": null, "result": null}}
+```
 
 ## 7. backend 파일별 구현과 자원 제어
 
@@ -453,6 +532,9 @@ Query key는 `['packages','community',basePackage]`. adapter는 wire를 표시 �
 최초 진입은 POST 후 GET. 재진입은 GET으로 active/fresh 상태를 먼저 복원하고,
 result가 없거나 stale/전체 summary FAILED 재시도 자격이 있을 때만 이 진입에서 POST 한 번을 허용한다.
 탭 진입 도중 POST가 실패해도 GET은 실행한다. retry_at 전에는 재수집 버튼을 비활성화한다.
+task를 만들지 않은 admission 거절은 GET registry에 없으므로, POST의 거절 안내/retry_at은 기준 패키지별
+일시 action notice로 보존한다. 뒤따른 GET IDLE이 이를 지워 거절 원인이 사라지지 않게 한다.
+이 notice로 GET wire를 변조하지 않고, 새 active task 확인·성공·명시적 재시도 시 해제한다.
 capacity 이후 자동 POST 반복을 하지 않으며 retry_at 이후 명시적 사용자 행동으로 다시 요청한다.
 
 GET polling은 탭/문서가 보이고 QUEUED/RUNNING일 때만 유지한다.
@@ -524,6 +606,8 @@ disabled/설정 누락은 새 작업만 막는다. active task 또는 fresh cach
 로그는 refresh ID, package ID, stage/duration, freshness, 정제 오류, retry_at,
 GitHub remaining/reset, model/prompt version, source 수·입력 길이만 남긴다.
 secret/header·raw prompt·source text·전체 외부 body를 남기지 않는다.
+외부 client 예외는 body/인증 값을 제거한 domain 오류로 변환한다. 원본 HTTP 예외나 raw cause를
+전역 unexpected handler에 넘겨 stack trace에 response body가 기록되지 않도록 실패 시험으로 확인한다.
 단일 refresh 진단은 가능해야 하지만 원문 복원 가능한 로그 저장소를 만들지 않는다.
 
 ## 11. 파트별 작업 패키지와 전달 순서
