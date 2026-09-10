@@ -373,6 +373,53 @@ class IsSameFamily(unittest.TestCase):
         )
 
 
+class ApplyGates(unittest.TestCase):
+    NAMES = ["moment", "dayjs", "moment-timezone", "eslint-plugin-x", "luxon"]
+    KW = {i: [] for i in range(5)}
+    HITS = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7), (0, 4, 0.6)]
+
+    def test_disabled_returns_hits_unchanged(self):
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=False)
+        self.assertEqual(kept, self.HITS)
+        self.assertEqual(drops, {})
+
+    def test_drops_plugin_candidate(self):
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertNotIn(3, [c for _, c, _ in kept])
+        self.assertEqual(drops["plugin_adapter"], 1)
+
+    def test_drops_same_family_candidate(self):
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertNotIn(2, [c for _, c, _ in kept])  # moment-timezone
+        self.assertEqual(drops["same_family"], 1)
+
+    def test_keeps_genuine_alternatives(self):
+        kept, _ = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertEqual([c for _, c, _ in kept], [1, 4])  # dayjs, luxon
+
+    def test_drops_via_keyword_signal(self):
+        kw = {**self.KW, 1: ["plugin"]}
+        kept, drops = sbp.apply_gates([(0, 1, 0.9)], self.NAMES, kw, enabled=True)
+        self.assertEqual(kept, [])
+        self.assertEqual(drops["plugin_adapter"], 1)
+
+
+class ParseArgs(unittest.TestCase):
+    BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
+
+    def test_retrieve_k_defaults_none(self):
+        self.assertIsNone(sbp.parse_args(self.BASE).retrieve_k)
+
+    def test_retrieve_k_parsed(self):
+        self.assertEqual(sbp.parse_args(self.BASE + ["--retrieve-k", "50"]).retrieve_k, 50)
+
+    def test_gate_defaults_off(self):
+        self.assertFalse(sbp.parse_args(self.BASE).gate)
+
+    def test_gate_flag_turns_on(self):
+        self.assertTrue(sbp.parse_args(self.BASE + ["--gate"]).gate)
+
+
 class GateAllowsSuccess(unittest.TestCase):
     def test_passed_gate_allows(self):
         self.assertTrue(sbp.gate_allows_success({"status": "PASSED"}, allow_gate_skip=False))

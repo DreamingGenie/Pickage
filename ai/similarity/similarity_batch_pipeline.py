@@ -315,6 +315,32 @@ def is_same_family(a: str, b: str) -> bool:
     return False
 
 
+def apply_gates(
+    hits: list[tuple[int, int, float]],
+    names: list[str],
+    keywords_by_idx: dict[int, list],
+    enabled: bool,
+) -> tuple[list[tuple[int, int, float]], dict]:
+    """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
+
+    보완재 감점(의존 그래프)은 아직 미구현 — 여기서는 이름·keywords 만으로 판정 가능한
+    plugin/adapter 와 same-family(우산·하위모듈·스코프)만 drop 한다. enabled=False 면 무변경.
+    """
+    if not enabled:
+        return hits, {}
+    kept, drops = [], {"plugin_adapter": 0, "same_family": 0}
+    for base_idx, cand_idx, cos in hits:
+        cand = names[cand_idx]
+        if is_plugin_adapter(cand, keywords_by_idx.get(cand_idx)):
+            drops["plugin_adapter"] += 1
+            continue
+        if is_same_family(names[base_idx], cand):
+            drops["same_family"] += 1
+            continue
+        kept.append((base_idx, cand_idx, cos))
+    return kept, drops
+
+
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
 
 def scoring_gate(candidates: list[dict]) -> dict:
@@ -389,7 +415,11 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--top-k", type=int, default=20)
+    p.add_argument("--retrieve-k", type=int, default=None,
+                   help="검색 단계 후보 수 (기본 = --top-k). 제안 §2.1-1: 최종보다 넉넉히 (예: 50)")
     p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
+    p.add_argument("--gate", action="store_true",
+                   help="구조적 관문(plugin/adapter·same-family drop) 적용. 제안 §2.2 — 기본 off")
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--query-block", type=int, default=2000)
     p.add_argument("--allow-gate-skip", action="store_true",
@@ -414,8 +444,14 @@ def main(argv: Iterable[str] | None = None) -> int:
     state = load_state(args.state)
     vectors = embed_corpus(rows, texts, embedder, state, args.batch_size)
 
-    hits = top_k(vectors, names, args.top_k, args.query_block)
-    log(f"top-{args.top_k}: {len(hits)} 쌍 ({len(names)} base)")
+    retrieve_k = args.retrieve_k or args.top_k
+    hits = top_k(vectors, names, retrieve_k, args.query_block)
+    log(f"검색 top-{retrieve_k}: {len(hits)} 쌍 ({len(names)} base)")
+
+    keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
+    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate)
+    if args.gate:
+        log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
     candidates = rerank(hits, names, args.user_k)
 
@@ -430,6 +466,9 @@ def main(argv: Iterable[str] | None = None) -> int:
             "min_dependents": args.min_dependents,
             "max_age_months": args.max_age_months,
             "top_k": args.top_k,
+            "retrieve_k": retrieve_k,
+            "gate": args.gate,
+            "gate_drops": gate_drops,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
