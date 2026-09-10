@@ -1,0 +1,670 @@
+{
+  "baseline": 240,
+  "after": 241,
+  "changed": 90,
+  "ownEditedIssues": 85,
+  "protectedUnchanged": 147,
+  "protectedTotal": 150,
+  "taskTitles": 79,
+  "epicDescriptions": 6,
+  "epicTitles": 3,
+  "errors": [],
+  "missing": [],
+  "planMismatches": [],
+  "writeFailures": [],
+  "externalChangesPreserved": [
+    {
+      "key": "S15P21A506-111",
+      "field": "summary",
+      "value": "[MVP] 생태계 변화 분석 (1페이지)",
+      "historyId": "13501243",
+      "time": "2026-09-11T04:03:08.156+0900"
+    },
+    {
+      "key": "S15P21A506-115",
+      "field": "summary",
+      "value": "[MVP] 프런트엔드 UI·UX 이력",
+      "historyId": "13501244",
+      "time": "2026-09-11T04:03:32.709+0900"
+    },
+    {
+      "key": "S15P21A506-117",
+      "field": "summary",
+      "value": "[MVP] AI 모델·후보검색·근거설명 이력",
+      "historyId": "13501246",
+      "time": "2026-09-11T04:03:55.423+0900"
+    },
+    {
+      "key": "S15P21A506-115",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501128",
+      "time": "2026-09-11T03:55:39.634+0900"
+    },
+    {
+      "key": "S15P21A506-117",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501125",
+      "time": "2026-09-11T03:55:27.854+0900"
+    },
+    {
+      "key": "S15P21A506-137",
+      "field": "duedate",
+      "value": "2026-09-11",
+      "historyId": "13501189",
+      "time": "2026-09-11T04:00:31.077+0900"
+    },
+    {
+      "key": "S15P21A506-308",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501133",
+      "time": "2026-09-11T03:56:41.613+0900"
+    },
+    {
+      "key": "S15P21A506-309",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501134",
+      "time": "2026-09-11T03:56:42.528+0900"
+    },
+    {
+      "key": "S15P21A506-311",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501132",
+      "time": "2026-09-11T03:56:31.128+0900"
+    },
+    {
+      "key": "S15P21A506-322",
+      "field": "duedate",
+      "value": "2026-09-20",
+      "historyId": "13501137",
+      "time": "2026-09-11T03:57:32.751+0900"
+    },
+    {
+      "key": "S15P21A506-326",
+      "field": "duedate",
+      "value": "2026-09-20",
+      "historyId": "13501161",
+      "time": "2026-09-11T03:58:34.727+0900"
+    },
+    {
+      "key": "S15P21A506-110",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501247",
+      "time": "2026-09-11T04:04:34.683+0900"
+    },
+    {
+      "key": "S15P21A506-113",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501249",
+      "time": "2026-09-11T04:04:55.386+0900"
+    },
+    {
+      "key": "S15P21A506-250",
+      "field": "duedate",
+      "value": "2026-09-13",
+      "historyId": "13501248",
+      "time": "2026-09-11T04:04:52.603+0900"
+    }
+  ],
+  "notes": "이번 실행은 일반 제목 79건과 에픽 안내 6건만 수정했다. 별도 이력의 제목 3건·마감일 11건은 덮어쓰지 않았다. 이력 작성 계정만으로 실제 사람/도구를 구분하지 않으며 이번 도구 요청 목록과 변경 시각·필드를 대조했다. 일반 본문과 보호 필드는 정규화 없이 비교했고 에픽 설명만 Markdown 이스케이프·줄끝 공백 정규화. 사용자가 '그거 수정한거 나니까 신경쓰지마'라고 직접 변경 사실을 확인했다. 사용자 변경값을 유지하고 되돌리지 않는다.",
+  "changes": [
+    {
+      "key": "S15P21A506-28",
+      "fields": [
+        "description"
+      ]
+    },
+    {
+      "key": "S15P21A506-31",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-32",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-110",
+      "fields": [
+        "summary",
+        "description",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-111",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-112",
+      "fields": [
+        "description"
+      ]
+    },
+    {
+      "key": "S15P21A506-113",
+      "fields": [
+        "summary",
+        "description",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-114",
+      "fields": [
+        "description"
+      ]
+    },
+    {
+      "key": "S15P21A506-115",
+      "fields": [
+        "summary",
+        "description",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-117",
+      "fields": [
+        "summary",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-120",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-121",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-123",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-124",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-125",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-126",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-127",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-128",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-129",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-130",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-131",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-132",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-134",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-135",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-137",
+      "fields": [
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-141",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-147",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-148",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-175",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-176",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-177",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-178",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-179",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-180",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-182",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-183",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-187",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-188",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-189",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-190",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-191",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-195",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-196",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-197",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-198",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-199",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-200",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-201",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-202",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-203",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-204",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-205",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-206",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-207",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-208",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-209",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-210",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-212",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-213",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-217",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-218",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-219",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-220",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-249",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-250",
+      "fields": [
+        "summary",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-251",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-252",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-253",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-256",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-257",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-259",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-262",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-263",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-264",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-265",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-266",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-268",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-292",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-308",
+      "fields": [
+        "summary",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-309",
+      "fields": [
+        "summary",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-310",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-311",
+      "fields": [
+        "summary",
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-312",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-313",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-314",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-315",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-316",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-317",
+      "fields": [
+        "summary"
+      ]
+    },
+    {
+      "key": "S15P21A506-322",
+      "fields": [
+        "duedate"
+      ]
+    },
+    {
+      "key": "S15P21A506-326",
+      "fields": [
+        "duedate"
+      ]
+    }
+  ],
+  "concurrentChangesConfirmedByUser": true
+}
