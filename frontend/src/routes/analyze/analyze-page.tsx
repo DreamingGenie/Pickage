@@ -1,21 +1,29 @@
 import { Loader2Icon, XIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
+import { fetchPackageSearch } from '@/api/endpoints'
+import { useSimilarPackages } from '@/api/queries'
+import { MAX_NAMES } from '@/api/types'
 import { paths } from '@/app/routes'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
 import { Button } from '@/components/ui/button'
 import { CandidateGrid } from '@/routes/analyze/candidate-grid'
 import { PackageSearch } from '@/routes/analyze/package-search'
 import { StepCard, StepConnector, type StepState } from '@/routes/analyze/step-card'
-import {
-  CANDIDATES,
-  FAKE_LATENCY_MS,
-  MAX_COMPARISON,
-  findPackage,
-  type Candidate,
-} from '@/routes/analyze/sample-registry'
 import { cn } from '@/lib/utils'
+
+/** 기준 패키지를 포함한 비교 대상 수(IA 1.4). 서버의 `names` 상한과 같은 값이다. */
+const MAX_COMPARISON = MAX_NAMES
+
+/**
+ * 화면에 깔 후보 수.
+ *
+ * 서버는 `limit` 만큼(기본 20) 주지만 다 펼치지 않는다. 고를 수 있는 자리가
+ * `MAX_COMPARISON - 1` 개뿐이라, 후보를 스무 개 늘어놓으면 고르는 일이 아니라
+ * 훑는 일이 된다. 늘리려면 이 숫자만 바꾸면 된다.
+ */
+const VISIBLE_CANDIDATES = 2
 
 /**
  * 화면-01 · 02 (Figma 220:195 · 220:196).
@@ -37,40 +45,56 @@ export function AnalyzePage() {
   const restore = nav?.restore
 
   const [draft, setDraft] = useState(nav?.prefill ?? restore?.[0] ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
-
-  /** 확정된 기준 패키지. 하나뿐이다. */
-  const [base, setBase] = useState<string | null>(restore?.[0] ?? null)
+  const [extraError, setExtraError] = useState<string | null>(null)
   const [picked, setPicked] = useState<string[]>(restore?.slice(1) ?? [])
   const [limitHit, setLimitHit] = useState(false)
   const [extraDraft, setExtraDraft] = useState('')
-  const [extraError, setExtraError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
-  const candidates: Candidate[] = base ? (CANDIDATES[base] ?? []) : []
+  /**
+   * 확인을 요청한 이름. **확정된 기준이 아니다.**
+   *
+   * 존재 확인과 후보 조회를 <b>한 번에</b> 한다 — 유사 패키지 응답이 이름이 없으면
+   * `not_found` 로 알려주기 때문이다. 존재만 보려고 따로 한 번 더 부르면 왕복이 두 번이 되고,
+   * 두 응답 사이에 이름이 사라지는 경우까지 다뤄야 한다.
+   */
+  const [submitted, setSubmitted] = useState<string | null>(nav?.prefill ?? restore?.[0] ?? null)
+
+  const similar = useSimilarPackages(submitted ?? '')
+
+  /** 이름 자체가 없는 경우. 후보가 아직 없는 것(`NO_DATA`)과 다르다. */
+  const missing =
+    similar.data && similar.data.not_found.length > 0 ? similar.data.not_found[0] : null
+
+  const base = submitted && similar.data && !missing ? submitted : null
+  const checking = Boolean(submitted) && similar.isPending
+
+  const error = missing
+    ? `npm 레지스트리에서 ${missing} 을(를) 찾지 못했습니다. 철자를 확인해 주세요.`
+    : similar.error
+      ? '후보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      : null
+
+  /**
+   * 서버는 `limit` 만큼 주지만 화면에는 일부만 깐다.
+   *
+   * **기본 선택을 하지 않는다.** 고를 자리가 두 개인데 두 개를 미리 켜 두면 고르는 단계가
+   * 사라진다 — 사용자는 자기가 고르지 않은 조합으로 보고서를 받는다.
+   */
+  const candidates = (similar.data?.candidates ?? []).slice(0, VISIBLE_CANDIDATES)
   const selected = base ? [base, ...picked] : []
   const full = selected.length >= MAX_COMPARISON
 
-  async function verify(name: string) {
+  function verify(name: string) {
     const q = name.trim()
     if (!q) return
-    setChecking(true)
-    setError(null)
-    await new Promise((r) => setTimeout(r, FAKE_LATENCY_MS))
-    setChecking(false)
-
-    if (!findPackage(q)) {
-      setError(`npm 레지스트리에서 ${q} 을(를) 찾지 못했습니다. 철자를 확인해 주세요.`)
-      return
-    }
-    setBase(q)
-    setPicked((CANDIDATES[q] ?? []).filter((c) => c.defaultSelected).map((c) => c.package))
+    setPicked([])
     setLimitHit(false)
+    setSubmitted(q)
   }
 
   function resetBase() {
-    setBase(null)
+    setSubmitted(null)
     setPicked([])
     setLimitHit(false)
     setExtraError(null)
@@ -89,14 +113,19 @@ export function AnalyzePage() {
     })
   }
 
-  function addManual(name: string) {
+  /**
+   * 직접 추가 (IA 6.1).
+   *
+   * **후보 순위는 바뀌지 않는다.** 사용자가 넣은 이름은 모델이 고른 것이 아니므로
+   * 목록에 끼워 넣지 않고 선택에만 더한다(구상안 §4.4 `manualSelection`).
+   *
+   * 존재 확인은 검색 엔드포인트로 한다 — 접두사 검색이라 정확히 같은 이름이 결과에
+   * 들어 있는지를 본다. 앞이 같은 다른 이름(`express-session`)이 통과하면 안 된다.
+   */
+  async function addManual(name: string) {
     const q = name.trim()
     setExtraError(null)
     if (!q) return
-    if (!findPackage(q)) {
-      setExtraError(`npm 레지스트리에서 ${q} 을(를) 찾지 못했습니다.`)
-      return
-    }
     if (selected.includes(q)) {
       setExtraError('이미 비교 대상에 있습니다.')
       return
@@ -105,6 +134,18 @@ export function AnalyzePage() {
       setExtraError(`${MAX_COMPARISON}개를 이미 골랐습니다. 하나를 먼저 해제해 주세요.`)
       return
     }
+
+    try {
+      const found = await fetchPackageSearch(q, 5)
+      if (!found.items.includes(q)) {
+        setExtraError(`npm 레지스트리에서 ${q} 을(를) 찾지 못했습니다.`)
+        return
+      }
+    } catch {
+      setExtraError('확인에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
+
     setPicked((prev) => [...prev, q])
     setExtraDraft('')
   }
@@ -122,17 +163,13 @@ export function AnalyzePage() {
     navigate(paths.report('draft'), { state: { packages: selected } })
   }
 
-  /**
-   * 인트로에서 이미 패키지명을 치고 넘어왔으면 여기서 또 확인 버튼을 누르게 하지 않는다.
-   * 도착하자마자 확인을 돌려 2단계부터 열어 준다. 실패하면 1단계에 오류와 함께 남는다.
-   */
-  const autoRan = useRef(false)
-  useEffect(() => {
-    if (autoRan.current || !nav?.prefill || base) return
-    autoRan.current = true
-    void verify(nav.prefill)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  /*
+    인트로에서 이름을 치고 넘어온 경우와 보고서에서 되돌아온 경우는 `submitted` 의 초기값이
+    처리한다 — 조회가 곧 존재 확인이라 도착하자마자 2단계가 열린다.
+
+    예전에는 effect 안에서 확인을 한 번 돌렸는데, 그러면 첫 렌더 뒤에 상태가 또 바뀌어
+    화면이 두 번 그려지고 "왜 잠깐 1단계가 보이지" 가 생긴다.
+  */
 
   const step1: StepState = base ? 'done' : 'active'
 
@@ -174,7 +211,7 @@ export function AnalyzePage() {
                   setDraft(v)
                   if (error) setError(null)
                 }}
-                onSubmit={(name) => void verify(name)}
+                onSubmit={verify}
                 ariaLabel="기준 npm 패키지명"
                 disabled={checking}
                 autoFocus
@@ -183,7 +220,7 @@ export function AnalyzePage() {
                 size="lg"
                 className="h-11 shrink-0"
                 disabled={!draft.trim() || checking}
-                onClick={() => void verify(draft)}
+                onClick={() => verify(draft)}
               >
                 {checking ? (
                   <>
@@ -215,20 +252,45 @@ export function AnalyzePage() {
                     비교할 패키지를 선택하세요
                   </h3>
                   <p className="text-base text-muted-foreground">
-                    설명·키워드가 가까운 후보 중 상위 2개가 기본 선택되며 총 {MAX_COMPARISON}
-                    개까지만 비교합니다. 완전한 대체 관계나 품질 순위를 의미하지 않습니다.
+                    설명이 가까운 후보입니다. 기준 패키지를 포함해 총 {MAX_COMPARISON}개까지
+                    비교합니다. 완전한 대체 관계나 품질 순위를 의미하지 않습니다.
                   </p>
                 </div>
 
+                {/*
+                  빈 상태가 두 갈래다.
+
+                  **아직 계산되지 않은 것**(`NO_DATA`)과 **관련 후보가 없는 것**은 사용자가 할
+                  일이 다르다. 앞은 기다리면 되고 뒤는 직접 추가해야 한다. 같은 문구로 그리면
+                  적재 직후 "이 패키지는 대체재가 없다" 로 읽힌다.
+                */}
                 {candidates.length === 0 ? (
                   <div className="rounded-2xl border border-dashed px-6 py-10 text-center">
-                    <p className="text-sm">관련 후보를 찾지 못했습니다.</p>
+                    <p>
+                      {similar.data?.data_status === 'NO_DATA'
+                        ? '아직 후보를 계산하지 않았습니다.'
+                        : '관련 후보를 찾지 못했습니다.'}
+                    </p>
                     <p className="mt-1 text-base text-muted-foreground">
-                      비교할 패키지를 아래에서 직접 추가하거나 다른 기준 패키지로 시작해 보세요.
+                      {similar.data?.data_status === 'NO_DATA'
+                        ? '주간 배치가 돌면 채워집니다. 그동안은 아래에서 직접 추가할 수 있습니다.'
+                        : '비교할 패키지를 아래에서 직접 추가하거나 다른 기준 패키지로 시작해 보세요.'}
                     </p>
                   </div>
                 ) : (
-                  <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
+                  <div className="flex flex-col gap-3">
+                    <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
+                    {/*
+                      모델 버전이 이 목록의 계보다(스냅샷 날짜를 쓰지 않기로 했다).
+                      어느 모델이 고른 것인지 적어 두지 않으면, 다음 주에 목록이 바뀌었을 때
+                      화면이 바뀐 것인지 모델이 바뀐 것인지 알 수 없다.
+                    */}
+                    {similar.data?.model_ver && (
+                      <p className="font-mono text-base text-muted-foreground">
+                        판정 모델 {similar.data.model_ver}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {limitHit && (
@@ -254,7 +316,7 @@ export function AnalyzePage() {
                         setExtraDraft(v)
                         if (extraError) setExtraError(null)
                       }}
-                      onSubmit={addManual}
+                      onSubmit={(v) => void addManual(v)}
                       placeholder="npm 패키지명"
                       ariaLabel="직접 추가할 패키지명"
                     />
@@ -263,7 +325,7 @@ export function AnalyzePage() {
                       size="lg"
                       className="h-11 shrink-0"
                       disabled={!extraDraft.trim()}
-                      onClick={() => addManual(extraDraft)}
+                      onClick={() => void addManual(extraDraft)}
                     >
                       패키지 추가
                     </Button>

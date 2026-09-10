@@ -12,8 +12,10 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 
@@ -228,6 +230,144 @@ class PackageServiceTest {
 		public List<ShareRow> findVersionShare(PackageNames names, LocalDate snapshotAt) {
 			return List.of();
 		}
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-03 · UC4 유사 패키지
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 유사 패키지 대역.
+	 *
+	 * <p><b>정보 조회를 일부러 뒤집어 돌려준다.</b> 두 조회를 이어 붙이면 순위가 섞이는데,
+	 * DB 가 우연히 순위대로 돌려주면 그 버그가 시험을 통과한다.
+	 */
+	private static final class FakeSimilarRepository extends PackageQueryRepository {
+
+		private final List<String> existing;
+		private final List<SimilarRow> ranked;
+		private final List<BriefRow> briefs;
+
+		/** 정보 조회가 실제로 받은 이름들. 상한 3개가 새어 들어오지 않았는지 본다. */
+		private String[] briefArgument;
+
+		private FakeSimilarRepository(List<String> existing, List<SimilarRow> ranked, List<BriefRow> briefs) {
+			super(null);
+			this.existing = existing;
+			this.ranked = ranked;
+			this.briefs = briefs;
+		}
+
+		@Override
+		public List<String> findExistingNames(PackageNames names) {
+			return existing;
+		}
+
+		@Override
+		public List<SimilarRow> findSimilar(String name, int limit) {
+			return ranked;
+		}
+
+		@Override
+		public List<BriefRow> findBriefByNames(String[] names) {
+			briefArgument = names;
+			return briefs.reversed();
+		}
+	}
+
+	private static SimilarRow rank(int n, String name) {
+		return new SimilarRow(name, n, 0.94 - n * 0.035, "mock-v1-20260831");
+	}
+
+	private static BriefRow brief(String name) {
+		return new BriefRow(name, "1.0.0", name + " 설명");
+	}
+
+	@Test
+	@DisplayName("UC4 — 후보는 rank 순서로 나가고, 정보 조회 순서에 흔들리지 않는다")
+	void similarKeepsRankOrder() {
+		var fake = new FakeSimilarRepository(
+			List.of("express"),
+			List.of(rank(1, "koa"), rank(2, "fastify"), rank(3, "hapi")),
+			List.of(brief("koa"), brief("fastify"), brief("hapi")));
+		PackageService service = new PackageService(fake);
+
+		var res = service.getSimilar(SimilarQuery.of("express", null));
+
+		assertEquals(List.of("koa", "fastify", "hapi"),
+			res.candidates().stream().map(c -> c.name()).toList());
+		assertEquals(List.of(1, 2, 3), res.candidates().stream().map(c -> c.rank()).toList());
+		assertEquals("koa 설명", res.candidates().getFirst().description());
+		assertEquals("mock-v1-20260831", res.modelVer());
+		assertEquals("COMPLETE", res.dataStatus());
+	}
+
+	/**
+	 * 정보 조회에 넘기는 이름은 <b>사용자 입력이 아니라 서버가 만든 후보 목록</b>이다.
+	 * {@link PackageNames} 의 3개 상한이 여기 걸리면 후보 20개를 받을 수 없다.
+	 */
+	@Test
+	@DisplayName("UC4 — 후보가 3개를 넘어도 정보 조회가 막히지 않는다")
+	void briefLookupIsNotCappedAtThree() {
+		List<SimilarRow> many = List.of(rank(1, "a"), rank(2, "b"), rank(3, "c"), rank(4, "d"), rank(5, "e"));
+		var fake = new FakeSimilarRepository(List.of("express"), many,
+			many.stream().map(r -> brief(r.name())).toList());
+		PackageService service = new PackageService(fake);
+
+		var res = service.getSimilar(SimilarQuery.of("express", null));
+
+		assertEquals(5, res.candidates().size());
+		assertEquals(5, fake.briefArgument.length);
+	}
+
+	@Test
+	@DisplayName("UC4 — 후보가 아직 없는 것은 not_found 가 아니라 NO_DATA 다")
+	void emptyCandidatesAreNotNotFound() {
+		PackageService service = new PackageService(
+			new FakeSimilarRepository(List.of("express"), List.of(), List.of()));
+
+		var res = service.getSimilar(SimilarQuery.of("express", null));
+
+		assertTrue(res.candidates().isEmpty());
+		assertTrue(res.notFound().isEmpty(), "존재하는 이름이 not_found 로 가면 안 된다");
+		assertEquals("NO_DATA", res.dataStatus());
+		// 만든 모델이 없으므로 버전을 지어내지 않는다.
+		assertNull(res.modelVer());
+	}
+
+	@Test
+	@DisplayName("UC4 — 기준 이름 자체가 없으면 not_found 에 담긴다")
+	void unknownBaseGoesToNotFound() {
+		PackageService service = new PackageService(
+			new FakeSimilarRepository(List.of(), List.of(), List.of()));
+
+		var res = service.getSimilar(SimilarQuery.of("nope-pkg", null));
+
+		assertEquals(List.of("nope-pkg"), res.notFound());
+		assertTrue(res.candidates().isEmpty());
+		assertEquals("nope-pkg", res.base(), "화면이 무엇을 물었는지 알아야 한다");
+	}
+
+	/**
+	 * FK 가 걸려 있어 실제로는 생기지 않지만, 생겼을 때 <b>목록에서 조용히 사라지면</b>
+	 * "왜 19개지" 를 추적할 수 없다. 후보는 남기고 정보만 비운다.
+	 */
+	@Test
+	@DisplayName("UC4 — 정보를 못 찾은 후보도 목록에서 빠지지 않는다")
+	void candidateWithoutBriefStays() {
+		var fake = new FakeSimilarRepository(
+			List.of("express"),
+			List.of(rank(1, "koa"), rank(2, "ghost")),
+			List.of(brief("koa")));
+		PackageService service = new PackageService(fake);
+
+		var res = service.getSimilar(SimilarQuery.of("express", null));
+
+		assertEquals(2, res.candidates().size());
+		var ghost = res.candidates().get(1);
+		assertEquals("ghost", ghost.name());
+		assertNull(ghost.latestVersion());
+		assertNull(ghost.description());
 	}
 
 	private static final List<TrendRow> ONE_ROW =

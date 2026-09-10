@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 import com.ssafy.pickage.global.response.ApiResponseBody;
@@ -122,6 +123,28 @@ public class PackageController {
 	) {
 		return ApiResponseUtil.createSuccessResponse(
 			service.getVersionShare(PackageNames.of(names), snapshotAt));
+	}
+
+	/**
+	 * 기능-03 · UC4 — 유사 패키지.
+	 *
+	 * <p><b>기준 패키지가 하나라 {@code names} 배열이 아니다.</b> "무엇의 대체재인가" 를 묻는
+	 * 조회이므로 기준이 둘일 수 없다. 최대 3개 상한은 비교 화면의 규칙이라 여기와 무관하다.
+	 *
+	 * <p>요청 경로에 모델이 없다. 주간 배치가 미리 계산해 둔 것을 키 조회로 읽을 뿐이다.
+	 *
+	 * <p>후보가 없는 것과 이름이 없는 것을 구분한다 — 앞은 200 에 빈 배열과
+	 * {@code data_status: NO_DATA}, 뒤는 {@code not_found} 다.
+	 */
+	@Operation(summary = "유사 패키지",
+		description = "기준 패키지 하나의 대체 후보를 순위 순으로 반환한다. limit 기본 20, 최대 50. "
+			+ "아직 계산되지 않았으면 200 에 빈 candidates 와 data_status=NO_DATA 로 나간다.")
+	@GetMapping("/packages/similar")
+	public ApiResponseBody<SimilarPackagesResponse> getSimilar(
+		@RequestParam(name = "name", required = false) String name,
+		@RequestParam(name = "limit", required = false) Integer limit
+	) {
+		return ApiResponseUtil.createSuccessResponse(service.getSimilar(SimilarQuery.of(name, limit)));
 	}
 
 	/**

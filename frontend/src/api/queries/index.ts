@@ -7,6 +7,7 @@ import {
   fetchDownloadsTrend,
   fetchPackageSearch,
   fetchPackagesOverview,
+  fetchSimilarPackages,
   fetchVersionShare,
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
@@ -75,6 +76,29 @@ export function usePackageSearch(q: string, enabled: boolean, limit?: number) {
     queryFn: () => fetchPackageSearch(q, limit),
     enabled: enabled && q.trim().length > 0,
     // 서버가 1시간 캐시한다(§2.4). 같은 접두사를 두 번 두드려도 다시 안 나간다.
+    staleTime: 60 * 60_000,
+    retry,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-03 · UC4 유사 패키지
+ * ------------------------------------------------------------------ */
+
+/**
+ * 기준 패키지의 대체 후보.
+ *
+ * **`usable()` 을 쓰지 않는다.** 그 검사는 이름 배열의 3개 상한을 보는 것이라 여기와
+ * 무관하다. 이름 하나가 비어 있지만 않으면 보낸다.
+ *
+ * 목록은 **주간 배치가 만든다.** 사용자가 화면을 여닫는 동안 바뀔 일이 없으므로 길게 캐시한다.
+ * 모델이 새로 돌면 `model_ver` 가 바뀌는데, 그건 다음 세션에서 반영되면 충분하다.
+ */
+export function useSimilarPackages(name: string, limit?: number) {
+  return useQuery({
+    queryKey: queryKeys.packages.similar(name, limit),
+    queryFn: () => fetchSimilarPackages(name, limit),
+    enabled: name.trim().length > 0,
     staleTime: 60 * 60_000,
     retry,
   })

@@ -333,6 +333,89 @@ public class PackageQueryRepository {
 	}
 
 	/* ------------------------------------------------------------------ *
+	 * 기능-03 · UC4 유사 패키지
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 후보 목록. <b>지표를 조인하지 않는다.</b>
+	 *
+	 * <p>순위·점수는 배치가 이미 정해 둔 값이라 이 조회는 키 하나로 끝난다. 여기에 설명·최신
+	 * 버전을 붙이면 조인 두 개가 더 붙어, <b>순위가 뜨는 시점이 정보 조회 속도에 묶인다.</b>
+	 * 정보는 {@link #findBriefByNames} 가 따로 가져오고 서비스가 합친다.
+	 *
+	 * <p>{@code UK_SIMILAR_PACKAGE_RANK}({@code package_id}, {@code rank}) 덕분에 한 패키지 안에서
+	 * 순위가 유일하다 — {@code ORDER BY rank} 가 비결정적일 수 없다.
+	 *
+	 * <p><b>deprecated 후보를 여기서 거르지 않는다.</b> `DEC-RANK-20260909-01` 이 deprecated 를
+	 * 코퍼스 단계에서 제외하기로 했으므로 애초에 적재되지 않는다. 조회에서 한 번 더 거르면
+	 * {@code rank} 에 구멍이 생겨(1,2,4,5…) 화면이 "3위는 어디 갔나" 를 묻게 된다.
+	 */
+	private static final String SIMILAR_SQL = """
+		SELECT c.name, s.rank, s.score, s.model_ver
+		FROM similar_package s
+		JOIN package b ON b.package_id = s.package_id
+		JOIN package c ON c.package_id = s.similar_package_id
+		WHERE b.name = ?
+		ORDER BY s.rank
+		LIMIT ?
+		""";
+
+	public List<SimilarRow> findSimilar(String name, int limit) {
+		return jdbcTemplate.query(SIMILAR_SQL,
+			ps -> {
+				ps.setString(1, name);
+				ps.setInt(2, limit);
+			},
+			(rs, i) -> new SimilarRow(
+				rs.getString("name"),
+				rs.getInt("rank"),
+				rs.getDouble("score"),
+				rs.getString("model_ver")));
+	}
+
+	public record SimilarRow(String name, int rank, double score, String modelVer) {
+	}
+
+	/**
+	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
+	 *
+	 * <p><b>{@link PackageNames} 를 받지 않는 것이 의도다.</b> 그 객체는 비교 화면의 규칙
+	 * (최대 3개)을 강제하는데, 여기 들어오는 이름은 <b>사용자 입력이 아니라 서버가 만든 후보
+	 * 목록</b>이라 그 상한이 적용될 이유가 없다. 재사용하려고 묶으면 후보 20개를 못 받거나,
+	 * 반대로 상한을 풀어 비교 화면의 3개 규칙이 새어나간다.
+	 *
+	 * <p>그래서 이름 배열을 그대로 받는다. 호출자가 서버 내부 코드라는 전제가 깔려 있으므로
+	 * <b>외부 입력을 이 메서드에 바로 넘기면 안 된다.</b>
+	 *
+	 * <p>{@code DISTINCT ON} 의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
+	 * 문자열로 정렬하면 {@code 4.9.0} 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이
+	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다. {@code idx_version_pkg_ordinal} 을 탄다.
+	 */
+	private static final String BRIEF_SQL = """
+		WITH latest AS (
+		  SELECT DISTINCT ON (package_id) package_id, version, description
+		  FROM version
+		  ORDER BY package_id, ordinal DESC
+		)
+		SELECT p.name, l.version AS latest_version, l.description
+		FROM package p
+		JOIN latest l ON l.package_id = p.package_id
+		WHERE p.name = ANY(?)
+		""";
+
+	public List<BriefRow> findBriefByNames(String[] names) {
+		return jdbcTemplate.query(BRIEF_SQL,
+			ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", names)),
+			(rs, i) -> new BriefRow(
+				rs.getString("name"),
+				rs.getString("latest_version"),
+				rs.getString("description")));
+	}
+
+	public record BriefRow(String name, String latestVersion, String description) {
+	}
+
+	/* ------------------------------------------------------------------ *
 	 * §2.4 검색 폴백
 	 * ------------------------------------------------------------------ */
 

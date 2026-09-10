@@ -63,11 +63,22 @@ public record PackageNames(List<String> values) {
 		}
 
 		for (String name : unique) {
-			if (name.length() > MAX_LENGTH || !VALID.matcher(name).matches()) {
+			if (!isValidName(name)) {
 				throw new BusinessException(ExceptionType.INVALID_VALUE_FORMAT, "패키지명 형식이 올바르지 않습니다.");
 			}
 		}
 		return new PackageNames(unique);
+	}
+
+	/**
+	 * 이름 하나가 명세 0.1 의 형식인지.
+	 *
+	 * <p>배열이 아니라 이름 <b>하나</b>를 받는 입력({@link SimilarQuery})이 이 규칙을 나눠 쓴다.
+	 * 정규식을 그쪽에 복사하면 언젠가 한쪽만 고쳐지고, 같은 이름이 한 엔드포인트에서는 통과하고
+	 * 다른 데서는 막히는 상태가 된다.
+	 */
+	public static boolean isValidName(String name) {
+		return name != null && name.length() <= MAX_LENGTH && VALID.matcher(name).matches();
 	}
 
 	/**

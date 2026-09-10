@@ -192,6 +192,51 @@ export interface DependentsTrendResponse {
   not_found: string[]
 }
 
+/* ------------------------------------------------------------------ *
+ * 기능-03 · UC4 유사 패키지
+ * ------------------------------------------------------------------ */
+
+export const SIMILAR_LIMIT_DEFAULT = 20
+export const SIMILAR_LIMIT_MAX = 50
+
+/**
+ * 후보 하나.
+ *
+ * `package_id` 는 오지 않는다 — 외부 식별자는 이름이다. 다시 조회할 때도 이름을 쓴다.
+ */
+export interface SimilarCandidate {
+  /** 패키지 안에서 유일하다. 배열 순서와 같지만 값도 함께 온다. */
+  rank: number
+  /**
+   * 유사도에 다른 신호를 더한 종합 점수.
+   * **비교용 상대값이지 확률이 아니다** — "0.9 = 90% 대체 가능"으로 읽히게 적으면 안 된다.
+   */
+  score: number
+  name: string
+  /** 최신 버전. 정보를 못 찾은 후보는 `null` 이며, 그래도 목록에는 남는다. */
+  latest_version: string | null
+  description: string | null
+}
+
+export interface SimilarPackagesResponse {
+  /** 요청한 기준 패키지. 화면이 무엇을 물었는지 알아야 한다. */
+  base: string
+  /**
+   * 이 목록을 만든 모델. **스냅샷 날짜 대신 계보를 표시하는 값**이다.
+   * 목록이 비면 없다 — 만든 것이 없으므로 지어내지 않는다.
+   */
+  model_ver?: string
+  /**
+   * `COMPLETE` 또는 `NO_DATA`.
+   * `NO_DATA` 는 **아직 계산되지 않았다**는 뜻이며 오류가 아니다.
+   * 이름 자체가 없는 경우(`not_found`)와 구분해야 한다.
+   */
+  data_status: 'COMPLETE' | 'NO_DATA'
+  /** `rank` 오름차순. */
+  candidates: SimilarCandidate[]
+  not_found: string[]
+}
+
 /** 추이 조회 파라미터. `from`·`to` 생략 시 서버가 기본 구간을 정한다. */
 export interface TrendQuery {
   names: string[]
