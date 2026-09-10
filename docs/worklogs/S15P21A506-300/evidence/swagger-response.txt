@@ -1,0 +1,1 @@
+{"openapi":"3.1.0","info":{"title":"Pickage API","description":"Pickage API 문서","version":"v1"},"servers":[{"url":"/"}],"paths":{},"components":{}}

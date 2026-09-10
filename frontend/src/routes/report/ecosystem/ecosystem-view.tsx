@@ -130,12 +130,20 @@ export function EcosystemView({
 
   return (
     <div className={cn('flex flex-col gap-5', className)}>
-      {/* 0.2 — 부분 실패. 못 찾은 이름은 조용히 사라지면 안 된다 */}
+      {/*
+        0.2 — 부분 실패. 못 찾은 이름은 조용히 사라지면 안 된다.
+
+        **"나머지" 가 실제로 있을 때만 그렇게 말한다.** 요청한 이름이 전부 없으면
+        부분 실패가 아니라 전부 실패이고, 그때 "나머지는 그대로 표시했습니다" 는
+        화면에 보이지도 않는 무언가가 있다고 말하는 셈이다. 적재 직후 이름이
+        하나도 안 맞는 구간에서 실제로 밟힌다.
+      */}
       {model.notFound.length > 0 && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
           찾지 못한 패키지:{' '}
           <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> — 이름을
-          확인해 주세요. 나머지는 그대로 표시했습니다.
+          확인해 주세요.
+          {model.packages.length > 0 && ' 나머지는 그대로 표시했습니다.'}
         </p>
       )}
 
