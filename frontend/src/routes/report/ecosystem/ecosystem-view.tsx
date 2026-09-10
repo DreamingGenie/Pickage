@@ -205,13 +205,23 @@ export function EcosystemView({
             />
           ))}
 
-          <p className="text-base leading-relaxed text-muted-foreground">
-            {expanded.length === 0
-              ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
-              : expanded.length < model.packages.length
-                ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
-                : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
-          </p>
+          {/*
+            카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
+
+            `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
+            두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
+            하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
+            실제로 그렇게 떴다.
+          */}
+          {model.packages.length > 0 && (
+            <p className="text-base leading-relaxed text-muted-foreground">
+              {expanded.length === 0
+                ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
+                : expanded.length < model.packages.length
+                  ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
+                  : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
+            </p>
+          )}
         </div>
       </div>
 
