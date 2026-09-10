@@ -163,5 +163,69 @@ class TopK(QuietMixin, unittest.TestCase):
         self.assertAlmostEqual(cos, float(self.VECS[0] @ self.VECS[cand]), places=5)
 
 
+class BuildText(unittest.TestCase):
+    def test_raw_column_used_verbatim_when_given(self):
+        row = {"description": "assembled", "body": "  raw value  "}
+        self.assertEqual(sbp.build_text(row, "body"), "raw value")
+
+    def test_assembles_description_and_keywords_when_no_raw_column(self):
+        row = {"description": "a queue", "keywords": ["queue", "redis"]}
+        self.assertEqual(
+            sbp.build_text(row, None), "DESCRIPTION: a queue / KEYWORDS: queue, redis"
+        )
+
+    def test_keywords_string_is_wrapped(self):
+        row = {"description": "d", "keywords": "solo"}
+        self.assertEqual(sbp.build_text(row, None), "DESCRIPTION: d / KEYWORDS: solo")
+
+    def test_missing_fields_default_to_empty(self):
+        self.assertEqual(sbp.build_text({}, None), "DESCRIPTION:  / KEYWORDS: ")
+
+
+class Rerank(unittest.TestCase):
+    NAMES = ["base", "x", "y", "z", "w"]
+
+    def _hits(self):
+        # (base_idx, cand_idx, cos) intentionally out of order
+        return [(0, 2, 0.7), (0, 1, 0.9), (0, 3, 0.5), (0, 4, 0.3)]
+
+    def test_score_equals_cosine(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=10)
+        for row in out:
+            self.assertEqual(row["final_score"], row["cos_score"])
+
+    def test_reason_is_semantic_relevance_only(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=10)
+        self.assertTrue(all(r["ranking_reason"] == ["SEMANTIC_RELEVANCE"] for r in out))
+
+    def test_sorted_by_descending_score_with_ranks_from_one(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=10)
+        self.assertEqual([r["candidate_package"] for r in out], ["x", "y", "z", "w"])
+        self.assertEqual([r["rank"] for r in out], [1, 2, 3, 4])
+
+    def test_user_visible_is_rank_le_3(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=10)
+        self.assertEqual([r["user_visible"] for r in out], [True, True, True, False])
+
+    def test_default_selected_is_rank_le_2(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=10)
+        self.assertEqual([r["default_selected"] for r in out], [True, True, False, False])
+
+    def test_k_user_limits_rows_per_base(self):
+        out = sbp.rerank(self._hits(), self.NAMES, k_user=2)
+        self.assertEqual(len(out), 2)
+        self.assertEqual([r["candidate_package"] for r in out], ["x", "y"])
+
+    def test_empty_hits_gives_empty_output(self):
+        self.assertEqual(sbp.rerank([], self.NAMES, k_user=10), [])
+
+    def test_multiple_bases_are_grouped_independently(self):
+        hits = [(0, 1, 0.9), (2, 3, 0.8), (2, 4, 0.6)]
+        out = sbp.rerank(hits, self.NAMES, k_user=10)
+        bases = {r["base_package"]: [x["candidate_package"] for x in out if x["base_package"] == r["base_package"]] for r in out}
+        self.assertEqual(bases["base"], ["x"])
+        self.assertEqual(bases["y"], ["z", "w"])
+
+
 if __name__ == "__main__":
     unittest.main()
