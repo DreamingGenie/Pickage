@@ -51,9 +51,9 @@ export function LoadingOverlay({
         <LogoMark className="size-9 [animation-duration:2.4s] [animation-timing-function:linear] motion-safe:animate-spin" />
 
         <div className="flex flex-col gap-1.5">
-          <p className="text-[15px] font-semibold">{title}</p>
+          <p className="text-base font-semibold">{title}</p>
           {steps && steps.length > 0 && (
-            <p className="min-h-[20px] text-[13px] text-muted-foreground">{steps[i]}</p>
+            <p className="min-h-[20px] text-base text-muted-foreground">{steps[i]}</p>
           )}
         </div>
 

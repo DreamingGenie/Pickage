@@ -82,7 +82,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
   return (
     <div className="flex flex-col gap-4">
       {USE_MOCK && (
-        <p className="rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
+        <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
           mock 응답입니다 (<span className="font-mono">VITE_USE_MOCK=true</span>). 값은 지어낸
           것이고, 모양만 v1 API 명세를 따릅니다.
         </p>
@@ -113,7 +113,7 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
       <p className="text-sm">{api?.message ?? '자료를 불러오지 못했습니다.'}</p>
-      {api && <p className="font-mono text-[11px] text-muted-foreground">{api.code}</p>}
+      {api && <p className="font-mono text-base text-muted-foreground">{api.code}</p>}
       {retryable && (
         <button
           type="button"

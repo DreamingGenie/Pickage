@@ -48,12 +48,12 @@ export function ServiceIntroPage() {
         <HeroBackdrop />
 
         <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
-          <h1 className="text-[46px] leading-[1.12] font-bold tracking-[-0.02em] text-balance">
+          <h1 className="text-4xl leading-[1.12] font-bold tracking-[-0.02em] text-balance">
             판단은 직접,
             <br />
             근거는 여기서
           </h1>
-          <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+          <p className="max-w-lg text-base leading-relaxed text-muted-foreground">
             공개 npm 생태계에서 관측된 변화와 정확한 버전의 공식 자료를 모아 최대 3개 패키지를
             나란히 놓습니다. 어느 쪽이 낫다는 판정은 하지 않습니다.
           </p>
@@ -75,7 +75,7 @@ export function ServiceIntroPage() {
               aria-label="분석할 npm 패키지명"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? 'intro-input-error' : undefined}
-              className="h-14 w-full rounded-full border bg-background pr-16 pl-7 text-[15px] shadow-[0_2px_14px_-4px_rgba(15,23,42,0.14)] transition-shadow outline-none placeholder:text-muted-foreground/70 focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive"
+              className="h-14 w-full rounded-full border bg-background pr-16 pl-7 text-base shadow-[0_2px_14px_-4px_rgba(15,23,42,0.14)] transition-shadow outline-none placeholder:text-muted-foreground/70 focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive"
             />
             <button
               type="submit"
@@ -126,7 +126,7 @@ export function ServiceIntroPage() {
             <div className="flex flex-col gap-2">
               <div className="flex h-9 items-center rounded-md border bg-background px-3">
                 <span
-                  className="inline-block w-0 overflow-hidden align-middle font-mono text-[13px] whitespace-nowrap group-data-[on=true]:animate-oss-type"
+                  className="inline-block w-0 overflow-hidden align-middle font-mono text-base whitespace-nowrap group-data-[on=true]:animate-oss-type"
                   style={{ '--oss-type-w': '7ch' } as React.CSSProperties}
                 >
                   winston
@@ -134,7 +134,7 @@ export function ServiceIntroPage() {
                 <span className="ml-[2px] inline-block h-4 w-px shrink-0 bg-foreground opacity-0 group-data-[on=true]:animate-oss-caret" />
               </div>
               <div
-                className="flex items-center gap-1.5 text-[11px] text-muted-foreground opacity-0 group-data-[on=true]:animate-oss-rise"
+                className="flex items-center gap-1.5 text-base text-muted-foreground opacity-0 group-data-[on=true]:animate-oss-rise"
                 style={{ animationDelay: '840ms' }}
               >
                 <span className="grid size-3.5 place-items-center rounded-full bg-emerald-100 text-emerald-700">
@@ -179,12 +179,12 @@ export function ServiceIntroPage() {
                       </>
                     )}
                   </span>
-                  <span className="font-mono text-[12px]">{c.name}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">{c.tag}</span>
+                  <span className="font-mono text-base">{c.name}</span>
+                  <span className="ml-auto text-base text-muted-foreground">{c.tag}</span>
                 </div>
               ))}
               <span
-                className="mt-0.5 text-[11px] text-muted-foreground tabular-nums opacity-0 group-data-[on=true]:animate-oss-rise"
+                className="mt-0.5 text-base text-muted-foreground tabular-nums opacity-0 group-data-[on=true]:animate-oss-rise"
                 style={{ animationDelay: '700ms' }}
               >
                 2 / 3 선택됨
@@ -226,7 +226,7 @@ export function ServiceIntroPage() {
                 ))}
               </div>
               <span
-                className="text-[11px] text-muted-foreground opacity-0 group-data-[on=true]:animate-oss-rise"
+                className="text-base text-muted-foreground opacity-0 group-data-[on=true]:animate-oss-rise"
                 style={{ animationDelay: '1120ms' }}
               >
                 셀을 누르면 근거 발췌가 열립니다
@@ -250,7 +250,7 @@ export function ServiceIntroPage() {
           {/* 1페이지 */}
           <article className="flex flex-col gap-6 rounded-2xl border bg-muted/30 p-7">
             <header className="flex items-baseline justify-between gap-3">
-              <h3 className="text-[15px] font-semibold">1. 생태계 변화</h3>
+              <h3 className="text-base font-semibold">1. 생태계 변화</h3>
               <span className="font-mono text-xs text-muted-foreground">카드를 눌러보세요</span>
             </header>
             <EcosystemView model={SAMPLE_ECOSYSTEM} compactChart />
@@ -259,13 +259,13 @@ export function ServiceIntroPage() {
           {/* 2페이지 */}
           <article className="flex flex-col gap-6 rounded-2xl border bg-muted/30 p-7">
             <header className="flex items-baseline justify-between gap-3">
-              <h3 className="text-[15px] font-semibold">2. 기능 비교</h3>
+              <h3 className="text-base font-semibold">2. 기능 비교</h3>
               <span className="font-mono text-xs text-muted-foreground">정확한 버전 기준</span>
             </header>
 
             <div className="flex flex-wrap gap-1.5">
               {EXAMPLE_COMPARISON_PACKAGES.map((p) => (
-                <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-[11px]">
+                <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-base">
                   {p}
                 </span>
               ))}
@@ -291,7 +291,7 @@ export function ServiceIntroPage() {
                         <div className="flex flex-col gap-0.5">
                           <VerdictPill verdict={cell.verdict} />
                           {cell.note && (
-                            <span className="font-mono text-[10px] leading-tight text-muted-foreground">
+                            <span className="font-mono text-base leading-tight text-muted-foreground">
                               {cell.note}
                             </span>
                           )}
@@ -303,7 +303,7 @@ export function ServiceIntroPage() {
               </tbody>
             </table>
 
-            <p className="border-t pt-3 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="border-t pt-3 text-base leading-relaxed text-muted-foreground">
               <strong className="font-medium text-foreground">미확인</strong>은 미지원이 아닙니다.
               해당 버전 자료에서 확인되지 않았다는 뜻이고, 무엇을 어디까지 찾아봤는지 함께
               보여줍니다. <strong className="font-medium text-foreground">미지원</strong>은 공식
@@ -427,15 +427,15 @@ function Step({
       className="group flex flex-col gap-5 rounded-2xl border bg-background p-7 opacity-45 grayscale transition-[opacity,filter,border-color,box-shadow] duration-500 data-[on=true]:border-foreground/30 data-[on=true]:opacity-100 data-[on=true]:shadow-[0_2px_16px_-8px_rgba(15,23,42,0.25)] data-[on=true]:grayscale-0"
     >
       <div className="flex items-center gap-3">
-        <span className="grid size-6 place-items-center rounded-full bg-foreground font-mono text-[11px] text-background tabular-nums">
+        <span className="grid size-6 place-items-center rounded-full bg-foreground font-mono text-base text-background tabular-nums">
           {index}
         </span>
         <span className="h-px flex-1 bg-border" />
       </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-[22px] leading-tight font-bold tracking-tight">{keyword}</h3>
-        <p className="text-[13px] leading-relaxed text-muted-foreground">{desc}</p>
+        <h3 className="text-2xl leading-tight font-bold tracking-tight">{keyword}</h3>
+        <p className="text-base leading-relaxed text-muted-foreground">{desc}</p>
       </div>
 
       <div key={runKey} className="mt-auto rounded-lg border bg-muted/50 p-3">
@@ -456,7 +456,7 @@ function VerdictPill({ verdict }: { verdict: Verdict }) {
   }
   return (
     <span
-      className={`w-fit rounded px-1.5 py-0.5 text-[11px] font-medium ${style[verdict]}`}
+      className={`w-fit rounded px-1.5 py-0.5 text-base font-medium ${style[verdict]}`}
       title={verdict}
     >
       {VERDICT_LABEL[verdict]}

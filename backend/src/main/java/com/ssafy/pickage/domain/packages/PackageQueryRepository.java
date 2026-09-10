@@ -186,7 +186,7 @@ public class PackageQueryRepository {
 	 * 화면에 없는 급락이 그려진다.
 	 */
 	private static final String DOWNLOADS_TREND_SQL = """
-		SELECT p.name, ps.snapshot_at, ps.downloads AS value
+		SELECT p.name, NULL::text AS major, ps.snapshot_at, ps.downloads AS value
 		FROM package_snapshot ps
 		JOIN package p ON p.package_id = ps.package_id
 		WHERE p.name = ANY(?)
@@ -196,23 +196,61 @@ public class PackageQueryRepository {
 		""";
 
 	/**
-	 * 명세 §5 — 의존 수 추이.
+	 * 명세 §5 — 의존 수 추이. <b>major 별로 쪼개서 내보낸다.</b>
 	 *
 	 * <p><b>{@code GROUP BY} 에 {@code p.name} 이 들어간 것이 배치화의 전부다.</b>
 	 * 빠지면 모든 패키지의 의존 수가 한 덩어리로 합쳐진다.
 	 *
 	 * <p>이 합계는 버전별 합산이라 <b>실제 사용처 수보다 크다</b> — 한 프로젝트가
-	 * {@code ^4.17.0} 으로 여러 버전에 걸리기 때문이다. 응답의 {@code sum_over_versions} 가
-	 * 그 사실을 화면에 알린다.
+	 * {@code ^4.17.0} 으로 4.x 의 여러 버전에 걸리기 때문이다. major 로 접어도 그 중복은
+	 * 그대로여서 응답의 {@code sum_over_versions} 는 여전히 참이다.
+	 *
+	 * <h2>합치지 않고 쪼개서 보내는 이유</h2>
+	 *
+	 * 화면은 패키지 카드마다 <b>독립적으로</b> 표시 버전을 고른다(구상안 §5.2 ·
+	 * {@code selectedDisplayVersion}). 고를 때마다 서버에 물으면 카드 수만큼 요청이 오간다.
+	 * major 별로 한 번에 보내면 {@code TOTAL} 은 화면에서 더하고 특정 버전은 골라 쓰기만 하면
+	 * 되어 <b>왕복이 0 회</b>가 된다. 조회 기간을 상한만큼 한 번에 받는 것과 같은 이유다.
+	 *
+	 * <h2>함정 둘</h2>
+	 *
+	 * <p><b>major 는 문자열이다.</b> {@code split_part} 의 결과라 그대로 정렬하면
+	 * {@code '1' < '10' < '2'} 가 된다. 범례와 색 순서가 그대로 어긋나므로 숫자로 정렬한다.
+	 * 숫자가 아닌 major(prerelease 등)는 캐스팅이 터지지 않도록 뒤로 보낸다.
+	 *
+	 * <p><b>앞쪽 0 은 자르고 뒤쪽 0 은 남긴다.</b> 아직 나오지 않은 버전까지 바닥에 0 으로
+	 * 깔리면 "2년 전부터 5.x 가 있었다" 는 그림이 된다. 반대로 쇠퇴해서 0 에 닿은 버전을
+	 * 빼면 선이 끊겨 사라진다 — 0 으로 내려가는 것이 그 버전의 이야기다. 그래서 <b>처음으로
+	 * 0 이 아니었던 시점부터</b> 그리고, 그 뒤의 0 은 그대로 둔다. 끝내 한 번도 0 이 아닌 적이
+	 * 없던 major 는 아예 내보내지 않는다.
 	 */
 	private static final String DEPENDENTS_TREND_SQL = """
-		SELECT p.name, pvs.snapshot_at, SUM(pvs.dependents_count) AS value
-		FROM package_version_snapshot pvs
-		JOIN package p ON p.package_id = pvs.package_id
-		WHERE p.name = ANY(?)
-		  AND pvs.snapshot_at BETWEEN ? AND ?
-		GROUP BY p.name, pvs.snapshot_at
-		ORDER BY p.name, pvs.snapshot_at
+		WITH per_major AS (
+		  SELECT p.name,
+		         split_part(pvs.version, '.', 1) AS major,
+		         pvs.snapshot_at,
+		         SUM(pvs.dependents_count)        AS value
+		  FROM package_version_snapshot pvs
+		  JOIN package p ON p.package_id = pvs.package_id
+		  WHERE p.name = ANY(?)
+		    AND pvs.snapshot_at BETWEEN ? AND ?
+		  GROUP BY p.name, 2, pvs.snapshot_at
+		),
+		started AS (
+		  SELECT name, major, MIN(snapshot_at) FILTER (WHERE value > 0) AS first_at
+		  FROM per_major
+		  GROUP BY name, major
+		)
+		SELECT m.name, m.major, m.snapshot_at, m.value
+		FROM per_major m
+		JOIN started s ON s.name = m.name AND s.major = m.major
+		WHERE s.first_at IS NOT NULL
+		  AND m.snapshot_at >= s.first_at
+		ORDER BY m.name,
+		         CASE WHEN m.major ~ '^[0-9]{1,9}$' THEN 0 ELSE 1 END,
+		         CASE WHEN m.major ~ '^[0-9]{1,9}$' THEN m.major::bigint END,
+		         m.major,
+		         m.snapshot_at
 		""";
 
 	public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
@@ -232,11 +270,13 @@ public class PackageQueryRepository {
 			},
 			(rs, i) -> new TrendRow(
 				rs.getString("name"),
+				rs.getString("major"),
 				rs.getObject("snapshot_at", LocalDate.class),
 				rs.getLong("value")));
 	}
 
-	public record TrendRow(String name, LocalDate snapshotAt, long value) {
+	/** {@code major} 는 dependents 에만 있다. downloads 는 버전으로 쪼갤 수 없어 항상 {@code null} 이다. */
+	public record TrendRow(String name, String major, LocalDate snapshotAt, long value) {
 	}
 
 	/* ------------------------------------------------------------------ *

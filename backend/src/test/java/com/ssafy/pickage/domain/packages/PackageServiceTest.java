@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -229,7 +231,7 @@ class PackageServiceTest {
 	}
 
 	private static final List<TrendRow> ONE_ROW =
-		List.of(new TrendRow("express", SNAPSHOT, 100L));
+		List.of(new TrendRow("express", null, SNAPSHOT, 100L));
 
 	/**
 	 * 추이 두 개는 <b>같은 규칙</b>을 쓴다. 한 시험에서 둘 다 부른다 — 나눠 두면 한쪽만
@@ -304,6 +306,98 @@ class PackageServiceTest {
 
 		assertEquals(new SnapshotWindow(SNAPSHOT.minusWeeks(25), SNAPSHOT), fake.queried.getFirst());
 		assertEquals(1, res.series().getFirst().points().size());
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * §5 — major 별 쪼개기
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * major 정렬은 <b>SQL 이 한다</b>(문자열 정렬이면 {@code '1' < '10' < '2'} 가 되므로
+	 * 숫자로 세운다). 서비스가 다시 정렬하면 그 규칙이 무의미해지므로, 받은 순서를 그대로
+	 * 지키는지 본다 — 일부러 숫자 순서로는 어긋난 순서를 넣지 않고, SQL 이 준 순서를 흉내 낸다.
+	 */
+	@Test
+	@DisplayName("§5 — 같은 이름이 major 개수만큼 갈라지고, SQL 이 준 순서를 그대로 지킨다")
+	void dependentsSplitByMajorKeepsSqlOrder() {
+		List<TrendRow> rows = List.of(
+			new TrendRow("express", "4", SNAPSHOT, 700L),
+			new TrendRow("express", "5", SNAPSHOT, 300L),
+			new TrendRow("express", "10", SNAPSHOT, 50L),
+			new TrendRow("koa", "2", SNAPSHOT, 120L));
+		PackageService service = new PackageService(
+			new FakeRepository(SNAPSHOT, List.of("express", "koa"), rows));
+
+		var res = service.getDependentsTrend(PackageNames.of(List.of("express", "koa")), null, null);
+
+		assertEquals(List.of("express", "express", "express", "koa"),
+			res.series().stream().map(s -> s.name()).toList());
+		assertEquals(List.of("4", "5", "10", "2"),
+			res.series().stream().map(s -> s.major()).toList());
+		// 버전별 합산이라는 사실은 major 로 접어도 그대로다.
+		assertEquals(Boolean.TRUE, res.sumOverVersions());
+	}
+
+	/**
+	 * <b>이 시험이 회귀를 막는 지점이다.</b> major 로 쪼갠 뒤 전부 더한 값이 쪼개기 전의
+	 * 합계와 달라지면 어딘가에서 행이 새거나 겹친 것이다. 화면의 {@code TOTAL} 이 그 덧셈을
+	 * 그대로 하므로, 여기가 어긋나면 사용자가 보는 숫자가 바뀐다.
+	 */
+	@Test
+	@DisplayName("§5 — major 별 값을 날짜마다 더하면 쪼개기 전 합계와 같다")
+	void majorSlicesSumBackToTotal() {
+		LocalDate week1 = SNAPSHOT.minusWeeks(1);
+		List<TrendRow> rows = List.of(
+			new TrendRow("express", "4", week1, 900L),
+			new TrendRow("express", "4", SNAPSHOT, 700L),
+			new TrendRow("express", "5", week1, 100L),
+			new TrendRow("express", "5", SNAPSHOT, 300L));
+		PackageService service = new PackageService(
+			new FakeRepository(SNAPSHOT, List.of("express"), rows));
+
+		var res = service.getDependentsTrend(PackageNames.of(List.of("express")), null, null);
+
+		Map<LocalDate, Long> total = new LinkedHashMap<>();
+		for (var s : res.series()) {
+			for (var p : s.points()) total.merge(p.snapshotAt(), p.value(), Long::sum);
+		}
+		assertEquals(1000L, total.get(week1));
+		assertEquals(1000L, total.get(SNAPSHOT));
+	}
+
+	/**
+	 * 존재하는 이름인데 구간에 행이 하나도 없으면 쪼갤 것이 없다. major 를 지어내지 않고
+	 * {@code null} 로 둔다 — 화면은 이것을 "자료 없음" 으로 읽고, {@code not_found}(이름 자체가
+	 * 없음)와 구분한다.
+	 */
+	@Test
+	@DisplayName("§5 — 점이 없는 패키지는 major 가 null 인 빈 시리즈 하나다")
+	void packageWithoutRowsGetsSingleNullMajorSeries() {
+		PackageService service = new PackageService(
+			new FakeRepository(SNAPSHOT, List.of("express", "consola"),
+				List.of(new TrendRow("express", "4", SNAPSHOT, 700L))));
+
+		var res = service.getDependentsTrend(PackageNames.of(List.of("express", "consola")), null, null);
+
+		assertEquals(2, res.series().size());
+		var consola = res.series().get(1);
+		assertEquals("consola", consola.name());
+		assertNull(consola.major(), "쪼갤 행이 없으면 major 를 지어내지 않는다");
+		assertTrue(consola.points().isEmpty());
+		assertTrue(res.notFound().isEmpty(), "존재하는 이름이 not_found 로 가면 안 된다");
+	}
+
+	@Test
+	@DisplayName("§4 — downloads 는 버전으로 쪼갤 수 없어 major 가 없다")
+	void downloadsHasNoMajor() {
+		PackageService service = new PackageService(
+			new FakeRepository(SNAPSHOT, List.of("express"), ONE_ROW));
+
+		var res = service.getDownloadsTrend(PackageNames.of(List.of("express")), null, null);
+
+		assertEquals(1, res.series().size());
+		assertNull(res.series().getFirst().major());
+		assertNull(res.sumOverVersions(), "downloads 에는 이 꼬리표가 붙지 않는다");
 	}
 
 	@Test

@@ -1,13 +1,18 @@
 import { useMemo, useState } from 'react'
 
 import { SeriesLegend } from '@/components/charts/line-chart'
+import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
   EcosystemToolbar,
   type EcosystemControls,
 } from '@/routes/report/ecosystem/ecosystem-toolbar'
 import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
-import { type EcosystemModel } from '@/routes/report/ecosystem/model'
+import {
+  ALL_MAJORS,
+  type EcosystemModel,
+  type MajorSelection,
+} from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
 /**
@@ -68,6 +73,46 @@ export function EcosystemView({
   }
 
   /**
+   * 카드별 표시 버전 (구상안 §5.2). **패키지마다 독립이다.**
+   *
+   * 서버 왕복이 없다 — major 별 시리즈를 이미 다 받아 두었고 여기서 고르거나 더할 뿐이다.
+   * 비교 조합이 바뀌면 선택을 되돌린다. 없어진 패키지의 선택이 남아 있으면 다음에 같은
+   * 이름이 들어왔을 때 엉뚱한 버전으로 시작한다.
+   */
+  const [versions, setVersions] = useState<{
+    key: string
+    byName: Record<string, MajorSelection>
+  }>({ key: '', byName: {} })
+
+  const versionKey = model.packages.map((p) => p.key).join(',')
+  const versionByName = versions.key === versionKey ? versions.byName : {}
+
+  function selectVersion(name: string, next: MajorSelection) {
+    setVersions({ key: versionKey, byName: { ...versionByName, [name]: next } })
+  }
+
+  /**
+   * 고른 버전이 반영된 Dependents 선과 카드.
+   *
+   * 증감도 여기서 다시 센다 — 4.x 만 보고 있는데 증감이 전 버전 합계면 카드 안의 두 숫자가
+   * 서로 다른 것을 가리키게 된다.
+   */
+  const dependentsSeries = model.packages.map((p) =>
+    dependentsLineOf(
+      p.key,
+      model.dependentsByMajor[p.key] ?? [],
+      versionByName[p.key] ?? ALL_MAJORS,
+    ),
+  )
+
+  const seriesByName = new Map(dependentsSeries.map((s) => [s.key, s]))
+  const packages = model.packages.map((p) => ({
+    ...p,
+    // 어댑터와 같은 함수를 쓴다. 결측 처리를 두 곳에서 각자 하면 언젠가 갈린다.
+    dependentsDelta: deltaOf(seriesByName.get(p.key)),
+  }))
+
+  /**
    * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.
    * 접힌 패키지는 차트에서도 물러난다 — 그래서 선택이 아니라 펼침 상태가 강조를 정한다.
    */
@@ -92,7 +137,7 @@ export function EcosystemView({
         하나도 안 맞는 구간에서 실제로 밟힌다.
       */}
       {model.notFound.length > 0 && (
-        <p className="rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
+        <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
           찾지 못한 패키지:{' '}
           <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> — 이름을
           확인해 주세요.
@@ -102,73 +147,91 @@ export function EcosystemView({
 
       <EcosystemToolbar controls={controls} onChange={onControlsChange} snapshots={snapshots} />
 
-      {/* 두 카드가 같은 시리즈·같은 선 모양을 쓰므로 범례도 한 번만 */}
-      <SeriesLegend series={model.series.dependents} emphasisKeys={expanded} />
-
-      {/* 세로로 쌓는다. 같은 시간축을 위아래로 겹쳐 읽는 게 나란히 두는 것보다 낫다 */}
-      <div className="flex flex-col gap-5">
-        <MetricChart
-          title="Dependents"
-          unit="의존 수 · 버전별 합계"
-          series={model.series.dependents}
-          window={window}
-          intervalKey={intervalKey}
-          observedFrom={model.observedFrom.dependents}
-          coverageNote="이 지표의 관측 시작"
-          emphasisKeys={expanded}
-          height={height}
-        />
-        <MetricChart
-          title="Downloads"
-          unit="주간 · npm 공식 자료"
-          series={model.series.downloads}
-          window={window}
-          intervalKey={intervalKey}
-          observedFrom={model.observedFrom.downloads}
-          coverageNote="이 지표의 관측 시작"
-          emphasisKeys={expanded}
-          height={height}
-        />
-      </div>
-
-      <div className="grid items-start gap-4">
-        {model.packages.map((p, i) => (
-          <PackageCard
-            key={p.key}
-            model={p}
-            index={i}
-            expanded={expanded.includes(p.key)}
-            onToggle={() =>
-              setCollapsed({
-                key: packageKeys,
-                keys: collapsedKeys.includes(p.key)
-                  ? collapsedKeys.filter((k) => k !== p.key)
-                  : [...collapsedKeys, p.key],
-              })
-            }
-          />
-        ))}
-      </div>
+      {/*
+        두 카드가 같은 선 모양을 쓰므로 범례도 한 번만.
+        Dependents 쪽을 기준으로 삼는다 — 표시 버전을 고르면 라벨에 그 사실이 실려서
+        (`express 4.x`) 어느 선이 무엇인지 범례만 봐도 알 수 있다.
+      */}
+      <SeriesLegend series={dependentsSeries} emphasisKeys={expanded} />
 
       {/*
-        카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
+        좌: 차트 둘, 우: 패키지 카드.
 
-        `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
-        두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
-        하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
-        실제로 그렇게 떴다.
+        차트를 세로로 쌓고 그 아래에 카드를 두면, **버전을 고르는 자리와 그 결과가 그려지는
+        자리가 한 화면에 같이 안 들어온다.** 카드에서 4.x 를 눌러 놓고 위로 스크롤해서
+        확인하고 다시 내려와야 한다. 좌우로 나누면 누르는 즉시 옆에서 선이 바뀌는 것이 보인다.
+
+        차트 쪽을 `sticky` 로 붙여 둔다 — 카드가 길어져도 그래프가 화면에 남는다.
+
+        좁은 화면에서는 한 줄로 무너진다. 그때는 차트가 먼저 오고 카드가 아래로 간다.
       */}
-      {model.packages.length > 0 && (
-        <p className="text-[11px] text-muted-foreground">
-          {expanded.length === 0
-            ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
-            : expanded.length < model.packages.length
-              ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
-              : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
-        </p>
-      )}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
+          <MetricChart
+            title="Dependents"
+            unit="의존 수 · 버전별 합계"
+            series={dependentsSeries}
+            window={window}
+            intervalKey={intervalKey}
+            observedFrom={model.observedFrom.dependents}
+            coverageNote="이 지표의 관측 시작"
+            emphasisKeys={expanded}
+            height={height}
+          />
+          <MetricChart
+            title="Downloads"
+            unit="주간 · npm 공식 자료"
+            series={model.series.downloads}
+            window={window}
+            intervalKey={intervalKey}
+            observedFrom={model.observedFrom.downloads}
+            coverageNote="이 지표의 관측 시작"
+            emphasisKeys={expanded}
+            height={height}
+          />
+        </div>
 
-      <p className="font-mono text-[10.5px] text-muted-foreground">
+        <div className="grid min-w-0 items-start gap-4">
+          {packages.map((p, i) => (
+            <PackageCard
+              key={p.key}
+              model={p}
+              index={i}
+              expanded={expanded.includes(p.key)}
+              selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
+              onVersionChange={(next) => selectVersion(p.key, next)}
+              onToggle={() =>
+                setCollapsed({
+                  key: packageKeys,
+                  keys: collapsedKeys.includes(p.key)
+                    ? collapsedKeys.filter((k) => k !== p.key)
+                    : [...collapsedKeys, p.key],
+                })
+              }
+            />
+          ))}
+
+          {/*
+            카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
+
+            `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
+            두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
+            하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
+            실제로 그렇게 떴다.
+          */}
+          {model.packages.length > 0 && (
+            <p className="text-base leading-relaxed text-muted-foreground">
+              {expanded.length === 0
+                ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
+                : expanded.length < model.packages.length
+                  ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
+                  : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <p className="font-mono text-base text-muted-foreground">
         {/* 기준일이 없다 = 아직 첫 스냅샷을 못 받았다. 장애가 아니라 자료 축적 중이다. */}
         {model.snapshotAt ? `기준 스냅샷 ${model.snapshotAt}` : '기준 스냅샷 없음 — 데이터 축적 중'}
       </p>

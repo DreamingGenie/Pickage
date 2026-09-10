@@ -14,6 +14,7 @@ import {
   LATEST_SNAPSHOT,
   MOCK_DICTIONARY,
   MOCK_PACKAGES,
+  dependentsByMajor,
   pointMetric,
   seriesOf,
   type MockPackage,
@@ -204,17 +205,38 @@ function resolveWindow(from?: string, to?: string): { from: string; to: string }
   return { from: start, to: end }
 }
 
-function buildSeries(
+const inWindow = (window: { from: string; to: string }) => (p: { snapshot_at: string }) =>
+  p.snapshot_at >= window.from && p.snapshot_at <= window.to
+
+function buildDownloadsSeries(
   found: MockPackage[],
-  metric: 'downloads' | 'dependents',
   window: { from: string; to: string },
 ): TrendSeries[] {
   return found.map((pkg) => ({
     name: pkg.name,
-    points: seriesOf(pkg, metric).filter(
-      (p) => p.snapshot_at >= window.from && p.snapshot_at <= window.to,
-    ),
+    points: seriesOf(pkg, 'downloads').filter(inWindow(window)),
   }))
+}
+
+/**
+ * §5 — dependents 는 **major 별로 갈라져 나간다.** 같은 이름이 여러 번 나온다.
+ *
+ * 쪼갤 행이 없는 패키지(스냅샷 미수신)는 서버와 같이 **`major` 없는 빈 시리즈 하나**로
+ * 낸다. 빼버리면 화면이 그 이름을 못 찾은 것으로 오해한다.
+ */
+function buildDependentsSeries(
+  found: MockPackage[],
+  window: { from: string; to: string },
+): TrendSeries[] {
+  // 반환 타입을 못 박는다. 안 적으면 두 갈래(major 있는 것 · 없는 것)의 리터럴 타입이
+  // 서로 다른 배열로 추론되어 `major` 가 필수인 쪽으로 좁혀진다.
+  return found.flatMap((pkg): TrendSeries[] => {
+    const split = dependentsByMajor(pkg)
+      .map((r) => ({ name: pkg.name, major: r.major, points: r.points.filter(inWindow(window)) }))
+      .filter((r) => r.points.length > 0)
+
+    return split.length > 0 ? split : [{ name: pkg.name, points: [] }]
+  })
 }
 
 export function mockDownloadsTrend({
@@ -229,7 +251,7 @@ export function mockDownloadsTrend({
   return delay<DownloadsTrendResponse>({
     metric: 'downloads',
     unit: 'weekly',
-    series: buildSeries(found, 'downloads', window),
+    series: buildDownloadsSeries(found, window),
     not_found,
   })
 }
@@ -246,7 +268,7 @@ export function mockDependentsTrend({
   return delay<DependentsTrendResponse>({
     metric: 'dependents',
     sum_over_versions: true,
-    series: buildSeries(found, 'dependents', window),
+    series: buildDependentsSeries(found, window),
     not_found,
   })
 }

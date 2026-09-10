@@ -160,7 +160,7 @@ export function AnalyzePage() {
             base && (
               <span className="flex items-center gap-2">
                 <span className="font-mono font-medium">{base}</span>
-                <span className="text-[11px] text-muted-foreground">npm에서 확인됨</span>
+                <span className="text-base text-muted-foreground">npm에서 확인됨</span>
               </span>
             )
           }
@@ -198,7 +198,7 @@ export function AnalyzePage() {
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               버전은 여기서 고르지 않습니다. 보고서 안에서 선택합니다.
             </p>
           </div>
@@ -214,7 +214,7 @@ export function AnalyzePage() {
                   <h3 className="text-xl font-semibold tracking-tight">
                     비교할 패키지를 선택하세요
                   </h3>
-                  <p className="text-[13px] text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     설명·키워드가 가까운 후보 중 상위 2개가 기본 선택되며 총 {MAX_COMPARISON}
                     개까지만 비교합니다. 완전한 대체 관계나 품질 순위를 의미하지 않습니다.
                   </p>
@@ -223,7 +223,7 @@ export function AnalyzePage() {
                 {candidates.length === 0 ? (
                   <div className="rounded-2xl border border-dashed px-6 py-10 text-center">
                     <p className="text-sm">관련 후보를 찾지 못했습니다.</p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">
+                    <p className="mt-1 text-base text-muted-foreground">
                       비교할 패키지를 아래에서 직접 추가하거나 다른 기준 패키지로 시작해 보세요.
                     </p>
                   </div>
@@ -232,7 +232,7 @@ export function AnalyzePage() {
                 )}
 
                 {limitHit && (
-                  <p className="text-[12px] text-amber-700">
+                  <p className="text-base text-amber-700">
                     {MAX_COMPARISON}개를 이미 골랐습니다. 하나를 해제한 뒤 다시 선택해 주세요.
                   </p>
                 )}
@@ -240,8 +240,8 @@ export function AnalyzePage() {
                 {/* 직접 추가 (IA 6.1) */}
                 <div className="flex flex-col gap-4 rounded-2xl border bg-muted/25 p-6">
                   <div className="flex flex-col gap-1">
-                    <h4 className="text-[13px] font-semibold">찾는 패키지가 없나요?</h4>
-                    <p className="text-[12px] text-muted-foreground">
+                    <h4 className="text-base font-semibold">찾는 패키지가 없나요?</h4>
+                    <p className="text-base text-muted-foreground">
                       {full
                         ? `최대 ${MAX_COMPARISON}개가 선택되었습니다. 다른 패키지를 추가하려면 선택한 후보 1개를 먼저 해제하세요.`
                         : '이름을 알고 있다면 직접 추가할 수 있습니다. 후보 순위는 바뀌지 않습니다.'}
@@ -268,7 +268,7 @@ export function AnalyzePage() {
                       패키지 추가
                     </Button>
                   </div>
-                  {extraError && <p className="text-[12px] text-destructive">{extraError}</p>}
+                  {extraError && <p className="text-base text-destructive">{extraError}</p>}
                 </div>
               </div>
             </StepCard>
@@ -280,8 +280,8 @@ export function AnalyzePage() {
       {base && (
         <div className="sticky bottom-0 z-20 -mx-10 -mt-8 border-t bg-background/95 px-10 py-4 backdrop-blur">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-5 gap-y-3">
-            <span className="text-[12px] font-medium">선택한 비교 대상</span>
-            <span className="font-mono text-[12px] tabular-nums">
+            <span className="text-base font-medium">선택한 비교 대상</span>
+            <span className="font-mono text-base tabular-nums">
               {selected.length} / {MAX_COMPARISON} 선택됨
             </span>
             <div className="flex flex-wrap items-center gap-2">
@@ -316,13 +316,13 @@ function Chip({ name, fixed, onRemove }: { name: string; fixed: boolean; onRemov
   return (
     <span
       className={cn(
-        'flex items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-[12px]',
+        'flex items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-base',
         fixed && 'bg-muted/60',
       )}
     >
       {name}
       {fixed ? (
-        <span className="font-sans text-[10px] text-muted-foreground">기준</span>
+        <span className="font-sans text-base text-muted-foreground">기준</span>
       ) : (
         <button
           type="button"

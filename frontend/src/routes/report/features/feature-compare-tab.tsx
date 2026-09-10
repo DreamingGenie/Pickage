@@ -42,12 +42,12 @@ export function FeatureCompareTab({
         <header className="flex flex-wrap items-baseline justify-between gap-3">
           <h3 className="text-sm font-semibold">핵심 기능 비교</h3>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] text-muted-foreground">정확한 버전 기준</span>
+            <span className="font-mono text-base text-muted-foreground">정확한 버전 기준</span>
             <button
               type="button"
               onClick={run.restart}
               disabled={running}
-              className="rounded-md border px-2.5 py-1 text-[11px] transition-colors hover:border-foreground/40 disabled:opacity-50"
+              className="rounded-md border px-2.5 py-1 text-base transition-colors hover:border-foreground/40 disabled:opacity-50"
             >
               선택한 버전으로 재분석
             </button>
@@ -56,14 +56,14 @@ export function FeatureCompareTab({
 
         <div className="flex flex-wrap gap-1.5">
           {COMPARISON_PACKAGES.map((p) => (
-            <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-[11px]">
+            <span key={p} className="rounded border px-1.5 py-0.5 font-mono text-base">
               {p}
             </span>
           ))}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[13px]">
+          <table className="w-full min-w-[560px] text-base">
             <thead>
               <tr className="text-muted-foreground">
                 <th className="pb-3 text-left font-normal">확인 항목</th>
@@ -89,12 +89,12 @@ export function FeatureCompareTab({
                       >
                         <VerdictPill verdict={cell.verdict} />
                         {cell.note && (
-                          <span className="font-mono text-[10.5px] leading-tight text-muted-foreground">
+                          <span className="font-mono text-base leading-tight text-muted-foreground">
                             {cell.note}
                           </span>
                         )}
                         {cell.evidenceId && (
-                          <span className="font-mono text-[10px] text-muted-foreground underline underline-offset-2">
+                          <span className="font-mono text-base text-muted-foreground underline underline-offset-2">
                             {cell.evidenceId}
                           </span>
                         )}
@@ -107,7 +107,7 @@ export function FeatureCompareTab({
           </table>
         </div>
 
-        <p className="border-t pt-4 text-[11.5px] leading-relaxed text-muted-foreground">
+        <p className="border-t pt-4 text-base leading-relaxed text-muted-foreground">
           <strong className="font-medium text-foreground">미확인</strong>은 미지원이 아닙니다. 해당
           버전 자료에서 확인되지 않았다는 뜻이고, 무엇을 어디까지 찾아봤는지 근거에 함께 담깁니다.{' '}
           <strong className="font-medium text-foreground">미지원</strong>은 공식 부정 근거가 있을
@@ -129,11 +129,7 @@ export function VerdictPill({ verdict, className }: { verdict: Verdict; classNam
   }
   return (
     <span
-      className={cn(
-        'w-fit rounded px-1.5 py-0.5 text-[11px] font-medium',
-        style[verdict],
-        className,
-      )}
+      className={cn('w-fit rounded px-1.5 py-0.5 text-base font-medium', style[verdict], className)}
       title={verdict}
     >
       {VERDICT_LABEL[verdict]}

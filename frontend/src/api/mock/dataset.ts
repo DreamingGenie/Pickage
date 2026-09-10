@@ -960,6 +960,70 @@ export function seriesOf(
   }))
 }
 
+/**
+ * dependents 를 major 별로 쪼갠다 (§5).
+ *
+ * **날짜마다 조각의 합이 `seriesOf(pkg, 'dependents')` 와 정확히 같다.** 마지막 조각이
+ * 나머지를 받아 반올림 오차를 흡수한다. 화면의 `TOTAL` 이 이 덧셈을 그대로 하므로,
+ * 여기가 어긋나면 mock 과 실서버의 숫자가 달라진다.
+ *
+ * **지분을 고정하지 않는다.** 고정하면 모든 major 가 똑같은 모양으로 오르내려서
+ * "새 버전이 퍼지고 구버전이 물러난다" 는 그림이 나오지 않고, 버전 선택기를 눌러도
+ * 곡선 모양이 같아 화면이 제대로 도는지 알 수 없다. 그래서 최신 major 는 0 에서 자라고
+ * 구버전은 서서히 물러나게 한다 — `majors` 의 값은 **마지막 스냅샷의 상태**다.
+ *
+ * 서버와 같은 규칙으로 **앞쪽 0 은 잘라내고 뒤쪽 0 은 남긴다.** 아직 나오지 않은 버전이
+ * 바닥에 깔리면 "2년 전부터 있었다" 가 되고, 쇠퇴해 0 에 닿은 버전을 빼면 선이 끊긴다.
+ */
+export function dependentsByMajor(
+  pkg: MockPackage,
+): { major: string; points: { snapshot_at: string; value: number }[] }[] {
+  const total = seriesOf(pkg, 'dependents')
+  if (total.length === 0 || pkg.majors.length === 0) return []
+
+  // 최신 major 가 앞. 서버가 숫자로 정렬해 보내는 순서와 맞춘다.
+  const majors = [...pkg.majors].sort((a, b) => numericMajor(b.major) - numericMajor(a.major))
+  const last = total.length - 1
+
+  const rows = majors.map((m) => ({ major: m.major, points: [] as typeof total }))
+
+  total.forEach((point, i) => {
+    // 0 → 1 로 가는 시간. 마지막 스냅샷에서 t = 1 이라 지분이 `majors` 그대로가 된다.
+    const t = last === 0 ? 1 : i / last
+    const weights = majors.map(
+      (m, k) =>
+        k === 0
+          ? m.dependents * t // 최신 major 는 0 에서 자란다
+          : m.dependents * (1 + (1 - t) * 0.6), // 구버전은 예전에 더 두터웠다
+    )
+    const sum = weights.reduce((a, b) => a + b, 0)
+
+    let assigned = 0
+    weights.forEach((w, k) => {
+      const value =
+        k === weights.length - 1
+          ? point.value - assigned // 나머지. 합이 정확히 맞는다
+          : sum === 0
+            ? 0
+            : Math.round((point.value * w) / sum)
+      assigned += value
+      rows[k].points.push({ snapshot_at: point.snapshot_at, value: Math.max(0, value) })
+    })
+  })
+
+  return rows
+    .map((r) => {
+      const first = r.points.findIndex((p) => p.value > 0)
+      return { major: r.major, points: first < 0 ? [] : r.points.slice(first) }
+    })
+    .filter((r) => r.points.length > 0)
+}
+
+/** 숫자가 아닌 major 는 뒤로 보낸다. 서버 SQL 의 정렬 규칙과 같다. */
+function numericMajor(major: string): number {
+  return /^\d{1,9}$/.test(major) ? Number(major) : -1
+}
+
 /** 스냅샷 시점의 stars / open_issues. 직전 대비 증감을 만들기 위해 필요하다. */
 export function pointMetric(
   pkg: MockPackage,
