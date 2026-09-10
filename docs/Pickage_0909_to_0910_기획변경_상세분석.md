@@ -1,14 +1,15 @@
 # Pickage 0909→0910 기획변경 상세분석
 
 작성 기준일: 2026-09-10
-연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`
-유지 결정: `DEC-COMMUNITY-20260909-01`, `DEC-RANK-20260909-01`
+연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`
+유지 결정: `DEC-COMMUNITY-20260909-01`
 
 이 문서는 2026-09-09 기획 세트(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)에서
 2026-09-10 최종 재검수 세트로 바뀐 지점만 추적한다. 0910 변경은 단순 UI 문구 수정이 아니라
 Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서버 사양 정합, 확장 기능의 화면 소유권
-정리까지 포함한다. 0909의 후보 ranking 결정과 GitHub 커뮤니티 단일 패키지/Spring-GMS 한정 예외는
-폐기하지 않고 유지했다.
+정리까지 포함한다. 최초 0910 정합 검수에서는 0909 후보 ranking 결정을 유지했으나, 같은 날 후속
+기술 제안을 수용해 검색·관문 2단계 구조로 개정했다. GitHub 커뮤니티 단일 패키지/Spring-GMS 한정
+예외는 유지한다.
 
 ## 검수 토론 후속 확정 — 2026-09-10 (`DEC-RECONCILIATION-20260910-01`)
 
@@ -31,6 +32,27 @@ Dependency 데이터 의미 재정의, 개발팀 API 정본 반영, 실제 서�
 14. **유사 후보 저장**: ERD의 `similar_package`는 현재 서빙 결과 한 벌을 보관한다. 새 모델 결과는 staging 검증 후 원자 교체하고, 모델 버전과 검증 결과는 실행 manifest로 추적한다.
 
 이번 기획 작업의 수정 대상은 요구사항·서비스 기획서·IA·개발 구상안·Figma다. 프런트·백엔드·데이터·배포 등 실제 구현 파일은 수정하지 않으며, 78주 상한·차트·입력·상태 처리 등 구현 필요사항은 WORKLOGS의 후속 목록으로 관리한다. API wire와 Version Share 확장 스키마는 개발팀 Notion/Swagger 반영 전까지 OPEN으로 남긴다.
+
+## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`)
+
+`DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20 고정과
+보완재 감점은 다음 구조로 대체한다.
+
+1. **검색 수와 노출 수 분리**: 순수 의미 검색은 `search_k=N`, 화면 노출은 최대 3개, 기본 선택은 2개다.
+2. **검색은 의미만 사용**: description·keywords 임베딩 cos로 후보 풀을 만든다. popularity·Downloads·채택도는 검색·학습·정렬 score에 넣지 않는다.
+3. **구조적 관문**: 보완재·노후·실체 미달을 작은 감점 계수로 보정하지 않고 통과/drop으로 판정한다.
+4. **최종 정렬**: 관문 통과분은 cos 유사도만으로 정렬한다. dependents는 cos 동점 tie-break에만 사용한다.
+5. **deprecated 경계**: deprecated 패키지는 기준과 후보에서 모두 제외한다. deprecated→대체·migration pair는 임베딩 학습 positive pair로만 사용한다.
+6. **평가**: 순수 의미 검색은 Recall@N, 전체 관문·정렬은 Recall@10·MRR로 구분한다.
+
+이 결정은 구조를 확정하지만 모든 숫자를 확정하지 않는다. `N`은 30·50·100 중 실험으로 정하고,
+보완재 관문의 최종 threshold·활성 시점, 코퍼스의 12개월 컷 외 추가 노후 관문, 현행 “deprecated
+51K 홀드아웃”의 실제 구성은 OPEN이다. 이 네 항목을 확정하기 전 문서가 임의의 값을 구현 완료로
+표현해서는 안 된다.
+
+후보 화면의 정보 구조와 Figma는 바뀌지 않는다. 최대 후보 3개·기본 선택 2개·수동 추가·내부 점수
+비노출 계약을 그대로 유지한다. 현재 AI 코드·README와 관련 구현 티켓의 차이는
+`docs/worklogs/S15P21A506-306/`에 후속 개발 항목으로만 기록하며 이번 기획 작업에서 코드를 수정하지 않는다.
 
 ## 결정 1 — Dependency 유지·유입·이탈을 MVP에서 제거하고 Snapshot signed 증감으로 전환 (`DEC-DEPENDENCY-DELTA-20260910-01`)
 
@@ -193,10 +215,10 @@ OPEN으로 남겼다.
 PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간이 남아 있었다. 이 단계에서는 새로운
 알고리즘을 만들지 않고 기존 정본이 이미 말하는 의미를 문서에 전달하는 데만 집중했다.
 
-## 유지된 것
+## 유지되거나 후속 결정으로 이어진 것
 
-- `DEC-RANK-20260909-01`: deprecated 후보 완전 제외, top-K 20, Recall@20, cos 기반 재랭킹,
-  `move_lift` 미사용.
+- `DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20·Recall@20
+  고정과 보완재 감점은 `DEC-RANK-20260910-01`의 `search_k=N`·Recall@N·구조적 관문으로 대체한다.
 - `DEC-COMMUNITY-20260909-01`: GitHub 커뮤니티는 기준 패키지 하나만 분석하며 다른 비교
   패키지로 fallback하지 않는다.
 - 같은 결정의 Spring→GMS 직접 호출은 확장-03 refresh에 한정된 bounded 예외로 유지한다.
@@ -222,8 +244,8 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 ## 변경 대상에서 제외하거나 보존한 것
 
 - 0909 네 원본 문서는 비교 baseline으로 보존하고 덮어쓰지 않았다.
-- 0909 ranking 구조의 top-K 20/Recall@20/deprecated drop은 이번 API·서버 정합을 이유로 다시
-  바꾸지 않았다.
+- 최초 API·서버 정합 단계에서는 0909 ranking 구조를 바꾸지 않았다. 이후 `S15P21A506-306` 후속
+  결정으로 top-K 20/Recall@20·보완재 감점만 개정했고 deprecated drop은 유지했다.
 - GitHub 커뮤니티의 기준 패키지 단일화와 Spring-GMS 한정 예외도 서버 정합 과정에서 폐기하지 않았다.
 - 기능 비교 POC 결과는 확장 기술 가능성 참고 자료로 유지하되 MVP 완료 조건으로 승격하지 않았다.
 - Figma V1 archive는 변경 대상이 아니며 V2만 제품 정본 화면으로 검수했다.
@@ -231,6 +253,10 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 ## 후속 필요 항목 (현재 의도적으로 OPEN)
 
 - 후보 ranking API endpoint/schema/관련성 근거 전달 field — 임베딩 모델 실결과 확인 후 확정.
+- `search_k=N` — 30·50·100 중 Recall@N·실행 비용 실험 후 `S15P21A506-169`에서 확정.
+- 보완재 관문의 최종 threshold·그래프 준비 전 적용 정책 — `S15P21A506-172`에서 확정.
+- 최근 12개월 코퍼스 컷 외 별도 노후 관문 필요 여부.
+- 현행 “deprecated 51K 홀드아웃” 평가셋의 구성·누수·정답 정의와 고정 식별자.
 - Version Share API의 historical `snapshot_at` 지원 여부.
 - Version Share `해석 불가` bucket의 실제 HTTP wire 표현.
 - `OPEN-SERVER-01`: #2 app → #1 data PDF worker의 job 전달/queue/polling과 UI-derived delta를

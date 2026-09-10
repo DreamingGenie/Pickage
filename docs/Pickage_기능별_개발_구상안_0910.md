@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0910
 
-작성 기준일: 2026-09-04 (2026-09-10 Dependency delta + API 정합 계약 반영; 기존 랭커·Spring/GMS·커뮤니티 결정 유지; 실제 EC2 서버 배치·사양 정합 반영)
-문서 상태: Approved (2026-09-10 갱신 — effective_at: 2026-09-10. `DEC-RECONCILIATION-20260910-01`: 0910 정합성 검수 토론 결과에 따라 signed delta는 현행 `adapter.ts`의 조회 구간 첫·마지막 유효 관측값 차이로 고정하고, PDF는 기능 비교 선택 버전 결과가 최신일 때만 생성한다. `similar_package` ERD는 확장 개발의 목표 설계를 우선하며 현재 모델 결과 한 벌을 원자 게시한다. 기존 API·서버·후보 ranking·커뮤니티 결정은 유지)
+작성 기준일: 2026-09-04 (2026-09-10 Dependency delta·API 정합 계약·유사후보 v1 랭커 2단계 분리 반영; Spring/GMS·커뮤니티 결정 유지; 실제 EC2 서버 배치·사양 정합 반영)
+문서 상태: Approved (2026-09-10 갱신 — effective_at: 2026-09-10. `DEC-RECONCILIATION-20260910-01`: signed delta·PDF·ERD 게시 계약을 확정한다. `DEC-RANK-20260910-01`: 의미 검색 후보 풀과 최종 노출 수를 분리하고, 구조적 관문 통과분을 cos 유사도로만 정렬한다. 이 결정은 `DEC-RANK-20260909-01`의 top-K 20 고정·보완재 감점 조항을 대체하며 검색 `N`과 일부 관문 기준은 OPEN으로 둔다)
 연결 문서: `Pickage_요구사항_명세서_0910.md`, `Pickage_메뉴구조_IA_0910.md`, `Pickage_서비스_기획서_0910.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 서버의 실제 컴포넌트 배치와 물리 자원은 2026-09-10 개발팀 `서버 정보.pdf`를 우선 정본으로 하고, 그 위에 기존 0904 시스템 아키텍처의 데이터·모델·배포 결정을 결합한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -20,7 +20,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 
 | 구역 | v1 처리 | 이유 |
 |---|---|---|
-| 후보 검색 | 배치 임베딩 + top-K 20 + v1 재랭킹 결과를 PostgreSQL에서 조회 | 서빙 요청에서 모델 추론을 제거하고 결과 재현성 확보 |
+| 후보 검색 | 배치 임베딩 + 의미 검색 `search_k=N` + 구조적 관문 + cos 정렬 결과를 PostgreSQL에서 조회 | 검색 recall과 최종 노출 수를 분리하고 서빙 요청에서 모델 추론을 제거 |
 | 후보 생태계 신호 | BigQuery deps.dev Snapshot + npm API를 EC2 #1 배치에서 수집·집계 | 외부 호출과 무거운 변환을 서빙 경로에서 분리 |
 | 보고서 1페이지 | Spark S1~S7 사전 변환·집계 → PostgreSQL 적재 | 모든 화면을 사전 집계 조회 중심으로 유지 |
 | Downloads | npm API 독립 cron 수집·PostgreSQL 적재 | 놓친 기간을 복구하기 어려운 데이터이므로 별도 주기 관리 |
@@ -41,27 +41,39 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 
 **제품 계약**
 
-- description·keywords의 의미 유사도만으로 최종 후보를 정하지 않는다.
+- 의미 유사도(cos)는 관문을 통과한 후보의 순서를 정하는 **유일한 연속 신호**다. 생존·실체·보완재 여부는 점수 계수가 아니라 통과/탈락 관문으로만 사용한다.
+- 검색 후보 수 `search_k=N`, 사용자 노출 최대 3개, 기본 선택 2개는 서로 다른 값이다.
+- 인기도·Downloads·채택도는 임베딩 학습, 의미 검색, 최종 정렬 score에 넣지 않는다. 화면의 생태계 맥락 정보로만 제공한다.
 - 후보 ranking은 기술 품질 점수나 최종 추천이 아니다.
 - 생성형 AI를 후보 검색·정렬에 사용하지 않는다.
 - 사용자 요청 시점에는 모델을 호출하지 않고 사전 계산된 후보 결과를 조회한다.
-- 내부 score·계수·필터는 사용자에게 품질 점수로 노출하지 않는다.
+- 내부 cos score와 관문 판정은 사용자에게 품질 점수로 노출하지 않는다.
 
-**시스템 확정안 — v1 랭커** (임베딩 유사도 측정 파이프라인 확정, 2026-09-07)
+**시스템 확정안 — v1 랭커** (`DEC-RANK-20260910-01`)
 
-1. 코퍼스 자격 필터: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외(자격 미달로 처리 — 서비스가 종료된 패키지는 후보 코퍼스에 들어오지 않는다)
-2. MLflow `@production` 모델로 `text_hash`가 바뀐 description만 ONNX 재임베딩(주간 변경분 수 %); 전수 재임베딩은 모델 승격 시에만 수행
-3. 정규화 벡터 행렬곱으로 패키지별 top-K 20 후보 생성
-4. cos 유사도를 기본 score로 두고 dependents 교집합 `> 0.3`인 보완재 감점·자격 미달 drop을 적용 (`move_lift` 항은 배제 확정 — 대체 이동 쌍 관측 가산은 더 이상 사용하지 않는다)
-5. 채점 게이트: deprecated 51K 홀드아웃으로 Recall@20(임베딩·후보 생성 성적)·Recall@10(파이프라인 전체 성적)을 측정해 직전 운영값과 비교하고, 하락 시 적재를 중단하고 알림을 발생시킨다
-6. 게이트 통과분만 staging 후보 결과를 검증하고, 행수 가드 후 ERD의 현재 `similar_package` 한 벌을 원자 교체하며 실행 manifest에 모델 버전을 기록
-7. 화면에는 최종 유효 후보 최대 3개만 전달하고 상위 2개를 기본 선택
+1. **코퍼스 자격 필터**: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외를 적용한다. deprecated 패키지는 기준 패키지와 후보 모두에서 제외하며 별도 추천 경로도 만들지 않는다.
+2. **변경분 재임베딩**: MLflow `@production` 모델로 `text_hash`가 바뀐 description만 ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
+3. **순수 의미 검색**: 정규화 벡터 행렬곱으로 패키지별 `search_k=N` 후보를 넓게 가져온다. 이 단계에는 popularity·Downloads·dependents 가산을 넣지 않는다.
+4. **구조적 관문**: 보완재, 노후, 실체 미달을 순서대로 판정해 탈락시킨다. 작은 가·감점 계수를 누적하지 않는다.
+5. **최종 정렬**: 관문 통과 후보를 cos 유사도 내림차순으로만 정렬한다. cos가 같을 때만 dependents 수, 패키지명 순으로 결과를 안정화하며 score에는 더하지 않는다. `move_lift`도 사용하지 않는다.
+6. **채점 게이트**: Recall@N(순수 의미 검색)과 Recall@10(관문·정렬까지 포함), MRR을 측정해 직전 운영값과 비교한다. 하락 시 staging 게시를 중단하고 알림을 발생시킨다.
+7. **게시**: 게이트 통과분만 행수 가드를 거쳐 ERD의 현재 `similar_package` 한 벌로 원자 교체하고, 실행 manifest에 모델 버전·입력 snapshot·`search_k`·관문 활성 상태·검증 결과를 기록한다.
+8. **화면 출력**: 최종 유효 후보 최대 3개만 전달하고 상위 2개를 기본 선택한다.
 
-**학습 개시 판정 기준**: Recall@20. 정답이 top-20 후보에 반복적으로 못 들면 score 조정으로 해결할 수 없는 문제이므로 그 시점에 아래 3.5절 학습 트랙을 연다(Recall@10·MRR 기반 승격 게이트와는 별개 판단 시점).
+**유지되는 학습 원칙**: deprecated→대체 CSV와 migration pair는 “관련 있음”을 학습하는 positive pair로만 사용한다. 후보 가산점이나 별도 deprecated 추천 화면의 근거로 사용하지 않는다.
 
-**알려진 한계**: Live 경쟁자(예: express↔fastify)처럼 이미 널리 쓰이는 대안 간 비교 영역은 임베딩 단독 성능에 의존하며, 이 한계는 감춘 채로 보완하려 하지 않고 한계로 명시한다.
+**OPEN 파라미터**
 
-신호가 5개 이상으로 늘어나는 고도화 단계에서는 같은 모델 사이클 안에서 GBDT LTR로 교체할 수 있으나 v1 구조 자체는 유지한다.
+- `search_k=N`: 30·50·100 중 `S15P21A506-169`의 Recall@N·비용 측정으로 확정한다. 값이 정해질 때까지 top-K 20을 새 목표값으로 간주하지 않는다.
+- 보완재 관문: dependents 교집합 `> 0.3`을 후보 기준으로 검증하되, 의존 그래프 준비 시점과 최종 threshold는 `S15P21A506-172`에서 확정한다.
+- 노후 관문: 코퍼스의 최근 12개월 자격 필터는 유지한다. 최종 정렬 직전 별도 노후 컷을 추가할지는 중복 배제 여부를 검증한 뒤 결정한다.
+- 평가셋: 현행 “deprecated 51K 홀드아웃”이라는 명칭의 실제 구성·누수·정답 정의를 `S15P21A506-169`에서 확인하기 전에는 검증 완료 데이터셋으로 단정하지 않는다.
+
+**학습 개시 판정 기준**: Recall@N. 정답이 의미 검색 후보 풀에 반복적으로 들어오지 못하면 관문이나 score 계수로 고치지 않고 아래 3.5절 임베딩 학습 트랙을 연다. Recall@10·MRR 기반 승격 게이트와는 판단 시점이 다르다.
+
+**알려진 한계**: express↔fastify처럼 설명 표현이 다른 대안 관계는 임베딩이 학습하지 못할 수 있다. 이 경우 랭킹 계수를 추가하지 않고 migration positive pair를 이용한 임베딩 개선으로 다룬다.
+
+GBDT LTR 같은 다중 신호 랭커는 별도 후속 결정이 필요한 v1 이후 범위다. v1 품질 문제의 즉시 우회책으로 도입하지 않는다.
 
 ### 1.4 기능 비교 확장 원칙
 
@@ -106,7 +118,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 |---|---|---|---|
 | 패키지 입력 | 접두사 자동완성 + 분석 가능 패키지 선택 gate | selected package | MVP |
 | 후보 탐색 | 의미 후보 pool 검색 | semantic candidates | MVP |
-| 후보 ranking | 의미 관련성 + 공개 생태계 신호 결합 | ranked candidates (HTTP endpoint/schema는 임베딩 결과 검증 후 확정) | MVP |
+| 후보 ranking | 순수 의미 검색 + 구조적 자격 관문 + cos 정렬 | ranked candidates (HTTP endpoint/schema는 임베딩 결과 검증 후 확정) | MVP |
 | 비교 대상 확정 | 최대 3개·중복·존재 검증 | comparisonPackages | MVP |
 | 생태계 변화 | 직접 의존 사전 집계·기간 자료 결합 | Direct Dependency series + Snapshot delta, Downloads, Version Share Snapshot | MVP |
 | PDF | 생태계·현재 선택 버전 기능 비교 적격성 검사, 스냅샷·문서 생성 | reportSnapshot, pdfJob | 확장(기능 비교 제공 이후) |
@@ -214,7 +226,7 @@ flowchart LR
 
 ### 3.5 모델 학습·스위칭 사이클
 
-0. **개시 조건**: 1.3절 v1 랭커 채점 게이트에서 Recall@20이 정답을 top-20에 반복적으로 담지 못하는 수준으로 나오면 이 학습 트랙을 연다.
+0. **개시 조건**: 1.3절 v1 랭커 채점 게이트에서 Recall@N이 정답을 순수 의미 검색 후보 풀에 반복적으로 담지 못하면 이 학습 트랙을 연다. 관문 조정이나 가·감점 계수로 보정하지 않는다.
 1. 배치가 매 Snapshot에서 학습쌍을 갱신한다.
 2. 외부 GPU가 학습 후 모델을 등록한다.
 3. #1 data의 평가/승격 단계가 Recall@10·MRR 개선을 확인한다.
@@ -289,35 +301,39 @@ Redis와 Spark History Server는 더 이상 `향후 확장`으로 분류하지 �
 
 후보 생성은 사용자 요청 시 실시간 모델 호출이 아니라 **EC2 #1의 배치 결과**를 사용한다.
 
-1. **후보군 정제**: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외로 코퍼스 자격을 판단한다(서비스가 종료된 패키지는 자격 미달로 제외).
+1. **코퍼스 자격 필터**: dependents 하한, 최근 12개월 내 릴리스, deprecated 제외로 기준·후보 패키지 자격을 판단한다.
 2. **추론**: MLflow `@production` 모델을 pull하고 `text_hash`가 바뀐 description만(주간 변경분 수 %) ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
-3. **top-K 생성**: 정규화 벡터 행렬곱으로 패키지당 20개를 만든다.
-4. **재랭킹**: cos 유사도를 기본 score로 두고 dependents 교집합 `> 0.3`인 보완재 감점, 자격 미달 drop을 적용한다.
-5. **채점 게이트**: deprecated 51K 홀드아웃으로 Recall@20·Recall@10을 측정해 직전 운영값과 비교한다. 하락하면 6번 적재를 중단하고 알림을 발생시킨다.
-6. **게시**: 게이트를 통과한 staging 결과만 행수 가드를 통과한 뒤 현재 `similar_package`로 원자 교체하고 실행 manifest에 모델 버전·입력 snapshot·검증 결과를 기록한다.
+3. **순수 의미 검색**: 정규화 벡터 행렬곱으로 패키지당 `search_k=N`개를 가져온다. `N`은 화면 노출 3개와 분리하며 30·50·100 실험 후 확정한다.
+4. **구조적 관문**: 보완재 → 노후 → 실체 미달 순으로 판정한다. 활성 기준을 통과하지 못한 후보는 drop하며 score 가·감점으로 우회하지 않는다.
+5. **최종 정렬**: 살아남은 후보를 cos 유사도 내림차순으로 정렬한다. dependents는 cos 동점 tie-break에만 사용한다.
+6. **채점 게이트**: Recall@N·Recall@10·MRR을 직전 운영값과 비교한다. 하락하면 게시를 중단하고 알림을 발생시킨다.
+7. **게시**: 게이트를 통과한 staging 결과만 행수 가드를 통과한 뒤 현재 `similar_package`로 원자 교체하고 실행 manifest에 모델 버전·입력 snapshot·`search_k`·관문 상태·검증 결과를 기록한다.
 
-### 4.2 v1 재랭킹 규칙
+### 4.2 v1 구조적 관문과 최종 정렬
 
 **시스템 확정안**
 
-- 감점: dependents 교집합 `> 0.3`인 보완재 신호
-- drop: 자격 미달(코퍼스 자격 필터 미통과 — deprecated 완전 제외 포함)
-- score: cos 유사도 기반 (`move_lift` 항 없음 — 배제 확정, 대체 이동 쌍 관측은 가산 신호로 쓰지 않는다)
-- 내부 top-K: 20
+- 순서: 코퍼스 자격 필터 → 순수 의미 검색 `search_k=N` → 구조적 관문 → cos 최종 정렬
+- 관문: 보완재·노후·실체 미달. 판정 결과는 drop 또는 통과이며 작은 감점 계수를 사용하지 않는다.
+- score: cos 유사도 단독. `move_lift`, popularity, Downloads, dependents 가산은 사용하지 않는다.
+- tie-break: cos가 같을 때만 dependents 내림차순, 패키지명 오름차순을 사용한다.
+- 검색 후보 수: `N`은 30·50·100 중 평가 후 확정하며 화면 노출 수와 별도 설정한다.
 - 사용자 노출 후보: 최대 3
 - 기본 선택: 최종 후보 상위 2개
 
-score·계수는 **v1 내부 구현 계약**이며 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 사람이 이해할 수 있는 관련성 근거와 자료 상태만 제공한다.
+cos score와 관문 판정은 **v1 내부 구현 계약**이며 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 사람이 이해할 수 있는 관련성 근거와 자료 상태만 제공한다.
 
 ### 4.2.1 채점 게이트와 지표 정의
 
-- **Recall@20** = 임베딩(후보 생성) 단계만의 성적. 정답이 top-20 후보 안에 들었는지로 측정한다.
-- **Recall@10** = 재랭킹까지 마친 파이프라인 전체의 성적. 사용자에게 실제 노출되는 순서에 정답이 있는지로 측정한다.
-- 두 지표 모두 deprecated 51K 홀드아웃 셋으로 매 배치 실행마다 측정하고, 직전 운영값 대비 하락하면 해당 staging 결과의 게시를 중단하고 알림을 보낸다 — 저품질 결과가 현재 `similar_package`를 교체하지 못하게 하는 안전장치다.
-- Recall@20이 반복적으로 하락하면 3.5절의 모델 학습 트랙을 여는 판단 기준이 된다(재랭킹 계수 튜닝으로 해결 가능한 문제가 아니라는 신호이므로).
+- **Recall@N** = 순수 의미 검색 단계의 성적. 정답이 설정된 `search_k=N` 후보 안에 들었는지로 측정한다.
+- **Recall@10** = 구조적 관문과 cos 정렬까지 마친 전체 파이프라인의 성적. 화면 노출 수 3과 다른 오프라인 평가 cut-off다.
+- **MRR** = 전체 정렬에서 첫 정답의 순위를 평가하는 보조 지표다.
+- 평가셋은 현행 “deprecated 51K 홀드아웃”의 실제 구성·누수·정답 정의를 확인해 식별자를 고정해야 한다. 확인 전에는 숫자만으로 검증 완료를 선언하지 않는다.
+- 직전 운영값 대비 하락하면 해당 staging 결과의 게시를 중단하고 알림을 보낸다. 저품질 결과가 현재 `similar_package`를 교체하지 못하게 하는 안전장치다.
+- Recall@N이 반복적으로 하락하면 3.5절의 모델 학습 트랙을 여는 판단 기준이 된다. v1에서는 재랭킹 계수 튜닝으로 해결하지 않는다.
 - **알려진 한계**: Live 경쟁자(예: express↔fastify)처럼 이미 널리 쓰이는 대안 간 비교는 임베딩 단독 성능에 의존한다. 이 한계는 보완하지 않고 한계로 명시한다.
 
-신호 수가 5개 이상으로 늘어나는 고도화 단계에서는 재랭킹 4단계를 GBDT LTR로 교체할 수 있다. 이 경우에도 MLflow 모델 사이클과 서빙 조회 구조는 유지한다.
+GBDT LTR는 별도 결정과 평가를 거쳐야 하는 v1 이후 고도화다. 도입하더라도 MLflow 모델 사이클과 서빙 조회 구조는 유지한다.
 
 ### 4.3 후보 API 계약 상태 — 미정
 
@@ -1151,7 +1167,7 @@ mlflow-artifacts
 ### 후보 검색
 
 - 사용자 요청에서는 PostgreSQL의 사전 계산 현재 `similar_package`만 조회한다.
-- 모델 inference·top-K·재랭킹 실행은 #1 data의 분석 worker/배치 범위에서 수행한다.
+- 모델 inference·순수 의미 검색·구조적 관문·cos 정렬은 #1 data의 분석 worker/배치 범위에서 수행한다.
 - 변경 description만 재임베딩하고 전수 재임베딩은 모델 승격 시에만 수행한다.
 - 후보 1건 조회를 위해 BigQuery·npm API·MLflow·MinIO를 실시간 호출하지 않는다.
 
@@ -1245,7 +1261,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 | 3 | P1 BigQuery ETL·P2 npm downloads cron | dry-run/max-bytes cap, downloads 독립 실패 처리 |
 | 4 | #1 Spark master+worker-1+History / #2 worker-2 배치 | 4 vCPU·15Gi 자원 안에서 job 실행, 집계·training_pairs·pkg_vectors 생성 |
 | 5 | GPU 학습·MLflow 등록·평가/승격 사이클 | GPU 등록과 #1 승격 권한 분리, Recall@10·MRR 평가 |
-| 6 | 유사도 배치 v1 | 필터(deprecated 제외) → ONNX 추론 → top-K 20 → cos 기반 재랭킹(`move_lift` 배제) → 채점 게이트(Recall@20/10) → 스왑 |
+| 6 | 유사도 배치 v1 | 자격 필터(deprecated 제외) → ONNX 추론 → 순수 의미 검색 `search_k=N` → 구조적 관문 → cos 정렬 → 채점 게이트(Recall@N/10·MRR) → 스왑 |
 | 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 서빙 요청에서 PG 외 모델/MinIO 접촉 없음 |
 | 8 | 직접 Dependency·Downloads·Version Share 보고서 | 사전 집계 조회와 화면 상태 일치 |
 | 9 | RAG 기능 비교 [확장] | 현재 선택 버전별 완료 결과와 근거 계약 |
@@ -1262,9 +1278,9 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 3. 네 번째 패키지 추가 차단과 수동 해제
 4. 후보 0개, 의미 retrieval 실패, ranking 처리 실패 상태 분리
 5. `text_hash`가 바뀐 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
-6. 패키지별 top-K 20 생성 후 v1 재랭킹 규칙(cos 기반, `move_lift` 미사용)이 적용되는지 검증
-7. dependents 교집합 `> 0.3` 보완재 감점·자격 미달 drop(deprecated 완전 제외 포함)이 기대대로 작동하는지 검증
-8. deprecated 51K 홀드아웃 채점 게이트가 Recall@20/Recall@10 하락 시 적재를 중단하고 알림을 발생시키는지 검증
+6. `search_k=N`이 화면 노출 3개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
+7. 보완재·노후·실체 미달 관문이 score 감점이 아니라 통과/drop으로 작동하고, 통과 후보가 cos 단독으로 정렬되는지 검증
+8. 식별된 평가셋의 Recall@N/Recall@10·MRR 하락 시 적재를 중단하고 알림을 발생시키는지 검증
 9. MVP Dependents 응답 메타가 `relationship_type=DIRECT`로 고정되고 직접/간접 전환 요청이 MVP 계약에 없는지 확인
 10. Dependency 기본 Total 조회와 `version` query parameter 특정 버전 조회가 패키지별로 독립 변경되는지 확인
 11. 프론트 `adapter.ts`가 현재 표시 필터의 dependents trend에서 조회 구간 첫·마지막 유효 point만 사용해 signed 증감을 계산하고, 유효 point가 하나일 때 0으로 대체하지 않는지 확인
@@ -1319,4 +1335,4 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - Node.js packages: https://nodejs.org/api/packages.html
 - GitHub REST API: https://docs.github.com/en/rest
 
-> **최종 개발 기준** v1의 실제 인프라는 **#2 app(4 vCPU, 15Gi, 320G NVMe)**과 **#1 data(4 vCPU, 15Gi, 320G NVMe)** 두 서버를 기준으로 한다. #2에는 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가, #1에는 Spark master·worker-1·History Server·임베딩 추론/tarball 정적분석/PDF worker·MinIO가 배치된다. 서비스 외부 노출은 #2의 80/443이며 #1 data는 서비스 포트를 외부 노출하지 않는다. API는 Notion 명세를 정본으로 하되 현재 export의 `서버 반영=No` 항목과 pending field를 구현 완료로 간주하지 않고 Swagger 반영 후 확정한다. Dependency signed delta는 프론트 adapter가 조회 구간의 첫·마지막 유효 point로 계산한다. 후보 ranking은 ERD의 현재 `similar_package` 결과 한 벌을 원자 게시하고 실행 manifest로 모델 버전을 추적한다. 최신 Version Share는 별도 확장 집계 산출물의 완료 Snapshot을 기준으로 제공한다. 기능 비교의 현재 선택 버전 분석이 끝나기 전 PDF는 BLOCKED다. 외부 GPU·MLflow 모델 사이클, GitHub 커뮤니티, Redis 책임, PDF #2→#1 job 전달, CI/CD 상세 등 근거가 없는 구현은 OPEN으로 남긴다.
+> **최종 개발 기준** v1의 실제 인프라는 **#2 app(4 vCPU, 15Gi, 320G NVMe)**과 **#1 data(4 vCPU, 15Gi, 320G NVMe)** 두 서버를 기준으로 한다. #2에는 nginx·프론트 정적·백엔드 API·PostgreSQL+pgvector·Redis·Spark worker-2가, #1에는 Spark master·worker-1·History Server·임베딩 추론/tarball 정적분석/PDF worker·MinIO가 배치된다. 서비스 외부 노출은 #2의 80/443이며 #1 data는 서비스 포트를 외부 노출하지 않는다. API는 Notion 명세를 정본으로 하되 현재 export의 `서버 반영=No` 항목과 pending field를 구현 완료로 간주하지 않고 Swagger 반영 후 확정한다. Dependency signed delta는 프론트 adapter가 조회 구간의 첫·마지막 유효 point로 계산한다. 후보 ranking은 순수 의미 검색 `search_k=N`과 구조적 관문을 분리하고 관문 통과분을 cos로만 정렬한 뒤, ERD의 현재 `similar_package` 결과 한 벌을 원자 게시한다. 실행 manifest에는 모델 버전·`search_k`·관문 상태를 남긴다. 최신 Version Share는 별도 확장 집계 산출물의 완료 Snapshot을 기준으로 제공한다. 기능 비교의 현재 선택 버전 분석이 끝나기 전 PDF는 BLOCKED다. `search_k` 최종값·보완재 관문 활성 기준·추가 노후 컷·평가셋 정체, 외부 GPU·MLflow 모델 사이클, GitHub 커뮤니티, Redis 책임, PDF #2→#1 job 전달, CI/CD 상세 등 근거가 없는 구현은 OPEN으로 남긴다.
