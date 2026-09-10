@@ -13,6 +13,8 @@ import importlib
 import io
 import unittest
 
+import numpy as np
+
 sbp = importlib.import_module("ai.similarity.similarity_batch_pipeline")
 
 
@@ -113,6 +115,52 @@ class Qualify(QuietMixin, unittest.TestCase):
             [self._row(status="active")], min_dependents=5, max_age_months=12
         )
         self.assertEqual(len(kept), 1)
+
+
+def _unit(rows):
+    v = np.array(rows, dtype=np.float32)
+    return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+
+class TopK(QuietMixin, unittest.TestCase):
+    # v0≈v1 (cos~0.99), v0⊥v2 (cos 0), v0 opposite v3 (cos -1)
+    VECS = _unit([[1.0, 0.0], [0.99, 0.14], [0.0, 1.0], [-1.0, 0.0]])
+    NAMES = ["a", "b", "c", "d"]
+
+    def _by_base(self, hits):
+        out: dict[int, list] = {}
+        for base, cand, cos in hits:
+            out.setdefault(base, []).append((cand, cos))
+        return out
+
+    def test_excludes_self(self):
+        hits = sbp.top_k(self.VECS, self.NAMES, k=2, query_block=10)
+        self.assertFalse(any(base == cand for base, cand, _ in hits))
+
+    def test_returns_k_candidates_per_base(self):
+        hits = sbp.top_k(self.VECS, self.NAMES, k=2, query_block=10)
+        for base, cands in self._by_base(hits).items():
+            self.assertEqual(len(cands), 2)
+
+    def test_candidates_sorted_by_descending_cosine(self):
+        hits = sbp.top_k(self.VECS, self.NAMES, k=3, query_block=10)
+        for base, cands in self._by_base(hits).items():
+            cosines = [cos for _, cos in cands]
+            self.assertEqual(cosines, sorted(cosines, reverse=True))
+
+    def test_top_candidate_for_a_is_b(self):
+        hits = sbp.top_k(self.VECS, self.NAMES, k=1, query_block=10)
+        self.assertEqual(self._by_base(hits)[0][0][0], 1)  # base a → cand b
+
+    def test_query_block_smaller_than_n_gives_same_result(self):
+        full = sbp.top_k(self.VECS, self.NAMES, k=2, query_block=10)
+        blocked = sbp.top_k(self.VECS, self.NAMES, k=2, query_block=2)
+        self.assertEqual(sorted(full), sorted(blocked))
+
+    def test_cosine_value_matches_dot_product(self):
+        hits = sbp.top_k(self.VECS, self.NAMES, k=1, query_block=10)
+        base, cand, cos = next(h for h in hits if h[0] == 0)
+        self.assertAlmostEqual(cos, float(self.VECS[0] @ self.VECS[cand]), places=5)
 
 
 if __name__ == "__main__":
