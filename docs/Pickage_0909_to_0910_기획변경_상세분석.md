@@ -1,7 +1,7 @@
 # Pickage 0909→0910 기획변경 상세분석
 
 작성 기준일: 2026-09-10
-연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`, `DEC-IMPLEMENTATION-ALIGN-20260910-01`
+연결 결정: `DEC-DEPENDENCY-DELTA-20260910-01`, `DEC-ECOSYSTEM-INPAGE-EXT-20260910-01`, `DEC-API-ALIGN-20260910-01`, `DEC-SERVER-ALIGN-20260910-01`, `DEC-RANK-20260910-01`, `DEC-IMPLEMENTATION-ALIGN-20260910-01`, `DEC-RANK-UI-20260910-01`
 유지 결정: `DEC-COMMUNITY-20260909-01`
 
 이 문서는 2026-09-09 기획 세트(서비스 기획서·요구사항 명세서·메뉴구조 IA·기능별 개발 구상안)에서
@@ -18,7 +18,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 ### 현재 코드 계약을 채택한 항목
 
 1. **기준 패키지 입력**: 자동완성 목록 선택을 강제하지 않는다. 자유 입력 또는 목록 선택 후 `/packages/similar`의 `not_found`로 서버 검증한다.
-2. **후보 화면·직접 추가**: 기준 패키지 외 후보는 상위 2개만 표시하고 기본 선택하지 않는다. 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다. 직접 추가 패키지는 `/packages/search?q={name}&limit=5` 결과의 exact match로 검증한다.
+2. **후보 화면·직접 추가**: 기준 패키지 외 후보는 상위 최대 3개를 표시하고 모두 기본 선택하지 않는다(`DEC-RANK-UI-20260910-01`). 카드에는 설명·유사도 순위·최신 버전을 표시하며 API 수치 score는 화면에서 숨긴다. 직접 추가 패키지는 `/packages/search?q={name}&limit=5` 결과의 exact match로 검증한다.
 3. **Dependents**: 정확 버전 `version` query를 사용하지 않는다. API가 package-major별 series를 반환하고 프런트가 `Total` 또는 선택한 여러 major를 합산한다.
 4. **Downloads**: 조회 요청 상한은 서버 `SnapshotWindow.MAX_WEEKS`와 같은 104주다.
 5. **Version Share MVP**: 최신 DB Snapshot의 version별 `dependents_count`를 major로 합산한다. requirement 해석 기반 최신 완료 분포와 `UNKNOWN|AMBIGUOUS` 보존은 확장으로 이동한다.
@@ -63,12 +63,12 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 
 이번 기획 작업의 수정 대상은 요구사항·서비스 기획서·IA·개발 구상안·Figma다. 프런트·백엔드·데이터·배포 등 실제 구현 파일은 수정하지 않으며, 78주 상한·차트·입력·상태 처리 등 구현 필요사항은 WORKLOGS의 후속 목록으로 관리한다. API wire와 Version Share 확장 스키마는 개발팀 Notion/Swagger 반영 전까지 OPEN으로 남긴다.
 
-## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`, UI/API 조항은 후속 결정으로 대체)
+## 유사후보 v1 랭커 후속 개정 — 2026-09-10 (`DEC-RANK-20260910-01`, `S15P21A506-306`, 기본 선택 조항은 후속 결정으로 대체)
 
 `DEC-RANK-20260909-01`의 deprecated 완전 제외와 `move_lift` 미사용은 유지한다. top-K 20 고정과
 보완재 감점은 다음 구조로 대체한다.
 
-1. **검색 수와 노출 수 분리**: 순수 의미 검색은 `search_k=N`, 화면 노출은 최대 3개, 기본 선택은 2개다.
+1. **검색 수와 노출 수 분리**: 순수 의미 검색은 `search_k=N`, 화면 노출은 최대 3개다. 원 결정의 상위 2개 기본 선택은 후속 `DEC-RANK-UI-20260910-01`에 따라 기준 패키지만 초기 선택하는 방식으로 대체됐다.
 2. **검색은 의미만 사용**: description·keywords 임베딩 cos로 후보 풀을 만든다. popularity·Downloads·채택도는 검색·학습·정렬 score에 넣지 않는다.
 3. **구조적 관문**: 보완재·노후·실체 미달을 작은 감점 계수로 보정하지 않고 통과/drop으로 판정한다.
 4. **최종 정렬**: 관문 통과분은 cos 유사도만으로 정렬한다. dependents는 cos 동점 tie-break에만 사용한다.
@@ -80,8 +80,7 @@ S15P21A506-300 이후 `origin/develop`에 병합된 S15P21A506-303·283·302·30
 51K 홀드아웃”의 실제 구성은 OPEN이다. 이 네 항목을 확정하기 전 문서가 임의의 값을 구현 완료로
 표현해서는 안 된다.
 
-후보 화면의 정보 구조와 Figma는 바뀌지 않는다. 최대 후보 3개·기본 선택 2개·수동 추가·내부 점수
-비노출 계약을 그대로 유지한다. 현재 AI 코드·README와 관련 구현 티켓의 차이는
+후보 화면의 최대 후보 3개·수동 추가·내부 점수 비노출 구조는 유지한다. 초기 선택은 후속 사용자 결정에 따라 기준 패키지만 선택하도록 바뀌었으므로 Figma의 기본 선택 상태를 재동기화해야 한다. 현재 AI 코드·README와 관련 구현 티켓의 차이는
 `docs/worklogs/S15P21A506-306/`에 후속 개발 항목으로만 기록하며 이번 기획 작업에서 코드를 수정하지 않는다.
 
 ## 결정 1 — Dependency 유지·유입·이탈을 MVP에서 제거하고 Snapshot signed 증감으로 전환 (`DEC-DEPENDENCY-DELTA-20260910-01`)
@@ -254,7 +253,7 @@ PDF의 재현 방식까지 이어서 보면 잘못 구현될 수 있는 구간�
 - 같은 결정의 Spring→GMS 직접 호출은 확장-03 refresh에 한정된 bounded 예외로 유지한다.
 - 기준 패키지는 항상 비교 대상에 포함되고 해제할 수 없다.
 - 한 보고서의 최종 비교 대상은 기준 패키지 포함 최대 3개다.
-- 후보 상위 2개는 미선택 카드로 표시하며 유사도 순위는 기술 품질 순위가 아니다.
+- 후보 상위 최대 3개는 미선택 카드로 표시하며 유사도 순위는 기술 품질 순위가 아니다.
 - 후보 단계에서는 버전을 선택하지 않는다.
 - Version Share MVP는 최신 DB Snapshot의 version별 dependents를 major로 합산하며 시계열이 아니다.
 - 기능 비교와 GitHub 커뮤니티는 MVP가 아닌 확장이다.

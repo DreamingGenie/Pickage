@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0910
 
 작성 기준일: 2026-09-04 (2026-09-10 코드 재검토 갱신: 후보 API·AI 배치·requirements 해석·Dependents major 표시·프런트 검증·저장소 배포 구성을 반영)
-문서 상태: Approved (effective_at: 2026-09-10. `DEC-IMPLEMENTATION-ALIGN-20260910-01`: 자유 입력 후 서버 검증, 후보 2개·기본 선택 없음·순위 표시, Dependents major 다중 선택, 104주 상한과 현행 Version Share 집계를 채택한다. 로그축·결측 단절·계열별 축적 상태·카드별 실패 격리·선택 기간 delta는 미구현 제품 계약으로 유지한다)
+문서 상태: Approved (effective_at: 2026-09-10. `DEC-RANK-UI-20260910-01`: 후보는 최대 3개를 노출하되 초기에는 기준 패키지만 선택한다. 이 사용자 결정은 `DEC-RANK-20260910-01`의 상위 2개 기본 선택 조항만 대체한다. 나머지 랭커 계약과 `DEC-IMPLEMENTATION-ALIGN-20260910-01` 계약은 유지한다)
 연결 문서: `Pickage_요구사항_명세서_0910.md`, `Pickage_메뉴구조_IA_0910.md`, `Pickage_서비스_기획서_0910.md`
 
 이 문서는 확정된 사용자 경험을 개발 가능한 데이터·상태·처리 계약으로 옮긴다. 서버의 실제 컴포넌트 배치와 물리 자원은 2026-09-10 개발팀 `서버 정보.pdf`를 우선 정본으로 하고, 그 위에 기존 0904 시스템 아키텍처의 데이터·모델·배포 결정을 결합한다. 화면에서 요구하는 결과와 상태를 누락해서는 안 된다.
@@ -42,7 +42,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 **제품 계약**
 
 - 의미 유사도(cos)는 관문을 통과한 후보의 순서를 정하는 **유일한 연속 신호**다. 생존·실체·보완재 여부는 점수 계수가 아니라 통과/탈락 관문으로만 사용한다.
-- 검색 후보 수 `search_k=N`과 사용자 노출 2개는 서로 다른 값이다. 현재 배치 기본 `N`은 30이고 화면 기본 선택은 없다.
+- 검색 후보 수 `search_k=N`과 사용자 노출 최대 3개는 서로 다른 값이다. 현재 배치 기본 `N`은 30이고 초기에는 기준 패키지만 선택한다.
 - 인기도·Downloads·채택도는 임베딩 학습, 의미 검색, 최종 정렬 score에 넣지 않는다. 화면의 생태계 맥락 정보로만 제공한다.
 - 후보 ranking은 기술 품질 점수나 최종 추천이 아니다.
 - 생성형 AI를 후보 검색·정렬에 사용하지 않는다.
@@ -55,15 +55,15 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 2. **변경분 재임베딩**: MLflow `@production` 모델로 `text_hash`가 바뀐 description만 ONNX 재임베딩한다. 전수 재임베딩은 모델 승격 시에만 수행한다.
 3. **순수 의미 검색**: 정규화 벡터 행렬곱으로 패키지별 `search_k=N` 후보를 넓게 가져온다. 이 단계에는 popularity·Downloads·dependents 가산을 넣지 않는다.
 4. **구조적 관문**: 보완재, 노후, 실체 미달을 순서대로 판정해 탈락시킨다. 작은 가·감점 계수를 누적하지 않는다.
-5. **최종 정렬**: 관문 통과 후보를 cos 유사도 내림차순으로만 정렬한다. cos가 같을 때만 dependents 수, 패키지명 순으로 결과를 안정화하며 score에는 더하지 않는다. `move_lift`도 사용하지 않는다.
+5. **최종 정렬**: 관문 통과 후보를 cos 유사도 내림차순으로만 정렬한다. cos가 같을 때만 dependents 수를 tie-break로 사용하며 score에는 더하지 않는다. `move_lift`도 사용하지 않는다.
 6. **채점 게이트**: Recall@N(순수 의미 검색)과 Recall@10(관문·정렬까지 포함), MRR을 측정해 직전 운영값과 비교한다. 하락 시 staging 게시를 중단하고 알림을 발생시킨다.
 7. **게시**: 게이트 통과분만 행수 가드를 거쳐 ERD의 현재 `similar_package` 한 벌로 원자 교체하고, 실행 manifest에 모델 버전·입력 snapshot·`search_k`·관문 활성 상태·검증 결과를 기록한다.
-8. **화면 출력**: API는 기본 20·최대 50개를 반환하고 화면은 상위 2개만 미선택 카드로 표시한다.
+8. **화면 출력**: API는 기본 20·최대 50개를 반환하고 화면은 상위 최대 3개를 모두 미선택 카드로 표시한다.
 
 **2026-09-10 구현 체크포인트**
 
-- 구현됨: description+keywords 입력, 기본 `retrieve_k=30`, plugin/adapter 및 same-family 제거, cos 정렬, rank와 score 출력, `/packages/similar` 조회와 화면 상위 2개 표시.
-- 부분 구현: AI 출력은 `user_visible(rank<=3)`, `default_selected(rank<=2)`를 기록하지만 현재 DB/API/화면은 이 플래그를 소비하지 않는다.
+- 구현됨: description+keywords 입력, 기본 `retrieve_k=30`, plugin/adapter 및 same-family 제거, cos 정렬, rank와 score 출력, `/packages/similar` 조회.
+- 부분 구현: AI 출력의 `user_visible(rank<=3)`은 최종 후보 노출 수와 일치하지만 현재 프런트는 2개만 표시한다. `default_selected(rank<=2)`는 이번 사용자 결정으로 제품 계약에서 제외됐으며 UI가 소비해서는 안 되는 기존 출력이다.
 - 미구현: 직접 의존 겹침을 이용한 보완재 관문, 51K 평가셋 기반 scoring gate, S3 게시, PostgreSQL 원자 적재기.
 - 검증 경계: 평가셋이 확정되지 않아 scoring gate는 `SKIPPED`이며 명시적 `--allow-gate-skip` 없이는 성공 마커를 만들지 않는다.
 
@@ -74,6 +74,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 - `search_k=N`: 현재 구현 기본값은 30이다. 최종 운영값은 30·50·100 중 `S15P21A506-169`의 Recall@N·비용 측정으로 확정한다.
 - 보완재 관문: dependents 교집합 `> 0.3`을 후보 기준으로 검증하되, 의존 그래프 준비 시점과 최종 threshold는 `S15P21A506-172`에서 확정한다.
 - 노후 관문: 코퍼스의 최근 12개월 자격 필터는 유지한다. 최종 정렬 직전 별도 노후 컷을 추가할지는 중복 배제 여부를 검증한 뒤 결정한다.
+- 구현 관문 분류: plugin/adapter·same-family 제거를 AI팀 목표 관문의 보완재 세부 규칙으로 편입할지는 오추천·과제외 false positive를 검증한 뒤 확정한다. 그 전에는 현재 구현 상태일 뿐 `DEC-RANK-20260910-01`의 확정 관문으로 간주하지 않는다.
 - 평가셋: 현행 “deprecated 51K 홀드아웃”이라는 명칭의 실제 구성·누수·정답 정의를 `S15P21A506-169`에서 확인하기 전에는 검증 완료 데이터셋으로 단정하지 않는다.
 
 **학습 개시 판정 기준**: Recall@N. 정답이 의미 검색 후보 풀에 반복적으로 들어오지 못하면 관문이나 score 계수로 고치지 않고 아래 3.5절 임베딩 학습 트랙을 연다. Recall@10·MRR 기반 승격 게이트와는 판단 시점이 다르다.
@@ -332,13 +333,14 @@ Redis·Spark History Server·임베딩/tarball/PDF worker는 서버 관측 목�
 
 **시스템 확정안**
 
-- 순서: 입력 자격 확인 → 순수 의미 검색 `search_k=N` → 현재 구현된 plugin/adapter·same-family 관문 → cos 최종 정렬
-- 목표 관문: 보완재·노후·실체 미달. 현재 dependency overlap 보완재 관문 등은 미구현이며 작은 감점 계수로 대체하지 않는다.
+- AI팀 목표 순서: 입력 자격 확인 → 순수 의미 검색 `search_k=N` → 보완재·노후·실체 미달 관문 → cos 최종 정렬
+- 현재 구현: plugin/adapter·same-family 후보를 drop한다. 두 규칙은 AI팀 검증 전까지 목표 관문의 확정 세부 규칙이 아니라 구현 중인 임시 관문으로 관리한다.
+- 미구현 목표 관문: dependency overlap 보완재 제거와 추가 노후·실체 기준. 작은 감점 계수로 대체하지 않는다.
 - score: cos 유사도 단독. `move_lift`, popularity, Downloads, dependents 가산은 사용하지 않는다.
-- tie-break: cos가 같을 때만 dependents 내림차순, 패키지명 오름차순을 사용한다.
+- tie-break: cos가 같을 때만 dependents 내림차순을 사용한다.
 - 검색 후보 수: 현재 기본 30. 최종 `N`은 30·50·100 중 평가 후 확정하며 화면 노출 수와 별도 설정한다.
 - API 반환: 기본 20, 최대 50
-- 사용자 노출 후보: 상위 2개
+- 사용자 노출 후보: 상위 최대 3개
 - 기본 선택: 없음
 
 API의 수치 score와 관문 판정은 사용자에게 기술 품질 점수로 노출하지 않는다. 후보 화면에는 패키지명·설명·유사도 순위·최신 버전만 제공한다.
@@ -365,7 +367,7 @@ GBDT LTR는 별도 결정과 평가를 거쳐야 하는 v1 이후 고도화다. 
 - candidate: `rank`, `score`, `name`, `latest_version`, `description`
 - `data_status`: 후보 결과가 있으면 `COMPLETE`, 없으면 `NO_DATA`
 
-기준 패키지는 후보 목록에 중복 포함하지 않고, 화면은 상위 2개를 미선택 카드로 표시한다. HTTP 응답에는 수치 score가 있지만 UI에는 표시하지 않는다. 생성형 AI가 요청 시점에 후보 이름을 만들거나 순서를 임의 변경하지 않는다.
+기준 패키지는 후보 목록에 중복 포함하지 않고, 화면은 상위 최대 3개를 모두 미선택 카드로 표시한다. HTTP 응답에는 수치 score가 있지만 UI에는 표시하지 않는다. 생성형 AI가 요청 시점에 후보 이름을 만들거나 순서를 임의 변경하지 않는다.
 
 후보 API가 구현됐다는 사실과 AI 배치가 DB 게시까지 완료됐다는 상태를 혼동하지 않는다. 현재 API는 `similar_package` 테이블을 읽지만 그 테이블로 새 배치 결과를 원자 게시하는 경로는 미완료다.
 
@@ -1281,7 +1283,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 | 4 | #1 Spark master+worker-1+History / #2 worker-2 배치 | 4 vCPU·15Gi 자원 안에서 job 실행, 집계·training_pairs·pkg_vectors 생성 |
 | 5 | GPU 학습·MLflow 등록·평가/승격 사이클 | GPU 등록과 #1 승격 권한 분리, Recall@10·MRR 평가 |
 | 6 | 유사도 배치 v1 후속 | dependency overlap 관문·평가셋/채점 게이트·S3/PG 원자 게시 연결 |
-| 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 현재 6개 endpoint와 자유 입력 검증·후보 2개 미선택 UX 정합, 프런트 typecheck 통과 |
+| 7 | Spring Boot 서빙 API·입력·후보·총 3개 선택 | 현재 6개 endpoint와 자유 입력 검증·후보 최대 3개 미선택 UX 정합, 프런트 typecheck 통과 |
 | 8 | 직접 Dependency·Downloads·Version Share 보고서 | major 다중 선택·104주·현행 Version Share와 로그축/결측/상태 후속 계약 정합 |
 | 9 | RAG 기능 비교 [확장] | 현재 선택 버전별 완료 결과와 근거 계약 |
 | 10 | PDF Snapshot·#1 data worker 생성 [확장] | 생태계 결과와 현재 선택 버전의 완료 기능 비교 결과가 모두 있어야 READY이며, app 요청 경로와 생성 실행 분리 |
@@ -1292,13 +1294,13 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 
 ### 기본·통합 계약
 
-1. 기준 패키지만 최초 선택되고 후보 ranking 상위 2개는 미선택 카드로 표시
+1. 기준 패키지만 최초 선택되고 후보 ranking 상위 최대 3개는 모두 미선택 카드로 표시
 2. 기준 패키지 해제 요청 거부
 3. 네 번째 패키지 추가 차단과 수동 해제
 4. 후보 0개, 의미 retrieval 실패, ranking 처리 실패 상태 분리
 5. `text_hash`가 바뀐 description만 재임베딩되고 모델 승격 전에는 불필요한 전수 재임베딩이 발생하지 않는지 검증
-6. 현재 기본 `search_k=30`이 화면 노출 2개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
-7. 현재 plugin/adapter·same-family 관문과 후속 dependency overlap 관문을 구분하고, 통과 후보가 cos로 정렬되는지 검증
+6. 현재 기본 `search_k=30`이 화면 노출 최대 3개와 독립적으로 적용되고 순수 의미 검색에 popularity·Downloads·dependents 가산이 섞이지 않는지 검증
+7. 현재 plugin/adapter·same-family 임시 관문과 AI팀 목표인 dependency overlap·노후·실체 관문을 구분하고, 통과 후보가 cos로 정렬되는지 검증
 8. 평가셋 확정 전 scoring gate가 `SKIPPED`로 기록되고 명시적 허용 없이 성공 게시되지 않는지 검증
 9. MVP Dependents가 `sum_over_versions=true`와 major별 series를 반환하고 직접/간접 전환 요청이 없는지 확인
 10. Dependency의 `Total`/major 다중 선택이 이미 받은 series를 패키지별로 독립 합산하며 재호출하지 않는지 확인
@@ -1355,4 +1357,4 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - Node.js packages: https://nodejs.org/api/packages.html
 - GitHub REST API: https://docs.github.com/en/rest
 
-> **최종 개발 기준** v1은 두 서버의 실측 사양과 저장소 배포 선언을 함께 본다. 서버 정보 PDF의 관측 구성과 compose에 재현되는 구성을 구분하며 Redis·History Server·분석/PDF worker의 실제 배포 소유권은 확인 전 OPEN이다. 현재 API는 자유 입력을 `/packages/similar`로 검증하고 후보 상위 2개를 미선택 카드로 표시하며, Dependents major series를 프런트에서 합산하고 Downloads는 최대 104주를 허용한다. 후보 API·AI 배치 본체는 구현됐지만 dependency overlap 관문·평가셋 게이트·S3/PG 게시 연결은 미완료다. Version Share MVP는 최신 DB Snapshot의 version별 dependents를 major로 합산하고 requirement 해석 기반 최신 완료 분포는 확장으로 둔다. 로그축·8일 초과 결측 단절·계열별 축적 상태·카드별 실패 격리·선택 기간 delta는 미구현 제품 계약으로 유지한다. 기능 비교 결과가 끝나기 전 PDF는 BLOCKED다.
+> **최종 개발 기준** v1은 두 서버의 실측 사양과 저장소 배포 선언을 함께 본다. 서버 정보 PDF의 관측 구성과 compose에 재현되는 구성을 구분하며 Redis·History Server·분석/PDF worker의 실제 배포 소유권은 확인 전 OPEN이다. 현재 API는 자유 입력을 `/packages/similar`로 검증한다. 제품 계약은 후보 상위 최대 3개를 모두 미선택 카드로 표시하는 것이며 현재 프런트의 2개 노출은 구현 gap이다. Dependents major series는 프런트에서 합산하고 Downloads는 최대 104주를 허용한다. 후보 API·AI 배치 본체는 구현됐지만 dependency overlap 관문·평가셋 게이트·S3/PG 게시 연결은 미완료다. Version Share MVP는 최신 DB Snapshot의 version별 dependents를 major로 합산하고 requirement 해석 기반 최신 완료 분포는 확장으로 둔다. 로그축·8일 초과 결측 단절·계열별 축적 상태·카드별 실패 격리·선택 기간 delta는 미구현 제품 계약으로 유지한다. 기능 비교 결과가 끝나기 전 PDF는 BLOCKED다.
