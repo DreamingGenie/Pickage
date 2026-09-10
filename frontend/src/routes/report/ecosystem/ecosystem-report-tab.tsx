@@ -46,7 +46,8 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
 
   const downloads = useDownloadsTrend(names, from)
   const dependents = useDependentsTrend(names, from)
-  const versionShare = useVersionShare(names, overview.data?.snapshot_at)
+  // 적재 전에는 snapshot_at 이 null 이다. 서버 기본값(최신 스냅샷)에 맡긴다.
+  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined)
 
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>

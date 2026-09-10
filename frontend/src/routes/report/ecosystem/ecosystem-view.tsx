@@ -151,7 +151,8 @@ export function EcosystemView({
       </p>
 
       <p className="font-mono text-[10.5px] text-muted-foreground">
-        기준 스냅샷 {model.snapshotAt}
+        {/* 기준일이 없다 = 아직 첫 스냅샷을 못 받았다. 장애가 아니라 자료 축적 중이다. */}
+        {model.snapshotAt ? `기준 스냅샷 ${model.snapshotAt}` : '기준 스냅샷 없음 — 데이터 축적 중'}
       </p>
     </div>
   )

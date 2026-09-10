@@ -81,13 +81,16 @@ docker volume rm pickage-local_pgdata
 
 ### 샘플 데이터 — 목적이 다른 세 벌
 
-**셋을 같이 쓸 수 없다.** 전부 기존 행을 비우고 시작하므로 나중에 돌린 쪽만 남는다.
+**아래 셋을 같이 쓸 수 없다.** 전부 기존 행을 비우고 시작하므로 나중에 돌린 쪽만 남는다.
+(그 아래 두 개는 데이터를 넣지 않는 **비우기 전용**이라 셋 중 무엇 위에도 얹을 수 있다.)
 
 | 파일 | 규모 | 무엇을 보려고 |
 | --- | --- | --- |
 | `seed_sample.sql` | 패키지 3 × 스냅샷 2 | **자료가 모자란 상태.** 추이 그래프가 "데이터 축적 중" 으로 뜨는지, `repo_url` 이 없는 패키지가 "미확인" 으로 뜨는지 |
 | `seed_mock_parity.sql` | 패키지 369 × 스냅샷 130 | **mock 과 같은 숫자.** `VITE_USE_MOCK=true` 인 화면과 번갈아 보며 다른 곳을 찾는 대조 검증 |
 | `seed_service_full.sql` | 패키지 322 × 스냅샷 130 | **목업을 굴려 보는 상태.** 메인 6개 테이블을 전부 채우고(`similar_package` 포함) 경계 사례를 일부러 심어 두었다 |
+| `seed_clear_snapshots.sql` | 넣지 않음 | **자료가 아예 없는 상태.** 위 시드 뒤에 얹으면 이름은 남고 스냅샷만 사라진다. 적재 전·첫 스냅샷 대기 중의 정상 상태이며, 이때 5개 엔드포인트가 전부 200 이어야 한다 (S15P21A506-298) |
+| `seed_reset.sql` | 넣지 않음 | **목업을 실데이터로 교체하기 직전 1회.** 6개 테이블을 전부 비운다. 아래 "목업에서 실데이터로" 참고 |
 
 `seed_mock_parity` 와 `seed_service_full` 은 규모가 비슷하지만 쓰임이 다르다. 앞은 **mock 과
 숫자가 같아야** 의미가 있어서 값을 바꾸려면 `frontend/src/api/mock/dataset.ts` 부터 고쳐야
@@ -98,7 +101,22 @@ docker volume rm pickage-local_pgdata
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_sample.sql
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_mock_parity.sql
 docker compose exec postgres psql -U postgres -d pickage -f seed/seed_service_full.sql
+docker compose exec postgres psql -U postgres -d pickage -f seed/seed_clear_snapshots.sql
 ```
+
+### 목업에서 실데이터로
+
+실적재기(`pipeline/postgresql`)는 전량 교체가 아니라 임시 staging + upsert 라 **목업 행을
+스스로 걷어내지 않는다.** 그래서 정제 데이터를 처음 적재하기 직전에 `seed_reset.sql` 을
+한 번 돌린다.
+
+잊고 적재하면 **조용히 섞이지 않는다.** 적재기가 게시 직전에 `package_id` ↔ `name` 짝을
+검사해 `package_id/name collision` 으로 예외를 던지고 트랜잭션을 통째로 롤백한다. 목업은
+`package_id` 를 1 부터 제 순서대로 배정하므로 거의 확실히 걸린다 — 그 메시지를 보면 여기로
+올 것.
+
+반대 방향은 막혀 있다. 실적재가 한 번 성공하면 `etl_snapshot_reference` 에 이력이 남고,
+그 뒤로는 모든 시드의 `DELETE FROM snapshot` 이 FK 위반으로 멈춘다.
 
 > 시드는 **메인 서비스 6개 테이블만** 건드린다. 적재 추적(`etl_*`) 4개는 파이프라인이
 > 소유하므로 비우지도 채우지도 않는다. 그래서 `snapshot` 은 `TRUNCATE` 가 아니라 `DELETE`

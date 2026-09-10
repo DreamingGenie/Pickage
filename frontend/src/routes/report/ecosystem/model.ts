@@ -122,8 +122,11 @@ export interface PackageCardModel {
 }
 
 export interface EcosystemModel {
-  /** 0.5 — 모든 현재값의 기준 스냅샷. 항목마다 같으므로 여기 한 번만 둔다. */
-  snapshotAt: string
+  /**
+   * 0.5 — 모든 현재값의 기준 스냅샷. 항목마다 같으므로 여기 한 번만 둔다.
+   * 적재 전이면 `null` 이며, 그때 화면은 기준일 대신 "데이터 축적 중" 을 알린다.
+   */
+  snapshotAt: string | null
   /** 비교 순서. 요청한 이름 순서 그대로다. 0번이 기준 패키지다. */
   packages: PackageCardModel[]
   series: Record<MetricKey, ChartSeries[]>

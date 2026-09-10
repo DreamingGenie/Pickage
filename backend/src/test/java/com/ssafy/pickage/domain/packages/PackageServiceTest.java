@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 
 /**
@@ -157,5 +160,160 @@ class PackageServiceTest {
 
 		assertEquals(List.of("pino", "express"),
 			res.items().stream().map(PackagesOverviewResponse.Item::name).toList());
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * S15P21A506-298 — 스냅샷이 없거나 모자란 구간
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 추이·분포 시험용 대역.
+	 *
+	 * <p>두 가지를 의도적으로 심어 두었다.
+	 *
+	 * <ul>
+	 *   <li><b>조회 메서드가 행을 갖고 있다.</b> 구간이 없을 때 그 행이 응답에 나오면
+	 *       서비스가 DB 를 물었다는 뜻이라 시험이 깨진다.
+	 *   <li><b>넘겨받은 구간을 {@link #queried} 에 기록한다.</b> 구간은 응답에 실리지 않아
+	 *       밖에서 볼 수 없다. 기본 구간이 최신 스냅샷 기준으로 잡히는지 확인하려면
+	 *       저장소가 무엇을 받았는지 봐야 한다.
+	 * </ul>
+	 */
+	private static final class FakeRepository extends PackageQueryRepository {
+
+		private final LocalDate latest;
+		private final List<String> existing;
+		private final List<TrendRow> rows;
+
+		/** 서비스가 실제로 조회한 구간. 비어 있으면 DB 를 묻지 않았다는 뜻이다. */
+		private final List<SnapshotWindow> queried = new ArrayList<>();
+
+		private FakeRepository(LocalDate latest, List<String> existing, List<TrendRow> rows) {
+			super(null);
+			this.latest = latest;
+			this.existing = existing;
+			this.rows = rows;
+		}
+
+		@Override
+		public LocalDate findLatestSnapshot() {
+			return latest;
+		}
+
+		@Override
+		public List<String> findExistingNames(PackageNames names) {
+			return existing;
+		}
+
+		@Override
+		public List<OverviewRow> findOverview(PackageNames names) {
+			return List.of();
+		}
+
+		@Override
+		public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
+			queried.add(window);
+			return rows;
+		}
+
+		@Override
+		public List<TrendRow> findDependentsTrend(PackageNames names, SnapshotWindow window) {
+			queried.add(window);
+			return rows;
+		}
+
+		@Override
+		public List<ShareRow> findVersionShare(PackageNames names, LocalDate snapshotAt) {
+			return List.of();
+		}
+	}
+
+	private static final List<TrendRow> ONE_ROW =
+		List.of(new TrendRow("express", SNAPSHOT, 100L));
+
+	/**
+	 * 추이 두 개는 <b>같은 규칙</b>을 쓴다. 한 시험에서 둘 다 부른다 — 나눠 두면 한쪽만
+	 * 되돌아갔을 때 나머지 하나가 계속 초록불이라 그 사실이 가려진다.
+	 */
+	@Test
+	@DisplayName("298 — 스냅샷이 하나도 없으면 추이 둘 다 500 이 아니라 빈 시리즈다")
+	void emptySnapshotYieldsEmptyTrends() {
+		FakeRepository fake = new FakeRepository(null, List.of("express"), ONE_ROW);
+		PackageService service = new PackageService(fake);
+		PackageNames names = PackageNames.of(List.of("express"));
+
+		var downloads = service.getDownloadsTrend(names, null, null);
+		var dependents = service.getDependentsTrend(names, null, null);
+
+		for (var res : List.of(downloads, dependents)) {
+			assertEquals(1, res.series().size());
+			assertEquals("express", res.series().getFirst().name());
+			assertTrue(res.series().getFirst().points().isEmpty());
+			// 이름이 없는 것과 자료가 없는 것은 다르다. 존재하는 이름을 not_found 로 보내면
+			// 화면이 "이름을 확인하세요" 를 띄우고, 사용자는 멀쩡한 이름을 계속 다시 친다.
+			assertTrue(res.notFound().isEmpty());
+		}
+		assertTrue(fake.queried.isEmpty(), "구간이 없으면 DB 를 묻지 않는다");
+	}
+
+	@Test
+	@DisplayName("298 — 스냅샷이 없으면 버전 분포는 snapshot_at 이 null 이고 조각이 비어 있다")
+	void emptySnapshotYieldsEmptyVersionShare() {
+		PackageService service = new PackageService(
+			new FakeRepository(null, List.of("express"), List.of()));
+
+		var res = service.getVersionShare(PackageNames.of(List.of("express")), null);
+
+		// 날짜를 지어내지 않는다. 요청도 없었고 기준일도 없으므로 null 이 사실이다.
+		assertNull(res.snapshotAt());
+		assertEquals(1, res.items().size());
+		assertTrue(res.items().getFirst().slices().isEmpty());
+		assertTrue(res.notFound().isEmpty());
+	}
+
+	@Test
+	@DisplayName("298 — 스냅샷이 없어도 from·to 를 명시하면 그 구간 그대로 조회한다")
+	void explicitWindowSurvivesEmptySnapshot() {
+		FakeRepository fake = new FakeRepository(null, List.of("express"), ONE_ROW);
+		PackageService service = new PackageService(fake);
+
+		var res = service.getDownloadsTrend(PackageNames.of(List.of("express")),
+			LocalDate.parse("2026-08-01"), LocalDate.parse("2026-08-31"));
+
+		// 사용자가 물어본 구간을 서버가 지어내거나 비우지 않는다.
+		assertEquals(1, fake.queried.size());
+		assertEquals(new SnapshotWindow(LocalDate.parse("2026-08-01"), LocalDate.parse("2026-08-31")),
+			fake.queried.getFirst());
+		assertEquals(1, res.series().getFirst().points().size());
+	}
+
+	/**
+	 * §4 — 기본 구간은 <b>오늘이 아니라 최신 스냅샷</b>에서 거꾸로 센다. 오늘을 기준으로 세면
+	 * 아직 만들어지지 않은 주가 구간에 들어가 매번 다른 길이의 시리즈가 나온다.
+	 *
+	 * <p>스냅샷이 하나뿐이어도 구간은 성립한다 — 26주를 채울 자료가 없는 것과 구간이 없는 것은
+	 * 다르다. 앞은 점 하나짜리 정상 응답이다.
+	 */
+	@Test
+	@DisplayName("298 — 기본 구간은 최신 스냅샷에서 26주를 거꾸로 센다 (양 끝 포함)")
+	void defaultWindowCountsBackFromLatestSnapshot() {
+		FakeRepository fake = new FakeRepository(SNAPSHOT, List.of("express"), ONE_ROW);
+		PackageService service = new PackageService(fake);
+
+		var res = service.getDownloadsTrend(PackageNames.of(List.of("express")), null, null);
+
+		assertEquals(new SnapshotWindow(SNAPSHOT.minusWeeks(25), SNAPSHOT), fake.queried.getFirst());
+		assertEquals(1, res.series().getFirst().points().size());
+	}
+
+	@Test
+	@DisplayName("298 — 적재 전 개요의 snapshot_at 은 null 이다 (날짜를 지어내지 않는다)")
+	void overviewSnapshotAtIsNullBeforeIngest() {
+		PackageService service = new PackageService(new FakeRepository(null, List.of(), List.of()));
+
+		var res = service.getOverview(PackageNames.of(List.of("express")));
+
+		assertNull(res.snapshotAt());
+		assertTrue(res.items().isEmpty());
 	}
 }

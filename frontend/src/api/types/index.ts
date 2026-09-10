@@ -125,8 +125,13 @@ export interface PackageOverview {
 }
 
 export interface PackagesOverviewResponse {
-  /** 0.5 — 항목마다 같으므로 바깥에 한 번만 싣는다. YYYY-MM-DD */
-  snapshot_at: string
+  /**
+   * 0.5 — 항목마다 같으므로 바깥에 한 번만 싣는다. YYYY-MM-DD
+   *
+   * **적재 전에는 `null` 이다.** 서버가 없는 기준일을 지어내지 않는다 — 화면은 이 값이
+   * 없으면 "데이터 축적 중" 으로 그린다. 자료가 없는 것이지 장애가 아니다.
+   */
+  snapshot_at: string | null
   items: PackageOverview[]
   /** 0.2 — 일부가 없어도 200. 못 찾은 이름을 여기 담는다. */
   not_found: string[]
@@ -203,7 +208,8 @@ export interface VersionShareItem {
 }
 
 export interface VersionShareResponse {
-  snapshot_at: string
+  /** 요청한 기준일. 생략하면 최신 스냅샷이고, 적재 전이면 `null` 이다. */
+  snapshot_at: string | null
   /** 다운로드는 패키지 단위 단일값이라 버전별로 쪼갤 수 없다. 지분 기준은 dependents. */
   basis: 'dependents'
   /** §5 와 같은 이유로 조각 합계는 부풀려진 값이다. 원 가운데에 총계를 찍지 않는다. */
