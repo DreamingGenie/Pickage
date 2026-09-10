@@ -1,0 +1,386 @@
+{
+  "recorded_at": "2026-09-10T06:33:22.867640+00:00",
+  "kind": "READ_ONLY_INPUT_ASSESSMENT",
+  "workspace": "C:\\Users\\SSAFY\\workspace\\S15P21A506",
+  "branch": "data/feat/S15P21A506-193-dependents-count",
+  "head": "114258e6b9b0689670b2733a9e974af940538747",
+  "candidate_run_id": "requirements-20260831-v1",
+  "run_root": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1",
+  "attempt_root": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z",
+  "snapshot": "2026-08-31",
+  "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+  "input_sha256": "d673d51c73b9245ea897d5b910dc7a90c8e905930a7d05040d07ae9d3e9418e5",
+  "policy_sha256": "721c9d968f75429497b5e30b86ba0137998ea6a6ab1766bfb274d5661da52ef8",
+  "recorded_resolution_status": "PARTIAL",
+  "recorded_ready_for_dependents": false,
+  "run_manifest_exists": false,
+  "success_marker_exists": false,
+  "normal_input_approved": false,
+  "blocking_reasons": [
+    "PARTIAL_RESULT",
+    "NOT_READY_FOR_DEPENDENTS",
+    "MISSING_RUN_MANIFEST",
+    "MISSING_SUCCESS_MARKER",
+    "FULL_TARGET_POPULATION_NOT_VALIDATED"
+  ],
+  "files_moved_or_copied": false,
+  "small_metadata_files": {
+    "input_manifest": {
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\input-manifest.json",
+      "bytes": 436957,
+      "sha256": "60fef1a08c4ca6a2ae9581f1978488c91bda16ec594983404fc7a89a89990206"
+    },
+    "prepare_result": {
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\prepare\\result.json",
+      "bytes": 498,
+      "sha256": "ebc448da6b4c2a432f3faa0263d91e8578918763f487351f8d35cffaf2fb7fe3"
+    },
+    "finalize_result": {
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\finalize\\result.json",
+      "bytes": 1233,
+      "sha256": "202c5e527fe7762bdd975fce35bbd48b032b2d8f84ec0f39dcba657b58717299"
+    },
+    "policy": {
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\policy.json",
+      "bytes": 2273,
+      "sha256": "cc5d7116b82a3bc256e14032ff36134222c18043fe4db0ed4007756741739072"
+    }
+  },
+  "groups": {
+    "prepare/outputs/candidates": {
+      "files_observed": 192,
+      "bytes_observed": 973227070,
+      "first_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\prepare\\outputs\\candidates\\part-00000-b43c59f9-f27d-40ca-852a-86458e4c15e9-c000.snappy.parquet",
+      "schema_check_scope": "first_file_only",
+      "first_file_schema": [
+        {
+          "name": "package_id",
+          "type": "INTEGER"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "published_at_unknown",
+          "type": "BOOLEAN"
+        }
+      ]
+    },
+    "prepare/outputs/sources": {
+      "files_observed": 192,
+      "bytes_observed": 1029137212,
+      "first_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\prepare\\outputs\\sources\\part-00000-ecf0ff6c-09f2-468f-8404-760cf5ca8e46-c000.snappy.parquet",
+      "schema_check_scope": "first_file_only",
+      "first_file_schema": [
+        {
+          "name": "source_name",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "source_version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "source_package_id",
+          "type": "INTEGER"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "published_at_unknown",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "dependency_error",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "requirements_present",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "selected_list_null",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "declaration_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "excluded_peer_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "excluded_optional_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "source_processing_status",
+          "type": "VARCHAR"
+        }
+      ]
+    },
+    "finalize/outputs/edges": {
+      "files_observed": 1152,
+      "bytes_observed": 1987003284,
+      "first_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\finalize\\outputs\\edges\\part-00000-c23b91fb-f805-4f40-962d-6c9ed0aad98b-c000.snappy.parquet",
+      "schema_check_scope": "first_file_only",
+      "first_file_schema": [
+        {
+          "name": "snapshot_at",
+          "type": "DATE"
+        },
+        {
+          "name": "source_package_id",
+          "type": "INTEGER"
+        },
+        {
+          "name": "source_version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "target_package_id",
+          "type": "INTEGER"
+        },
+        {
+          "name": "target_version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "dependency_kinds",
+          "type": "VARCHAR[]"
+        },
+        {
+          "name": "declaration_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "snapshot_timestamp",
+          "type": "TIMESTAMP WITH TIME ZONE"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "input_sha256",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "curated_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "bronze_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "policy_sha256",
+          "type": "VARCHAR"
+        }
+      ]
+    },
+    "finalize/outputs/source_outcomes": {
+      "files_observed": 192,
+      "bytes_observed": 1116516162,
+      "first_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\finalize\\outputs\\source_outcomes\\part-00000-24b9a9e3-35c3-49ee-8aee-9e338ed820d8-c000.snappy.parquet",
+      "schema_check_scope": "first_file_only",
+      "first_file_schema": [
+        {
+          "name": "source_package_id",
+          "type": "INTEGER"
+        },
+        {
+          "name": "source_version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "source_name",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "published_at",
+          "type": "TIMESTAMP"
+        },
+        {
+          "name": "published_at_unknown",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "dependency_error",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "requirements_present",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "selected_list_null",
+          "type": "BOOLEAN"
+        },
+        {
+          "name": "declaration_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "excluded_peer_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "excluded_optional_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "source_processing_status",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "observed_declaration_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "resolved_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "unresolved_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "snapshot_at",
+          "type": "DATE"
+        },
+        {
+          "name": "snapshot_timestamp",
+          "type": "TIMESTAMP WITH TIME ZONE"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "input_sha256",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "curated_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "bronze_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "policy_sha256",
+          "type": "VARCHAR"
+        }
+      ]
+    },
+    "finalize/outputs/target_quality": {
+      "files_observed": 1,
+      "bytes_observed": 5022,
+      "first_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\attempts\\20260909T052957543914Z\\finalize\\outputs\\target_quality\\part-00000-8dcf7d9e-692e-4ed6-bf6e-fafe7e210ef3-c000.snappy.parquet",
+      "schema_check_scope": "first_file_only",
+      "first_file_schema": [
+        {
+          "name": "name",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "version",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "snapshot_at",
+          "type": "DATE"
+        },
+        {
+          "name": "snapshot_timestamp",
+          "type": "TIMESTAMP WITH TIME ZONE"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "input_sha256",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "curated_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "bronze_run_id",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "policy_sha256",
+          "type": "VARCHAR"
+        }
+      ]
+    }
+  },
+  "prepare_recorded_counts": {
+    "candidates": 47172949,
+    "declarations": 289214123,
+    "sources": 47172949
+  },
+  "finalize_recorded_counts": {
+    "declaration_outcomes": 289214123,
+    "edges": 280232217,
+    "source_outcomes": 47172949,
+    "target_quality": 79
+  },
+  "target_population": {
+    "candidate_source": "prepare/outputs/candidates",
+    "candidate_recorded_count": 47172949,
+    "release_and_publication_filter": "recorded in prepare code and result; full rows not revalidated here",
+    "stable_semver_filter": "not yet applied to whole candidate population",
+    "target_quality_scope": "consulted_target_packages_only",
+    "approved_population_file": null,
+    "approved_population_count": null
+  },
+  "validation_scope": {
+    "filesystem_existence": true,
+    "listed_parquet_file_count_and_size": true,
+    "small_metadata_sha256": true,
+    "representative_schema": true,
+    "all_parquet_sha256": false,
+    "all_parquet_footer_counts": false,
+    "full_row_validation": false,
+    "remote_manifest_verification": false,
+    "database_access": false,
+    "diagnostic_or_production_counts_computed": false,
+    "consulted_target_quality_reason_counts": true
+  },
+  "duckdb_version": "1.5.5",
+  "small_metadata_cross_checks": {
+    "identity_and_policy_hash_agree": true,
+    "existing_policy_validator_passed": true,
+    "snapshot_date_matches_exact_timestamp": true,
+    "prepare_and_finalize_match_committed_evidence_bytes": true
+  },
+  "consulted_target_quality_counts": {
+    "INVALID_TARGET_SEMVER": 79
+  }
+}
