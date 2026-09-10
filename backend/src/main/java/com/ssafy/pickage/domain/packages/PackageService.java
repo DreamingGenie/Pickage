@@ -71,6 +71,8 @@ public class PackageService {
 
 		warnIfSilentlyDropped(names, notFound);
 
+		// snapshot_at 은 적재 전이면 null 이다. 0.5 가 "모든 현재값의 기준" 으로 정한 값이라
+		// 임의의 날짜로 채우면 화면이 있지도 않은 기준일을 표시하게 된다.
 		return new PackagesOverviewResponse(repository.findLatestSnapshot(), items, notFound);
 	}
 
@@ -123,25 +125,35 @@ public class PackageService {
 
 	@Transactional(readOnly = true)
 	public TrendResponse getDownloadsTrend(PackageNames names, LocalDate from, LocalDate to) {
-		SnapshotWindow window = window(from, to);
 		Existing existing = existing(names);
 		return TrendResponse.downloads(
-			toSeries(repository.findDownloadsTrend(names, window), existing),
+			toSeries(trendRows(from, to, window -> repository.findDownloadsTrend(names, window)), existing),
 			existing.notFound());
 	}
 
 	@Transactional(readOnly = true)
 	public TrendResponse getDependentsTrend(PackageNames names, LocalDate from, LocalDate to) {
-		SnapshotWindow window = window(from, to);
 		Existing existing = existing(names);
 		return TrendResponse.dependents(
-			toSeries(repository.findDependentsTrend(names, window), existing),
+			toSeries(trendRows(from, to, window -> repository.findDependentsTrend(names, window)), existing),
 			existing.notFound());
 	}
 
-	/** §4 — 기본 구간의 기준은 오늘이 아니라 <b>최신 스냅샷</b>이다. */
-	private SnapshotWindow window(LocalDate from, LocalDate to) {
-		return SnapshotWindow.of(from, to, repository.findLatestSnapshot());
+	/**
+	 * 구간을 정하고 조회한다.
+	 *
+	 * <p>§4 — 기본 구간의 기준은 오늘이 아니라 <b>최신 스냅샷</b>이다.
+	 *
+	 * <p><b>스냅샷이 하나도 없으면 구간 자체가 없다</b>({@link SnapshotWindow#of}). 그때는 DB 에
+	 * 묻지 않고 빈 행 집합을 돌려준다 — 존재하는 이름은 {@link #toSeries} 를 지나며 빈 시리즈가
+	 * 되고, 응답은 200 이다. 적재 전이거나 첫 스냅샷을 기다리는 동안의 <b>정상 상태</b>이지
+	 * 장애가 아니다.
+	 */
+	private List<TrendRow> trendRows(LocalDate from, LocalDate to,
+		Function<SnapshotWindow, List<TrendRow>> query) {
+		return SnapshotWindow.of(from, to, repository.findLatestSnapshot())
+			.map(query)
+			.orElseGet(List::of);
 	}
 
 	/**
