@@ -157,6 +157,42 @@ class RefreshAdmissionCoordinatorTest {
 	}
 
 	@Test
+	void 대기_큐가_가득_차서_거절돼도_이미_쓴_토큰을_돌려받는다() throws InterruptedException {
+		RefreshTaskRegistry registry = new RefreshTaskRegistry();
+		// 2(즉시 실행) + 4(큐) + 1(거절 대상)까지 정확히 커버하는 burst — 리필 없음.
+		// 환불이 안 되면 이 뒤로는 토큰이 0개 남아 다음 admit이 전부 거절된다.
+		RefreshAdmissionCoordinator coordinator =
+			new RefreshAdmissionCoordinator(registry, CommunityProperties.TOTAL_BUDGET, new StartTokenBucket(0, 7));
+		coordinators.add(coordinator);
+		CountDownLatch running = new CountDownLatch(2);
+		CountDownLatch release = new CountDownLatch(1);
+
+		coordinator.admit(1, RefreshTrigger.TAB_OPENED, task -> () -> {
+			running.countDown();
+			awaitUnchecked(release);
+		});
+		coordinator.admit(2, RefreshTrigger.TAB_OPENED, task -> () -> {
+			running.countDown();
+			awaitUnchecked(release);
+		});
+		await(running);
+		for (int packageId = 3; packageId <= 6; packageId++) {
+			coordinator.admit(packageId, RefreshTrigger.TAB_OPENED, task -> () -> { });
+		}
+
+		AdmissionDecision overflow = coordinator.admit(7, RefreshTrigger.TAB_OPENED, task -> () -> { });
+		assertThat(overflow).isInstanceOf(AdmissionDecision.Rejected.class);
+
+		// permit을 반납해 큐(no-op 4개)를 전부 비운다 — 토큰이 실제로 돌아왔는지는
+		// 이 상태 정리가 끝난 뒤 새 admit으로 확인해야 큐/permit 부족과 헷갈리지 않는다.
+		release.countDown();
+		Thread.sleep(200);
+
+		AdmissionDecision afterRefund = coordinator.admit(8, RefreshTrigger.TAB_OPENED, task -> () -> { });
+		assertThat(afterRefund).isInstanceOf(AdmissionDecision.Started.class);
+	}
+
+	@Test
 	void registry_용량이_차면_거절한다() {
 		RefreshTaskRegistry registry = new RefreshTaskRegistry();
 		RefreshAdmissionCoordinator coordinator = coordinator(registry);

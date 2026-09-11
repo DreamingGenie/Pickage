@@ -186,6 +186,34 @@ class IssueCollectionServiceTest {
 	}
 
 	@Test
+	void 이슈_처리_중_예산이_소진돼도_이미_모은_결과는_버리지_않는다() {
+		// 댓글 수 내림차순 선정이므로 이슈 1이 먼저 처리된다. 그 처리에 예산(50ms)을 넘는
+		// 지연을 줘서, 이슈 2로 넘어가기 전 시간 확인에서 예산이 이미 바닥나게 만든다.
+		searchReturns(2, false, """
+			[{"number": 1, "title": "t1", "state": "open", "updated_at": "2026-01-01T00:00:00Z",
+			  "comments": 5, "locked": false, "user": {"login": "a", "type": "User"}},
+			 {"number": 2, "title": "t2", "state": "open", "updated_at": "2026-01-01T00:00:00Z",
+			  "comments": 3, "locked": false, "user": {"login": "a", "type": "User"}}]
+			""");
+		server.respondDynamic("/repos/owner/repo/issues/1/comments", query -> {
+			try {
+				Thread.sleep(80);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			return new FakeHttpServer.Answer(200, commentsPage(1, 1), Map.of());
+		});
+		// 이슈 2의 엔드포인트는 등록하지 않는다 — 예산 소진 검사가 이슈 2를 아예 시도하지
+		// 않아야 정상이므로, 만약 버그가 재발해 호출된다면 404로 실패해 드러난다.
+
+		IssueCollectionResult result = service.collect("owner", "repo", Duration.ofMillis(50));
+
+		var success = (IssueCollectionResult.Success) result;
+		assertThat(success.topics()).extracting(CollectedIssue::issueNumber).containsExactly(1);
+		assertThat(success.limitations()).contains("TIME_BUDGET_EXCEEDED");
+	}
+
+	@Test
 	void 총_댓글_수는_수집한_100개가_아니라_원천_숫자를_그대로_쓴다() {
 		searchReturns(1, false, oneIssueItem(1, 250));
 		server.respond("/repos/owner/repo/issues/1/comments", 200, commentsPage(1, 3), Map.of());

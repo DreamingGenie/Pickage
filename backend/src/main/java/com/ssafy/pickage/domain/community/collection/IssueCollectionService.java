@@ -81,6 +81,14 @@ public class IssueCollectionService {
 		List<CollectedIssue> topics = new ArrayList<>();
 		for (SearchResultItem item : selected) {
 			if (timeLeft(deadline).isZero()) {
+				// 리뷰에서 발견: 이미 모은 topics가 있는데도 이 자리에서 무조건 FetchLimited로
+				// 돌리면 이미 완전히 수집해 둔 이슈까지 통째로 버려진다 — 예산 소진 전에 이미
+				// 확보한 진짜 데이터는 부분 성공(PARTIAL)으로 살린다. 아직 하나도 못 모았을
+				// 때만("정말 아무것도 없다") 여전히 FetchLimited다.
+				if (!topics.isEmpty()) {
+					limitations.add("TIME_BUDGET_EXCEEDED");
+					return new IssueCollectionResult.Success(topics, limitations);
+				}
 				return new IssueCollectionResult.FetchLimited("시간 예산 소진", null);
 			}
 			try {

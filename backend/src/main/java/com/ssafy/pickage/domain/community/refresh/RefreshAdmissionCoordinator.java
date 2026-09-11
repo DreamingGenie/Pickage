@@ -113,6 +113,12 @@ public class RefreshAdmissionCoordinator {
 
 		synchronized (queueLock) {
 			if (tabOpenedQueue.size() >= CommunityProperties.TAB_OPENED_QUEUE_CAPACITY) {
+				// ANALYSIS_CONFIRMED의 무대기 거절과 다르다 — 그건 "permit이 없다"는 사실 자체를
+				// 시도 비용으로 간주한다고 위에 명시돼 있지만, 여기는 대기조차 못 하고 버려지는
+				// 것이라 실제로 시작한 것이 전혀 없다. 환불하지 않으면 큐가 계속 꽉 찬 상태에서
+				// 들어오는 TAB_OPENED 요청마다 전역 토큰을 갉아먹어 다른 package의 정상 요청까지
+				// 거절될 수 있다(리뷰에서 발견 — join 경합 패자를 환불하는 것과 같은 부류의 누수).
+				startTokens.refund();
 				log.info("커뮤니티 admission 거절 — TAB_OPENED 대기 큐 초과: packageId={}", packageId);
 				return new AdmissionDecision.Rejected();
 			}

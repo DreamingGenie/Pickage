@@ -2,6 +2,7 @@ package com.ssafy.pickage.domain.community.collection;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -134,7 +135,7 @@ public class GitHubIssueCommentsClient {
 		List<CollectedComment> comments = new ArrayList<>();
 		for (JsonNode node : array) {
 			comments.add(new CollectedComment(
-				node.path("id").asText(),
+				parseCommentId(node),
 				node.path("user").path("login").asText(""),
 				node.path("author_association").asText("NONE"),
 				"Bot".equals(node.path("user").path("type").asText("")),
@@ -142,6 +143,24 @@ public class GitHubIssueCommentsClient {
 				node.path("body").asText("")));
 		}
 		return comments;
+	}
+
+	/**
+	 * {@link CommentWindowResolver#selectLatest}가 이 값을 {@link BigInteger}로 비교하므로
+	 * 여기서 미리 검증한다 — 검증 없이 넘기면 {@code id}가 없거나(빈 문자열) 숫자가 아닐 때
+	 * {@code NumberFormatException}(unchecked)이 이슈 단위 격리를 건너뛰고 전체 수집을
+	 * 깨뜨린다(리뷰에서 발견). {@link #parseInstant}와 같은 이유로 여기서
+	 * {@link UpstreamFetchException}으로 통일한다 — 그러면 {@code collectIssue}의 기존
+	 * try/catch가 이 이슈만 TRUNCATED/FAILED로 격리한다.
+	 */
+	private static String parseCommentId(JsonNode node) {
+		String id = node.path("id").asText("");
+		try {
+			new BigInteger(id);
+		} catch (NumberFormatException e) {
+			throw new UpstreamFetchException("GitHub comments 응답의 id 형식 오류: " + id, e);
+		}
+		return id;
 	}
 
 	/** {@link GitHubIssueSearchClient#parseInstant}와 같은 이유(리뷰에서 발견). */

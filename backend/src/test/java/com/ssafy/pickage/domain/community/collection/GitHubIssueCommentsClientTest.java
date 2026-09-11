@@ -96,4 +96,22 @@ class GitHubIssueCommentsClientTest {
 		assertThatThrownBy(() -> client().fetchPage("o", "r", 1, 1, BUDGET))
 			.isInstanceOf(UpstreamFetchException.class);
 	}
+
+	/**
+	 * 리뷰에서 발견 — {@code id}가 없거나 숫자가 아니면 이전에는 검증되지 않은 채
+	 * {@code CommentWindowResolver.selectLatest}까지 흘러가 {@code NumberFormatException}
+	 * (unchecked)으로 전체 수집을 깨뜨렸다. 이제 이 경계에서 {@link UpstreamFetchException}
+	 * 으로 통일해, {@code IssueCollectionService.collectIssue}의 기존 격리(TRUNCATED/FAILED)
+	 * 가 정상 작동하게 한다.
+	 */
+	@Test
+	void id가_없으면_UpstreamFetchException이다() {
+		server.respond("/repos/o/r/issues/1/comments", 200,
+			"[{\"user\": {\"login\": \"u\", \"type\": \"User\"}, "
+				+ "\"author_association\": \"NONE\", \"created_at\": \"2026-01-01T00:00:00Z\", \"body\": \"hi\"}]",
+			Map.of());
+
+		assertThatThrownBy(() -> client().fetchPage("o", "r", 1, 1, BUDGET))
+			.isInstanceOf(UpstreamFetchException.class);
+	}
 }
