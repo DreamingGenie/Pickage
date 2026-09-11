@@ -150,6 +150,48 @@ Flyway 의 반복 마이그레이션(`R__`)으로 두면 파일이 바뀔 때마
 
 </details>
 
+### mock 을 끄고 화면까지 확인하기
+
+프런트는 기본이 mock 이다. **서버를 거치는지 보려면 꺼야 한다** — 켜 두면 화면이 예쁘게
+떠도 그것은 `src/api/mock` 이 만든 값이다.
+
+```bash
+printf 'VITE_API_BASE_URL=/api\nVITE_USE_MOCK=false\n' > frontend/.env.local
+```
+
+`.env.local` 은 `.gitignore` 에 걸려 있어 커밋되지 않는다. **값을 바꾸면 dev 서버를 다시
+띄운다** — Vite 는 기동 시점에 이 파일을 읽는다.
+
+그다음 셋을 순서대로 올린다.
+
+```bash
+docker compose --profile api up -d postgres
+docker compose exec -T postgres psql -U postgres -d pickage -f seed/seed_service_full.sql
+cd backend && ./gradlew bootRun          # 8080
+cd frontend && npm run dev               # 5173, /api 는 8080 으로 프록시된다
+```
+
+`http://localhost:5173/report/draft` 로 바로 들어가면 기본 조합(winston·pino·bunyan)으로
+생태계 탭이 뜬다. **화면-01·02 를 거칠 필요가 없다** — 그쪽은 아직
+`routes/analyze/sample-registry.ts` 하드코딩이라 서버를 타지 않는다(S15P21A506-120).
+
+시드를 갈아 끼우면 같은 화면에서 상태 네 가지를 다 볼 수 있다.
+
+| 시드 | 화면에 떠야 하는 것 |
+| --- | --- |
+| `seed_service_full` | 차트 두 개에 104주치 선 3개, 카드 3장 |
+| `seed_sample` | 기본 조합 이름이 하나도 없어 **"찾지 못한 패키지: …"** 만 뜬다. 500 이 아니다 |
+| `seed_sample` + 화면-01 에서 `lodash` | **"데이터 축적 중 · 2주차"** — 점이 3개 미만이면 선을 그리지 않는다 |
+| `seed_clear_snapshots` | **"기준 스냅샷 없음 — 데이터 축적 중"** (S15P21A506-298) |
+
+`/api/dict-manifest` 는 아직 404 다(S15P21A506-291). **그래도 검색창은 동작해야 한다** —
+사전은 최적화이지 의존성이 아니라서, 실패하면 전량 `/api/packages/search` 폴백으로 돈다.
+개발자 도구 네트워크 탭에서 404 하나와 그 뒤의 `search` 200 이 같이 보이면 정상이다.
+
+> 보고서를 한 번 열 때 나가는 요청은 **4개**다(개요 1 + 추이 2 + 버전 분포 1).
+> 그보다 많으면 기준일이 오기 전에 추이가 먼저 나간 것이다 — 예전에 7개였고
+> 세 개는 화면에 뜨지도 못한 채 버려졌다(S15P21A506-303).
+
 ## Curated package·version 적재
 
 Curated의 승인된 `package-version` 실행을 PostgreSQL에 넣을 때는

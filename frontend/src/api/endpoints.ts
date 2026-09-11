@@ -16,6 +16,7 @@ import {
   mockDownloadsTrend,
   mockPackagesOverview,
   mockSearch,
+  mockSimilarPackages,
   mockVersionShare,
 } from '@/api/mock/handlers'
 import type {
@@ -25,6 +26,7 @@ import type {
   PackageDictionary,
   PackageSearchResponse,
   PackagesOverviewResponse,
+  SimilarPackagesResponse,
   TrendQuery,
   VersionShareResponse,
 } from '@/api/types'
@@ -93,6 +95,28 @@ export function fetchDependentsTrend(query: TrendQuery): Promise<DependentsTrend
         from: query.from,
         to: query.to,
       })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-03 · UC4. 유사 패키지
+ * ------------------------------------------------------------------ */
+
+/**
+ * 기준 패키지의 대체 후보.
+ *
+ * **`names` 배열이 아니라 `name` 하나다.** "무엇의 대체재인가" 를 묻는 조회라 기준이 둘일 수
+ * 없고, 최대 3개 상한은 비교 화면의 규칙이라 여기와 무관하다.
+ *
+ * 후보가 없는 것과 이름이 없는 것을 구분해야 한다 — 앞은 `data_status: 'NO_DATA'` 이고
+ * 뒤는 `not_found` 다. 둘을 같은 문구로 그리면 "아직 계산 전" 이 "이름을 확인하세요" 로 뜬다.
+ */
+export function fetchSimilarPackages(
+  name: string,
+  limit?: number,
+): Promise<SimilarPackagesResponse> {
+  return USE_MOCK
+    ? mockSimilarPackages(name, limit)
+    : get<SimilarPackagesResponse>('/packages/similar', { name, limit })
 }
 
 /* ------------------------------------------------------------------ *

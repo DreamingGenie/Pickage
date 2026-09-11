@@ -27,5 +27,8 @@ export const queryKeys = {
       [...queryKeys.packages.all, 'dependents', sorted(names), from ?? null, to ?? null] as const,
     versionShare: (names: readonly string[], snapshotAt?: string) =>
       [...queryKeys.packages.all, 'version', sorted(names), snapshotAt ?? null] as const,
+    // 유사 패키지만 이름이 하나다. 정렬할 배열이 없으므로 그대로 넣는다.
+    similar: (name: string, limit?: number) =>
+      [...queryKeys.packages.all, 'similar', name, limit ?? null] as const,
   },
 } as const

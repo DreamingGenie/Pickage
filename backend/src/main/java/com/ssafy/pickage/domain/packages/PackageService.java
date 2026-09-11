@@ -12,11 +12,14 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 
@@ -157,22 +160,43 @@ public class PackageService {
 	}
 
 	/**
-	 * 평평한 행을 이름별로 묶는다.
+	 * 평평한 행을 <b>(이름, major)</b> 별로 묶는다.
 	 *
-	 * <p>존재하지만 구간에 점이 하나도 없는 패키지는 <b>빈 시리즈</b>로 내보낸다.
-	 * 빼버리면 프론트가 그 이름을 못 찾은 것으로 오해할 여지가 생긴다.
+	 * <p>downloads 는 {@code major} 가 항상 {@code null} 이라 이름당 하나로 묶이고,
+	 * dependents 는 major 개수만큼 갈라진다. <b>SQL 이 이미 정렬해 보낸 순서를 그대로 지킨다</b> —
+	 * 여기서 다시 정렬하면 major 를 숫자로 세우려고 SQL 에 넣은 규칙이 무의미해진다.
+	 *
+	 * <p>존재하지만 구간에 점이 하나도 없는 패키지는 <b>{@code major} 가 {@code null} 인 빈
+	 * 시리즈</b> 하나로 내보낸다. 빼버리면 프론트가 그 이름을 못 찾은 것으로 오해할 여지가
+	 * 생긴다. 쪼갤 행이 없으므로 major 를 지어내지 않는다.
 	 */
 	private static List<TrendResponse.Series> toSeries(List<TrendRow> rows, Existing existing) {
-		Map<String, List<TrendResponse.Point>> byName = new LinkedHashMap<>();
-		for (String name : existing.names()) byName.put(name, new java.util.ArrayList<>());
-
+		// 행이 하나라도 온 이름. 그렇지 않은 이름만 빈 시리즈를 받는다.
+		Map<SeriesKey, List<TrendResponse.Point>> byKey = new LinkedHashMap<>();
 		for (TrendRow r : rows) {
-			List<TrendResponse.Point> points = byName.get(r.name());
-			if (points != null) points.add(new TrendResponse.Point(r.snapshotAt(), r.value()));
+			if (!existing.names().contains(r.name())) continue;
+			byKey.computeIfAbsent(new SeriesKey(r.name(), r.major()), k -> new java.util.ArrayList<>())
+				.add(new TrendResponse.Point(r.snapshotAt(), r.value()));
 		}
-		return byName.entrySet().stream()
-			.map(e -> new TrendResponse.Series(e.getKey(), List.copyOf(e.getValue())))
-			.toList();
+
+		List<TrendResponse.Series> series = new java.util.ArrayList<>();
+		for (String name : existing.names()) {
+			List<Map.Entry<SeriesKey, List<TrendResponse.Point>>> mine = byKey.entrySet().stream()
+				.filter(e -> e.getKey().name().equals(name))
+				.toList();
+
+			if (mine.isEmpty()) {
+				series.add(new TrendResponse.Series(name, null, List.of()));
+				continue;
+			}
+			for (var e : mine) {
+				series.add(new TrendResponse.Series(name, e.getKey().major(), List.copyOf(e.getValue())));
+			}
+		}
+		return List.copyOf(series);
+	}
+
+	private record SeriesKey(String name, String major) {
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -202,6 +226,56 @@ public class PackageService {
 		// 기준 시점은 요청한 날짜를 그대로 되돌려준다(화면이 무엇을 물었는지 알아야 한다).
 		return VersionShareResponse.of(snapshotAt != null ? snapshotAt : latest, items,
 			existing.notFound());
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-03 · UC4 유사 패키지
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 유사 패키지 목록.
+	 *
+	 * <p><b>조회를 둘로 나눈다.</b> 먼저 순위·점수를 가져오고, 그 이름들로 설명·최신 버전을
+	 * 따로 가져와 합친다. 한 쿼리로 조인하면 순위가 뜨는 시점이 정보 조회 속도에 묶인다 —
+	 * 지표별로 엔드포인트를 나눈 것과 같은 이유다(명세 §1).
+	 *
+	 * <p>여기서는 두 조회를 <b>서버 안에서</b> 이어 붙인다. 밖으로 두 번 부르게 하면 화면이
+	 * 순서를 관리해야 하고, 후보 20개를 받을 수 있는 공개 엔드포인트를 따로 열어야 한다 —
+	 * 그러면 "비교는 최대 3개" 규칙이 새어나간다.
+	 */
+	@Transactional(readOnly = true)
+	public SimilarPackagesResponse getSimilar(SimilarQuery query) {
+		// 기준 이름 자체가 없는 것과 후보가 아직 없는 것은 다르다. 앞은 not_found, 뒤는 빈 목록이다.
+		PackageNames base = PackageNames.of(List.of(query.name()));
+		if (repository.findExistingNames(base).isEmpty()) {
+			return SimilarPackagesResponse.of(query.name(), null, List.of(), List.of(query.name()));
+		}
+
+		List<SimilarRow> ranked = repository.findSimilar(query.name(), query.limit());
+		if (ranked.isEmpty()) {
+			return SimilarPackagesResponse.of(query.name(), null, List.of(), List.of());
+		}
+
+		// 2단계는 채우기만 한다. **순서의 정답은 1단계다** — DB 는 순서를 보장하지 않으므로
+		// 이어 붙이면 순위가 섞인다.
+		Map<String, BriefRow> briefs = repository
+			.findBriefByNames(ranked.stream().map(SimilarRow::name).toArray(String[]::new))
+			.stream()
+			.collect(Collectors.toMap(BriefRow::name, Function.identity()));
+
+		List<SimilarPackagesResponse.Candidate> candidates = ranked.stream()
+			.map(r -> {
+				// 정보가 없어도 후보에서 빼지 않는다. FK 가 걸려 있어 생길 수 없는 일이지만,
+				// 생겼을 때 목록에서 조용히 사라지면 "왜 19개지" 를 추적할 수 없다.
+				BriefRow b = briefs.get(r.name());
+				return new SimilarPackagesResponse.Candidate(
+					r.rank(), r.score(), r.name(),
+					b == null ? null : b.latestVersion(),
+					b == null ? null : b.description());
+			})
+			.toList();
+
+		return SimilarPackagesResponse.of(query.name(), ranked.getFirst().modelVer(), candidates, List.of());
 	}
 
 	/* ------------------------------------------------------------------ *

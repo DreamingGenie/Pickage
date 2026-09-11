@@ -45,7 +45,7 @@ export function StepCard({
       <div className={cn('flex items-center gap-3 px-6', done || locked ? 'py-4' : 'pt-6 pb-2')}>
         <span
           className={cn(
-            'grid size-6 shrink-0 place-items-center rounded-full font-mono text-[11px] tabular-nums transition-colors',
+            'grid size-6 shrink-0 place-items-center rounded-full font-mono text-base tabular-nums transition-colors',
             done && 'bg-emerald-600 text-white',
             state === 'active' && 'bg-foreground text-background',
             locked && 'bg-muted text-muted-foreground',
@@ -60,12 +60,12 @@ export function StepCard({
 
         {done && summary && (
           <span className="ml-auto flex min-w-0 items-center gap-3">
-            <span className="truncate text-[13px]">{summary}</span>
+            <span className="truncate text-base">{summary}</span>
             {onEdit && (
               <button
                 type="button"
                 onClick={onEdit}
-                className="flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                className="flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-base text-muted-foreground transition-colors hover:text-foreground"
               >
                 <PencilIcon className="size-3" aria-hidden />
                 수정

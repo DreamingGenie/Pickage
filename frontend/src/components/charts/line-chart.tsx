@@ -332,7 +332,7 @@ export function LineChart({
           className="pointer-events-none absolute top-2 z-10 flex min-w-[168px] flex-col gap-1.5 rounded-lg border bg-background px-3 py-2.5 shadow-lg"
           style={flip ? { right: W - hoverX + 10 } : { left: hoverX + 10 }}
         >
-          <span className="font-mono text-[10.5px] text-muted-foreground">{hoverT}</span>
+          <span className="font-mono text-base text-muted-foreground">{hoverT}</span>
           <ul className="flex flex-col gap-1">
             {series.map((s, i) => {
               const st = seriesStyle(i)
@@ -341,7 +341,7 @@ export function LineChart({
                 <li
                   key={s.key}
                   className={cn(
-                    'flex items-baseline justify-between gap-4 text-[11.5px]',
+                    'flex items-baseline justify-between gap-4 text-base',
                     partial && !isOn(s.key) && 'opacity-40',
                   )}
                 >
@@ -396,7 +396,7 @@ export function SeriesLegend({
           <li
             key={s.key}
             className={cn(
-              'flex items-center gap-1.5 text-[11px] transition-opacity',
+              'flex items-center gap-1.5 text-base transition-opacity',
               dimmed && 'opacity-35',
             )}
           >

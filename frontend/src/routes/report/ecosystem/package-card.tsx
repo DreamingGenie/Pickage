@@ -3,7 +3,11 @@ import { ChevronDownIcon } from 'lucide-react'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
 import { ObservationBadges } from '@/routes/report/ecosystem/badges'
-import type { PackageCardModel } from '@/routes/report/ecosystem/model'
+import {
+  ALL_MAJORS,
+  type MajorSelection,
+  type PackageCardModel,
+} from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
 /**
@@ -22,11 +26,16 @@ export function PackageCard({
   index,
   expanded,
   onToggle,
+  selectedVersion,
+  onVersionChange,
 }: {
   model: PackageCardModel
   index: number
   expanded: boolean
   onToggle: () => void
+  /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
+  selectedVersion: MajorSelection
+  onVersionChange: (next: MajorSelection) => void
 }) {
   const style = seriesStyle(index)
   const isBase = index === 0
@@ -47,20 +56,20 @@ export function PackageCard({
             strokeLinecap="round"
           />
         </svg>
-        <span className="truncate font-mono text-[15px] font-medium">{model.key}</span>
+        <span className="truncate font-mono text-base font-medium">{model.key}</span>
         {isBase && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
             기준
           </span>
         )}
         {model.isDeprecated && (
-          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
             폐기 표시
           </span>
         )}
       </div>
       <span className="flex shrink-0 items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">v{model.latestVersion}</span>
+        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
         <ChevronDownIcon
           aria-hidden
           className={cn(
@@ -85,45 +94,52 @@ export function PackageCard({
     )
   }
 
+  /*
+    펼친 카드는 button 이 아니라 div 다. 안에 표시 버전 선택기가 들어가는데,
+    button 안의 button 은 HTML 이 허용하지 않고 클릭이 바깥으로 새어 카드가 접힌다.
+    접기는 머리글만 담당한다.
+  */
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded
-      className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]"
-    >
-      {header}
+    <div className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]">
+      <button type="button" onClick={onToggle} aria-expanded className="text-left">
+        {header}
+      </button>
 
       {model.description && (
-        <p className="-mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
-          {model.description}
-        </p>
+        <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
       )}
 
       <ObservationBadges model={model} />
 
-      {/* Dependents 증감 — 유입·이탈로 나누지 않는다. 합계값이라 그렇게 나눌 수 없다 */}
-      <div className="flex items-baseline justify-between gap-3 border-t pt-5">
-        <span className="text-[12px] text-muted-foreground">Dependents 증감</span>
-        <span className="flex items-baseline gap-2">
-          <span className="font-mono text-[17px] leading-none font-semibold tabular-nums">
-            {delta === null
-              ? '—'
-              : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
+      {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
+      <div className="flex flex-col gap-3 border-t pt-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-base text-muted-foreground">Dependents 증감</span>
+          <span className="flex items-baseline gap-2">
+            <span className="font-mono text-lg leading-none font-semibold tabular-nums">
+              {delta === null
+                ? '—'
+                : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
+            </span>
+            <span className="text-base text-muted-foreground">
+              {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
+            </span>
           </span>
-          <span className="text-[10.5px] text-muted-foreground">
-            {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
-          </span>
-        </span>
+        </div>
+
+        <VersionPicker
+          majors={model.availableMajors}
+          selected={selectedVersion}
+          onChange={onVersionChange}
+          label={`${model.key} 표시 버전`}
+        />
       </div>
 
       {/* Version Share */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <span className="text-[12px] text-muted-foreground">Version Share</span>
+        <span className="text-base text-muted-foreground">Version Share</span>
         {model.versionShare.length === 0 ? (
-          <p className="text-[11.5px] text-muted-foreground">
-            이 시점의 버전 분포 자료가 없습니다.
-          </p>
+          <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-5">
@@ -138,7 +154,7 @@ export function PackageCard({
               명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
               그래서 비율만 적고 총계를 쓰지 않는다.
             */}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-base leading-relaxed text-muted-foreground">
               공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
               프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
             </p>
@@ -147,11 +163,98 @@ export function PackageCard({
       </div>
 
       {/* 라이선스·최신 릴리스는 판단 재료라 카드 맨 아래에 조용히 둔다 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-base text-muted-foreground">
         <span>{model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'}</span>
         <span className="font-mono">최신 릴리스 {model.publishedAt.slice(0, 10)}</span>
         {model.repoUrl && <span className="truncate font-mono">{model.repoUrl}</span>}
       </div>
-    </button>
+    </div>
+  )
+}
+
+/**
+ * 표시 버전 선택기 (구상안 §5.2). **여러 개를 고를 수 있고, 고른 것을 합한다.**
+ *
+ * **이 카드의 Dependents 선만 바꾼다.** 다른 카드도, 버전 분포도, 기능 비교도 건드리지 않는다.
+ * 서버에 다시 묻지도 않는다 — major 별 시리즈를 이미 다 받아 두었다.
+ *
+ * "전체" 는 **모두 끄는 버튼**이지 다른 버전들과 나란한 선택지가 아니다. 같은 줄에 두면
+ * "전체 + 4.x" 를 동시에 누를 수 있어 보이는데, 그건 뜻이 없는 상태다.
+ *
+ * 마지막 하나를 끄면 자동으로 전체로 돌아간다 — 아무것도 안 고른 빈 그래프는 조작 실수이지
+ * 보고 싶은 화면이 아니다.
+ *
+ * 고를 것이 없으면(자료 없음, 또는 major 가 하나뿐) 선택기를 그리지 않는다.
+ * 누를 수 없는 버튼 한 개는 조작할 수 있다는 잘못된 신호를 준다.
+ *
+ * 선택 상태를 색으로만 알리지 않는다 — `aria-pressed` 와 테두리를 함께 쓴다.
+ */
+function VersionPicker({
+  majors,
+  selected,
+  onChange,
+  label,
+}: {
+  majors: string[]
+  selected: MajorSelection
+  onChange: (next: MajorSelection) => void
+  label: string
+}) {
+  if (majors.length < 2) return null
+
+  const isAll = selected.length === 0
+
+  function toggle(major: string) {
+    const next = selected.includes(major)
+      ? selected.filter((m) => m !== major)
+      : [...selected, major]
+    onChange(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          aria-pressed={isAll}
+          onClick={() => onChange(ALL_MAJORS)}
+          className={cn(
+            'rounded-md border px-2 py-1 text-base transition-colors duration-150',
+            isAll
+              ? 'border-foreground/50 bg-foreground/[0.06] font-medium text-foreground'
+              : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+          )}
+        >
+          전체
+        </button>
+
+        <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+
+        {majors.map((m) => {
+          const active = selected.includes(m)
+          return (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={active}
+              onClick={() => toggle(m)}
+              className={cn(
+                'rounded-md border px-2 py-1 font-mono text-base transition-colors duration-150',
+                active
+                  ? 'border-foreground/50 bg-foreground/[0.06] font-medium text-foreground'
+                  : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+              )}
+            >
+              {m}.x
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-base leading-relaxed text-muted-foreground">
+        {isAll
+          ? '전 버전을 합한 값입니다. 여러 개를 골라 합쳐 볼 수 있습니다.'
+          : `고른 ${selected.length}개 버전을 합한 값입니다. 다른 패키지의 선택과는 무관합니다.`}
+      </p>
+    </div>
   )
 }

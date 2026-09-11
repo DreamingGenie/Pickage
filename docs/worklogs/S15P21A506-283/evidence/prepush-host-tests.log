@@ -1,0 +1,33 @@
+test_changed_extraction_summary_fails (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_changed_extraction_summary_fails) ... ok
+test_curated_run_change_fails_reverify (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_curated_run_change_fails_reverify) ... ok
+test_null_snapshot_fails_with_approved_file_fingerprint (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_null_snapshot_fails_with_approved_file_fingerprint) ... ok
+test_path_escape_and_output_inside_input_fail (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_path_escape_and_output_inside_input_fail) ... ok
+test_prepare_serialize_and_reverify_with_remote_lineage (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_prepare_serialize_and_reverify_with_remote_lineage) ... ok
+test_raw_wrong_snapshot_is_rejected_after_consistent_manifest_update (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_raw_wrong_snapshot_is_rejected_after_consistent_manifest_update) ... ok
+test_remote_fingerprint_change_fails_reverify (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_remote_fingerprint_change_fails_reverify) ... ok
+test_schema_contract_fails_even_when_file_hash_matches (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_schema_contract_fails_even_when_file_hash_matches) ... ok
+test_tamper_same_size_missing_and_extra_file_fail (pipeline.requirements_resolution.test_input.PrepareInputsEndToEndTests.test_tamper_same_size_missing_and_extra_file_fail) ... ok
+test_broken_worker_and_bad_json_fail (pipeline.requirements_resolution.test_bridge.SemverTests.test_broken_worker_and_bad_json_fail) ... ok
+test_candidate_state_is_reset_per_target (pipeline.requirements_resolution.test_bridge.SemverTests.test_candidate_state_is_reset_per_target) ... ok
+test_explicit_policies_and_no_cross_kind_collapse (pipeline.requirements_resolution.test_bridge.SemverTests.test_explicit_policies_and_no_cross_kind_collapse) ... ok
+test_parquet_bridge_retains_distinct_lookups_and_typed_empty_quality (pipeline.requirements_resolution.test_bridge.SemverTests.test_parquet_bridge_retains_distinct_lookups_and_typed_empty_quality) ... ok
+test_ranges_prerelease_and_original_build_tie (pipeline.requirements_resolution.test_bridge.SemverTests.test_ranges_prerelease_and_original_build_tie) ... ok
+test_unsupported_specs_and_no_candidates (pipeline.requirements_resolution.test_bridge.SemverTests.test_unsupported_specs_and_no_candidates) ... ok
+test_worker_protocol_error_is_actionable (pipeline.requirements_resolution.test_bridge.SemverTests.test_worker_protocol_error_is_actionable) ... ok
+test_completed_output_tamper_is_rejected (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_completed_output_tamper_is_rejected) ... ok
+test_final_output_traversal_and_inconsistent_report_fail (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_final_output_traversal_and_inconsistent_report_fail) ... ok
+test_invalid_run_id_and_input_overlap_fail (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_invalid_run_id_and_input_overlap_fail) ... ok
+test_linked_run_root_rejected_before_runtime (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_linked_run_root_rejected_before_runtime) ... ok
+test_lock_already_held_fails (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_lock_already_held_fails) ... ok
+test_long_windows_output_file_can_be_hashed_and_counted (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_long_windows_output_file_can_be_hashed_and_counted) ... ok
+test_manifest_only_local_completion_marker_is_recovered (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_manifest_only_local_completion_marker_is_recovered) ... ok
+test_manifest_only_remote_publish_marker_is_resumed (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_manifest_only_remote_publish_marker_is_resumed) ... ok
+test_partial_result_is_not_published (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_partial_result_is_not_published) ... ok
+test_ready_result_publishes_and_republishes_identically (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_ready_result_publishes_and_republishes_identically) ... ok
+test_success_marker_and_replay_are_immutable (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_success_marker_and_replay_are_immutable) ... ok
+test_verify_only_requires_completed_run (pipeline.requirements_resolution.test_build.BuildLifecycleTests.test_verify_only_requires_completed_run) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 5.836s
+
+OK

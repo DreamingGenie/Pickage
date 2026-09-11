@@ -186,7 +186,7 @@ public class PackageQueryRepository {
 	 * 화면에 없는 급락이 그려진다.
 	 */
 	private static final String DOWNLOADS_TREND_SQL = """
-		SELECT p.name, ps.snapshot_at, ps.downloads AS value
+		SELECT p.name, NULL::text AS major, ps.snapshot_at, ps.downloads AS value
 		FROM package_snapshot ps
 		JOIN package p ON p.package_id = ps.package_id
 		WHERE p.name = ANY(?)
@@ -196,23 +196,61 @@ public class PackageQueryRepository {
 		""";
 
 	/**
-	 * 명세 §5 — 의존 수 추이.
+	 * 명세 §5 — 의존 수 추이. <b>major 별로 쪼개서 내보낸다.</b>
 	 *
 	 * <p><b>{@code GROUP BY} 에 {@code p.name} 이 들어간 것이 배치화의 전부다.</b>
 	 * 빠지면 모든 패키지의 의존 수가 한 덩어리로 합쳐진다.
 	 *
 	 * <p>이 합계는 버전별 합산이라 <b>실제 사용처 수보다 크다</b> — 한 프로젝트가
-	 * {@code ^4.17.0} 으로 여러 버전에 걸리기 때문이다. 응답의 {@code sum_over_versions} 가
-	 * 그 사실을 화면에 알린다.
+	 * {@code ^4.17.0} 으로 4.x 의 여러 버전에 걸리기 때문이다. major 로 접어도 그 중복은
+	 * 그대로여서 응답의 {@code sum_over_versions} 는 여전히 참이다.
+	 *
+	 * <h2>합치지 않고 쪼개서 보내는 이유</h2>
+	 *
+	 * 화면은 패키지 카드마다 <b>독립적으로</b> 표시 버전을 고른다(구상안 §5.2 ·
+	 * {@code selectedDisplayVersion}). 고를 때마다 서버에 물으면 카드 수만큼 요청이 오간다.
+	 * major 별로 한 번에 보내면 {@code TOTAL} 은 화면에서 더하고 특정 버전은 골라 쓰기만 하면
+	 * 되어 <b>왕복이 0 회</b>가 된다. 조회 기간을 상한만큼 한 번에 받는 것과 같은 이유다.
+	 *
+	 * <h2>함정 둘</h2>
+	 *
+	 * <p><b>major 는 문자열이다.</b> {@code split_part} 의 결과라 그대로 정렬하면
+	 * {@code '1' < '10' < '2'} 가 된다. 범례와 색 순서가 그대로 어긋나므로 숫자로 정렬한다.
+	 * 숫자가 아닌 major(prerelease 등)는 캐스팅이 터지지 않도록 뒤로 보낸다.
+	 *
+	 * <p><b>앞쪽 0 은 자르고 뒤쪽 0 은 남긴다.</b> 아직 나오지 않은 버전까지 바닥에 0 으로
+	 * 깔리면 "2년 전부터 5.x 가 있었다" 는 그림이 된다. 반대로 쇠퇴해서 0 에 닿은 버전을
+	 * 빼면 선이 끊겨 사라진다 — 0 으로 내려가는 것이 그 버전의 이야기다. 그래서 <b>처음으로
+	 * 0 이 아니었던 시점부터</b> 그리고, 그 뒤의 0 은 그대로 둔다. 끝내 한 번도 0 이 아닌 적이
+	 * 없던 major 는 아예 내보내지 않는다.
 	 */
 	private static final String DEPENDENTS_TREND_SQL = """
-		SELECT p.name, pvs.snapshot_at, SUM(pvs.dependents_count) AS value
-		FROM package_version_snapshot pvs
-		JOIN package p ON p.package_id = pvs.package_id
-		WHERE p.name = ANY(?)
-		  AND pvs.snapshot_at BETWEEN ? AND ?
-		GROUP BY p.name, pvs.snapshot_at
-		ORDER BY p.name, pvs.snapshot_at
+		WITH per_major AS (
+		  SELECT p.name,
+		         split_part(pvs.version, '.', 1) AS major,
+		         pvs.snapshot_at,
+		         SUM(pvs.dependents_count)        AS value
+		  FROM package_version_snapshot pvs
+		  JOIN package p ON p.package_id = pvs.package_id
+		  WHERE p.name = ANY(?)
+		    AND pvs.snapshot_at BETWEEN ? AND ?
+		  GROUP BY p.name, 2, pvs.snapshot_at
+		),
+		started AS (
+		  SELECT name, major, MIN(snapshot_at) FILTER (WHERE value > 0) AS first_at
+		  FROM per_major
+		  GROUP BY name, major
+		)
+		SELECT m.name, m.major, m.snapshot_at, m.value
+		FROM per_major m
+		JOIN started s ON s.name = m.name AND s.major = m.major
+		WHERE s.first_at IS NOT NULL
+		  AND m.snapshot_at >= s.first_at
+		ORDER BY m.name,
+		         CASE WHEN m.major ~ '^[0-9]{1,9}$' THEN 0 ELSE 1 END,
+		         CASE WHEN m.major ~ '^[0-9]{1,9}$' THEN m.major::bigint END,
+		         m.major,
+		         m.snapshot_at
 		""";
 
 	public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
@@ -232,11 +270,13 @@ public class PackageQueryRepository {
 			},
 			(rs, i) -> new TrendRow(
 				rs.getString("name"),
+				rs.getString("major"),
 				rs.getObject("snapshot_at", LocalDate.class),
 				rs.getLong("value")));
 	}
 
-	public record TrendRow(String name, LocalDate snapshotAt, long value) {
+	/** {@code major} 는 dependents 에만 있다. downloads 는 버전으로 쪼갤 수 없어 항상 {@code null} 이다. */
+	public record TrendRow(String name, String major, LocalDate snapshotAt, long value) {
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -290,6 +330,89 @@ public class PackageQueryRepository {
 
 	/** {@code pct} 는 {@code BigDecimal} 이다. {@code double} 로 받으면 91.4 가 91.40000000000001 로 나간다. */
 	public record ShareRow(String name, String major, long dependents, BigDecimal pct) {
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-03 · UC4 유사 패키지
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 후보 목록. <b>지표를 조인하지 않는다.</b>
+	 *
+	 * <p>순위·점수는 배치가 이미 정해 둔 값이라 이 조회는 키 하나로 끝난다. 여기에 설명·최신
+	 * 버전을 붙이면 조인 두 개가 더 붙어, <b>순위가 뜨는 시점이 정보 조회 속도에 묶인다.</b>
+	 * 정보는 {@link #findBriefByNames} 가 따로 가져오고 서비스가 합친다.
+	 *
+	 * <p>{@code UK_SIMILAR_PACKAGE_RANK}({@code package_id}, {@code rank}) 덕분에 한 패키지 안에서
+	 * 순위가 유일하다 — {@code ORDER BY rank} 가 비결정적일 수 없다.
+	 *
+	 * <p><b>deprecated 후보를 여기서 거르지 않는다.</b> `DEC-RANK-20260909-01` 이 deprecated 를
+	 * 코퍼스 단계에서 제외하기로 했으므로 애초에 적재되지 않는다. 조회에서 한 번 더 거르면
+	 * {@code rank} 에 구멍이 생겨(1,2,4,5…) 화면이 "3위는 어디 갔나" 를 묻게 된다.
+	 */
+	private static final String SIMILAR_SQL = """
+		SELECT c.name, s.rank, s.score, s.model_ver
+		FROM similar_package s
+		JOIN package b ON b.package_id = s.package_id
+		JOIN package c ON c.package_id = s.similar_package_id
+		WHERE b.name = ?
+		ORDER BY s.rank
+		LIMIT ?
+		""";
+
+	public List<SimilarRow> findSimilar(String name, int limit) {
+		return jdbcTemplate.query(SIMILAR_SQL,
+			ps -> {
+				ps.setString(1, name);
+				ps.setInt(2, limit);
+			},
+			(rs, i) -> new SimilarRow(
+				rs.getString("name"),
+				rs.getInt("rank"),
+				rs.getDouble("score"),
+				rs.getString("model_ver")));
+	}
+
+	public record SimilarRow(String name, int rank, double score, String modelVer) {
+	}
+
+	/**
+	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
+	 *
+	 * <p><b>{@link PackageNames} 를 받지 않는 것이 의도다.</b> 그 객체는 비교 화면의 규칙
+	 * (최대 3개)을 강제하는데, 여기 들어오는 이름은 <b>사용자 입력이 아니라 서버가 만든 후보
+	 * 목록</b>이라 그 상한이 적용될 이유가 없다. 재사용하려고 묶으면 후보 20개를 못 받거나,
+	 * 반대로 상한을 풀어 비교 화면의 3개 규칙이 새어나간다.
+	 *
+	 * <p>그래서 이름 배열을 그대로 받는다. 호출자가 서버 내부 코드라는 전제가 깔려 있으므로
+	 * <b>외부 입력을 이 메서드에 바로 넘기면 안 된다.</b>
+	 *
+	 * <p>{@code DISTINCT ON} 의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
+	 * 문자열로 정렬하면 {@code 4.9.0} 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이
+	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다. {@code idx_version_pkg_ordinal} 을 탄다.
+	 */
+	private static final String BRIEF_SQL = """
+		WITH latest AS (
+		  SELECT DISTINCT ON (package_id) package_id, version, description
+		  FROM version
+		  ORDER BY package_id, ordinal DESC
+		)
+		SELECT p.name, l.version AS latest_version, l.description
+		FROM package p
+		JOIN latest l ON l.package_id = p.package_id
+		WHERE p.name = ANY(?)
+		""";
+
+	public List<BriefRow> findBriefByNames(String[] names) {
+		return jdbcTemplate.query(BRIEF_SQL,
+			ps -> ps.setArray(1, ps.getConnection().createArrayOf("text", names)),
+			(rs, i) -> new BriefRow(
+				rs.getString("name"),
+				rs.getString("latest_version"),
+				rs.getString("description")));
+	}
+
+	public record BriefRow(String name, String latestVersion, String description) {
 	}
 
 	/* ------------------------------------------------------------------ *

@@ -40,23 +40,23 @@ export function EvidenceDrawer({
             <>
               <div className="flex flex-col gap-1.5">
                 <h3 className="text-sm font-semibold">{record.title}</h3>
-                <span className="font-mono text-[11px] text-muted-foreground">{evidenceId}</span>
+                <span className="font-mono text-base text-muted-foreground">{evidenceId}</span>
               </div>
 
               {/* 원문 발췌와 서비스 해석을 다른 구역에 둔다 (구상안 10) */}
               <div className="flex flex-col gap-2 rounded-xl border bg-muted/40 p-4">
-                <span className="text-[11px] text-muted-foreground">원문 발췌</span>
-                <p className="font-mono text-[12.5px] leading-relaxed whitespace-pre-wrap">
+                <span className="text-base text-muted-foreground">원문 발췌</span>
+                <p className="font-mono text-base leading-relaxed whitespace-pre-wrap">
                   {record.excerpt}
                 </p>
               </div>
 
-              <dl className="flex flex-col gap-2 border-t pt-4 text-[12px]">
+              <dl className="flex flex-col gap-2 border-t pt-4 text-base">
                 <Row label="출처" value={record.source} />
                 <Row label="수집 시각" value={record.collectedAt} />
               </dl>
 
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <p className="text-base leading-relaxed text-muted-foreground">
                 출처는 표시 문자열입니다. 외부로 이동하는 링크는 제공하지 않습니다.
               </p>
             </>
@@ -71,7 +71,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[64px_1fr] gap-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-mono text-[11.5px] break-words">{value}</dd>
+      <dd className="font-mono text-base break-words">{value}</dd>
     </div>
   )
 }

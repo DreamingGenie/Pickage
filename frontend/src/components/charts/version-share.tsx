@@ -113,7 +113,7 @@ export function ShareBars({ groups, className }: { groups: ShareGroup[]; classNa
         <div key={g.label} className="grid grid-cols-[62px_1fr_38px] items-center gap-2">
           <span
             className={cn(
-              'font-mono text-[11px]',
+              'font-mono text-base',
               g.label === UNRESOLVED ? 'text-muted-foreground' : 'text-foreground',
             )}
           >
@@ -128,7 +128,7 @@ export function ShareBars({ groups, className }: { groups: ShareGroup[]; classNa
               }}
             />
           </span>
-          <span className="text-right font-mono text-[11px] text-muted-foreground tabular-nums">
+          <span className="text-right font-mono text-base text-muted-foreground tabular-nums">
             {Math.round(g.share * 100)}%
           </span>
         </div>

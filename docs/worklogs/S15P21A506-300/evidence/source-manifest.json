@@ -1,0 +1,61 @@
+{
+  "recorded_at": "2026-09-10T04:01:21.947863+00:00",
+  "baseline_commit": "6257b507f4d329c558cadf866cbdd4c4d22f3c13",
+  "files": [
+    {
+      "path": "docs/Pickage_0909_to_0910_기획변경_상세분석.md",
+      "bytes": 17312,
+      "sha256": "f43141bf2432f1b7bc320a9d02d1559f950cf08b338a9c640b66886f31d881b7"
+    },
+    {
+      "path": "docs/Pickage_기능별_개발_구상안_0910.md",
+      "bytes": 71191,
+      "sha256": "3a11a5dc309cc657a76b962c664b14d78aa6b27c76403fdfa0f4f54f4f045675"
+    },
+    {
+      "path": "docs/Pickage_메뉴구조_IA_0910.md",
+      "bytes": 37978,
+      "sha256": "f328c1986e5d9d9d6dc44be65890704a3f4a2050e2795c232ee4d7678eb5e239"
+    },
+    {
+      "path": "docs/Pickage_서비스_기획서_0910.md",
+      "bytes": 46386,
+      "sha256": "9231fbae3939a13b42164dc79c9b915117e395c10fee90bb6d413f63140e0e56"
+    },
+    {
+      "path": "docs/Pickage_요구사항_명세서_0910.md",
+      "bytes": 69797,
+      "sha256": "20eb4bdb482473dd9e94eb7a0af5dee4f27d6f14985e0766571fce0fb290d58d"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/v 0.6.sql",
+      "bytes": 5232,
+      "sha256": "d76367c73e836346c4b36ba4a1e45d77fa3f16b8e829b0fa91362af7d979d401"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/v 0.6.png",
+      "bytes": 621100,
+      "sha256": "a8eb4927023a7a7aef81099387b47fbef2baef49b02398e6dc85a22fb2aebd28"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/api 명세.zip",
+      "bytes": 901,
+      "sha256": "2bbbf341c94a7ddb260214f91c03783403dcc44a065cf57ac87565836ec4c29d"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/api 현황.zip",
+      "bytes": 34943,
+      "sha256": "dc701c85e7fd1fd868b8d39491fd38da440ba481b5320cafae4c0c293af3a9d6"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/api 결정사항.pdf",
+      "bytes": 918351,
+      "sha256": "2ec4bee47e7b83fed546890b49eb609a374b720376b9c6c3e950bfa9945fb978"
+    },
+    {
+      "path": "C:/Users/SSAFY/Downloads/서버 정보.pdf",
+      "bytes": 802547,
+      "sha256": "88c13588679a33dba697b2868a96655e1d41ea29422e3b270cff6a2aa5cbf280"
+    }
+  ]
+}
