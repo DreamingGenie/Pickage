@@ -7,6 +7,8 @@
 | `minio` | S3 호환 저장소. 9000 = API(코드가 붙는 곳), 9001 = 웹 콘솔(사람이 보는 곳) |
 | `minio-init` | 없는 버킷만 만드는 일회성 컨테이너. `Exited (0)` 이 정상이다 |
 | `mlflow` | 모델 레지스트리. 5000 = API·웹 UI, 루프백만 (터널로 붙는다). **어느 모델이 `@production` 인지 아는 유일한 곳** |
+| `spark-master` · `spark-worker-1` | 배치 시각에만. `profiles` 에 들어 있다 |
+| `ai-similarity` | 유사도 배치. **상주가 아니다** — `run --rm` 으로 한 번 돌리고 끝난다 |
 
 `app` 노드는 `j15a506` 이다 — **뒤에 `a` 가 없다.** 붙은 다음 `hostname` 을 먼저 확인할 것.
 
@@ -168,6 +170,10 @@ docker compose up -d                 # 이걸 쓴다
 `minio-init` 이 `Exited (0)` 이면 그 자체가 MinIO 가 healthy 였다는 증거다 —
 `minio` 가 healthy 가 된 뒤에만 돌기 때문이다.
 
+**이 노드에는 그런 컨테이너가 둘이다.** `ai-similarity`(유사도 배치)도 한 번 돌고 끝난다.
+그래서 `--profile batch` 를 붙여도 `--wait` 는 여전히 못 쓴다. 그 잡은 애초에
+`up` 이 아니라 `run --rm` 으로 돌린다 — 아래 "유사도 배치 돌리기".
+
 ## 평소
 
 ```bash
@@ -214,7 +220,11 @@ Spark 는 `fs.s3a.path.style.access=true`. 버킷별 역할과 경로 규칙은
 ## MLflow — 모델 레지스트리
 
 GPU(jupyter05)가 학습한 ONNX 를 `@candidate` 로 등록하고, 평가를 통과한 것을
-`@production` 으로 승격한다. 유사도 배치는 `@production` 이 가리키는 것을 받아 쓴다.
+`@production` 으로 승격한다.
+
+> **지금 유사도 배치는 여기서 모델을 받아 오지 않는다.** 잡에 mlflow 클라이언트가 없어서
+> `--model-dir` 에 사람이 넣는다 (아래 "유사도 배치 돌리기"). 레지스트리는 올라와 있으니
+> 그 연결만 남은 상태다.
 
 `docker compose up -d` 에 같이 뜬다. 배치 전용이 아니다 — GPU 가 학습을 끝낼 때마다 붙는다.
 
@@ -290,7 +300,8 @@ GPU 쪽은 `ai/training/run_pipeline.sh` 가 이 터널을 알아서 연다 (`-L
 | 실험·런·등록모델·별칭 | 전부 서버(sqlite) | — |
 | 모델 파일 | 주소만 기록 | **MinIO 에 직접 읽고 쓴다** |
 
-그래서 클라이언트(GPU·배치)에는 MLflow 주소만으로 부족하다. 아래가 같이 필요하다.
+그래서 클라이언트에는 MLflow 주소만으로 부족하다. 아래가 같이 필요하다.
+(지금 그 클라이언트는 **GPU 쪽뿐이다** — 유사도 배치는 아직 MLflow 를 쓰지 않는다.)
 
 ```
 MLFLOW_TRACKING_URI=http://<mlflow>:5000
@@ -371,6 +382,120 @@ PostgreSQL 로 옮겨야 할 만큼 커지면 **그 시점에 포트 결정을 �
 이 노드에서만 추가로 걸리는 것: `/swapfile` 이 **MinIO 데이터(`/srv/minio/data`)·Docker·
 Spark 셔플과 같은 파티션**에 놓인다. 스왑을 실제로 쓰기 시작하면 MinIO 읽기와 셔플 쓰기의
 IOPS 를 같이 갉아먹는다. `df -h /` 를 먼저 보고, 스왑을 2 GiB 보다 크게 잡지 말 것.
+
+## 유사도 배치 돌리기
+
+Spark 가 curated 를 만든 다음 단계다. `ai/similarity/` 의 파이썬 잡이 코퍼스를 걸러
+ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리지 않는다** — 적재는
+`app` 노드의 로더가 따로 한다 ([../README.md](../README.md) 의 "유사도 결과 로더는 어디서 도나").
+
+**상주 서비스가 아니다.** 한 번 돌고 끝난다 — `profiles` 에 있어서 `up -d` 로는 뜨지 않는다.
+
+### ⚠ 이 잡은 MinIO 를 직접 읽지 않는다
+
+입출력이 **전부 로컬 경로**다. 이미지에 boto3 가 없다 (`requirements.txt` 는
+numpy·onnxruntime·pyarrow·transformers뿐). 산출물의 `s3://` 출력은 후속 작업이다 —
+`similarity_batch_pipeline.py` 의 "현재 구현 상태" 6번.
+
+그래서 **MinIO 에서 꺼내 오고 다시 넣는 것은 사람이 한다.** 그 통로가 `aiwork` 볼륨이다.
+
+```
+MinIO ──(1) 스테이징──▶ aiwork:/work/in ──(2) 배치──▶ /work/out ──(3) 올리기──▶ MinIO
+```
+
+### 0. 처음 한 번 — 볼륨 소유권
+
+컨테이너는 uid 1000(`appuser`)으로 도는데 **새 볼륨은 root 소유로 만들어진다.**
+그냥 돌리면 `--out` 쓰기에서 `Permission denied` 다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose run --rm --user root --entrypoint sh ai-similarity \
+  -c 'mkdir -p /work/in /work/out && chown -R 1000:1000 /work'
+```
+
+```bash
+docker compose run --rm --entrypoint sh ai-similarity -c 'id -u; touch /work/out/.probe && echo ok'
+# 1000
+# ok
+```
+
+### 1. 입력을 MinIO 에서 꺼낸다
+
+`mc` 는 MinIO 이미지에 들어 있다. 일회성 컨테이너로 같은 볼륨을 잡아 쓴다.
+
+```bash
+docker run --rm --network pickage-data_default -v pickage-data_aiwork:/work \
+  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
+  --entrypoint sh minio/minio:RELEASE.2025-04-22T22-12-26Z -c '
+    mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null &&
+    mc cp --recursive l/pickage-curated/<코퍼스 경로>/ /work/in/ &&
+    mc cp --recursive l/pickage-mlflow-artifacts/<모델 경로>/ /work/in/model/ &&
+    chown -R 1000:1000 /work'
+```
+
+**`chown` 을 빼지 말 것.** `mc` 가 root 로 받아서 배치가 못 읽는다.
+
+### 2. 돌린다
+
+```bash
+docker compose run --rm ai-similarity \
+  --package-text /work/in/package_text.parquet \
+  --model-dir    /work/in/model \
+  --out          /work/out/$(date +%F)
+```
+
+**인자가 필수다.** 빼먹으면 `argparse` 가 바로 이렇게 끝낸다.
+
+```
+error: the following arguments are required: --package-text, --model-dir, --out
+```
+
+전체 옵션은 `docker compose run --rm ai-similarity --help`. 자주 쓰는 것:
+
+| 옵션 | 무엇 |
+| --- | --- |
+| `--state` | 이전 실행의 `text_hash_state.parquet`. 주면 **바뀐 것만 재임베딩**한다 |
+| `--batch-size` · `--query-block` | 메모리를 지배한다. **OOM 이 나면 상한보다 이 둘을 먼저 줄인다** |
+| `--no-gate` | 구조적 관문을 끈다. 게이트 때문에 후보가 비는지 가릴 때만 |
+
+### 3. 산출물을 MinIO 로 올린다
+
+```bash
+docker run --rm --network pickage-data_default -v pickage-data_aiwork:/work \
+  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
+  --entrypoint sh minio/minio:RELEASE.2025-04-22T22-12-26Z -c '
+    mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null &&
+    mc cp --recursive /work/out/ l/pickage-vectors/similarity/'
+```
+
+### 확인
+
+```bash
+docker compose run --rm ai-similarity ... ; echo "exit=$?"      # 0 이어야 한다
+```
+
+`docker compose run` 은 **잡의 종료 코드를 그대로 돌려준다.** cron 을 붙일 때 이 값으로
+성공·실패를 판단하면 된다 — 로그를 파싱할 이유가 없다.
+
+`PYTHONUNBUFFERED=1` 이 이미지에 박혀 있어서 로그가 실시간으로 흐른다.
+컨테이너가 끝날 때 몰려 나오지 않는다 — `docker logs` 가 유일한 장애 인지 수단이라 중요하다.
+
+### ⚠ Spark 배치와 시간을 겹치지 말 것
+
+이 잡이 도는 시각이 이 노드가 가장 빠듯한 시각이다.
+
+```
+Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
+```
+
+`mem_limit` 을 올리려면 worker① 의 `SPARK_WORKER_MEMORY` 를 먼저 내려야 한다.
+상한만 올리면 배치 때 커널이 아무거나 하나 죽인다 — 위 "메모리가 터졌을 때".
+
+### `up -d --profile batch` 로 띄우지 말 것
+
+이 잡은 정상적으로 끝나는데 compose 는 그걸 컨테이너가 죽은 것으로 본다 —
+`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 둘이다.
 
 ## Spark (배치)
 
@@ -570,9 +695,12 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 | | 지금은 어떻게 되어 있나 |
 | --- | --- |
-| 유사도 배치(`ai/similarity`) 서비스 | 이 `compose.yaml` 에 아직 없다. 이미지 골격은 `ai/similarity/` 에 있고, `mem_limit` 과 `memswap_limit` 을 **짝으로** 넣어 올려야 한다 (`ai/README.md` 의 B7) |
-| 수집 cron · 배치 cron | 없다. 사람이 실행한다. AI 배치는 Spark ETL 과 **시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
-| `ai` 전용 MinIO 읽기전용 키 | 없다. 루트 자격증명뿐이다. GPU 가 공유 서버라 특히 중요하다 (`ai/README.md` 의 B4) |
-| MLflow 를 **서버에서** 확인하기 | 로컬 compose 로 업로드까지 확인했다. 서버에서는 아직 안 띄웠다 — `.env` 의 `MLFLOW_TRACKING_URI` 를 채우고 올릴 것 |
+| 유사도 배치의 **S3 입출력** | 없다. 잡이 로컬 경로만 읽고 쓴다 — MinIO 왕복을 사람이 한다 (위 "유사도 배치 돌리기"). 붙으면 스테이징 두 단계가 사라진다 |
+| 배치가 **MLflow 에서 모델 받기** | 없다. 잡에 mlflow 클라이언트가 없어서 `--model-dir` 에 손으로 넣는다. 레지스트리는 올라와 있으니 그 연결만 남았다 |
+| 채점 게이트 | `similarity_batch_pipeline.py` 의 5번이 TODO 다 (S15P21A506-169) |
+| 배치 cron | 없다. 사람이 실행한다. **Spark 배치와 시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
+| `ai-similarity` 전용 MinIO 키 | 없다. 스테이징에 루트 자격증명을 쓰고 있다 (`ai/README.md` 의 B4) |
+| MLflow 를 **서버에서** 확인하기 | 로컬 compose 로 업로드까지 확인했다. 서버에서는 아직 안 띄웠다 |
+| 수집 cron | 없다 |
 
 배포 명령 전반은 [../README.md](../README.md).

@@ -248,6 +248,51 @@ services:
     #   호스트 스왑 2g 는 이 노드에서 MinIO 데이터·Docker·셔플과 **같은 파티션**을
     #   쓴다. 스왑 I/O 를 허용하면 MinIO 읽기와 셔플 쓰기의 IOPS 를 같이 갉아먹는다.
 
+  # ── 유사도 배치 (1회성) ────────────────────────────────────────
+  #
+  # ⚠ **상주 서비스가 아니다.** 한 번 돌고 끝난다 — minio-init 과 같은 성격이라
+  #   profiles 에 넣었다. `up -d` 로는 뜨지 않는다.
+  #
+  #   docker compose run --rm ai-similarity --package-text ... --model-dir ... --out ...
+  #
+  #   `run` 은 서비스 이름을 직접 대면 profiles 를 알아서 켠다. `--rm` 을 빼면
+  #   돌린 횟수만큼 Exited 컨테이너가 쌓여 `ps -a` 를 못 읽게 된다.
+  #
+  # ⚠ **인자가 필수다.** ENTRYPOINT 라서 `run` 뒤에 붙인 것이 그대로 넘어가고,
+  #   --package-text·--model-dir·--out 이 없으면 argparse 가 바로 종료한다.
+  #   그래서 `command:` 를 두지 않는다 — 두면 기본 인자가 되어 이 형태를 가린다.
+  #   전체 목록: `docker compose run --rm ai-similarity --help`
+  ai-similarity:
+    profiles: ["batch", "all"]
+    # 레지스트리가 없어서 build 를 같이 둔다. `compose build` 가 만든 이미지에
+    # 곧바로 이 태그가 붙는다 — app 노드의 api·web 과 같은 방식이다.
+    # 롤백은 AI_TAG 를 이전 SHA 로 되돌리는 것이 전부다.
+    image: pickage-ai-similarity:${AI_TAG:?.env 에 AI_TAG 를 채울 것 — api·web 과 같은 규칙(커밋 SHA)}
+    build:
+      # ⚠ context 가 `ai/` 가 아니라 `ai/similarity/` 다. 잡마다 디렉터리가 따로 있고
+      #   .dockerignore 도 그 디렉터리 기준이다. AI 파트 소유이므로 여기서 바꾸지 말 것.
+      context: ../../../ai/similarity
+    restart: "no"
+    # minio 에 depends_on 을 걸지 않는다. **이 잡은 S3 를 아예 안 쓴다** —
+    # 이미지에 boto3 가 없고(requirements.txt 는 numpy·onnxruntime·pyarrow·transformers),
+    # 입출력이 전부 로컬 경로다. 산출물의 s3:// 출력은 후속 작업이다
+    # (similarity_batch_pipeline.py 의 "현재 구현 상태" 6번).
+    #
+    # 그래서 MinIO·MLflow 자격증명도 주지 않는다. 줘도 쓸 코드가 없고,
+    # 안 쓰는 비밀을 컨테이너에 넣는 것은 노출만 늘린다.
+    volumes:
+      # 입력(코퍼스 parquet·ONNX 모델)과 산출물이 여기를 지난다.
+      # MinIO 에서 꺼내 오고 다시 넣는 것은 **사람이 한다** — README 의 "유사도 배치 돌리기".
+      - aiwork:/work
+    mem_limit: 2g
+    memswap_limit: 2g   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 이 잡이 도는 시각이 이 노드가 가장 빠듯한 시각이다 — Spark 셋이 12g 를 잡은
+    #   위에 얹힌다(합계 14g / 15Gi). 올리려면 worker① 의 SPARK_WORKER_MEMORY 를
+    #   먼저 내려야 한다. 상한만 올리면 배치 때 커널이 아무거나 하나 죽인다.
+    #
+    #   10만건 재임베딩 실측 ~20.7분(batch 32) 기준이고, 메모리는 --batch-size 와
+    #   --query-block 이 지배한다. OOM 이 나면 상한보다 그 둘을 먼저 줄일 것.
+
 volumes:
   # named volume 이지만 데이터는 Docker 영역이 아니라 호스트 경로에 있다.
   # 손으로 띄운 컨테이너가 쓰던 그 디렉터리를 그대로 가리켜야 **기존 데이터가 보인다.**
@@ -280,3 +325,13 @@ volumes:
   #   docker compose exec mlflow python -c "import shutil;shutil.copy('/mlflow/mlflow.db','/mlflow/backup.db')"
   #   docker cp $(docker compose ps -q mlflow):/mlflow/backup.db ~/mlflow-$(date +%F).db
   mlflowdb:
+
+  # 유사도 배치의 작업 공간. 입력(parquet·ONNX 모델)과 산출물이 여기 있다.
+  #
+  # ⚠ 컨테이너가 uid 1000(appuser)로 도는데 **새 볼륨은 root 소유로 만들어진다.**
+  #   그대로 돌리면 --out 쓰기에서 Permission denied 다. 처음 한 번 소유권을 넘긴다 —
+  #   README 의 "유사도 배치 돌리기" 에 명령이 있다.
+  #
+  # 산출물은 사람이 MinIO 로 올린다. **여기 있는 것은 중간 산출물이라 백업 대상이 아니다** —
+  # 다시 돌리면 나온다. 지워도 되는 유일한 볼륨이다.
+  aiwork:
