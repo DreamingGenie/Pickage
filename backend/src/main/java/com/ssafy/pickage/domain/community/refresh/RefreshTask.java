@@ -89,8 +89,16 @@ public final class RefreshTask {
 		this.completedAt = now;
 	}
 
+	/**
+	 * {@code errorCode}를 항상 {@code CAPACITY_LIMITED}로 채운다 — 동기 거절 경로
+	 * ({@code CommunityService.buildRejectedResponse})도 같은 코드를 채우므로, 대기 큐에서
+	 * 만료돼 여기로 오는 경우와 즉시 거절된 경우가 API 응답에서 구분 없이 같은 신호를 준다
+	 * (/code-review에서 발견: 처음에는 이 메서드가 errorCode를 비워 둬서 두 경로의 응답이
+	 * 갈렸다).
+	 */
 	public synchronized void markCapacityLimited() {
 		this.status = RefreshStatus.CAPACITY_LIMITED;
+		this.errorCode = CommunityErrorCode.CAPACITY_LIMITED;
 		Instant now = Instant.now();
 		this.lastUpdatedAt = now;
 		this.completedAt = now;

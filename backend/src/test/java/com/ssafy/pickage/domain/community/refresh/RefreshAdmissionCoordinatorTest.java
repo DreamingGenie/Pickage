@@ -257,7 +257,67 @@ class RefreshAdmissionCoordinatorTest {
 
 		Thread.sleep(200);
 		assertThat(task3.snapshot().status()).isEqualTo(RefreshStatus.CAPACITY_LIMITED);
+		// /code-review에서 발견 — 처음에는 이 경로에서 errorCode가 비어 있어 동기 거절
+		// 경로(CommunityService.buildRejectedResponse)와 응답이 갈렸다.
+		assertThat(task3.snapshot().errorCode())
+			.isEqualTo(com.ssafy.pickage.domain.community.dto.CommunityErrorCode.CAPACITY_LIMITED);
 		assertThat(wronglyExecuted.getCount()).isEqualTo(1L);
+	}
+
+	@Test
+	void 이미_128개가_찬_상태에서도_그중_하나를_재시도하면_용량_초과로_보지_않는다() {
+		RefreshTaskRegistry registry = new RefreshTaskRegistry();
+		RefreshAdmissionCoordinator coordinator = coordinator(registry);
+		int targetPackageId = 999;
+
+		for (int packageId = 1; packageId < CommunityProperties.REGISTRY_MAX_ENTRIES; packageId++) {
+			int id = packageId;
+			registry.createOrJoin(id, () -> new RefreshTask(id, RefreshStatus.RUNNING));
+			registry.find(id).ifPresent(RefreshTask::markCompleted);
+		}
+		registry.createOrJoin(targetPackageId, () -> new RefreshTask(targetPackageId, RefreshStatus.RUNNING));
+		registry.find(targetPackageId).ifPresent(RefreshTask::markCompleted);
+		assertThat(registry.size()).isEqualTo(CommunityProperties.REGISTRY_MAX_ENTRIES);
+
+		// registry.createOrJoin()의 compute()는 targetPackageId 자리를 "늘리지" 않고
+		// 덮어쓸 뿐이다 — 그런데도 registry.size()만 보고 거절하던 것이 원래 버그였다.
+		AdmissionDecision decision = coordinator.admit(targetPackageId, RefreshTrigger.TAB_OPENED, task -> () -> { });
+
+		assertThat(decision).isInstanceOf(AdmissionDecision.Started.class);
+	}
+
+	@Test
+	void 같은_package로_동시_요청이_경합해도_진_쪽의_시작_토큰은_돌려받는다() throws InterruptedException {
+		RefreshTaskRegistry registry = new RefreshTaskRegistry();
+		// 리필 없이 burst 2개만 — 경합에서 진 요청들의 토큰이 돌아오지 않으면 금방 바닥난다.
+		RefreshAdmissionCoordinator coordinator =
+			new RefreshAdmissionCoordinator(registry, CommunityProperties.TOTAL_BUDGET, new StartTokenBucket(0, 2));
+		coordinators.add(coordinator);
+		int threads = 10;
+		java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threads);
+		CountDownLatch ready = new CountDownLatch(threads);
+		CountDownLatch go = new CountDownLatch(1);
+		List<AdmissionDecision> decisions = Collections.synchronizedList(new ArrayList<>());
+
+		for (int i = 0; i < threads; i++) {
+			executor.submit(() -> {
+				ready.countDown();
+				awaitUnchecked(go);
+				decisions.add(coordinator.admit(1, RefreshTrigger.TAB_OPENED, task -> () -> { }));
+			});
+		}
+		ready.await();
+		go.countDown();
+		executor.shutdown();
+		assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+		long started = decisions.stream().filter(d -> d instanceof AdmissionDecision.Started).count();
+		assertThat(started).isEqualTo(1);
+
+		// 경합에서 이긴 하나만 순수하게 토큰을 썼다면 burst(2) 중 1개가 남아 다른 package를
+		// 허용해야 한다 — 진 쪽들이 돌려주지 않았다면(원래 버그) 여기서 거절됐을 것이다.
+		AdmissionDecision otherPackage = coordinator.admit(2, RefreshTrigger.TAB_OPENED, task -> () -> { });
+		assertThat(otherPackage).isInstanceOf(AdmissionDecision.Started.class);
 	}
 
 	private static void awaitUnchecked(CountDownLatch latch) {

@@ -3,6 +3,7 @@ package com.ssafy.pickage.domain.community.refresh;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -67,11 +68,16 @@ public class RefreshAdmissionCoordinator {
 	 *             만들어 고정한다(클래스 javadoc 참고).
 	 */
 	public AdmissionDecision admit(int packageId, RefreshTrigger trigger, Function<RefreshTask, Runnable> work) {
-		if (registry.find(packageId).map(RefreshTask::isActive).orElse(false)) {
-			return new AdmissionDecision.Joined(registry.find(packageId).orElseThrow());
+		Optional<RefreshTask> existing = registry.find(packageId);
+		if (existing.filter(RefreshTask::isActive).isPresent()) {
+			return new AdmissionDecision.Joined(existing.get());
 		}
 
-		if (registry.size() >= CommunityProperties.REGISTRY_MAX_ENTRIES) {
+		// existing이 비어 있을 때만 "새 항목이 하나 늘어난다" — 이미 자리를 차지한 packageId의
+		// 재시도는 registry.createOrJoin()의 compute()가 그 자리를 덮어쓸 뿐 늘리지 않는다
+		// (/code-review에서 발견: 처음에는 이 조건 없이 registry.size()만 봐서, 정확히 128개가
+		// 찬 상태에서 그중 하나(자기 자신)를 재시도해도 잘못 거절됐다).
+		if (existing.isEmpty() && registry.size() >= CommunityProperties.REGISTRY_MAX_ENTRIES) {
 			log.info("커뮤니티 admission 거절 — registry 용량 초과: packageId={}", packageId);
 			return new AdmissionDecision.Rejected();
 		}
@@ -86,8 +92,11 @@ public class RefreshAdmissionCoordinator {
 				registry.createOrJoin(packageId, () -> new RefreshTask(packageId, RefreshStatus.RUNNING, taskBudget));
 			if (!join.created()) {
 				// 토큰 확보와 registry 등록 사이에 다른 스레드가 먼저 만든 경우 — 방금 확보한
-				// permit은 이 task를 위해 안 쓰였으니 돌려준다.
+				// permit과 토큰 둘 다 이 요청이 실제로 쓰지 않았으니 돌려준다(/code-review —
+				// 처음에는 permit만 돌려주고 토큰은 그대로 버려서, 같은 package로 중복 요청이
+				// 반복되면 전역 시작 토큰이 조용히 새어 나갔다).
 				executionPermits.release();
+				startTokens.refund();
 				return new AdmissionDecision.Joined(join.task());
 			}
 			RefreshTask task = join.task();
@@ -110,6 +119,7 @@ public class RefreshAdmissionCoordinator {
 			RefreshTaskRegistry.JoinResult join =
 				registry.createOrJoin(packageId, () -> new RefreshTask(packageId, RefreshStatus.QUEUED, taskBudget));
 			if (!join.created()) {
+				startTokens.refund();
 				return new AdmissionDecision.Joined(join.task());
 			}
 			RefreshTask task = join.task();

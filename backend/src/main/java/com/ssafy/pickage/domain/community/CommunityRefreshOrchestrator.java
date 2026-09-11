@@ -45,6 +45,10 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>213/212의 {@code FetchLimited.reason()}은 자유 텍스트라 {@link CommunityErrorCode}로
  *       정확히 분류할 표준 필드가 없다 — {@code retryAt} 유무(rate limit 전용 신호)와 일부
  *       문자열만으로 최선을 다해 분류한다({@link #classify}).</li>
+ *   <li>{@link #summarizeAndPublish}는 이슈별 GMS 호출을 순차 for 루프로 부른다 —
+ *       {@link CommunitySummarizer}의 계약(독립 호출)은 지키지만 "동시성 2"까지는 아직
+ *       구현하지 않았다({@link CommunitySummarizer} javadoc 참고, /code-review에서 발견).
+ *       {@link FakeCommunitySummarizer}가 즉시 반환하는 지금은 예산에 영향이 없다.</li>
  * </ul>
  */
 @Slf4j

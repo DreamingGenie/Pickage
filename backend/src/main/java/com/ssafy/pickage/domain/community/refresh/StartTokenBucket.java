@@ -42,6 +42,16 @@ public class StartTokenBucket {
 		return false;
 	}
 
+	/**
+	 * 소비한 토큰 하나를 되돌린다 — {@link RefreshAdmissionCoordinator}가 "새 작업을 시작하는
+	 * 줄 알고 토큰을 썼는데 실제로는 이미 진행 중인 task에 참여하게 된" 경우에만 쓴다
+	 * (/code-review에서 발견: registry 등록 직전 경합에서 진 요청의 토큰이 그냥 버려지고
+	 * 있었다 — burst 상한을 넘지 않는다).
+	 */
+	public synchronized void refund() {
+		tokens = Math.min(capacity, tokens + 1.0);
+	}
+
 	private void refill() {
 		long now = nanoClock.getAsLong();
 		long elapsedNanos = now - lastRefillNanos;
