@@ -269,7 +269,7 @@ class CommunityRefreshOrchestratorTest {
 		com.ssafy.pickage.domain.community.verification.RepositoryVerificationService throwingVerification =
 			new StubRepositoryVerificationService(new RepositoryVerificationResult.UnverifiedRepository("x")) {
 				@Override
-				public RepositoryVerificationResult verify(String packageName, String dbRepoUrl) {
+				public RepositoryVerificationResult verify(String packageName, String dbRepoUrl, java.time.Duration budget) {
 					throw new IllegalStateException("boom");
 				}
 			};

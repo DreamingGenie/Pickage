@@ -3,6 +3,7 @@ package com.ssafy.pickage.domain.community.verification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.nio.charset.StandardCharsets;
@@ -195,5 +196,48 @@ class RepositoryVerificationServiceTest {
 
 		var verified = (RepositoryVerificationResult.Verified) result;
 		assertThat(verified.repositoryArchived()).isTrue();
+	}
+
+	/**
+	 * 전체 정밀 리뷰에서 발견 — {@code verify()}는 원래 예산 개념이 없어 이 시험이
+	 * 존재하지 않았다. {@link RepositoryVerificationService#verify(String, String, Duration)}
+	 * 오버로드가 실제로 예산을 지키는지 검증한다.
+	 */
+	@Test
+	void 예산이_이미_0이면_아무_외부_호출도_하지_않고_시간_예산_소진으로_끝난다() {
+		// npm·github 서버 어느 쪽에도 응답을 등록하지 않는다 — 실제로 호출된다면 fake 서버의
+		// 기본 미등록 응답(404 등)으로 다른 사유의 FetchLimited가 나와 이 시험이 실패한다.
+		RepositoryVerificationResult result = service.verify("pino", null, Duration.ZERO);
+
+		var limited = (RepositoryVerificationResult.FetchLimited) result;
+		assertThat(limited.reason()).isEqualTo("시간 예산 소진");
+	}
+
+	/**
+	 * npm 응답이 실제로 200ms 걸려도, 예산(50ms)이 그 호출 자체의 HTTP timeout으로 넘어가
+	 * 그 안에서 끊긴다 — 자연 지연(200ms)을 다 기다리지 않는다. 이때 사유는 "시간 예산 소진"
+	 * (호출 전 확인)이 아니라 "npm registry 통신 오류"(호출 도중 timeout)로 나온다 — 어느
+	 * 쪽이든 {@code FetchLimited}이고 예산을 넘지 않는다는 점이 이 시험의 핵심이다.
+	 * github 서버에는 아무것도 등록하지 않는다 — 예산 소진으로 멈추지 못하고 다음 단계
+	 * (GitHub 호출)까지 진행된다면 그쪽에서 다른 사유로 실패해 드러난다.
+	 */
+	@Test
+	void npm_조회가_예산을_넘게_느리면_자연_지연을_다_기다리지_않고_예산_안에서_끝난다() {
+		npmServer.respondDynamic("/slow-pkg/latest", query -> {
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			return new FakeHttpServer.Answer(200,
+				"{\"name\":\"slow-pkg\",\"repository\":\"https://github.com/org/slow-repo\"}", Map.of());
+		});
+
+		long startNanos = System.nanoTime();
+		RepositoryVerificationResult result = service.verify("slow-pkg", null, Duration.ofMillis(50));
+		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+		assertThat(result).isInstanceOf(RepositoryVerificationResult.FetchLimited.class);
+		assertThat(elapsedMs).isLessThan(150);
 	}
 }

@@ -67,7 +67,10 @@ public class CommunityRefreshOrchestrator {
 	public void run(RefreshTask task, String packageName, int packageId, String dbRepoUrl) {
 		try {
 			task.advanceStage(RefreshStage.REPOSITORY_VERIFY);
-			RepositoryVerificationResult verification = verificationService.verify(packageName, dbRepoUrl);
+			// 213의 verify()도 이제 남은 시간을 받는다(전체 정밀 리뷰에서 발견 —
+			// 예산 개념이 없어 검증 단계 혼자 20초 전체 예산을 넘길 수 있었다).
+			RepositoryVerificationResult verification =
+				verificationService.verify(packageName, dbRepoUrl, task.timeLeft());
 			handleVerification(task, packageId, verification);
 		} catch (RuntimeException e) {
 			log.error("커뮤니티 refresh 처리 중 예상하지 못한 예외: packageId={}", packageId, e);

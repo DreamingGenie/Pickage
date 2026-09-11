@@ -52,8 +52,21 @@ public class GitHubRepositoryClient {
 	 * @throws UpstreamFetchException            그 외 네트워크·통신 오류
 	 */
 	public boolean isArchived(String owner, String repo) {
+		return isArchived(owner, repo, Duration.ofSeconds(10));
+	}
+
+	/**
+	 * 317(orchestrator)의 20초 단일 예산 중 남은 시간을 전달받는다(전체 정밀 리뷰에서
+	 * 발견 — 213은 원래 이 개념이 없어 {@code verify()}가 최대 30초까지 걸릴 수 있었다).
+	 * 212의 {@code clampTimeout}과 같은 규칙(설정값·남은 시간 중 짧은 쪽).
+	 *
+	 * @throws GitHubRepositoryNotFoundException 404 또는 rate-limit이 아닌 403
+	 * @throws GitHubRateLimitException          core rate limit 소진
+	 * @throws UpstreamFetchException            그 외 네트워크·통신 오류
+	 */
+	public boolean isArchived(String owner, String repo, Duration remainingBudget) {
 		HttpResponse<java.io.InputStream> response = send(
-			URI.create(apiBase + "/repos/" + owner + "/" + repo), "GitHub repos");
+			URI.create(apiBase + "/repos/" + owner + "/" + repo), "GitHub repos", remainingBudget);
 
 		// 리뷰에서 발견: 성공(200) 경로만 BoundedHttpReader 의 try-with-resources 로
 		// 스트림을 닫았고, 404/403/429/그 외 응답은 열린 채로 버려져 HttpClient 커넥션
@@ -87,12 +100,18 @@ public class GitHubRepositoryClient {
 	 */
 	public PackageJsonNameCheck checkPackageJsonName(String owner, String repo, String directory,
 		String expectedName) {
+		return checkPackageJsonName(owner, repo, directory, expectedName, Duration.ofSeconds(10));
+	}
+
+	/** {@link #isArchived(String, String, Duration)}와 같은 이유. */
+	public PackageJsonNameCheck checkPackageJsonName(String owner, String repo, String directory,
+		String expectedName, Duration remainingBudget) {
 		String path = (directory == null || directory.isBlank())
 			? "package.json"
 			: trimSlashes(directory) + "/package.json";
 		HttpResponse<java.io.InputStream> response = send(
 			URI.create(apiBase + "/repos/" + owner + "/" + repo + "/contents/" + path),
-			"GitHub contents");
+			"GitHub contents", remainingBudget);
 
 		// isArchived 와 같은 이유(리뷰 발견) — 모든 종료 경로에서 스트림을 닫는다.
 		try (java.io.InputStream body = response.body()) {
@@ -139,10 +158,10 @@ public class GitHubRepositoryClient {
 		}
 	}
 
-	private HttpResponse<java.io.InputStream> send(URI uri, String sourceForLogging) {
+	private HttpResponse<java.io.InputStream> send(URI uri, String sourceForLogging, Duration remainingBudget) {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
 			.GET()
-			.timeout(Duration.ofSeconds(10))
+			.timeout(clampTimeout(remainingBudget))
 			.header("Accept", "application/vnd.github+json")
 			.header("X-GitHub-Api-Version", API_VERSION);
 		if (token != null && !token.isBlank()) {
@@ -188,6 +207,12 @@ public class GitHubRepositoryClient {
 		} catch (IOException e) {
 			throw new UpstreamFetchException("GitHub 응답 JSON 파싱 실패", e);
 		}
+	}
+
+	/** 212 클라이언트들과 같은 규칙 — 설정값(10초)과 남은 예산 중 짧은 쪽. */
+	private static Duration clampTimeout(Duration remainingBudget) {
+		Duration perCallCap = Duration.ofSeconds(10);
+		return remainingBudget.compareTo(perCallCap) < 0 ? remainingBudget : perCallCap;
 	}
 
 	private static String trimSlashes(String path) {

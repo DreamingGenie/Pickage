@@ -42,11 +42,23 @@ public class NpmRepositoryLookup {
 	 * @throws UpstreamFetchException 네트워크 오류·404가 아닌 오류 상태·응답 byte 상한 초과
 	 */
 	public NpmLookupOutcome fetchRepositoryField(String packageName) {
+		return fetchRepositoryField(packageName, Duration.ofSeconds(10));
+	}
+
+	/**
+	 * 317(orchestrator)의 20초 단일 예산 중 남은 시간을 전달받는다 — 212의
+	 * {@code GitHubIssueSearchClient.clampTimeout}과 같은 방식(설정값·남은 시간 중 짧은
+	 * 쪽)으로 이 호출 하나의 상한을 정한다(전체 정밀 리뷰에서 발견 — 213은 원래 이 예산
+	 * 개념이 전혀 없어 고정 10초씩 최대 3회 호출이 20초 전체 예산을 넘길 수 있었다).
+	 *
+	 * @throws UpstreamFetchException 네트워크 오류·404가 아닌 오류 상태·응답 byte 상한 초과
+	 */
+	public NpmLookupOutcome fetchRepositoryField(String packageName, Duration remainingBudget) {
 		URI uri = URI.create(
 			registryBase + "/" + URLEncoder.encode(packageName, StandardCharsets.UTF_8) + "/latest");
 		HttpRequest request = HttpRequest.newBuilder(uri)
 			.GET()
-			.timeout(Duration.ofSeconds(10))
+			.timeout(clampTimeout(remainingBudget))
 			.header("Accept", "application/json")
 			.build();
 
@@ -103,5 +115,11 @@ public class NpmRepositoryLookup {
 			return new NpmLookupOutcome.Found(url.asText(), directory.isTextual() ? directory.asText() : null);
 		}
 		return new NpmLookupOutcome.NoRepositoryField();
+	}
+
+	/** 212 클라이언트들과 같은 규칙 — 설정값(10초)과 남은 예산 중 짧은 쪽. */
+	private static Duration clampTimeout(Duration remainingBudget) {
+		Duration perCallCap = Duration.ofSeconds(10);
+		return remainingBudget.compareTo(perCallCap) < 0 ? remainingBudget : perCallCap;
 	}
 }

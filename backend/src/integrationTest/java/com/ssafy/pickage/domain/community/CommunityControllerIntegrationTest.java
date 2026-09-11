@@ -238,7 +238,7 @@ class CommunityControllerIntegrationTest {
 		RepositoryVerificationService repositoryVerificationService() {
 			return new RepositoryVerificationService(null, null) {
 				@Override
-				public RepositoryVerificationResult verify(String packageName, String dbRepoUrl) {
+				public RepositoryVerificationResult verify(String packageName, String dbRepoUrl, java.time.Duration budget) {
 					return new RepositoryVerificationResult.Verified(
 						"owner", packageName, RepositoryScope.PACKAGE_SCOPED, false, false);
 				}
