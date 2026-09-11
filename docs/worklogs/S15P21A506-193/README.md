@@ -2,7 +2,10 @@
 
 7번에서 만든 의존 관계를 이용해 각 target 버전을 직접 의존하는 source 패키지·버전 쌍의 수를 계산하고, 검증된 결과를 `package_version_snapshot`에 적재하는 작업이다.
 
-**현재 상태: H5-B의 개선 CPU/GPU 경로를 실제 집계·저장에 연결하고, target 32개×229개 스냅샷의 결과를 검증했다. 준비부터 저장·검증까지 CPU 156.135초, GPU 153.091초다. 전체 선정 패키지의 계산과 DB 적재는 아직 수행하지 않았다.** [최신 코드·표본 검증 결과](24-cpu-gpu-production-integration.md)
+**현재 상태: CPU 병렬 실행과 입력·검증 비용 개선, 여러 날짜를 묶는 P3 저장을 구현했다. 실제 target 32개×229개 스냅샷의 정확성·반복 성능 결과는 [27 최신 기록](27-input-verification-storage-optimization.md)에 정리한다. 전체 선정 패키지의 계산과 DB 적재는 아직 수행하지 않았다.**
+
+CPU/GPU 연결 작업은 `1ec693c`로 커밋했다. 후속 [병렬 구조 계획](25-parallel-execution-plan.md)의
+입력 분할·CPU 작업자 병렬화·결과 묶음 저장은 구현했으며 CPU/GPU 작업 중첩과 서버 확장은 남아 있다.
 
 후속 저장 최적화로 같은 cache의 229일 저장 시간이 29.297초→23.078초로 약 21% 줄었다.
 count 파일 229개 SHA 일치, 품질·이력 값 대조와 전체 209개 테스트를 통과했다.
@@ -71,6 +74,9 @@ D-22에 따라 저장 target은 다운로드 선정 목록의 고유 이름 99,9
 | [22 전체 32개 CPU/GPU 비교](22-gpu-32-package-comparison.md) | 40,701개 전체 요구조건·229일 정답 대조, 공통 준비와 해석 비용 분리, 5회 전체 합계 및 패키지별 비교 |
 | [23 실제 계산값 미리보기](23-calculated-result-examples.md) | 요구조건별 선택 버전·날짜 구간과 이전 CPU 집계의 실제 dependents_count 값, 원본 조회 위치 |
 | [24 CPU/GPU 실제 집계 연결](24-cpu-gpu-production-integration.md) | 선택형 버전 해석·집계 연결, 재개 계약·정확성 검사, 32개×229일 준비부터 저장·검증까지 비교 |
+| [25 병렬 계산 구조 계획](25-parallel-execution-plan.md) | 패키지 묶음별 입출력·CPU worker·GPU 요청 큐·재개·검증·실측과 EC2 확장 경계. 계획만 작성 |
+| [26 입력 분할·CPU 병렬 실행](26-parallel-input-cpu-execution.md) | P0~P2 구현, Windows 프로세스 종료·재개·의미 대조와 실제 32개 표본의 1/2/4 worker 측정 |
+| [27 입력·검증·날짜 저장 개선](27-input-verification-storage-optimization.md) | 반복 입력 스캔·빈 파일·metadata 검사 감소, P3 묶음 저장·0 조회·중단 재개와 교대 반복 측정 |
 
 계획 단계는 `P`, 이슈는 `ISS`, 실제 수행 기록은 `W`, 검증은 `V`, 결정은 `D` 식별자로 연결한다. 문서 파일의 숫자는 읽는 순서이며 상위 작업 번호와 구분한다.
 

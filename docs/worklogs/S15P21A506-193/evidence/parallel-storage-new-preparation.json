@@ -1,0 +1,89 @@
+{
+  "seconds": 72.2045417999907,
+  "result": {
+    "prepared_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-q-input",
+    "manifest_sha256": "723c5cabb9c29f79b8ef864309f1c4a838ec1231eb9612ecd45be9c4fb1cba43"
+  },
+  "profile": {
+    "selection": {
+      "calls": 1,
+      "inclusive_seconds": 0.30028280001715757,
+      "exclusive_seconds": 0.30028280001715757
+    },
+    "_inputs": {
+      "calls": 1,
+      "inclusive_seconds": 0.014766599982976913,
+      "exclusive_seconds": 0.014766599982976913
+    },
+    "_verify_profile": {
+      "calls": 2,
+      "inclusive_seconds": 0.2267514000122901,
+      "exclusive_seconds": 0.2267514000122901
+    },
+    "verify_historical_inputs": {
+      "calls": 2,
+      "inclusive_seconds": 10.314999199996237,
+      "exclusive_seconds": 10.314999199996237
+    },
+    "_verify_used_raw": {
+      "calls": 2,
+      "inclusive_seconds": 16.802405500027817,
+      "exclusive_seconds": 16.802405500027817
+    },
+    "prepare_tables": {
+      "calls": 1,
+      "inclusive_seconds": 34.777108300011605,
+      "exclusive_seconds": 34.777108300011605
+    },
+    "_record": {
+      "calls": 216,
+      "inclusive_seconds": 1.244950899766991,
+      "exclusive_seconds": 1.244950899766991
+    },
+    "_write_shards": {
+      "calls": 1,
+      "inclusive_seconds": 3.93425120000029,
+      "exclusive_seconds": 3.1871901001723018
+    },
+    "verify_partition": {
+      "calls": 27,
+      "inclusive_seconds": 0.6698786999622826,
+      "exclusive_seconds": 0.1719889000232797
+    },
+    "verify_bytes": {
+      "calls": 1,
+      "inclusive_seconds": 0.3109683000075165,
+      "exclusive_seconds": 0.3109683000075165
+    },
+    "verify_inputs": {
+      "calls": 1,
+      "inclusive_seconds": 4.412014300003648,
+      "exclusive_seconds": 3.4311673000338487
+    }
+  },
+  "generation_contract": {
+    "parallel_input_sha256": "4e002ebd6cb6ac6703404be51f88e0fc730e14e860a2272c3aef102ad2be0ccf",
+    "validation_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+    "validation_sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+    "base_input_contract": {
+      "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+      "profile_generation": {
+        "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+        "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+        "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+        "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+        "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+        "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+        "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+        "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+        "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+        "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+        "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+        "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+      },
+      "duckdb_version": "1.5.5"
+    }
+  },
+  "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\historical_parallel_input.py",
+  "profile_semantics": "exclusive_seconds exclude time in other wrapped functions; inclusive values overlap"
+}

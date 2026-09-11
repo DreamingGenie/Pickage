@@ -10,3 +10,11 @@ historical_semver_worker.cjs -text diff whitespace=blank-at-eol,blank-at-eof,spa
 historical_production_resolver.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 historical_production_backend_benchmark.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 test_historical_production_resolver.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# 병렬 입력과 실행 결과가 고정한 생성 코드의 원본 SHA를 보존한다.
+historical_parallel.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_input.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_pool.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_worker.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_writer.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_verify.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

@@ -1,0 +1,11 @@
+test_conversion_preserves_rows_and_partition_views (pipeline.version_dependents.test_historical_parallel_input.ParallelInputTests.test_conversion_preserves_rows_and_partition_views) ... ok
+test_direct_prepare_reads_pinned_tables_and_matches_reference_rows (pipeline.version_dependents.test_historical_parallel_input.ParallelInputTests.test_direct_prepare_reads_pinned_tables_and_matches_reference_rows)
+Exercise direct H1/profile/raw views; no legacy prepare call is allowed. ... ok
+test_empty_partition_is_explicit_and_tamper_fails (pipeline.version_dependents.test_historical_parallel_input.ParallelInputTests.test_empty_partition_is_explicit_and_tamper_fails) ... ok
+test_manifest_metadata_tamper_is_rejected_even_with_new_manifest_sha (pipeline.version_dependents.test_historical_parallel_input.ParallelInputTests.test_manifest_metadata_tamper_is_rejected_even_with_new_manifest_sha) ... ok
+test_partition_manifest_uses_root_relative_file_names (pipeline.version_dependents.test_historical_parallel_input.ParallelInputTests.test_partition_manifest_uses_root_relative_file_names) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 8.542s
+
+OK

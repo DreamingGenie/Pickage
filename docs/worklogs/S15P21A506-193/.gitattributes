@@ -7,3 +7,7 @@ evidence/gpu-*.log -text diff whitespace=blank-at-eol,blank-at-eof,space-before-
 # production CPU/GPU 비교 보고서와 로그의 원본 SHA도 그대로 보존한다.
 evidence/production-backends-*.json -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 evidence/production-backends-*.log -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# 병렬 CPU 실측과 회귀 로그의 원본 SHA를 보존한다.
+evidence/parallel-*.json -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+evidence/parallel-*.log -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

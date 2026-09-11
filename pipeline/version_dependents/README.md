@@ -463,3 +463,28 @@ CPU/GPU를 각각 새 프로세스로 실행·검증한다. 기존 결과는 그
 파일 지문을 보존한 reference를 사용한다. 요구조건 구간·count·품질의 모든 행을 비교하며
 날짜별 품질의 실행 plan ID만 제외한다. 각 실행의 이력 연결은 자체 `verify`로 검사한다.
 측정 단계와 결과는 [실제 집계 연결 기록](../../docs/worklogs/S15P21A506-193/24-cpu-gpu-production-integration.md)에 남긴다.
+
+### 선택형 CPU 병렬 실행과 날짜 묶음 저장
+
+`historical_parallel_input.prepare`는 고정 원본에서 입력을 한 번 준비하고 네 테이블을 물리적으로
+분할한다. 이미 검증한 단일 prepared 입력은 `historical_parallel convert`로 새 분할 입력에 옮길 수 있다.
+빈 묶음은 metadata만 남긴다. 이전 생성 계약의 분할 입력을 새 코드로 덮어쓰지 않는다.
+
+`python -m pipeline.version_dependents.historical_parallel run --prepared-dir <분할입력>
+--manifest-sha256 <입력SHA> --output <새결과폴더> --workers 4 --history-layout grouped`로 실행한다.
+Windows에서 작업자 1/2/4개와 전체 DuckDB 기본 예산 4 threads·4GB를 사용한다.
+`--resume`은 승인된 묶음 결과를 재사용하고 worker 수 변경을 허용한다. 전체 선정 실행에는
+별도 `--allow-full-selected`가 필요하며, 이번 검증 범위는 실제 32개 표본이다.
+
+`history-layout` 기본값은 기존 `daily`다. `grouped`는 묶음마다 여러 날짜의 양수 count를 한
+Parquet에, 날짜별 품질을 한 Parquet에 저장한다. 이력과 cache·calendar·코드 지문은 run plan에 남긴다.
+묶음 단위로 재개하므로 `grouped`와 `--max-snapshots`를 함께 사용할 수 없다.
+
+최종 `run_manifest.json`의 `cache.directory` 아래 `history`가 저장 결과다.
+`historical_parallel_writer.open_counts(con, history_dir, history_manifest_sha256, snapshot_at=날짜)`로
+해당 날짜를 조회한다. `include_zero=True`를 명시하면 cache의 버전별 최초 포함 날짜를 사용해 0을 복원한다.
+`open_quality`는 날짜별 품질 view를 제공한다. 모든 조회는 완료 pointer·receipt·파일 지문을 확인하며,
+`historical_parallel verify --run-dir <결과폴더> --manifest-sha256 <최종SHA>`는 입력부터 실제 출력값까지 검사한다.
+
+[병렬 실행·재개 검증](../../docs/worklogs/S15P21A506-193/26-parallel-input-cpu-execution.md) ·
+[입력·검증·저장 개선과 반복 실측](../../docs/worklogs/S15P21A506-193/27-input-verification-storage-optimization.md)
