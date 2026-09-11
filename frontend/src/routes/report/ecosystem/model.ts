@@ -18,6 +18,28 @@ import type { ShareGroup } from '@/components/charts/version-share'
 export type MetricKey = 'dependents' | 'downloads'
 
 /**
+ * 지표 카드 하나의 처지.
+ *
+ * 위 주석이 "실패가 서로 전파되지 않는다" 고 적어 두었지만 **화면은 그렇게 하지 않았다** —
+ * 셋 중 하나만 실패해도 탭 전체가 오류로 바뀌었다. 카드가 자기 처지를 들고 있어야
+ * 옆 카드와 패키지 카드가 그대로 남는다(`DEC-RECONCILIATION-20260910-01` 8번).
+ *
+ * `ready` 에 데이터가 딸려 있지 않은 것은 의도한 것이다. 시리즈는 모델이 들고 있고
+ * 여기서는 "그릴 수 있는가" 만 말한다. 둘을 한 곳에 담으면 빈 시리즈와 로딩 중을
+ * 구분하려고 또 분기하게 된다.
+ */
+export type MetricState =
+  /**
+   * 그릴 자료가 있다. `refreshError` 는 **이미 받아 둔 것은 멀쩡한데 갱신만 실패한**
+   * 경우다 — 그때 차트를 지우면 읽고 있던 것을 뺏는 셈이라 그대로 두고 한 줄로 알린다.
+   * 대신 조용히 넘기지도 않는다. 지금 보는 것이 최신이 아닐 수 있다는 사실은 알려야 한다.
+   */
+  | { status: 'ready'; refreshError?: unknown; onRetry?: () => void }
+  | { status: 'loading' }
+  /** 그릴 자료가 아예 없다. 첫 조회부터 실패한 경우다. */
+  | { status: 'error'; error: unknown; onRetry: () => void }
+
+/**
  * x축 구간.
  *
  * "최근 1년" 같은 상대 기간을 쓰지 않는다. 자료가 주간 스냅샷이므로

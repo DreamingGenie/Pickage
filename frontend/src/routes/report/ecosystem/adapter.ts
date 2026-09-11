@@ -163,9 +163,14 @@ export function foldSlices(slices: VersionShareResponse['items'][number]['slices
 
 export interface EcosystemSources {
   overview: PackagesOverviewResponse
-  downloads: DownloadsTrendResponse
-  dependents: DependentsTrendResponse
-  /** §6 은 별도 호출이고 실패해도 나머지가 떠야 하므로 없을 수 있다. */
+  /**
+   * 추이 둘과 버전 분포는 **없을 수 있다.** 각자 별도 호출이라 아직 안 왔거나 실패했을
+   * 수 있고, 그때도 개요가 있으면 패키지 카드와 나머지 지표는 떠야 한다.
+   *
+   * 개요만 필수다 — 카드 자체를 만들 수 없기 때문이다.
+   */
+  downloads?: DownloadsTrendResponse
+  dependents?: DependentsTrendResponse
   versionShare?: VersionShareResponse
 }
 
@@ -175,11 +180,11 @@ export function toEcosystemModel({
   dependents,
   versionShare,
 }: EcosystemSources): EcosystemModel {
-  const downloadsSeries = toChartSeries(downloads.series)
+  const downloadsSeries = toChartSeries(downloads?.series ?? [])
 
   // §5 — dependents 는 major 별로 온다. 화면이 고른 버전에 따라 선을 만들 수 있도록
   // 쪼개진 채로 들고 있고, 기본값(TOTAL)만 미리 합쳐 둔다.
-  const majorsByName = groupByPackage(dependents.series)
+  const majorsByName = groupByPackage(dependents?.series ?? [])
   const dependentsSeries = overview.items.map((item) =>
     dependentsLineOf(item.name, majorsByName.get(item.name) ?? [], ALL_MAJORS),
   )
@@ -211,7 +216,11 @@ export function toEcosystemModel({
    * 하나라도 못 찾았으면 그 이름은 화면에서 빠진 것이 맞다.
    */
   const notFound = [
-    ...new Set([...overview.not_found, ...downloads.not_found, ...dependents.not_found]),
+    ...new Set([
+      ...overview.not_found,
+      ...(downloads?.not_found ?? []),
+      ...(dependents?.not_found ?? []),
+    ]),
   ]
 
   return {

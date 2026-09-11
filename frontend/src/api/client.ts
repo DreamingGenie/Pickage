@@ -29,6 +29,28 @@ export class ApiError extends Error {
 }
 
 /**
+ * 오류를 화면에 어떻게 말할지 정한다. **판단만 하고 그리지는 않는다.**
+ *
+ * 오류를 내는 자리가 둘 이상이고(탭 전체 · 지표 카드 안) 생김새가 서로 다른데,
+ * "400 이면 재시도를 권하지 않는다" 는 판단은 같다. 그 판단이 두 벌이 되면
+ * 한쪽만 고쳐진다.
+ */
+export function errorNotice(error: unknown): {
+  message: string
+  /** 서버가 준 코드. 우리가 만든 오류면 없다. */
+  code?: string
+  retryable: boolean
+} {
+  const api = error instanceof ApiError ? error : null
+  return {
+    message: api?.message ?? '자료를 불러오지 못했습니다.',
+    code: api?.code,
+    // 서버 코드가 아닌 오류(네트워크·타임아웃)는 다시 해 볼 값어치가 있다.
+    retryable: !api?.isValidation,
+  }
+}
+
+/**
  * 쿼리 파라미터 값.
  *
  * 배열은 **쉼표로 이어 붙인다**(0.1). Spring 은 `?names=a,b,c` 와 `?names=a&names=b` 를

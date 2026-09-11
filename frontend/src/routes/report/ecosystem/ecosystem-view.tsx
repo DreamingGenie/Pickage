@@ -12,8 +12,16 @@ import {
   ALL_MAJORS,
   type EcosystemModel,
   type MajorSelection,
+  type MetricKey,
+  type MetricState,
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
+
+/** 지어낸 값을 그리는 자리(인트로 미리보기)의 기본값. 로딩도 실패도 없다. */
+const READY: Record<MetricKey, MetricState> = {
+  dependents: { status: 'ready' },
+  downloads: { status: 'ready' },
+}
 
 /**
  * 생태계 변화.
@@ -30,10 +38,16 @@ import { cn } from '@/lib/utils'
  */
 export function EcosystemView({
   model,
+  metricState = READY,
   compactChart = false,
   className,
 }: {
   model: EcosystemModel
+  /**
+   * 지표별 처지. 기본은 둘 다 준비됨이다 — 인트로 미리보기처럼 지어낸 값을 그리는
+   * 자리에는 로딩도 실패도 없다.
+   */
+  metricState?: Record<MetricKey, MetricState>
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */
   compactChart?: boolean
   className?: string
@@ -177,6 +191,7 @@ export function EcosystemView({
             coverageNote="이 지표의 관측 시작"
             emphasisKeys={expanded}
             height={height}
+            state={metricState.dependents}
           />
           <MetricChart
             title="Downloads"
@@ -188,6 +203,7 @@ export function EcosystemView({
             coverageNote="이 지표의 관측 시작"
             emphasisKeys={expanded}
             height={height}
+            state={metricState.downloads}
           />
         </div>
 

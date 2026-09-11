@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { ApiError } from '@/api/client'
+import { errorNotice } from '@/api/client'
 import { USE_MOCK } from '@/api/endpoints'
 import {
   useDependentsTrend,
@@ -12,7 +12,7 @@ import { MAX_NAMES } from '@/api/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
-import { FETCH_WEEKS } from '@/routes/report/ecosystem/model'
+import { FETCH_WEEKS, type MetricKey, type MetricState } from '@/routes/report/ecosystem/model'
 
 /**
  * 생태계 변화 탭.
@@ -64,30 +64,50 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
   }
 
-  const error = overview.error ?? downloads.error ?? dependents.error
-  if (error) return <ErrorState error={error} onRetry={() => void overview.refetch()} />
+  /**
+   * **개요를 아예 못 받았을 때만 화면 전체를 막는다.** 패키지 카드를 만들 재료가 없기 때문이다.
+   *
+   * 추이 둘은 각자 카드 안에서 실패한다. 예전에는 셋 중 하나만 실패해도 탭 전체가
+   * 오류 화면으로 바뀌어, 명세 §1 이 엔드포인트를 지표별로 나눠 둔 이득을 화면이
+   * 통째로 버리고 있었다(`DEC-RECONCILIATION-20260910-01` 8번).
+   *
+   * <p>**갱신 실패는 개요도 화면을 지우지 않는다** — 지표 카드와 같은 판단이다.
+   * 이 탭은 비활성일 때 언마운트되므로(Radix `TabsContent`), 다른 탭에 `staleTime`
+   * 보다 오래 머물다 돌아오면 네 조회가 전부 다시 나간다. 그때 개요만 한 번 실패해도
+   * 멀쩡히 캐시된 보고서가 통째로 오류 화면이 되는 것은 위 원칙과 어긋난다.
+   * 재접속(`refetchOnReconnect`) 경로도 같다.
+   */
+  if (overview.error && !overview.data) {
+    return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
+  }
+  if (!overview.data) return <LoadingState />
 
-  if (!overview.data || !downloads.data || !dependents.data) {
-    return <LoadingState />
+  const metricState: Record<MetricKey, MetricState> = {
+    downloads: stateOf(downloads),
+    dependents: stateOf(dependents),
   }
 
   const model = toEcosystemModel({
     overview: overview.data,
+    // 아직 안 왔거나 실패한 지표는 넘기지 않는다. 그 카드만 비고 나머지는 그대로 뜬다.
     downloads: downloads.data,
     dependents: dependents.data,
-    // 실패하면 카드의 Version Share 자리만 비고 나머지는 그대로 뜬다.
     versionShare: versionShare.data,
   })
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 개요는 이미 받아 두었는데 갱신만 실패했다. 화면은 두고 사실만 알린다 */}
+      {overview.error ? (
+        <StaleNotice error={overview.error} onRetry={() => void overview.refetch()} />
+      ) : null}
       {USE_MOCK && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
           mock 응답입니다 (<span className="font-mono">VITE_USE_MOCK=true</span>). 값은 지어낸
           것이고, 모양만 v1 API 명세를 따릅니다.
         </p>
       )}
-      <EcosystemView model={model} />
+      <EcosystemView model={model} metricState={metricState} />
     </div>
   )
 }
@@ -103,18 +123,58 @@ function LoadingState() {
 }
 
 /**
+ * 추이 한 개의 처지를 카드가 알아들을 모양으로 옮긴다.
+ *
+ * `isPending` 이 아니라 데이터 유무로 판정한다 — 개요가 오기 전에는 `ready` 가 아니라
+ * 아예 꺼져 있고(`enabled: false`), 그때 react-query 의 상태는 `pending` 이지만
+ * 가져오는 중은 아니다. 화면에는 둘 다 "기다리는 중" 으로 보이는 게 맞다.
+ */
+function stateOf(q: { data: unknown; error: unknown; refetch: () => unknown }): MetricState {
+  const onRetry = () => void q.refetch()
+  // 받아 둔 자료가 있으면 그것을 먼저 친다. 갱신 실패로 이미 그린 차트를 지우지 않는다.
+  if (q.data) return { status: 'ready', refreshError: q.error ?? undefined, onRetry }
+  if (q.error) return { status: 'error', error: q.error, onRetry }
+  return { status: 'loading' }
+}
+
+/**
+ * 개요를 이미 받아 두었는데 갱신만 실패했다. 지금 보는 것이 최신이 아닐 수 있다는
+ * 사실만 알린다 — 지우지도, 조용히 넘기지도 않는다.
+ *
+ * 지표 카드의 같은 알림과 생김새가 다른 것은 자리가 다르기 때문이다(탭 위 · 카드 안).
+ * **판단은 한 벌이다** — 재시도를 권할지는 양쪽 다 `errorNotice` 가 정한다.
+ */
+function StaleNotice({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const notice = errorNotice(error)
+
+  return (
+    <p className="flex flex-wrap items-baseline gap-2 rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
+      <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+      {notice.retryable && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          다시 시도
+        </button>
+      )}
+    </p>
+  )
+}
+
+/**
  * 400 계열은 사용자가 고칠 수 있는 것이라(이름 형식·개수) 서버 문구를 그대로 보여준다.
  * 그 밖의 오류만 재시도를 권한다 — 같은 요청을 다시 보내도 결과가 같기 때문이다.
  */
 function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const api = error instanceof ApiError ? error : null
-  const retryable = !api?.isValidation
+  const notice = errorNotice(error)
 
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
-      <p className="text-sm">{api?.message ?? '자료를 불러오지 못했습니다.'}</p>
-      {api && <p className="font-mono text-base text-muted-foreground">{api.code}</p>}
-      {retryable && (
+      <p className="text-sm">{notice.message}</p>
+      {notice.code && <p className="font-mono text-base text-muted-foreground">{notice.code}</p>}
+      {notice.retryable && (
         <button
           type="button"
           onClick={onRetry}
