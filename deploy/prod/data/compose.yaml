@@ -262,7 +262,67 @@ services:
   #   --package-text·--model-dir·--out 이 없으면 argparse 가 바로 종료한다.
   #   그래서 `command:` 를 두지 않는다 — 두면 기본 인자가 되어 이 형태를 가린다.
   #   전체 목록: `docker compose run --rm ai-similarity --help`
+  #
+  # 앞뒤의 MinIO 왕복도 compose 서비스다 — ai-stage / ai-collect. `docker run` 으로
+  # 빼지 않는 이유는 그 셋(네트워크·볼륨 이름·env_file)을 손으로 다시 대야 하고,
+  # **자격증명을 넘기는 데서 실제로 틀렸기 때문이다.** minio-init 과 같은 모양으로 둔다.
+
+  ai-stage:
+    # 1/3. MinIO → aiwork. 배치가 S3 를 못 읽어서(이미지에 boto3 없음) 사람 대신 옮긴다.
+    profiles: ["batch", "all"]
+    # minio 와 **같은 핀**을 쓴다. 여기만 올리면 mc 하위 명령이 갈라진다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        # ⚠ 자격증명은 $$ 로 둔다 — **컨테이너 안의 셸이 런타임에** env_file 에서 읽는다.
+        #   $ 하나로 쓰면 compose 가 먼저 먹어서 비밀이 **명령줄 문자열에 박힌다.**
+        #   그러면 docker inspect 의 Entrypoint 와 프로세스 목록에까지 값이 남는다.
+        #   (env_file 때문에 `compose config` 의 environment 블록에는 어차피 보인다 —
+        #    이건 이 파일의 모든 서비스가 그렇고, $$ 로 막히는 문제가 아니다.)
+        #
+        #   경로는 비밀이 아니라서 compose 가 풀게 둔다. 그래야 :? 가드가 걸린다.
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        rm -rf /work/in /work/out
+        mkdir -p /work/in /work/out
+        mc cp --recursive "l/${AI_SRC_CORPUS:?.env 에 채울 것 — 코퍼스 parquet 의 MinIO 경로}/" /work/in/
+        mc cp --recursive "l/${AI_SRC_MODEL:?.env 에 채울 것 — ONNX 모델 디렉터리의 MinIO 경로}/" /work/in/model/
+        # ⚠ 배치는 uid 1000 으로 돈다. mc 는 root 로 받으므로 넘겨주지 않으면
+        #   배치가 --out 쓰기에서 Permission denied 로 죽는다.
+        chown -R 1000:1000 /work
+        ls -ln /work/in
+
+  ai-collect:
+    # 3/3. aiwork → MinIO. 잡이 s3:// 를 직접 쓰게 되면 이 서비스는 사라진다.
+    profiles: ["batch", "all"]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        # /work/out 아래의 run 디렉터리 구조를 그대로 올린다.
+        mc cp --recursive /work/out/ "l/${AI_DST_RESULT:?.env 에 채울 것 — 산출물을 둘 MinIO 경로}/"
+
   ai-similarity:
+    # 2/3.
     profiles: ["batch", "all"]
     # 레지스트리가 없어서 build 를 같이 둔다. `compose build` 가 만든 이미지에
     # 곧바로 이 태그가 붙는다 — app 노드의 api·web 과 같은 방식이다.

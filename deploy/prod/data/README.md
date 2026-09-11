@@ -8,7 +8,7 @@
 | `minio-init` | 없는 버킷만 만드는 일회성 컨테이너. `Exited (0)` 이 정상이다 |
 | `mlflow` | 모델 레지스트리. 5000 = API·웹 UI, 루프백만 (터널로 붙는다). **어느 모델이 `@production` 인지 아는 유일한 곳** |
 | `spark-master` · `spark-worker-1` | 배치 시각에만. `profiles` 에 들어 있다 |
-| `ai-similarity` | 유사도 배치. **상주가 아니다** — `run --rm` 으로 한 번 돌리고 끝난다 |
+| `ai-stage` · `ai-similarity` · `ai-collect` | 유사도 배치 한 회차. **셋 다 상주가 아니다** — `run --rm` 으로 한 번 돌고 끝난다. 스테이징 → 배치 → 회수 순서 |
 
 `app` 노드는 `j15a506` 이다 — **뒤에 `a` 가 없다.** 붙은 다음 `hostname` 을 먼저 확인할 것.
 
@@ -391,6 +391,27 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 
 **상주 서비스가 아니다.** 한 번 돌고 끝난다 — `profiles` 에 있어서 `up -d` 로는 뜨지 않는다.
 
+### 지금은 사람이 친다 — 스케줄러가 없다
+
+**이 노드에 cron 도 systemd timer 도 없다.** 배치 시각이 되면 사람이 아래 절차를 친다.
+
+`run-similarity-batch.sh` 에 1~3 단계를 묶어 뒀는데 **아직 뼈대라 그대로 돌리면 거부한다** —
+MinIO 안의 실제 경로가 안 정해져서 파일 위쪽 값이 비어 있다. 채우는 것은 별도 작업이고,
+지금 올려 둔 이유는 **전체 흐름을 한 파일에서 보이게** 하기 위해서다.
+
+```
+[Spark 배치]  →  1 스테이징  →  2 배치  →  3 회수  →  [로더]
+ (사람)           run-similarity-batch.sh              (app 노드, 미구현)
+```
+
+**스케줄러는 잡이 `s3://` 를 직접 읽고 쓰게 된 다음에 붙이는 것이 맞다.** 지금 2단계만
+cron 에 걸면 1단계가 안 된 상태로 깨어나 실패하고, 3·4단계는 여전히 사람이 한다 —
+자동화가 아니라 실패 지점이 하나 느는 것이다.
+
+> 붙일 때는 **cron 보다 systemd timer** 를 권한다. cron 의 기본 실패 모드가 침묵인데,
+> 이 리포는 이미 그걸로 한 번 데었다 (위 "손 안 대고 돌아오는가"). timer 는
+> `systemctl list-timers` 로 마지막·다음 실행이, `journalctl -u` 로 지난 로그가 바로 보인다.
+
 ### ⚠ 이 잡은 MinIO 를 직접 읽지 않는다
 
 입출력이 **전부 로컬 경로**다. 이미지에 boto3 가 없다 (`requirements.txt` 는
@@ -422,19 +443,20 @@ docker compose run --rm --entrypoint sh ai-similarity -c 'id -u; touch /work/out
 
 ### 1. 입력을 MinIO 에서 꺼낸다
 
-`mc` 는 MinIO 이미지에 들어 있다. 일회성 컨테이너로 같은 볼륨을 잡아 쓴다.
+> 아래 1~3 단계가 `run-similarity-batch.sh` 의 세 줄이다. 스크립트가 채워지면 손으로 칠 일이 없다.
 
 ```bash
-docker run --rm --network pickage-data_default -v pickage-data_aiwork:/work \
-  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
-  --entrypoint sh minio/minio:RELEASE.2025-04-22T22-12-26Z -c '
-    mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null &&
-    mc cp --recursive l/pickage-curated/<코퍼스 경로>/ /work/in/ &&
-    mc cp --recursive l/pickage-mlflow-artifacts/<모델 경로>/ /work/in/model/ &&
-    chown -R 1000:1000 /work'
+docker compose run --rm ai-stage
 ```
 
-**`chown` 을 빼지 말 것.** `mc` 가 root 로 받아서 배치가 못 읽는다.
+`.env` 의 `AI_SRC_CORPUS` · `AI_SRC_MODEL` 을 읽어 `/work/in/` 으로 받고 **`chown` 까지 한다.**
+`mc` 는 MinIO 이미지에 들어 있어서 같은 핀을 쓰는 일회성 서비스로 뒀다 — `minio-init` 과 같은 모양이다.
+
+경로가 비어 있으면 compose 가 어느 변수인지 말하고 거부한다.
+
+```
+required variable AI_SRC_CORPUS is missing a value: .env 에 채울 것 — 코퍼스 parquet 의 MinIO 경로
+```
 
 ### 2. 돌린다
 
@@ -459,16 +481,22 @@ error: the following arguments are required: --package-text, --model-dir, --out
 | `--batch-size` · `--query-block` | 메모리를 지배한다. **OOM 이 나면 상한보다 이 둘을 먼저 줄인다** |
 | `--no-gate` | 구조적 관문을 끈다. 게이트 때문에 후보가 비는지 가릴 때만 |
 
+> **Windows 에서 칠 때는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다.** 안 붙이면 Git Bash 가
+> `/work/in/...` 를 `C:/Program Files/Git/work/in/...` 으로 바꿔서 `FileNotFoundError` 가 난다
+> (확인함). 서버에서는 이 문제가 없다.
+
 ### 3. 산출물을 MinIO 로 올린다
 
 ```bash
-docker run --rm --network pickage-data_default -v pickage-data_aiwork:/work \
-  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
-  --entrypoint sh minio/minio:RELEASE.2025-04-22T22-12-26Z -c '
-    mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null &&
-    mc cp --recursive /work/out/ l/pickage-vectors/similarity/'
+docker compose run --rm ai-collect
 ```
 
+`/work/out/` 아래를 `.env` 의 `AI_DST_RESULT` 로 올린다. run 디렉터리 구조가 그대로 간다.
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-vectors/'
+# similarity/20260911/similar.parquet
+```
 ### 확인
 
 ```bash
@@ -687,9 +715,14 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 | executor 만 s3a 연결 오류 | `spark-defaults.conf` 의 endpoint 가 **서비스 이름**이면 다른 호스트에서 못 푼다. 사설 IP 여야 한다 |
 | `NoSuchMethodError` | `hadoop-aws` 버전이 Spark 내장 Hadoop 과 다르다 ([../spark/README.md](../spark/README.md)) |
 
-> **Windows 에서 `docker compose exec` 를 쓸 때**: Git Bash 가 `/opt/spark/...` 를
-> 윈도우 경로로 바꿔서 `no such file or directory` 가 난다.
+> **Windows 에서 `docker compose exec`·`run` 을 쓸 때**: Git Bash 가 컨테이너 안의
+> 절대 경로를 윈도우 경로로 바꾼다. `/opt/spark/...` 가 `C:/Program Files/Git/...` 이 되어
+> `no such file or directory` 가 난다. **`exec` 만이 아니라 `run` 의 인자도 그렇다** —
+> 유사도 배치의 `--package-text /work/...` 가 같은 이유로 깨진다 (확인함).
 > `MSYS_NO_PATHCONV=1` 을 앞에 붙이거나 서버에 SSH 로 들어가서 실행할 것.
+>
+> ⚠ `MSYS_NO_PATHCONV=1` 은 **그 명령의 모든 경로 변환을 끈다.** `-f ../some.yaml` 처럼
+> 호스트 경로를 같이 넘기면 그쪽이 대신 깨진다. 서버에서는 이 문제가 아예 없다.
 
 ## 아직 없는 것
 
@@ -698,7 +731,8 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 | 유사도 배치의 **S3 입출력** | 없다. 잡이 로컬 경로만 읽고 쓴다 — MinIO 왕복을 사람이 한다 (위 "유사도 배치 돌리기"). 붙으면 스테이징 두 단계가 사라진다 |
 | 배치가 **MLflow 에서 모델 받기** | 없다. 잡에 mlflow 클라이언트가 없어서 `--model-dir` 에 손으로 넣는다. 레지스트리는 올라와 있으니 그 연결만 남았다 |
 | 채점 게이트 | `similarity_batch_pipeline.py` 의 5번이 TODO 다 (S15P21A506-169) |
-| 배치 cron | 없다. 사람이 실행한다. **Spark 배치와 시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
+| `run-similarity-batch.sh` 의 내용 | **뼈대만 있다.** MinIO 경로 세 개가 비어 있어서 그대로 돌리면 거부한다 |
+| 배치 스케줄러 | 없다. cron 도 systemd timer 도 없고 사람이 친다. **잡의 S3 입출력이 붙은 다음**에 거는 것이 맞다. **Spark 배치와 시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
 | `ai-similarity` 전용 MinIO 키 | 없다. 스테이징에 루트 자격증명을 쓰고 있다 (`ai/README.md` 의 B4) |
 | MLflow 를 **서버에서** 확인하기 | 로컬 compose 로 업로드까지 확인했다. 서버에서는 아직 안 띄웠다 |
 | 수집 cron | 없다 |
