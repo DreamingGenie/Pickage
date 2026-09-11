@@ -1,0 +1,42 @@
+# 커뮤니티 백엔드 — Phase 인덱스
+
+에픽 [`S15P21A506-323`](https://ssafy.atlassian.net/browse/S15P21A506-323) `[확장] GitHub 커뮤니티 현황`
+아래 백엔드 하위 이슈를 Phase 단위로 관리한다. **Phase = 이미 생성된 Jira 하위 이슈 1개**다.
+새 Phase를 위해 신규 Jira 이슈를 만들지 않는다 — 구현계획 문서 자체가 "137·212·213을
+재사용하고 신규 티켓을 미리 만들지 않는다"고 명시하며, 2026-09-11 정비로 필요한 하위 이슈가
+이미 전부 생성·배정돼 있다.
+
+**WIP = 1.** 아래 표에서 "진행 중"은 항상 최대 1개다. 다음 Phase는 현재 Phase가 "완료"로
+바뀐 뒤에만 착수한다. 착수 순서는 각 이슈의 "선행 작업·인계" 절에 적힌 의존관계를 따른다.
+
+## Phase 순서와 상태
+
+| Phase | Jira | 담당 파트 라벨 | 브랜치 (예정/실제) | Spec | 의존 | 상태 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | [S15P21A506-314](https://ssafy.atlassian.net/browse/S15P21A506-314) [BE][구현] 커뮤니티 Snapshot 저장·재시작 복원·TTL | 백엔드 | `api/feat/S15P21A506-314-community-snapshot-storage` | [specs/S15P21A506-314.md](../specs/S15P21A506-314.md) | 없음 | 대기 |
+| 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | (Phase 착수 시 작성) | 없음 (Phase 1과 병행 가능) | 대기 |
+| 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | (Phase 착수 시 작성) | Phase 2 (213 검증 결과 필요) | 대기 |
+| 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | (Phase 착수 시 작성) | Phase 1·2·3 산출물 | 대기 |
+| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/test/S15P21A506-315-community-integration-acceptance` | (Phase 착수 시 작성) | Phase 4 | 대기 |
+
+범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
+GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).
+
+상태 값: `대기` / `진행 중` / `리뷰 중` / `완료`. Phase 4는 순서상 뒤지만 213·212·314 각각의
+**부분** 산출물(예: 314는 자체 완료 조건까지 마쳐야 함, 317은 그 결과를 인계받아 조립)을
+필요로 하므로, Phase 1·2가 나란히 끝난 뒤 Phase 3을 거쳐야 Phase 4를 시작할 수 있다.
+
+## 진행 기록
+
+Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음을 기록한다(기존 기록은
+덮어쓰지 않는다):
+
+- 무엇을 구현했는가 / 변경한 파일
+- 실행한 테스트와 결과
+- 리뷰 결과 (`/code-review`)
+- 해당 Jira "완료 판단 기준" 대조 결과
+- 남은 위험, 다음 Phase에 넘길 것
+
+완료된 Phase가 생기면 이 표의 상태 열을 갱신하고, 새 기록 파일 링크를 이 절 아래에 추가한다.
+
+(아직 완료된 Phase 없음)
