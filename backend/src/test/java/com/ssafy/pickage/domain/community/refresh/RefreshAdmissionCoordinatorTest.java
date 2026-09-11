@@ -3,6 +3,7 @@ package com.ssafy.pickage.domain.community.refresh;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ssafy.pickage.domain.community.CommunityProperties;
+import com.ssafy.pickage.domain.community.CommunityTestFixtures;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -410,46 +411,54 @@ class RefreshAdmissionCoordinatorTest {
     }
 
     @Test
-    void 같은_package로_동시_요청이_경합해도_진_쪽의_시작_토큰은_돌려받는다() throws InterruptedException {
-        RefreshTaskRegistry registry = new RefreshTaskRegistry();
-        // 리필 없이 burst 2개만 — 경합에서 진 요청들의 토큰이 돌아오지 않으면 금방 바닥난다.
-        RefreshAdmissionCoordinator coordinator =
-                com.ssafy.pickage.domain.community.CommunityTestFixtures.track(
+    void 같은_package로_동시_요청이_경합해도_진_쪽의_시작_토큰은_돌려받는다() throws Exception {
+        var registry = new RefreshTaskRegistry();
+        var coordinator =
+                CommunityTestFixtures.track(
                         new RefreshAdmissionCoordinator(
                                 registry,
                                 CommunityProperties.TOTAL_BUDGET,
                                 new StartTokenBucket(0, 2)));
-        coordinators.add(coordinator);
-        int threads = 10;
-        java.util.concurrent.ExecutorService executor =
-                java.util.concurrent.Executors.newFixedThreadPool(threads);
-        CountDownLatch ready = new CountDownLatch(threads);
-        CountDownLatch go = new CountDownLatch(1);
-        List<AdmissionDecision> decisions = Collections.synchronizedList(new ArrayList<>());
-
-        for (int i = 0; i < threads; i++) {
-            executor.submit(
-                    () -> {
-                        ready.countDown();
-                        awaitUnchecked(go);
-                        decisions.add(
-                                coordinator.admit(1, RefreshTrigger.TAB_OPENED, task -> () -> {}));
-                    });
+        var release = new CountDownLatch(1);
+        var gate = new java.util.concurrent.CyclicBarrier(10);
+        try (var callers = java.util.concurrent.Executors.newFixedThreadPool(10)) {
+            var futures = new ArrayList<java.util.concurrent.Future<AdmissionDecision>>();
+            for (int i = 0; i < 10; i++)
+                futures.add(
+                        callers.submit(
+                                () -> {
+                                    gate.await(3, TimeUnit.SECONDS);
+                                    return coordinator.admit(
+                                            1,
+                                            RefreshTrigger.TAB_OPENED,
+                                            task ->
+                                                    () -> {
+                                                        try {
+                                                            release.await();
+                                                        } catch (InterruptedException e) {
+                                                            Thread.currentThread().interrupt();
+                                                        }
+                                                    });
+                                }));
+            var decisions = new ArrayList<AdmissionDecision>();
+            for (var future : futures) decisions.add(future.get(3, TimeUnit.SECONDS));
+            // worker가 모든 동시 요청의 판정 전 끝나면 새 실행은 합법적이다. 완료를 명시적으로 늦춘다.
+            assertThat(
+                            decisions.stream()
+                                    .filter(d -> d instanceof AdmissionDecision.Started)
+                                    .count())
+                    .isEqualTo(1);
+            assertThat(
+                            decisions.stream()
+                                    .filter(d -> d instanceof AdmissionDecision.Joined)
+                                    .count())
+                    .isEqualTo(9);
+            assertThat(coordinator.admit(2, RefreshTrigger.TAB_OPENED, task -> () -> {}))
+                    .isInstanceOf(AdmissionDecision.Started.class);
+        } finally {
+            release.countDown();
+            coordinator.shutdown();
         }
-        ready.await();
-        go.countDown();
-        executor.shutdown();
-        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
-
-        long started =
-                decisions.stream().filter(d -> d instanceof AdmissionDecision.Started).count();
-        assertThat(started).isEqualTo(1);
-
-        // 경합에서 이긴 하나만 순수하게 토큰을 썼다면 burst(2) 중 1개가 남아 다른 package를
-        // 허용해야 한다 — 진 쪽들이 돌려주지 않았다면(원래 버그) 여기서 거절됐을 것이다.
-        AdmissionDecision otherPackage =
-                coordinator.admit(2, RefreshTrigger.TAB_OPENED, task -> () -> {});
-        assertThat(otherPackage).isInstanceOf(AdmissionDecision.Started.class);
     }
 
     private static void awaitUnchecked(CountDownLatch latch) {
