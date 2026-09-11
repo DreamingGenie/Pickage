@@ -54,3 +54,5 @@ DB 시험은 `DisposableTestDatabase` 또는 `pickage_315_test_<uuid>` DB만 생
 - payload v1은 새 계약을 복원할 근거가 부족해 읽기에서 제외한다. readiness가 갖춰진 뒤 v2로 다시 수집해야 하며 backfill로 원문/source를 추측하지 않는다. 이미 승인된 2 MiB 응답 상한은 PRD 기본값(1/8 MiB)과 다르다.
 
 MR은 위 외부 gate와 사람 리뷰를 남겨 둔 코드 검토용이다. 자동 merge·배포·원격 317 삭제는 수행하지 않는다.
+
+제출한 MR은 [!117](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/117)이다. 리뷰어 jungbk0808, 라벨 backend/fix/docs, 충돌 없음. 제출 후 조회 시 head pipeline은 없으므로 CI 통과로 표시하지 않는다. 인증된 웹 편집 도구가 없어 기존 glab OS keyring 인증의 UTF-8 JSON 요청으로 본문을 등록하고, 마지막 개행을 제외한 본문·템플릿 일치를 재조회했다. push description이나 git 자격증명 추출은 사용하지 않았다.

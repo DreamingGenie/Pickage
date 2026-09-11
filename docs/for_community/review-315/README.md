@@ -16,6 +16,7 @@
 
 ## 체크포인트
 
+- 제출: [Draft MR !117](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/117), 315 → develop, 리뷰어 jungbk0808, backend/fix/docs. 충돌 없음. 생성 후 조회 시 CI pipeline은 없으며 로컬 검증과 구분한다. Jira315는 외부 인수·사람 리뷰를 위해 진행 중으로 유지했다.
 - 사용자 승인: “phase 5 개발하고, 커밋한 후, 전체 재검수 진행한 후에 문제 없다면 mr까지 넣어줘”. 공용 seed 4개와 PdfStoreTest 호출 2곳 보정 포함.
 - Phase 5 구현: API/저장 계약 v2, 검증·수집·요약 근거, 제한 실행과 게시, 비활성 격리, seed FK 수정. [수정 대장](remediation.md)을 기준으로 추적한다.
 - 수정 전 38개 반례(35 실패/3 통과)와 d9193a3 파일 목록은 보존했다. `probes/`는 당시 코드에서만 실행한다. 현재 코드는 정규 test/integrationTest 소스에 이관한 회귀 시험을 실행한다.
