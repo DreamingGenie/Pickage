@@ -1,11 +1,12 @@
-# GPU 서버에서 MinIO 읽기 (인수인계)
+# GPU 서버에서 MinIO 쓰기 (인수인계)
 
-학습 데이터를 가져가는 쪽이 볼 문서다.
+학습 데이터를 가져가고 **모델을 올리는** 쪽이 볼 문서다.
 
 | | |
 | --- | --- |
-| 받는 것 | `pickage-raw` · `pickage-curated` **읽기 전용** |
-| 못 하는 것 | 쓰기·삭제. 그리고 `pickage-vectors` · `pickage-mlflow-artifacts` · `pickage-quarantine` |
+| 읽기 | `pickage-raw` · `pickage-curated` |
+| **쓰기** | **`pickage-mlflow-artifacts` 만** (학습 산출물 업로드) |
+| 못 하는 것 | `pickage-raw`·`pickage-curated` 에 쓰기, **모든 삭제**, 그리고 `pickage-vectors` · `pickage-quarantine` |
 | 자격증명 | 별도 전달 (이 문서에 적지 않는다) |
 
 ## ⚠ 1. 먼저 터널을 연다 — 이게 없으면 아무것도 안 된다
@@ -74,6 +75,7 @@ Spark 라면 `fs.s3a.path.style.access=true` 와 `fs.s3a.endpoint=http://localho
 | --- | --- |
 | `pickage-raw` | 수집한 **원본** Parquet. 가공 전 값이 필요할 때 |
 | `pickage-curated` | 정제·가공 결과. `package` · `version` 적재용 Parquet, ID 매핑, 품질 검증 결과 |
+| `pickage-mlflow-artifacts` | **여기에만 쓴다.** 학습 산출물(ONNX·tokenizer·manifest) |
 
 버킷별 역할은 [README.md](README.md), curated 의 컬럼 스키마는
 [../curated/README.md](../curated/README.md) 에 있다.
@@ -85,21 +87,39 @@ for o in s3.list_objects_v2(Bucket="pickage-raw", MaxKeys=20).get("Contents", []
     print(o["Key"])
 ```
 
-## 4. 안 되는 것과 그 이유
+## 4. 모델 올리기
+
+`pickage-mlflow-artifacts` **에만** 쓸 수 있다. 학습 산출물은 여기로 올린다.
+
+```python
+s3.upload_file("/local/onnx_bge_v7/model.onnx",
+               "pickage-mlflow-artifacts", "onnx_bge_v7/model.onnx")
+```
+
+MLflow 로 등록하면 클라이언트가 **이 버킷에 직접** 올린다(서버가 중계하지 않는다).
+그때 필요한 환경변수는 `deploy/prod/data/README.md` 의 "MLflow" 절에 있다.
+
+> **큰 파일은 멀티파트로 올라간다.** 132 MiB 모델이 그렇다. 정책에 멀티파트 권한이
+> 들어 있으니 그냥 되지만, **작은 파일만 되고 모델만 AccessDenied** 가 나면
+> 그 권한이 빠진 것이다 — 인프라에 말할 것.
+
+## 5. 안 되는 것과 그 이유
 
 | 시도 | 결과 |
 | --- | --- |
-| 업로드 · 삭제 | **AccessDenied.** 읽기 권한만 있다 |
-| `pickage-vectors` · `pickage-mlflow-artifacts` · `pickage-quarantine` | **AccessDenied.** 필요해지면 말할 것 |
+| `pickage-raw` · `pickage-curated` 에 쓰기 | **AccessDenied** |
+| **삭제** (어느 버킷이든) | **AccessDenied** |
+| `pickage-vectors` · `pickage-quarantine` | **AccessDenied.** 필요해지면 말할 것 |
 
-**쓰기가 없는 것이 이 계정의 핵심이다.** `pickage-raw` 는 수집 원본의 유일본이고,
+**원본에 못 쓰는 것이 이 계정의 핵심이다.** `pickage-raw` 는 수집 원본의 유일본이고,
 npm 다운로드 수처럼 **놓친 기간을 소급 조회할 수 없는 것**이 섞여 있다.
-읽기만 되면 어떤 실수도 원본을 건드리지 못한다.
+쓰기를 얹은 뒤에도 그 보장은 그대로다 — 쓰기가 열린 곳은
+`pickage-mlflow-artifacts` 하나뿐이고, 거기 있는 것은 **다시 만들 수 있는 학습 산출물**이다.
 
-학습 결과물을 어딘가에 올려야 하면 **따로 말할 것.** 쓰기는 별도 계정으로 준다 —
-읽기 계정에 쓰기를 얹지 않는다.
+삭제를 안 준 이유도 같다. 모델은 버전마다 새 경로에 쌓이므로 GPU 가 지울 일이 없고,
+보관 정책(`@production` + 직전 2개)에 따른 정리는 인프라가 한다.
 
-## 5. 키를 잃었거나 새어 나갔으면
+## 6. 키를 잃었거나 새어 나갔으면
 
 바로 말할 것. **키 하나만 폐기하면 되고 다른 것에 영향이 없다** — 그러라고 별도 계정으로
 만들어 둔 것이다. 새 키 발급도 명령 한 줄이다.

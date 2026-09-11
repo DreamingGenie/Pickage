@@ -698,23 +698,45 @@ docker compose exec minio sh -c 'mc admin user svcacct ls l "$MINIO_ROOT_USER"'
 docker compose exec minio sh -c 'mc admin user svcacct rm l <ACCESS_KEY>'
 ```
 
-### GPU 서버용 읽기 전용 계정
+### GPU 서버용 계정
 
-외부 GPU 서버가 학습 데이터를 가져갈 때 쓴다. **`pickage-curated` 읽기만** 된다.
-권한 내용은 [pipeline/minio/policies/gpu-readonly.json](../../../pipeline/minio/policies/gpu-readonly.json).
+외부 GPU 서버가 학습 데이터를 가져가고 **모델을 올릴 때** 쓴다.
+권한 내용은 [pipeline/minio/policies/gpu.json](../../../pipeline/minio/policies/gpu.json).
+
+| | |
+| --- | --- |
+| 읽기 | `pickage-raw` · `pickage-curated` |
+| **쓰기** | **`pickage-mlflow-artifacts` 만** |
+| 삭제 | **없다.** 어느 버킷이든 |
+
+**원본에 못 쓰는 것이 이 계정의 핵심이다.** 쓰기가 열린 곳은 학습 산출물 버킷 하나뿐이고,
+거기 있는 것은 다시 만들 수 있다. `pickage-raw` 의 소급 불가능한 수집분은 그대로 보호된다.
+
+> 멀티파트 권한(`AbortMultipartUpload`·`ListMultipartUploadParts`·
+> `ListBucketMultipartUploads`)이 들어 있다. **빠뜨리면 작은 파일만 되고 132 MiB 모델만
+> `AccessDenied`** 가 나서 진단이 오래 걸린다.
 
 **1. 정책을 만든다** — JSON 을 stdin 으로 컨테이너에 밀어 넣는다.
 
 ```bash
 cd ~/S15P21A506/deploy/prod/data
-docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-gpu-readonly /tmp/p.json' < ../../../pipeline/minio/policies/gpu-readonly.json
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-gpu /tmp/p.json' < ../../../pipeline/minio/policies/gpu.json
 ```
 
 **2. 사용자를 만들고 정책을 붙인다.**
 
 ```bash
-docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-gpu "$S" >/dev/null && mc admin policy attach l pickage-gpu-readonly --user pickage-gpu >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-gpu "$S"'
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-gpu "$S" >/dev/null && mc admin policy attach l pickage-gpu --user pickage-gpu >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-gpu "$S"'
 ```
+
+> **이미 `pickage-gpu-readonly` 로 만들어 둔 계정이 있으면** 사용자는 그대로 두고 정책만
+> 바꿔 붙인다. **키가 안 바뀌므로 담당자에게 다시 전달할 필요가 없다.**
+>
+> ```bash
+> docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc admin policy attach l pickage-gpu --user pickage-gpu && mc admin policy detach l pickage-gpu-readonly --user pickage-gpu && mc admin user info l pickage-gpu'
+> ```
+>
+> 마지막 `user info` 가 **붙은 정책을 찍는다 — `pickage-gpu` 하나여야 한다.**
 
 **⚠ 출력에 시크릿이 찍힌다.** 채팅·MR·이슈에 붙여넣지 말고 담당자에게 직접 전달할 것.
 시크릿은 **다시 볼 수 없다** — 잃으면 사용자를 지우고 다시 만든다.
