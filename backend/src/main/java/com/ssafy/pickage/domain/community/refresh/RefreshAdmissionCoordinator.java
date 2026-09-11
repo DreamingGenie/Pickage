@@ -13,7 +13,8 @@ public class RefreshAdmissionCoordinator {
     private final RefreshTaskRegistry registry;
     private final StartTokenBucket tokens;
     private final Duration budget;
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private final ExecutorService executor =
+            Executors.newFixedThreadPool(CommunityProperties.EXECUTOR_WORKER_COUNT);
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final Deque<Work> queue = new ArrayDeque<>();
     private final Map<RefreshTask, Thread> running = new HashMap<>();
@@ -21,7 +22,12 @@ public class RefreshAdmissionCoordinator {
     private boolean closed;
 
     public RefreshAdmissionCoordinator(RefreshTaskRegistry registry) {
-        this(registry, CommunityProperties.TOTAL_BUDGET, new StartTokenBucket(10, 4));
+        this(
+                registry,
+                CommunityProperties.TOTAL_BUDGET,
+                new StartTokenBucket(
+                        CommunityProperties.START_TOKENS_PER_MINUTE,
+                        CommunityProperties.START_TOKEN_BURST));
     }
 
     RefreshAdmissionCoordinator(
@@ -40,10 +46,12 @@ public class RefreshAdmissionCoordinator {
                 return new AdmissionDecision.Joined(existing.get());
             if (closed)
                 return new AdmissionDecision.Rejected(CommunityErrorCode.COMMUNITY_DISABLED, null);
-            if (existing.isEmpty() && registry.size() >= 128)
+            if (existing.isEmpty() && registry.size() >= CommunityProperties.REGISTRY_MAX_ENTRIES)
                 return new AdmissionDecision.Rejected();
-            boolean queued = occupied >= 2;
-            if (queued && (trigger == RefreshTrigger.ANALYSIS_CONFIRMED || queue.size() >= 4))
+            boolean queued = occupied >= CommunityProperties.MAX_CONCURRENT_EXECUTIONS;
+            if (queued
+                    && (trigger == RefreshTrigger.ANALYSIS_CONFIRMED
+                            || queue.size() >= CommunityProperties.TAB_OPENED_QUEUE_CAPACITY))
                 return new AdmissionDecision.Rejected();
             if (!tokens.tryAcquire())
                 return new AdmissionDecision.Rejected(
@@ -101,7 +109,9 @@ public class RefreshAdmissionCoordinator {
     }
 
     private void dispatch() {
-        while (!closed && occupied < 2 && !queue.isEmpty()) {
+        while (!closed
+                && occupied < CommunityProperties.MAX_CONCURRENT_EXECUTIONS
+                && !queue.isEmpty()) {
             Work next = queue.removeFirst();
             if (next.task.isPastDeadline() || !next.task.isActive()) {
                 deadline(next.task);

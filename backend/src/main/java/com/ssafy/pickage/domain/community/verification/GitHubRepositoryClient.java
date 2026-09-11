@@ -198,13 +198,18 @@ public class GitHubRepositoryClient {
         }
 
         try {
-            return BoundedHttpReader.send(httpClient, builder.build(), maxResponseBytes);
+            return BoundedHttpReader.send(
+                    httpClient,
+                    builder.build(),
+                    maxResponseBytes,
+                    info -> rateGate.observeHeaders("core", info));
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
             // 원인 메시지에 인증 헤더가 들어갈 일은 없지만, 혹시 모를 노출을 막기 위해
-            // sourceForLogging(호출 종류)만 남기고 cause 는 별도 필드로만 보존한다.
+            // sourceForLogging(호출 종류)만 남기고 cause 원문은 보존하지 않는다.
+            rateGate.check("core");
             throw new UpstreamFetchException(sourceForLogging + " 통신 오류", e);
         }
     }

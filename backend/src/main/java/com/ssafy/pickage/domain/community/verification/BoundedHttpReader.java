@@ -19,7 +19,22 @@ public final class BoundedHttpReader {
     public static HttpResponse<InputStream> send(
             HttpClient client, HttpRequest request, long maxBytes)
             throws IOException, InterruptedException {
-        var future = client.sendAsync(request, info -> new LimitedSubscriber(maxBytes));
+        return send(client, request, maxBytes, info -> {});
+    }
+
+    public static HttpResponse<InputStream> send(
+            HttpClient client,
+            HttpRequest request,
+            long maxBytes,
+            java.util.function.Consumer<HttpResponse.ResponseInfo> headers)
+            throws IOException, InterruptedException {
+        var future =
+                client.sendAsync(
+                        request,
+                        info -> {
+                            headers.accept(info);
+                            return new LimitedSubscriber(maxBytes);
+                        });
         try {
             var response =
                     future.get(

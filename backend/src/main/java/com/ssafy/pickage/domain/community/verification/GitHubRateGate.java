@@ -55,6 +55,24 @@ public final class GitHubRateGate {
         }
     }
 
+    /** 본문 초과/timeout이어도 이미 받은 token 제한 헤더는 잃지 않는다. */
+    public synchronized void observeHeaders(String resource, HttpResponse.ResponseInfo response) {
+        Instant now = clock.instant();
+        boolean exhausted =
+                response.headers().firstValue("X-RateLimit-Remaining").orElse("").equals("0");
+        if (exhausted) {
+            Instant until =
+                    parseReset(
+                            response.headers().firstValue("X-RateLimit-Reset").orElse(null), now);
+            if ("search".equals(resource)) search = max(search, until);
+            else core = max(core, until);
+        }
+        String retry = response.headers().firstValue("Retry-After").orElse(null);
+        if ((response.statusCode() == 429 || response.statusCode() == 403 && retry != null)
+                && (!exhausted || retry != null))
+            secondary = max(secondary, parseRetry(retry, now));
+    }
+
     private static boolean secondaryBody(HttpResponse<?> response) {
         if (!(response.body() instanceof java.io.InputStream body) || !body.markSupported())
             return false;

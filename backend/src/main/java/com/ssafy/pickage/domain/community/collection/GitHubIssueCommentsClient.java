@@ -93,11 +93,17 @@ public class GitHubIssueCommentsClient {
 
         HttpResponse<InputStream> response;
         try {
-            response = BoundedHttpReader.send(httpClient, builder.build(), maxResponseBytes);
+            response =
+                    BoundedHttpReader.send(
+                            httpClient,
+                            builder.build(),
+                            maxResponseBytes,
+                            info -> rateGate.observeHeaders("core", info));
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
+            rateGate.check("core");
             throw new UpstreamFetchException("GitHub comments 통신 오류", e);
         }
 

@@ -13,6 +13,40 @@ import java.time.*;
 
 class VerificationContractReviewTest {
     @Test
+    void R09_rateHeadersSurviveBodyTimeout() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(
+                "/repos/fixture/repo",
+                exchange -> {
+                    exchange.getResponseHeaders().add("Retry-After", "600");
+                    exchange.sendResponseHeaders(429, 0);
+                    exchange.getResponseBody().write('{');
+                    exchange.getResponseBody().flush();
+                    try {
+                        Thread.sleep(700);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        exchange.close();
+                    }
+                });
+        server.start();
+        try (var http = HttpClient.newHttpClient()) {
+            var gate = new GitHubRateGate();
+            var client =
+                    new GitHubRepositoryClient(
+                            http, null, 1000, "http://127.0.0.1:" + server.getAddress().getPort());
+            client.setRateGate(gate);
+            assertThrows(
+                    GitHubRateLimitException.class,
+                    () -> client.isArchived("fixture", "repo", Duration.ofMillis(300)));
+            assertThrows(GitHubRateLimitException.class, () -> gate.check("search"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void R09_successfulLastTokenBlocksOnlyItsResourceAndIsShared() {
         Instant now = Instant.parse("2026-09-01T00:00:00Z");
         var gate = new GitHubRateGate(Clock.fixed(now, ZoneOffset.UTC));
@@ -45,7 +79,7 @@ class VerificationContractReviewTest {
                                         403,
                                         java.util.Map.of(),
                                         "{\"message\":\"You have exceeded a secondary rate"
-                                            + " limit.\"}")));
+                                                + " limit.\"}")));
         assertThrows(GitHubRateLimitException.class, () -> gate.check("search"));
         assertEquals(now.plusSeconds(60), gate.retryAt());
     }
