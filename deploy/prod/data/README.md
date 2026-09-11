@@ -329,12 +329,45 @@ AWS_SECRET_ACCESS_KEY=<MinIO 시크릿>
 `minio-data` 와 달리 이 볼륨은 호스트 경로로 도망갈 곳이 없다 —
 `down -v` 경고가 **글자 그대로 적용된다.**
 
-학습을 돌린 날 한 번 백업한다.
+학습을 돌린 날 한 번 백업한다. 258 KB 짜리라 순식간이다.
 
 ```bash
-docker compose exec mlflow python -c "import shutil;shutil.copy('/mlflow/mlflow.db','/mlflow/backup.db')"
+docker compose exec mlflow python -c "
+import sqlite3
+src = sqlite3.connect('/mlflow/mlflow.db')
+dst = sqlite3.connect('/mlflow/backup.db')
+with dst: src.backup(dst)
+"
 docker cp $(docker compose ps -q mlflow):/mlflow/backup.db ~/mlflow-$(date +%F).db
 ls -lh ~/mlflow-*.db
+```
+
+> **⚠ `cp` 나 `shutil.copy` 로 파일만 떠 가지 말 것.** `journal_mode` 가 `delete` 라
+> 쓰는 중에는 일관된 상태가 `mlflow.db` 와 **`mlflow.db-journal` 에 나뉘어 있다.**
+> `.db` 만 복사하면 찢어진 사본이 나올 수 있다 — 그것도 **조용히**, `integrity_check` 는
+> 통과하는 모양으로.
+>
+> `Connection.backup()` 은 sqlite 의 온라인 백업 API 라 **쓰는 중에도 일관된 한 파일**을
+> 만든다. GPU 가 모델을 등록하는 중에 백업이 돌아도 안전하다.
+
+복구는 컨테이너를 멈추고 파일을 되돌려 놓는 것이 전부다.
+
+```bash
+docker compose stop mlflow
+docker compose run --rm --no-deps --entrypoint sh mlflow -c 'rm -f /mlflow/mlflow.db /mlflow/mlflow.db-journal'
+docker cp ~/mlflow-2026-09-11.db $(docker compose ps -aq mlflow):/mlflow/mlflow.db
+docker compose start mlflow
+docker compose ps mlflow        # Up (healthy)
+```
+
+**`mlflow.db-journal` 을 같이 지우는 것이 중요하다.** 옛 저널이 남은 채로 다른 `.db` 를
+넣으면 sqlite 가 그 저널로 롤백을 시도한다 — 되살린 백업이 도로 망가질 수 있다.
+
+복구됐는지는 별칭으로 확인한다. 파일이 있는 것과 장부가 살아 있는 것은 다르다.
+
+```bash
+curl -fsS "http://127.0.0.1:5000/api/2.0/mlflow/registered-models/alias?name=pickage-similarity&alias=production" \
+  | tr ',' '\n' | grep -E '"name"|"version"'
 ```
 
 ### backend store 를 sqlite 로 둔 이유

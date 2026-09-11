@@ -381,9 +381,11 @@ volumes:
   #   위 `하지 말 것` 의 `down -v` 경고가 이 볼륨에는 **글자 그대로 적용된다** —
   #   minio-data 처럼 호스트 경로로 도망갈 곳이 없다.
   #
-  # 백업(학습을 돌린 날 한 번):
-  #   docker compose exec mlflow python -c "import shutil;shutil.copy('/mlflow/mlflow.db','/mlflow/backup.db')"
-  #   docker cp $(docker compose ps -q mlflow):/mlflow/backup.db ~/mlflow-$(date +%F).db
+  # 백업(학습을 돌린 날 한 번): 절차는 README.md 의 "mlflow.db 는 모델 파일이 아니다".
+  #
+  # ⚠ 파일만 복사하지 말 것. journal_mode=delete 라 쓰는 중에는 일관된 상태가
+  #   mlflow.db 와 mlflow.db-journal 에 나뉘어 있다 — .db 만 떠 가면 찢어진 사본이
+  #   나올 수 있다. sqlite 온라인 백업 API(Connection.backup)를 쓴다.
   mlflowdb:
 
   # 유사도 배치의 작업 공간. 입력(parquet·ONNX 모델)과 산출물이 여기 있다.
