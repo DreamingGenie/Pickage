@@ -17,6 +17,12 @@ import {
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
+/** 지어낸 값을 그리는 자리(인트로 미리보기)의 기본값. 로딩도 실패도 없다. */
+const READY: Record<MetricKey, MetricState> = {
+  dependents: { status: 'ready' },
+  downloads: { status: 'ready' },
+}
+
 /**
  * 생태계 변화.
  *
@@ -30,11 +36,6 @@ import { cn } from '@/lib/utils'
  * 조회 기간은 **부모가 들고 있다.** 그것만 서버 왕복을 부르기 때문이다.
  * 구간·간격은 받은 점을 다루는 일이라 여기 안에서 끝난다.
  */
-const READY: Record<MetricKey, MetricState> = {
-  dependents: { status: 'ready' },
-  downloads: { status: 'ready' },
-}
-
 export function EcosystemView({
   model,
   metricState = READY,

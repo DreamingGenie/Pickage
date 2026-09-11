@@ -65,13 +65,19 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
   }
 
   /**
-   * **개요 실패만 화면 전체를 막는다.** 패키지 카드를 만들 재료가 없기 때문이다.
+   * **개요를 아예 못 받았을 때만 화면 전체를 막는다.** 패키지 카드를 만들 재료가 없기 때문이다.
    *
    * 추이 둘은 각자 카드 안에서 실패한다. 예전에는 셋 중 하나만 실패해도 탭 전체가
    * 오류 화면으로 바뀌어, 명세 §1 이 엔드포인트를 지표별로 나눠 둔 이득을 화면이
    * 통째로 버리고 있었다(`DEC-RECONCILIATION-20260910-01` 8번).
+   *
+   * <p>**갱신 실패는 개요도 화면을 지우지 않는다** — 지표 카드와 같은 판단이다.
+   * 이 탭은 비활성일 때 언마운트되므로(Radix `TabsContent`), 다른 탭에 `staleTime`
+   * 보다 오래 머물다 돌아오면 네 조회가 전부 다시 나간다. 그때 개요만 한 번 실패해도
+   * 멀쩡히 캐시된 보고서가 통째로 오류 화면이 되는 것은 위 원칙과 어긋난다.
+   * 재접속(`refetchOnReconnect`) 경로도 같다.
    */
-  if (overview.error) {
+  if (overview.error && !overview.data) {
     return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
   }
   if (!overview.data) return <LoadingState />
@@ -91,6 +97,10 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 개요는 이미 받아 두었는데 갱신만 실패했다. 화면은 두고 사실만 알린다 */}
+      {overview.error ? (
+        <StaleNotice error={overview.error} onRetry={() => void overview.refetch()} />
+      ) : null}
       {USE_MOCK && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
           mock 응답입니다 (<span className="font-mono">VITE_USE_MOCK=true</span>). 값은 지어낸
@@ -125,6 +135,32 @@ function stateOf(q: { data: unknown; error: unknown; refetch: () => unknown }): 
   if (q.data) return { status: 'ready', refreshError: q.error ?? undefined, onRetry }
   if (q.error) return { status: 'error', error: q.error, onRetry }
   return { status: 'loading' }
+}
+
+/**
+ * 개요를 이미 받아 두었는데 갱신만 실패했다. 지금 보는 것이 최신이 아닐 수 있다는
+ * 사실만 알린다 — 지우지도, 조용히 넘기지도 않는다.
+ *
+ * 지표 카드의 같은 알림과 생김새가 다른 것은 자리가 다르기 때문이다(탭 위 · 카드 안).
+ * **판단은 한 벌이다** — 재시도를 권할지는 양쪽 다 `errorNotice` 가 정한다.
+ */
+function StaleNotice({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const notice = errorNotice(error)
+
+  return (
+    <p className="flex flex-wrap items-baseline gap-2 rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
+      <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+      {notice.retryable && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          다시 시도
+        </button>
+      )}
+    </p>
+  )
 }
 
 /**

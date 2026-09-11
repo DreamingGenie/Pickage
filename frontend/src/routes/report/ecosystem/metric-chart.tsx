@@ -103,8 +103,20 @@ export function MetricChart({
 
             매주 보기(step 1)면 8일이지만, 4주 간격으로 솎아 보는 중이면 이웃 점 사이가
             원래 28일이다. 8일을 그대로 쓰면 정상 구간까지 전부 공백으로 판정돼 선이
-            아예 사라진다. 솎을 때는 그만큼 공백이 안 보이게 되는데, 그건 솎아 보기의
-            성질이지 잘못된 표시가 아니다.
+            아예 사라진다.
+
+            **솎아도 공백은 그대로 드러난다.** `sampleEvery` 가 시간이 아니라 인덱스로
+            솎으므로 남은 두 점은 항상 정확히 step 칸 떨어져 있고, 그 사이에 행이 하나라도
+            빠지면 간격이 (step+1)×7 일이 되어 이 기준을 반드시 넘는다. 그래서 이 식은
+            배율이 무엇이든 **"사이에 빠진 주가 있는가"** 라는 같은 질문을 던진다.
+
+            비례해서 느슨하게 잡으면 안 된다. step×7 의 1.5 배쯤으로 두면 분기 보기의
+            임계값이 19주가 되어 **한 달 넘는 수집 중단이 연속한 선으로 그려진다** —
+            이 판정을 넣은 이유(`DEC-RECONCILIATION-20260910-01` 7번)를 가장 티가 안 나는
+            자리에서 다시 어기는 셈이다.
+
+            +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
+            유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
           */
           maxGapDays={step * 7 + 1}
           ariaLabel={`${title} 추이`}
@@ -123,20 +135,8 @@ export function MetricChart({
         </div>
       )}
 
-      {/* 그린 것은 있는데 갱신만 실패했다. 차트는 두고 사실만 알린다 */}
       {state.status === 'ready' && state.refreshError !== undefined && (
-        <p className="-mt-1.5 flex flex-wrap items-baseline gap-2 text-base leading-relaxed text-muted-foreground">
-          <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
-          {state.onRetry && (
-            <button
-              type="button"
-              onClick={state.onRetry}
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              다시 시도
-            </button>
-          )}
-        </p>
+        <RefreshNotice error={state.refreshError} onRetry={state.onRetry} />
       )}
 
       {state.status === 'ready' && clamped && (
@@ -146,6 +146,32 @@ export function MetricChart({
         </p>
       )}
     </section>
+  )
+}
+
+/**
+ * 그린 것은 있는데 갱신만 실패했다. 차트는 두고 사실만 알린다.
+ *
+ * **재시도를 권할지는 아래 `MetricError` 와 같은 판단을 쓴다** — `errorNotice` 가
+ * 400 계열이라고 하면 버튼을 내지 않는다. 같은 자리에서 판단이 둘로 갈리면
+ * `errorNotice` 를 만든 이유가 없어진다.
+ */
+function RefreshNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const notice = errorNotice(error)
+
+  return (
+    <p className="-mt-1.5 flex flex-wrap items-baseline gap-2 text-base leading-relaxed text-muted-foreground">
+      <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+      {onRetry && notice.retryable && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          다시 시도
+        </button>
+      )}
+    </p>
   )
 }
 
