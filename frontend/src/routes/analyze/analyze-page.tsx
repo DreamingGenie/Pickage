@@ -209,7 +209,14 @@ export function AnalyzePage() {
                 value={draft}
                 onChange={(v) => {
                   setDraft(v)
-                  if (error) setError(null)
+                  /*
+                    오류는 이제 상태가 아니라 조회 결과에서 파생된다. 지우려면 "무엇을
+                    확인했는지" 를 비워야 한다 — 그래야 조회가 꺼지고 문구도 함께 사라진다.
+
+                    이미 확인된 기준이 있으면 건드리지 않는다. 그때 입력창은 2단계를
+                    연 뒤에도 남아 있는 것이라, 글자를 고쳤다고 확정한 기준을 날리면 안 된다.
+                  */
+                  if (missing) setSubmitted(null)
                 }}
                 onSubmit={verify}
                 ariaLabel="기준 npm 패키지명"
