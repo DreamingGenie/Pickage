@@ -1,6 +1,6 @@
 # npm registry 버전 이력 수집계획 — 상위 10만 패키지의 devDependencies 포함 의존 선언
 
-작성 2026-09-09 · Jira **S15P21A506-280** · 대상 `data/registry/` → DuckDB 뷰 `registry_versions` · 상태 **계획 확정, 다른 세션에서 실행**
+작성 2026-09-09 · Jira **S15P21A506-280** · 대상 `data/registry/` → DuckDB 뷰 `registry_versions`·`registry_status` · 상태 **수집 완료(2026-09-10, §7)·MR !108 리뷰 중**. §2·§3 은 구현 결과를 반영해 갱신함(09-11)
 선행 `수집계획_downloads_npmAPI_260902.md`(수집기 틀을 그대로 빌려 씀), `../설계_마이그레이션쌍_탐지_260831.md`(왜 개발용 의존이 필요한가), `datasets/migration_pairs_260908/README.md` §4·§5(도구 계열이 안 잡히는 이유)
 
 ---
@@ -44,7 +44,7 @@
 ```
 
 - `time[버전]`이 발행 시각(UTC). `time.created`·`time.modified`·`time.unpublished`는 버전이 아니니 걸러야 한다.
-- `versions`에 없는데 `time`에만 있는 버전 = 삭제(unpublish)된 버전. 발행 시각은 알지만 선언은 모른다. **버전 행은 남기고 의존은 빈 값**으로 둔다(사라졌다는 사실 자체가 정보).
+- `versions`에 없는데 `time`에만 있는 버전 = 삭제(unpublish)된 버전. 발행 시각은 알지만 선언은 모른다. **버전 행은 남기고 의존 네 열은 NULL(모름)**로 둔다(사라졌다는 사실 자체가 정보). `[]`(의존 없음)로 두면 lag() 비교에서 "의존 전부 제거"로 잘못 잡힌다(§5-3).
 - 404 = 저장소에 없는 이름(삭제·이름 오류). downloads 수집의 `not_found` 781건과 대부분 겹칠 것이다.
 - `deprecated` 문구가 버전 단위로 있다. 폐기 데이터셋(S15P21A506-272)과 대조 가능.
 
@@ -75,8 +75,9 @@
 
 ### 2-2. 변환 — `data/registry/parquet/registry_versions/part-*.parquet` + `registry_status.parquet`
 
-- `registry_versions`: 위 열 그대로(배열은 STRUCT 리스트). `name`으로 정렬, zstd.
-- `registry_status`: 패키지 1행 — `name, rank, status(READY / NOT_FOUND / FAILED), n_versions, n_versions_unpublished, first_published_at, last_published_at, modified, fetched_at`. 화면·통계에서 "자료 없음"을 0과 구분하는 용도(공통-R03).
+- `registry_versions`: 위 열 그대로(배열은 STRUCT 리스트, unpublish 행의 의존 네 열은 NULL). `Name, published_at, Version` 순 정렬, zstd. 같은 (Name, Version)이 여러 번 받혔으면 최근 `fetched_at`만 남긴다.
+- `registry_status`: 패키지 1행 — `name, rank, status(READY / NOT_FOUND / UNPUBLISHED / FAILED / PENDING), n_versions, n_versions_unpublished, first_published_at, last_published_at, modified, fetched_at, http, doc_bytes, error`. 화면·통계에서 "자료 없음"을 0과 구분하는 용도(공통-R03). `UNPUBLISHED` = 패키지 전체가 unpublish 되어 `versions`가 없는 문서(09-10 run 429건), `PENDING` = 수집 중 변환했을 때 아직 안 받은 패키지(완료 run 에서는 0). 체크포인트가 정본이다.
+- 변환은 임시 폴더에 쓴 뒤 교체한다(도중에 죽어도 이전 Parquet 유지). `checkpoint.sqlite`가 없으면 변환하지 않는다.
 - `pipeline/duckdb/duckdb_ui.py`의 `datasets()`에 두 뷰를 추가한다(다른 뷰와 같은 방식).
 
 ---
@@ -104,10 +105,12 @@
 
 ### 3-2. 체크포인트·재시작 규칙
 
-- `checkpoint.sqlite`의 `tasks` 표: `name, rank, status(pending/done/not_found/failed), http, attempts, fetched_at, bytes, n_versions, error`. 시작 시 대상 CSV를 `INSERT OR IGNORE`로 넣고 `pending`만 처리한다.
+- `checkpoint.sqlite`의 `tasks` 표: `name, rank, status(pending/done/not_found/unpublished/failed), http, attempts, fetched_at, bytes, n_versions, n_unpublished, modified, error`. 시작 시 대상 CSV를 `INSERT OR IGNORE`로 넣고 `pending`만 처리한다. `unpublished` = 패키지 전체 unpublish 문서(`versions` 없음 + `time.unpublished`), `modified`는 이 경우에도 기록한다(주간 갱신 비교용).
 - 404 → `not_found`(재시도 없음). 5xx·연결 오류 → 10초 후 재시도, 4회 넘으면 `failed`. 429 → 연속 횟수에 따라 2^n초(최대 60초), 5회 연속이면 5분 휴식, 간격 15% 증가(최대 3초).
-- 응답 파싱 실패(JSON 깨짐·`versions` 없음) → `failed`에 사유 기록. 다음 실행에서 `--retry-failed`로만 다시 시도.
-- 문서가 50MB를 넘으면 스트리밍으로 읽되, 그래도 실패하면 `failed`로 두고 사유에 크기를 적는다. 그런 패키지는 손으로 확인한다.
+- **인터넷 끊김**은 실패로 세지 않는다. 연결 오류가 나면 `/-/ping`으로 끊김인지 확인하고, 끊김이면 시도 횟수를 소모하지 않은 채 30초마다 재확인해 복구 후 같은 패키지부터 이어간다(09-09 실행 중 1.6시간 끊김으로 186건이 실패 처리된 뒤 추가). 따라서 `conn:` 실패는 온라인 상태의 전송 오류 4회를 뜻하며 조사 대상이다.
+- 응답 파싱·행 쓰기 실패(JSON 깨짐·객체 아님·`versions` 없음·인코딩 불가 문자 등 **모든 예외**) → `failed`에 `parse:<예외>` 사유 기록. 예외를 밖으로 흘리면 작업이 `pending`으로 남아 재시작마다 같은 패키지에서 죽으므로 반드시 잡는다. `failed`는 종류를 가리지 않고 다음 실행에서 `--retry-failed`로만 다시 시도.
+- 문서는 스트리밍으로 받아 압축 해제 기준 200 MB(`--max-doc-mb`)를 넘으면 `failed`(`too_large:>NB`). 09-10 run 최대는 115 MB(`rendition`)로 상한에 걸린 패키지는 없었다. 스트리밍 파싱은 구현하지 않았다.
+- 체크포인트 commit 직전에 항상 gzip을 flush한다(오프라인 대기 진입·종료 시 포함). 강제 종료돼도 "체크포인트는 done인데 행이 없는" 패키지가 생기지 않게 하기 위함. 종료 시에는 파일을 먼저 닫고 commit한다.
 
 ### 3-3. 주간 갱신 연결 (S15P21A506-273 에서)
 
@@ -131,16 +134,17 @@
 
 1. **실행용 의존은 deps.dev와 같아야 한다.** `registry_versions.Dependencies`와 deps.dev `requirements.Dependencies`를 (name, version) 100건 무작위 대조. 다르면 원인(발행 후 수정·unpublish)을 적는다.
 2. **개발용 의존 눈검사** — `enzyme`을 DevDependencies에 가진 패키지 20개를 뽑아 실제 npm 페이지와 대조.
-3. **이동 검출 확인** — 아래 쿼리가 0이 아니어야 한다.
+3. **이동 검출 확인** — 아래 쿼리가 0이 아니어야 한다. unpublish 행은 의존을 모르므로(NULL) 반드시 제외한다. 제외하지 않으면 "enzyme 있던 버전 → unpublish 버전"이 제거 전이로 잡혀 09-10 run에서 2,620건(31% 과대)이 나온다. 같은 시각 발행 버전이 있어 `ORDER BY`에 `Version`을 붙여 순서를 고정한다.
    ```sql
-   -- enzyme 을 개발용 의존에서 뺀 연속 버전 전이 수
+   -- enzyme 을 개발용 의존에서 뺀 연속 버전 전이 수 (09-10 run: 1,999건)
    WITH v AS (
      SELECT Name, Version, published_at,
             list_transform(DevDependencies, d -> d.Name) AS dev,
-            lag(list_transform(DevDependencies, d -> d.Name)) OVER (PARTITION BY Name ORDER BY published_at) AS prev_dev
-     FROM registry_versions)
+            lag(list_transform(DevDependencies, d -> d.Name)) OVER (PARTITION BY Name ORDER BY published_at, Version) AS prev_dev
+     FROM registry_versions WHERE NOT unpublished)
    SELECT count(*) FROM v WHERE list_contains(prev_dev, 'enzyme') AND NOT list_contains(dev, 'enzyme');
    ```
+   deps.dev 대조(1번)는 `registry_versions`를 먼저 표본 추출한 뒤 조인한다. 조인 뒤에 `USING SAMPLE`을 붙이면 전체 조인이 먼저 실행돼 메모리 19 GB를 넘긴다(§7). `requirements`는 `snapshot`을 하나로 고정한다.
 4. `registry_status`의 NOT_FOUND 목록이 downloads의 `NOT_FOUND` 781개와 대부분 겹치는지.
 
 ---
@@ -151,12 +155,12 @@
 - **원본 문서를 통째로 보존하지 않는다.** 크기 편차 때문. 다시 필요하면 다시 받는다(패키지당 1회라 비용이 작다).
 - **이 수집은 X가 아니라 dependent를 받는 것이다.** "enzyme의 이동"을 보려고 enzyme 문서를 받는 게 아니라, enzyme을 쓰던 상위 10만 패키지들의 문서를 받는다. 결과적으로 상위 10만 밖의 패키지가 개발용 의존을 어떻게 바꿨는지는 알 수 없다(범위 한계, 문서에 적어 둘 것).
 - **이동쌍 빌더 반영은 S15P21A506-136 착수 때.** 이 수집만으로 결과가 바로 바뀌지 않는다. 빌더에 "의존 종류(kind: regular/dev)" 열을 넣어 개발용 의존 제거·추가를 같은 절차로 세는 확장이 필요하다.
-- **브랜치.** 이 수집기는 develop에서 새 브랜치(`feat/S15P21A506-280-registry-collector`)로 작업한다. !81(이동쌍) 브랜치와 파일이 겹치지 않는다. `pipeline/README.md`의 폴더 표와 `docs/README.md` 목록에 한 줄씩 추가한다(둘 다 develop 기준 최신본을 수정).
+- **브랜치.** 이 수집기는 origin/develop에서 딴 `data/feat/S15P21A506-280-registry-collector`(팀 규칙 `<part>/<type>/<이슈키>-작업내용`, AGENTS.md §4.2)로 작업한다 → MR !108. `pipeline/README.md`의 폴더 표와 `docs/README.md` 목록에 한 줄씩 추가한다(둘 다 develop 기준 최신본을 수정).
 - **원본 보존은 GCS가 아니라 서버 MinIO.** 처음 계획은 `gs://oss-shift-a506-raw/raw/registry/`였지만, downloads·keywords가 GCS에 올라가지 않고 서버 MinIO `pickage-raw` Bronze로 입고된 뒤라(S15P21A506-278, `pipeline/downloads/`) registry도 같은 경로를 따른다(2026-09-10 결정). 입고는 검증 절차(압축·JSON 구조·체크포인트 대조)를 포함하므로 이 이슈가 아니라 별도 티켓에서 downloads 입고 모듈을 본떠 만든다. 그때까지 정본은 전진님 PC `data/registry/raw/run=2026-09-09/`(765 MB) + `checkpoint.sqlite`·`manifest.json`.
 
 ---
 
-## 7. 실측 기록 (실행 세션이 채움)
+## 7. 실측 기록 (2026-09-09 ~ 09-10 실행)
 
 | 항목 | 값 | 비고 |
 |---|---|---|
@@ -165,7 +169,7 @@
 | 요청당 평균 시간 | 0.5초 미만 | 20요청에 9초. 응답 시간이 간격 0.5초 안에 끝나 간격이 속도를 결정 |
 | 429 발생 | 0건 | 404·5xx·연결 오류도 0건 |
 | 확정 간격 | **0.5초** | 10만 건 ≈ 14시간. `start_registry.cmd` INTERVAL=0.5. 본 실행 중 429가 보이면 수집기가 스스로 늘림 |
-| 본 실행 시작·종료 | 2026-09-09 10:53 KST → 2026-09-10 15:14 KST | 벽시계 약 28시간, 순 수집 약 18시간(인터넷 끊김 약 1.6시간 + 밤 절전 약 9시간 제외). 끊김 구간(순위 40,900~41,085) 186건이 conn 실패로 기록돼 수집기를 보강(끊김이면 복구 대기·재시작 시 자동 재시도)한 뒤 재수집. 429는 끝까지 0건, 간격 0.5초 유지 |
+| 본 실행 시작·종료 | 2026-09-09 10:53 KST → 2026-09-10 15:14 KST | 벽시계 약 28시간, 순 수집 약 18시간(인터넷 끊김 약 1.6시간 + 밤 절전 약 9시간 제외). 끊김 구간(순위 40,900~41,085) 186건이 conn 실패로 기록돼 수집기를 보강(끊김이면 복구 대기, §3-2)한 뒤 재수집. 그때 넣었던 "재시작 시 conn: 실패 자동 재시도"는 리뷰(09-11)에서 제거 — 온라인 상태의 전송 오류까지 매 재시작마다 다시 받게 되고 사유가 지워지기 때문. 429는 끝까지 0건, 간격 0.5초 유지 |
 | 결과 READY / NOT_FOUND / FAILED | **99,209 / 358 / 0** (+ UNPUBLISHED 429) | 대상 CSV에 이름 중복 4건이 있어 작업 수는 99,996. UNPUBLISHED = 패키지 전체가 unpublish 되어 `versions` 가 없는 문서 |
 | 전송·저장량 | 원본 문서 73.4 GB(압축 해제 기준), 평균 723 KB, 최대 115 MB | jsonl.gz 765 MB(4,291 part) → `registry_versions` Parquet 403 MB + `registry_status` 5 MB. 견적(§4)보다 문서가 3.6배 컸지만 200 MB 상한 안 |
 | 버전 행 수 | **21,435,587** (패키지당 평균 216) | unpublish 버전 827,939 · DevDependencies 가 있는 행 14,577,460. 체크포인트 `n_versions` 합계와 정확히 일치(행 유실 0). 가장 이른 발행 2010-11-09 |

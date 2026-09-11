@@ -68,7 +68,7 @@ Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 
 ```
 
 - `time[버전]` 이 발행 시각(UTC). `time.created`·`modified`·`unpublished` 는 버전이 아니라 건너뛴다.
-- `versions` 에 없고 `time` 에만 있는 버전 = unpublish 된 버전(예: chalk 5.6.1). **행은 남기고 의존은 빈 값, `unpublished=true`**.
+- `versions` 에 없고 `time` 에만 있는 버전 = unpublish 된 버전(예: chalk 5.6.1). **행은 남기고 의존 네 열은 NULL(모름), `unpublished=true`**. `[]`(의존 없음)로 쓰면 lag() 비교에서 "의존 전부 제거"로 잘못 잡힌다(09-10 §5-3 검증에서 641건 과대 계상이 실제로 났다). 09-09 run 의 raw 는 `[]` 로 수집됐고 `to_parquet.py` 가 NULL 로 바꿔 준다.
 - `deprecated` 는 버전 단위 문구(없으면 null). 폐기 데이터셋(S15P21A506-272)과 대조 가능.
 - `modified` 는 문서의 `time.modified`. 주간 갱신(S15P21A506-273)에서 이 값이 바뀐 패키지만 다시 받는 근거로 쓴다(이번 수집기에는 주간 모드가 없다).
 - 축약 응답(`Accept: application/vnd.npm.install-v1+json`)은 devDependencies 가 빠지므로 쓰지 않는다.
@@ -77,7 +77,7 @@ Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 
 
 ### Parquet (`data/registry/parquet/`)
 
-- `registry_versions/part-00000.parquet` — 위 열 그대로. 시각은 UTC TIMESTAMP, 배열은 `STRUCT(Name, Requirement)[]`. Name 순 정렬, zstd.
+- `registry_versions/part-00000.parquet` — 위 열 그대로. 시각은 UTC TIMESTAMP, 배열은 `STRUCT(Name, Requirement)[]`(unpublish 행은 NULL). Name 순 정렬, zstd. 임시 폴더에 쓴 뒤 교체하므로 변환이 도중에 죽어도 이전 결과가 남는다. `checkpoint.sqlite` 가 없으면 변환하지 않는다.
 - `registry_status.parquet` — 패키지 1행: `name, rank, status(READY / NOT_FOUND / UNPUBLISHED / FAILED / PENDING), n_versions, n_versions_unpublished, first_published_at, last_published_at, modified, fetched_at, http, doc_bytes, error`. 화면·통계에서 "자료 없음"을 0 과 구분하는 용도. 체크포인트가 정본이라 수집 중이면 PENDING 이 남는다.
 
 ## 진행 확인
@@ -98,16 +98,19 @@ python -c "import sqlite3;print(sqlite3.connect('data/registry/raw/run=2026-09-0
 ## 검증 (계획 §5)
 
 ```sql
--- enzyme 을 개발용 의존에서 뺀 연속 버전 전이 수 (0 이 아니어야 함)
+-- enzyme 을 개발용 의존에서 뺀 연속 버전 전이 수 (09-10 run: 1,999건 / 871 패키지)
+-- unpublish 행은 의존을 모르므로(NULL) 비교에서 뺀다. 같은 시각에 발행된 버전이 있어 ORDER BY 에 Version 을 붙여 순서를 고정한다.
 WITH v AS (
   SELECT Name, Version, published_at,
          list_transform(DevDependencies, d -> d.Name) AS dev,
-         lag(list_transform(DevDependencies, d -> d.Name)) OVER (PARTITION BY Name ORDER BY published_at) AS prev_dev
-  FROM registry_versions)
+         lag(list_transform(DevDependencies, d -> d.Name)) OVER (PARTITION BY Name ORDER BY published_at, Version) AS prev_dev
+  FROM registry_versions WHERE NOT unpublished)
 SELECT count(*) FROM v WHERE list_contains(prev_dev, 'enzyme') AND NOT list_contains(dev, 'enzyme');
 
--- 실행용 의존은 deps.dev 와 같아야 한다 (표본 대조)
+-- 실행용 의존은 deps.dev 와 같아야 한다 (표본 대조). registry 쪽을 먼저 표본 추출한 뒤 조인한다 —
+-- 조인 뒤에 USING SAMPLE 을 붙이면 2,144만 × 7,856만 행 전체 조인이 먼저 실행돼 메모리 19 GB 를 넘긴다(09-10 실측).
+-- requirements 는 snapshot 파티션이 쌓이므로 스냅샷을 하나로 고정한다.
 SELECT r.Name, r.Version, r.Dependencies AS registry, q.Dependencies AS depsdev
-FROM registry_versions r JOIN requirements q ON q.Name = r.Name AND q.Version = r.Version
-USING SAMPLE 100;
+FROM (SELECT * FROM registry_versions WHERE NOT unpublished USING SAMPLE 100) r
+JOIN requirements q ON q.Name = r.Name AND q.Version = r.Version AND q.snapshot = DATE '2026-08-31';
 ```

@@ -27,7 +27,7 @@
 - `api & data/검증_keywords_수집가능성_260908.md` — AI 유사 패키지 학습용 keywords 수집 가능성·속도 실측 (ecosyste.ms vs npm registry). *권고: ecosyste.ms 상위 100만, 단일 PC 2시간*
 - `api & data/수집결과_keywords_프로파일_260908.md` — 상위 100만 keywords 수집 결과(104분·429 0건)와 결합 전 프로파일: 구간별 보유율, description 결손, tea 스팸 농장, 결합 규칙
 - `api & data/작업계획_이탈률_대체없이제거_260909.md` — 이동쌍 빌더에 "대체 없이 제거" 비율·연도별 이탈 집계·배포주체-월 기준 점유율(`share_pm_pct`)을 추가하는 작업계획과 실측 기록(S15P21A506-281)
-- `api & data/수집계획_devDependencies_npmRegistry_260909.md` — npm registry 전 버전 문서로 상위 10만 패키지의 devDependencies 포함 의존 선언 이력을 받는 계획(S15P21A506-280). deps.dev 에 없는 개발용 의존 이동(enzyme → testing-library 등)을 이동쌍에 넣기 위함. *09-10 수집 완료: READY 99,209 · NOT_FOUND 358 · 실패 0, 버전 행 2,144만, §7 실측 기록·§5 검증 완료*
+- `api & data/수집계획_devDependencies_npmRegistry_260909.md` — npm registry 전 버전 문서로 상위 10만 패키지의 devDependencies 포함 의존 선언 이력을 받는 계획(S15P21A506-280). deps.dev 에 없는 개발용 의존 이동(enzyme → testing-library 등)을 이동쌍에 넣기 위함. *09-10 수집 완료: READY 99,209 · NOT_FOUND 358 · UNPUBLISHED 429 · 실패 0(작업 99,996), 버전 행 2,144만, §7 실측 기록·§5 검증 완료*
 
 수집·계산으로 만든 파생 데이터(폐기→대체 쌍, 마이그레이션 이동쌍, 학습 후보 표본, 수집 대상 목록)는 문서 폴더가 아니라 리포 루트 `../datasets/`에 둡니다. 각 폴더의 README가 열 의미와 생성 스크립트를 설명합니다.
 

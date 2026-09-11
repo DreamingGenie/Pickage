@@ -45,7 +45,7 @@ def datasets() -> dict[str, tuple[str, bool]]:
     if pt:  # keywords 결합 결과(pipeline/collectors/keywords/build_package_text.py). 파일명 뒤 run 날짜순 → 마지막이 최신
         out["package_text"] = (str(pt[-1]), False)
     rg = DATA / "registry" / "parquet"  # npm registry 버전 이력(pipeline/collectors/registry/to_parquet.py)
-    if (rg / "registry_versions").exists():
+    if any((rg / "registry_versions").glob("*.parquet")):  # 폴더만 있고 파일이 없으면 read_parquet 이 뷰 생성 시점에 예외를 던진다
         out["registry_versions"] = (str(rg / "registry_versions" / "*.parquet"), False)
     if (rg / "registry_status.parquet").exists():
         out["registry_status"] = (str(rg / "registry_status.parquet"), False)

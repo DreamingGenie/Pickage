@@ -48,15 +48,20 @@ def dep_list(d):
 
 
 def parse(doc, name, rank, fetched_at):
-    """전체 문서 → (버전 행 목록, time.modified). 패키지 전체가 unpublish 된 문서(versions 없음 + time.unpublished)는 None.
-    versions 에 없고 time 에만 있는 버전 = unpublish 된 버전: 행은 남기고 의존은 빈 값, unpublished=True."""
-    times = doc.get("time") or {}
+    """전체 문서 → (버전 행 목록, time.modified). 패키지 전체가 unpublish 된 문서(versions 없음 + time.unpublished)는 (None, modified).
+    versions 에 없고 time 에만 있는 버전 = unpublish 된 버전: 행은 남기고 의존 네 열은 NULL(모름), unpublished=True.
+    NULL 로 두는 이유: []('의존 없음') 로 쓰면 lag() 비교에서 '의존 전부 제거' 로 잘못 잡힌다(§5-3 검증에서 실제 발생)."""
+    if not isinstance(doc, dict):
+        raise ValueError(f"document is {type(doc).__name__}, not object")
+    times = doc.get("time")
+    if not isinstance(times, dict):
+        times = {}
+    modified = times.get("modified")
     versions = doc.get("versions")
     if not isinstance(versions, dict):
         if "unpublished" in times:
-            return None
+            return None, modified
         raise ValueError("no versions")
-    modified = times.get("modified")
     vers = list(versions.keys())
     seen = set(vers)
     for k in times:
@@ -74,10 +79,10 @@ def parse(doc, name, rank, fetched_at):
             dep = json.dumps(dep, ensure_ascii=False)
         rows.append({
             "Name": name, "Version": v, "published_at": times.get(v), "rank": rank,
-            "Dependencies": dep_list(meta.get("dependencies")),
-            "DevDependencies": dep_list(meta.get("devDependencies")),
-            "PeerDependencies": dep_list(meta.get("peerDependencies")),
-            "OptionalDependencies": dep_list(meta.get("optionalDependencies")),
+            "Dependencies": None if unpublished else dep_list(meta.get("dependencies")),
+            "DevDependencies": None if unpublished else dep_list(meta.get("devDependencies")),
+            "PeerDependencies": None if unpublished else dep_list(meta.get("peerDependencies")),
+            "OptionalDependencies": None if unpublished else dep_list(meta.get("optionalDependencies")),
             "deprecated": dep, "unpublished": unpublished,
             "fetched_at": fetched_at, "modified": modified,
         })
@@ -114,7 +119,7 @@ def fetch(session, url, max_bytes):
         if len(buf) > max_bytes:
             r.close()
             raise TooLarge(len(buf))
-    return r, bytes(buf)
+    return r, buf  # json.loads 는 bytearray 를 그대로 받는다 — bytes() 복사(최대 115 MB)를 피한다
 
 
 class Writer:
@@ -185,11 +190,8 @@ def main():
     )
     db.execute("CREATE TABLE IF NOT EXISTS events(ts TEXT, http INT, name TEXT)")
     db.executemany("INSERT OR IGNORE INTO tasks(name, rank) VALUES(?,?)", rows)
-    # 연결 오류(conn:)로 실패한 작업은 인터넷 끊김이 원인일 가능성이 커서 재시작 때마다 자동으로 다시 시도한다.
-    # 그 외 failed(too_large·parse·5xx)는 --retry-failed 를 줬을 때만.
-    n_conn = db.execute("UPDATE tasks SET status='pending', attempts=0, error=NULL WHERE status='failed' AND error LIKE 'conn:%'").rowcount
-    if n_conn:
-        print(f"[collect] reset {n_conn} conn-failed tasks to pending", flush=True)
+    # failed(too_large·parse·conn·5xx)는 --retry-failed 를 줬을 때만 다시 시도한다. 인터넷 끊김은 수집기가 실행 중에
+    # 복구를 기다리므로(wait_online) conn: 실패는 온라인 상태의 전송 오류 4회 = 조사할 가치가 있는 사유다. 자동으로 지우지 않는다.
     if a.retry_failed:
         db.execute("UPDATE tasks SET status='pending', attempts=0, error=NULL WHERE status='failed'")
     db.commit()
@@ -252,6 +254,7 @@ def main():
                 except requests.RequestException as e:
                     stats["conn_err"] += 1
                     if not online(S):          # 인터넷 끊김: 시도 횟수를 소모하지 않고 복구까지 대기 후 같은 패키지 재시도
+                        W.flush()              # 대기 중 강제 종료돼도 done 으로 commit 된 행이 디스크에 있게 (flush → commit 순서 유지)
                         db.commit()
                         wait_online(S)
                         continue
@@ -293,24 +296,27 @@ def main():
                     stats["failed"] += 1
                     break
                 nbytes = len(body)
+                # 파싱·행 쓰기에서 나는 어떤 예외도 이 패키지의 failed 로 기록하고 다음으로 넘어간다.
+                # 예외를 밖으로 흘리면 작업이 pending 으로 남아 재시작마다 같은 패키지에서 다시 죽는다(--retry-failed 로도 못 벗어남).
+                # 예: 본문이 JSON 객체가 아님(AttributeError), lone surrogate 문자열의 utf-8 인코딩(UnicodeEncodeError).
                 try:
                     doc = json.loads(body)
-                    parsed = parse(doc, name, rank, now)
-                except (ValueError, MemoryError, TypeError) as e:
+                    vrows, modified = parse(doc, name, rank, now)
+                    if vrows is not None:
+                        for row in vrows:
+                            W.write(row)
+                except Exception as e:
                     db.execute("UPDATE tasks SET status='failed',http=200,bytes=?,error=? WHERE name=?",
-                               (nbytes, f"parse:{e}"[:200], name))
+                               (nbytes, f"parse:{type(e).__name__}:{e}"[:200], name))
                     stats["failed"] += 1
                     break
                 finally:
                     body = None  # 큰 문서는 파싱 직후 버린다
-                if parsed is None:
-                    db.execute("UPDATE tasks SET status='unpublished',http=200,fetched_at=?,bytes=?,n_versions=0 WHERE name=?",
-                               (now, nbytes, name))
+                if vrows is None:
+                    db.execute("UPDATE tasks SET status='unpublished',http=200,fetched_at=?,bytes=?,n_versions=0,modified=? WHERE name=?",
+                               (now, nbytes, modified, name))
                     stats["unpublished"] += 1
                     break
-                vrows, modified = parsed
-                for row in vrows:
-                    W.write(row)
                 n_unpub = sum(1 for row in vrows if row["unpublished"])
                 db.execute(
                     "UPDATE tasks SET status='done',http=200,fetched_at=?,bytes=?,n_versions=?,n_unpublished=?,modified=? "
@@ -350,8 +356,8 @@ def main():
     except KeyboardInterrupt:
         print("[collect] interrupted — checkpoint saved", flush=True)
     finally:
+        W.close()      # 행을 먼저 디스크에 내리고(gzip 트레일러 포함) 그 다음 체크포인트를 확정한다
         db.commit()
-        W.close()
         manifest(final=True)
         db.close()
         print(f"[collect] wrote manifest {manifest_path}", flush=True)

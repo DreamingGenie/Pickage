@@ -37,8 +37,15 @@ def alive():
 
 def report(run, out):
     rundir = os.path.join(out, f"run={run}")
-    db = sqlite3.connect(f"file:{os.path.join(rundir, 'checkpoint.sqlite')}?mode=ro", uri=True)
-    total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    try:
+        db = sqlite3.connect(f"file:{os.path.join(rundir, 'checkpoint.sqlite')}?mode=ro", uri=True)
+        total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    except sqlite3.OperationalError:          # 파일 없음 / 테이블 아직 없음 — 수집기가 첫 실행 초기화 중이거나 아직 안 떴다
+        total = 0
+    if total == 0:                            # 첫 실행에서 대상 10만 건 INSERT 트랜잭션이 commit 되기 전(약 0.3초)에도 여기로 온다
+        state = "STARTING (체크포인트 초기화 중)" if alive() > 0 else "NOT RUNNING (체크포인트 없음 — start_registry.cmd 로 시작)"
+        print(f"[{datetime.now().strftime('%m-%d %H:%M:%S')}] registry run={run}  상태: {state}")
+        return False
     by = dict(db.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status").fetchall())
     done = by.get("done", 0)
     finished = done + by.get("not_found", 0) + by.get("unpublished", 0) + by.get("failed", 0)
@@ -109,11 +116,17 @@ def main():
     ap.add_argument("--interval", type=int, default=60)
     ap.add_argument("--refresh-parquet", action="store_true", help="to_parquet.py를 실행해 data/registry/parquet 갱신")
     a = ap.parse_args()
+    last_parts = -1
     while True:
         finished = report(a.run, a.out)
         if a.refresh_parquet:
-            subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", os.path.join(a.out, f"run={a.run}"),
-                            "--out", os.path.join(ROOT, "data", "registry", "parquet")], check=False)
+            # 변환은 2,000만 행 규모에서 수십 분·수십 GB 라 완성된 part 수가 늘었을 때만 다시 돈다(--watch 와 같이 써도 연속 실행되지 않게)
+            rundir = os.path.join(a.out, f"run={a.run}")
+            n_parts = len([f for f in os.listdir(rundir) if f.startswith("part-") and f.endswith(".jsonl.gz")]) if os.path.isdir(rundir) else 0
+            if n_parts != last_parts:
+                last_parts = n_parts
+                subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", rundir,
+                                "--out", os.path.join(ROOT, "data", "registry", "parquet")], check=False)
         if not a.watch or finished:
             break
         time.sleep(a.interval)
