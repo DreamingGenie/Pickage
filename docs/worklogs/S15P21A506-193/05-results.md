@@ -7,9 +7,26 @@
 기존 최신 진단 값 모두 차이 0건이다. 전체 선정 패키지의 count는 아직 미계산이다.
 [H5-B 코드·실제 표본](16-historical-production-code.md) · [H1 입력 규모](11-historical-input-results.md) · [H2 기준](12-historical-reference-results.md) · [H3 결과](13-historical-optimization-results.md) · [H4 결과](14-historical-artifact-results.md)
 
-최신 후속 작업은 [20 날짜별 검증·처리량 평가](20-daily-verification-throughput.md)다.
+CPU 집계 개선 결과는 [20 날짜별 검증·처리량 평가](20-daily-verification-throughput.md)다.
 누적 합계 검증 개선과 8·16·32개 전체 source 표본의 229개 기준일 계산·파일 검증을 완료했다.
 32개는 입력 준비부터 검증까지 315.83초였고, 전체 249개 회귀 검사가 통과했다.
+
+이후 CPU 기준을 `ff1777f`로 커밋하고 [21 RTX 4070 GPU 해석 실험](21-gpu-resolver-experiment.md)을
+완료했다. 실제 두 패키지의 제한된 요구조건·전 229일 결과가 기존 worker와 같으며, 1024개
+조건 해석에서 GPU는 개선 CPU 대비 1.48/1.67배 빨랐다. GPU 포함 전체 257개 테스트 통과.
+이는 별도 resolver 실험으로, 생산 집계·저장·재개 경로 통합과 전체 선정 계산은 미실행이다.
+
+[22 전체 32개 CPU/GPU 실험](22-gpu-32-package-comparison.md)에서는 40,701개 전체 요구조건과
+229일을 5회 비교했다. 정규화·버전 선택·결과 정리의 중간값은 CPU **15.053초**, GPU
+**9.863초**로 1.53배, 시간 34.48% 감소다. 숫자 계산 구간은 9.34배 빨랐고 결과 불일치는
+0건이다. 공통 prepared 읽기·검사는 4.602초 별도이며 count 집계·생산 저장 시간은 미포함이다.
+신규 단위·CUDA 통합 14개 테스트와 Python 58개 구문 검사 통과, 기존 production 생성 계약과
+입력·정답 지문 보존. [검증 증거](evidence/gpu-32-package-validation.json).
+
+[23 실제 계산값 미리보기](23-calculated-result-examples.md)에 사용자가 확인한 버전 선택·날짜
+구간과 이전 CPU 집계의 count 예시를 보존했다. GPU 실험 관련 22개 검사를 커밋 전에
+다시 실행해 15.761초에 통과했고, 측정 코드·원본 보고서·실행 로그 지문을 대조했다.
+[커밋 검증 기록](evidence/gpu-commit-validation.json).
 
 ## 8번 검증 상태
 

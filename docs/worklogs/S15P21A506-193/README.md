@@ -66,6 +66,9 @@ D-22에 따라 저장 target은 다운로드 선정 목록의 고유 이름 99,9
 | [18 성능 개선 계획](18-performance-improvement-plan.md) | 실측 병목, 요청 구성·전역 검사·중간 행·날짜별 검증 개선 순서, 결과 동일성·처리량 평가와 DB 직전 시간의 남은 범위 |
 | [19 가중치 이벤트 집계](19-weighted-event-aggregation.md) | A0~A3 구현, 원본 중복·미해석 품질 보존, lodash 집계·품질 58.54% 감소와 작은 입력 회귀, v2 재개·229일 독립 검증 |
 | [20 날짜별 검증과 처리량](20-daily-verification-throughput.md) | O-4 누적 합계 검증, 기존 파일 전수 대조, O-5 8·16·32개 전체 source 표본의 단계별 시간과 자원 기록 |
+| [21 RTX 4070 GPU 해석 실험](21-gpu-resolver-experiment.md) | CPU 기준 커밋, 기존 PyTorch CUDA 활용, npm rank 구간·CPU 범위 인덱스·GPU 묶음 계산의 정확성 및 속도 비교 |
+| [22 전체 32개 CPU/GPU 비교](22-gpu-32-package-comparison.md) | 40,701개 전체 요구조건·229일 정답 대조, 공통 준비와 해석 비용 분리, 5회 전체 합계 및 패키지별 비교 |
+| [23 실제 계산값 미리보기](23-calculated-result-examples.md) | 요구조건별 선택 버전·날짜 구간과 이전 CPU 집계의 실제 dependents_count 값, 원본 조회 위치 |
 
 계획 단계는 `P`, 이슈는 `ISS`, 실제 수행 기록은 `W`, 검증은 `V`, 결정은 `D` 식별자로 연결한다. 문서 파일의 숫자는 읽는 순서이며 상위 작업 번호와 구분한다.
 

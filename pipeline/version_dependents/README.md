@@ -419,3 +419,22 @@ production cache·날짜 writer는 target 등장 시점과 count 구간의 시�
 시작 대비 증가량도 별도 기록한다. 시간 경과에 따른 종료 제한은 없다.
 
 [변경 범위·측정 결과·전체 시간 추정 한계](../../docs/worklogs/S15P21A506-193/20-daily-verification-throughput.md)
+
+## GPU 버전 해석 실험
+
+`historical_gpu_benchmark`는 선택한 패키지의 최대 2048개 요구조건에 대해 기존 npm worker,
+rank 구간을 사용하는 CPU 범위 인덱스, PyTorch CUDA 계산을 비교하는 별도 도구다.
+production 실행기의 기본 해석기로 연결하지 않았으며 count 집계·Parquet 게시·DB 적재를 하지 않는다.
+NumPy/PyTorch는 이 실험에서만 필요하다. CUDA가 없으면 GPU 실행을 CPU로 대체하지 않는다.
+
+`historical_gpu_normalize.cjs`가 기존 stable/npm 정책과 원문 동률을 rank 구간으로 정규화한다.
+CPU는 min-birth segment tree를 조회하고 GPU는 조건 묶음별 birth 최대값과 날짜 누적 최대값을
+계산한다. 실제 표본의 모든 날짜 interval과 상태를 기존 worker와 비교한다.
+
+[RTX 4070 실제 결과·실행 방법·생산 적용 경계](../../docs/worklogs/S15P21A506-193/21-gpu-resolver-experiment.md)
+
+`historical_gpu_suite_benchmark`는 기존 32개 prepared 표본과 완료 production run의 지문을
+고정해 **전체 요구조건**을 비교한다. 패키지별로 최대 1024개씩 나누어 모두 처리하며 후보를
+공유하지 않는다. 기존 정답의 target key·상태·날짜 구간을 매번 대조하고, 5회 전체 합계의
+중간값을 계산한다. 공통 파일 읽기·입력 검사와 정규화, 숫자 계산, interval 변환을 구분한다.
+생산 집계와 저장 시간은 포함하지 않는다. [32개 실험 기록](../../docs/worklogs/S15P21A506-193/22-gpu-32-package-comparison.md)

@@ -1,4 +1,5 @@
 *.py text eol=lf
+historical_gpu_normalize.cjs text eol=lf
 
 # 기존 H4/H5 산출물이 이 worker의 CRLF 원본 바이트 SHA를 고정한다.
 # 자동 줄바꿈 변환 없이 보존하고, CR은 줄바꿈으로 인정하며 나머지 공백 검사는 유지한다.

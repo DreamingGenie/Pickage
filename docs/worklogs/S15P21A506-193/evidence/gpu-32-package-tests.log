@@ -1,0 +1,19 @@
+test_all_lookups_are_batched_without_truncation (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_all_lookups_are_batched_without_truncation) ... ok
+test_every_oracle_field_and_lookup_identity_is_checked (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_every_oracle_field_and_lookup_identity_is_checked) ... ok
+test_gap_in_result_rejected (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_gap_in_result_rejected) ... ok
+test_invalid_batch_size_rejected (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_invalid_batch_size_rejected) ... ok
+test_summary_uses_total_round_medians (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_summary_uses_total_round_medians) ... ok
+test_zero_lookup_package_has_no_fake_work (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_zero_lookup_package_has_no_fake_work) ... ok
+test_zero_routes_keep_fields_and_undefined_speedup (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteBenchmarkTests.test_zero_routes_keep_fields_and_undefined_speedup) ... ok
+test_changed_production_generation_rejected (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteIntegrationTests.test_changed_production_generation_rejected) ... ok
+test_input_change_after_loading_is_detected (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteIntegrationTests.test_input_change_after_loading_is_detected) ... ok
+test_isolated_all_lookup_suite_with_zero_and_unmapped_packages (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteIntegrationTests.test_isolated_all_lookup_suite_with_zero_and_unmapped_packages) ... ok
+test_stale_oracle_receipt_pointer_rejected (pipeline.version_dependents.test_historical_gpu_suite_benchmark.GpuSuiteIntegrationTests.test_stale_oracle_receipt_pointer_rejected) ... ok
+test_loads_all_selected_packages_and_preserves_counts (pipeline.version_dependents.test_historical_gpu_suite_input.HistoricalGpuSuiteInputTests.test_loads_all_selected_packages_and_preserves_counts) ... ok
+test_protected_files_can_be_reverified (pipeline.version_dependents.test_historical_gpu_suite_input.HistoricalGpuSuiteInputTests.test_protected_files_can_be_reverified) ... ok
+test_wrong_manifest_digest_is_rejected (pipeline.version_dependents.test_historical_gpu_suite_input.HistoricalGpuSuiteInputTests.test_wrong_manifest_digest_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 11.693s
+
+OK

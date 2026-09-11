@@ -1,0 +1,372 @@
+{
+  "status": "PASS",
+  "checked_at_utc": "2026-09-11T06:56:48.582938+00:00",
+  "cpu_checkpoint_commit": "ff1777f379325fc4178a42ba5f061ef02680bb39",
+  "cpu": {
+    "name": "Intel Core Ultra 9 185H",
+    "physical_cores": 16,
+    "logical_processors": 22
+  },
+  "tests": {
+    "count": 14,
+    "seconds": 11.693,
+    "real_cuda_enabled": true,
+    "log_sha256": "98bb19a0ea1285a0b4fcd50eaaa146bcfea50614f2d498a4df754985bf6b54d9"
+  },
+  "ast_python_files": 58,
+  "report_sha256": "dc78c74b9ff3fbb2ba528251824f17362317b4dc64be8521bbd98c8fb76930f4",
+  "input_rows": {
+    "declarations": 10118750,
+    "lookups": 40701,
+    "oracle_intervals": 502119,
+    "target_names": 32,
+    "target_population": 141607
+  },
+  "snapshot_count": 229,
+  "compared_lookup_dates_per_round": 9320529,
+  "repetitions": 5,
+  "all_date_mismatches": 0,
+  "repeated_result_hashes_equal": true,
+  "protected_input_files": 170,
+  "protected_input_and_code_unchanged": true,
+  "original_gpu_prototype_unchanged": true,
+  "tracked_production_source_unchanged": true,
+  "production_generation_unchanged": true,
+  "suite_code_sha256": {
+    "pipeline\\version_dependents\\historical_gpu_suite_benchmark.py": "0a096972b5f4c3669bcd6dedbc3e4b4e3443387d20ce01f1860d295ef3c89a7b",
+    "pipeline\\version_dependents\\historical_gpu_suite_input.py": "3e633bd073f59916bd9a891bf51716cd1f04e4ccb5e7848f3aa75474b852b410",
+    "pipeline\\version_dependents\\test_historical_gpu_suite_benchmark.py": "d935251c4795a1faf4f088349a0bf8ebb5655ee0da8501f8eaf0d0f2b94f8435",
+    "pipeline\\version_dependents\\test_historical_gpu_suite_input.py": "41bf6455cedbc0fc28184199c65bf0f7b12c59e9c2b71faed0f012bcbb6f2f8d"
+  },
+  "total_experiment_seconds": 169.50460369999928,
+  "summary": {
+    "cpu": {
+      "normalization_plus_numeric_seconds": {
+        "max_seconds": 12.123787000091397,
+        "median_seconds": 11.738054800021928,
+        "min_seconds": 11.228832699925988,
+        "repetitions": 5
+      },
+      "numeric_seconds": {
+        "max_seconds": 5.968743899997207,
+        "median_seconds": 5.851512800029013,
+        "min_seconds": 5.751788199995644,
+        "repetitions": 5
+      },
+      "path_seconds": {
+        "max_seconds": 15.437355800095247,
+        "median_seconds": 15.052879699971527,
+        "min_seconds": 14.430581499924301,
+        "repetitions": 5
+      }
+    },
+    "cpu_over_gpu_speedup": {
+      "normalization_plus_numeric_seconds": 1.7755200700578748,
+      "numeric_seconds": 9.338843263733123,
+      "path_seconds": 1.5261855556958106
+    },
+    "gpu": {
+      "normalization_plus_numeric_seconds": {
+        "max_seconds": 6.884822400097619,
+        "median_seconds": 6.611051600018982,
+        "min_seconds": 6.023448699939763,
+        "repetitions": 5
+      },
+      "numeric_seconds": {
+        "max_seconds": 0.6819808000000194,
+        "median_seconds": 0.6265778999368194,
+        "min_seconds": 0.6229464000207372,
+        "repetitions": 5
+      },
+      "path_seconds": {
+        "max_seconds": 10.244553300130065,
+        "median_seconds": 9.86307309998665,
+        "min_seconds": 9.121605399865075,
+        "repetitions": 5
+      }
+    },
+    "repetitions": 5
+  },
+  "package_metrics": [
+    {
+      "name": "@11ty/recursive-copy",
+      "lookups": 4,
+      "candidates": 9,
+      "cpu_seconds": 0.002434099995298311,
+      "gpu_seconds": 0.004618900013156235,
+      "speedup": 0.5269869424246351
+    },
+    {
+      "name": "@accordproject/concerto-metamodel",
+      "lookups": 38,
+      "candidates": 41,
+      "cpu_seconds": 0.013570800016168505,
+      "gpu_seconds": 0.013608099994598888,
+      "speedup": 0.9972589870411602
+    },
+    {
+      "name": "@adguard/dnr-rulesets",
+      "lookups": 0,
+      "candidates": 22185,
+      "cpu_seconds": 0.0,
+      "gpu_seconds": 0.0,
+      "speedup": null
+    },
+    {
+      "name": "@anatine/esbuild-decorators",
+      "lookups": 8,
+      "candidates": 28,
+      "cpu_seconds": 0.0032131999905686826,
+      "gpu_seconds": 0.0057490000035613775,
+      "speedup": 0.5589145918556578
+    },
+    {
+      "name": "@atlaskit/editor-core",
+      "lookups": 1635,
+      "candidates": 3990,
+      "cpu_seconds": 0.5162932999955956,
+      "gpu_seconds": 0.3760273999942001,
+      "speedup": 1.3730204235211556
+    },
+    {
+      "name": "@aws-sdk/client-connectparticipant",
+      "lookups": 3,
+      "candidates": 643,
+      "cpu_seconds": 0.005022700017434545,
+      "gpu_seconds": 0.007509700022637844,
+      "speedup": 0.6688283156842103
+    },
+    {
+      "name": "@c8y/ng1-modules",
+      "lookups": 529,
+      "candidates": 5180,
+      "cpu_seconds": 0.2574132000008831,
+      "gpu_seconds": 0.1310041000106139,
+      "speedup": 1.9649247617443084
+    },
+    {
+      "name": "@c8y/ngx-components",
+      "lookups": 5161,
+      "candidates": 1674,
+      "cpu_seconds": 1.2439190999721177,
+      "gpu_seconds": 1.051512600010028,
+      "speedup": 1.1829806889239887
+    },
+    {
+      "name": "@c8y/style",
+      "lookups": 529,
+      "candidates": 5158,
+      "cpu_seconds": 0.2667989000037778,
+      "gpu_seconds": 0.13092299998970702,
+      "speedup": 2.0378306334620593
+    },
+    {
+      "name": "@lightdash/common",
+      "lookups": 7360,
+      "candidates": 7371,
+      "cpu_seconds": 2.797058800017112,
+      "gpu_seconds": 1.9086787999694934,
+      "speedup": 1.465442378289012
+    },
+    {
+      "name": "@material-ui/lab",
+      "lookups": 177,
+      "candidates": 0,
+      "cpu_seconds": 0.03367939998861402,
+      "gpu_seconds": 0.035811900001135655,
+      "speedup": 0.9404527541835533
+    },
+    {
+      "name": "@mui/lab",
+      "lookups": 367,
+      "candidates": 1,
+      "cpu_seconds": 0.07251389998418745,
+      "gpu_seconds": 0.0735456999973394,
+      "speedup": 0.9859706276071982
+    },
+    {
+      "name": "@nomalism-com/types",
+      "lookups": 2098,
+      "candidates": 3566,
+      "cpu_seconds": 0.7922085999889532,
+      "gpu_seconds": 0.5259260999882827,
+      "speedup": 1.5063116282051854
+    },
+    {
+      "name": "@octopusdeploy/design-system-components",
+      "lookups": 0,
+      "candidates": 33908,
+      "cpu_seconds": 0.0,
+      "gpu_seconds": 0.0,
+      "speedup": null
+    },
+    {
+      "name": "@prisma/prisma-fmt-wasm",
+      "lookups": 628,
+      "candidates": 4,
+      "cpu_seconds": 0.11869179997302126,
+      "gpu_seconds": 0.12282399997639004,
+      "speedup": 0.9663567380628941
+    },
+    {
+      "name": "@sprucelabs/data-stores",
+      "lookups": 2144,
+      "candidates": 3347,
+      "cpu_seconds": 0.8077764999907231,
+      "gpu_seconds": 0.5215230000176234,
+      "speedup": 1.5488799151013983
+    },
+    {
+      "name": "@sprucelabs/spruce-skill-utils",
+      "lookups": 3652,
+      "candidates": 3972,
+      "cpu_seconds": 1.3284824000147637,
+      "gpu_seconds": 0.9081924000493018,
+      "speedup": 1.462776389609345
+    },
+    {
+      "name": "@sprucelabs/spruce-view-plugin",
+      "lookups": 1096,
+      "candidates": 5328,
+      "cpu_seconds": 0.48772300001292024,
+      "gpu_seconds": 0.30479269997158553,
+      "speedup": 1.6001794008136956
+    },
+    {
+      "name": "@teambit/component",
+      "lookups": 2213,
+      "candidates": 2213,
+      "cpu_seconds": 0.6945815000217408,
+      "gpu_seconds": 0.4474686000030488,
+      "speedup": 1.5522463476029567
+    },
+    {
+      "name": "@types/lodash.get",
+      "lookups": 19,
+      "candidates": 10,
+      "cpu_seconds": 0.005821399987326004,
+      "gpu_seconds": 0.007659399998374283,
+      "speedup": 0.7600334214901432
+    },
+    {
+      "name": "@types/node",
+      "lookups": 3867,
+      "candidates": 2348,
+      "cpu_seconds": 1.7629143000376644,
+      "gpu_seconds": 0.9249039999849629,
+      "speedup": 1.906051114565756
+    },
+    {
+      "name": "angularx-flatpickr",
+      "lookups": 10,
+      "candidates": 27,
+      "cpu_seconds": 0.004119000004720874,
+      "gpu_seconds": 0.005856899995706044,
+      "speedup": 0.7032730638632549
+    },
+    {
+      "name": "aws-sdk",
+      "lookups": 4107,
+      "candidates": 1936,
+      "cpu_seconds": 2.1369757000065874,
+      "gpu_seconds": 0.9760328000120353,
+      "speedup": 2.1894507028659658
+    },
+    {
+      "name": "axios",
+      "lookups": 832,
+      "candidates": 137,
+      "cpu_seconds": 0.24145199998747557,
+      "gpu_seconds": 0.1712592000112636,
+      "speedup": 1.409862944423397
+    },
+    {
+      "name": "carrot-scan",
+      "lookups": 1,
+      "candidates": 27703,
+      "cpu_seconds": 0.12308789999224246,
+      "gpu_seconds": 0.12043940000876319,
+      "speedup": 1.0219903120016087
+    },
+    {
+      "name": "ddp-underscore-patched",
+      "lookups": 1,
+      "candidates": 0,
+      "cpu_seconds": 0.0023212000087369233,
+      "gpu_seconds": 0.004834800012758933,
+      "speedup": 0.4801025900991409
+    },
+    {
+      "name": "less-plugin-autoprefix",
+      "lookups": 19,
+      "candidates": 11,
+      "cpu_seconds": 0.0044756999996025115,
+      "gpu_seconds": 0.007279600016772747,
+      "speedup": 0.614827736316578
+    },
+    {
+      "name": "lodash",
+      "lookups": 949,
+      "candidates": 113,
+      "cpu_seconds": 0.23486559998127632,
+      "gpu_seconds": 0.1876442000066163,
+      "speedup": 1.2516539278751755
+    },
+    {
+      "name": "react",
+      "lookups": 1837,
+      "candidates": 138,
+      "cpu_seconds": 0.4604743999952916,
+      "gpu_seconds": 0.36851490000844933,
+      "speedup": 1.2495407919319783
+    },
+    {
+      "name": "renovate",
+      "lookups": 606,
+      "candidates": 5323,
+      "cpu_seconds": 0.1949246000003768,
+      "gpu_seconds": 0.1544191999855684,
+      "speedup": 1.2623080550773085
+    },
+    {
+      "name": "semver",
+      "lookups": 509,
+      "candidates": 117,
+      "cpu_seconds": 0.14112200000090525,
+      "gpu_seconds": 0.10496880000573583,
+      "speedup": 1.3444185319179975
+    },
+    {
+      "name": "wix-style-react",
+      "lookups": 302,
+      "candidates": 5126,
+      "cpu_seconds": 0.20847880000656005,
+      "gpu_seconds": 0.09479109999665525,
+      "speedup": 2.1993499391178744
+    }
+  ],
+  "gpu_faster_packages": 19,
+  "cpu_faster_packages": 11,
+  "zero_lookup_packages": 2,
+  "peak_gpu_allocated_bytes": 74128384,
+  "peak_gpu_reserved_bytes": 119537664,
+  "review_blockers": [],
+  "limitations": [
+    "Resolver only; prepared sample is reused",
+    "Package mix is not a random sample of all selected packages",
+    "Some millisecond differences are near measurement noise",
+    "128 MiB workspace is a chunk temporary budget, not a total VRAM limit",
+    "No whole-pipeline or 100k-package speedup has been measured"
+  ],
+  "full_selected_execution": false,
+  "production_integration": false,
+  "db_load_executed": false,
+  "push_executed": false,
+  "documentation_checks": {
+    "links": 4,
+    "package_rows_against_raw_report": 32,
+    "status": "PASS"
+  },
+  "node_syntax_check": "PASS",
+  "git_diff_check": "PASS"
+}
