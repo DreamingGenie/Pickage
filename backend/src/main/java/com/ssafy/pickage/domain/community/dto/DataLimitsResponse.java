@@ -1,5 +1,10 @@
 package com.ssafy.pickage.domain.community.dto;
 
-/** {@code result.data_limits} — 이번 결과에 적용된 상한을 그대로 보여준다(변경 이력 추적용). */
-public record DataLimitsResponse(int maxIssueCount, int maxCommentsPerIssue) {
-}
+/** 커뮤니티 v2 계약. 공개 필드/내부 근거는 별도 DTO로 구분한다. */
+public record DataLimitsResponse(
+        String policyVersion,
+        int lookbackDays,
+        int maxIssues,
+        int maxCommentsPerIssue,
+        int maxMessagesPerIssue,
+        String sourceNote) {}

@@ -1,0 +1,275 @@
+{
+  "baseline": "d9193a3744c904963ad13c8c710f0548a9ab8437",
+  "date": "2026-09-11",
+  "total": 38,
+  "passed": 3,
+  "failed": 35,
+  "tests": [
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+      "test": "R04_latestWindowMustUseTimeThenNumericIdAscending()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <[9, 5, 6]> but was: <[9, 6, 5]>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+      "test": "R03_incompleteZeroMustNotExpandOrBecomeNoData()",
+      "result": "FAIL",
+      "message": "org.opentest4j.MultipleFailuresError: Multiple Failures (2 failures)"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+      "test": "R04_101CommentsMustBeTruncated()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <TRUNCATED> but was: <COMPLETE>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R11_collectedAtMustBeWorkerStart()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <2026-09-11T08:15:56.899338400Z> but was: <2026-09-11T08:15:56.911183800Z>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R08_completedStageMustBeNull()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <null> but was: <PUBLISHING>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R07_recentFailureMustRejectNewRefresh()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R06_typedPayloadMustRejectMissingRequiredFields()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Expected java.lang.Exception to be thrown, but nothing was thrown."
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R05_mixedSummariesMustBePartial()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <PARTIAL> but was: <FAILED>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R11_failedTaskMustNotPublishLateResult()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <true> but was: <false>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R07_exact24HoursMustBeStale()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R05_partialSummaryMustNotScheduleFiveMinuteRetry()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <null> but was: <2026-09-11T08:20:57.227038100Z>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R08_initialGetMustBeIdleWithNullRefresh()",
+      "result": "FAIL",
+      "message": "org.opentest4j.MultipleFailuresError: Multiple Failures (2 failures)"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R08_fullResultKeysMustMatchContract()",
+      "result": "FAIL",
+      "message": "org.opentest4j.MultipleFailuresError: Multiple Failures (7 failures)"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R07_exact7DaysMustNotBeServed()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R08_staleWithActiveMustKeepResultView()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <RESULT> but was: <PROCESSING>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+      "test": "R05_fakeForExistingTopicsMustReportFailure()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <FAILED> but was: <SKIPPED>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+      "test": "R09_queuedTaskMustNotHaveWorkerStartTime()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <null> but was: <2026-09-11T08:15:56.453039800Z>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+      "test": "R09_queuedDeadlineMustExpireWithoutWorkerCompletion()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+      "test": "R09_rejectedPrefetchMustNotConsumeStartToken()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: rejected request consumed the third token ==> expected: <true> but was: <false>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+      "test": "R09_registryAdmissionMustBeAtomicAt128()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: registry=129 ==> expected: <true> but was: <false>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+      "test": "R09_terminalTaskMustNotBecomeRunningAgain()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R01_privateRepositoryMustNotBeAcceptedAsPublic()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Expected com.ssafy.pickage.domain.community.verification.GitHubRepositoryNotFoundException to be thrown, but nothing was thrown."
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R01_dbOnlyNameMismatchMustBeAmbiguous()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Unexpected type, expected: <com.ssafy.pickage.domain.community.verification.RepositoryVerificationResult.AmbiguousScope> but was: <com.ssafy.pickage.domain.community.verification.RepositoryVerificationResult.UnverifiedRepository>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R01_malformedNpmMustNotFallBackToDb()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R01_httpsCredentialsMustBeRejected()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R10_bodyReadMustRespectRequestBudget()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Expected com.ssafy.pickage.domain.community.verification.UpstreamFetchException to be thrown, but nothing was thrown."
+    },
+    {
+      "task": "test",
+      "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+      "test": "R01_directoryTraversalMustBeRejected()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R12_actualRuntimeSnakeCaseAndNullKeys()",
+      "result": "PASS",
+      "message": ""
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R06_unsupportedPolicyMustBeIgnored()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <true> but was: <false>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R12_existingPackageSearchStillWorks()",
+      "result": "PASS",
+      "message": ""
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R08_blankNameMustBeV001()",
+      "result": "FAIL",
+      "message": "java.lang.AssertionError: Status expected:<400> but was:<404>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R08_malformedNameMustBeV004()",
+      "result": "FAIL",
+      "message": "java.lang.AssertionError: Status expected:<400> but was:<404>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R14_existingSeedTruncateMustRemainExecutable()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Unexpected exception thrown: org.springframework.jdbc.UncategorizedSQLException: StatementCallback; uncategorized SQLException for SQL [TRUNCATE similar_package, package_version_snapshot, package_snapshot, version, package]; SQL state [0A000]; error code [0]; ERROR: cannot truncate a table referenced in a foreign key constraint"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R06_unsupportedPayloadMustBeIgnored()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: expected: <true> but was: <false>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R08_errorMustAlsoBeNoStore()",
+      "result": "FAIL",
+      "message": "java.lang.AssertionError: Response header 'Cache-Control' expected:<no-store> but was:<null>"
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R06_invalidSupportedPayloadMustBeRejected()",
+      "result": "FAIL",
+      "message": "org.opentest4j.AssertionFailedError: Expected com.ssafy.pickage.domain.community.CommunitySnapshotPayloadException to be thrown, but nothing was thrown."
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R11_realTransactionRollbackKeepsPreviousRow()",
+      "result": "PASS",
+      "message": ""
+    },
+    {
+      "task": "integrationTest",
+      "class": "com.ssafy.pickage.domain.community.ApplicationContractReviewTest",
+      "test": "R08_realApplicationInitialWire()",
+      "result": "FAIL",
+      "message": "java.lang.AssertionError: JSON path \"$.data.view_status\" expected:<IDLE> but was:<FAILED>"
+    }
+  ]
+}
