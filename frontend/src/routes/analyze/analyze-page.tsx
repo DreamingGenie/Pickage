@@ -153,6 +153,9 @@ export function AnalyzePage() {
   /**
    * 보고서 생성. 비교 대상을 확정하고 리포트 id 를 받아 이동한다.
    *
+   * **비교 대상은 주소에 싣는다**(`?names=`). 라우터 state 로만 넘기면 그 링크를 받은
+   * 사람에게는 state 가 없어 보고서가 조용히 다른 조합으로 떨어진다(S15P21A506-187).
+   *
    * 미해결: id 발급 주체. 지금은 서버 왕복을 흉내 내고 draft 로 들어간다.
    * 실패하면 오버레이를 걷고 이 화면에 남아 선택을 잃지 않게 해야 한다.
    */
@@ -160,7 +163,7 @@ export function AnalyzePage() {
     if (!base) return
     setCreating(true)
     await new Promise((r) => setTimeout(r, CREATE_MS))
-    navigate(paths.report('draft'), { state: { packages: selected } })
+    navigate(paths.report('draft', selected))
   }
 
   /*
