@@ -8,13 +8,15 @@
  * 켜기: `.env.local` 에 `VITE_USE_MOCK=true`
  */
 
-import { get, getRaw } from '@/api/client'
+import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
 import {
   mockDependentsTrend,
   mockDictManifest,
   mockDictionary,
   mockDownloadsTrend,
+  mockGeneratePdf,
   mockPackagesOverview,
+  mockPdfPreview,
   mockSearch,
   mockSimilarPackages,
   mockVersionShare,
@@ -26,6 +28,8 @@ import type {
   PackageDictionary,
   PackageSearchResponse,
   PackagesOverviewResponse,
+  PdfGenerateRequest,
+  PdfJob,
   SimilarPackagesResponse,
   TrendQuery,
   VersionShareResponse,
@@ -95,6 +99,45 @@ export function fetchDependentsTrend(query: TrendQuery): Promise<DependentsTrend
         from: query.from,
         to: query.to,
       })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-14. 보고서 PDF
+ * ------------------------------------------------------------------ */
+
+/**
+ * 문서를 만든다.
+ *
+ * 숫자가 아니라 **조건**을 보낸다 — 서버가 다시 조회하므로 화면이 들고 있던 옛 응답이
+ * 문서에 박히지 않는다(공통-R08).
+ */
+export function generatePdf(request: PdfGenerateRequest): Promise<PdfJob> {
+  return USE_MOCK ? mockGeneratePdf(request) : post<PdfJob>('/report/pdf', request)
+}
+
+/**
+ * 미리보기 **HTML**. PDF 가 아니다.
+ *
+ * PDF 를 `iframe` 에 넣으면 브라우저의 "PDF 다운로드" 설정에 걸려 저장창이 뜬다.
+ * 서버가 `inline` 으로 보내도 그 설정이 이긴다. 그래서 문서 내용을 그린 HTML 을 받아
+ * 모달이 직접 띄운다.
+ *
+ * **다운로드할 PDF 와 같은 생성에서 나온 HTML 이다** — PDF 는 이것을 변환한 것이라
+ * 둘이 갈릴 수 없다.
+ */
+export function fetchPdfPreview(reportId: string): Promise<string> {
+  return USE_MOCK ? mockPdfPreview(reportId) : getText(`/report/pdf/${reportId}/preview`)
+}
+
+/**
+ * 다운로드 주소.
+ *
+ * 여기만 `fetch` 가 아니라 **주소를 그대로 쓴다.** 서버가 `attachment` 로 보내므로
+ * 링크를 열면 브라우저가 저장한다. blob 을 만들 이유가 없다 — 만들면 같은 파일을
+ * 메모리에 한 번 더 들고 있게 되고 해제까지 챙겨야 한다.
+ */
+export function pdfDownloadUrl(reportId: string): string {
+  return `${API_BASE_URL}/report/pdf/${reportId}/file`
 }
 
 /* ------------------------------------------------------------------ *

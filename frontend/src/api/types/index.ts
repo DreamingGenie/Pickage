@@ -193,6 +193,43 @@ export interface DependentsTrendResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * 기능-14 보고서 PDF
+ * ------------------------------------------------------------------ */
+
+/**
+ * 문서에 **더할** 구역.
+ *
+ * 생태계는 여기 없다 — 끌 수 없으므로 고를 것이 아니다. 화면에서는 "생태계" 를 켜진 채
+ * 비활성으로 두고, 이 둘만 체크할 수 있게 한다.
+ */
+export type ReportSection = 'COMMUNITY' | 'FEATURES'
+
+export interface PdfGenerateRequest {
+  names: string[]
+  from?: string
+  to?: string
+  snapshot_at?: string
+  sections?: ReportSection[]
+}
+
+export interface PdfJob {
+  report_id: string
+  /**
+   * 지금은 항상 `COMPLETE` 다. 생성이 워커로 옮겨가면 `GENERATING` 이 먼저 오고
+   * 화면은 그때부터 상태를 다시 물어야 한다 — 그래서 필드를 미리 읽어 둔다.
+   */
+  status: 'COMPLETE'
+  file_name: string
+  bytes: number
+  created_at: string
+  /**
+   * 요청했지만 문서에 못 채운 구역. **오류가 아니라** 그 분석 기능이 아직 없는 것이다.
+   * 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를 알 수 없다.
+   */
+  omitted: ReportSection[]
+}
+
+/* ------------------------------------------------------------------ *
  * 기능-03 · UC4 유사 패키지
  * ------------------------------------------------------------------ */
 

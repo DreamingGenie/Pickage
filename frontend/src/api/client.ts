@@ -153,6 +153,34 @@ export function post<T>(path: string, body?: unknown): Promise<T> {
 }
 
 /**
+ * 봉투 없이 본문을 그대로 받는다(보고서 미리보기 HTML).
+ *
+ * <p>`get()` 은 JSON 을 파싱해 `data` 를 꺼내므로 HTML 에는 쓸 수 없다. 경로 규칙은
+ * 같아야 하니 `API_BASE_URL` 은 그대로 붙인다 — 그래야 dev 프록시를 탄다.
+ *
+ * <p>실패는 봉투가 아니라 상태 코드로만 온다. 404 는 "그 보고서가 사라졌다" 는 뜻이고,
+ * 보관이 메모리라 재시작·기한 만료로 실제로 일어난다.
+ */
+export async function getText(path: string): Promise<string> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, { signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS) })
+  } catch {
+    throw new ApiError(0, 'NETWORK', '서버에 연결하지 못했습니다.')
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      `HTTP_${res.status}`,
+      res.status === 404
+        ? '보고서가 만료되었습니다. 다시 만들어 주세요.'
+        : '미리보기를 불러오지 못했습니다.',
+    )
+  }
+  return res.text()
+}
+
+/**
  * 봉투를 쓰지 않는 정적 파일용(사전 파일 본문 등).
  * `API_BASE_URL` 을 붙이지 않고 경로를 그대로 쓴다.
  */
