@@ -1,5 +1,7 @@
 package com.ssafy.pickage.domain.community;
 
+import java.net.http.HttpClient;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -7,6 +9,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClient;
+import com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClient;
+import com.ssafy.pickage.domain.community.collection.IssueCollectionService;
+import com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinator;
+import com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistry;
+import com.ssafy.pickage.domain.community.verification.GitHubRepositoryClient;
+import com.ssafy.pickage.domain.community.verification.NpmRepositoryLookup;
+import com.ssafy.pickage.domain.community.verification.RepositoryVerificationService;
 
 /**
  * 이 도메인 전용 설정 — 애플리케이션 진입점({@code PickageApplication})은 다른 모든 도메인이
@@ -39,11 +49,92 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 @EnableScheduling
 public class CommunityConfig {
 
+	/** 213 실네트워크 시험({@code RepositoryVerificationRealNetworkTest})과 같은 2 MiB 상한. */
+	private static final long MAX_RESPONSE_BYTES = 2L * 1024 * 1024;
+
 	@Bean
 	public ObjectMapper communityObjectMapper() {
 		return new ObjectMapper()
 			.findAndRegisterModules()
 			.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
 			.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+	}
+
+	/**
+	 * {@code GITHUB_COMMUNITY_TOKEN}이 없으면 인증 없이(요청 한도가 낮은 채로) 계속 동작한다
+	 * ({@link GitHubRepositoryClient}가 이미 그렇게 만들어져 있다 — 그 클래스 참고). 이 값을
+	 * 어떻게 운영 환경에 넣을지는 인프라 경계라 이 Phase가 정하지 않는다(Spec §2 "이번
+	 * Phase에서 하지 않을 일").
+	 */
+	@Bean
+	public HttpClient communityHttpClient() {
+		return HttpClient.newBuilder()
+			.followRedirects(HttpClient.Redirect.NEVER)
+			.build();
+	}
+
+	@Bean
+	public NpmRepositoryLookup npmRepositoryLookup(HttpClient communityHttpClient) {
+		return new NpmRepositoryLookup(communityHttpClient, MAX_RESPONSE_BYTES);
+	}
+
+	@Bean
+	public GitHubRepositoryClient gitHubRepositoryClient(HttpClient communityHttpClient) {
+		return new GitHubRepositoryClient(communityHttpClient, System.getenv("GITHUB_COMMUNITY_TOKEN"), MAX_RESPONSE_BYTES);
+	}
+
+	@Bean
+	public RepositoryVerificationService repositoryVerificationService(
+		NpmRepositoryLookup npmRepositoryLookup, GitHubRepositoryClient gitHubRepositoryClient
+	) {
+		return new RepositoryVerificationService(npmRepositoryLookup, gitHubRepositoryClient);
+	}
+
+	@Bean
+	public GitHubIssueSearchClient gitHubIssueSearchClient(HttpClient communityHttpClient) {
+		return new GitHubIssueSearchClient(communityHttpClient, System.getenv("GITHUB_COMMUNITY_TOKEN"), MAX_RESPONSE_BYTES);
+	}
+
+	@Bean
+	public GitHubIssueCommentsClient gitHubIssueCommentsClient(HttpClient communityHttpClient) {
+		return new GitHubIssueCommentsClient(communityHttpClient, System.getenv("GITHUB_COMMUNITY_TOKEN"), MAX_RESPONSE_BYTES);
+	}
+
+	@Bean
+	public IssueCollectionService issueCollectionService(
+		GitHubIssueSearchClient gitHubIssueSearchClient, GitHubIssueCommentsClient gitHubIssueCommentsClient
+	) {
+		return new IssueCollectionService(gitHubIssueSearchClient, gitHubIssueCommentsClient);
+	}
+
+	/** GMS 실연동 전까지의 기본 빈(Spec §1 — "C1 GMS 실제 프로토콜은 이 Phase 범위가 아니다"). */
+	@Bean
+	public CommunitySummarizer communitySummarizer() {
+		return new FakeCommunitySummarizer();
+	}
+
+	@Bean
+	public RefreshTaskRegistry refreshTaskRegistry() {
+		return new RefreshTaskRegistry();
+	}
+
+	/**
+	 * {@code shutdown()}은 이름이 Spring의 추론 destroy 메서드 규칙과 일치해 컨텍스트 종료 시
+	 * 자동으로 호출된다 — {@code destroyMethod}를 따로 지정할 필요가 없다.
+	 */
+	@Bean
+	public RefreshAdmissionCoordinator refreshAdmissionCoordinator(RefreshTaskRegistry refreshTaskRegistry) {
+		return new RefreshAdmissionCoordinator(refreshTaskRegistry);
+	}
+
+	@Bean
+	public CommunityRefreshOrchestrator communityRefreshOrchestrator(
+		RepositoryVerificationService repositoryVerificationService,
+		IssueCollectionService issueCollectionService,
+		CommunitySummarizer communitySummarizer,
+		CommunitySnapshotRepository communitySnapshotRepository
+	) {
+		return new CommunityRefreshOrchestrator(
+			repositoryVerificationService, issueCollectionService, communitySummarizer, communitySnapshotRepository);
 	}
 }

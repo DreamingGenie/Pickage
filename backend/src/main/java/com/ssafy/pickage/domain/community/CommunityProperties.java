@@ -48,4 +48,15 @@ public final class CommunityProperties {
 
 	/** 종료(shutdown) 시 실행 중 작업에 주는 유예 시간. */
 	public static final Duration SHUTDOWN_GRACE_PERIOD = Duration.ofSeconds(5);
+
+	/**
+	 * {@code result.data_limits.max_issue_count} — 응답에 적용된 상한을 그대로 보여주기 위한
+	 * 값. 실제 선정 로직의 상한은 212의 {@code IssueSelectionPolicy.MAX_SELECTED_ISSUES}가
+	 * 소유한다(패키지 전용, 의도적으로 캡슐화됨) — 이 값은 그걸 다시 강제하지 않고 API 응답용
+	 * 정보 표시로만 쓴다. 두 값이 같다는 사실은 계약 시험으로 확인한다.
+	 */
+	public static final int MAX_ISSUE_COUNT = 2;
+
+	/** {@code result.data_limits.max_comments_per_issue} — 위와 같은 이유로 212의 {@code CommentWindowResolver.TARGET_COMMENT_COUNT}와 별개로 둔다. */
+	public static final int MAX_COMMENTS_PER_ISSUE = 100;
 }
