@@ -148,7 +148,7 @@ function StaleNotice({ error, onRetry }: { error: unknown; onRetry: () => void }
   const notice = errorNotice(error)
 
   return (
-    <p className="flex flex-wrap items-baseline gap-2 rounded-lg border border-dashed px-3 py-2 text-[11.5px] text-muted-foreground">
+    <p className="flex flex-wrap items-baseline gap-2 rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
       <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
       {notice.retryable && (
         <button
