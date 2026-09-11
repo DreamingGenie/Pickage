@@ -170,7 +170,7 @@ services:
     #   광고하는 풀과 상한 중 하나만 올리면 그렇게 된다.
     #
     #   배치 중에 실측해서 이 산수를 확인한다:
-    #     docker stats --no-stream spark-worker-1
+    #     docker stats --no-stream pickage-data-spark-worker-1-1
     #
     #   넘기면 완충 없이 OOM Kill 이다 — **일부러 그렇게 뒀다.**
     #
