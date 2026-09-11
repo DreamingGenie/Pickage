@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from contextlib import ExitStack
 import ctypes
 import json
 import os
@@ -24,6 +25,7 @@ from .historical_production_input import (connection, contract as input_contract
                                           open_inputs, prepare, verify_inputs)
 from .historical_production_sql import aggregate_partition, finalize_quality
 from .historical_production_writer import build_history, verify_history
+from . import historical_production_resolver as ranked_resolver
 
 
 FORMAT = "historical-production-run-v1"
@@ -44,9 +46,11 @@ def _part_files(algorithm):
     raise ValueError("Unknown production aggregation algorithm")
 
 
-def contract(algorithm=DEFAULT_ALGORITHM):
+def contract(algorithm=DEFAULT_ALGORITHM, resolver_backend="npm"):
     _part_files(algorithm)
+    ranked_resolver.validate_options(resolver_backend, 1024, 128)
     result = {"runner_sha256": file_sha256(Path(__file__)),
+            "resolver_adapter_sha256": file_sha256(Path(ranked_resolver.__file__)),
             "sql_sha256": file_sha256(Path(__file__).with_name("historical_production_sql.py")),
             "input_contract": input_contract(), "h4_generation": generation_contract(),
             "h4_writer_sha256": file_sha256(Path(__file__).with_name("historical_artifact.py")),
@@ -57,6 +61,9 @@ def contract(algorithm=DEFAULT_ALGORITHM):
         result["algorithm"] = algorithm
         result["weighted_events_sha256"] = file_sha256(Path(__file__).with_name("historical_production_events.py"))
         result["weighted_quality_sha256"] = file_sha256(Path(__file__).with_name("historical_production_quality.py"))
+    if resolver_backend != "npm":
+        result["resolver_backend"] = resolver_backend
+        result["resolver_generation"] = ranked_resolver.generation_contract()
     return result
 
 
@@ -242,6 +249,9 @@ def _provenance(plan, receipts):
                   "computation_origin": "H5_PRODUCTION_WEIGHTED_EVENTS" if weighted else "H5_PRODUCTION_INTERVAL_SQL",
                   "storage_adapter": "H4_V1_NORMALIZED_TABLE_SERIALIZER",
                   "legacy_cache_quality_origin_is_serializer_label": True,
+                  "resolver_backend": plan["resolver_backend"],
+                  "resolver_settings": plan["resolver_settings"],
+                  "resolver_runtime": plan["resolver_runtime"],
                   "upstream_resolution_status": "PARTIAL", "ready_for_load": False}
 
 
@@ -321,8 +331,10 @@ def _finalize(root, input_manifest, plan, receipts, settings):
 def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selected=False,
         max_partitions=None, max_snapshots=None, runtime=None, threads=4, memory_limit="4GB",
         max_temp_size="40GB", min_free_bytes=20_000_000_000, request_timeout=60,
-        algorithm=DEFAULT_ALGORITHM):
+        algorithm=DEFAULT_ALGORITHM, resolver_backend="npm", resolver_lookup_batch=1024,
+        gpu_workspace_mib=128):
     started = time.monotonic()
+    ranked_resolver.validate_options(resolver_backend, resolver_lookup_batch, gpu_workspace_mib)
     part_files = _part_files(algorithm)
     weighted = algorithm == WEIGHTED_ALGORITHM
     prepared_dir, root = _path(prepared_dir), _path(output)
@@ -336,6 +348,8 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
         raise ValueError("max_partitions must be positive")
     if type(min_free_bytes) is not int or min_free_bytes < 0:
         raise ValueError("Invalid disk guard")
+    # Fail before creating an output when the requested optional backend is unavailable.
+    resolver_runtime = ranked_resolver.runtime_identity(resolver_backend)
     if resume:
         if not root.is_dir():
             raise ValueError("Resume requires existing output")
@@ -343,10 +357,15 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
         root.mkdir(parents=True, exist_ok=False)
     settings = {"threads": threads, "memory_limit": memory_limit, "max_temp_size": max_temp_size}
     reused, written = [], []
-    with _run_lock(root), MeasuredNode(runtime or discover_runtime(), root / ("node-" + uuid.uuid4().hex + ".log"),
-                                      worker=WORKER, timeout=request_timeout) as node:
-        metadata = node.request({"op": "metadata"})
-        generation = contract(algorithm)
+    with _run_lock(root), ExitStack() as stack:
+        node_runtime = runtime or discover_runtime()
+        metadata_node = stack.enter_context(MeasuredNode(node_runtime,
+            root / ("node-" + uuid.uuid4().hex + ".log"), worker=WORKER, timeout=request_timeout))
+        metadata = metadata_node.request({"op": "metadata"})
+        node = metadata_node if resolver_backend == "npm" else stack.enter_context(MeasuredNode(
+            node_runtime, root / ("ranked-node-" + uuid.uuid4().hex + ".log"),
+            worker=ranked_resolver.NORMALIZER, timeout=request_timeout))
+        generation = contract(algorithm, resolver_backend)
         with connection(root / ("inventory-" + uuid.uuid4().hex + ".duckdb"), **settings) as con:
             open_inputs(con, prepared_dir, inputs)
             groups = _coverage(con)
@@ -358,6 +377,10 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
         plan = {"format": WEIGHTED_FORMAT if weighted else FORMAT,
                 "prepared_dir": str(prepared_dir), "input_manifest_sha256": manifest_sha256,
                 "scope": inputs["scope"], "generation_contract": generation, "runtime": metadata,
+                "resolver_backend": resolver_backend,
+                "resolver_settings": {"lookup_batch": resolver_lookup_batch,
+                                      "workspace_mib": gpu_workspace_mib},
+                "resolver_runtime": resolver_runtime,
                 "partitions": {str(k): v for k, v in groups.items()}, "settings": settings,
                 "full_selected_scope": inputs["scope"] == "FULL_SELECTED",
                 "upstream_resolution_status": "PARTIAL", "ready_for_load": False}
@@ -382,13 +405,21 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
         for part in pending[:max_partitions]:
             if shutil.disk_usage(root).free < min_free_bytes:
                 raise ValueError("Free disk guard reached before partition")
-            event(root, "RESOLVE_PARTITION", partition_id=part, target_names=len(groups[part]))
+            event(root, "RESOLVE_PARTITION", partition_id=part, target_names=len(groups[part]),
+                  resolver_backend=resolver_backend)
             attempt = root / "partitions" / f"{part:03d}" / "attempts" / uuid.uuid4().hex
             attempt.mkdir(parents=True)
             part_started = time.monotonic()
             with connection(attempt / "working.duckdb", **settings) as con:
                 open_inputs(con, prepared_dir, inputs)
-                metrics = _resolve_partition(con, node, metadata, part, len(inputs["calendar"]))
+                resolve_started = time.monotonic()
+                if resolver_backend == "npm":
+                    metrics = _resolve_partition(con, node, metadata, part, len(inputs["calendar"]))
+                else:
+                    metrics = ranked_resolver.resolve_partition(con, node, metadata, part,
+                        len(inputs["calendar"]), backend=resolver_backend,
+                        lookup_batch=resolver_lookup_batch, workspace_mib=gpu_workspace_mib)
+                metrics["resolution_seconds"] = time.monotonic() - resolve_started
                 event(root, "AGGREGATE_PARTITION", partition_id=part)
                 if weighted:
                     from .historical_production_events import aggregate_partition_weighted
@@ -399,7 +430,7 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
                 metrics["aggregation"] = aggregation
                 for name, table in part_files.items():
                     con.execute(f"COPY {table} TO ? (FORMAT PARQUET,COMPRESSION ZSTD)", [str(attempt / (name + ".parquet"))])
-            if contract(algorithm) != generation:
+            if contract(algorithm, resolver_backend) != generation:
                 raise ValueError("Generation code changed during partition")
             receipt = {"status": "COMPLETE", "partition_id": part, "names": groups[part],
                        "plan_sha256": sha256(plan), "metrics": metrics,
@@ -424,8 +455,10 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
                                 output=directory / "history", resume=(directory / "history").exists(),
                                 max_snapshots=max_snapshots)
         verify_inputs(prepared_dir, manifest_sha256)
-        if contract(algorithm) != generation:
+        if contract(algorithm, resolver_backend) != generation:
             raise ValueError("Generation code changed during run")
+        if ranked_resolver.runtime_identity(resolver_backend) != resolver_runtime:
+            raise ValueError("Resolver runtime changed during run")
         result = {"format": plan["format"], "run_status": history["run_status"], "plan_sha256": sha256(plan),
                   "partitions": receipts, "cache": cached, "history": history,
                   "scope": inputs["scope"], "full_selection_executed": inputs["scope"] == "FULL_SELECTED" and history["run_status"] == "COMPLETE",
@@ -447,6 +480,7 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, allow_full_selec
                 "run_manifest_sha256": file_sha256(root / "run_manifest.json") if history["run_status"] == "COMPLETE" else None,
                 "cache_dir": str(directory / "cache"), "cache_sha256": cached["cache_sha256"],
                 "written_partitions": written, "reused_partitions": reused, "worker_metrics": dict(node.metrics),
+                "resolver_backend": resolver_backend, "resolver_runtime": resolver_runtime,
                 "elapsed_seconds": time.monotonic() - started, "memory": current_memory(),
                 "full_selection_executed": result["full_selection_executed"], "ready_for_load": False}
 
@@ -459,10 +493,14 @@ def verify_run(*, run_dir, manifest_sha256):
     result = _read_json(path)
     plan = _read_json(root / "run_plan.json")
     algorithm = plan.get("algorithm", DEFAULT_ALGORITHM)
+    backend = plan.get("resolver_backend", "npm")
+    resolver_settings = plan.get("resolver_settings", {"lookup_batch": 1024, "workspace_mib": 128})
+    ranked_resolver.validate_options(backend, resolver_settings["lookup_batch"], resolver_settings["workspace_mib"])
     _part_files(algorithm)
     expected_format = WEIGHTED_FORMAT if algorithm == WEIGHTED_ALGORITHM else FORMAT
     if (plan["format"] != expected_format or result["format"] != expected_format
-            or sha256(plan) != result["plan_sha256"] or plan["generation_contract"] != contract(algorithm)
+            or sha256(plan) != result["plan_sha256"] or plan["generation_contract"] != contract(algorithm, backend)
+            or plan.get("resolver_runtime", {}).get("backend") != backend
             or result["run_status"] != "COMPLETE" or result["ready_for_load"] is not False):
         raise ValueError("Production run contract mismatch")
     inputs = verify_inputs(plan["prepared_dir"], plan["input_manifest_sha256"])
@@ -518,6 +556,9 @@ def main():
     r.add_argument("--max-partitions", type=int)
     r.add_argument("--max-snapshots", type=int)
     r.add_argument("--algorithm", choices=(DEFAULT_ALGORITHM, WEIGHTED_ALGORITHM), default=DEFAULT_ALGORITHM)
+    r.add_argument("--resolver-backend", choices=("npm", "cpu", "gpu"), default="npm")
+    r.add_argument("--resolver-lookup-batch", type=int, default=1024)
+    r.add_argument("--gpu-workspace-mib", type=int, default=128)
     v = sub.add_parser("verify")
     v.add_argument("--run-dir", required=True)
     v.add_argument("--manifest-sha256", required=True)

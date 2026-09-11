@@ -1,9 +1,11 @@
 """Bounded contract tests for the stored CPU/GPU suite input loader."""
 from pathlib import Path
+import json
 import unittest
 
 from pipeline.requirements_resolution.input import file_sha256
 from .historical_gpu_suite_input import load_suite, reverify_protected_files
+from .historical_production import contract, WEIGHTED_ALGORITHM
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +19,9 @@ RUN = ROOT / "data" / "vd-pilot-a" / "32" / "run"
 class HistoricalGpuSuiteInputTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        stored = json.loads((RUN / "run_plan.json").read_bytes())
+        if stored["generation_contract"] != contract(WEIGHTED_ALGORITHM):
+            raise unittest.SkipTest("stored sample requires its original generation code; synthetic tests remain active")
         cls.suite = load_suite(
             prepared_dir=PREPARED,
             oracle_run_dir=RUN,

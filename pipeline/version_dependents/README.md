@@ -425,7 +425,8 @@ production cache·날짜 writer는 target 등장 시점과 count 구간의 시�
 `historical_gpu_benchmark`는 선택한 패키지의 최대 2048개 요구조건에 대해 기존 npm worker,
 rank 구간을 사용하는 CPU 범위 인덱스, PyTorch CUDA 계산을 비교하는 별도 도구다.
 production 실행기의 기본 해석기로 연결하지 않았으며 count 집계·Parquet 게시·DB 적재를 하지 않는다.
-NumPy/PyTorch는 이 실험에서만 필요하다. CUDA가 없으면 GPU 실행을 CPU로 대체하지 않는다.
+NumPy/PyTorch는 해당 실험 또는 아래의 선택형 CPU/GPU 경로에서 필요하다.
+CUDA가 없으면 GPU 실행을 CPU로 대체하지 않는다.
 
 `historical_gpu_normalize.cjs`가 기존 stable/npm 정책과 원문 동률을 rank 구간으로 정규화한다.
 CPU는 min-birth segment tree를 조회하고 GPU는 조건 묶음별 birth 최대값과 날짜 누적 최대값을
@@ -438,3 +439,27 @@ CPU는 min-birth segment tree를 조회하고 GPU는 조건 묶음별 birth 최�
 공유하지 않는다. 기존 정답의 target key·상태·날짜 구간을 매번 대조하고, 5회 전체 합계의
 중간값을 계산한다. 공통 파일 읽기·입력 검사와 정규화, 숫자 계산, interval 변환을 구분한다.
 생산 집계와 저장 시간은 포함하지 않는다. [32개 실험 기록](../../docs/worklogs/S15P21A506-193/22-gpu-32-package-comparison.md)
+
+### 실제 집계에서 CPU/GPU 선택
+
+`historical_production run --algorithm weighted-events-v2 --resolver-backend cpu` 또는
+`--resolver-backend gpu`로 개선한 버전 선택을 실제 count 집계·Parquet 저장에 연결한다.
+기본값 `npm`은 기존 해석 경로다. CPU에는 NumPy, GPU에는 NumPy와 CUDA 지원 PyTorch가
+필요하며 CPU 경로는 PyTorch를 불러오지 않는다. 별도의 Arrow/pandas 의존성은 없다.
+
+`--resolver-lookup-batch`는 한 요청의 요구조건 수(1~1024, 기본 1024),
+`--gpu-workspace-mib`는 GPU 숫자 계산의 묶음 예산(1~512 MiB, 기본 128)이다.
+요구조건을 생략하지 않고 나눠 처리한다. 후보·전송 크기 상한을 넘으면 실패하므로
+모든 크기의 패키지를 처리할 수 있다는 의미는 아니다. 숫자 계산 결과는 기존과 같은
+lookup 구간으로 변환하고, DuckDB에 타입을 지정한 열 묶음으로 전달한다.
+
+backend·설정·실행 라이브러리와 장치 정보·생성 코드 지문을 run plan에 기록한다.
+`--resume`에는 처음과 같은 값이 필요하다. 코드나 backend를 바꾸려면 새 출력 폴더를
+사용하며, 이전 결과에 현재 지문을 덮어쓰지 않는다. GPU 요청 시 CUDA가 없으면 출력
+폴더를 만들기 전에 실패한다. 결과 파일의 독립 `verify`에는 GPU가 필요하지 않다.
+
+`historical_production_backend_benchmark`는 고정한 32개 목록의 입력을 한 번 준비하고
+CPU/GPU를 각각 새 프로세스로 실행·검증한다. 기존 결과는 그 생성 코드로 미리 검증해
+파일 지문을 보존한 reference를 사용한다. 요구조건 구간·count·품질의 모든 행을 비교하며
+날짜별 품질의 실행 plan ID만 제외한다. 각 실행의 이력 연결은 자체 `verify`로 검사한다.
+측정 단계와 결과는 [실제 집계 연결 기록](../../docs/worklogs/S15P21A506-193/24-cpu-gpu-production-integration.md)에 남긴다.

@@ -139,3 +139,24 @@ ready_for_load=false다. 원본 SemVer를 매 날짜 다시 실행한 독립 ora
 [20 구현·측정·한계](20-daily-verification-throughput.md),
 [처리량 상세](evidence/daily-throughput-results.json), [회귀 로그](evidence/daily-verification-tests.log),
 [코드 보존](evidence/daily-verification-code-check.json).
+
+## CPU/GPU 실제 집계 연결 (V-020, 2026-09-11)
+
+선택형 CPU/GPU 버전 선택을 기존 production 집계·저장 흐름에 연결했다. 원본 stable/npm 정책과
+PARTIAL은 유지했다. 작은 입력의 npm/CPU/GPU 결과, 묶음 경계·NULL·후보 검증·설정/code 변경
+거부·파티션/날짜 재개·완료 후 재개·변조 거부를 확인했다. GPU 포함 전체 281개 회귀에서
+오류 0·skip 1(과거 생성 계약 fixture), 121.261초다. 최초 Windows 진행 파일 교체 오류와
+재실행 성공 증거를 함께 보존했다.
+
+같은 32개 전체 source 선언 10,118,750행·조건 40,701개·229개 스냅샷에서 원본/CPU/GPU의
+양수 count 1,875,271행 및 품질 값이 모두 같다. 해석 구간 502,119행·count 구간 49,111행도
+일치한다. 공통 준비를 한 번 수행한 합계는 개선 CPU 156.135초, GPU 153.091초다. 이전
+315.835초 대비 각각 50.56%/51.53% 감소, 추가 GPU 효과는 이번 단일 표본에서 1.95%다.
+
+실제 GPU 완료 재개 시 1,317개 완료 파일과 manifest가 불변이며, 원본 보호 파일 1,323개도
+그대로다. H4 generation 계약 보존, 새 production 계약 연결 및 Python 62개 구문 검사 통과.
+32개 범위의 성공 관계 PARTIAL이고 전체 99,996개 계산·DB 적재는 미실행이다.
+
+[24 결과·측정 한계·실행 방법](24-cpu-gpu-production-integration.md),
+[주요 기계 판독 증거](evidence/production-backends-results.json),
+[회귀 로그](evidence/production-backends-tests.log), [GPU 재개 증거](evidence/production-backends-resume.json).
