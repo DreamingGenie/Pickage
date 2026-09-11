@@ -1,0 +1,54 @@
+{
+  "commit": "ce4dd912ef4bcd29defb1dd0c6ba1fe876bb92ea",
+  "mock": false,
+  "checks": [
+    "mock off: real seeded ecosystem renders and snapshot filter changes",
+    "missing token: community refresh disabled, existing overview unchanged",
+    "ecosystem/features round trip three times preserves real overview",
+    "existing feature comparison sample renders; real AI evaluation not covered",
+    "analyze input and real similar-package lookup remain interactive"
+  ],
+  "page_errors": [],
+  "fixture_limitations": [
+    "seed does not install dictionary static manifest; its 404 falls back to the search API"
+  ],
+  "responses": [
+    {
+      "url": "/api/packages?names=winston%2Cpino%2Cbunyan",
+      "status": 200
+    },
+    {
+      "url": "/api/packages/downloads?names=winston%2Cpino%2Cbunyan&from=2024-09-09",
+      "status": 200
+    },
+    {
+      "url": "/api/packages/dependents?names=winston%2Cpino%2Cbunyan&from=2024-09-09",
+      "status": 200
+    },
+    {
+      "url": "/api/packages/version?names=winston%2Cpino%2Cbunyan&snapshot_at=2026-08-31",
+      "status": 200
+    },
+    {
+      "url": "/api/dict-manifest",
+      "status": 404
+    },
+    {
+      "url": "/api/packages/similar?name=winston",
+      "status": 200
+    },
+    {
+      "url": "/api/dict-manifest",
+      "status": 404
+    },
+    {
+      "url": "/api/packages/search?q=pino",
+      "status": 200
+    },
+    {
+      "url": "/api/packages/search?q=pino&limit=5",
+      "status": 200
+    }
+  ],
+  "status": "PASS"
+}

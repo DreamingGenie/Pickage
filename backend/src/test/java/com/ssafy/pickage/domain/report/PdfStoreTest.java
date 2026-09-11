@@ -20,7 +20,7 @@ class PdfStoreTest {
 	}
 
 	private static void put(PdfStore store, String id) {
-		store.save(id, body(id), PdfStore.meta(id, id + ".pdf", id.length(), java.util.List.of()));
+		store.save(id, "<html>fixture</html>", body(id), PdfStore.meta(id, id + ".pdf", id.length(), java.util.List.of()));
 	}
 
 	@Test
@@ -32,7 +32,7 @@ class PdfStoreTest {
 		PdfJobResponse meta = PdfStore.meta("a1", "Pickage_@hapi-hapi_보고서.pdf", pdf.length,
 			java.util.List.of("COMMUNITY"));
 
-		store.save("a1", pdf, meta);
+		store.save("a1", "<html>fixture</html>", pdf, meta);
 
 		assertArrayEquals(pdf, store.findFile("a1").orElseThrow());
 		assertEquals("Pickage_@hapi-hapi_보고서.pdf", store.findMeta("a1").orElseThrow().fileName());

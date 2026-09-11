@@ -15,9 +15,9 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | [S15P21A506-314](https://ssafy.atlassian.net/browse/S15P21A506-314) [BE][구현] 커뮤니티 Snapshot 저장·재시작 복원·TTL | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy`(!111에 병합됨) | [specs/S15P21A506-314.md](../specs/S15P21A506-314.md) | 없음 | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | [specs/S15P21A506-213.md](../specs/S15P21A506-213.md) | 없음 (Phase 1과 병행 가능) | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
-| 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | (Phase 착수 시 작성) | Phase 2 (213 검증 결과 필요) | 대기 |
-| 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | (Phase 착수 시 작성) | Phase 1·2·3 산출물 | 대기 |
-| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/test/S15P21A506-315-community-integration-acceptance` | (Phase 착수 시 작성) | Phase 4 | 대기 |
+| 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
+| 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
+| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 진행 중(구현·재검수 완료, Draft MR·외부 인수/사람 리뷰 대기) |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
 GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).
@@ -48,7 +48,16 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
   하나로 develop에 올림. 리뷰어 정보경(jungbk0808). 병합 커밋에서 harness 문서 3종
   (`AGENTS.md`·`phases/README.md`·`specs/TEMPLATE.md`)의 add/add 충돌은
   `phases/README.md`만 실제로 갈렸고(나머지 3개는 내용 동일해 자동 병합) 이 파일의
-  213 쪽 버전(두 Phase 모두 완료로 반영된 것)을 그대로 채택해 해소함.
+  213 쪽 버전(두 Phase 모두 완료로 반영된 것)을 그대로 채택해 해소함. !111 병합 확인 후
+  develop로 이동·pull, 사용한 브랜치(로컬+원격) 전부 정리 완료.
+- [Phase 3 — S15P21A506-212](S15P21A506-212-issue-comment-collection.md) 구현·테스트·
+  리뷰 완료(2026-09-11). 이번엔 harness 문서가 이미 develop에 있어 브랜치 분기 시점
+  문제(위 "브랜치 분기 시점 문제" 절)가 재발하지 않음.
+- [Phase 4 — S15P21A506-317](S15P21A506-317-community-api-coordinator.md) 구현·테스트·
+  리뷰 완료(2026-09-11). 213·212·314를 실제로 조합하는 유일한 지점 — 3단계 커밋(DTO·설정 →
+  registry·coordinator → orchestrator·controller·service)으로 진행, `/code-review`에서
+  이번 Phase 범위의 결함 4건 발견·즉시 수정. 212의 기존 파일에 있는 별개 결함 2건은
+  완료 기록에만 남기고 후속 Jira 이슈로 분리 제안.
 
 ## WIP=1 예외 기록
 

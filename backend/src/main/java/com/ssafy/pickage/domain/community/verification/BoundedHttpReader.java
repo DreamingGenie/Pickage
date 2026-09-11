@@ -1,49 +1,161 @@
 package com.ssafy.pickage.domain.community.verification;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.Flow;
 
-/**
- * {@code HttpResponse.BodyHandlers.ofInputStream()}으로 받은 본문을 <b>읽는 도중</b> 누적
- * 바이트 수를 세다가 상한을 넘으면 그 자리에서 멈춘다.
- *
- * <p>{@code BodyHandlers.ofString()}을 쓰지 않는 이유가 이것이다 — 그건 상한을 확인하기도
- * 전에 전체 응답을 이미 메모리에 다 올려 버린다. 상한의 목적(악의적이거나 손상된 응답이
- * 무한정 메모리를 먹는 것을 막는 것)을 지키려면 스트림을 직접 조각내 읽어야 한다.
- */
-final class BoundedHttpReader {
+import javax.net.ssl.SSLSession;
 
-	private static final int CHUNK_SIZE = 8192;
+/** 전송부터 body 완료까지 한 번의 deadline과 byte 상한을 적용한다. */
+public final class BoundedHttpReader {
+    private BoundedHttpReader() {}
 
-	private BoundedHttpReader() {
-	}
+    public static HttpResponse<InputStream> send(
+            HttpClient client, HttpRequest request, long maxBytes)
+            throws IOException, InterruptedException {
+        return send(client, request, maxBytes, info -> {});
+    }
 
-	/**
-	 * @param maxBytes 2026-09-11 사용자 승인 — 기본값은 npm·GitHub 응답 각 2 MiB
-	 *                 (2,097,152 bytes)이지만 호출자가 시험용으로 다른 값을 넣을 수 있다
-	 *                 ({@code docs/for_community/specs/S15P21A506-213.md} §7).
-	 * @throws UpstreamFetchException 상한을 넘거나 읽기 자체가 실패하면. 원인 예외의 raw
-	 *                                내용은 메시지에 담지 않는다.
-	 */
-	static String readBounded(InputStream body, long maxBytes, String sourceForLogging) {
-		try (InputStream in = body) {
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-			byte[] chunk = new byte[CHUNK_SIZE];
-			long total = 0;
-			int read;
-			while ((read = in.read(chunk)) != -1) {
-				total += read;
-				if (total > maxBytes) {
-					throw new UpstreamFetchException(
-						sourceForLogging + " 응답이 상한(" + maxBytes + " bytes)을 넘었다");
-				}
-				buffer.write(chunk, 0, read);
-			}
-			return buffer.toString(StandardCharsets.UTF_8);
-		} catch (IOException e) {
-			throw new UpstreamFetchException(sourceForLogging + " 응답을 읽는 중 통신 오류", e);
-		}
-	}
+    public static HttpResponse<InputStream> send(
+            HttpClient client,
+            HttpRequest request,
+            long maxBytes,
+            java.util.function.Consumer<HttpResponse.ResponseInfo> headers)
+            throws IOException, InterruptedException {
+        var future =
+                client.sendAsync(
+                        request,
+                        info -> {
+                            headers.accept(info);
+                            return new LimitedSubscriber(maxBytes);
+                        });
+        try {
+            var response =
+                    future.get(
+                            request.timeout().orElse(Duration.ofSeconds(10)).toNanos(),
+                            TimeUnit.NANOSECONDS);
+            byte[] bytes = response.body();
+            String encoding = response.headers().firstValue("Content-Encoding").orElse("identity");
+            if ("gzip".equalsIgnoreCase(encoding)) {
+                try (var gzip =
+                        new java.util.zip.GZIPInputStream(new ByteArrayInputStream(bytes))) {
+                    bytes = readBytes(gzip, maxBytes);
+                }
+            } else if (!"identity".equalsIgnoreCase(encoding))
+                throw new IOException("Unsupported content encoding");
+            return new BufferedResponse(response, new ByteArrayInputStream(bytes));
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new HttpTimeoutException("Community response deadline exceeded");
+        } catch (ExecutionException e) {
+            future.cancel(true);
+            if (e.getCause() != null
+                    && "Community response size limit".equals(e.getCause().getMessage()))
+                throw new IOException("Community response size limit");
+            throw new IOException("Community response failed");
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            throw e;
+        }
+    }
+
+    private static final class LimitedSubscriber implements HttpResponse.BodySubscriber<byte[]> {
+        private final HttpResponse.BodySubscriber<byte[]> delegate =
+                HttpResponse.BodySubscribers.ofByteArray();
+        private final long max;
+        private long count;
+        private Flow.Subscription subscription;
+
+        LimitedSubscriber(long max) {
+            this.max = max;
+        }
+
+        public CompletionStage<byte[]> getBody() {
+            return delegate.getBody();
+        }
+
+        public void onSubscribe(Flow.Subscription s) {
+            subscription = s;
+            delegate.onSubscribe(s);
+        }
+
+        public void onNext(List<ByteBuffer> buffers) {
+            for (var b : buffers) {
+                count += b.remaining();
+                if (count > max) {
+                    subscription.cancel();
+                    delegate.onError(new IOException("Community response size limit"));
+                    return;
+                }
+            }
+            delegate.onNext(buffers);
+        }
+
+        public void onError(Throwable error) {
+            delegate.onError(new IOException("Community response failed"));
+        }
+
+        public void onComplete() {
+            delegate.onComplete();
+        }
+    }
+
+    private record BufferedResponse(HttpResponse<byte[]> response, InputStream body)
+            implements HttpResponse<InputStream> {
+        public int statusCode() {
+            return response.statusCode();
+        }
+
+        public HttpRequest request() {
+            return response.request();
+        }
+
+        public Optional<HttpResponse<InputStream>> previousResponse() {
+            return Optional.empty();
+        }
+
+        public HttpHeaders headers() {
+            return response.headers();
+        }
+
+        public Optional<SSLSession> sslSession() {
+            return response.sslSession();
+        }
+
+        public URI uri() {
+            return response.uri();
+        }
+
+        public HttpClient.Version version() {
+            return response.version();
+        }
+    }
+
+    private static byte[] readBytes(InputStream body, long maxBytes) throws IOException {
+        var buffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        long count = 0;
+        int n;
+        while ((n = body.read(chunk)) != -1) {
+            count += n;
+            if (count > maxBytes) throw new IOException("Community response size limit");
+            buffer.write(chunk, 0, n);
+        }
+        return buffer.toByteArray();
+    }
+
+    /** send() 이후에는 메모리에 제한된 body만 전달된다. */
+    public static String readBounded(InputStream body, long maxBytes, String source) {
+        try (body) {
+            return new String(readBytes(body, maxBytes), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UpstreamFetchException("Community response read failed");
+        }
+    }
 }
