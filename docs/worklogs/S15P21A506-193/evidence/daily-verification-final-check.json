@@ -1,0 +1,17 @@
+{
+  "checked_links": 9,
+  "new_python_files": 5,
+  "h4_generation_unchanged": true,
+  "unchanged_existing_files": 44,
+  "changed_existing_files": [
+    "pipeline/version_dependents/historical_production.py",
+    "pipeline/version_dependents/historical_production_writer.py",
+    "pipeline/version_dependents/test_historical_production_writer.py"
+  ],
+  "pilot_status": "COMPLETE",
+  "pilot_current_generation_matches": true,
+  "tests": 249,
+  "tests_passed": true,
+  "full_selection_executed": false,
+  "db_load_executed": false
+}

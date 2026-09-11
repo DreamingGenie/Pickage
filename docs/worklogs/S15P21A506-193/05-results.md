@@ -2,8 +2,14 @@
 
 **현재 결과: 실제 최신 스냅샷의 성공 관계 전체 진단 집계 완료. 280,232,217개 관계에서 6,156,555개 target 버전의 PARTIAL 결과를 저장했으며 별도 파일 검증이 통과했다. 전체 build 약 83초. 정상 입력 승인·전체 target 모집단 검증·DB 적재는 미완료다.** [전체 실행 결과](09-diagnostic-run.md) · [일지](04-work-log.md) · [완료 기준](01-scope.md)
 
-후속 과거 재구성은 H1 입력 준비·H2 기준 구현·H3 구간 계산 핵심·H4 정규화 cache와 날짜별 저장/재개까지 완료했다. 실제 전체
-날짜의 count는 아직 미계산이다. [H1 입력 규모](11-historical-input-results.md) · [H2 기준](12-historical-reference-results.md) · [H3 결과](13-historical-optimization-results.md) · [H4 결과](14-historical-artifact-results.md)
+후속 과거 재구성은 H1~H5-A에 이어 **H5-B 전체 날짜 계산 코드와 실제 6개 target×229일
+표본 계산·대조를 완료**했다. 입력 준비 60.625초, 계산·저장 33.219초이며 독립 날짜별 count와
+기존 최신 진단 값 모두 차이 0건이다. 전체 선정 패키지의 count는 아직 미계산이다.
+[H5-B 코드·실제 표본](16-historical-production-code.md) · [H1 입력 규모](11-historical-input-results.md) · [H2 기준](12-historical-reference-results.md) · [H3 결과](13-historical-optimization-results.md) · [H4 결과](14-historical-artifact-results.md)
+
+최신 후속 작업은 [20 날짜별 검증·처리량 평가](20-daily-verification-throughput.md)다.
+누적 합계 검증 개선과 8·16·32개 전체 source 표본의 229개 기준일 계산·파일 검증을 완료했다.
+32개는 입력 준비부터 검증까지 315.83초였고, 전체 249개 회귀 검사가 통과했다.
 
 ## 8번 검증 상태
 
@@ -85,3 +91,34 @@ V-001은 최초 문서 준비 단계의 점검 기록이다. 이후 작은 데�
 | 완료 기준 AC-01~08 | AC-02와 키·시각·0 처리 등 계산 핵심은 소형 테스트로 검증. 실제 입력·전체 출력·DB 기준은 미검증 |
 
 실행할 때 정확한 명령·시작/종료 시각·코드 기준·입력과 출력 식별자·검증 결과를 기록한다. 수치가 아직 없으면 `미계산`으로 두며 0을 채우지 않는다.
+
+## 가중치 이벤트 집계 검증 (V-018, 2026-09-11)
+
+A0~A3과 production v2 재개를 구현했다. 전체 229개 테스트(100.673초), Python AST 46개, 기존 코드 40개 SHA 및 H4 generation 보존을 확인했다. lodash 전체 source·229일 집계/품질 시간은 기존 11.652초→4.831초(각 3회 중간값), 모든 count/품질/모집단 차이는 0이다. 작은 6개 target은 0.501초→1.043초로 느려져 기본값 전환을 하지 않았다.
+
+실제 v2 6개 target의 229일 파일 저장은 29.797초, 별도 전수 검증은 13.949초다. 매 날짜 기존 npm 해석기를 이용한 DISTINCT source 정답 대조는 29.562초·차이 0건이었다. 이전 실제 cache와 새 cache의 count 구간 402행·quality 229행·target 49,936행의 모든 값도 같다. PARTIAL·ready_for_load=false를 유지한다.
+
+[19 구현·실측·한계](19-weighted-event-aggregation.md), [실제 cache 전수 대조](evidence/weighted-events-real-cache-comparison.json), [회귀 로그](evidence/weighted-events-tests.log). 전체 선정 계산, EC2/Spark, DB 적재·commit·push는 수행하지 않았다. lodash 집계 시간은 입력 준비·해석·날짜별 저장을 포함한 패키지 전체 전처리 시간이 아니다.
+
+## 날짜별 검증·처리량 평가 (V-019, 2026-09-11)
+
+O-4 누적 날짜 합계 검증을 구현해 기존 6개 cache 3회·lodash cache 1회의 각 229일×3개 파일,
+총 2,748개 대조에서 실제 count·품질·이력 값이 일치했다. 새 실행의 plan/생성 코드 지문만
+비교에서 제외했다. 6개 표본 중간값은 최초 cache 검증 86.1%, 229일 저장·검증 5.9%, 별도
+전수 검증 20.5% 감소다. 작은 저장 시간의 편차와 lodash 단일 측정의 한계를 기록했다.
+
+O-5의 8/16/32개 실제 전체 source 표본은 모두 준비·계산·229일 최종 검증을 통과했다.
+합계는 147.56/327.30/315.83초다. 32개는 선언 10,118,750개·후보 141,607개를 처리해
+양수 version-date 1,875,271행을 저장했다. 해석 관련 174.18초가 계산·저장의 75.5%이며,
+전역 병합 3.65초와 날짜 저장·종료 검사 26.21초보다 크다. 32개 준비 시간이 16개보다
+짧은 것은 캐시/실행환경 영향을 분리하지 않은 단일 순차 실측으로 기록했다.
+
+전체 회귀 249개(122.776초)·AST 51개 통과, 기존 코드 47개 중 허용한 3개 외 44개와 H4
+생성 지문 보존. 최초 Windows 실행 경로 실패 로그도 보존했다. 표본은 PARTIAL이고
+ready_for_load=false다. 원본 SemVer를 매 날짜 다시 실행한 독립 oracle와 최종 파일 검증을
+구분한다. 전체 검사량 지표 절반을 차지하는 극단 3개·전체 크기 병합/spill 미측정으로 전체
+99,996개 ETA는 확정하지 않는다. A4/A5·H6/H7·EC2·DB·commit·push는 미실행이다.
+
+[20 구현·측정·한계](20-daily-verification-throughput.md),
+[처리량 상세](evidence/daily-throughput-results.json), [회귀 로그](evidence/daily-verification-tests.log),
+[코드 보존](evidence/daily-verification-code-check.json).

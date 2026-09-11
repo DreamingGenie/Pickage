@@ -334,5 +334,88 @@ Windows에서는 venv redirector의 PID와 실제 Python PID가 다를 수 있�
 감지해 실패 기록 후 종료한다. 기존 job은 자동 덮어쓰지 않으며 새 job ID로 실행한다.
 
 고유 조건마다 계산된 target 버전이나 dependents_count를 저장하는 단계는 아니다.
-전체 worker request/response byte, 실제 해석 표본 성능, interval-only production 경로와
-229일 count는 후속 H5 범위다. [자세한 입력·파일·자원·실행 계약](../../docs/worklogs/S15P21A506-193/15-historical-production-run.md)
+이 단계의 후속 계산기는 아래 H5-B 모듈이다.
+[H5-A 입력·파일·자원·실행 계약](../../docs/worklogs/S15P21A506-193/15-historical-production-run.md)
+
+## H5-B 선정 target의 전체 날짜 계산
+
+`historical_production_input`은 고정 H1/H5-A/선정 CSV에서 target 후보와 고유 요구조건,
+원본 source ID·버전·선언 순서를 연결한다. 선정 목록은 target에만 적용한다. 같은 target을
+참조하는 전체 적격 source 버전을 포함하고 선언 수·후보 수를 H5-A와 대조한다.
+
+`historical_production`은 target 이름별 파티션을 만들고 후보/요구조건/응답 크기를 제한해
+기존 npm worker에 요청한다. `historical_production_sql`에서 source별 겹친 구간을 합쳐
+count 변화량을 계산하므로 날짜별 전체 관계 파일을 만들지 않는다. 최종 count는 양수인
+버전·날짜만 Parquet로 저장한다. 0을 복원할 대상은 공통 target population에 별도로 보존한다.
+
+실행 진입점은 `python -m pipeline.version_dependents.historical_production`이다.
+
+- `prepare`: `--h1-dir`, `--h1-manifest-sha256`, `--profile-manifest`,
+  `--profile-manifest-sha256`, `--selection-csv`, `--selection-sha256`, `--output`을 받는다.
+  표본은 `--sample-name <이름>`을 반복한다. 전체 선정 입력은 명시적 `--full-selected`가 필요하다.
+- `run`: `--prepared-dir`, `--manifest-sha256`, `--output`을 받는다. 전체 선정 입력 실행은
+  추가로 `--allow-full-selected`가 필요하다. 기본값으로 전체 실행을 시작하지 않는다.
+- `--resume`: 완료 파티션과 날짜의 최초 지문·코드·값을 검증해 재사용한다.
+  `--max-partitions`와 `--max-snapshots`는 완료 단위 수를 제한하는 검증용 옵션이다.
+- `verify`: `--run-dir`, `--manifest-sha256`으로 파티션→공통 cache→날짜별 결과를 대조한다.
+
+실행 전체의 시간 제한은 없다. 개별 Node 요청 제한은 60초다. DuckDB 기본 자원은 4스레드,
+메모리 4GB, 임시 디스크 40GB이며 파티션 시작 전 여유 공간 20GB를 확인한다. 이 수치는
+프로세스 전체 RSS의 강제 상한이 아니다. 작업용 DuckDB·scratch·로그는 진단용으로 남기고
+완료 영수증에 명시된 파일만 계산 결과로 소비한다.
+
+새 production manifest가 입력/선정 목록/생성 코드/runtime/파티션/cache/날짜별 결과를
+연결한다. H4의 기존 `quality_origin`은 저장 어댑터의 기존 라벨이며, 실제 계산 출처는
+바깥 provenance의 `H5_PRODUCTION_INTERVAL_SQL`이다. 계산 완료 후에도 상위 품질은 PARTIAL,
+`ready_for_load=false`를 유지한다. DB 적재·게시를 수행하는 모듈은 아니다.
+
+`historical_production_verify.verify_sample`은 작은 실제 표본을 매 날짜 기존 해석기로 다시
+계산하고 DISTINCT source 버전 수와 lookup 상태를 비교한다. 최신 진단 Parquet와의 대조도
+지원한다. `historical_production_benchmark`는 후보가 많은 한 패키지의 59개 실제 요구조건만
+측정하는 별도 도구다. [검증 범위와 실측 기록](../../docs/worklogs/S15P21A506-193/16-historical-production-code.md)
+
+production 날짜별 저장은 `historical_production_writer`를 사용한다. 새 날짜는 전수 값 검증을
+한 번 수행하고 완료 표시 직전 SHA·크기를 다시 확인한다. 이전 날짜의 재개 및 `verify`는
+전수 검증을 유지한다. 새 writer SHA를 daily plan에도 기록하므로 기존 H4 파일을 변경하거나
+기존 run의 지문을 바꾸지 않는다. 같은 cache의 229일 저장 비교는 29.297초→23.078초였고,
+count 파일 229개와 품질·이력 값이 일치했다. 전체 선정 패키지의 속도 개선률은 미측정이다.
+[저장 최적화 결과](../../docs/worklogs/S15P21A506-193/17-historical-write-optimization.md)
+
+### 가중치 이벤트 집계 옵션
+
+`run --algorithm weighted-events-v2`는 단일 조건의 source/target 쌍을 조건·birth별 가중치로
+묶고 버전 교체 사건에서 count를 이동한다. 다중 조건의 쌍은 source/target/version 구간
+합집합으로 처리한다. 원본 중복 선언 수와 미해석 상태는 품질 계산에 별도로 보존한다.
+source 품질은 파티션별 최초/마지막 해석·never 요약을 전역으로 합친 뒤 정한다.
+
+기본 알고리즘은 `interval-sql-v1`이다. 새 방식은 `historical-production-run-v2`와 새 코드
+지문을 사용하므로 새 출력 폴더가 필요하다. v2 파티션의 완료 파일은 `lookup_intervals.parquet`,
+`counts.parquet`, `source_summary.parquet`, `status_deltas.parquet`이며 v1의 source delta를
+읽어 혼합 재개하지 않는다. 최종 H4 relation 스키마는 같다. v2의 계산 출처는 provenance의
+`H5_PRODUCTION_WEIGHTED_EVENTS`다. PARTIAL·`ready_for_load=false`는 유지한다.
+
+같은 lodash 전체 source·229일 표본의 집계/전역 품질 3회 중간값은 11.652초→4.831초였다.
+작은 6개 target은 0.501초→1.043초로 느려져 기본값 전환·자동 선택을 하지 않았다.
+이 시간은 입력 준비·해석·날짜별 저장·DB 적재를 포함하지 않는다.
+`historical_weighted_benchmark`는 검증된 legacy SAMPLE lookup 구간으로 두 집계 방식을
+새 프로세스에서 교대 실행하고 모든 날짜 count·품질·모집단을 대조하는 제한된 측정 도구다.
+[구현·실측·재현 기록](../../docs/worklogs/S15P21A506-193/19-weighted-event-aggregation.md)
+
+### 날짜별 검증 합계와 처리량 측정
+
+production cache·날짜 writer는 target 등장 시점과 count 구간의 시작/끝 변화량으로 모든
+스냅샷의 기대 합계를 한 번에 계산한다. 날짜별 최댓값은 범위 최댓값 갱신으로 처리한다.
+날짜마다 대형 테이블을 다시 합산하는 비용을 줄이고 실제 Parquet 모든 값의 양방향 비교,
+스키마·SHA·품질·재개 검사는 유지한다. 이 합계 준비는 각 cache 검증/날짜 writer 단계에서
+한 번 수행한다. 실제 날짜별 파일 읽기·쓰기는 계속 필요하다.
+
+`historical_production_cache`와 `historical_production_daily`의 SHA를 새 cache/run plan에
+포함한다. H4 원본은 그대로이며 이전 run의 지문을 고쳐 재개하지 않는다.
+`historical_daily_benchmark`는 같은 검증된 cache로 변경 전후 writer의 파일 값과 시간을
+비교한다. `historical_throughput_benchmark`는 고정한 중첩 8·16·32개 목록을 사용해
+입력 준비→계산·저장→별도 검증을 순차 실행하는 로컬 Windows 측정 도구다.
+모든 source 선언을 포함하며 자식 프로세스 RSS/CPU와 작업 디스크를 1초 표본으로 기록한다.
+순간 최고값은 놓칠 수 있고, 디스크 최고값은 이전 단계 파일까지 포함한 누적 크기다.
+시작 대비 증가량도 별도 기록한다. 시간 경과에 따른 종료 제한은 없다.
+
+[변경 범위·측정 결과·전체 시간 추정 한계](../../docs/worklogs/S15P21A506-193/20-daily-verification-throughput.md)
