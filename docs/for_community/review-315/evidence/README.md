@@ -44,3 +44,22 @@ cd backend
 로컬 원본 로그는 `.git/community-315-*.log`, Gradle XML은 `backend/build/test-results/`에 있다. 후속 시험은 XML을 덮어쓰므로 증거 JSON을 먼저 저장했다. 원본 로그는 커밋 산출물이 아니며 raw stack trace 전체를 문서에 복사하지 않았다. build plugin timing 경고는 exit 0인 번들 생성 결과와 구분했다.
 
 아직 실행하지 않은 gate는 [검수 결과](../findings.md)의 마지막 절에 명시했다. 실외부·FE 화면·운영 자원 사용량 증거는 여기 없다.
+
+## 수정 후 재현
+
+코드 `ce4dd91` 및 그 이후 문서 커밋에서 다음 정규 시험을 실행한다. Python/Playwright 브라우저 시험은 `probes/browser_regression.py`에 있다. 로컬 Chrome, Node 의존성, Java21, `pickage-local-postgres-1`이 필요하며 시험용 임의 DB만 생성·삭제한다. Python Playwright는 저장소 의존성이 아니며 별도 환경 또는 `.git/phase5-pylibs`에 설치할 수 있다.
+
+```powershell
+cd backend
+.\gradlew.bat test build integrationTest --console=plain
+cd ../frontend
+npm.cmd run typecheck
+npm.cmd run build
+cd ..
+python -X utf8 docs/for_community/review-315/probes/browser_regression.py
+python -X utf8 docs/for_community/review-315/probes/capture_post_fix.py
+```
+
+전체 integrationTest의 기존 PickageApplicationTests는 Spring datasource를 쓰므로 `SPRING_DATASOURCE_URL`을 별도 시험 DB로 지정한다. 새 CommunityAcceptanceIntegrationTest는 자체 disposable DB를 사용한다. 실 GitHub 호출 3개는 opt-in이고 자동 실행에서는 skipped다.
+
+브라우저 최초 스크립트의 `/report`(실제 `/report/:id`)와 textbox/combobox selector, seed의 유사후보 미적재 가정 오류는 시험 harness를 고쳐 해결했다. 제품 변경으로 세지 않는다. 결과 JSON은 최종 성공 실행만 가리킨다. 기능 비교는 기존 sample 화면이고 새 커뮤니티 탭은 포함하지 않는다.

@@ -17,7 +17,7 @@
 | 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | [specs/S15P21A506-213.md](../specs/S15P21A506-213.md) | 없음 (Phase 1과 병행 가능) | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
 | 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
-| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 진행 중(Phase 5 구현·시험, 커밋 후 통합 재검수·MR 진행) |
+| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 진행 중(구현·재검수 완료, Draft MR·외부 인수/사람 리뷰 대기) |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
 GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).

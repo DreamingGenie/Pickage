@@ -1,5 +1,7 @@
 # 요구사항 추적표
 
+수정 전 상태 열은 최초 검수 기준으로 보존한다. **현재 판정**은 아래 최종 대조 및 [전체 재검수](final-review.md)를 따른다.
+
 원문: `../Pickage_GitHub커뮤니티_구현계획_260908.md`, `../../Pickage_요구사항_명세서_0910.md` 확장-03. 미검증은 결함 확정이나 통과가 아니다.
 
 | ID | 원문·목적 | 연결 구현 | 필수 증거 | 상태 |
@@ -25,3 +27,25 @@
 모든 행과 파일 목록에 최종 판정·증거/제약을 남긴다. 확정 결함은 발견 대장의 수정/재검증과 연결한다. FE·외부 미연결을 backend 시험 통과로 대체하지 않는다.
 
 현재 판정은 **수정 전 검수**다. F 번호는 [발견 대장](findings.md), 시험 메서드별 결과는 [evidence](evidence/probe-results.json), 정확한 재현 명령과 baseline 제외 항목은 [검증 기록](evidence/README.md)을 따른다. 단위/DB 반례가 커버하지 않은 전체 인수 조합은 위 상태 열과 Spec §5에 남겼다.
+
+## 최종 대조
+
+| ID | 현재 판정·증거 |
+|---|---|
+| R01 | BE 수정·시험 통과 — URL/Npm/Scope/Verification, private·directory·fallback |
+| R02 | BE/DB 통과 — 동일 topics 집계, 전체 result.json 및 재시작 비교 |
+| R03 | BE 통과 — incomplete0/complete0/365 및 필터 시험 |
+| R04 | BE 통과 — page 조합·101/301 절단·중복·시각/큰ID 순서 |
+| R05 | BE 구조/출처 검증 통과 — 위조·입력 예산·role·실패 집계; C1 의미 평가는 미실시 |
+| R06 | 실제 DB/앱 통과 — 미지원 무시, 손상 S001, 365일·source 복원·전체 wire |
+| R07 | BE 통과 — TTL 경계·전체 실패 retry·외부 gate |
+| R08 | BE/실제 앱 통과 — 최초/오류/no-store/전체 응답/null/stage |
+| R09 | BE 통과 — 50동일/50별개/registry128, queue/run/shutdown |
+| R10 | local HTTP·로그 시험 통과 — body deadline/byte cap, 헤더 제한 공유, sentinel |
+| R11 | 실제 PostgreSQL 통과 — lock timeout/rollback/late connection/취소/복구 |
+| R12 | 전체 BE·FE build 및 mock off 기존 생태계 브라우저 통과; 기존 기능 비교 sample 화면 확인 |
+| R13 | 기존 탭 왕복·입력 경로 확인. FE316 신규 community 탭 인수는 미실시 |
+| R14 | migration·공유 seed4 실행 통과. 실제 외부 3 skipped 및 C6 운영은 미실시 |
+| R15 | 적용 제외(기존 생태계 시계열 책임 유지) |
+
+시험별 결과는 [post-fix-results.json](evidence/post-fix-results.json), 화면/요청은 [browser-results.json](evidence/browser-results.json). 외부 미실시는 내부 통과 수에 포함하지 않는다.
