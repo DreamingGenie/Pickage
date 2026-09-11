@@ -1,31 +1,37 @@
-# 임베딩 모델 산출물 계약 (v6)
+# 임베딩 모델 산출물 계약 (v7)
 
 `ai/similarity` 배치(EC2 #1)가 소비하는 ONNX 모델의 규격. 학습 코드는 GPU 서버(jupyter05)에만
 있으므로 **이 문서가 GPU↔레포 경계의 계약**이다. 값이 바뀌면 이 문서를 먼저 고친다.
 
-상태: **검증 진행 중** (S15P21A506-287). x86 CPU 수치 일치·처리량은 확인됨, held-out recall
-대조·MinIO 저장·tokenizer max_length 확정은 미완.
+상태: **검증 진행 중** (S15P21A506-329). GPU 박스에서 PyTorch vs ONNX 수치 일치·MinIO 업로드는
+확인됨. **v6(S15P21A506-287)와 달리 EC2 #1 CPU 실측(수치 일치·처리량·held-out recall 동등성)은
+아직 안 함** — 배치가 v7을 실제로 쓰기 전에 필요.
+
+v6 대비 학습 데이터·평가 방식이 바뀌었다 (v6의 "계승형/공존형" recall과 v7의 "기능적 대안" recall은
+직접 비교 불가 — 평가셋·태스크 정의가 다름). v6 재파인튜닝은 금지 — v6 학습셋 positive 86%가
+리네임이라 near-duplicate 만 학습된 것으로 판명됨.
 
 ## 모델
 
 | | 값 |
 |---|---|
 | base | `BAAI/bge-small-en-v1.5` (BERT, WordPiece, 384-dim, CLS pooling) |
-| 어댑터 | LoRA `lora_final_v6` (jupyter05 `~/lora_final_v6/`) — 73개 레이어 |
-| 병합 | 레이어 단위 `BaseTunerLayer.merge()` (get_peft_model 미사용 — forward 미전파 버그 회피) |
-| 산출 | `~/merged_bge_v6/` (PyTorch), `~/onnx_bge_v6/` (ONNX) |
-| 학습 상세 | S15P21A506-237 (계승형 recall@3 0.864 / @20 0.945, 공존형 0.833 / 0.972) |
+| 어댑터 | LoRA `lora_final_v7_full10ep` (jupyter05 `~/lora_final_v7_full10ep/`) — r=16, alpha=32, dropout=0.05, target_modules=all-linear, batch32/10epoch/step1310 |
+| 병합 | 레이어 단위 `BaseTunerLayer.merge()` (get_peft_model 미사용 — forward 미전파 버그 회피, v6와 동일) |
+| 산출 | `~/merged_bge_v7_final/` (PyTorch), `~/onnx_bge_v7/` (ONNX) |
+| 학습 스크립트 | `ai/training/finetune_bge_small_lora_v7.py` (레포에 있음, 실행은 jupyter05) |
+| 학습 상세 | S15P21A506-329 (recall@3 **0.153** / recall@10 **0.306**, base 대비 +40% — held-out 도메인-분리 "기능적 대안" 183쌍, 코퍼스 47,530개 중 top-k) |
 
 ## ONNX 파일 (배포 단위)
 
 ```
-model.onnx        (~138 MB)  그래프
-model.onnx.data   (~138 MB)  가중치 (external data) — model.onnx와 반드시 같은 디렉터리에 함께
+model.onnx        (~138 MB)  그래프+가중치 단일 파일 — v6와 달리 external data(.data) 분리 없음
 tokenizer.json                fast tokenizer (self-contained, vocab.txt 불필요)
 tokenizer_config.json
 ```
 
-**`model.onnx` 와 `model.onnx.data` 는 항상 같이 이동한다.** MinIO 업로드·이미지 COPY·scp 모두.
+**v6은 `model.onnx` + `model.onnx.data` 두 파일이 짝이었지만, v7은 크기가 작아 단일 `model.onnx`
+파일 하나로 끝난다.** 배치 코드가 v6 기준으로 두 파일을 다 찾게 돼 있다면 확인 필요.
 
 ## Export 방식 (재현용)
 
@@ -75,7 +81,23 @@ emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
   2 GiB 있고 컨테이너에는 `memswap_limit` 으로 0을 준다**(deploy/prod/README.md 의 "Swap") —
   동시 실행 시 OOM 위험은 그대로다 → AI 배치는 Spark ETL과 시간이 겹치지 않게 cron 스케줄 분리 필요 (미정)
 
-## 검증 기록 (2026-09-09, S15P21A506-287)
+## 검증 기록
+
+### v7 (2026-09-11, S15P21A506-329) — GPU 박스까지만 검증, **EC2 #1 CPU 실측은 아직 안 함**
+
+| 검증 | 결과 |
+|---|---|
+| PyTorch(merged) vs ONNX (GPU 박스) | 최대 오차 0.000000 |
+| held-out recall (`merged_bge_v7_final`, **GPU**, "기능적 대안" 183쌍/47,530 코퍼스) | recall@3 **0.153** / recall@10 **0.306** |
+| held-out recall (베이스라인 bge-small, GPU) | recall@3 0.109 / recall@10 0.251 |
+| ONNX 임베딩: GPU 박스 CPU vs EC2 #1 CPU | **미실측** |
+| 10만건 재임베딩 처리량 (EC2 #1) | **미실측** — v6는 ~20.7분(batch 32)이었으나 아키텍처 동일해도 재확인 권장 |
+
+**미해결(배치가 v7을 쓰기 전에 필요)**: v6(S15P21A506-287)이 했던 것과 같은 EC2 #1 CPU 교차검증
+(수치 일치·처리량·held-out recall 동등성)을 v7으로 아직 안 했다. 이 문서 상태를 "검증 진행 중"으로
+둔 이유.
+
+### v6 (2026-09-09, S15P21A506-287, 참고용 — v7 평가 방식과 직접 비교 불가)
 
 | 검증 | 결과 |
 |---|---|
@@ -93,7 +115,8 @@ emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
 
 ## 저장 위치·보관 정책
 
-- 모델: MinIO `pickage-mlflow-artifacts/models/similar-packages/vN/` — `model.onnx` + `model.onnx.data` + tokenizer + `run_manifest.json` (+ `ref_emb.npy`). 버전당 ~265 MiB.
+- 모델(계약): MinIO `pickage-mlflow-artifacts/models/similar-packages/vN/` — `model.onnx`(+ v6는 `model.onnx.data`) + tokenizer + `run_manifest.json` (+ `ref_emb.npy`). 버전당 ~265 MiB.
+- **모델(v7 실제 업로드, 계약과 경로 다름 — 미해결)**: `pickage-mlflow-artifacts/onnx_bge_v7/`(평평한 구조, 위 계약 경로가 아님) — MinIO 웹 콘솔로 수동 업로드하며 컨벤션을 안 맞춘 것. `model.onnx` + tokenizer 2종 + `run_manifest.json` + `_SUCCESS`, 5개 파일. **배치/로더가 계약 경로(`models/similar-packages/v7/`)를 기대한다면 못 찾는다 — 재배치하거나 계약을 이 경로로 갱신할지 정해야 함.**
 - 벡터: MinIO `pickage-vectors/vN/` — 10만 임베딩, 버전당 ~146 MiB.
 - 학습 데이터: MinIO `pickage-curated/` — `train_combined_vN.jsonl`, `held_out_eval_bundle_vN.json`.
 - MLflow 미배포(S15P21A506-236)라 당분간 수동 업로드.
