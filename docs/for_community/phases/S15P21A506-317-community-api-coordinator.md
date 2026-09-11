@@ -62,10 +62,11 @@ Spec: [`../specs/S15P21A506-317.md`](../specs/S15P21A506-317.md) · 브랜치:
 - **Mockito를 새로 들이지 않음**(이 저장소 기존 관례 — 지금까지 어떤 테스트도 Mockito를
   쓰지 않았다). 213/212/314의 public 메서드가 `final`이 아닌 점을 이용해 하위 클래스
   대역(`Stub*`·`InMemory*`)으로 실제 네트워크·DB 없이 orchestrator/service를 검증
-- **Review**: `/code-review`(전체 diff) — 10건 발견, 이번 Phase가 만든 코드의 결함 4건은
-  즉시 수정(커밋 `8e82435`), 213/212의 기존 파일에 있는 별개 결함 2건은 이 Phase 범위
-  밖이라 완료 기록에만 남김(아래 "남은 것" 참고), 나머지 4건은 이미 문서화된 의도적 절충
-  이거나 저위험 효율성 항목으로 그대로 둠
+- **Review 1차**: `/code-review`(Phase 4 diff만) — 10건 발견, 이번 Phase가 만든 코드의
+  결함 4건은 즉시 수정(커밋 `8e82435`), 213/212의 기존 파일에 있는 별개 결함 2건은 처음엔
+  이 Phase 범위 밖이라 완료 기록에만 남겼으나(아래 6·7번), 2차 리뷰 이후 사용자 확인을
+  거쳐 결국 고쳤다(아래 "2026-09-11 후속: 1~4 Phase 전체 정밀 리뷰" 참고). 나머지 4건은
+  이미 문서화된 의도적 절충이거나 저위험 효율성 항목으로 그대로 둠
   1. **(수정)** `RefreshAdmissionCoordinator`가 `registry.size()`만으로 용량을 판단해
      이미 자기 자리를 차지한(terminal) package의 재시도까지 잘못 거절 — `createOrJoin()`의
      `compute()`는 같은 key를 덮어쓸 뿐 늘리지 않는다는 사실을 반영해 수정
@@ -84,16 +85,16 @@ Spec: [`../specs/S15P21A506-317.md`](../specs/S15P21A506-317.md) · 브랜치:
      루프다. `FakeCommunitySummarizer`가 즉시 반환하는 지금은 예산에 영향이 없지만, 실제
      GMS 클라이언트가 들어오면 20초 예산을 앞당겨 소진시킬 수 있다 — javadoc에 간극을
      명시하고 실제 병렬화는 후속 작업으로 남김
-  6. **(범위 밖, 완료 기록에만 기록)** `IssueCollectionService.collect()`(212, 기존 파일)가
-     선택된 이슈를 순회하는 도중 시간 예산이 떨어지면, 그 전에 이미 수집해 둔
-     `topics`를 전부 버리고 `FetchLimited`(전체 실패)만 반환한다 — 부분 성공
-     (`Success(topics, limitations)`)으로 승격할 수 있는데 못 하고 있다. 213/212 파일을
-     고치지 않는다는 이번 Phase 제약 때문에 고치지 않았다. **후속 Jira 이슈 제안**
-  7. **(범위 밖, 완료 기록에만 기록)** `CommentWindowResolver`(212, 기존 파일)의
+  6. **(2차 리뷰 이후 수정, 커밋 `469c868`)** `IssueCollectionService.collect()`(212,
+     기존 파일)가 선택된 이슈를 순회하는 도중 시간 예산이 떨어지면, 그 전에 이미 수집해 둔
+     `topics`를 전부 버리고 `FetchLimited`(전체 실패)만 반환하고 있었다 — `topics`가
+     비어 있지 않으면 `"TIME_BUDGET_EXCEEDED"` 제한을 남기고 부분 성공(`Success`)으로
+     승격하도록 고쳤다
+  7. **(2차 리뷰 이후 수정, 커밋 `469c868`)** `CommentWindowResolver`(212, 기존 파일)의
      `new BigInteger(sourceCommentId)`가 무방비라, GitHub 응답의 댓글 `id`가 비정상이면
      `NumberFormatException`이 `IssueCollectionService`의 이슈 단위 격리(`TRUNCATED`)를
-     건너뛰고 전체 refresh를 깨뜨릴 수 있다. 같은 이유로 이번 Phase에서 고치지 않음.
-     **후속 Jira 이슈 제안**
+     건너뛰고 전체 refresh를 깨뜨릴 수 있었다 — `GitHubIssueCommentsClient`의 파싱
+     경계에서 `UpstreamFetchException`으로 통일해 기존 격리가 정상 작동하게 고쳤다
   8. **(그대로 둠, 이미 문서화된 절충)** `CommunityRefreshOrchestrator.classify()`가
      213/212의 자유 텍스트 `reason()`을 `retryAt` 유무 + 일부 문자열로 분류 — 213/212에
      구조화된 에러 타입이 없어 생기는 근본적 제약이라 이미 클래스 javadoc에 상세히
@@ -130,6 +131,33 @@ Spec: [`../specs/S15P21A506-317.md`](../specs/S15P21A506-317.md) · 브랜치:
   - [x] raw 예외·prompt·응답·인증을 전역 로그에 흘리지 않음 — `GlobalExceptionHandler`
         재사용(수정 없음), orchestrator는 실패 사유를 `errorCode`로만 응답에 노출
 
+## 2026-09-11 후속 — 1~4 Phase 전체 정밀 리뷰
+
+MR을 올리기 전, 사용자 요청으로 diff가 아니라 `domain/community/**` 전체(이미 develop에
+병합된 314·213 포함)를 대상으로 2차 `/code-review`를 수행했다. 이번엔 이전 리뷰가 남긴
+"범위 밖" 항목까지 실제로 고쳤다 — 212는 아직 develop에 병합되지 않았고, 213의 결함은
+"파일을 안 건드린다"는 절차적 제약보다 실제 정확성이 더 중요하다고 사용자가 판단했다.
+
+발견 4건, 전부 수정:
+
+1. **(가장 심각, 커밋 `7a0ace7`)** 213의 `RepositoryVerificationService.verify()`에
+   예산 개념이 전혀 없었다 — npm 조회 1회 + GitHub 호출 최대 2회를 각각 고정 10초 상한으로
+   순서대로 불러, 셋 다 느리면 검증 단계 혼자 최대 30초까지 걸려 317이 가정하는 20초 전체
+   예산을 이미 넘길 수 있었다. `verify(name, url, Duration)` 오버로드를 추가하고
+   `NpmRepositoryLookup`·`GitHubRepositoryClient`에도 212와 같은 `clampTimeout` 패턴의
+   Duration 오버로드를 추가해 213 전체에 예산을 전파했다. 기존 무인자 메서드들은 그대로
+   두고 새 오버로드에 위임(하위 호환).
+2. `IssueCollectionService.collect()`(212)의 예산 소진 시 부분 결과 폐기 — 위 code-review
+   1차 6번, 커밋 `469c868`으로 수정
+3. `CommentWindowResolver`(212)의 댓글 ID 파싱 무방비 — 위 1차 7번, 커밋 `469c868`으로 수정
+4. `RefreshAdmissionCoordinator`(317)의 TAB_OPENED 대기 큐 초과 거절이 이미 소비한 시작
+   토큰을 돌려주지 않던 것 — join 경합 패자를 환불하는 것(1차 리뷰 2번)과 같은 부류의
+   누수였다. 커밋 `469c868`으로 큐 초과 거절 경로에도 `startTokens.refund()` 추가.
+
+회귀 시험 6개 추가(213의 예산-0/느린 npm 응답 2개, 212의 부분 결과 보존/ID 무방비 2개,
+317의 큐 초과 토큰 환불 1개, 213/212와 317의 이슈/댓글 상한 계약 1개는 1차 리뷰 항목).
+`./gradlew test integrationTest` 전체 재검증 통과.
+
 ## 알려진 단순화 (Swagger·Notion 정본과 맞춰야 할 항목 포함)
 
 - `RefreshStage`의 `REPOSITORY_VERIFY`·`ISSUE_SEARCH`·`GMS` wire 이름은 구현계획 §API
@@ -147,16 +175,17 @@ Spec: [`../specs/S15P21A506-317.md`](../specs/S15P21A506-317.md) · 브랜치:
   세 Phase의 공개 진입점(`RepositoryVerificationService.verify`·
   `IssueCollectionService.collect`·`CommunitySnapshotRepository.upsert`)만 생성자로
   조립해서 부른다
-- 213·212의 기존 파일은 수정하지 않았다(가시성 변경도 없음, 213/212 자체가 이미
-  Phase 3에서 필요한 만큼 공개해 둠). 상수 하나(`CommunityProperties`의 이슈/댓글 상한)만
-  212의 값과 의도적으로 중복시키고 계약 시험으로 어긋남을 잡는다
-- 314의 `CommunitySnapshotRepository`도 수정하지 않았다 — `CommunityRefreshOrchestrator`가
-  `CommunitySnapshotRow`/payload record를 그대로 만들어 넘긴다
+- **최초 구현(3단계 커밋)까지는 213·212의 기존 파일을 수정하지 않았다.** 이후 2026-09-11
+  1~4 Phase 전체 정밀 리뷰에서 실제 결함 3건(213의 예산 전파 부재, 212의 부분 결과 폐기·
+  댓글 ID 파싱)이 드러나 사용자 확인을 거쳐 직접 고쳤다(위 "2026-09-11 후속" 절). 상수 하나
+  (`CommunityProperties`의 이슈/댓글 상한)는 여전히 212의 값과 의도적으로 중복시키고
+  계약 시험으로 어긋남을 잡는다
+- 314의 `CommunitySnapshotRepository`는 끝까지 수정하지 않았다 —
+  `CommunityRefreshOrchestrator`가 `CommunitySnapshotRow`/payload record를 그대로 만들어
+  넘긴다
 
 ## 남은 것 / 다음 Phase(315)에 넘기는 것
 
-- 위 code-review 6·7번(212의 예산 소진 시 부분 결과 폐기, 댓글 ID 파싱 무방비) — 후속
-  Jira 이슈로 분리 제안, 사용자 확인 필요
 - `RefreshStage`의 추정 wire 이름 3개 — Swagger·Notion 정본 확정 시 재확인
 - GMS 실제 Responses API 연동 — 현재 Jira에 없음, 필요 시 새 이슈
 - `GITHUB_COMMUNITY_TOKEN`/`GMS_API_KEY` 실제 값 운영 주입 방식 — 인프라 경계, 이 Phase가
@@ -167,6 +196,9 @@ Spec: [`../specs/S15P21A506-317.md`](../specs/S15P21A506-317.md) · 브랜치:
 ## 커밋 전 최종 확인
 
 - 3단계 커밋 각각 컴파일·관련 테스트가 되는 상태로 커밋(Spec §7 승인 사항)
-- 변경 파일이 Spec §2 범위(`domain/community/**` 신규 파일 + `CommunityProperties`·
-  `CommunityConfig` 보강)를 벗어나지 않음 — 213·212·314의 기존 파일 수정 없음
-- `/code-review` 발견 사항 중 이번 Phase 범위 안의 4건은 전부 반영하고 재검증(`8e82435`)
+- 최초 구현은 Spec §2 범위(`domain/community/**` 신규 파일 + `CommunityProperties`·
+  `CommunityConfig` 보강)를 벗어나지 않았음 — 213·212·314의 기존 파일 수정 없음. 이후
+  2026-09-11 전체 정밀 리뷰에서 213·212의 실제 결함을 사용자 확인 후 직접 수정(위
+  "2026-09-11 후속" 절) — 314는 끝까지 미수정
+- `/code-review` 1차 발견 사항 중 이번 Phase 범위 안의 4건은 `8e82435`로 반영, 2차(전체
+  정밀 리뷰) 발견 4건은 `469c868`·`7a0ace7`로 반영, 전체 재검증 완료
