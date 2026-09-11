@@ -1,0 +1,819 @@
+{
+  "baseline": 234,
+  "after": 240,
+  "changed": 107,
+  "missing": [],
+  "errors": [],
+  "mismatches": [],
+  "protected": 127,
+  "titleChanges": 35,
+  "epicMoves": 47,
+  "newIssues": [
+    {
+      "key": "S15P21A506-321",
+      "title": "[기획] Jira 에픽·업무 접두사·파트 분류 정리"
+    },
+    {
+      "key": "S15P21A506-322",
+      "title": "[확장] 통합 PDF·ReportSnapshot"
+    },
+    {
+      "key": "S15P21A506-323",
+      "title": "[확장] GitHub 커뮤니티 현황"
+    },
+    {
+      "key": "S15P21A506-324",
+      "title": "[확장] 버전 고착 분석"
+    },
+    {
+      "key": "S15P21A506-325",
+      "title": "[확장] 간접·전이 Dependency 분석"
+    },
+    {
+      "key": "S15P21A506-326",
+      "title": "[확장] 유지·유입·이탈 분석"
+    }
+  ],
+  "changes": [
+    {
+      "key": "S15P21A506-28",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-31",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-32",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-110",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-112",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-113",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-114",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-115",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-116",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-117",
+      "fields": [
+        "summary",
+        "description",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-119",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-120",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-121",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-123",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-124",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-125",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-126",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-127",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-128",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-129",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-130",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-131",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-132",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-134",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-135",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-141",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-143",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-144",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-146",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-147",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-148",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-168",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-170",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-171",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-172",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-173",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-174",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-175",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-176",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-177",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-178",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-179",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-180",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-182",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-183",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-187",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-188",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-189",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-190",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-191",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-195",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-196",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-197",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-198",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-199",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-200",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-201",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-202",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-203",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-204",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-205",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-206",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-207",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-208",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-209",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-210",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-212",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-213",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-217",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-218",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-219",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-220",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-221",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-223",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-224",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-225",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-236",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-249",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-250",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-251",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-252",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-253",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-256",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-257",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-258",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-259",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-262",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-263",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-264",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-265",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-266",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-268",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-273",
+      "fields": [
+        "summary",
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-291",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-292",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-297",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-299",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-308",
+      "fields": [
+        "summary",
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-309",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-310",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-311",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-312",
+      "fields": [
+        "labels"
+      ]
+    },
+    {
+      "key": "S15P21A506-313",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-314",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-315",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-316",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    },
+    {
+      "key": "S15P21A506-317",
+      "fields": [
+        "parent",
+        "labels",
+        "epicLink"
+      ]
+    }
+  ],
+  "serializationNotes": "라벨 순서 및 Jira Markdown 직렬화의 대괄호·물결표·밑줄 이스케이프/줄 끝 공백만 정규화했다. 기존 일반 업무 본문과 보호 필드는 원문 그대로 비교했다."
+}

@@ -1,0 +1,279 @@
+[
+  {
+    "key": "S15P21A506-111",
+    "changes": [
+      {
+        "historyId": "13501243",
+        "time": "2026-09-11T04:03:08.156+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] 생태계 변화 분석 (1페이지)",
+        "to": "[MVP] 생태계 변화 분석 (1페이지)"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] 생태계 변화 분석 (1페이지)",
+      "duedate": "2026-09-13"
+    },
+    "current": {
+      "summary": "[MVP] 생태계 변화 분석 (1페이지)",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-115",
+    "changes": [
+      {
+        "historyId": "13501244",
+        "time": "2026-09-11T04:03:32.709+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[운영] 프런트엔드 UI·UX 이력",
+        "to": "[MVP] 프런트엔드 UI·UX 이력"
+      },
+      {
+        "historyId": "13501148",
+        "time": "2026-09-11T03:58:02.979+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] 프런트엔드 UI·UX 이력",
+        "to": "[운영] 프런트엔드 UI·UX 이력"
+      },
+      {
+        "historyId": "13501128",
+        "time": "2026-09-11T03:55:39.634+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": "2026-09-20 00:00:00.0",
+        "to": "2026-09-13 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] 프런트엔드 UI·UX 이력",
+      "duedate": "2026-09-20"
+    },
+    "current": {
+      "summary": "[MVP] 프런트엔드 UI·UX 이력",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-117",
+    "changes": [
+      {
+        "historyId": "13501246",
+        "time": "2026-09-11T04:03:55.423+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] AI 모델·후보검색·근거설명 이력",
+        "to": "[MVP] AI 모델·후보검색·근거설명 이력"
+      },
+      {
+        "historyId": "13501125",
+        "time": "2026-09-11T03:55:27.854+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": "2026-09-20 00:00:00.0",
+        "to": "2026-09-13 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] AI 모델·후보검색·근거설명 이력",
+      "duedate": "2026-09-20"
+    },
+    "current": {
+      "summary": "[MVP] AI 모델·후보검색·근거설명 이력",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-137",
+    "changes": [
+      {
+        "historyId": "13501189",
+        "time": "2026-09-11T04:00:31.077+0900",
+        "author": "오세진[서울]",
+        "field": "customfield_10015",
+        "from": "2026/09/19",
+        "to": "2026/09/10"
+      },
+      {
+        "historyId": "13501189",
+        "time": "2026-09-11T04:00:31.077+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": "2026-09-20 00:00:00.0",
+        "to": "2026-09-11 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "확장-03 GitHub 커뮤니티 현황",
+      "duedate": "2026-09-20"
+    },
+    "current": {
+      "summary": "확장-03 GitHub 커뮤니티 현황",
+      "duedate": "2026-09-11"
+    }
+  },
+  {
+    "key": "S15P21A506-308",
+    "changes": [
+      {
+        "historyId": "13501232",
+        "time": "2026-09-11T04:02:31.222+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] 후보 입력 변경 시 미정의 setError 호출로 typecheck 실패",
+        "to": "[FE] [수정] 후보 입력 변경 시 미정의 setError 호출로 typecheck 실패"
+      },
+      {
+        "historyId": "13501133",
+        "time": "2026-09-11T03:56:41.613+0900",
+        "author": "오세진[서울]",
+        "field": "customfield_10015",
+        "from": null,
+        "to": "2026/09/07"
+      },
+      {
+        "historyId": "13501133",
+        "time": "2026-09-11T03:56:41.613+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": null,
+        "to": "2026-09-13 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] 후보 입력 변경 시 미정의 setError 호출로 typecheck 실패",
+      "duedate": null
+    },
+    "current": {
+      "summary": "[FE] [수정] 후보 입력 변경 시 미정의 setError 호출로 typecheck 실패",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-309",
+    "changes": [
+      {
+        "historyId": "13501233",
+        "time": "2026-09-11T04:02:33.323+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] 후보 3개 노출·직접 추가 검증·안내 보완",
+        "to": "[FE] [보완] 후보 3개 노출·직접 추가 검증·안내 보완"
+      },
+      {
+        "historyId": "13501134",
+        "time": "2026-09-11T03:56:42.528+0900",
+        "author": "오세진[서울]",
+        "field": "customfield_10015",
+        "from": null,
+        "to": "2026/09/07"
+      },
+      {
+        "historyId": "13501134",
+        "time": "2026-09-11T03:56:42.528+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": null,
+        "to": "2026-09-13 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] 후보 3개 노출·직접 추가 검증·안내 보완",
+      "duedate": null
+    },
+    "current": {
+      "summary": "[FE] [보완] 후보 3개 노출·직접 추가 검증·안내 보완",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-311",
+    "changes": [
+      {
+        "historyId": "13501235",
+        "time": "2026-09-11T04:02:38.455+0900",
+        "author": "오세진[서울]",
+        "field": "summary",
+        "from": "[기능] 로그축·계열별 축적 상태·표시기간 증감 보완",
+        "to": "[FE] [보완] 로그축·계열별 축적 상태·표시기간 증감 보완"
+      },
+      {
+        "historyId": "13501132",
+        "time": "2026-09-11T03:56:31.128+0900",
+        "author": "오세진[서울]",
+        "field": "customfield_10015",
+        "from": null,
+        "to": "2026/09/07"
+      },
+      {
+        "historyId": "13501132",
+        "time": "2026-09-11T03:56:31.128+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": null,
+        "to": "2026-09-13 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[기능] 로그축·계열별 축적 상태·표시기간 증감 보완",
+      "duedate": null
+    },
+    "current": {
+      "summary": "[FE] [보완] 로그축·계열별 축적 상태·표시기간 증감 보완",
+      "duedate": "2026-09-13"
+    }
+  },
+  {
+    "key": "S15P21A506-322",
+    "changes": [
+      {
+        "historyId": "13501137",
+        "time": "2026-09-11T03:57:32.751+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": null,
+        "to": "2026-09-20 00:00:00.0"
+      },
+      {
+        "historyId": "13501136",
+        "time": "2026-09-11T03:57:29.509+0900",
+        "author": "오세진[서울]",
+        "field": "customfield_10015",
+        "from": null,
+        "to": "2026/09/07"
+      }
+    ],
+    "baseline": {
+      "summary": "[확장] 통합 PDF·ReportSnapshot",
+      "duedate": null
+    },
+    "current": {
+      "summary": "[확장] 통합 PDF·ReportSnapshot",
+      "duedate": "2026-09-20"
+    }
+  },
+  {
+    "key": "S15P21A506-326",
+    "changes": [
+      {
+        "historyId": "13501161",
+        "time": "2026-09-11T03:58:34.727+0900",
+        "author": "오세진[서울]",
+        "field": "duedate",
+        "from": null,
+        "to": "2026-09-20 00:00:00.0"
+      }
+    ],
+    "baseline": {
+      "summary": "[확장] 유지·유입·이탈 분석",
+      "duedate": null
+    },
+    "current": {
+      "summary": "[확장] 유지·유입·이탈 분석",
+      "duedate": "2026-09-20"
+    }
+  }
+]
