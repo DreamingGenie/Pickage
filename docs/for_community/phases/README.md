@@ -13,8 +13,8 @@
 
 | Phase | Jira | 담당 파트 라벨 | 브랜치 (예정/실제) | Spec | 의존 | 상태 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | [S15P21A506-314](https://ssafy.atlassian.net/browse/S15P21A506-314) [BE][구현] 커뮤니티 Snapshot 저장·재시작 복원·TTL | 백엔드 | `api/feat/S15P21A506-314-community-snapshot-storage` | [specs/S15P21A506-314.md](../specs/S15P21A506-314.md) | 없음 | 대기 |
-| 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | (Phase 착수 시 작성) | 없음 (Phase 1과 병행 가능) | 대기 |
+| 1 | [S15P21A506-314](https://ssafy.atlassian.net/browse/S15P21A506-314) [BE][구현] 커뮤니티 Snapshot 저장·재시작 복원·TTL | 백엔드 | `api/feat/S15P21A506-314-community-snapshot-storage` | [specs/S15P21A506-314.md](../specs/S15P21A506-314.md) | 없음 | 완료(구현+테스트+리뷰, MR 대기) |
+| 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | (Phase 착수 시 작성) | 없음 (Phase 1과 병행 가능) | 진행 중 |
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | (Phase 착수 시 작성) | Phase 2 (213 검증 결과 필요) | 대기 |
 | 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | (Phase 착수 시 작성) | Phase 1·2·3 산출물 | 대기 |
 | 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/test/S15P21A506-315-community-integration-acceptance` | (Phase 착수 시 작성) | Phase 4 | 대기 |
@@ -39,4 +39,14 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
 
 완료된 Phase가 생기면 이 표의 상태 열을 갱신하고, 새 기록 파일 링크를 이 절 아래에 추가한다.
 
-(아직 완료된 Phase 없음)
+- [Phase 1 — S15P21A506-314](S15P21A506-314-community-snapshot-storage.md) 구현·테스트·
+  리뷰 완료(2026-09-11). 각자 브랜치의 MR은 아직 열지 않음.
+
+## WIP=1 예외 기록
+
+2026-09-11, Phase 1(314) 코딩·테스트·리뷰를 마치고 커밋한 뒤 곧바로 Phase 2(213) 착수를
+지시받았다. 314의 MR은 아직 열리지 않은 상태다. 엄밀한 WIP=1(진행 중 브랜치가 하나)을
+깨지만, 213은 314와 코드·DB 스키마 어디에서도 겹치지 않는 독립 착수 대상으로 이미 표시돼
+있었고(위 표), 314 쪽에 남은 일은 "코딩"이 아니라 "리뷰/병합 대기"뿐이라 실질적인 동시
+코딩 상태는 아니다. 그래서 이 규칙의 의도(같은 시점에 여러 Phase를 동시에 *구현*하지 않는다)는
+지키는 것으로 보고 진행한다.
