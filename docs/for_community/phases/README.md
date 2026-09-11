@@ -16,7 +16,7 @@
 | 1 | [S15P21A506-314](https://ssafy.atlassian.net/browse/S15P21A506-314) [BE][구현] 커뮤니티 Snapshot 저장·재시작 복원·TTL | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy`(!111에 병합됨) | [specs/S15P21A506-314.md](../specs/S15P21A506-314.md) | 없음 | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | [specs/S15P21A506-213.md](../specs/S15P21A506-213.md) | 없음 (Phase 1과 병행 가능) | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
-| 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | (Phase 착수 시 작성) | Phase 1·2·3 산출물 | 대기 |
+| 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
 | 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/test/S15P21A506-315-community-integration-acceptance` | (Phase 착수 시 작성) | Phase 4 | 대기 |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
@@ -53,6 +53,11 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
 - [Phase 3 — S15P21A506-212](S15P21A506-212-issue-comment-collection.md) 구현·테스트·
   리뷰 완료(2026-09-11). 이번엔 harness 문서가 이미 develop에 있어 브랜치 분기 시점
   문제(위 "브랜치 분기 시점 문제" 절)가 재발하지 않음.
+- [Phase 4 — S15P21A506-317](S15P21A506-317-community-api-coordinator.md) 구현·테스트·
+  리뷰 완료(2026-09-11). 213·212·314를 실제로 조합하는 유일한 지점 — 3단계 커밋(DTO·설정 →
+  registry·coordinator → orchestrator·controller·service)으로 진행, `/code-review`에서
+  이번 Phase 범위의 결함 4건 발견·즉시 수정. 212의 기존 파일에 있는 별개 결함 2건은
+  완료 기록에만 남기고 후속 Jira 이슈로 분리 제안.
 
 ## WIP=1 예외 기록
 
