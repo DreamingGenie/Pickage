@@ -410,7 +410,7 @@ def write_output(
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="유사 패키지 후보 배치 (§4.1)")
     p.add_argument("--package-text", required=True, help="package_text parquet 경로")
-    p.add_argument("--model-dir", required=True, help="onnx_bge_v6 디렉터리 (model.onnx + tokenizer)")
+    p.add_argument("--model-dir", required=True, help="onnx_bge_vN 디렉터리 (model.onnx + tokenizer) — 버전은 ai/MODEL_CONTRACT.md 기준")
     p.add_argument("--out", required=True, help="산출물 디렉터리")
     p.add_argument("--raw-text-column", default=None,
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")

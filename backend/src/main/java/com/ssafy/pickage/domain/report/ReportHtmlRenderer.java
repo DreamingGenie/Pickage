@@ -206,16 +206,40 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
-	 * 폰트 이름이 {@link HtmlToPdf#FAMILY} 와 <b>같아야 한다.</b> 다르면 PDF 에서 한글이
+	 * 첫 이름이 {@link HtmlToPdf#FAMILY} 와 <b>같아야 한다.</b> 다르면 PDF 에서 한글이
 	 * 통째로 빠진다. 그래서 상수에서 끌어다 쓴다.
 	 *
-	 * <p>뒤에 시스템 폰트를 함께 적는 이유는 <b>미리보기 때문</b>이다. 브라우저에는 그 이름의
-	 * 폰트가 없으므로, 없으면 다음 것으로 넘어가게 해 둬야 모달에서 글자가 깨지지 않는다.
+	 * <h2>같은 문서가 두 곳에서 같은 글꼴로 보여야 한다</h2>
+	 *
+	 * {@code ReportKorean} 은 <b>변환기에만 등록한 이름</b>이라 브라우저에는 없다. 그대로
+	 * 두면 미리보기는 다음 차례인 시스템 폰트로 떨어져, 문서 내용은 같은데 <b>글꼴만 달라
+	 * 보인다.</b>
+	 *
+	 * <p>그래서 화면용 웹폰트를 {@code @media screen} 안에 둔다. 변환기는 {@code print}
+	 * 매체로 그리므로 이 블록을 아예 보지 않는다 — 있지도 않은 주소를 받으러 가지 않고,
+	 * 브라우저만 내려받는다. 매체로 가르지 않으면 변환 때마다 실패하는 요청이 하나 생긴다.
+	 *
+	 * <p>주소가 상대 경로인 것이 중요하다. {@code srcDoc} 은 부모 문서를 기준으로 해석하므로
+	 * 앱이 어느 주소에 있든 같은 오리진에서 받아 온다.
 	 */
 	private static String css() {
 		return """
+			@media screen {
+			  @font-face {
+			    font-family: 'PretendardScreen';
+			    src: url('/fonts/Pretendard-Regular.woff2') format('woff2');
+			    font-weight: 400;
+			    font-display: swap;
+			  }
+			  @font-face {
+			    font-family: 'PretendardScreen';
+			    src: url('/fonts/Pretendard-Bold.woff2') format('woff2');
+			    font-weight: 700;
+			    font-display: swap;
+			  }
+			}
 			@page { size: A4; margin: 18mm 16mm; }
-			body { font-family: '%s', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+			body { font-family: '%s', 'PretendardScreen', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
 			       font-size: 11pt; line-height: 1.6; color: #111827; }
 			h1 { font-size: 20pt; margin: 0 0 4px; }
 			h2 { font-size: 13pt; margin: 22px 0 8px; padding-bottom: 4px;

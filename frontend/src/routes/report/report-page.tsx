@@ -1,12 +1,15 @@
-import { ArrowLeftIcon } from 'lucide-react'
+import { ArrowLeftIcon, FileDownIcon } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
+import type { PdfJob } from '@/api/types'
 import { paths } from '@/app/routes'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EvidenceDrawer } from '@/routes/report/_components/evidence-drawer'
+import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
+import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 
 /**
@@ -62,6 +65,15 @@ export function ReportPage() {
   const tab: ReportTab = evidenceId ? 'features' : picked
   const run = useAnalysisRun()
 
+  /**
+   * PDF 내보내기. 두 모달이 이어진다 — 내보내기(생성)가 닫히고 미리보기가 열린다.
+   *
+   * 만들어진 보고서를 여기서 들고 있는 이유는, 미리보기를 닫았다가 다시 열 때
+   * **문서를 다시 만들지 않기 위해서**다(요구사항 §13.2 · 기능-16-R08).
+   */
+  const [exporting, setExporting] = useState(false)
+  const [preview, setPreview] = useState<PdfJob | null>(null)
+
   function closeEvidence() {
     const next = new URLSearchParams(searchParams)
     next.delete('evidence')
@@ -94,6 +106,11 @@ export function ReportPage() {
           </Button>
           <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze)}>
             새 분석
+          </Button>
+          {/* 기능-05-R03 — 상단 우측. 보고서 어느 탭에 있든 같은 자리에 있어야 한다 */}
+          <Button size="sm" onClick={() => setExporting(true)}>
+            <FileDownIcon className="size-3.5" aria-hidden />
+            PDF 내보내기
           </Button>
         </div>
       </header>
@@ -130,6 +147,19 @@ export function ReportPage() {
       </Tabs>
 
       <EvidenceDrawer evidenceId={evidenceId} onClose={closeEvidence} />
+
+      <PdfExportDialog
+        open={exporting}
+        onOpenChange={setExporting}
+        packages={packages}
+        onPreview={(job) => {
+          // 생성 모달을 닫고 미리보기로 넘긴다. 둘이 겹쳐 뜨면 어느 쪽을 닫는 것인지
+          // 알 수 없고, 뒤 모달의 포커스 덫에 갇힌다.
+          setExporting(false)
+          setPreview(job)
+        }}
+      />
+      <PdfPreviewDialog job={preview} onOpenChange={(open) => !open && setPreview(null)} />
     </div>
   )
 }

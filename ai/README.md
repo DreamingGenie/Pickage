@@ -47,6 +47,8 @@
 - CPU 추론 처리량 (더미벡터): EC2 #1에서 10만×384dim flat cosine top-20 = 110.9초 — S15P21A506-169 (티켓엔 "t4g/ARM"으로 기재됐으나 실측 노드는 x86_64)
 - **ONNX export 완료 (2026-09-09)**: `lora_final_v6` merge → `onnx_bge_v6/model.onnx` (opset 18, legacy TorchScript exporter, `dynamo=False`). GPU에서 PyTorch vs ONNX 오차 0.000000. pooling(CLS)+L2 정규화는 ONNX **밖**. — S15P21A506-287
 - 유사도 배치 컨테이너 골격 (`ai/similarity/`) — S15P21A506-282
+- 배치 본체 구현 + 2단계 랭커(검색 top-30 → 구조적 관문 → cos 정렬) — MR !102, S15P21A506-168, 2026-09-11 develop 머지
+- **v7 모델로 교체 (2026-09-11)** — S15P21A506-329. v6는 학습셋 positive 86%가 리네임이라 near-duplicate만 학습된 것으로 판명(재파인튜닝 금지). v7은 새 학습셋(`ai/training/train_v7_hiconf_norebrand.jsonl`)으로 재학습, held-out "기능적 대안" recall@3 **0.153**(base 대비 +40%). ONNX export·MinIO 업로드까지 완료, 상세 스펙은 `ai/MODEL_CONTRACT.md` 참고. **v6가 했던 EC2 #1 CPU 실측 검증(S15P21A506-287)은 v7으로 아직 안 함 — 미해결.**
 
 **진행 중 / 블로커**
 
@@ -69,10 +71,10 @@
 | 2 | `run_pipeline.sh` TODO 채우기 — 3개 스크립트 `--help` 확인, `TRAIN_CMD` 하이퍼파라미터, `prepare_training_format()`, `run_manifest.json` | 신규 |
 | 3 | 학습 + ONNX export (MLflow 제외). 산출물 수동 저장 | Step 2 티켓 |
 | 4 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
-| 5 | `ai/MODEL_CONTRACT.md` — Step 4 실측 스펙(입출력 텐서·전처리·정규화·저장 경로)으로 계약 고정. 배치(168) 선행 | 신규 또는 168 서브 |
+| 5 | `ai/MODEL_CONTRACT.md` v7 갱신 — **완료**, 단 EC2 CPU 실측·저장 경로 불일치는 미해결 | S15P21A506-329 |
 | 6 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인) | S15P21A506-169 |
 | 7 | 인프라: MLflow 배포(B6) → `register_mlflow` 활성화 → @candidate/@production 경로 | S15P21A506-236 |
-| 8 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) | S15P21A506-168 |
+| 8 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) — **완료**, 2026-09-11 develop 머지 | MR !102, S15P21A506-168 |
 | 9 | `similar_packages` 로더 (방식 C의 LOAD). `pipeline/postgresql/load.py` 패턴 재사용 | 신규 |
 | — | 제외 규칙·오추천 필터·재현성 검증 | S15P21A506-172, 173, 174 |
 

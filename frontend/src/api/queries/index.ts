@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import {
   fetchDependentsTrend,
@@ -7,8 +7,10 @@ import {
   fetchDownloadsTrend,
   fetchPackageSearch,
   fetchPackagesOverview,
+  fetchPdfPreview,
   fetchSimilarPackages,
   fetchVersionShare,
+  generatePdf,
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
 import { ApiError } from '@/api/client'
@@ -78,6 +80,40 @@ export function usePackageSearch(q: string, enabled: boolean, limit?: number) {
     // 서버가 1시간 캐시한다(§2.4). 같은 접두사를 두 번 두드려도 다시 안 나간다.
     staleTime: 60 * 60_000,
     retry,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-14 보고서 PDF
+ * ------------------------------------------------------------------ */
+
+/**
+ * 문서 생성.
+ *
+ * **`useQuery` 가 아니라 `useMutation` 이다.** 조회가 아니라 동작이다 — 누를 때만 일어나야
+ * 하고, 화면이 다시 그려졌다고 문서가 또 만들어지면 안 된다.
+ *
+ * 재시도하지 않는다. 실패하면 사용자가 다시 누르는 것이 맞다. 무거운 작업이라 조용한
+ * 재시도는 서버 일을 두 배로 만들면서 화면에는 아무것도 안 보인다.
+ */
+export function useGeneratePdf() {
+  return useMutation({ mutationFn: generatePdf, retry: false })
+}
+
+/**
+ * 미리보기 HTML.
+ *
+ * `reportId` 가 있을 때만 받는다 — 모달이 열리기 전에는 보고서가 없다.
+ * 같은 보고서는 내용이 절대 바뀌지 않으므로 무한히 캐시한다.
+ */
+export function usePdfPreview(reportId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.report.preview(reportId ?? ''),
+    queryFn: () => fetchPdfPreview(reportId as string),
+    enabled: Boolean(reportId),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
   })
 }
 
