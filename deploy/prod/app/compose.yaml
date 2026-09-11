@@ -38,6 +38,14 @@ services:
       retries: 10
       start_period: 10s
     mem_limit: 2g
+    # memswap_limit 을 mem_limit 과 **같게** 두는 것은 "이 컨테이너에 스왑을 0 준다" 는 뜻이다.
+    # 이 줄을 빼면 Docker 가 총량을 mem_limit 의 2배로 잡아서, 호스트에 스왑이 생긴 뒤로는
+    # **2g 짜리 상한이 조용히 4g 가 된다.** 이유와 확인 방법은 ../README.md 의 "Swap".
+    #
+    # postgres 에 스왑을 주지 않는 이유: shared_buffers 가 디스크로 밀리면 죽지 않고
+    # **모든 쿼리가 같이 느려진다.** 사용자에게는 장애로 보이는데 컨테이너는 살아 있어서
+    # `docker ps` 로도 OOM 기록으로도 안 잡힌다. 차라리 죽고 restart 로 돌아오는 게 낫다.
+    memswap_limit: 2g
 
   api:
     # 로컬처럼 build: 만 두지 않는다. 운영에서 뜨는 것은 "지금 체크아웃된 소스" 가 아니라
@@ -63,7 +71,7 @@ services:
       # 컨테이너 상한의 몇 %를 힙으로 쓸지. 기본값이 25% 라 그냥 두면
       # 1.6g 중 400MB 만 힙으로 쓰고 나머지를 놀린다.
       # 100 으로 두지 않는 이유: 힙 밖에도 메타스페이스·스레드 스택·GC 구조가 있고,
-      # 이 서버는 Swap 이 0 이라 상한을 넘기는 순간 완충 없이 즉시 OOM Kill 이다.
+      # 이 컨테이너에는 스왑을 0 주므로(memswap_limit) 상한을 넘기는 순간 즉시 OOM Kill 이다.
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70"
     ports:
       # 루프백에만 연다. 밖에서 오는 요청은 전부 nginx(443)를 지난다.
@@ -80,6 +88,7 @@ services:
       # 이게 짧으면 정상 기동 중인 컨테이너가 unhealthy 로 죽어서 재시작 루프에 빠진다.
       start_period: 60s
     mem_limit: 1.6g
+    memswap_limit: 1.6g   # 스왑 0. 위 postgres 의 주석 참고
     # ↑ 로컬 compose.yaml 의 api 와 같은 값. 로컬에서 미리 걸리라고 맞춰 둔 것이다.
 
   web:
@@ -112,6 +121,7 @@ services:
       retries: 6
       start_period: 10s
     mem_limit: 256m
+    memswap_limit: 256m   # 스왑 0. nginx 가 스왑되면 들어오는 요청 전부가 같이 느려진다
 
   # ── Spark worker② (상시) ───────────────────────────────────────
   #
@@ -124,14 +134,16 @@ services:
   #    소켓은 호스트 root 와 동등한 권한이다. **1GB 아끼자고 치를 값이 아니다.**
   # 2. **아끼는 게 생각보다 없다.** mem_limit 은 상한이지 예약이 아니라서,
   #    놀고 있는 worker 데몬은 6.5g 가 아니라 1GB 안팎을 쓴다.
-  # 3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과
+  # 3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 5g 가 사용자 트래픽과
   #    부딪히는 것인데, 그건 컨테이너를 5분 전에 띄웠든 5일 전에 띄웠든 똑같다.
   #
   # 되돌릴 조건: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
   # 그때는 실측이 있으니 판단 근거가 생긴다. (설계 문서는 "배치 시각만" 으로 되어 있다)
   #
   # ⚠ 이 노드의 여유는 얇다. postgres 2g + api 1.6g + web 0.25g 위에 배치 중
-  #   executor 6g 가 얹히고 **Swap 이 0** 이다. 배치 중에 배포까지 겹치면 빌드가
+  #   worker②(executor 5g + 데몬 ~1g)가 얹힌다. 호스트에 스왑 2g 가 있지만
+  #   **컨테이너에는 0 을 준다**
+  #   (memswap_limit — ../README.md 의 "Swap"). 배치 중에 배포까지 겹치면 빌드가
   #   메모리를 더 먹는다 — 배치 시각에는 배포하지 않는 것이 맞다.
   #
   # ⚠ network_mode: host 다. 이유는 data 노드 compose 의 같은 주석 참고.
@@ -147,7 +159,8 @@ services:
       - --cores
       - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
       - --memory
-      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 6g}"
+      # ⚠ mem_limit 6.5g 에서 데몬·비힙 몫을 뺀 값이다. .env.example 의 산수를 볼 것.
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 5g}"
       # master 가 executor 를 띄우라고 이 포트로 되연결한다. 고정하지 않으면
       # 임의 포트라 방화벽을 통과하지 못하고 job 이 조용히 멈춘다.
       - --port
@@ -165,6 +178,7 @@ services:
       - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
     env_file: ./.env
     mem_limit: 6.5g
+    memswap_limit: 6.5g   # 스왑 0. Spark 에 주면 안 되는 이유는 data/compose.yaml 의 worker① 주석
 
 volumes:
   # 운영 DB. `down -v` 를 치면 여기가 사라진다 — README 의 경고를 볼 것.

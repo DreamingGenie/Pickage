@@ -5,7 +5,13 @@
 
     spark-submit --master spark://<master>:7077 \
       --total-executor-cores 2 --executor-cores 1 --executor-memory 512m \
+      --driver-memory 1g \
       /opt/work/spark/smoke_distribution.py
+
+driver 는 worker① 컨테이너 안에서 돌아 executor 와 상한을 공유한다.
+--driver-memory 가 기본값(1g)과 같아도 적어 두는 이유는, worker① 의 mem_limit
+계산이 그 값에 의존한다는 것을 그렇지 않으면 아무도 모르기 때문이다
+(deploy/prod/data/.env.example 의 산수).
 
 확인하는 것 넷:
   1. executor 가 **두 개 이상의 호스트**에 뜬다  ← 분산 증빙 (요구사항 10.1)

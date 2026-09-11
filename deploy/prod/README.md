@@ -178,6 +178,176 @@ GitHub Actions 의 Secrets 에 해당하는 것이 **Settings → CI/CD → Vari
 > `openssl rand -base64 24` 결과에 섞이는 `+` `/` `=` 는 GitLab 버전에 따라
 > 거부될 수 있다 — 거부되면 마스킹이 안 되므로 **로그에 그대로 찍힐 수 있다.**
 
+## Swap — 2 GiB 를 넣고, 컨테이너에는 주지 않는다
+
+**두 노드 모두 원래 Swap 이 0 B 였다.** 상한을 넘기는 순간 완충 없이 OOM Kill 이고,
+커널이 무엇을 죽일지 우리가 고를 수 없었다 — **Postgres 를 고를 수도 있다.**
+
+그래서 2 GiB 를 넣었다. 다만 **컨테이너가 쓰라고 넣은 것이 아니다.**
+
+### ⚠ 호스트에 스왑을 넣으면 걸어 둔 상한이 전부 두 배가 된다
+
+Docker 는 `--memory-swap`(compose 의 `memswap_limit`)을 안 주면 **총량을 `mem_limit` 의
+2배로 잡는다.** 스왑을 넣기 전에는 스왑이 없어서 이 기본값이 아무 일도 하지 않았다.
+넣는 순간부터는 한다. 확인:
+
+```bash
+docker run --rm -m 100m alpine cat /sys/fs/cgroup/memory.swap.max
+# 104857600   ← RAM 100m 을 다 쓴 뒤 스왑을 100m 더 쓸 수 있다
+docker run --rm -m 100m --memory-swap 100m alpine cat /sys/fs/cgroup/memory.swap.max
+# 0           ← 스왑 금지
+```
+
+> cgroup v2 기준이다. `stat -fc %T /sys/fs/cgroup` 이 `cgroup2fs` 여야 위 경로가 있다
+> (양 서버 확인 필요). v1 이면 `memory/memory.memsw.limit_in_bytes` 를 보고, 그 값은
+> **RAM+스왑 합계**라서 `mem_limit` 과 같으면 스왑 0 이라는 뜻이다.
+
+그리고 스왑 2 GiB 는 공유 자원이라 **worker① 하나가 먼저 다 먹을 수 있다.**
+완충으로 넣은 것이 가장 완충이 필요 없는 쪽으로 간다.
+
+### 그래서 모든 서비스에 `memswap_limit` 을 `mem_limit` 과 같게 박았다
+
+같은 값 = **그 컨테이너는 스왑을 0 쓴다.** 서비스별 이유는 compose 파일의 주석에 있고,
+공통된 근거는 둘이다.
+
+- **Spark 는 스왑과 특히 안 맞는다.** JVM 힙이 스왑으로 밀리면 GC 가 디스크를 기다린다.
+잡이 죽는 게 아니라 **한없이 느려지다가 heartbeat 타임아웃으로 executor 가 떨어진다.**
+지금 Spark 의 실패 증상이 이미 "조용히 멈춘다" 인데 똑같이 생긴 실패 모드가 하나 더
+생기는 셈이다 — **깨끗하게 OOM 나고 재시도하는 쪽이 진단 가능하다.**
+- **`data` 노드는 스왑 파일이 MinIO 데이터·Docker·Spark 셔플과 같은 파티션을 쓴다.**
+스왑 I/O 가 MinIO 읽기와 셔플 쓰기의 IOPS 를 같이 갉아먹는다.
+
+그래서 스왑이 실제로 하는 일은 **컨테이너 상한 밖의 것들** — 호스트 프로세스, Docker
+데몬, 배포 중의 Gradle·npm 빌드 — 의 완충과 유휴 페이지 배출이다. **커널이 Postgres 를
+고르는 시나리오가 거기서 온다.**
+
+> **`mem_limit`·`memswap_limit`, `--memory`·`--memory-swap` 은 짝으로 쓴다.**
+> 한쪽만 쓰면 그것만 상한이 조용히 2배가 되고, 아무 경고도 없다.
+> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/repository_metrics/` 가 그렇다.
+> 짝이 빠진 곳을 찾는 명령:
+>
+> ```bash
+> grep -rn --include='*.py' --include='*.sh' -e '--memory"' . | grep -v 'memory-swap'
+> ```
+>
+> 아무것도 안 나와야 한다.
+
+### 넣기 — 두 노드에서 각각, 1회
+
+먼저 `df -h /` 를 본다. `data` 노드는 이 파티션에 MinIO 데이터가 같이 있다 —
+70% 를 넘고 있으면 스왑 파일을 넣을 자리부터 만들어야 한다.
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile        # 빼먹으면 서버에 들어온 누구나 스왑 내용을 읽는다
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab      # 재부팅 후에도
+grep -c '^/swapfile ' /etc/fstab   # 1 이어야 한다. tee -a 는 다시 돌리면 줄을 또 붙인다
+sudo systemctl daemon-reload    # fstab 을 고쳤으니 systemd 에도 알린다
+sudo findmnt --verify --fstab   # ⚠ fstab 이 깨지면 다음 부팅이 멈춘다. errors 가 0 이어야 한다
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swap.conf
+sudo sysctl -p /etc/sysctl.d/99-swap.conf
+swapon --show                   # /swapfile 2G 가 보이면 됨
+free -h
+```
+
+> **`findmnt --verify` 의 경고는 대부분 무해하다.** 봐야 하는 것은 `0 errors` 한 줄이다.
+>
+> - `cannot detect on-disk filesystem type (Permission denied)` — `sudo` 없이 돌려서
+>   블록 디바이스를 못 열었다는 뜻이다. `sudo` 를 붙이면 사라진다.
+> - `non-bind mount source /swapfile is a directory or regular file` —
+>   **스왑 파일은 원래 정규 파일이다.** findmnt 가 swap 항목을 특별 취급하지 않아서
+>   나오는 경고다. 실제로 붙었는지는 `swapon --show` 가 답한다.
+> - `your fstab has been modified, but systemd still uses the old version` —
+>   위의 `daemon-reload` 를 빼먹었을 때 나온다. 재부팅하면 systemd 가 fstab 을 다시
+>   읽으므로 부팅이 깨지는 것은 아니고, **지금 시점의 systemd 뷰만 낡은 것이다.**
+
+`vm.swappiness=10` 은 "상시 경로가 아니라 예비로 쓴다" 는 뜻이다. 기본값 60 은 RAM 에
+여유가 있어도 익명 페이지를 내보낸다.
+
+`fstab` 한 줄은 **재부팅으로만 진짜 검증된다.** 이 프로젝트는 이미 재부팅 복귀를 한 번
+확인해 뒀다([data/README.md](data/README.md) 의 "진짜 성공 조건") — 스왑을 넣은 뒤 그
+확인을 한 번 더 돌리면 `swapon` 까지 같이 검증된다.
+
+**2 GiB 보다 크게 잡지 않는다.** 크면 죽기 전에 느려지는 시간만 길어지고, 그동안
+사용자 요청은 계속 타임아웃난다. 여기서 원하는 것은 "더 버티기" 가 아니라
+"커널이 고르기 전에 우리가 골라 두기" 다.
+
+#### ✔ 결과 (2026-09-10, 양 노드)
+
+| 확인 | `app` (j15a506) | `data` (j15a506a) |
+| --- | --- | --- |
+| `swapon --show` | `/swapfile file 2G 0B -2` | `/swapfile file 2G 0B -2` |
+| `free -h` 의 Swap | `2.0Gi` / used `0B` | `2.0Gi` / used `0B` |
+| `vm.swappiness` | 10 | 10 |
+| `stat -fc %T /sys/fs/cgroup` | `cgroup2fs` | `cgroup2fs` |
+| `findmnt --verify --fstab` | `0 errors` (sudo 없이 돌려 경고 6) | `0 errors` (경고 1 — 위의 무해한 것) |
+| `df -h /` | 4% 사용 (300G 남음) | 15% 사용 (264G 남음) |
+
+`cgroup2fs` 라서 이 문서의 `memory.swap.max` 경로가 양 노드에서 그대로 통한다.
+
+> **호스트만 끝난 상태다.** 아래 compose 적용 전까지는 컨테이너가 상한 밖으로 스왑을
+> 빌릴 수 있다 — 2배씩 늘어난 것이 아니라 **빌릴 수 있는 총량이 스왑 파일 2 GiB 이고
+> 먼저 가져가는 컨테이너가 다 쓴다.** 배치 중이라면 worker①(10g)이 그 후보다.
+> 적용이 늦어지는 동안 배치나 배포를 돌려야 하면 그때까지 `sudo swapoff /swapfile` 로
+> 내려 둔다(fstab 은 그대로 두고, 나중에 `sudo swapon -a`).
+
+### compose 를 같이 올려야 의미가 있다
+
+`memswap_limit` 이 들어간 compose 를 적용하지 않으면 위의 "2배" 가 그대로 남는다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/app && git pull && docker compose up -d --wait
+```
+
+`data` 노드는 **`--wait` 를 붙이지 않는다** — [data/README.md](data/README.md) 의
+"`docker compose up -d --wait` 를 쓰지 말 것".
+
+> **⚠ `git pull` 로는 `SPARK_WORKER_MEMORY` 가 안 바뀐다.** 그 값은 서버의 `.env` 에
+> 있고 `.env` 는 커밋되지 않는다 — 저장소에 있는 것은 `.env.example` 뿐이다.
+> **두 노드에서 손으로 고쳐야 한다.**
+>
+> ```bash
+> grep SPARK_WORKER_MEMORY .env        # app 은 5g, data 는 7g 여야 한다
+> ```
+>
+> 안 고치면 광고하는 풀이 상한보다 큰 상태가 그대로 남아, **첫 풀사이즈 executor 에서
+> OOM Kill** 이다. 산수는 각 노드 `.env.example` 에 있다. 고친 뒤 worker 를 다시 띄운다.
+
+> **⚠ 컨테이너가 재생성된다.** `memswap_limit` 은 생성 시점에 정해지는 설정이라
+> 재시작이 아니라 새로 만든다. `postgres` 는 데이터가 볼륨에 있어 안전하지만
+> **연결이 끊기고 기동까지 수십 초 멈춘다** — 배치 시각이나 데모 중에 하지 말 것.
+
+적용 확인 (`0` 이면 스왑 금지가 걸린 것이다):
+
+```bash
+docker inspect pickage-app-postgres-1 --format '{{.HostConfig.Memory}} {{.HostConfig.MemorySwap}}'
+# 2147483648 2147483648   ← 두 값이 같아야 한다
+```
+
+### 되돌리기
+
+호스트만 되돌리면 된다. `memswap_limit` 은 스왑이 없으면 아무 일도 하지 않으므로
+compose 는 그대로 둬도 된다.
+
+```bash
+sudo swapoff /swapfile          # 스왑에 있던 페이지를 RAM 으로 되읽는다 — 여유가 있을 때 할 것
+sudo cp /etc/fstab /etc/fstab.bak     # fstab 이 깨지면 다음 부팅이 멈춘다
+sudo sed -i '/swapfile/d' /etc/fstab
+findmnt --verify --fstab              # 지운 뒤 문법 확인 — 여기서 통과해야 재부팅해도 된다
+sudo rm /swapfile /etc/sysctl.d/99-swap.conf
+```
+
+### ⚠ OOM 진단이 한 군데 달라진다
+
+`memswap_limit` 을 박아 둔 서비스는 예전과 똑같이 동작한다. 달라지는 것은
+**상한 밖에서 도는 것들**(빌드, 호스트 프로세스)이다 — 이제 OOM 으로 죽는 대신
+**서버 전체가 느려지는 것으로 먼저 나타난다.**
+
+그래서 "느린데 아무것도 안 죽었다" 를 볼 때 `free -h` 의 `Swap` used 를 같이 본다.
+**여기가 0 이 아니면 어딘가 상한 밖에서 RAM 을 넘겼다는 뜻이다.**
+
 ## 평소
 
 ```bash
@@ -321,7 +491,7 @@ docker rmi pickage-api:<지울 태그>
 | `.env` 를 커밋 | 운영 DB 비밀번호가 GitLab 에 남는다. 지워도 히스토리에 남는다 |
 | 적용된 `V__` 파일 수정 | checksum 불일치로 **운영 앱이 기동에 실패한다** |
 | `API_TAG=latest` | 지금 뜬 게 어느 커밋인지 알 수 없고 롤백할 이름이 없어진다 |
-| 배치 시각에 배포 | 메모리가 캡을 넘긴다. **Swap 0 이라 즉시 OOM Kill** — 커널이 Postgres 를 고를 수도 있다 |
+| 배치 시각에 배포 | 메모리가 캡을 넘긴다. **컨테이너 스왑은 0 이라 즉시 OOM Kill** — 커널이 Postgres 를 고를 수도 있다 |
 
 ---
 
@@ -350,7 +520,7 @@ master 는 `data` 노드에 있다. 클러스터 확인과 스모크 잡은 거�
 호스트 root 와 동등한 권한이다. 1GB 아끼자고 치를 값이 아니다.
 2. **아끼는 게 생각보다 없다.** `mem_limit` 은 상한이지 예약이 아니라서, 놀고 있는
 worker 데몬은 6.5g 가 아니라 **1GB 안팎**을 쓴다.
-3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 6g 가 사용자 트래픽과 부딪히는
+3. **위험이 줄지 않는다.** 진짜 부담은 배치 중 executor 5g 가 사용자 트래픽과 부딪히는
 것인데, 그건 컨테이너를 언제 띄웠든 똑같다.
 
 > **되돌릴 조건**: 배치 중 이 노드에서 OOM 이 나거나 사용자 응답이 눈에 띄게 느려지면.
@@ -362,12 +532,18 @@ worker 데몬은 6.5g 가 아니라 **1GB 안팎**을 쓴다.
 이 노드의 메모리가 이때 가장 빠듯하다.
 
 ```
-postgres 2g + api 1.6g + web 0.25g + executor 6g ≈ 10g / 15Gi
+postgres 2g + api 1.6g + web 0.25g + worker②(executor 5g + 데몬 ~1g) ≈ 10g / 15Gi
 ```
 
-여기에 **배포가 겹치면 Gradle·npm 빌드가 메모리를 더 먹는다.** 그리고 이 서버는
-**Swap 이 0** 이라 넘기는 순간 완충 없이 OOM Kill 이고, 커널이 무엇을 죽일지 우리가
-고를 수 없다 — **Postgres 를 고를 수도 있다.**
+> **`SPARK_WORKER_MEMORY` 는 `mem_limit` 과 짝이다.** 그 값이 executor 힙의 상한이 되고,
+> 힙·비힙·worker 데몬(그리고 `data` 노드에서는 driver)이 **같은 cgroup** 에 들어간다.
+> 한쪽만 올리면 **첫 풀사이즈 executor 에서 OOM Kill** 이다. 산수는 각 노드의
+> `.env.example` 에 적어 두었다.
+
+여기에 **배포가 겹치면 Gradle·npm 빌드가 메모리를 더 먹는다.** 호스트 스왑 2 GiB 는
+빌드 쪽 완충이지 컨테이너 완충이 아니다 — **컨테이너에는 스왑을 0 준다**(위 "Swap").
+상한을 넘기는 순간 완충 없이 OOM Kill 이고, 커널이 무엇을 죽일지 우리가 고를 수 없다 —
+**Postgres 를 고를 수도 있다.**
 
 ### `network_mode: host` 인 이유
 
