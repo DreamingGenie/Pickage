@@ -1,0 +1,107 @@
+package com.ssafy.pickage.domain.community.verification;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * npm latest metadata에서 {@code repository} 필드 <b>하나만</b> 읽는다. 일반 registry
+ * 클라이언트가 아니다 — 버전 목록·dist·의존성 등은 다루지 않는다. 그건 별도 인프라 티켓
+ * [S15P21A506-221](https://ssafy.atlassian.net/browse/S15P21A506-221)(아직 미착수)의 몫이며,
+ * 이 클래스는 그 티켓을 앞지르거나 대체하지 않는다(Spec §2).
+ */
+public class NpmRepositoryLookup {
+
+	private static final String REAL_REGISTRY_BASE = "https://registry.npmjs.org";
+	private static final ObjectMapper JSON = new ObjectMapper();
+
+	private final HttpClient httpClient;
+	private final long maxResponseBytes;
+	private final String registryBase;
+
+	public NpmRepositoryLookup(HttpClient httpClient, long maxResponseBytes) {
+		this(httpClient, maxResponseBytes, REAL_REGISTRY_BASE);
+	}
+
+	/** 시험 전용 — 가짜 서버(로컬 loopback)를 향하게 한다. 운영 코드 경로에서는 쓰지 않는다. */
+	NpmRepositoryLookup(HttpClient httpClient, long maxResponseBytes, String registryBase) {
+		this.httpClient = httpClient;
+		this.maxResponseBytes = maxResponseBytes;
+		this.registryBase = registryBase;
+	}
+
+	/**
+	 * @throws UpstreamFetchException 네트워크 오류·404가 아닌 오류 상태·응답 byte 상한 초과
+	 */
+	public NpmLookupOutcome fetchRepositoryField(String packageName) {
+		URI uri = URI.create(
+			registryBase + "/" + URLEncoder.encode(packageName, StandardCharsets.UTF_8) + "/latest");
+		HttpRequest request = HttpRequest.newBuilder(uri)
+			.GET()
+			.timeout(Duration.ofSeconds(10))
+			.header("Accept", "application/json")
+			.build();
+
+		HttpResponse<java.io.InputStream> response;
+		try {
+			response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+		} catch (IOException | InterruptedException e) {
+			if (e instanceof InterruptedException) {
+				Thread.currentThread().interrupt();
+			}
+			throw new UpstreamFetchException("npm registry 통신 오류: " + packageName, e);
+		}
+
+		// 리뷰에서 발견: `response.body();` 는 스트림을 반환만 할 뿐 읽거나 닫지 않는다 —
+		// "스트림 자원 정리"라는 원래 주석은 틀렸다. try-with-resources 로 404·오류·성공
+		// 모든 종료 경로에서 실제로 닫는다. 안 닫으면 npm에 없는 패키지를 여러 개 조회할
+		// 때마다 HttpClient 커넥션 풀이 하나씩 고갈된다.
+		try (java.io.InputStream body = response.body()) {
+			if (response.statusCode() == 404) {
+				return new NpmLookupOutcome.NotFound();
+			}
+			if (response.statusCode() != 200) {
+				throw new UpstreamFetchException("npm registry 오류 상태: " + response.statusCode());
+			}
+
+			String json = BoundedHttpReader.readBounded(body, maxResponseBytes, "npm registry");
+			return parseRepositoryField(json);
+		} catch (IOException e) {
+			throw new UpstreamFetchException("npm registry 응답 스트림 종료 오류", e);
+		}
+	}
+
+	private NpmLookupOutcome parseRepositoryField(String json) {
+		JsonNode root;
+		try {
+			root = JSON.readTree(json);
+		} catch (IOException e) {
+			throw new UpstreamFetchException("npm registry 응답 JSON 파싱 실패", e);
+		}
+
+		JsonNode repository = root.path("repository");
+		if (repository.isMissingNode() || repository.isNull()) {
+			return new NpmLookupOutcome.NoRepositoryField();
+		}
+		if (repository.isTextual()) {
+			return new NpmLookupOutcome.Found(repository.asText(), null);
+		}
+		if (repository.isObject()) {
+			JsonNode url = repository.path("url");
+			if (url.isMissingNode() || !url.isTextual()) {
+				return new NpmLookupOutcome.NoRepositoryField();
+			}
+			JsonNode directory = repository.path("directory");
+			return new NpmLookupOutcome.Found(url.asText(), directory.isTextual() ? directory.asText() : null);
+		}
+		return new NpmLookupOutcome.NoRepositoryField();
+	}
+}
