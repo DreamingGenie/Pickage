@@ -1,0 +1,60 @@
+{
+  "status": "COMPLETE",
+  "verified": {
+    "verified": true,
+    "scope": "FULL_SELECTED",
+    "partitions": 128,
+    "snapshots": 229,
+    "ready_for_load": false
+  },
+  "job_directory": "data\\vd-full-20260912-01",
+  "observed_at": "2026-09-11T23:18:22.112143+00:00",
+  "scope": {
+    "selected_names": 99996,
+    "snapshots": 229,
+    "partitions": 128
+  },
+  "started_at": "2026-09-11T15:07:37.526023+00:00",
+  "completed_at": "2026-09-11T16:34:32.653111+00:00",
+  "total_seconds": 5215.125,
+  "phase_seconds": {
+    "prepare": 956.531886,
+    "compute_merge_write": 2409.729877,
+    "verify": 1848.813207
+  },
+  "settings": {
+    "threads": 4,
+    "memory_limit": "16GB",
+    "max_temp_size": "256GB",
+    "min_free_bytes": 20000000000,
+    "workers": 4,
+    "request_timeout": 180,
+    "lookup_batch": 1024,
+    "rss_limit_bytes": 25769803776,
+    "scratch_limit_bytes": 343597383680,
+    "allow_full_selected": true,
+    "history_layout": "grouped"
+  },
+  "positive_count_files": 128,
+  "positive_count_rows": 296325102,
+  "positive_count_bytes": 169252556,
+  "quality_rows": 229,
+  "ready_for_load": false,
+  "upstream_resolution_status": "PARTIAL",
+  "commit_check": {
+    "current_input_generation_matches": true,
+    "current_run_generation_matches": true,
+    "manifest_hashes_match": true,
+    "output_sizes_match": true,
+    "full_parquet_verification": "performed by overnight job; not repeated at commit"
+  },
+  "artifacts": {
+    "data\\vd-full-20260912-01\\launch.py": "a167449e4480c865af5135b687f0268df14fca04020e8d0bd42e6581d12a4724",
+    "data\\vd-full-20260912-01\\job.json": "0de352f6c3d5f9b60c2260e96a96d917884ad7b784fdf49a30ff55e44fcae50f",
+    "data\\vd-full-20260912-01\\status.json": "02440bf5cee4d713f417af46d8715f4a2e584d2a2877fe46e699c2daf64e3b0e",
+    "data\\vd-full-20260912-01\\input\\input_manifest.json": "6df408c8753df3df4b407d603cdbbc801af2fd351571b112f4ce87963ea4018b",
+    "data\\vd-full-20260912-01\\run\\run_manifest.json": "1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94",
+    "data\\vd-full-20260912-01\\verification.json": "78695207552942bbd7b2a5d22aba5743fbc00421224b0378cacef61d74f58c86",
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-full-20260912-01\\run\\finalizations\\11d2363ad72045fd899eeee5be878a04\\history\\run_manifest.json": "8548ae901899a68fbe0abd52fa793e96f99b221e2bccc0f5e07bd320df3b4a5d"
+  }
+}

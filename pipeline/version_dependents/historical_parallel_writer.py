@@ -171,7 +171,7 @@ def build_history(*, cache_dir, cache_sha256, output, partitions, resume=False, 
     else:
         root.mkdir(parents=True, exist_ok=False)
     written = []
-    with _run_lock(root), connection(root / ('working-' + uuid.uuid4().hex + '.duckdb')) as con:
+    with _run_lock(root), connection(root / ('working-' + uuid.uuid4().hex + '.duckdb'), memory_limit='16GB', max_temp_size='256GB') as con:
         plan_path = root / 'run_plan.json'
         if plan_path.exists():
             if _read_json(plan_path) != plan or file_sha256(plan_path) != sha256(plan):

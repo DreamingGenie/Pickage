@@ -277,9 +277,9 @@ def _compute(root, prepared, manifest, plan, settings, workers, runtime, request
 
 def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
         allow_full_selected=False, max_partitions=None, max_snapshots=None,
-        threads=4, memory_limit='4GB', max_temp_size='40GB', min_free_bytes=20_000_000_000,
-        request_timeout=60, lookup_batch=1024, rss_limit_bytes=12 * 1024**3,
-        scratch_limit_bytes=64 * 1024**3, history_layout='daily'):
+        threads=4, memory_limit='16GB', max_temp_size='256GB', min_free_bytes=20_000_000_000,
+        request_timeout=180, lookup_batch=1024, rss_limit_bytes=24 * 1024**3,
+        scratch_limit_bytes=320 * 1024**3, history_layout='daily'):
     started = time.perf_counter()
     settings = {'threads': threads, 'memory_limit': memory_limit, 'max_temp_size': max_temp_size}
     per_worker = _settings(workers, threads, memory_limit, max_temp_size)
@@ -396,7 +396,7 @@ def verify_run(*, run_dir, manifest_sha256):
     if cached != result['cache']:
         raise ValueError('Cache pointer mismatch')
     directory = old._verify_cache_chain(root, cached, manifest, plan, receipts)
-    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb')) as con:
+    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb'), memory_limit='16GB', max_temp_size='256GB') as con:
         _merge(con, root, prepared, manifest, receipts)
         old._check_cache_derivation(con, directory / 'cache')
     if plan['history_layout'] == 'grouped':

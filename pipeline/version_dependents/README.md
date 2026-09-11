@@ -488,3 +488,31 @@ Parquet에, 날짜별 품질을 한 Parquet에 저장한다. 이력과 cache·ca
 
 [병렬 실행·재개 검증](../../docs/worklogs/S15P21A506-193/26-parallel-input-cpu-execution.md) ·
 [입력·검증·저장 개선과 반복 실측](../../docs/worklogs/S15P21A506-193/27-input-verification-storage-optimization.md)
+
+### 선택형 CPU·GPU 작업 중첩
+
+`historical_gpu_parallel`은 CPU 작업자 1/2/4개가 후보 준비·npm 조건 해석·집계·저장을 맡고,
+한 GPU 프로세스가 숫자로 바꾼 버전 범위를 계산한다. 한 패키지의 후보는 여러 요청에서 재사용한다.
+이 경로는 Windows와 CUDA 지원 PyTorch가 필요하며 기존 CPU 실행의 기본값을 바꾸지 않는다.
+
+```powershell
+python -m pipeline.version_dependents.historical_gpu_parallel run --prepared-dir <분할입력> --manifest-sha256 <입력SHA> --output <새결과폴더> --workers 4
+python -m pipeline.version_dependents.historical_gpu_parallel verify --run-dir <결과폴더> --manifest-sha256 <최종SHA>
+```
+
+출력은 앞 절의 `grouped` 형식이고 같은 `open_counts`/`open_quality`로 조회한다.
+작업자당 요청 하나, 송수신 16MiB, 후보 GPU cache 전체 64MiB, 계산 workspace 기본 128MiB로 제한한다.
+`--rpc-timeout` 기본 120초는 요청 하나의 대기·송수신 제한이다. 전체 계산 시간 제한은 아니다.
+GPU 장애는 실행 실패로 기록하며 자동 CPU 대체를 하지 않는다. 같은 입력·코드·장치 설정과
+`--resume`으로 완료한 묶음을 재사용할 수 있고 CPU 작업자 수는 바꿀 수 있다. 독립 검증은 GPU가 없어도 된다.
+
+`historical_gpu_parallel_benchmark supervise`는 같은 prepared 표본에 GPU+CPU 1/2/4를 측정한 뒤
+선택한 GPU 구성과 CPU 4개를 교대 반복한다. 계산·저장·검증·비교 시간을 나누고 13개 데이터 그룹의
+실제 값을 비교한다. 공통 입력 준비 시간은 제외하며 전체 패키지 처리 시간으로 환산하지 않는다.
+[구현·장애 검증·실측 기록](../../docs/worklogs/S15P21A506-193/28-cpu-gpu-overlap.md)
+
+2026-09-12 로컬 CPU 전체 집계는 선정 99,996개 패키지·229개 날짜의 준비부터 최종 검증까지
+5,215.125초에 완료했다. 양수 count 296,325,102행을 128개 Parquet로 저장했다.
+현재 CPU 기본 자원은 메모리 16GB·임시 디스크 256GB·개별 요청 180초이며 4개 작업자가 나눠 쓴다.
+PARTIAL과 `ready_for_load=false`를 유지하며 DB 적재는 별도 작업이다.
+[전체 실행 결과와 생성 지문](../../docs/worklogs/S15P21A506-193/30-full-selected-run.md)

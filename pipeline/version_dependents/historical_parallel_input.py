@@ -110,7 +110,7 @@ def _write_shards(con, output: Path, partition_count: int):
     return partitions, totals
 
 
-def _split(source: Path, output: Path, *, manifest: dict, threads=4, memory_limit="4GB", max_temp_size="40GB", min_free_bytes: int = 0) -> dict:
+def _split(source: Path, output: Path, *, manifest: dict, threads=4, memory_limit="16GB", max_temp_size="256GB", min_free_bytes: int = 0) -> dict:
     _safe_output(output, [source])
     _free_space(output, min_free_bytes)
     output.mkdir(parents=True, exist_ok=False)
@@ -135,8 +135,8 @@ def _split(source: Path, output: Path, *, manifest: dict, threads=4, memory_limi
     return {"prepared_dir": str(output), "manifest_sha256": digest}
 
 
-def from_prepared(*, prepared_dir, manifest_sha256, output, threads=4, memory_limit="4GB",
-                  max_temp_size="40GB", min_free_bytes=0):
+def from_prepared(*, prepared_dir, manifest_sha256, output, threads=4, memory_limit="16GB",
+                  max_temp_size="256GB", min_free_bytes=0):
     """Convert a verified v1 input into immutable physical partition files."""
     source = _path(prepared_dir); _validate_sha(manifest_sha256, "input manifest SHA")
     if file_sha256(source / "input_manifest.json") != manifest_sha256:
@@ -153,7 +153,7 @@ def from_prepared(*, prepared_dir, manifest_sha256, output, threads=4, memory_li
 
 def prepare(*, h1_dir, h1_manifest_sha256, profile_manifest, profile_manifest_sha256,
             selection_csv, selection_sha256, output, sample_names=None, full_selected=False,
-            partition_count=128, threads=4, memory_limit="4GB", max_temp_size="40GB",
+            partition_count=128, threads=4, memory_limit="16GB", max_temp_size="256GB",
             min_free_bytes=20_000_000_000):
     """Validate pinned inputs and write physical shards directly from source views."""
     partition_for('validation', partition_count)
@@ -227,7 +227,7 @@ def verify_inputs(prepared_dir, manifest_sha256):
     ready = sum(p['status'] == 'READY' for p in m['partitions'].values())
     if inventory != m['files'] or len(inventory) != len(TABLES) * ready:
         raise ValueError('Global file inventory mismatch')
-    with tempfile.TemporaryDirectory(prefix='parallel-input-check-') as scratch, connection(Path(scratch) / 'check.duckdb') as con:
+    with tempfile.TemporaryDirectory(prefix='parallel-input-check-') as scratch, connection(Path(scratch) / 'check.duckdb', memory_limit='16GB', max_temp_size='256GB') as con:
         seen = []
         for key, part in m['partitions'].items():
             if part['status'] == 'EMPTY':

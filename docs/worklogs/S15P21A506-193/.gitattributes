@@ -1,5 +1,6 @@
 evidence/*.json text eol=lf
 evidence/*.log text eol=lf
+evidence/full-selected-launch.py.txt -text
 
 # GPU 실행 로그의 원본 SHA를 다른 운영체제에서도 보존한다.
 evidence/gpu-*.log -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
