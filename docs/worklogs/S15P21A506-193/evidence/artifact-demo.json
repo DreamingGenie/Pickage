@@ -1,0 +1,174 @@
+{
+  "recorded_at_utc": "2026-09-10T07:15:26.907499+00:00",
+  "synthetic_only": true,
+  "command": [
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+    "-B",
+    "-m",
+    "pipeline.version_dependents",
+    "demo",
+    "--output-root",
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z"
+  ],
+  "receipt": {
+    "synthetic_data_only": true,
+    "ready_for_load": false,
+    "results": [
+      {
+        "snapshot_at": "2026-08-31",
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-08-31\\run_id=synthetic-v1",
+        "manifest_sha256": "31342cf869dc08e5c479e291867de82763cc638c7b4054888f2b6abd9db5cbf5",
+        "quality": {
+          "distinct_edges": 3,
+          "duplicate_edges": 1,
+          "input_edges": 4,
+          "max_dependents_count": 3,
+          "source_versions": 3,
+          "target_versions": 2,
+          "total_direct_dependents": 3,
+          "zero_target_versions": 1
+        }
+      },
+      {
+        "snapshot_at": "2026-09-07",
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-09-07\\run_id=synthetic-v1",
+        "manifest_sha256": "288debe2b499fb65da055a268fba8b57360c29a4c2a5a66f370d27f2a408f9ae",
+        "quality": {
+          "distinct_edges": 1,
+          "duplicate_edges": 0,
+          "input_edges": 1,
+          "max_dependents_count": 1,
+          "source_versions": 3,
+          "target_versions": 2,
+          "total_direct_dependents": 1,
+          "zero_target_versions": 1
+        }
+      }
+    ]
+  },
+  "separate_process_verification": [
+    {
+      "command": [
+        "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pipeline.version_dependents",
+        "verify",
+        "--run-dir",
+        "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-08-31\\run_id=synthetic-v1",
+        "--manifest-sha256",
+        "31342cf869dc08e5c479e291867de82763cc638c7b4054888f2b6abd9db5cbf5",
+        "--snapshot-at",
+        "2026-08-31"
+      ],
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-08-31\\run_id=synthetic-v1",
+        "manifest_sha256": "31342cf869dc08e5c479e291867de82763cc638c7b4054888f2b6abd9db5cbf5",
+        "snapshot_at": "2026-08-31",
+        "quality": {
+          "distinct_edges": 3,
+          "duplicate_edges": 1,
+          "input_edges": 4,
+          "max_dependents_count": 3,
+          "source_versions": 3,
+          "target_versions": 2,
+          "total_direct_dependents": 3,
+          "zero_target_versions": 1
+        },
+        "verification_scope": "LOCAL_ARTIFACT_ONLY",
+        "input_verification": "NOT_PERFORMED",
+        "ready_for_load": false
+      }
+    },
+    {
+      "command": [
+        "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pipeline.version_dependents",
+        "verify",
+        "--run-dir",
+        "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-09-07\\run_id=synthetic-v1",
+        "--manifest-sha256",
+        "288debe2b499fb65da055a268fba8b57360c29a4c2a5a66f370d27f2a408f9ae",
+        "--snapshot-at",
+        "2026-09-07"
+      ],
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\demo-20260910T071525695186Z\\snapshot=2026-09-07\\run_id=synthetic-v1",
+        "manifest_sha256": "288debe2b499fb65da055a268fba8b57360c29a4c2a5a66f370d27f2a408f9ae",
+        "snapshot_at": "2026-09-07",
+        "quality": {
+          "distinct_edges": 1,
+          "duplicate_edges": 0,
+          "input_edges": 1,
+          "max_dependents_count": 1,
+          "source_versions": 3,
+          "target_versions": 2,
+          "total_direct_dependents": 1,
+          "zero_target_versions": 1
+        },
+        "verification_scope": "LOCAL_ARTIFACT_ONLY",
+        "input_verification": "NOT_PERFORMED",
+        "ready_for_load": false
+      }
+    }
+  ],
+  "expected_rows": [
+    [
+      10,
+      "3.0.0",
+      "2026-08-31",
+      3
+    ],
+    [
+      20,
+      "1.0.0",
+      "2026-08-31",
+      0
+    ],
+    [
+      10,
+      "3.0.0",
+      "2026-09-07",
+      1
+    ],
+    [
+      20,
+      "1.0.0",
+      "2026-09-07",
+      0
+    ]
+  ],
+  "saved_rows": [
+    [
+      10,
+      "3.0.0",
+      "2026-08-31",
+      3
+    ],
+    [
+      20,
+      "1.0.0",
+      "2026-08-31",
+      0
+    ],
+    [
+      10,
+      "3.0.0",
+      "2026-09-07",
+      1
+    ],
+    [
+      20,
+      "1.0.0",
+      "2026-09-07",
+      0
+    ]
+  ],
+  "result_matches_expected": true,
+  "production_inputs_approved": false,
+  "real_input_full_scan": false,
+  "database_access": false,
+  "remote_publication": false
+}

@@ -1,0 +1,33 @@
+{
+  "tests": 121,
+  "successful": true,
+  "errors": 0,
+  "failures": 0,
+  "seconds": 31.985000000000582,
+  "python_ast_files": 19,
+  "node_syntax_check": "PASS",
+  "code_sha256": {
+    "pipeline/version_dependents/__init__.py": "909caecbb0b310450e16dc3ef59c14fbcd4fd9d058ebdb29482d5d8663426fae",
+    "pipeline/version_dependents/__main__.py": "cebbcb58035294052c01d3c6571d34f82b7eef2d432074696489f7d39275667f",
+    "pipeline/version_dependents/aggregate.py": "0760e5da1b345c9d27ead5d9ce61982c2fc360487369bdf272b8dc551c76bca8",
+    "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+    "pipeline/version_dependents/diagnostic.py": "1b58481f3bdc0b9dc6f4668510774baf0f285684a040ab5428712ac2e9bc33cc",
+    "pipeline/version_dependents/diagnostic_input.py": "5f21be78cb41df254b6c8133719b81b627c3937165eb8c03c22cbab227da8278",
+    "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+    "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+    "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+    "pipeline/version_dependents/test_aggregate.py": "3a49f4921b6f866ef44ade81c67d9eb3873d5adc1389b4c444dbb71b05ee62d8",
+    "pipeline/version_dependents/test_artifact.py": "d25584d90cb0f6b236ad98ec472da33cf0f8bd39ee817e3fcd5c230413332120",
+    "pipeline/version_dependents/test_diagnostic.py": "ccf72fc31cb36198ccd78f8115ab2447c15258550e8ea3b515b2df2e7962442b",
+    "pipeline/version_dependents/test_historical.py": "559f1eeee28528d75d3aeab45e4b9d61e5b319fcad635ac4ca0deae21ede0c37",
+    "pipeline/version_dependents/test_historical_artifact.py": "d3f8bfc0c70598aec41473592f155f3e9109cd1740830025a0c81fc9584efa7b",
+    "pipeline/version_dependents/test_historical_input.py": "dba8b348f86bcc67210a152f5bafd697f7212f3fa6ae840c087b6fb7bb23cc45",
+    "pipeline/version_dependents/test_historical_kernel.py": "86e57089f0c76069012af5f6e0c250118347411930ecc8f2fa16b48d4967a56f",
+    "pipeline/version_dependents/test_historical_reference.py": "a53e51750f4b8240815f076492362c353e3a18c5715818d116c3eceffe9e2354",
+    "pipeline/version_dependents/test_historical_reference_contract.py": "b20ed3d5e90ff6f61d11bf21377bb179640ec0bcac93f3c25283b4a40a6eebb5",
+    "pipeline/version_dependents/test_historical_semver_worker.py": "d7be293a0ecdfa61cd4be19080f15a2b686dd54fef5c7d243b3c6b0e3dcf4a33",
+    "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+    "docs/worklogs/S15P21A506-193/evidence/historical-optimization-check.py": "60657dcafb6ac7040aba9087148bbbad5650ac0b54585063e1cdf3b4ce1ba465"
+  },
+  "scope": "All existing version_dependents regression plus H3 bounded fixture/kernel tests; no real 229-snapshot count or DB"
+}

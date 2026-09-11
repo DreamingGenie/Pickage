@@ -1,0 +1,8 @@
+{
+  "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\historical-artifact-examples\\run_id=h4-20260910T141251907045Z\\run",
+  "run_status": "COMPLETE",
+  "snapshots_verified": 3,
+  "run_manifest_sha256": "1b777986dedf4fa894dcbadeee7d4b395e7652ad4cdb255c68e72aca0b1e2b85",
+  "ready_for_load": false,
+  "verification_scope": "NORMALIZED_CACHE_AND_DAILY_ARTIFACTS"
+}

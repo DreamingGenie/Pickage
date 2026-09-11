@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-10T13:21:28.886008+00:00",
+  "status": "PASS",
+  "docs_checked": 7,
+  "local_links_checked": 94,
+  "final_test_code_hashes_match": true,
+  "tests": 96,
+  "sha256": {
+    "pipeline/version_dependents/README.md": "346a0570d1554d481439b2c562cc591bcea032002df91da23df720638ab82686",
+    "docs/worklogs/S15P21A506-193/README.md": "481ed787dda0471d07e4f52b044903bcb74cf13a6882c1a8ee54f897f0649718",
+    "docs/worklogs/S15P21A506-193/02-plan.md": "8b418de6f95e26e501190588df83c71bdfbc6a35ffa8c53c52d044db6118f606",
+    "docs/worklogs/S15P21A506-193/04-work-log.md": "4beeff036de15a64b81a88b9ad348480dd0df836672c172ec27107f349f8a1ca",
+    "docs/worklogs/S15P21A506-193/05-results.md": "524b865e3db2878f5a907d21412ca2002ce32760315d2f9374c81490e54680f0",
+    "docs/worklogs/S15P21A506-193/12-historical-reference-results.md": "ecaf053e44005ab7537fe68d1b843b1fcd58b0c0c354de3bc6bbbcc9ec637f87",
+    "docs/worklogs/S15P21A506-193/evidence/historical-reference-review.md": "462e023c9d723297c33657357e5e3df9ee583b691f49831a4fd82ecb51680799",
+    "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+    "pipeline/version_dependents/test_historical_reference.py": "a53e51750f4b8240815f076492362c353e3a18c5715818d116c3eceffe9e2354",
+    "pipeline/version_dependents/test_historical_reference_contract.py": "b20ed3d5e90ff6f61d11bf21377bb179640ec0bcac93f3c25283b4a40a6eebb5",
+    "pipeline/version_dependents/fixtures/historical_reference.json": "ff524221605d9de51ea086fc2454b599566d2b2080be2c34582e2edc0c25c1fb"
+  },
+  "scope": "H2 small reference completion; H3 and actual historical counts not executed"
+}
