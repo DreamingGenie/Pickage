@@ -222,9 +222,11 @@ Spark 는 `fs.s3a.path.style.access=true`. 버킷별 역할과 경로 규칙은
 GPU(jupyter05)가 학습한 ONNX 를 `@candidate` 로 등록하고, 평가를 통과한 것을
 `@production` 으로 승격한다.
 
-> **지금 유사도 배치는 여기서 모델을 받아 오지 않는다.** 잡에 mlflow 클라이언트가 없어서
-> `--model-dir` 에 사람이 넣는다 (아래 "유사도 배치 돌리기"). 레지스트리는 올라와 있으니
-> 그 연결만 남은 상태다.
+> **유사도 배치가 여기를 보고 모델을 고른다.** `run-similarity-batch.sh` 가 매 회차
+> `@production` 이 무엇인지 물어서 그 `source` 경로를 받아 온다 — 승격하면 다음 배치가
+> 새 모델로 돈다. `.env` 를 고칠 일이 없다 (아래 "유사도 배치 돌리기").
+>
+> 잡 이미지에는 mlflow 클라이언트가 없다. 묻는 것은 **호스트의 스크립트**가 REST 로 한다.
 
 `docker compose up -d` 에 같이 뜬다. 배치 전용이 아니다 — GPU 가 학습을 끝낼 때마다 붙는다.
 
@@ -424,26 +426,63 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 
 **상주 서비스가 아니다.** 한 번 돌고 끝난다 — `profiles` 에 있어서 `up -d` 로는 뜨지 않는다.
 
-### 지금은 사람이 친다 — 스케줄러가 없다
+### 사람이 인자를 주지 않는다 — 포인터 둘이 정한다
 
-**이 노드에 cron 도 systemd timer 도 없다.** 배치 시각이 되면 사람이 아래 절차를 친다.
-
-`run-similarity-batch.sh` 에 1~3 단계를 묶어 뒀는데 **아직 뼈대라 그대로 돌리면 거부한다** —
-MinIO 안의 실제 경로가 안 정해져서 파일 위쪽 값이 비어 있다. 채우는 것은 별도 작업이고,
-지금 올려 둔 이유는 **전체 흐름을 한 파일에서 보이게** 하기 위해서다.
+`run-similarity-batch.sh` 는 **인자를 받지 않는다.** 무엇을 돌릴지는 두 포인터가 정하고,
+스크립트가 매번 읽어 확정한다.
 
 ```
-[Spark 배치]  →  1 스테이징  →  2 배치  →  3 회수  →  [로더]
- (사람)           run-similarity-batch.sh              (app 노드, 미구현)
+코퍼스   $AI_CORPUS_PREFIX/_current.json      →  run_id
+모델     MLflow  $AI_MODEL_NAME@$AI_MODEL_ALIAS  →  s3:// 경로
 ```
 
-**스케줄러는 잡이 `s3://` 를 직접 읽고 쓰게 된 다음에 붙이는 것이 맞다.** 지금 2단계만
-cron 에 걸면 1단계가 안 된 상태로 깨어나 실패하고, 3·4단계는 여전히 사람이 한다 —
-자동화가 아니라 실패 지점이 하나 느는 것이다.
+**새 코퍼스가 게시되거나 모델이 승격되면 다음 실행이 알아서 집는다.** `.env` 에는 날짜도
+모델 버전도 없다 — 회차마다 고칠 것이 없어야 자동화다.
 
-> 붙일 때는 **cron 보다 systemd timer** 를 권한다. cron 의 기본 실패 모드가 침묵인데,
-> 이 리포는 이미 그걸로 한 번 데었다 (위 "손 안 대고 돌아오는가"). timer 는
-> `systemctl list-timers` 로 마지막·다음 실행이, `journalctl -u` 로 지난 로그가 바로 보인다.
+둘 다 그대로면 **아무것도 하지 않고 0 으로 끝난다.** 타이머를 촘촘히 걸어도 헛돌지 않고,
+스케줄러가 "새 것이 있나" 를 판단할 필요가 없다.
+
+```
+[timer] → 확정 → 이미 했나? ─ 예 ─→ exit 0
+                            └ 아니오 ─→ 스테이징 → 배치 → 회수
+```
+
+#### 확정한 값을 산출물 경로에 박는다
+
+```
+pickage-vectors/model=v7/corpus=collected_date=2026-09-08/run_id=package-text-.../
+```
+
+포인터를 따라가면서도 **"이 결과가 어느 모델·어느 코퍼스에서 나왔나" 가 경로에 남는다.**
+`_current.json` 은 다음 실행에 바뀌므로, 재현하려면 이 경로를 봐야 한다
+(`pipeline/curated/README.md` 의 같은 원칙).
+
+그 경로의 `_SUCCESS` 가 곧 "이미 했다" 의 근거다. 별도 상태 저장소를 두지 않는다.
+
+#### ⚠ JSON 해석은 컨테이너가 아니라 스크립트에서 한다
+
+`mc` 를 담은 MinIO 이미지에는 **`sed`·`grep`·`jq`·python 이 없다**(확인함). `curl` 은 있다.
+그래서 포인터 해석은 호스트에서 하고, 컨테이너에는 **확정된 경로만** `-e` 로 넘긴다.
+MLflow 도 `127.0.0.1:5000` 이라 호스트가 바로 부를 수 있다.
+
+`ai-stage`·`ai-collect` 를 직접 `run` 하면 그 변수가 없어서 거부한다. 스크립트로 부를 것.
+
+#### 스케줄러는 아직 없다
+
+붙일 때는 **cron 보다 systemd timer** 를 권한다. cron 의 기본 실패 모드가 침묵인데,
+이 리포는 이미 그걸로 한 번 데었다 (위 "손 안 대고 돌아오는가"). timer 는
+`systemctl list-timers` 로 마지막·다음 실행이, `journalctl -u` 로 지난 로그가 바로 보인다.
+
+스크립트가 인자를 안 받고 멱등하므로 **timer 는 이 파일을 부르기만 하면 된다.**
+
+#### 아직 서지 않은 것 — 이 순서로 풀린다
+
+| | 없으면 어디서 멈추나 | 누구 |
+| --- | --- | --- |
+| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다 | 데이터 |
+| MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다 | AI |
+| **로더** | 배치는 돌지만 `similar_package` 가 계속 비어 서비스에 안 닿는다 | 미정 |
+| 스케줄러 | 사람이 스크립트를 친다 | 인프라 |
 
 ### ⚠ 이 잡은 MinIO 를 직접 읽지 않는다
 
@@ -474,73 +513,70 @@ docker compose run --rm --entrypoint sh ai-similarity -c 'id -u; touch /work/out
 # ok
 ```
 
-### 1. 입력을 MinIO 에서 꺼낸다
-
-> 아래 1~3 단계가 `run-similarity-batch.sh` 의 세 줄이다. 스크립트가 채워지면 손으로 칠 일이 없다.
+### 돌리기
 
 ```bash
-docker compose run --rm ai-stage
+cd ~/S15P21A506/deploy/prod/data
+sh run-similarity-batch.sh
 ```
 
-`.env` 의 `AI_SRC_CORPUS` · `AI_SRC_MODEL` 을 읽어 `/work/in/` 으로 받고 **`chown` 까지 한다.**
-`mc` 는 MinIO 이미지에 들어 있어서 같은 핀을 쓰는 일회성 서비스로 뒀다 — `minio-init` 과 같은 모양이다.
-
-경로가 비어 있으면 compose 가 어느 변수인지 말하고 거부한다.
+**인자가 없다.** 스크립트가 포인터 둘을 읽어 확정하고, 이미 한 회차면 넘어간다.
 
 ```
-required variable AI_SRC_CORPUS is missing a value: .env 에 채울 것 — 코퍼스 parquet 의 MinIO 경로
+[1/5] 코퍼스 확정
+  run_id=collected_date=2026-09-08/run_id=package-text-20260911-v1
+[2/5] 모델 확정
+  v7  pickage-mlflow-artifacts/onnx_bge_v7
+[3/5] 중복 확인  model=v7/corpus=collected_date=2026-09-08/run_id=package-text-20260911-v1
+[4/5] 스테이징
+[5/5] 배치
+      회수
+완료: pickage-vectors/model=v7/corpus=...
 ```
 
-### 2. 돌린다
+종료 코드를 그대로 올린다. **스케줄러는 이 값만 보면 된다** — 로그를 파싱할 이유가 없다.
+`PYTHONUNBUFFERED=1` 이 이미지에 박혀 있어 배치 로그는 실시간으로 흐른다.
 
-```bash
-docker compose run --rm ai-similarity \
-  --package-text /work/in/package_text.parquet \
-  --model-dir    /work/in/model \
-  --out          /work/out/$(date +%F)
-```
+#### 단계별로 무엇을 하나
 
-**인자가 필수다.** 빼먹으면 `argparse` 가 바로 이렇게 끝낸다.
+| | 서비스 | 하는 일 |
+| --- | --- | --- |
+| 1 | (스크립트) | `_current.json` → 코퍼스 run 확정 |
+| 2 | (스크립트) | MLflow `@production` → 모델 `s3://` 경로 확정 |
+| 3 | (스크립트) | 산출물 경로에 `_SUCCESS` 가 있으면 **여기서 끝** |
+| 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown` |
+| 5 | `ai-similarity` | 배치. `/work/out/model=vN/corpus=<run>/` 에 쓴다 |
+| — | `ai-collect` | `/work/out` → MinIO, `_SUCCESS` 게시 |
 
-```
-error: the following arguments are required: --package-text, --model-dir, --out
-```
+`ai-stage`·`ai-collect` 를 **직접 `run` 하지 말 것.** 확정된 경로를 스크립트가 `-e` 로
+넘기므로, 단독으로 부르면 그 변수가 없어서 거부한다.
 
-전체 옵션은 `docker compose run --rm ai-similarity --help`. 자주 쓰는 것:
+#### 배치 옵션
+
+전체 목록은 `docker compose run --rm ai-similarity --help`. 자주 볼 것:
 
 | 옵션 | 무엇 |
 | --- | --- |
-| `--state` | 이전 실행의 `text_hash_state.parquet`. 주면 **바뀐 것만 재임베딩**한다 |
+| `--state` | 이전 회차의 `text_hash_state.parquet`. 주면 **바뀐 것만 재임베딩**한다 |
 | `--batch-size` · `--query-block` | 메모리를 지배한다. **OOM 이 나면 상한보다 이 둘을 먼저 줄인다** |
 | `--no-gate` | 구조적 관문을 끈다. 게이트 때문에 후보가 비는지 가릴 때만 |
+
+스크립트가 넘기는 인자를 바꾸려면 `run-similarity-batch.sh` 의 5단계를 고친다.
+
+#### 결과 확인
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-vectors/'
+# model=v7/corpus=collected_date=2026-09-08/run_id=.../_SUCCESS
+# model=v7/corpus=collected_date=2026-09-08/run_id=.../...
+```
+
+**`_SUCCESS` 가 곧 "이 회차는 끝났다" 의 근거다.** 이게 있으면 다음 실행이 건너뛴다 —
+다시 돌리고 싶으면 그 객체를 지운다.
 
 > **Windows 에서 칠 때는 `MSYS_NO_PATHCONV=1` 을 앞에 붙인다.** 안 붙이면 Git Bash 가
 > `/work/in/...` 를 `C:/Program Files/Git/work/in/...` 으로 바꿔서 `FileNotFoundError` 가 난다
 > (확인함). 서버에서는 이 문제가 없다.
-
-### 3. 산출물을 MinIO 로 올린다
-
-```bash
-docker compose run --rm ai-collect
-```
-
-`/work/out/` 아래를 `.env` 의 `AI_DST_RESULT` 로 올린다. run 디렉터리 구조가 그대로 간다.
-
-```bash
-docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-vectors/'
-# similarity/20260911/similar.parquet
-```
-### 확인
-
-```bash
-docker compose run --rm ai-similarity ... ; echo "exit=$?"      # 0 이어야 한다
-```
-
-`docker compose run` 은 **잡의 종료 코드를 그대로 돌려준다.** cron 을 붙일 때 이 값으로
-성공·실패를 판단하면 된다 — 로그를 파싱할 이유가 없다.
-
-`PYTHONUNBUFFERED=1` 이 이미지에 박혀 있어서 로그가 실시간으로 흐른다.
-컨테이너가 끝날 때 몰려 나오지 않는다 — `docker logs` 가 유일한 장애 인지 수단이라 중요하다.
 
 ### ⚠ Spark 배치와 시간을 겹치지 말 것
 
@@ -759,15 +795,18 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 ## 아직 없는 것
 
-| | 지금은 어떻게 되어 있나 |
-| --- | --- |
-| 유사도 배치의 **S3 입출력** | 없다. 잡이 로컬 경로만 읽고 쓴다 — MinIO 왕복을 사람이 한다 (위 "유사도 배치 돌리기"). 붙으면 스테이징 두 단계가 사라진다 |
-| 배치가 **MLflow 에서 모델 받기** | 없다. 잡에 mlflow 클라이언트가 없어서 `--model-dir` 에 손으로 넣는다. 레지스트리는 올라와 있으니 그 연결만 남았다 |
-| 채점 게이트 | `similarity_batch_pipeline.py` 의 5번이 TODO 다 (S15P21A506-169) |
-| `run-similarity-batch.sh` 의 내용 | **뼈대만 있다.** MinIO 경로 세 개가 비어 있어서 그대로 돌리면 거부한다 |
-| 배치 스케줄러 | 없다. cron 도 systemd timer 도 없고 사람이 친다. **잡의 S3 입출력이 붙은 다음**에 거는 것이 맞다. **Spark 배치와 시간이 겹치지 않게** 잡아야 한다 — 이 노드가 배치 시각에 가장 빠듯하다 |
-| `ai-similarity` 전용 MinIO 키 | 없다. 스테이징에 루트 자격증명을 쓰고 있다 (`ai/README.md` 의 B4) |
-| MLflow 를 **서버에서** 확인하기 | 로컬 compose 로 업로드까지 확인했다. 서버에서는 아직 안 띄웠다 |
-| 수집 cron | 없다 |
+배선은 자동화 전제로 짜 뒀다. 아래가 갖춰지는 대로 **손댈 것 없이** 돌기 시작한다.
+
+| | 없으면 어디서 멈추나 | 누구 |
+| --- | --- | --- |
+| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다. 게시 형식은 `depsdev` 의 `_current.json` 과 맞출 것 | 데이터 |
+| MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다. GPU 가 `run_pipeline.sh` 5단계로 등록한다 | AI |
+| **로더** | 배치는 돌지만 `similar_package` 가 비어 있어 **서비스에 안 닿는다** ([../README.md](../README.md) 의 "유사도 결과 로더는 어디서 도나") | 미정 |
+| 스케줄러 | 사람이 스크립트를 친다. 위가 서면 timer 가 부르기만 하면 된다 | 인프라 |
+| 채점 게이트 | `similarity_batch_pipeline.py` 의 5번이 TODO (S15P21A506-169) | AI |
+| 잡의 `s3://` 직접 입출력 | 있으면 `ai-stage`·`ai-collect` 두 단계가 통째로 사라진다 | AI |
+| `ai-similarity` 전용 MinIO 키 | 스테이징에 루트 자격증명을 쓰고 있다 (`ai/README.md` 의 B4) | 인프라 |
+| MLflow 를 **서버에서** 띄우기 | 로컬 compose 검증까지다 | 인프라 |
+| 수집 cron | — | 데이터 |
 
 배포 명령 전반은 [../README.md](../README.md).
