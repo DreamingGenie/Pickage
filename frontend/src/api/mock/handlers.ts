@@ -36,6 +36,8 @@ import {
   type PackageOverview,
   type PackageSearchResponse,
   type PackagesOverviewResponse,
+  type PdfGenerateRequest,
+  type PdfJob,
   type SimilarPackagesResponse,
   type TrendQuery,
   type TrendSeries,
@@ -275,6 +277,102 @@ export function mockDependentsTrend({
     series: buildDependentsSeries(found, window),
     not_found,
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * 기능-14. 보고서 PDF
+ * ------------------------------------------------------------------ */
+
+/**
+ * mock 보고서.
+ *
+ * **PDF 바이트는 만들지 않는다.** 브라우저에서 PDF 를 조립하려면 라이브러리가 하나 더
+ * 필요하고, 그렇게 만든 문서는 서버가 만드는 것과 모양이 달라 비교에도 못 쓴다.
+ * 그래서 mock 은 <b>생성·미리보기까지</b>만 흉내내고 다운로드는 실서버에서만 된다.
+ *
+ * 화면이 그 사실을 알 필요는 없다 — 다운로드는 주소를 여는 일이라 mock 분기가 없고,
+ * mock 으로 돌리는 동안 그 버튼을 누르면 서버가 없다는 것이 그대로 드러난다.
+ */
+const mockPdfHtml = new Map<string, string>()
+
+export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
+  const list = normalizeNames(request.names)
+  const { found, not_found } = split(list)
+  if (found.length === 0) {
+    fail('V001', '보고서를 만들 수 있는 패키지가 없습니다. 이름을 확인해 주세요.')
+  }
+
+  const names = found.map((p) => p.name)
+  const sections = request.sections ?? []
+  const id = `mock-${names.join('-')}-${sections.join('-')}`
+
+  // 서버와 같은 규칙(구상안 §13.6). 스코프 문자는 파일명에 남기지 않는다.
+  const fileName =
+    `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
+
+  mockPdfHtml.set(id, mockReportHtml(names, sections, not_found))
+
+  return delay<PdfJob>({
+    report_id: id,
+    status: 'COMPLETE',
+    file_name: fileName,
+    // 실제 크기가 아니다. 화면이 "크기 표시" 자리를 그리는지 보기 위한 값이다.
+    bytes: 12_000 + names.length * 3_400,
+    created_at: new Date().toISOString(),
+    omitted: sections,
+  })
+}
+
+export function mockPdfPreview(reportId: string): Promise<string> {
+  const html = mockPdfHtml.get(reportId)
+  if (!html) fail('S001', '보고서가 만료되었습니다. 다시 만들어 주세요.')
+  return delay(html as string)
+}
+
+/** 서버 렌더러의 모양만 흉내낸다. 값은 지어낸 것이다. */
+function mockReportHtml(
+  names: string[],
+  sections: readonly string[],
+  notFound: string[],
+): string {
+  const rows = names
+    .map((name) => {
+      const pkg = BY_NAME.get(name)
+      return `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>`
+        + `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+    })
+    .join('')
+
+  const pending = sections
+    .map(
+      (s) =>
+        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>`
+        + `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
+    )
+    .join('')
+
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>
+<title>Pickage 생태계 보고서</title>
+<style>
+body{font-family:'Pretendard','Malgun Gothic',sans-serif;font-size:11pt;line-height:1.6;color:#111827}
+h1{font-size:20pt;margin:0 0 4px}
+h2{font-size:13pt;margin:22px 0 8px;padding-bottom:4px;border-bottom:1px solid #d1d5db}
+table{width:100%;border-collapse:collapse;margin:6px 0 12px}
+th,td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left}
+.n{text-align:right}
+.note{font-size:9pt;color:#4b5563}
+</style></head><body>
+<h1>Pickage 생태계 보고서</h1>
+<p>${names.join(' · ')}</p>
+<p class="note">mock 응답입니다. 값은 지어낸 것이고 모양만 서버와 같습니다.</p>
+<h2>비교 대상</h2>
+<table><thead><tr><th>패키지</th><th>최신 버전</th><th class="n">주간 다운로드</th></tr></thead>
+<tbody>${rows}</tbody></table>
+${notFound.length ? `<p class="note">찾지 못한 패키지: ${notFound.join(', ')}</p>` : ''}
+${pending}
+<h2>자료 상태와 해석 한계</h2>
+<p class="note">의존 수는 버전별 합계라 실제 사용처 수보다 큽니다.</p>
+</body></html>`
 }
 
 /* ------------------------------------------------------------------ *
