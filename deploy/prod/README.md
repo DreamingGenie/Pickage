@@ -5,7 +5,7 @@
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
 | **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
-| **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · Spark master·worker① (이후 mlflow · 수집 cron) |
+| **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · **mlflow** · Spark master·worker① · **ai-similarity**(유사도 배치, 1회성) (이후 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
 손으로 띄운 컨테이너에서 넘어오는 절차가 있다) — [data/README.md](data/README.md) 를 볼 것.
@@ -560,5 +560,56 @@ IP(172.19.x.x)를 광고하고 상대 호스트는 그 주소로 라우팅할 �
 | | 지금은 어떻게 되어 있나 |
 | --- | --- |
 | CI 자동 배포 | 위 "배포 (손으로)" 를 사람이 실행한다. 붙으면 `main` push 로 자동이 된다 |
-| `data` 노드의 MLflow · 수집 cron | 없다. [data/README.md](data/README.md) 의 compose 에 서비스로 추가된다 |
+| `data` 노드의 수집 cron | 없다. MLflow 는 올라갔다 ([data/README.md](data/README.md) 의 "MLflow") |
+| 유사도 결과 로더 | 없다. 아래 "유사도 결과 로더는 어디서 도나" 에서 **`app` 노드로 정했고**, 코드는 아직 없다 |
 | `batch_run_stats` 테이블 | 없다. 분산 증빙은 지금은 스모크 잡의 `EXECUTOR_HOSTS` 출력으로 한다 |
+
+## 유사도 결과 로더는 어디서 도나 — `app` 노드
+
+AI 파이프라인은 **SIM 과 LOAD 가 나뉘어 있다** (`ai/README.md` 의 "방식 C").
+
+```
+data 노드   ai/similarity 배치  →  MinIO 산출물 + manifest      ← 여기까지가 컨테이너
+app  노드   로더               →  manifest 읽어 similar_packages staging
+                                   → RENAME + model_production 포인터 전환
+```
+
+`ai/similarity` 이미지는 **PostgreSQL 을 건드리지 않는다** — PG 드라이버가 없다.
+DB 에 쓰는 것은 로더뿐이고, **로더는 `app` 노드에서 돈다.**
+
+### 그래서 `5432` 를 열지 않는다
+
+이게 이 결정의 핵심 이득이다. 로더가 postgres 와 같은 호스트에 있으면
+`pipeline/postgresql/load.py` 의 `--docker-container` 모드로 **컨테이너 안에서 `psql` 을
+실행**한다. 그러면 아래가 전부 필요 없어진다.
+
+| 로더를 `data` 노드에 두면 필요한 것 | `app` 노드에 두면 |
+| --- | --- |
+| postgres 를 사설 IP 에 바인딩 | **없음** — `ports:` 를 그대로 비워 둔다 |
+| 보안그룹 `app` 인바운드 5432 | **없음** |
+| `data/.env` 에 운영 DB 비밀번호 사본 | **없음** — 비밀이 한 군데에만 있다 |
+| `--psql` + TCP 경로 (덜 검증됨) | **없음** — 실측한 `--docker-container` 를 그대로 쓴다 |
+
+### 그 대신 로더가 MinIO 를 건너서 읽는다
+
+`app` 노드에서 `172.26.8.249:9000` 으로 읽는다. **이 포트는 Spark executor 용으로
+이미 열려 있어서 새 규칙이 없다.**
+
+⚠ 다만 `app` 노드는 **인터넷에 노출된 유일한 노드**다. 여기에 두는 MinIO 키는
+루트가 아니라 버킷 범위를 좁힌 것이어야 한다 — `app/.env.example` 의 MinIO 절에
+같은 경고가 이미 있다.
+
+### 왜 이 배치가 맞나
+
+방식 C 가 SIM 과 LOAD 를 나눈 이유가 **각자를 자기 데이터 옆에 두려는 것**이다.
+SIM 은 MinIO 옆, LOAD 는 PostgreSQL 옆. 핸드오프가 MinIO 객체(manifest)라서
+두 반쪽이 같은 호스트에 있을 필요가 없다 — 그게 계약으로 나눈 값어치다.
+
+자원도 이쪽이 낫다. `data` 노드는 배치 시각에 12g 를 이미 쓰고 그 남은 여유를
+유사도 배치가 원한다. `app` 노드는 약 4.6g 가 남고, 적재량도
+`similar_packages` 는 패키지당 최대 3행이라 **30만행 수준**이다 —
+58분 걸린 package·version 5,418만행과는 규모가 다르다.
+
+> **로더를 올릴 때**: `profiles` + `run --rm` 1회성으로 두고
+> `mem_limit` 과 `memswap_limit` 을 **짝으로** 넣는다 (위 "Swap").
+> 그리고 이 노드는 사용자 트래픽을 받으므로 **배포·배치와 시간을 겹치지 않게** 한다.

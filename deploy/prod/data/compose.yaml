@@ -85,6 +85,71 @@ services:
     volumes:
       - ../../../pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
 
+  # ── MLflow (모델 레지스트리) ───────────────────────────────────
+  #
+  # GPU(jupyter05)가 학습한 ONNX 를 @candidate 로 등록하고, 평가를 통과한 것을
+  # @production 으로 승격한다. 유사도 배치는 @production 이 가리키는 모델을 받아 쓴다.
+  #
+  # 상주다. 배치 때만 필요한 게 아니라 GPU 가 학습을 끝낼 때마다 붙는다.
+  mlflow:
+    # 공식 이미지. 태그를 고정한다 — latest 로 두면 스키마 마이그레이션이
+    # 어느 날 저절로 돌아 버린다(아래 backend store 주석 참고).
+    image: ghcr.io/mlflow/mlflow:v3.1.0
+    restart: unless-stopped
+    command:
+      - mlflow
+      - server
+      - --host
+      - "0.0.0.0"          # 컨테이너 안에서만 0.0.0.0 이다. 호스트 노출은 ports: 가 정한다
+      - --port
+      - "5000"
+      - --workers
+      - "2"                # 4(기본)에서 2 로 줄였다. 실측 518MiB → 318MiB
+      # ── backend store: 실험·런·등록모델·별칭이 사는 곳 ──
+      #
+      # ⚠ **이 파일이 "무엇이 @production 인가" 를 아는 유일한 곳이다.**
+      #   날리면 모델 파일은 MinIO 에 남아 있는데 어느 게 운영인지 모르게 된다.
+      #   PostgreSQL 을 쓸 수도 있지만 그러면 app 노드의 5432 를 열어야 한다 —
+      #   그 포트를 닫아 두기로 한 결정(로더를 app 노드에 두는 선택)과 맞바꾸게 된다.
+      #   지금 규모(학습 몇 회/일)에서 sqlite 로 충분하다.
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      # ── artifact store: 모델 파일이 사는 곳 ──
+      #
+      # 서버는 이 주소를 **문자열로만 들고 있는다.** 실제 업로드·다운로드는
+      # 클라이언트(GPU·배치)가 자기 자격증명으로 MinIO 에 직접 한다.
+      - --default-artifact-root
+      - s3://pickage-mlflow-artifacts/mlflow
+      # ⚠ 이 플래그가 위 문장을 성립시킨다. 빼면(기본값이 serve-artifacts 다)
+      #   서버가 아티팩트를 중계하려 하고 **boto3 를 찾다가 실패한다** —
+      #   공식 이미지에 boto3 가 없다(확인함). 그때는 커스텀 이미지를 만들어야 한다.
+      - --no-serve-artifacts
+    ports:
+      # 루프백만. GPU 는 SSH 터널로 붙는다 (ai/training/run_pipeline.sh 가
+      # -L 5000:localhost:5000 을 연다). 같은 노드의 배치는 compose 네트워크
+      # 이름으로 붙으므로 포트가 필요 없다.
+      #
+      # 사설 IP 에 묶지 않는다 — app 노드에서 MLflow 를 볼 일이 없다.
+      # 이 노드에 "외부로 열린 포트가 없다" 는 전제가 그대로 유지된다.
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflowdb:/mlflow
+    healthcheck:
+      # ⚠ 이 이미지에는 curl 도 wget 도 없다(확인함). python 만 있다.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health',timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      # 첫 기동에서 alembic 이 스키마를 처음부터 만든다 — 30초쯤 걸린다.
+      # 짧게 두면 정상 기동 중인 컨테이너가 unhealthy 로 죽는다.
+      start_period: 90s
+    # minio 에 depends_on 을 걸지 않는다. --no-serve-artifacts 라서 서버는
+    # S3 를 아예 건드리지 않는다 — 없는 의존을 적으면 기동 순서만 묶인다.
+    mem_limit: 512m
+    memswap_limit: 512m   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 실측 318MiB(워커 2개) 위의 여유. 이 노드는 배치 시각에 12g 를 이미 쓴다.
+
   # ── Spark (배치) ───────────────────────────────────────────────
   #
   # ⚠ network_mode: host 다. 이 셋은 compose 네트워크에 없다.
@@ -183,6 +248,124 @@ services:
     #   호스트 스왑 2g 는 이 노드에서 MinIO 데이터·Docker·셔플과 **같은 파티션**을
     #   쓴다. 스왑 I/O 를 허용하면 MinIO 읽기와 셔플 쓰기의 IOPS 를 같이 갉아먹는다.
 
+  # ── 유사도 배치 (1회성) ────────────────────────────────────────
+  #
+  # ⚠ **상주 서비스가 아니다.** 한 번 돌고 끝난다 — minio-init 과 같은 성격이라
+  #   profiles 에 넣었다. `up -d` 로는 뜨지 않는다.
+  #
+  #   docker compose run --rm ai-similarity --package-text ... --model-dir ... --out ...
+  #
+  #   `run` 은 서비스 이름을 직접 대면 profiles 를 알아서 켠다. `--rm` 을 빼면
+  #   돌린 횟수만큼 Exited 컨테이너가 쌓여 `ps -a` 를 못 읽게 된다.
+  #
+  # ⚠ **인자가 필수다.** ENTRYPOINT 라서 `run` 뒤에 붙인 것이 그대로 넘어가고,
+  #   --package-text·--model-dir·--out 이 없으면 argparse 가 바로 종료한다.
+  #   그래서 `command:` 를 두지 않는다 — 두면 기본 인자가 되어 이 형태를 가린다.
+  #   전체 목록: `docker compose run --rm ai-similarity --help`
+  #
+  # 앞뒤의 MinIO 왕복도 compose 서비스다 — ai-stage / ai-collect. `docker run` 으로
+  # 빼지 않는 이유는 그 셋(네트워크·볼륨 이름·env_file)을 손으로 다시 대야 하고,
+  # **자격증명을 넘기는 데서 실제로 틀렸기 때문이다.** minio-init 과 같은 모양으로 둔다.
+
+  ai-stage:
+    # 1/3. MinIO → aiwork. 배치가 S3 를 못 읽어서(이미지에 boto3 없음) 사람 대신 옮긴다.
+    profiles: ["batch", "all"]
+    # minio 와 **같은 핀**을 쓴다. 여기만 올리면 mc 하위 명령이 갈라진다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        # ⚠ 자격증명은 $$ 로 둔다 — **컨테이너 안의 셸이 런타임에** env_file 에서 읽는다.
+        #   $ 하나로 쓰면 compose 가 먼저 먹어서 비밀이 **명령줄 문자열에 박힌다.**
+        #   그러면 docker inspect 의 Entrypoint 와 프로세스 목록에까지 값이 남는다.
+        #   (env_file 때문에 `compose config` 의 environment 블록에는 어차피 보인다 —
+        #    이건 이 파일의 모든 서비스가 그렇고, $$ 로 막히는 문제가 아니다.)
+        #
+        #
+        # ⚠ **경로도 $$ 다.** 날짜·모델 버전이 박힌 값이라 compose 가 아니라
+        #   run-similarity-batch.sh 가 포인터를 읽어 확정하고 -e 로 넘긴다.
+        #   이 파일에 날짜도 버전도 없는 것이 의도다 — 회차마다 고칠 것이 없어야 한다.
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        : "$${AI_CORPUS_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        : "$${AI_MODEL_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        rm -rf /work/in /work/out
+        mkdir -p /work/in /work/out
+        mc cp --recursive "l/$$AI_CORPUS_PATH/" /work/in/
+        mc cp --recursive "l/$$AI_MODEL_PATH/" /work/in/model/
+        # ⚠ 배치는 uid 1000 으로 돈다. mc 는 root 로 받으므로 넘겨주지 않으면
+        #   배치가 --out 쓰기에서 Permission denied 로 죽는다.
+        chown -R 1000:1000 /work
+        ls -ln /work/in
+
+  ai-collect:
+    # 3/3. aiwork → MinIO. 잡이 s3:// 를 직접 쓰게 되면 이 서비스는 사라진다.
+    profiles: ["batch", "all"]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        : "$${AI_RESULT_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        # /work/out 아래의 model=vN/corpus=<run> 구조를 그대로 올린다.
+        mc cp --recursive /work/out/ "l/$$AI_RESULT_PATH/"
+        # ⚠ 완료 표시. 이게 있어야 다음 회차가 "이미 했다" 를 판단한다 —
+        #   없으면 같은 run 을 계속 다시 돈다.
+        touch /tmp/_SUCCESS
+        for d in /work/out/*/*; do
+          [ -d "$$d" ] || continue
+          mc cp /tmp/_SUCCESS "l/$$AI_RESULT_PATH/$${d#/work/out/}/_SUCCESS"
+        done
+
+  ai-similarity:
+    # 2/3.
+    profiles: ["batch", "all"]
+    # 레지스트리가 없어서 build 를 같이 둔다. `compose build` 가 만든 이미지에
+    # 곧바로 이 태그가 붙는다 — app 노드의 api·web 과 같은 방식이다.
+    # 롤백은 AI_TAG 를 이전 SHA 로 되돌리는 것이 전부다.
+    image: pickage-ai-similarity:${AI_TAG:?.env 에 AI_TAG 를 채울 것 — api·web 과 같은 규칙(커밋 SHA)}
+    build:
+      # ⚠ context 가 `ai/` 가 아니라 `ai/similarity/` 다. 잡마다 디렉터리가 따로 있고
+      #   .dockerignore 도 그 디렉터리 기준이다. AI 파트 소유이므로 여기서 바꾸지 말 것.
+      context: ../../../ai/similarity
+    restart: "no"
+    # minio 에 depends_on 을 걸지 않는다. **이 잡은 S3 를 아예 안 쓴다** —
+    # 이미지에 boto3 가 없고(requirements.txt 는 numpy·onnxruntime·pyarrow·transformers),
+    # 입출력이 전부 로컬 경로다. 산출물의 s3:// 출력은 후속 작업이다
+    # (similarity_batch_pipeline.py 의 "현재 구현 상태" 6번).
+    #
+    # 그래서 MinIO·MLflow 자격증명도 주지 않는다. 줘도 쓸 코드가 없고,
+    # 안 쓰는 비밀을 컨테이너에 넣는 것은 노출만 늘린다.
+    volumes:
+      # 입력(코퍼스 parquet·ONNX 모델)과 산출물이 여기를 지난다.
+      # MinIO 에서 꺼내 오고 다시 넣는 것은 **사람이 한다** — README 의 "유사도 배치 돌리기".
+      - aiwork:/work
+    mem_limit: 2g
+    memswap_limit: 2g   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 이 잡이 도는 시각이 이 노드가 가장 빠듯한 시각이다 — Spark 셋이 12g 를 잡은
+    #   위에 얹힌다(합계 14g / 15Gi). 올리려면 worker① 의 SPARK_WORKER_MEMORY 를
+    #   먼저 내려야 한다. 상한만 올리면 배치 때 커널이 아무거나 하나 죽인다.
+    #
+    #   10만건 재임베딩 실측 ~20.7분(batch 32) 기준이고, 메모리는 --batch-size 와
+    #   --query-block 이 지배한다. OOM 이 나면 상한보다 그 둘을 먼저 줄일 것.
+
 volumes:
   # named volume 이지만 데이터는 Docker 영역이 아니라 호스트 경로에 있다.
   # 손으로 띄운 컨테이너가 쓰던 그 디렉터리를 그대로 가리켜야 **기존 데이터가 보인다.**
@@ -204,3 +387,26 @@ volumes:
 
   # 내려받은 JAR 캐시. 없으면 배치를 돌릴 때마다 Maven 에서 다시 받는다.
   sparkivy:
+
+  # MLflow 의 sqlite 파일. **모델 파일이 아니라 "어느 모델이 @production 인가" 다.**
+  #
+  # ⚠ 이걸 잃으면 MinIO 의 모델 파일은 그대로 남는데 어느 게 운영인지 모르게 된다.
+  #   위 `하지 말 것` 의 `down -v` 경고가 이 볼륨에는 **글자 그대로 적용된다** —
+  #   minio-data 처럼 호스트 경로로 도망갈 곳이 없다.
+  #
+  # 백업(학습을 돌린 날 한 번): 절차는 README.md 의 "mlflow.db 는 모델 파일이 아니다".
+  #
+  # ⚠ 파일만 복사하지 말 것. journal_mode=delete 라 쓰는 중에는 일관된 상태가
+  #   mlflow.db 와 mlflow.db-journal 에 나뉘어 있다 — .db 만 떠 가면 찢어진 사본이
+  #   나올 수 있다. sqlite 온라인 백업 API(Connection.backup)를 쓴다.
+  mlflowdb:
+
+  # 유사도 배치의 작업 공간. 입력(parquet·ONNX 모델)과 산출물이 여기 있다.
+  #
+  # ⚠ 컨테이너가 uid 1000(appuser)로 도는데 **새 볼륨은 root 소유로 만들어진다.**
+  #   그대로 돌리면 --out 쓰기에서 Permission denied 다. 처음 한 번 소유권을 넘긴다 —
+  #   README 의 "유사도 배치 돌리기" 에 명령이 있다.
+  #
+  # 산출물은 사람이 MinIO 로 올린다. **여기 있는 것은 중간 산출물이라 백업 대상이 아니다** —
+  # 다시 돌리면 나온다. 지워도 되는 유일한 볼륨이다.
+  aiwork:
