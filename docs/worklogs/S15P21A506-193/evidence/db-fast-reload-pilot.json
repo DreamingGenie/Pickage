@@ -1,0 +1,140 @@
+{
+  "status": "PILOT_VERIFIED",
+  "expected_dates": 1,
+  "expected_rows": 7822819,
+  "date": {
+    "action": "LOADED",
+    "attempt_id": "649d263a024c4cdc90f48259ff2e36b7",
+    "counts": {
+      "identities": 97745,
+      "package_version_snapshot": 7822819,
+      "verified_rows": 7822819
+    },
+    "elapsed_seconds": 53.046999999991385,
+    "execution_id": "vd193-fast-full-1b6c01042e43de9d-20260831",
+    "inserted_rows": 7822819,
+    "metrics": {
+      "attach_seconds": 0.005178499995963648,
+      "before_commit_seconds": 3.9167865000199527,
+      "copy_seconds": 10.520143300003838,
+      "fk_seconds": 12.557583900023019,
+      "pk_seconds": 1.6863767000031658,
+      "staging_seconds": 12.308641899988288,
+      "total_seconds": 45.68159550000564,
+      "value_verification_seconds": 2.670442799979355
+    },
+    "snapshot": "2026-08-31",
+    "status": "PUBLISHED",
+    "target": "vd193_reload_pilot20260912_01.d20260831"
+  },
+  "elapsed_seconds": 111.173019,
+  "events": [
+    {
+      "at": "2026-09-12T08:23:24.518059+00:00",
+      "pid": 302820,
+      "phase": "SOURCE_OPEN",
+      "resume": false
+    },
+    {
+      "at": "2026-09-12T08:23:36.729058+00:00",
+      "pid": 302820,
+      "phase": "KEY_VALIDATION",
+      "identities": 97745,
+      "versions": 7822819
+    },
+    {
+      "at": "2026-09-12T08:24:22.443716+00:00",
+      "pid": 302820,
+      "phase": "PREPARE_DATE",
+      "snapshot": "2026-08-31",
+      "verified_dates": 0,
+      "total_dates": 1,
+      "verified_rows": 0,
+      "total_rows": 7822819
+    },
+    {
+      "at": "2026-09-12T08:25:15.502333+00:00",
+      "pid": 302820,
+      "phase": "DATE_VERIFIED",
+      "snapshot": "2026-08-31",
+      "status": "PUBLISHED",
+      "action": "LOADED",
+      "counts": {
+        "identities": 97745,
+        "package_version_snapshot": 7822819,
+        "verified_rows": 7822819
+      },
+      "execution_id": "vd193-fast-full-1b6c01042e43de9d-20260831",
+      "attempt_id": "649d263a024c4cdc90f48259ff2e36b7",
+      "metrics": {
+        "staging_seconds": 12.308641899988288,
+        "copy_seconds": 10.520143300003838,
+        "pk_seconds": 1.6863767000031658,
+        "fk_seconds": 12.557583900023019,
+        "value_verification_seconds": 2.670442799979355,
+        "attach_seconds": 0.005178499995963648,
+        "before_commit_seconds": 3.9167865000199527,
+        "total_seconds": 45.68159550000564
+      },
+      "target": "vd193_reload_pilot20260912_01.d20260831",
+      "inserted_rows": 7822819,
+      "elapsed_seconds": 53.046999999991385,
+      "verified_dates": 1,
+      "total_dates": 1,
+      "verified_rows": 7822819,
+      "total_rows": 7822819
+    },
+    {
+      "at": "2026-09-12T08:25:15.691078+00:00",
+      "pid": 302820,
+      "phase": "COMPLETE",
+      "status": "PILOT_VERIFIED"
+    }
+  ],
+  "target": {
+    "completed_dates": 1,
+    "completed_rows": 7822819,
+    "exists": true,
+    "ready": true,
+    "service_contract": {
+      "acl": null,
+      "columns": [
+        [
+          "package_id",
+          "integer",
+          true,
+          null
+        ],
+        [
+          "version",
+          "character varying(100)",
+          true,
+          null
+        ],
+        [
+          "snapshot_at",
+          "date",
+          true,
+          null
+        ],
+        [
+          "dependents_count",
+          "integer",
+          true,
+          "0"
+        ]
+      ],
+      "constraints": [
+        "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+        "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)",
+        "PRIMARY KEY (package_id, version, snapshot_at)"
+      ],
+      "oid": 87774,
+      "owner": "postgres",
+      "rls": false,
+      "rules": false,
+      "triggers": 0
+    },
+    "value_check": "Counts and structure verified; full value comparison runs per date during resume/load"
+  }
+}

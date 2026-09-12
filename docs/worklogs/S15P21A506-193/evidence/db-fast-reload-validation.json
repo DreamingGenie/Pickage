@@ -1,0 +1,36 @@
+{
+  "unittest": {
+    "modules": [
+      "pipeline.version_dependents.test_historical_db_fast_publish",
+      "pipeline.version_dependents.test_historical_db_reload"
+    ],
+    "tests": 22,
+    "skips": 0,
+    "seconds": 45.282,
+    "status": "PASSED"
+  },
+  "generation": {
+    "historical_db_keys.py": "e8e9a5b89945e80c8a7818cd104ed5e05a6fa3dcbb5726da471766bc91e2dca4",
+    "historical_db_load.py": "f2434a39b4cccccd5b677d87b91eef5fe4c06497e601b75bb43a1a1a58d65a92",
+    "historical_db_publish.py": "748ba87d4bc6d0057e8f7d8fa8397f3a9305f41bedeb4eaafde5fe901ec6e55d",
+    "historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+    "historical_db_source.py": "e57fd47b4c1a4f93178832896f35c130a445c34ac81b20160dc66ead9544de54",
+    "postgres.py": "58cf10af376351b85022517fd3e2d456629fe1c68a5116ef080d629fa83af91a",
+    "historical_db_fast_publish.py": "5e50b959b55ea87cbda5080df84846add4e696bcaa2ca7fbaf85181117cdae80",
+    "historical_db_reload.py": "b15d944c3af589ec96c33273eadbea3e9a8f921f5174e197e0c9769df3929401",
+    "historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+    "artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+    "version-dependents-reload.ps1": "4ce2bdf008aa7704a2abf7d5c0ee60585ade33bb56b831cf1f3e8e9eec853ef9"
+  },
+  "full_reload_started": false,
+  "service_cutover_executed": false,
+  "review": "No additional critical blockers; sustained full-date final verification cost not measured",
+  "full_preflight": "CHECKED",
+  "largest_day_rows": 7822819,
+  "largest_day_resume_inserted_rows": 0,
+  "pilot_schema_cleaned": true,
+  "original_paused_dates": 43,
+  "original_paused_rows": 106346692,
+  "original_resume_check": "RESUME_CHECK_PASSED",
+  "full_target_schema_exists": false
+}

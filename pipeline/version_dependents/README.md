@@ -516,3 +516,61 @@ GPU 장애는 실행 실패로 기록하며 자동 CPU 대체를 하지 않는�
 현재 CPU 기본 자원은 메모리 16GB·임시 디스크 256GB·개별 요청 180초이며 4개 작업자가 나눠 쓴다.
 PARTIAL과 `ready_for_load=false`를 유지하며 DB 적재는 별도 작업이다.
 [전체 실행 결과와 생성 지문](../../docs/worklogs/S15P21A506-193/30-full-selected-run.md)
+
+## H6 DB 준비 소규모 검증
+
+`historical_db_prepare.prepare_sample`은 완료된 FULL_SELECTED CPU grouped 실행의 지문과
+선택한 입력/출력 파일을 검사한 뒤 요청한 패키지·날짜의 적격 버전만 펼친다.
+양수 값이 없는 적격 버전은 0으로 보완하며, DB의 ID/이름·버전 복합키·날짜를 읽기 전용으로 확인한다.
+기본 PostgreSQL 세션 유틸리티를 재사용하며 새 드라이버는 필요하지 않다.
+최대 32개 이름·4개 날짜·100,000행의 pilot 전용이다.
+
+`historical_db_probe.apply_sample`은 새로 만든 `pickage_193_probe_<32자리 hex>` DB에서만
+COPY/키 검증/UPSERT를 허용한다. 변경 컬럼은 dependents_count뿐이며 동일 값은 갱신하지 않는다.
+서비스 DB 전체 적재기나 공통 ETL 게시기를 대신하지 않는다. PARTIAL과 `ready_for_load=false`를 보존한다.
+
+실제 PostgreSQL 검사는 기존 격리 컨테이너를 지정해 실행한다. 테스트마다 새 검증 DB를 소유하고 정리한다.
+
+```powershell
+$env:PICKAGE_TEST_CONTAINER = 'pickage-267-validation'
+python -m unittest pipeline.version_dependents.test_historical_db_prepare pipeline.version_dependents.test_historical_db_probe
+```
+
+[실제 78행 적재·재실행 결과와 남은 범위](../../docs/worklogs/S15P21A506-193/31-db-preparation-pilot.md)
+
+
+### H7 전체 키 확인과 날짜별 적재
+
+`historical_db_load`는 완료된 FULL_SELECTED CPU 집계와 동일한 package-version/달력 원천을 확인한다.
+DB의 `package_version_snapshot`에는 선정 대상의 0 포함 버전별 count만 기록한다. 참조 수는 전체 source 버전이 참조하는 수이며,
+원본 미해석 관계는 계속 PARTIAL로 보존한다. `PUBLISHED`는 해당 날짜 적재가 원자적으로 성공했다는 뜻이다.
+
+아래 명령은 **읽기 전용 키 검증만** 실행한다. 데이터 전송을 위한 PostgreSQL TEMP 테이블만 만든다.
+
+```powershell
+python -m pipeline.version_dependents.historical_db_load `
+  --run-dir data/vd-full-20260912-01/run `
+  --manifest-sha256 1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94 `
+  --output data/vd-h7-load-new `
+  --container pickage-267-validation --database pickage_267_full_defaulted
+```
+
+실제 쓰기는 `--publish`를 명시해야 한다. 날짜를 지정하지 않으면 229개 날짜 전체가 대상이며,
+`--date YYYY-MM-DD`를 반복하면 해당 날짜들만 적재한다. 입력·연결 대상·날짜·코드가 같은 명령과 출력 폴더로 재실행한다.
+코드가 달라지면 기존 계획을 덮어쓰지 말고 변경을 검토한 후 새 출력 폴더를 사용한다.
+완료 날짜는 DB 값을 재검증하고 미완료 날짜를 적재한다. 날짜 중간 실패는 해당 날짜 전체를 rollback한다.
+서로 다른 입력으로 게시된 날짜와 출처 없는 기존 행은 자동 덮어쓰지 않는다.
+
+`status.json`은 현재 실행 상태, `progress.jsonl`은 단계별 이력이다. `result.json`은 마지막 완료 결과이므로
+현재 실행이 실패했는지는 `status.json`을 먼저 확인한다. 매 실행의 영구 결과는 `attempt-*/result.json`,
+날짜별 결과는 `attempt-*/YYYY-MM-DD.json`에 보존된다. DB의 execution/attempt 이력이 실제 COMMIT의 기준이다.
+동일 실행을 재확인할 때도 날짜 COPY 파일을 다시 만들므로 재개가 즉시 끝나는 것은 아니다.
+한 날짜의 COPY 파일만 재사용하고 전체 10억 행을 임시 파일 하나에 미리 생성하지 않는다.
+
+이전 전체 적재는 43일/106,346,692행에서 중단되어 보존 중이다. 위 실행기는 그 이전 방식이다.
+빠른 전체 재적재는 별도 날짜별 partition 대상에 229일을 다시 저장하도록 준비했다.
+기본 점검은 `scripts/version-dependents-reload.ps1 -Action Check`를 사용한다.
+2026-09-12 전체 재적재를 시작했으며, 조회 구조 검토를 위한 사용자 요청으로 19일/43,616,976행 적재 후 정상 중단했다.
+자동 재개하지 않으며 이후 재개할 때는 `-Action Resume`을 사용한다. 서비스 테이블 전환은 하지 않았다.
+[실행·중단 기록](../../docs/worklogs/S15P21A506-193/41-fast-full-reload-run.md)과
+[빠른 적재 실행 안내](../../docs/worklogs/S15P21A506-193/40-fast-reload-runbook.md)에서 설정·재개·서비스 전환의 범위를 확인한다.

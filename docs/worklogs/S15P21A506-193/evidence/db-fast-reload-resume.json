@@ -1,0 +1,74 @@
+{
+  "dates": [
+    {
+      "action": "REVERIFIED",
+      "attempt_id": "55bf96273e2247d487c845bed130880a",
+      "counts": {
+        "identities": 97745,
+        "package_version_snapshot": 7822819,
+        "verified_rows": 7822819
+      },
+      "elapsed_seconds": 28.687000000005355,
+      "execution_id": "vd193-fast-full-1b6c01042e43de9d-20260831",
+      "inserted_rows": 0,
+      "metrics": {
+        "before_commit_seconds": 4.139258499984862,
+        "staging_seconds": 12.850850399991032,
+        "total_seconds": 21.470710399997188,
+        "value_verification_seconds": 2.735110599984182
+      },
+      "snapshot": "2026-08-31",
+      "status": "PUBLISHED",
+      "target": "vd193_reload_pilot20260912_01.d20260831"
+    }
+  ],
+  "expected_dates": 1,
+  "expected_rows": 7822819,
+  "status": "PILOT_VERIFIED",
+  "target": {
+    "completed_dates": 1,
+    "completed_rows": 7822819,
+    "exists": true,
+    "ready": true,
+    "service_contract": {
+      "acl": null,
+      "columns": [
+        [
+          "package_id",
+          "integer",
+          true,
+          null
+        ],
+        [
+          "version",
+          "character varying(100)",
+          true,
+          null
+        ],
+        [
+          "snapshot_at",
+          "date",
+          true,
+          null
+        ],
+        [
+          "dependents_count",
+          "integer",
+          true,
+          "0"
+        ]
+      ],
+      "constraints": [
+        "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+        "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)",
+        "PRIMARY KEY (package_id, version, snapshot_at)"
+      ],
+      "oid": 87774,
+      "owner": "postgres",
+      "rls": false,
+      "rules": false,
+      "triggers": 0
+    },
+    "value_check": "Counts and structure verified; full value comparison runs per date during resume/load"
+  }
+}

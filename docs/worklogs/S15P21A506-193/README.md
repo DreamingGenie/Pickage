@@ -1,5 +1,13 @@
 # S15P21A506-193 — 버전별 dependents 계산·적재 작업 기록
 
+최신 상태(2026-09-12 23:18 KST): 빠른 전체 재적재는 **19일/43,616,976행 저장 후 사용자 요청으로 중단**했다.
+기존 public 테이블의 43일/106,346,692행도 보존 중이며 서비스 전환은 하지 않았다.
+패키지·버전별 날짜 그래프의 조회 성능은 아직 측정하지 않았다. [41 실행·중단 기록](41-fast-full-reload-run.md).
+
+2026-09-12 H6 소규모 DB 적재 준비 검증 완료: 실제 3개 패키지·2개 날짜의 78행을 별도 DB에
+적재·대조했고 재실행 변경은 0행이었다. 기존 데이터 DB는 읽기만 했으며 전체 적재는 남아 있다.
+[31 키 연결·0 처리·격리 검증](31-db-preparation-pilot.md).
+
 2026-09-12 로컬 전체 실행 준비: 메모리 16GB·임시 디스크 256GB·개별 요청 180초로
 한도를 확대했고 관련 테스트 25개를 통과했다. [29 설정과 검증](29-local-resource-limits.md).
 전체 집계는 2026-09-12 01:34:32 KST에 최종 검증까지 완료했다. 99,996개 패키지·229개 날짜의
@@ -104,3 +112,22 @@ D-22에 따라 저장 target은 다운로드 선정 목록의 고유 이름 99,9
 - [기존 PostgreSQL 적재 기반](../../../pipeline/postgresql/README.md), [스냅샷 계약](../../../pipeline/snapshot/README.md)
 - [서비스 테이블 DDL](../../../backend/src/main/resources/db/migration/V1__init.sql)
 - [집계 모듈](../../../pipeline/version_dependents/README.md), [커밋 전 전체 테스트 증거](evidence/commit-checkpoint-validation.json), [초기 손계산 예제 결과](evidence/small-graph-result.json)
+
+- [32 전체 DB 키 검증과 날짜별 원자적 적재기](32-full-db-loader.md): 전수 키/원천 일치, 0 복원 및 실패·재개 검증. 실제 전체 DB 적재는 미실행.
+
+- [33 전체 DB 적재 실행](33-full-db-load.md): 사용자 승인 후 229일 전체 백그라운드 적재 시작. 완료 여부는 실행 상태 파일 기준.
+
+- [34 DB 적재 중단과 재개 준비](34-db-pause-and-resume.md): 43일/106,346,692행 보존, 2023-03-06 취소, 체크포인트와 재개 검사 준비.
+
+- [35 DB 적재 성능 개선 계획](35-db-load-optimization-plan.md): 공식 문서 조사, BRIN/검증/COPY 비교, 필요 시 partition 구조 실험, 기존 43일을 보존하는 호환 재개.
+
+- [36 삽입·외래키 실험과 이동 전 중단](36-db-insert-benchmark.md): 10만 행 진단 완료, 하루 전체 실험 취소·정리, 입력/체크포인트·실험 재개 도구 보존.
+
+- [37 날짜 partition 연결·재개 검증](37-db-partition-attach-probe.md): 실제 282만 행 일괄 검증 후 약 3.3ms 연결, 제약 재사용·값 전수 일치·실패/재개 검사. 실제 기존 테이블 전환은 미실행.
+
+- [38 최대 하루치와 전체 재적재 예상](38-largest-day-full-reload-estimate.md): 최대 782만 행 입력 생성+DB 흐름 49~53초, 전체 229일/10억 행 중심 약 2시간 30분·일정 예산 3~4시간. 실제 전체 재적재 미실행.
+
+- [39 빠른 전체 재적재 실행 준비](39-fast-reload-ready.md): 실제 실행 이력·검증·중단/재개 연결, 최대 날짜 통합 검증과 전체 설정 점검. 전체 재적재는 시작하지 않음.
+- [40 실행 안내](40-fast-reload-runbook.md): 나중에 사용할 Check/Start/Status/Stop/Resume 명령과 서비스 전환 경계.
+
+- [41 빠른 전체 재적재 실행·중단](41-fast-full-reload-run.md): 19일/43,616,976행 보존 후 정상 중단. 다음 날짜 2022-09-19, 자동 재개 없음. 서비스 조회 구조 검토는 남아 있다.
