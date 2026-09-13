@@ -1,0 +1,40 @@
+{
+  "mode": "rehearse",
+  "started_at": "2026-09-13T00:46:32.444102+00:00",
+  "sql_sha256": {
+    "forward": "7c6ed461e7f14962be80dda0775965a5d1042af4e077ebd683e48bf26c6d9de7",
+    "reverse": "bd2150363d65f6736719ffc92b04015a45a57cebc6b983c470b87839f0765e86"
+  },
+  "sample": {
+    "cases": 48,
+    "returned_rows": 7560,
+    "all_match_previous_query_results": true
+  },
+  "service_oid": 280767,
+  "backup_oid": 87774,
+  "dates": 229,
+  "rows_from_verified_load_receipts": 1007084608,
+  "other_dataset_history_unchanged": true,
+  "prior_history_backed_up": true,
+  "history_fingerprints": {
+    "before": {
+      "execution": "911c21dc18ab1c49f3214e82432e3e42",
+      "attempt": "4a10451a9ba339c2d80566a78f5be280",
+      "current": "c6dafe7e9b6306b055683f0f66969a31"
+    },
+    "after": {
+      "execution": "3cc9c76adbb81bcca9871ea47f31e67c",
+      "attempt": "3e54834a3e3cf6e03a703f416e479edc",
+      "current": "c9f8dd1186f124387366f1842cb96947"
+    },
+    "other": {
+      "execution": "eca578c596040afa9c00f50c6010815f",
+      "attempt": "2f65ca08bc9ee4564f7f03840984c387",
+      "current": "32558e367243a14dc88eb7ca6aa8d150"
+    }
+  },
+  "status": "REHEARSED",
+  "recovery_verified": true,
+  "ended_at": "2026-09-13T00:46:34.915655+00:00",
+  "elapsed_seconds": 2.4715954000130296
+}
