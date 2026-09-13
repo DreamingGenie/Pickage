@@ -1,0 +1,27 @@
+{
+  "status": "COMPLETE",
+  "pid": 310612,
+  "started_at": "2026-09-12T14:58:09.304892+00:00",
+  "scope": "reload CLI including source, keys, per-date load, final verification and cleanup",
+  "excluded": [
+    "prior preflight",
+    "reset",
+    "future serving query benchmark"
+  ],
+  "config": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-db-reload-timed-20260912-2354\\config.json",
+  "last_phase": {
+    "at": "2026-09-12T17:28:37.114860+00:00",
+    "phase": "COMPLETE",
+    "pid": 310612,
+    "status": "READY_FOR_CUTOVER"
+  },
+  "full_load_complete": true,
+  "all_dates_newly_loaded": true,
+  "completed_dates": 229,
+  "completed_rows": 1007084608,
+  "per_date_seconds": 8843.12700000024,
+  "elapsed_seconds": 9028.416268700006,
+  "ended_at": "2026-09-12T17:28:37.741047+00:00",
+  "exit_code": 0,
+  "non_date_seconds": 185.28926869976567
+}

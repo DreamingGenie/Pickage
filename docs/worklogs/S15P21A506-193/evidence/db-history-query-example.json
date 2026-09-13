@@ -1,0 +1,924 @@
+{
+  "package_id": 6620867,
+  "name": "express",
+  "version": "0.14.0",
+  "returned_rows": 229,
+  "result": [
+    {
+      "snapshot_at": "2022-05-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-05-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-05-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-05-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-06-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-06-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-06-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-06-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-07-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-07-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-07-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-07-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-08-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-08-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-08-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-08-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-08-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-09-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-09-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-09-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-09-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-10-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-10-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-10-17",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-10-24",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-10-31",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-11-07",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-11-14",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-11-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-11-28",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-12-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-12-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-12-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2022-12-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-01-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-01-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-01-16",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-01-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-01-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-02-06",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-02-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-02-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-02-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-03-06",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-03-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-03-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-03-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-04-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-04-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-04-17",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-04-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-05-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-06-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-06-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-06-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-06-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-07-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-07-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-07-17",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-07-24",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-07-31",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-08-07",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-08-14",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-08-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-08-28",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-09-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-09-11",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-09-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-09-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-10-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-10-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-10-16",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-10-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-10-30",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-11-06",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-11-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-11-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-11-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-12-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-12-11",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-12-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2023-12-25",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-01-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-01-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-01-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-01-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-01-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-02-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-02-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-02-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-02-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-03-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-03-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-03-11",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-03-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-03-25",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-04-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-04-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-04-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-04-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-04-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-05-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-05-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-05-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-05-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-06-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-06-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-06-17",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-06-24",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-07-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-08-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-08-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-08-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-08-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-09-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-09-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-09-16",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-09-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-09-30",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-10-07",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-10-14",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-10-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-10-28",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-11-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-11-11",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-11-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-11-25",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-12-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-12-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-12-16",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-12-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2024-12-30",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-01-06",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-01-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-01-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-01-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-02-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-02-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-02-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-02-25",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-03-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-03-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-03-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-03-24",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-03-31",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-04-07",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-04-14",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-04-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-04-28",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-05-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-05-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-05-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-05-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-06-02",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-06-09",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-06-16",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-06-23",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-06-30",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-07-07",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-07-14",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-07-21",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-07-28",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-08-04",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-08-11",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-08-18",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-08-25",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-09-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-09-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-09-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-09-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-09-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-10-06",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-10-13",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-10-20",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-10-27",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-11-03",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-11-10",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-11-17",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-11-24",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-12-01",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-12-08",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-12-15",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-12-22",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2025-12-29",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2026-01-05",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2026-01-12",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2026-01-19",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2026-01-26",
+      "dependents_count": 0
+    },
+    {
+      "snapshot_at": "2026-02-13",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-02-16",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-02-23",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-02",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-09",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-10",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-16",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-23",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-03-30",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-04-06",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-04-13",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-04-14",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-04-20",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-04-28",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-05-05",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-05-11",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-05-18",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-06-01",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-06-11",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-06-15",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-06-23",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-06-29",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-07-06",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-07-13",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-07-20",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-07-27",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-08-03",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-08-10",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-08-17",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-08-24",
+      "dependents_count": 1
+    },
+    {
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 1
+    }
+  ]
+}

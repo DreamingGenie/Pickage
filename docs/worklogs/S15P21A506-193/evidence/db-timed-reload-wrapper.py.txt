@@ -1,0 +1,72 @@
+"""Measure the existing reload CLI without changing its generation contract."""
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import sys
+import time
+import traceback
+
+
+def write(path, value):
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    temporary.replace(path)
+
+
+def execute(config_path, run_cli):
+    config_path = Path(config_path).resolve()
+    config = json.loads(config_path.read_text(encoding='utf-8'))
+    root = Path(config['output']).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    timing_path = root / 'timing.json'
+    if timing_path.exists() or (root / 'progress.jsonl').exists():
+        raise RuntimeError('Fresh timing requires a new execution directory')
+    measured = {'status': 'RUNNING', 'pid': os.getpid(),
+                'started_at': datetime.now(timezone.utc).isoformat(),
+                'scope': 'reload CLI including source, keys, per-date load, final verification and cleanup',
+                'excluded': ['prior preflight', 'reset', 'future serving query benchmark'],
+                'config': str(config_path)}
+    started = time.perf_counter()
+    write(timing_path, measured)
+    exit_code = 1
+    try:
+        exit_code = run_cli(['--config', str(config_path), '--publish'])
+        current = json.loads((root / 'status.json').read_text(encoding='utf-8'))
+        measured['last_phase'] = current
+        result = json.loads((root / 'result.json').read_text(encoding='utf-8')) if (root / 'result.json').exists() else {}
+        completed = (exit_code == 0 and current.get('phase') == 'COMPLETE'
+                     and result.get('status') == 'READY_FOR_CUTOVER')
+        measured['status'] = 'COMPLETE' if completed else current.get('phase', 'INCOMPLETE')
+        measured['full_load_complete'] = completed
+        measured['all_dates_newly_loaded'] = bool(completed and result.get('dates') and all(
+            row.get('action') == 'LOADED' for row in result['dates']))
+        measured['completed_dates'] = result.get('target', {}).get('completed_dates', current.get('completed', current.get('verified_dates', 0)))
+        measured['completed_rows'] = result.get('target', {}).get('completed_rows', current.get('verified_rows'))
+        measured['per_date_seconds'] = sum(row['elapsed_seconds'] for row in result.get('dates', []))
+        if not completed or not measured['all_dates_newly_loaded']:
+            exit_code = 2
+    except BaseException as error:
+        measured.update(status='FAILED', full_load_complete=False, error=str(error))
+        traceback.print_exc()
+        exit_code = 1
+    finally:
+        measured['elapsed_seconds'] = time.perf_counter() - started
+        measured['ended_at'] = datetime.now(timezone.utc).isoformat()
+        measured['exit_code'] = exit_code
+        if (root / 'progress.jsonl').exists():
+            events = [json.loads(line) for line in (root / 'progress.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
+            dates = [row for row in events if row.get('phase') == 'DATE_VERIFIED']
+            if not measured.get('full_load_complete'):
+                measured['completed_dates'] = len(dates)
+                measured['completed_rows'] = dates[-1].get('verified_rows', 0) if dates else 0
+            if measured.get('full_load_complete'):
+                measured['non_date_seconds'] = measured['elapsed_seconds'] - measured['per_date_seconds']
+        write(timing_path, measured)
+        print(json.dumps(measured, ensure_ascii=False), flush=True)
+    return exit_code
+
+
+if __name__ == '__main__':
+    from pipeline.version_dependents.historical_db_reload import main
+    raise SystemExit(execute(sys.argv[1], main))

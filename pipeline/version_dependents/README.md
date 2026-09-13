@@ -572,5 +572,13 @@ python -m pipeline.version_dependents.historical_db_load `
 기본 점검은 `scripts/version-dependents-reload.ps1 -Action Check`를 사용한다.
 2026-09-12 전체 재적재를 시작했으며, 조회 구조 검토를 위한 사용자 요청으로 19일/43,616,976행 적재 후 정상 중단했다.
 자동 재개하지 않으며 이후 재개할 때는 `-Action Resume`을 사용한다. 서비스 테이블 전환은 하지 않았다.
+이후 사용자가 처음부터 전체 시간을 측정하도록 요청하여 이전 private 19일 데이터를 초기화하고,
+2026-09-12 23:58 KST 새 job의 전체 적재를 시작했다. 기본 config는 새 job으로 연결되어 있다.
+2026-09-13 02:28 KST 229일/1,007,084,608행의 적재와 최종 검증을 완료했으며 총 2시간 30분 28초가 걸렸다.
+이후 16개 패키지/48개 버전의 조회를 측정했다. 229일 전체를 반환한 19개 버전의 반복 조회는
+DB 계획·실행 중앙값 13.274ms, 일반 SELECT 결과 수신 중앙값 15.482ms였다.
+로컬 단일 연결 측정이며 실제 API·EC2·동시 요청 성능과 서비스 테이블 전환은 아직 확인하지 않았다.
+[조회 측정 결과](../../docs/worklogs/S15P21A506-193/43-package-version-query-probe.md)에 조건과 한계를 기록했다.
+[현재 전체 시간 측정 기록](../../docs/worklogs/S15P21A506-193/42-timed-full-reload.md)이 최신 실행 기준이다.
 [실행·중단 기록](../../docs/worklogs/S15P21A506-193/41-fast-full-reload-run.md)과
 [빠른 적재 실행 안내](../../docs/worklogs/S15P21A506-193/40-fast-reload-runbook.md)에서 설정·재개·서비스 전환의 범위를 확인한다.
