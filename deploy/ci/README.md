@@ -110,10 +110,31 @@ This job is stuck because the project doesn't have any runners online assigned t
 
 ### 1. 설치 (`app` 노드에서)
 
+공식 안내는 `curl … | sudo bash` 지만 **파이프로 넘기지 않는다.** 받아서 확인하고 실행한다.
+
 ```bash
-curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | sudo bash
+curl -fL "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" -o /tmp/runner-repo.sh
+sudo bash /tmp/runner-repo.sh
 sudo apt-get install -y gitlab-runner
 ```
+
+> ### ⚠ `curl … | sudo bash` 는 실패를 삼킨다
+>
+> curl 이 아무것도 못 받아도 `sudo bash` 는 빈 입력을 읽고 조용히 끝난다. 화면에는 오류가
+> 없는데 저장소는 안 붙어 있고, 그다음 `apt-get install` 이 이렇게 말한다.
+>
+> ```
+> E: Unable to locate package gitlab-runner
+> ```
+>
+> **2026-09-13 설치 때 실제로 여기서 막혔다.** 배포판이 지원되지 않는 것으로 오해하기 쉬운데
+> (Ubuntu 24.04 `noble` 은 정상 지원된다), 원인은 그냥 내려받기가 실패한 것이었다. 위처럼
+> `-f`(HTTP 오류를 실패로) 와 `-o`(파일로) 를 쓰면 그 자리에서 드러난다. 구분하는 법:
+>
+> ```bash
+> ls /etc/apt/sources.list.d/ | grep -i runner   # 없으면 내려받기 실패
+> apt-cache policy gitlab-runner                 # Candidate: (none) 이면 코드명 미지원
+> ```
 
 docker executor 를 쓰므로 **Docker 가 이미 깔려 있어야 한다.** `app` 노드는 compose 가
 돌고 있으니 이미 있다.
@@ -181,6 +202,17 @@ sudo gitlab-runner verify          # 등록이 살아 있는지
 
 > `gitlab-runner` 가 Docker 소켓에 접근하지 못하면(`permission denied … docker.sock`)
 > `sudo usermod -aG docker gitlab-runner && sudo systemctl restart gitlab-runner`.
+
+### 지금 붙어 있는 것 (2026-09-13)
+
+| | |
+| --- | --- |
+| 노드 | `app` (`j15a506.p.ssafy.io`), Ubuntu 24.04.4 LTS, 코어 4개 |
+| 러너 | `pickage-app-docker` (id 2119), docker executor |
+| 적용한 값 | `concurrent = 1`, `memory`·`memory_swap` = `2g`, `cpus = "2"`, `pull_policy = ["if-not-present", "always"]` |
+
+`cpus = "2"` 는 **4코어의 절반**이다. 나머지 절반이 api·postgres·Spark worker② 몫으로
+남는다. 코어가 2개인 노드에 붙일 때 이 값을 그대로 복사하면 제한이 없는 것과 같아진다.
 
 ## 메모리 — CI 는 상한 밖에서 도는 또 하나의 프로세스다
 
