@@ -15,6 +15,7 @@ BigQuery 수집 결과의 팀 공유 정본은 GCS `gs://oss-shift-a506-raw/raw/
 | `minio/` | 로컬 MinIO 버킷 초기화·deps.dev 원본 적재 | [MinIO 원본 입고 안내](minio/README.md) |
 | `downloads/` | 이미 수집한 대상 CSV·JSONL·일별/상태 Parquet 검증 → MinIO Bronze 불변 입고. 수동 실행 | [다운로드 검증·입고 안내](downloads/README.md) |
 | `curated/` | MinIO의 deps.dev 원본 → PostgreSQL `package`·`version` 적재용 Curated Parquet | [Curated 전처리 안내](curated/README.md) |
+| `orchestration/` | 명시적 MinIO raw 스냅샷 → 기존 전처리 순차 실행·실패 재개·완료 Curated 묶음 게시. 수집/DB 적재 제외 | [통합 실행 안내](orchestration/README.md) |
 | `snapshot/` | Projects에 실제 존재하는 스냅샷 날짜·원천 시각·직전 기준일 검증 → 기준 날짜와 DB 실행 이력 적재 | [스냅샷 기준·적재 안내](snapshot/README.md) |
 | `downloads_interval/` | 승인 패키지 전체의 스냅샷 구간 다운로드 합계·부분합·품질 정보 → MinIO Curated 게시 | [다운로드 구간 집계 안내](downloads_interval/README.md) |
 | `repository_metrics/` | 승인 패키지의 저장소 선택·정확한 관측 시각의 stars·open_issues → Curated 게시 | [저장소 지표 안내](repository_metrics/README.md) |

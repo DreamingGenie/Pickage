@@ -26,6 +26,7 @@ RAW_BUCKET = 'pickage-raw'
 CURATED_BUCKET = 'pickage-curated'
 CURRENT = PREFIX + '/_current.json'
 LOCK = PREFIX + '/_writer.lock'
+_UNPINNED_PARENT = object()
 
 
 def _hash(body):
@@ -139,7 +140,8 @@ def _publish_pointer(s3, prefix, manifest_body, request, old_pointer):
                           old_pointer[1] if old_pointer else None)
 
 
-def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, memory='4GB'):
+def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, memory='4GB',
+        *, expected_parent=_UNPINNED_PARENT):
     """One writer, immutable attempts, last-step pointer publication; no raw writes."""
     for value in (bronze_run_id, run_id):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', value):
@@ -158,6 +160,12 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
             sources[table], fingerprints[table] = load_bronze(s3, table, snapshot, bronze_run_id)
         old_pointer = read_optional(s3, CURATED_BUCKET, CURRENT)
         parent = json.loads(old_pointer[0]) if old_pointer else None
+        if expected_parent is not _UNPINNED_PARENT and parent != expected_parent:
+            own_request = read_optional(s3, CURATED_BUCKET, prefix + '/request.json')
+            own_retry = (parent is not None and parent.get('run_prefix') == prefix and
+                         own_request is not None and json.loads(own_request[0]).get('parent') == expected_parent)
+            if not own_retry:
+                raise ValidationError('Current ID parent differs from the pinned pipeline request')
         if parent is None:
             _check_initial_registry(s3, prefix)
         existing_request = read_optional(s3, CURATED_BUCKET, prefix + '/request.json')
