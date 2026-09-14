@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -31,8 +32,19 @@ import com.ssafy.pickage.support.DisposableTestDatabase;
  *
  * <p>여기를 거치면 두 경로가 하나로 합쳐진다 — DB 주소의 출처가
  * {@code PICKAGE_TEST_POSTGRES_*} 하나뿐이고, 쓰는 DB 는 매번 새로 만들었다 지우는 것이다.
+ *
+ * <p><b>이 소스셋에 {@code @SpringBootTest} 를 하나 더 추가하려면 여기부터 읽을 것.</b>
+ * 스프링 TestContext 는 컨텍스트를 JVM 이 끝날 때까지 캐시에 들고 있다. 이 클래스는
+ * {@code @AfterAll} 에서 DB 를 지우므로, 그 컨텍스트를 물려받는 시험이 생기면 <b>이미 사라진
+ * DB 를 가리키는 Hikari 풀</b>을 받게 된다. {@code @DirtiesContext} 가 클래스가 끝날 때
+ * 컨텍스트를 닫아 그 자리를 막는다.
+ *
+ * <p>(캐시 키에 {@code @DynamicPropertySource} 메서드가 들어가므로 설정이 다른 시험은
+ * 어차피 다른 컨텍스트를 받는다. 공통 부모 클래스로 이 설정을 공유하는 형태가 될 때가
+ * 위험한 경우이고, {@code @DirtiesContext} 는 그 경우까지 덮는다.)
  */
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PickageApplicationTests {
 
 	private static DisposableTestDatabase database;
