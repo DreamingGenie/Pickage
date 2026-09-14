@@ -1,0 +1,46 @@
+{
+  "tests": {
+    "passed": 63,
+    "log": "native-tests.txt"
+  },
+  "python_ast_files": 17,
+  "trailing_whitespace": [],
+  "parent_worktree": {
+    "files_checked": 623,
+    "changed_paths": [],
+    "branch_unchanged": true,
+    "head_unchanged": true,
+    "index_unchanged": true
+  },
+  "demos": {
+    "native-package-report-final": {
+      "report": "data/native-package-report-final/report.json",
+      "metadata_status": "MATCH",
+      "sample_status": "MATCH",
+      "metadata_bytes": 822,
+      "sample_bytes": 1875,
+      "sample_rows": 4,
+      "synthetic_demo": true,
+      "validator_sha256": "1ba16aa5755dd92b701ad505f77bbb659d61920ec5d13d9812722968a9af0004"
+    },
+    "native-snapshot-report-final": {
+      "report": "data/native-snapshot-report-final/report.json",
+      "metadata_status": "MATCH",
+      "sample_status": "MATCH",
+      "metadata_bytes": 1386,
+      "sample_bytes": 914,
+      "sample_rows": 4,
+      "synthetic_demo": true,
+      "validator_sha256": "1ba16aa5755dd92b701ad505f77bbb659d61920ec5d13d9812722968a9af0004"
+    }
+  },
+  "postgresql": "NOT_RUN",
+  "large_source_artifacts": "NOT_READ",
+  "network": "NOT_RUN",
+  "ready_for_load": false,
+  "task_09_complete": false,
+  "review_fixes": [
+    "strict_original_and_request_timestamps",
+    "timestamp_policy_in_validator_hash"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "verified_at_utc": "2026-09-12T07:02:33.283047+00:00",
+  "tests": {
+    "run": 30,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 5.9047161000198685
+  },
+  "python_ast_files": 10,
+  "whitespace_issues": [],
+  "parent_protection": {
+    "compared_files": 623,
+    "changed_files": [
+      "docs/worklogs/S15P21A506-193/04-work-log.md",
+      "docs/worklogs/S15P21A506-193/36-db-insert-benchmark.md"
+    ],
+    "branch_unchanged": true,
+    "head_unchanged": true,
+    "index_unchanged": true,
+    "changed_files_review": "Only the parallel task worklogs 04 and 36 changed; their tail records the 16:00 KST completion of the existing benchmark. This task wrote no original-worktree source/doc files. Branch, HEAD and index are identical.",
+    "unchanged_files": 621
+  },
+  "file_sha256": {
+    "pipeline/integrity_validation/__init__.py": "d8ed10c0649a405fd17502b6be0dc8c97730b88dc910456343a47a14d5964b7a",
+    "pipeline/integrity_validation/__main__.py": "3e120ad78e7bfcf18706cbd219cdd49e486236baaf6f29bc33fc1058884e9d6e",
+    "pipeline/integrity_validation/fixtures/normal.json": "374a01177c689f6b6da5e943dffb4497c9422752a3f93e2a1411bb2cdc00fb65",
+    "pipeline/integrity_validation/queries.py": "78cb555109f8573f9c6c05e2f0472ae069cb6fecb68e864b03f619447137fa96",
+    "pipeline/integrity_validation/query_plans.sql": "7867befa84cf24f76f32755ae8ac4091e5ea68619f761f8b807324b9e4bb9059",
+    "pipeline/integrity_validation/README.md": "cb1a01d143d96d9af0a83b37373003257840a96afcc60695770bc679211f5513",
+    "pipeline/integrity_validation/report.py": "d177485d69cd2732303a57656e3470d8ef22ef337b0538a5f009453088e5aea0",
+    "pipeline/integrity_validation/runner.py": "843566c67bb1f100da90a8b51bc92aad21ce099ebdc6f504fa23221978d0f697",
+    "pipeline/integrity_validation/schema.py": "8c4a2a9b4b4028a89422a9385b60f4657d90107f8e4f4e8759feb9115912ab69",
+    "pipeline/integrity_validation/schema_catalog.sql": "22d99f3c32b8bec7e7e8656af0059de7dd4e1503c57dae1c5b6f7b338100ec95",
+    "pipeline/integrity_validation/test_boundaries.py": "ac3de9eecb1fceeb03485b0f75b2433b9b4b7a66429a0d26bbffa5160659b41e",
+    "pipeline/integrity_validation/test_queries.py": "9f4640c155bd20d45eb24ceeb2719a939a0e187cc51c75439f975be449e2769f",
+    "pipeline/integrity_validation/test_runner.py": "f15de20e9a8f4d4006b2ab468bca4fa17d3292d9977f825590fd51bf85221f0e",
+    "pipeline/integrity_validation/test_semantics.py": "ed172c2b5c37f37ce21909807d7ff676870cecd15c66856f6ad5f9c99ff00f18"
+  },
+  "not_run": [
+    "PostgreSQL",
+    "Docker",
+    "native manifest validation",
+    "full dataset",
+    "performance measurement",
+    "loader fault/retry integration"
+  ],
+  "lint_note": "ruff is not installed; AST and whitespace checks used without new dependencies",
+  "validation_status": "PASS_WITH_CONCURRENT_WORKLOG_UPDATES",
+  "independent_review": {
+    "scoped_blocking_defects": 0,
+    "tests_run": 30,
+    "tests_failures": 0,
+    "tests_errors": 0,
+    "tests_skipped": 0,
+    "cli_checks_passed": 24,
+    "watch": "Coherent deletion of target/PVS/edges and adjusted expected counts can pass supplied-evidence checks; native population completeness remains NOT_RUN."
+  },
+  "markdown_check": {
+    "files": 3,
+    "links": 13,
+    "issues": 0
+  }
+}
