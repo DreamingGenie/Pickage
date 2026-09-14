@@ -53,6 +53,8 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] 서버 MinIO 기동 및 로컬에서 터널로 적재하는 경로 (2026-09-09)
 - [x] ecosyste.ms keywords 원본 서버 입고 (`keywords-20260909-v1`)
 - [x] 파생 데이터셋 입고 경로 (`ingest_derived.py`) — 폐기→대체 데이터셋 서버 입고 (`deprecated-replacement-20260914-v1`)
+- [x] `package_text` 서버 입고 (`package-text-20260908-v1`)와 `_current.json` 포인터 게시 —
+      유사도 배치의 코퍼스 트리거 (2026-09-14)
 - [ ] npm registry 원본 입고 — **수집이 아직 진행 중이다.** 입고 경로는 준비되어 있고,
       `manifest.json` 의 `pending` 이 0 이 되면 실행한다
 - [ ] PostgreSQL 적재
@@ -85,6 +87,13 @@ Curated 전처리는 위 Bronze 중 `2026-08-31` 스냅샷의 `versions_full`과
 Bronze 원본을 변경하거나 `pickage-quarantine`으로 이동하지 않는다.
 `curated-20260907-v2`에서 package 11,080,940행과 version 54,188,349행을 생성했고,
 관리·품질 파일을 포함해 Parquet 44개(약 4.85GB)를 저장했다.
+
+`package_text` 은 `package-text-20260908-v1` 로 Parquet 1개(86,159,593바이트·922,322행)를
+`pickage-curated` 의 `ecosystems-keywords/v1/package-text/collected_date=2026-09-08/` 아래에
+넣고, prefix 루트에 `_current.json` 을 게시했다. 로컬 파일명은 `package_text_2026-09-08.parquet`
+이지만 **업로드 객체는 `package_text.parquet`** 이다 — 유사도 배치가
+`--package-text /work/in/package_text.parquet` 으로 이름을 고정해 받는다. 같은 실행 ID로
+재실행해 객체가 늘지 않고 포인터가 `unchanged` 로 유지되는 것을 확인했다.
 
 파생 데이터셋은 `deprecated-replacement-20260914-v1` 로 폐기→대체 데이터셋
 Parquet 1개(2,839,460바이트·28,241행)를 서버 `pickage-curated` 에 넣었다. 같은 실행 ID로
@@ -235,17 +244,35 @@ PICKAGE_S3_ENDPOINT=http://localhost:19000 (.env.server)
 
 ## 파생 데이터셋 입고 실행
 
-`pipeline/duckdb/build_*.py` 가 원본에서 계산해 낸 작은 데이터셋은 `pickage-raw` 가 아니라
-`pickage-curated` 에 넣는다. 원본이 아니라 원본을 가공한 결과이기 때문이다.
+빌더가 원본에서 계산해 낸 작은 데이터셋은 `pickage-raw` 가 아니라 `pickage-curated` 에 넣는다.
+원본이 아니라 원본을 가공한 결과이기 때문이다. `pipeline/duckdb/build_*.py` 와 수집기 자신의
+빌더(`collectors/keywords/build_package_text.py`)가 여기로 온다.
 
 ```powershell
 $env:PICKAGE_MINIO_ENV=".env.server"
 .venv-bq/Scripts/python.exe -m pipeline.minio.ingest_derived --dataset deprecated-replacement --dry-run
 .venv-bq/Scripts/python.exe -m pipeline.minio.ingest_derived --dataset deprecated-replacement --run-id deprecated-replacement-20260914-v1
+.venv-bq/Scripts/python.exe -m pipeline.minio.ingest_derived --dataset package-text --run-id package-text-20260908-v1
 ```
 
 `--dataset` 에 넣을 수 있는 값과 각 데이터셋의 로컬 경로·설명·Jira 키는
 `ingest_derived.py` 의 `DATASETS` 에 있다. 빌더를 먼저 돌려 Parquet 을 만들어 둬야 한다.
+
+**회차 선택.** 데이터셋에 `glob` 이 있으면 그 패턴에 맞는 파일만 고른다(`{date}` 는 파티션
+날짜로 채운다). 없으면 폴더의 `*.parquet` 전부다. `package_text` 는 수집일마다 파일이 하나씩
+쌓이는 폴더를 쓰므로, 패턴이 없으면 다음 수집일 것이 같은 실행에 섞여 행 수가 두 수집일의
+합이 된다.
+
+**업로드 객체명.** `object_name` 이 있으면 `data/` 아래 이름을 그것으로 고정한다. 로컬
+파일명은 그대로 두고 올릴 때만 바꾸며, 개명한 경우 `run_manifest.json` 의 파일 항목에
+`source_file` 로 원래 이름을 남긴다. 쓰는 쪽이 이름을 고정해 받을 때만 쓴다 — `package_text`
+가 그렇다. 파일이 둘 이상이면 같은 이름으로 겹쳐 올라가므로 거부한다.
+
+**`_current.json`.** `pointer` 가 켜진 데이터셋은 prefix 루트에 "지금 읽어야 할 실행" 을
+가리키는 포인터를 게시한다. **manifest → `_SUCCESS` → 포인터** 순서라 포인터는 온전한 실행만
+가리킨다. 갱신은 조건부 PUT(CAS)이고, 값이 같으면 아무것도 쓰지 않으며, 현재 포인터가 더 나중
+수집일을 가리키면 **거부한다** — 과거 실행을 재검증했을 뿐인데 소비자가 옛 코퍼스로 돌아가는
+일을 막는다. 같은 수집일의 새 실행 ID 는 통과시킨다(잘못 올린 회차를 고칠 길).
 
 **재생성할 수 있는데 왜 올리나.** 빌더는 `data/raw` 의 수십 GB Parquet 을 그대로 들고 있는
 PC 에서만 돈다. 그 PC 가 사라지면 git 의 CSV 만 남고, 그것을 만든 계산은 복원할 수 없다.
@@ -311,12 +338,32 @@ depsdev/v1/{table}/snapshot={date}/run_id={run}/
 `source_manifest.json` 이 없는 것은 원본 manifest 를 물려받을 원본이 없기 때문이고,
 대신 `run_manifest.json` 에 빌더 경로·원천·Jira 키·주의사항을 적는다.
 
+날짜 파티션의 키 이름은 **그 데이터셋의 원천이 쓰는 말을 따른다** — deps.dev 에서 나온 것은
+`snapshot=`, 수집기에서 나온 것은 `collected_date=` 다.
+
 ```text
 depsdev/v1/{dataset}/snapshot={date}/run_id={run}/
   data/*.parquet        # 빌더 산출물
   run_manifest.json     # 파일별 크기·행 수·SHA-256, 빌더·원천·README 위치, notes
   _SUCCESS              # 해당 데이터셋·스냅샷·실행의 검증 완료 표시
+
+ecosystems-keywords/v1/package-text/
+  _current.json                     # 지금 읽어야 할 실행. 유사도 배치의 코퍼스 트리거
+  collected_date={date}/run_id={run}/
+    data/package_text.parquet       # 로컬 package_text_{date}.parquet 을 개명해 올린 것
+    run_manifest.json               # files[].source_file 에 개명 전 이름이 남는다
+    _SUCCESS
 ```
+
+`_current.json` 은 `{collected_date, manifest_sha256, run_id, run_path}` 네 값을 싣는다.
+`run_path` 는 **prefix 상대** 경로이고(소비자가 prefix 를 자기 설정에 이미 들고 있다),
+`run_id` 는 **평평한 이름**이다 — 소비자가 산출물 경로에 그대로 박기 때문에 `/` 가 들어가면
+디렉터리 깊이가 달라진다.
+
+> **`_SUCCESS` 본문이 두 가지다.** 이 폴더의 입고기(`ingest_*.py`)는 빈 본문을 쓰고,
+> `pipeline/curated/build.py` 는 `{"manifest_sha256": …}` 를 쓴다. 한 버킷에 둘이 있으므로
+> 읽는 쪽은 한 형태를 가정하면 안 된다. 입고기 쪽을 맞추지 않는 이유는 이미 올라간 객체와의
+> 바이트 호환이다 — 본문이 달라지면 기존 실행이 재검증으로 통과하지 못한다.
 
 수집기 원본은 소스별로 다음 경로에 넣는다. 검증 규칙과 관리 파일은 위와 같다.
 
