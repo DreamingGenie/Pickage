@@ -42,9 +42,17 @@ class PickageApplicationTests {
 		database = DisposableTestDatabase.createFor("143");
 	}
 
+	/**
+	 * {@code null} 검사가 필요하다. JUnit 5 는 {@code @BeforeAll} 이 실패해도 이 메서드를
+	 * 부르는데, 이 시험이 깨지는 가장 흔한 경우가 바로 <b>DB 에 못 붙어
+	 * {@code createDatabase()} 가 던지는 것</b>이다. 그대로 두면 NPE 가 suppressed 로 붙어
+	 * 원인 예외를 가린다 — 기동 실패를 먼저 잡으라고 둔 시험이 진단을 어지럽히게 된다.
+	 */
 	@AfterAll
 	static void dropDatabase() {
-		database.close();
+		if (database != null) {
+			database.close();
+		}
 	}
 
 	/**
