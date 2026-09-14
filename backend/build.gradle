@@ -110,6 +110,23 @@ configurations {
 	integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
+/*
+ * 시험은 Gradle 과 **다른 JVM(Test 워커)** 에서 돈다. CI 잡 컨테이너 안에 JVM 이 셋이다 —
+ * gradle 런처, 데몬, 그리고 이 워커.
+ *
+ * `GRADLE_OPTS` 의 `-Dorg.gradle.jvmargs` 는 **데몬에만** 걸린다. 워커는 여기서 정하지
+ * 않으면 Gradle 기본값 512m 을 쓰는데, 그러면 잡 컨테이너 상한(`[runners.docker] memory`,
+ * deploy/ci/README.md)을 계산할 때 이 몫이 보이지 않는다. 값 자체는 기본값과 같지만,
+ * **박아 두어야 계산에 들어온다.**
+ *
+ * integrationTest 워커가 셋 중 가장 크다 — Spring 컨텍스트·Flyway·Hibernate 가 여기 뜬다.
+ * 늘려야 하면 러너의 컨테이너 상한을 함께 올릴 것. `memswap_limit` = `memory` 라
+ * 넘기는 순간 완충 없이 OOM Kill(exit 137)이다.
+ */
+tasks.withType(Test).configureEach {
+	maxHeapSize = '512m'
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	testLogging {
