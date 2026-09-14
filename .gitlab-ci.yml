@@ -205,7 +205,11 @@ frontend:
         - backend/gradle/wrapper/gradle-wrapper.properties
     paths:
       - .gradle/wrapper
-      - .gradle/caches
+      # `.gradle/caches` 를 통째로 담지 않는다. 그 안에는 `journal-1` 과 `*.lock` 이 있어,
+      # 러너를 둘 이상으로 늘리면 `Could not acquire lock` 으로 터지는 알려진 자리다.
+      # 지금은 concurrent = 1 이라 안 터지지만, 그때 원인을 찾기 어렵다.
+      # 받아 둘 값이 있는 것은 내려받은 의존성뿐이고 그건 여기 있다.
+      - .gradle/caches/modules-2
 
 backend-test:
   extends:
