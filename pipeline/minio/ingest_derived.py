@@ -45,6 +45,29 @@ DATASETS = {
             '같은 내용의 CSV·JSONL 은 git datasets/deprecated_replacement_260831/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'migration-pairs-dev': {
+        'root': 'data/migration_pairs_dev',
+        # deps.dev 가 아니라 npm registry 수집분에서 나온 것이라 npm-registry/v1 아래에 둔다
+        # (원본 수집분은 ingest_collector_raw.py 가 같은 접두사에 넣는다).
+        'prefix': 'npm-registry/v1/migration-pairs-dev',
+        # 이 모듈의 경로는 snapshot= 을 쓴다. 여기 값은 deps.dev 스냅샷이 아니라
+        # 원천이 된 registry 수집 실행 날짜다(collected_date 와 같은 뜻).
+        'snapshot': '2026-09-09',
+        'builder': 'pipeline/duckdb/build_migration_pairs.py --source registry --kind dev',
+        'source': 'pickage-raw npm-registry/v1 collected_date=2026-09-09 (의존 선언·발행시각) '
+                  '+ depsdev/v1 versions_full snapshot=2026-08-31 (source_repo 만, publisher 판정용)',
+        'readme': 'datasets/migration_pairs_dev_260914/README.md',
+        'jira': ['S15P21A506-280', 'S15P21A506-349', 'S15P21A506-136'],
+        'notes': [
+            '개발용 의존(devDependencies) 기준 이동쌍. 실행용 의존 기준 결과는 같은 버킷의'
+            ' depsdev/v1/migration-pairs/ 에 있다. 모집단이 달라(상위 10만 vs npm 전수)'
+            ' 두 결과의 수치를 더하거나 lift 를 비교하면 안 된다.',
+            '모집단은 다운로드 순위 상위 10만이다. 그 밖의 패키지가 도구를 어떻게 바꿨는지는 알 수 없다.',
+            '제거 판정에서 같은 전이의 Dependencies·Peer·Optional 로 옮겨진 이름은 재분류로 보고 뺐다(27,732건).',
+            '쌍 CSV 3종(strict 766·recommended 506·all 6,770)과 재분류 정정 측정 결과는'
+            ' git datasets/migration_pairs_dev_260914/ 에 있어 여기 올리지 않음.',
+        ],
+    },
 }
 
 
