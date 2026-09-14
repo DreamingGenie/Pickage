@@ -15,13 +15,43 @@ MR 을 열면 무엇이 돌고, 그것을 돌리는 러너를 어떻게 세우�
 | 잡 | 이미지 | 무엇을 검증하나 |
 | --- | --- | --- |
 | `frontend` | `node:22-alpine` | `npm ci` → `npm run typecheck` → `npm run lint` → `npm run build` |
-| `frontend-format` | `node:22-alpine` | `npm run format:check` (Prettier). **지금은 실패해도 MR 을 막지 않는다** — 아래 "아직 없는 것" |
 | `backend-test` | `eclipse-temurin:21-jdk` | `gradlew test` — DB 가 필요 없는 단위 시험 |
 | `backend-integration-test` | `eclipse-temurin:21-jdk` + `postgres:16` 서비스 | `gradlew integrationTest` — 진짜 Postgres 에 Flyway 전체를 적용하고 도는 시험 |
 | `pipeline-ok` | `alpine:3.21` | 코드는 검증하지 않는다. **맨 앞에서 2초** — 아래 "맨 앞에서 2초" |
 
 이미지는 `frontend/Dockerfile`·`backend/Dockerfile` 의 빌드 단계와 같은 것을 쓴다.
 CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를 둔 의미가 없다.
+
+### 언제 도나
+
+러너가 하나뿐이라 돌 수 있는 모든 때에 돌리면 대기열이 밀린다. **리뷰를 요청한 시점과
+반영된 시점**, 두 군데로 좁혀 뒀다.
+
+| 무엇을 했나 | 도나 |
+| --- | --- |
+| 브랜치에 push (MR 없음) | ❌ 아무것도 안 돈다 |
+| MR 생성 · MR 소스 브랜치에 push | ✅ MR 파이프라인 |
+| 위와 같지만 **Draft MR** | ❌ Ready 로 바꾸기 전까지 안 돈다 |
+| `develop`·`main` 에 머지 | ✅ 전체 (CD 도 여기 붙는다 — S15P21A506-223) |
+| Pipelines → **Run pipeline** (수동) | ✅ 돈다 |
+
+> ⚠ **Draft → Ready 로 바꾸는 것은 파이프라인 트리거가 아니다.**
+>
+> GitLab 이 MR 파이프라인을 만드는 사건은 세 가지뿐이다 — MR 생성, 소스 브랜치에 push,
+> MR 의 Pipelines 탭에서 Run pipeline. Draft 로 열어 두고 push 를 다 끝낸 뒤 Ready 로만
+> 바꾸면 **한 번도 검증하지 않은 MR** 이 된다.
+>
+> Ready 로 바꾼 뒤 확인하는 법:
+>
+> ```
+> MR → Pipelines 탭 → 최신 파이프라인의 커밋 SHA 가 소스 브랜치 HEAD 와 같은가
+> ```
+>
+> 없거나 낡았으면 같은 탭의 **Run pipeline** 을 누른다. (GitLab 이슈 25426 — 아직 열려 있다)
+
+수동 실행(`$CI_PIPELINE_SOURCE == "web"`)을 열어 둔 이유는 두 가지다. 위의 Ready 전환
+직후가 하나, `.gitlab-ci.yml` 자체를 고칠 때가 다른 하나다 — MR 없이 확인할 방법이
+그것뿐이다.
 
 ### 바뀐 폴더의 잡만 돈다
 
@@ -30,7 +60,7 @@ CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를
 
 | 무엇을 고쳤나 | 도는 잡 |
 | --- | --- |
-| `frontend/` 아래 | `frontend`, `frontend-format` |
+| `frontend/` 아래 | `frontend` |
 | `backend/` 아래 | `backend-test`, `backend-integration-test` |
 | `.gitlab-ci.yml` | **전부** (CI 를 고친 MR 이 CI 를 안 돌리고 통과하면 안 된다) |
 | 문서·`pipeline/` 등 그 외 | `pipeline-ok` 만 |
@@ -40,7 +70,7 @@ CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를
 경로 목록에 `.gitlab-ci.yml` 자신을 넣은 것, 통합 브랜치에서는 조건을 걸지 않는 것,
 그리고 아래 `pipeline-ok` 다.
 
-> ⚠ **MR 이 없는 브랜치 파이프라인에는 `compare_to: develop` 이 붙어 있다.** 이게 없으면
+> ⚠ **브랜치 파이프라인(= 수동 실행)에는 `compare_to: develop` 이 붙어 있다.** 이게 없으면
 > `changes` 가 **직전 커밋과** 비교해서, 같은 브랜치에 두 번째 push 를 하는 순간 첫 push 에
 > 바꾼 폴더의 잡이 사라진다. MR 파이프라인은 타깃 브랜치와의 분기점을 기준으로 비교하므로
 > 이 문제가 없다.
@@ -255,7 +285,9 @@ docker builder prune -f --filter "until=168h"
 | `toomanyrequests` (Docker Hub) | 익명 pull 한도. `pull_policy` 로 늦추고, 그래도 걸리면 서버에서 `docker login` |
 | MR 한 번에 파이프라인이 두 개 | `.gitlab-ci.yml` 의 `workflow:` 규칙이 빠졌거나 어긋난 것 |
 | 배치 시각에 서버가 느려진다 | CI 가 겹친 것. 배치 전에 `sudo gitlab-runner stop`, 끝나면 `start` |
-| 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), MR 없는 브랜치에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
+| 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), 수동 실행에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
+| push 했는데 **파이프라인 자체가 안 생긴다** | 설계대로다. MR 이 없거나 Draft 다 — 위 "언제 도나" |
+| Ready 로 바꿨는데 파이프라인이 안 생긴다 | Draft → Ready 는 트리거가 아니다. Pipelines 탭의 **Run pipeline** — 위 "언제 도나" |
 
 ## 아직 없는 것
 
@@ -264,7 +296,7 @@ docker builder prune -f --filter "until=168h"
 | **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m unittest discover -s pipeline/curated`, `python -m unittest pipeline.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
 | **CD(자동 배포)** | 별도 이슈 **S15P21A506-223**. 이 파이프라인은 검증만 한다 |
 | **Gradle 캐시를 호스트 볼륨으로** | 지금은 GitLab 캐시(압축·해제)를 쓴다. `[runners.docker] volumes` 에 호스트 디렉터리를 물리면 더 빠르지만, 러너 설정과 파이프라인이 묶인다 |
-| **`frontend-format` 을 blocking 으로** | `npm run format:check` 가 2026-09-12 기준 develop 에서 **71개 파일**에 걸린다. 한꺼번에 `npm run format` 을 돌리면 포맷만 바뀐 큰 diff 가 진행 중인 프런트 브랜치와 충돌하므로, 그 정리를 별도 이슈로 하고 그때 `.gitlab-ci.yml` 의 `allow_failure` 를 지운다 |
+| **프런트 포맷 검사(Prettier)** | 프런트는 한 사람이 단독으로 작업해 포맷이 갈릴 상대가 없고, 동작에 영향을 주는 검사도 아니다. 넣어 두면 develop 기준 **71개 파일**(2026-09-12)이 걸려 항상 빨간불이거나 항상 무시하는 노란불이 되고, 그러면 나머지 검사의 신호까지 갉아먹는다. 여럿이 만지기 시작하면 `npm run format` 으로 한 번 정리하고 `frontend` 잡의 script 를 `npm run check` 한 줄로 바꾼다. 그 전까지도 로컬에서는 `npm run format:check` 로 언제든 볼 수 있다 |
 
 ## 올리기 전에 로컬에서 확인한 것 (2026-09-12)
 
@@ -276,7 +308,7 @@ CI 로 처음 돌렸을 때 **우리 코드가 아니라 파이프라인 설정 
 | `npm run typecheck` | 통과 |
 | `npm run lint` | 통과 (경고 4개, 오류 0 — eslint 는 경고로 실패하지 않는다) |
 | `npm run build` | 통과 |
-| `npm run format:check` | **실패** — 71개 파일. 위 "아직 없는 것" |
+| `npm run format:check` | **실패** — 71개 파일. 이래서 CI 에 넣지 않았다 (위 "아직 없는 것") |
 | `./gradlew test` | 통과 (3분 20초) |
 | `./gradlew integrationTest` | **아직 못 돌려 봤다** — 로컬 Docker 가 꺼져 있었다. postgres 서비스를 붙이는 이 잡이 이 파이프라인에서 가장 불확실한 부분이고, 실제 러너에서 확인해야 한다 |
 
