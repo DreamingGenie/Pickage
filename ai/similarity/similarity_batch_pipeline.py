@@ -305,14 +305,21 @@ def is_same_family(a: str, b: str) -> bool:
 
     'd3'↔'d3-axis', 'lodash'↔'lodash.pickby', 'lodash'↔'lodash-es',
     '@babel/core'↔'@babel/preset-env'. 대안이 아니다. 'react'↔'preact' 는 계열 아님.
+
+    우산↔하위모듈 판정(접두어 비교)은 **스코프를 벗겨내지 않고 전체 이름**으로 한다
+    (S15P21A506-334). 한쪽만 스코프가 있으면 그 판정에서 제외한다 — 스코프를 벗겨낸
+    뒤 남는 이름이 우연히 같은 단어를 포함할 뿐인 무관한 패키지(예: 'markdown-it' 와
+    '@ts-stack/markdown')를 같은 계열로 오탐하기 때문이다.
     """
     a, b = a.lower(), b.lower()
     if a == b:
         return True
-    if a.startswith("@") and b.startswith("@") and a.split("/", 1)[0] == b.split("/", 1)[0]:
-        return True
-    ba, bb = a.rsplit("/", 1)[-1], b.rsplit("/", 1)[-1]
-    for x, y in ((ba, bb), (bb, ba)):
+    a_scoped, b_scoped = a.startswith("@"), b.startswith("@")
+    if a_scoped and b_scoped:
+        return a.split("/", 1)[0] == b.split("/", 1)[0]
+    if a_scoped or b_scoped:
+        return False
+    for x, y in ((a, b), (b, a)):
         if len(y) > len(x) and y.startswith(x) and y[len(x)] in "-._":
             return True
     return False

@@ -372,6 +372,16 @@ class IsSameFamily(unittest.TestCase):
             sbp.is_same_family("d3", "d3-scale"), sbp.is_same_family("d3-scale", "d3")
         )
 
+    def test_does_not_flag_scoped_vs_unscoped_name_coincidence(self):
+        """S15P21A506-334: 스코프를 벗겨낸 뒤 접두어만 비교하면, 서로 무관한
+        패키지가 우연히 같은 단어를 이름에 포함할 때 오탐한다."""
+        for a, b in (
+            ("markdown-it", "@ts-stack/markdown"),
+            ("@ts-stack/markdown", "markdown-it"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertFalse(sbp.is_same_family(a, b))
+
 
 class IsRepoArchived(unittest.TestCase):
     def test_flags_true(self):
