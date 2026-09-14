@@ -68,6 +68,30 @@ DATASETS = {
             ' git datasets/migration_pairs_dev_260914/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'peer-similarity': {
+        'root': 'data/peer_similarity',
+        # peer 값 자체는 deps.dev requirements 에서만 온다. 비교 대상 쌍 목록에 registry 기반
+        # 개발용 이동쌍이 섞여 있지만, 열의 원천과 스냅샷 기준은 deps.dev 2026-08-31 이다.
+        'prefix': 'depsdev/v1/peer-similarity',
+        'snapshot': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_peer_similarity.py',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31). '
+                  '비교 대상 쌍: datasets/migration_pairs_260908 · migration_pairs_dev_260914 · '
+                  'deprecated_replacement_260831',
+        'readme': 'datasets/peer_similarity_260914/README.md',
+        'jira': ['S15P21A506-350', 'S15P21A506-110'],
+        'notes': [
+            '"A 가 B 를 대체할 수 있나" 판단용 peer 의존 유사도. package_peers 는 패키지 1행(최신 릴리스),'
+            ' pair_peer_similarity 는 쌍 1행이며 양쪽 peer 목록·교집합·Jaccard·판정을 담는다.',
+            'peer_verdict 의 no_peer_either(31,971행)는 결측이 아니라 범주다. peer 는 희소해서 쌍의'
+            ' 60%가 양쪽 다 없다. peer_jaccard NULL 을 0 으로 채우면 모델이 결측을 "대체 불가" 로 배운다.',
+            'hard filter 가 아니라 감점 입력이다. tslint→eslint 는 peer 겹침 0(typescript vs jiti)인데'
+            ' 정답지에 있는 진짜 대체쌍이다. 불일치만으로 탈락시키면 이런 쌍을 잃는다.',
+            '버전 기준은 최신 릴리스다. A 가 폐기·방치된 패키지면 그 최신은 몇 년 전 선언이라'
+            ' 그 시절 생태계를 반영한다(moment 의 peer 는 2020년 기준). 이동 시점 기준은 별도 작업.',
+            '같은 내용의 CSV 는 git datasets/peer_similarity_260914/ 에 있어 여기 올리지 않음.',
+        ],
+    },
 }
 
 

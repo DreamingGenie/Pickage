@@ -100,6 +100,11 @@ Parquet 1개(2,839,460바이트·28,241행)를 서버 `pickage-curated` 에 넣�
 위 `migration-pairs-20260909-v1`(실행용 의존·npm 전수)과는 **모집단이 달라 수치를 더하거나
 lift 를 비교하면 안 된다** — `datasets/migration_pairs_dev_260914/README.md` §5.
 
+`peer-similarity-20260914-v1` 로 대체 후보 peer 의존 유사도 Parquet 2개(2,266,490바이트·110,975행)를
+`depsdev/v1/peer-similarity/snapshot=2026-08-31/` 에 넣었다(S15P21A506-350). 같은 실행 ID로 재실행해
+해시 재검증만 통과하는 것을 확인했다. 비교 대상 쌍에 registry 기반 개발용 이동쌍이 섞여 있지만
+peer 열 자체는 deps.dev `requirements` 에서만 오므로 `depsdev/v1` 아래에 둔다.
+
 수집기 원본은 `keywords-20260909-v1` 로 ecosyste.ms keywords 수집일 `2026-09-08` 을
 서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
 더해 1,003객체이며, 원본 manifest 기준 1,000/1,000페이지·100만 행이다. 같은 실행 ID로

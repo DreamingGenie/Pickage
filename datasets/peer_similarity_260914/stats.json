@@ -1,0 +1,60 @@
+{
+  "pairs_in": {
+    "deprecated/all": 25916,
+    "migration/all": 16835,
+    "migration/recommended": 1167,
+    "migration/strict": 1195,
+    "migration_dev/all": 6770,
+    "migration_dev/recommended": 506,
+    "migration_dev/strict": 766
+  },
+  "packages_in_pairs": 58515,
+  "packages_with_release": 57820,
+  "packages_with_peers": 15240,
+  "pairs_out": 53155,
+  "verdict": {
+    "deprecated/all/match": 5351,
+    "deprecated/all/mismatch": 419,
+    "deprecated/all/no_peer_either": 17325,
+    "deprecated/all/one_side_only": 2821,
+    "migration/all/match": 1836,
+    "migration/all/mismatch": 596,
+    "migration/all/no_peer_either": 10492,
+    "migration/all/one_side_only": 3911,
+    "migration/recommended/match": 193,
+    "migration/recommended/mismatch": 30,
+    "migration/recommended/no_peer_either": 750,
+    "migration/recommended/one_side_only": 194,
+    "migration/strict/match": 183,
+    "migration/strict/mismatch": 61,
+    "migration/strict/no_peer_either": 721,
+    "migration/strict/one_side_only": 230,
+    "migration_dev/all/match": 802,
+    "migration_dev/all/mismatch": 968,
+    "migration_dev/all/no_peer_either": 2252,
+    "migration_dev/all/one_side_only": 2748,
+    "migration_dev/recommended/match": 86,
+    "migration_dev/recommended/mismatch": 34,
+    "migration_dev/recommended/no_peer_either": 218,
+    "migration_dev/recommended/one_side_only": 168,
+    "migration_dev/strict/match": 115,
+    "migration_dev/strict/mismatch": 103,
+    "migration_dev/strict/no_peer_either": 213,
+    "migration_dev/strict/one_side_only": 335
+  },
+  "jaccard_band": {
+    "0": 2211,
+    "0.5<=j<1": 1952,
+    "0<j<0.5": 2300,
+    "1": 4314
+  },
+  "file_bytes": {
+    "package_peers.parquet": 886041,
+    "pair_peer_similarity.parquet": 1380449,
+    "package_peers.csv": 3521527,
+    "pair_peer_similarity.csv": 9070777
+  },
+  "version_basis": "latest release (versions_full.is_release, ordinal DESC)",
+  "snapshot": "2026-08-31",
+  "elapsed_sec": 8
+}
