@@ -6,7 +6,7 @@
 #
 # 무엇을 돌릴지는 **두 포인터가 정한다.** 새 것이 게시되면 다음 발화에서 알아서 집는다.
 #
-#     코퍼스   $AI_CORPUS_PREFIX/_current.json   →  run_id
+#     코퍼스   $AI_CORPUS_PREFIX/_current.json   →  run_path(코퍼스 경로) + run_id(산출물 이름)
 #     모델     MLflow  <이름>@<별칭>              →  s3:// 경로
 #
 # 둘 다 안 바뀌었으면 **아무것도 하지 않고 0 으로 끝난다.** 타이머를 촘촘히 걸어도
@@ -26,10 +26,11 @@
 # 종료 코드를 그대로 올린다. 스케줄러는 이 값만 보면 된다.
 #
 # ── 지금 없는 것 (갖춰지는 순서대로) ──────────────────────────
-#   1. package_text 가 MinIO 에 없다 + _current.json 도 없다        → 데이터 파트
-#   2. MLflow 에 등록된 모델이 없다 (GPU 가 아직 등록 안 함)         → AI 파트
-#   3. 로더가 없다 — 산출물이 PostgreSQL 까지 못 간다               → 미정
-#   4. 스케줄러가 없다. 위가 서면 timer 가 이 파일을 부르기만 하면 된다
+#   1. MLflow 에 등록된 모델이 없다 (GPU 가 아직 등록 안 함)         → AI 파트
+#   2. 로더가 없다 — 산출물이 PostgreSQL 까지 못 간다               → 미정
+#   3. 스케줄러가 없다. 위가 서면 timer 가 이 파일을 부르기만 하면 된다
+#
+#   (package_text 와 _current.json 은 2026-09-14 게시됐다 — S15P21A506-348)
 
 set -eu
 
@@ -57,11 +58,15 @@ mc() { docker compose exec -T minio sh -c "mc alias set l http://127.0.0.1:9000 
 
 echo "[1/5] 코퍼스 확정"
 CURRENT_JSON=$(mc "mc cat l/$AI_CORPUS_PREFIX/_current.json")
-# TODO(별도 티켓): _current.json 의 실제 키 이름에 맞출 것. depsdev 는 완료 실행 경로와
-#   manifest 해시를 담는다 — 데이터 파트가 package-text 에 게시할 때 형식을 맞춘다.
+# 포인터는 값을 둘 싣는다 (S15P21A506-348). 쓰임이 달라서 나뉘어 있다.
+#   run_path  prefix 상대 경로. 코퍼스를 찾는 데만 쓴다 (collected_date=…/run_id=…)
+#   run_id    평평한 이름. 산출물 경로에 박는다 — 여기에 '/' 가 들어가면
+#             /work/out 의 깊이가 달라져 ai-collect 의 _SUCCESS 게시가 어긋난다
 CORPUS_RUN=$(printf '%s' "$CURRENT_JSON" | sed -n 's/.*"run_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-[ -n "$CORPUS_RUN" ] || { echo "  _current.json 에서 run_id 를 못 읽었습니다." >&2; exit 1; }
-echo "  run_id=$CORPUS_RUN"
+CORPUS_PATH=$(printf '%s' "$CURRENT_JSON" | sed -n 's/.*"run_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+[ -n "$CORPUS_RUN" ]  || { echo "  _current.json 에서 run_id 를 못 읽었습니다." >&2; exit 1; }
+[ -n "$CORPUS_PATH" ] || { echo "  _current.json 에서 run_path 를 못 읽었습니다." >&2; exit 1; }
+echo "  run_id=$CORPUS_RUN  run_path=$CORPUS_PATH"
 
 # ── 2. 모델 확정 ──────────────────────────────────────────────
 #
@@ -97,7 +102,7 @@ fi
 
 echo "[4/5] 스테이징"
 docker compose run --rm \
-  -e AI_CORPUS_PATH="$AI_CORPUS_PREFIX/$CORPUS_RUN/data" \
+  -e AI_CORPUS_PATH="$AI_CORPUS_PREFIX/$CORPUS_PATH/data" \
   -e AI_MODEL_PATH="$MODEL_PATH" \
   ai-stage
 
