@@ -25,12 +25,15 @@ stages:
 
 # 파이프라인이 언제 생기나.
 #
-# 두 번째 줄이 없으면 **MR 이 열린 브랜치에 push 할 때마다 파이프라인이 두 개 생긴다** —
-# 브랜치 파이프라인 하나, MR 파이프라인 하나. 러너가 하나뿐이라 그대로 두면 실행 시간이
-# 두 배가 되고 대기열이 밀린다.
+# 러너가 하나뿐이라 "돌 수 있는 모든 때"에 돌리면 대기열이 밀린다. 그래서 **리뷰를 요청한
+# 시점(MR)과 반영된 시점(develop·main)** 두 군데로 좁힌다. 그냥 브랜치에 push 하는 것은
+# 아직 남에게 보여 줄 상태가 아니므로 아무것도 돌지 않는다.
 #
-# MR 이 아직 없는 브랜치에서는 브랜치 파이프라인이 돈다(세 번째 줄). CI 를 고치는 중에
-# MR 없이 push 해 보는 경우가 실제로 그렇고, 그때 결과를 못 보면 고칠 수가 없다.
+# ⚠ **Draft → Ready 로 바꾸는 것은 파이프라인 트리거가 아니다.** GitLab 이 MR 파이프라인을
+#   만드는 사건은 세 가지뿐이다 — MR 생성, 소스 브랜치에 push, MR 의 Pipelines 탭에서
+#   Run pipeline. 그래서 Draft 로 열어 두고 push 를 끝낸 뒤 Ready 로만 바꾸면 **한 번도
+#   검증하지 않은 MR 이 된다.** Ready 로 바꾼 다음 커밋을 하나 더 올리거나, MR 의
+#   Pipelines 탭에서 Run pipeline 을 누를 것. (GitLab 이슈 25426 — 아직 열려 있다)
 workflow:
   # 같은 브랜치에 새 커밋이 오면 돌던 파이프라인의 `interruptible` 잡을 끊는다.
   # 프로젝트 설정("Auto-cancel redundant pipelines")에 기대지 않고 파일에 박아 두는 쪽이
@@ -39,10 +42,21 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+    # Draft 인 동안은 돌지 않는다. 제목 정규식(`/^Draft:/`)이 아니라 이 변수를 쓰는 이유는
+    # GitLab 이 지원하는 Draft 표기 형식을 전부 알아서 잡아 주기 때문이다.
+    # (CI_MERGE_REQUEST_DRAFT 는 GitLab 17.10 이상. lab.ssafy.com 은 18.11.5)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
-    - if: $CI_COMMIT_BRANCH
+    # MR 이 열려 있는 동안의 push → MR 파이프라인 하나.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # 머지된 뒤 → 통합 브랜치에서 전체가 한 번. CD(S15P21A506-223)도 여기에 붙는다.
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    # 손으로 돌리는 경우(Pipelines → Run pipeline). 두 자리에서 필요하다 —
+    # ①이 파일 자체를 고칠 때. MR 없이 확인할 유일한 방법이다.
+    # ②위 ⚠ 의 Draft → Ready 직후 한 번 돌릴 때.
+    - if: $CI_PIPELINE_SOURCE == "web"
+    # 그 외(MR 없는 브랜치 push 등) → 파이프라인을 만들지 않는다.
+    - when: never
 
 default:
   # "이 잡은 중간에 끊어도 된다" 는 표시다. 실제로 끊는 것은 위 workflow 의 auto_cancel.
@@ -71,9 +85,10 @@ variables:
 #      정작 CI 를 안 돌리고 통과한다
 #   2. `develop`·`main` 파이프라인은 **조건 없이 전부** 돈다 — 머지된 뒤 한 번은 전체가
 #      돌아야 안전망이다. `main` 으로 가는 MR(릴리스)도 같다
-#   3. MR 이 없는 브랜치 파이프라인에는 compare_to 를 붙여 develop 과 비교한다 — 이게
-#      없으면 changes 가 **직전 커밋과** 비교해서, 같은 브랜치에 두 번째 push 를 하면
-#      첫 push 에 바꾼 폴더의 잡이 사라진다
+#   3. 브랜치 파이프라인(= `web` 수동 실행)에는 compare_to 를 붙여 develop 과 비교한다 —
+#      이게 없으면 changes 가 **직전 커밋과** 비교해서, 같은 브랜치에 두 번째 push 를 하면
+#      첫 push 에 바꾼 폴더의 잡이 사라진다. (MR 파이프라인은 대상 브랜치와 비교하므로
+#      compare_to 가 필요 없다 — 그래서 세 번째·네 번째 규칙이 따로 있다)
 #   4. 돌 잡이 하나도 없을 때를 위해 `pipeline-ok` 를 둔다 (파일 맨 아래)
 #
 # (`changes: paths:` + `compare_to` 는 GitLab 15.3 이상 문법이다. lab.ssafy.com 은

@@ -22,6 +22,37 @@ MR 을 열면 무엇이 돌고, 그것을 돌리는 러너를 어떻게 세우�
 이미지는 `frontend/Dockerfile`·`backend/Dockerfile` 의 빌드 단계와 같은 것을 쓴다.
 CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를 둔 의미가 없다.
 
+### 언제 도나
+
+러너가 하나뿐이라 돌 수 있는 모든 때에 돌리면 대기열이 밀린다. **리뷰를 요청한 시점과
+반영된 시점**, 두 군데로 좁혀 뒀다.
+
+| 무엇을 했나 | 도나 |
+| --- | --- |
+| 브랜치에 push (MR 없음) | ❌ 아무것도 안 돈다 |
+| MR 생성 · MR 소스 브랜치에 push | ✅ MR 파이프라인 |
+| 위와 같지만 **Draft MR** | ❌ Ready 로 바꾸기 전까지 안 돈다 |
+| `develop`·`main` 에 머지 | ✅ 전체 (CD 도 여기 붙는다 — S15P21A506-223) |
+| Pipelines → **Run pipeline** (수동) | ✅ 돈다 |
+
+> ⚠ **Draft → Ready 로 바꾸는 것은 파이프라인 트리거가 아니다.**
+>
+> GitLab 이 MR 파이프라인을 만드는 사건은 세 가지뿐이다 — MR 생성, 소스 브랜치에 push,
+> MR 의 Pipelines 탭에서 Run pipeline. Draft 로 열어 두고 push 를 다 끝낸 뒤 Ready 로만
+> 바꾸면 **한 번도 검증하지 않은 MR** 이 된다.
+>
+> Ready 로 바꾼 뒤 확인하는 법:
+>
+> ```
+> MR → Pipelines 탭 → 최신 파이프라인의 커밋 SHA 가 소스 브랜치 HEAD 와 같은가
+> ```
+>
+> 없거나 낡았으면 같은 탭의 **Run pipeline** 을 누른다. (GitLab 이슈 25426 — 아직 열려 있다)
+
+수동 실행(`$CI_PIPELINE_SOURCE == "web"`)을 열어 둔 이유는 두 가지다. 위의 Ready 전환
+직후가 하나, `.gitlab-ci.yml` 자체를 고칠 때가 다른 하나다 — MR 없이 확인할 방법이
+그것뿐이다.
+
 ### 바뀐 폴더의 잡만 돈다
 
 러너가 하나뿐이라 문서만 고친 MR 이 7~10분을 쓰면 그동안 코드 MR 이 그대로 기다린다.
@@ -39,7 +70,7 @@ CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를
 경로 목록에 `.gitlab-ci.yml` 자신을 넣은 것, 통합 브랜치에서는 조건을 걸지 않는 것,
 그리고 아래 `pipeline-ok` 다.
 
-> ⚠ **MR 이 없는 브랜치 파이프라인에는 `compare_to: develop` 이 붙어 있다.** 이게 없으면
+> ⚠ **브랜치 파이프라인(= 수동 실행)에는 `compare_to: develop` 이 붙어 있다.** 이게 없으면
 > `changes` 가 **직전 커밋과** 비교해서, 같은 브랜치에 두 번째 push 를 하는 순간 첫 push 에
 > 바꾼 폴더의 잡이 사라진다. MR 파이프라인은 타깃 브랜치와의 분기점을 기준으로 비교하므로
 > 이 문제가 없다.
@@ -254,7 +285,9 @@ docker builder prune -f --filter "until=168h"
 | `toomanyrequests` (Docker Hub) | 익명 pull 한도. `pull_policy` 로 늦추고, 그래도 걸리면 서버에서 `docker login` |
 | MR 한 번에 파이프라인이 두 개 | `.gitlab-ci.yml` 의 `workflow:` 규칙이 빠졌거나 어긋난 것 |
 | 배치 시각에 서버가 느려진다 | CI 가 겹친 것. 배치 전에 `sudo gitlab-runner stop`, 끝나면 `start` |
-| 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), MR 없는 브랜치에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
+| 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), 수동 실행에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
+| push 했는데 **파이프라인 자체가 안 생긴다** | 설계대로다. MR 이 없거나 Draft 다 — 위 "언제 도나" |
+| Ready 로 바꿨는데 파이프라인이 안 생긴다 | Draft → Ready 는 트리거가 아니다. Pipelines 탭의 **Run pipeline** — 위 "언제 도나" |
 
 ## 아직 없는 것
 
