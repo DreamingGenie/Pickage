@@ -1,0 +1,432 @@
+{
+  "format": "historical-full-source-pilot-selection-v1",
+  "status": "PROPOSED_FROM_H5_A_READONLY_PROFILE",
+  "selection_date": "2026-09-11",
+  "purpose": "Nested 8/16/32 full-source representative pilot after separately approved implementation work. This file is a deterministic target-name selection only; it performs no preparation or historical calculation.",
+  "pinned_inputs": {
+    "selection_csv": {
+      "path": "data/downloads_interval/S15P21A506-278/pinned-inputs/bronze/targets_top100k_20260902.csv",
+      "sha256": "c21416d44bf8abaed63ddd35c44daae9c5d8ac915b388098eb8b1f7817f9525a",
+      "csv_rows": 100000,
+      "distinct_names": 99996
+    },
+    "h1_input_manifest": {
+      "path": "data/version-dependents/historical-inputs/observed=2026-08-31/run_id=population-20260831-v2/input_manifest.json",
+      "sha256": "572c5585bfdbec0b2b9ca1fd0bbf53b9241f4b742d36963120cb78c628a66762"
+    },
+    "h5_a_profile_manifest": {
+      "path": "data/version-dependents/historical-profiles/observed=2026-08-31/run_id=profile-20260910T203912020724Z-unlimited/profile/profile_manifest.json",
+      "sha256": "6d27a2cca0a0726794f5ec2b25e4578ce26e0d9697b2daeb45200a431c27c8e5",
+      "package_workload_sha256": "1dc74a0b4fb1ef404897f4bd9b3668674f9cf16958432b1d544ae7c8e3d2b214",
+      "lookup_workload_sha256": "a43ff4d0ac7ca6b4ff1a84663e7672dbcc6c457eb58811a981bb83f7324bb9da"
+    }
+  },
+  "metric_definitions": {
+    "V": "candidate_count: all H1 eligible target versions for the selected name",
+    "Q": "lookup_count: all distinct declared_name and requirement lookups for the selected name",
+    "D": "declaration_count: all source declarations represented by those lookups",
+    "QV": "V multiplied by Q; old candidate-scan work proxy, not a 229-date multiplier and not an ETA"
+  },
+  "execution_contract": {
+    "sample_names": "Use each named nested list as the explicit sample_names argument against the pinned selection CSV. The input adapter sorts names itself.",
+    "source_scope": "ALL_H1_ELIGIBLE_SOURCE_VERSIONS_REFERENCING_SELECTED_TARGETS",
+    "candidate_scope": "ALL_H1_ELIGIBLE_VERSIONS_FOR_EACH_SELECTED_TARGET",
+    "forbidden_shortcuts": [
+      "Do not sample lookup rows.",
+      "Do not slice source package versions or source declarations.",
+      "Do not cap candidate versions.",
+      "Do not treat the former 59-lookup benchmark as a full-package pilot."
+    ]
+  },
+  "nested_selection": {
+    "base8": [
+      {
+        "name": "@adguard/dnr-rulesets",
+        "stratum": "no_lookups_large_candidates",
+        "V": 22185,
+        "Q": 0,
+        "D": 0,
+        "QV": 0
+      },
+      {
+        "name": "@types/lodash.get",
+        "stratum": "normal_small",
+        "V": 10,
+        "Q": 19,
+        "D": 4627,
+        "QV": 190
+      },
+      {
+        "name": "angularx-flatpickr",
+        "stratum": "normal_small",
+        "V": 27,
+        "Q": 10,
+        "D": 653,
+        "QV": 270
+      },
+      {
+        "name": "carrot-scan",
+        "stratum": "unresolved_invalid_spec_existing_fixture",
+        "V": 27703,
+        "Q": 1,
+        "D": 5380,
+        "QV": 27703
+      },
+      {
+        "name": "ddp-underscore-patched",
+        "stratum": "no_candidate",
+        "V": 0,
+        "Q": 1,
+        "D": 31,
+        "QV": 0
+      },
+      {
+        "name": "less-plugin-autoprefix",
+        "stratum": "normal_small",
+        "V": 11,
+        "Q": 19,
+        "D": 1939,
+        "QV": 209
+      },
+      {
+        "name": "lodash",
+        "stratum": "many_references",
+        "V": 113,
+        "Q": 949,
+        "D": 3262021,
+        "QV": 107237
+      },
+      {
+        "name": "semver",
+        "stratum": "normal_many_references",
+        "V": 117,
+        "Q": 509,
+        "D": 725587,
+        "QV": 59553
+      }
+    ],
+    "add_to_16": [
+      {
+        "name": "axios",
+        "stratum": "many_references",
+        "V": 137,
+        "Q": 832,
+        "D": 2592003,
+        "QV": 113984
+      },
+      {
+        "name": "react",
+        "stratum": "many_references_many_lookups",
+        "V": 138,
+        "Q": 1837,
+        "D": 2347534,
+        "QV": 253506
+      },
+      {
+        "name": "@types/node",
+        "stratum": "intermediate_high_Q",
+        "V": 2348,
+        "Q": 3867,
+        "D": 591528,
+        "QV": 9079716
+      },
+      {
+        "name": "aws-sdk",
+        "stratum": "intermediate_high_Q",
+        "V": 1936,
+        "Q": 4107,
+        "D": 238455,
+        "QV": 7951152
+      },
+      {
+        "name": "@material-ui/lab",
+        "stratum": "no_candidate_many_references",
+        "V": 0,
+        "Q": 177,
+        "D": 65719,
+        "QV": 0
+      },
+      {
+        "name": "@octopusdeploy/design-system-components",
+        "stratum": "no_lookups_max_candidates",
+        "V": 33908,
+        "Q": 0,
+        "D": 0,
+        "QV": 0
+      },
+      {
+        "name": "@lightdash/common",
+        "stratum": "moderate_heavy_QV_10M_100M",
+        "V": 7371,
+        "Q": 7360,
+        "D": 14711,
+        "QV": 54250560
+      },
+      {
+        "name": "@sprucelabs/spruce-skill-utils",
+        "stratum": "moderate_heavy_QV_10M_100M",
+        "V": 3972,
+        "Q": 3652,
+        "D": 65901,
+        "QV": 14505744
+      }
+    ],
+    "add_to_32": [
+      {
+        "name": "@c8y/ngx-components",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 1674,
+        "Q": 5161,
+        "D": 9178,
+        "QV": 8639514
+      },
+      {
+        "name": "@nomalism-com/types",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 3566,
+        "Q": 2098,
+        "D": 2624,
+        "QV": 7481468
+      },
+      {
+        "name": "@sprucelabs/data-stores",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 3347,
+        "Q": 2144,
+        "D": 13044,
+        "QV": 7175968
+      },
+      {
+        "name": "@atlaskit/editor-core",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 3990,
+        "Q": 1635,
+        "D": 3626,
+        "QV": 6523650
+      },
+      {
+        "name": "@sprucelabs/spruce-view-plugin",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 5328,
+        "Q": 1096,
+        "D": 1202,
+        "QV": 5839488
+      },
+      {
+        "name": "@teambit/component",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 2213,
+        "Q": 2213,
+        "D": 110210,
+        "QV": 4897369
+      },
+      {
+        "name": "renovate",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 5323,
+        "Q": 606,
+        "D": 831,
+        "QV": 3225738
+      },
+      {
+        "name": "@c8y/ng1-modules",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 5180,
+        "Q": 529,
+        "D": 2121,
+        "QV": 2740220
+      },
+      {
+        "name": "@c8y/style",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 5158,
+        "Q": 529,
+        "D": 4545,
+        "QV": 2728582
+      },
+      {
+        "name": "wix-style-react",
+        "stratum": "intermediate_QV_100K_10M",
+        "V": 5126,
+        "Q": 302,
+        "D": 2257,
+        "QV": 1548052
+      },
+      {
+        "name": "@prisma/prisma-fmt-wasm",
+        "stratum": "few_candidates_many_lookups",
+        "V": 4,
+        "Q": 628,
+        "D": 2052,
+        "QV": 2512
+      },
+      {
+        "name": "@mui/lab",
+        "stratum": "few_candidates_many_lookups",
+        "V": 1,
+        "Q": 367,
+        "D": 49302,
+        "QV": 367
+      },
+      {
+        "name": "@11ty/recursive-copy",
+        "stratum": "QV_p25_representative",
+        "V": 9,
+        "Q": 4,
+        "D": 6,
+        "QV": 36
+      },
+      {
+        "name": "@anatine/esbuild-decorators",
+        "stratum": "QV_p50_representative",
+        "V": 28,
+        "Q": 8,
+        "D": 976,
+        "QV": 224
+      },
+      {
+        "name": "@aws-sdk/client-connectparticipant",
+        "stratum": "QV_p75_representative",
+        "V": 643,
+        "Q": 3,
+        "D": 373,
+        "QV": 1929
+      },
+      {
+        "name": "@accordproject/concerto-metamodel",
+        "stratum": "Q_p75_representative",
+        "V": 41,
+        "Q": 38,
+        "D": 314,
+        "QV": 1558
+      }
+    ]
+  },
+  "nested_totals": {
+    "base8": {
+      "target_names": 8,
+      "V": 50166,
+      "Q": 1508,
+      "D": 4000238,
+      "QV": 195162
+    },
+    "base16": {
+      "target_names": 16,
+      "V": 99976,
+      "Q": 23340,
+      "D": 9916089,
+      "QV": 86349824
+    },
+    "base32": {
+      "target_names": 32,
+      "V": 141607,
+      "Q": 40701,
+      "D": 10118750,
+      "QV": 137156499
+    }
+  },
+  "excluded_extreme_QV_stratum": {
+    "reason": "Excluded from the bounded pilot. These need an explicitly measured separate full-source run after the relevant optimization work; the old 59-lookup benchmark is insufficient evidence.",
+    "rows": [
+      {
+        "name": "@octopusdeploy/type-utils",
+        "V": 33966,
+        "Q": 33908,
+        "D": 33908,
+        "QV": 1151719128
+      },
+      {
+        "name": "@octopusdeploy/design-system-tokens",
+        "V": 29390,
+        "Q": 29417,
+        "D": 29432,
+        "QV": 864565630
+      },
+      {
+        "name": "@octopusdeploy/design-system-icons",
+        "V": 12028,
+        "Q": 11868,
+        "D": 11868,
+        "QV": 142748304
+      }
+    ],
+    "totals": {
+      "target_names": 3,
+      "V": 75384,
+      "Q": 75193,
+      "D": 75208,
+      "QV": 2159033062
+    }
+  },
+  "selected_population_strata": [
+    {
+      "stratum": "NO_PROFILE_ROW",
+      "target_names": 1130,
+      "V": 0,
+      "Q": 0,
+      "D": 0,
+      "QV": 0
+    },
+    {
+      "stratum": "NO_CANDIDATE",
+      "target_names": 1123,
+      "V": 0,
+      "Q": 11988,
+      "D": 534030,
+      "QV": 0
+    },
+    {
+      "stratum": "NO_LOOKUPS",
+      "target_names": 13543,
+      "V": 1540553,
+      "Q": 0,
+      "D": 0,
+      "QV": 0
+    },
+    {
+      "stratum": "QV_1_2000",
+      "target_names": 63469,
+      "V": 1674285,
+      "Q": 679860,
+      "D": 63375566,
+      "QV": 18974719
+    },
+    {
+      "stratum": "QV_2001_100K",
+      "target_names": 18472,
+      "V": 2839042,
+      "Q": 1938314,
+      "D": 127308775,
+      "QV": 309923433
+    },
+    {
+      "stratum": "QV_100K_10M",
+      "target_names": 2238,
+      "V": 1608633,
+      "Q": 1438136,
+      "D": 47752532,
+      "QV": 1316290457
+    },
+    {
+      "stratum": "QV_10M_100M",
+      "target_names": 18,
+      "V": 84922,
+      "Q": 77260,
+      "D": 509914,
+      "QV": 386082240
+    },
+    {
+      "stratum": "QV_GT_100M",
+      "target_names": 3,
+      "V": 75384,
+      "Q": 75193,
+      "D": 75208,
+      "QV": 2159033062
+    }
+  ],
+  "limits_of_inference": [
+    "base32 covers normal, no-candidate, no-lookup, unresolved, many-reference, few-candidate/many-lookup, and intermediate QV strata, but it excludes every QV_GT_100M target.",
+    "The 32 names are about 0.032 percent of 99996 selected names. Their profile totals cannot be multiplied directly into a full-selected ETA.",
+    "Pilot preparation scans pinned raw files, but full-selected prepared-output sorting/writing, full-selected global merge/spill, and the excluded extreme-QV stratum remain unmeasured."
+  ]
+}

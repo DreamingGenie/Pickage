@@ -1,0 +1,110 @@
+"""One-off local full-selection job; no global elapsed-time limit."""
+from pathlib import Path
+import ctypes
+from datetime import datetime, timezone
+import json
+import os
+import sys
+import threading
+import time
+import traceback
+
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parents[1]
+sys.path[:0] = [str(REPO), str(REPO / '.venv-bq' / 'Lib' / 'site-packages')]
+
+
+def main():
+    os.chdir(REPO)
+    from pipeline.version_dependents.historical_artifact import _run_lock
+    from pipeline.version_dependents import historical_parallel_input as inputs
+    from pipeline.version_dependents import historical_parallel as runner
+    from pipeline.requirements_resolution.input import file_sha256
+
+    with _run_lock(ROOT), (ROOT / 'console.log').open('a', encoding='utf-8', buffering=1) as log:
+        sys.stdout = sys.stderr = log
+        started = time.monotonic()
+        lock, stop = threading.Lock(), threading.Event()
+        state = {'status': 'RUNNING', 'phase': 'STARTING', 'pid': os.getpid(),
+                 'started_at': datetime.now(timezone.utc).isoformat(), 'ready_for_load': False}
+
+        def save(filename, value):
+            target = ROOT / filename
+            temporary = target.with_suffix(target.suffix + '.tmp')
+            temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
+            os.replace(temporary, target)
+
+        def update(**values):
+            with lock:
+                state.update(values)
+                state.update(updated_at=datetime.now(timezone.utc).isoformat(),
+                             elapsed_seconds=round(time.monotonic() - started, 3))
+                save('status.json', state)
+
+        def phase(name):
+            update(phase=name)
+            print(datetime.now(timezone.utc).isoformat(), name, flush=True)
+
+        def heartbeat():
+            while not stop.wait(30):
+                update()
+
+        api = ctypes.WinDLL('kernel32', use_last_error=True)
+        api.SetThreadExecutionState.argtypes = [ctypes.c_uint32]
+        api.SetThreadExecutionState.restype = ctypes.c_uint32
+        thread = None
+        try:
+            if not api.SetThreadExecutionState(0x80000001):
+                raise ctypes.WinError(ctypes.get_last_error())
+            update(sleep_prevention='ES_CONTINUOUS|ES_SYSTEM_REQUIRED; keep lid open')
+            thread = threading.Thread(target=heartbeat, daemon=True)
+            thread.start()
+            pinned_path = REPO / 'docs/worklogs/S15P21A506-193/evidence/daily-throughput-selection.json'
+            pinned = json.loads(pinned_path.read_bytes())['pinned_inputs']
+            common = {'threads': 4, 'memory_limit': '16GB', 'max_temp_size': '256GB',
+                      'min_free_bytes': 20_000_000_000}
+            options = dict(common, workers=4, request_timeout=180, lookup_batch=1024,
+                           rss_limit_bytes=24 * 1024**3, scratch_limit_bytes=320 * 1024**3,
+                           allow_full_selected=True, history_layout='grouped')
+            runner.old._check_output_path(ROOT / 'run')
+            save('job.json', {'pinned_inputs': pinned, 'pinned_document_sha256': file_sha256(pinned_path),
+                             'launcher_sha256': file_sha256(Path(__file__)), 'settings': options,
+                             'input_generation': inputs.contract(), 'run_generation': runner.contract(),
+                             'partition_count': 128, 'global_timeout_seconds': None,
+                             'prepared_dir': str(ROOT / 'input'), 'run_dir': str(ROOT / 'run')})
+            phase('PREPARE_FULL_SELECTED_INPUT')
+            prepared = inputs.prepare(
+                h1_dir=Path(pinned['h1_input_manifest']['path']).parent,
+                h1_manifest_sha256=pinned['h1_input_manifest']['sha256'],
+                profile_manifest=pinned['h5_a_profile_manifest']['path'],
+                profile_manifest_sha256=pinned['h5_a_profile_manifest']['sha256'],
+                selection_csv=pinned['selection_csv']['path'],
+                selection_sha256=pinned['selection_csv']['sha256'],
+                output=ROOT / 'input', full_selected=True, partition_count=128, **common)
+            save('prepared_result.json', prepared)
+            phase('COMPUTE_MERGE_AND_WRITE_PARQUET')
+            result = runner.run(prepared_dir=prepared['prepared_dir'],
+                                manifest_sha256=prepared['manifest_sha256'], output=ROOT / 'run', **options)
+            save('run_result.json', result)
+            if result['run_status'] != 'COMPLETE':
+                raise RuntimeError('Full calculation did not complete')
+            phase('VERIFY_FINAL_PARQUET')
+            verified = runner.verify_run(run_dir=ROOT / 'run', manifest_sha256=result['run_manifest_sha256'])
+            if verified.get('verified') is not True:
+                raise RuntimeError('Final verification failed')
+            save('verification.json', verified)
+            phase('COMPLETE')
+            update(status='COMPLETE', result=result, verification=verified)
+        except BaseException as error:
+            traceback.print_exc()
+            update(status='FAILED', error_type=type(error).__name__, error=str(error))
+            raise
+        finally:
+            stop.set()
+            if thread:
+                thread.join()
+            api.SetThreadExecutionState(0x80000000)
+
+
+if __name__ == '__main__':
+    main()

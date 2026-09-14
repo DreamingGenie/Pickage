@@ -1,0 +1,22 @@
+{
+  "tests": 209,
+  "success": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 76.06299999999464,
+  "ast_files": 40,
+  "old_code_preserved": 30,
+  "code_sha256": {
+    "pipeline/version_dependents/historical_production.py": "4021205c31e78b9172be82bbfbf2ebb1db798817d7b0ae22a0bb66cd211cdf51",
+    "pipeline/version_dependents/historical_production_benchmark.py": "4e0522139c28b47b011280b15e2054a6c06ab8ae7db90cc53c2543763c974677",
+    "pipeline/version_dependents/historical_production_input.py": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+    "pipeline/version_dependents/historical_production_sql.py": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+    "pipeline/version_dependents/historical_production_verify.py": "1e898003659748c829015ea906ea38f83537bfbf97415a15eb072e537891e3fd",
+    "pipeline/version_dependents/historical_production_writer.py": "890917d487e3f11a36151a8a40bf2437f091267cf17dde47d1a9e861fb94164a",
+    "pipeline/version_dependents/test_historical_production.py": "4a3620ca4d0f68d6c0497a844fdaffa350d4a5d12f3b96ff4a8fd10ffa4ab415",
+    "pipeline/version_dependents/test_historical_production_sql.py": "cbdee3ce2961276c87924f5172b3ced7e1174280ead92162f986897849bb17d0",
+    "pipeline/version_dependents/test_historical_production_verify.py": "376899008256e88f0731dc4c5ce4a1d0701b47ce4265a486a26ca1ef51d788cc",
+    "pipeline/version_dependents/test_historical_production_writer.py": "5b04fba22265ec3dcd499829eb5b5220586c6e7c6e61eb0bc9e8caf32d266306"
+  }
+}

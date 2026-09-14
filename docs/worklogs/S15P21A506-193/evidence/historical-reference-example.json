@@ -1,0 +1,35 @@
+{
+  "command": [
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+    "-B",
+    "-m",
+    "pipeline.version_dependents.historical_reference",
+    "--fixture",
+    "pipeline/version_dependents/fixtures/historical_reference.json",
+    "--output",
+    "data\\version-dependents\\reference-examples\\run_id=reference-20260910-v1"
+  ],
+  "started_at": "2026-09-10T13:18:17.940235+00:00",
+  "finished_at": "2026-09-10T13:18:18.616446+00:00",
+  "exit_code": 0,
+  "result": {
+    "scope": "SMALL_REFERENCE_ONLY",
+    "ready_for_load": false,
+    "fixture_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\fixtures\\historical_reference.json",
+    "fixture_sha256": "ff524221605d9de51ea086fc2454b599566d2b2080be2c34582e2edc0c25c1fb",
+    "result_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\reference-examples\\run_id=reference-20260910-v1\\reference_result.json",
+    "result_sha256": "53218e71cc1481db19c2847765bc31e16164712c4224ebe6a0adefc06cdeec8f",
+    "snapshot_count": 3,
+    "elapsed_seconds": 0.20300000000133878,
+    "code_sha256": {
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\requirements_resolution\\semver_worker.cjs": "7b83913a68ffb0e59ea6cf78c4e9a6032d8a212d3a3cd4b72d34e59dc36e02ff",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\requirements_resolution\\bridge.py": "e17449af1c892f66973bb34d51a7518b2f175310c1d474aeb8ecbbd0ab228147",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\requirements_resolution\\input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\requirements_resolution\\policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\snapshot\\policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae"
+    },
+    "python_version": "3.12.12 | packaged by conda-forge | (main, Oct 22 2025, 23:13:34) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "scope": "Synthetic example only; 3 snapshots, 6 versions, 3 packages"
+}

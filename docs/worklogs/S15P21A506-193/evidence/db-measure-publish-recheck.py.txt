@@ -1,0 +1,19 @@
+import json
+from pathlib import Path
+import time
+from pipeline.version_dependents.historical_db_source import FullSource
+from pipeline.version_dependents.historical_artifact import _publish_json
+
+root=Path(__file__).resolve().parent
+plan=json.loads((root/'plan.json').read_bytes())
+source=FullSource(plan['source_run_dir'],plan['source_sha256'],root/'additional-recheck-source')
+try:
+    seconds=[]
+    for _ in range(3):
+        tick=time.perf_counter();source.recheck();seconds.append(time.perf_counter()-tick)
+    result={'scope':'EXTRA_PRECOMMIT_RECHECK_RETAINED_FROM_ORIGINAL_LOADER',
+            'seconds':seconds,'mean_seconds':sum(seconds)/len(seconds),
+            'source_initialization_excluded_here':'Already measured once in primary scale result'}
+    _publish_json(root/'publish-recheck-result.json',result)
+    print(json.dumps(result),flush=True)
+finally:source.close()

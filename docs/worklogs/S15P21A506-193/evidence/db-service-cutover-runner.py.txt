@@ -1,0 +1,120 @@
+"""Local one-time cutover: --mode rehearse first, then --mode apply.
+
+Run from repository root with its Python dependencies on PYTHONPATH.
+All database mutations are enclosed in one transaction. No data-file copy.
+"""
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+from pathlib import Path
+import time
+
+from pipeline.postgresql.postgres import PgLoader
+from pipeline.version_dependents.historical_db_fast_publish import FastCountLoader, HISTORY
+from pipeline.version_dependents.historical_db_reload import validate_generation, _verify_db_identity
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--mode', choices=('rehearse', 'apply'), required=True)
+args = parser.parse_args()
+evidence = Path('docs/worklogs/S15P21A506-193/evidence')
+job = Path('data/vd-db-reload-timed-20260912-2354')
+plan = json.loads((job / 'prepared-plan.json').read_text(encoding='utf-8'))
+timing = json.loads((job / 'job/timing.json').read_text(encoding='utf-8'))
+result = json.loads((job / 'job/result.json').read_text(encoding='utf-8'))
+validate_generation(plan['generation'])
+assert timing['full_load_complete'] and timing['all_dates_newly_loaded']
+assert result['status'] == 'READY_FOR_CUTOVER'
+assert result['target']['ready'] and result['target']['completed_rows'] == 1007084608
+forward = (evidence / 'db-service-cutover.sql').read_text(encoding='utf-8')
+reverse = (evidence / 'db-service-cutover-rollback.sql').read_text(encoding='utf-8')
+hashes = {name: hashlib.sha256(text.encode()).hexdigest() for name, text in [('forward', forward), ('reverse', reverse)]}
+root = Path('data/vd-db-service-cutover-20260913')
+out = root / (args.mode + '-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
+out.mkdir(parents=True, exist_ok=False)
+if args.mode == 'apply':
+    rehearsed = json.loads((root / 'rehearse-result.json').read_text(encoding='utf-8'))
+    assert rehearsed['status'] == 'REHEARSED' and rehearsed['sql_sha256'] == hashes
+
+def history(db, schema, selected=True):
+    test = "='version-dependents'" if selected else "<>'version-dependents'"
+    queries = {
+        'execution': f'SELECT e.* FROM {schema}.etl_load_execution e WHERE e.dataset{test}',
+        'attempt': f'SELECT a.* FROM {schema}.etl_load_attempt a JOIN {schema}.etl_load_execution e USING(execution_id) WHERE e.dataset{test}',
+        'current': f'SELECT c.* FROM {schema}.etl_dataset_current c WHERE c.dataset{test}',
+    }
+    return {name: db._send(f"SELECT md5(coalesce(string_agg(to_jsonb(t)::text,'' ORDER BY to_jsonb(t)::text),'')) FROM ({query}) t;")[0]
+            for name, query in queries.items()}
+
+def identity(db, name):
+    return int(db._send(f"SELECT '{name}'::regclass::oid;")[0])
+
+def sample(db):
+    original = json.loads(Path('data/vd-db-query-probe-20260913-01/result.json').read_text(encoding='utf-8'))
+    for case in original['cases']:
+        rows = db._send('SELECT snapshot_at,dependents_count FROM public.package_version_snapshot '
+                        f"WHERE package_id={case['package_id']} AND version={db._literal(case['version'])} "
+                        "AND snapshot_at BETWEEN DATE '2022-05-08' AND DATE '2026-08-31' ORDER BY snapshot_at;")
+        assert rows == [f"{row['snapshot_at']}|{row['dependents_count']}" for row in case['result']]
+    return {'cases': len(original['cases']), 'returned_rows': sum(c['returned_rows'] for c in original['cases']),
+            'all_match_previous_query_results': True}
+
+started = time.perf_counter()
+report = {'mode': args.mode, 'started_at': datetime.now(timezone.utc).isoformat(), 'sql_sha256': hashes}
+with FastCountLoader(plan['db_command'], out, plan['schema'], plan) as db:
+    db._send("SET application_name='vd193-service-cutover'; SET statement_timeout='180s'; BEGIN;")
+    _verify_db_identity(db, plan['db_identity'])
+    saved = json.loads(db._send(f'SELECT row_to_json(p) FROM {plan["schema"]}.reload_plan p WHERE singleton;')[0])
+    assert saved['plan'] == plan
+    assert saved['service_contract'] == db.service_contract()
+    assert saved['target_contracts'] == {name: db.relation_contract(name) for name in ('package_version_snapshot', *HISTORY)}
+    # Lock data and metadata before validation to exclude concurrent writers.
+    db._send('LOCK TABLE public.package_version_snapshot,vd193_reload_20260912_ready01.package_version_snapshot IN ACCESS EXCLUSIVE MODE;')
+    db._send('LOCK TABLE public.etl_load_execution,public.etl_load_attempt,public.etl_dataset_current,vd193_reload_20260912_ready01.etl_load_execution,vd193_reload_20260912_ready01.etl_load_attempt,vd193_reload_20260912_ready01.etl_dataset_current,vd193_reload_20260912_ready01.reload_partition IN SHARE ROW EXCLUSIVE MODE;')
+    receipts = json.loads(db._send(f"SELECT json_agg(row_to_json(r) ORDER BY snapshot_at) FROM {plan['schema']}.reload_partition r;")[0])
+    assert [r['snapshot_at'] for r in receipts] == plan['dates']
+    for receipt in receipts:
+        assert receipt['rows'] == plan['rows_by_date'][receipt['snapshot_at']]
+        assert db.relation_contract('d' + receipt['snapshot_at'].replace('-', '')) == receipt['table_contract']
+    expected_history = history(db, plan['schema'])
+    old_history, other_history = history(db, 'public'), history(db, 'public', False)
+    # Histories have identical column order/types before SELECT * transfer.
+    for name in HISTORY:
+        columns = lambda schema: db._send(f"SELECT attname,atttypid,atttypmod,attnotnull FROM pg_attribute WHERE attrelid='{schema}.{name}'::regclass AND attnum>0 AND NOT attisdropped ORDER BY attnum;")
+        assert columns('public') == columns(plan['schema'])
+    db._send(forward)
+    assert history(db, 'public') == expected_history
+    assert history(db, 'vd193_backup_20260913') == old_history
+    assert history(db, 'public', False) == other_history
+    report['sample'] = sample(db)
+    report['service_oid'] = identity(db, 'public.package_version_snapshot')
+    report['backup_oid'] = identity(db, 'vd193_backup_20260913.package_version_snapshot')
+    report['dates'] = len(receipts)
+    report['rows_from_verified_load_receipts'] = sum(r['rows'] for r in receipts)
+    report['other_dataset_history_unchanged'] = True
+    report['prior_history_backed_up'] = True
+    report['history_fingerprints'] = {'before': old_history, 'after': expected_history, 'other': other_history}
+    if args.mode == 'rehearse':
+        db._send(reverse)
+        assert identity(db, 'public.package_version_snapshot') == 87774
+        assert identity(db, plan['schema'] + '.package_version_snapshot') == 280767
+        assert history(db, 'public') == old_history and history(db, 'public', False) == other_history
+        db._send('ROLLBACK;')
+        assert db._send("SELECT to_regnamespace('vd193_backup_20260913') IS NULL;") == ['t']
+        report['status'] = 'REHEARSED'
+        report['recovery_verified'] = True
+    else:
+        db._send('COMMIT;')
+        report['status'] = 'COMMITTED'
+        # Verify visibility through a fresh session after committing.
+        with PgLoader(plan['db_command'], out) as check:
+            check._send("SET default_transaction_read_only=on; SET statement_timeout='30s';")
+            assert identity(check, 'public.package_version_snapshot') == 280767
+            assert history(check, 'public') == expected_history
+            assert history(check, 'public', False) == other_history
+            report['post_commit_sample'] = sample(check)
+            report['status'] = 'COMPLETE'
+report.update(ended_at=datetime.now(timezone.utc).isoformat(), elapsed_seconds=time.perf_counter()-started)
+(out/'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+(root/(args.mode+'-result.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+print(json.dumps(report, ensure_ascii=False, indent=2))

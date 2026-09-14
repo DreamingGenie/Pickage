@@ -1,0 +1,15 @@
+test_concurrent_run_lock_is_rejected (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_concurrent_run_lock_is_rejected) ... ok
+test_count_tamper_rejected (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_count_tamper_rejected) ... ok
+test_duplicate_or_omitted_targets_rejected (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_duplicate_or_omitted_targets_rejected) ... ok
+test_empty_partition_has_no_count_file (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_empty_partition_has_no_count_file) ... ok
+test_include_zero_matches_oracle (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_include_zero_matches_oracle) ... ok
+test_orphan_receipt_after_checkpoint_crash_is_recovered (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_orphan_receipt_after_checkpoint_crash_is_recovered) ... ok
+test_partial_and_completed_resume_are_stable (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_partial_and_completed_resume_are_stable) ... ok
+test_quality_and_receipt_tamper_rejected (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_quality_and_receipt_tamper_rejected) ... ok
+test_quality_open_api (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_quality_open_api) ... ok
+test_sparse_output_and_verify (pipeline.version_dependents.test_historical_parallel_writer.ParallelHistoryWriterTests.test_sparse_output_and_verify) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 11.253s
+
+OK

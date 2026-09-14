@@ -1,0 +1,1291 @@
+{
+  "source": "existing CPU production lookup_intervals used as oracle by the completed GPU comparison",
+  "gpu_comparison_report": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-gpu32-a\\report.json",
+  "report_sha256": "dc78c74b9ff3fbb2ba528251824f17362317b4dc64be8521bbd98c8fb76930f4",
+  "snapshot_calendar": [
+    {
+      "snapshot_at": "2022-05-08",
+      "snapshot_timestamp": "2022-05-08T02:05:29.029028Z"
+    },
+    {
+      "snapshot_at": "2022-05-15",
+      "snapshot_timestamp": "2022-05-15T23:00:01.333164Z"
+    },
+    {
+      "snapshot_at": "2022-05-22",
+      "snapshot_timestamp": "2022-05-22T23:00:01.587111Z"
+    },
+    {
+      "snapshot_at": "2022-05-29",
+      "snapshot_timestamp": "2022-05-29T23:00:02.672717Z"
+    },
+    {
+      "snapshot_at": "2022-06-05",
+      "snapshot_timestamp": "2022-06-05T23:00:01.658498Z"
+    },
+    {
+      "snapshot_at": "2022-06-13",
+      "snapshot_timestamp": "2022-06-13T21:00:02.211099Z"
+    },
+    {
+      "snapshot_at": "2022-06-20",
+      "snapshot_timestamp": "2022-06-20T21:00:03.118511Z"
+    },
+    {
+      "snapshot_at": "2022-06-27",
+      "snapshot_timestamp": "2022-06-27T21:00:03.995533Z"
+    },
+    {
+      "snapshot_at": "2022-07-04",
+      "snapshot_timestamp": "2022-07-04T21:00:05.144258Z"
+    },
+    {
+      "snapshot_at": "2022-07-12",
+      "snapshot_timestamp": "2022-07-12T21:00:03.388273Z"
+    },
+    {
+      "snapshot_at": "2022-07-18",
+      "snapshot_timestamp": "2022-07-18T21:00:02.532413Z"
+    },
+    {
+      "snapshot_at": "2022-07-26",
+      "snapshot_timestamp": "2022-07-26T00:47:43.143546Z"
+    },
+    {
+      "snapshot_at": "2022-08-01",
+      "snapshot_timestamp": "2022-08-01T21:00:03.386881Z"
+    },
+    {
+      "snapshot_at": "2022-08-08",
+      "snapshot_timestamp": "2022-08-08T22:31:32.067865Z"
+    },
+    {
+      "snapshot_at": "2022-08-15",
+      "snapshot_timestamp": "2022-08-15T22:51:43.440063Z"
+    },
+    {
+      "snapshot_at": "2022-08-22",
+      "snapshot_timestamp": "2022-08-22T21:00:02.555091Z"
+    },
+    {
+      "snapshot_at": "2022-08-29",
+      "snapshot_timestamp": "2022-08-29T21:01:17.835295Z"
+    },
+    {
+      "snapshot_at": "2022-09-05",
+      "snapshot_timestamp": "2022-09-05T21:01:29.547187Z"
+    },
+    {
+      "snapshot_at": "2022-09-13",
+      "snapshot_timestamp": "2022-09-13T21:01:33.519860Z"
+    },
+    {
+      "snapshot_at": "2022-09-19",
+      "snapshot_timestamp": "2022-09-19T21:01:19.294376Z"
+    },
+    {
+      "snapshot_at": "2022-09-26",
+      "snapshot_timestamp": "2022-09-26T21:01:26.800683Z"
+    },
+    {
+      "snapshot_at": "2022-10-03",
+      "snapshot_timestamp": "2022-10-03T21:01:24.108828Z"
+    },
+    {
+      "snapshot_at": "2022-10-10",
+      "snapshot_timestamp": "2022-10-10T21:01:10.578435Z"
+    },
+    {
+      "snapshot_at": "2022-10-17",
+      "snapshot_timestamp": "2022-10-17T21:01:07.246371Z"
+    },
+    {
+      "snapshot_at": "2022-10-24",
+      "snapshot_timestamp": "2022-10-24T21:01:23.341514Z"
+    },
+    {
+      "snapshot_at": "2022-10-31",
+      "snapshot_timestamp": "2022-10-31T21:01:28.839593Z"
+    },
+    {
+      "snapshot_at": "2022-11-07",
+      "snapshot_timestamp": "2022-11-07T23:34:06.221221Z"
+    },
+    {
+      "snapshot_at": "2022-11-14",
+      "snapshot_timestamp": "2022-11-14T21:01:14.270552Z"
+    },
+    {
+      "snapshot_at": "2022-11-21",
+      "snapshot_timestamp": "2022-11-21T21:01:27.023620Z"
+    },
+    {
+      "snapshot_at": "2022-11-28",
+      "snapshot_timestamp": "2022-11-28T21:01:09.625652Z"
+    },
+    {
+      "snapshot_at": "2022-12-05",
+      "snapshot_timestamp": "2022-12-05T21:01:17.494537Z"
+    },
+    {
+      "snapshot_at": "2022-12-12",
+      "snapshot_timestamp": "2022-12-12T21:01:43.046625Z"
+    },
+    {
+      "snapshot_at": "2022-12-19",
+      "snapshot_timestamp": "2022-12-19T21:01:21.375809Z"
+    },
+    {
+      "snapshot_at": "2022-12-26",
+      "snapshot_timestamp": "2022-12-26T21:01:20.571777Z"
+    },
+    {
+      "snapshot_at": "2023-01-02",
+      "snapshot_timestamp": "2023-01-02T21:01:21.557660Z"
+    },
+    {
+      "snapshot_at": "2023-01-09",
+      "snapshot_timestamp": "2023-01-09T21:01:25.349203Z"
+    },
+    {
+      "snapshot_at": "2023-01-16",
+      "snapshot_timestamp": "2023-01-16T21:01:22.391534Z"
+    },
+    {
+      "snapshot_at": "2023-01-23",
+      "snapshot_timestamp": "2023-01-23T21:01:23.825470Z"
+    },
+    {
+      "snapshot_at": "2023-01-29",
+      "snapshot_timestamp": "2023-01-29T21:01:25.532982Z"
+    },
+    {
+      "snapshot_at": "2023-02-06",
+      "snapshot_timestamp": "2023-02-06T21:01:27.369245Z"
+    },
+    {
+      "snapshot_at": "2023-02-13",
+      "snapshot_timestamp": "2023-02-13T21:01:25.907285Z"
+    },
+    {
+      "snapshot_at": "2023-02-20",
+      "snapshot_timestamp": "2023-02-20T21:01:34.242898Z"
+    },
+    {
+      "snapshot_at": "2023-02-27",
+      "snapshot_timestamp": "2023-02-27T22:08:24.544370Z"
+    },
+    {
+      "snapshot_at": "2023-03-06",
+      "snapshot_timestamp": "2023-03-06T21:01:36.557032Z"
+    },
+    {
+      "snapshot_at": "2023-03-13",
+      "snapshot_timestamp": "2023-03-13T21:01:32.197398Z"
+    },
+    {
+      "snapshot_at": "2023-03-21",
+      "snapshot_timestamp": "2023-03-21T22:57:30.751005Z"
+    },
+    {
+      "snapshot_at": "2023-03-27",
+      "snapshot_timestamp": "2023-03-27T21:01:40.779901Z"
+    },
+    {
+      "snapshot_at": "2023-04-03",
+      "snapshot_timestamp": "2023-04-03T21:01:36.257226Z"
+    },
+    {
+      "snapshot_at": "2023-04-10",
+      "snapshot_timestamp": "2023-04-10T21:01:49.219309Z"
+    },
+    {
+      "snapshot_at": "2023-04-17",
+      "snapshot_timestamp": "2023-04-17T21:01:41.079793Z"
+    },
+    {
+      "snapshot_at": "2023-04-20",
+      "snapshot_timestamp": "2023-04-20T06:16:52.570650Z"
+    },
+    {
+      "snapshot_at": "2023-05-01",
+      "snapshot_timestamp": "2023-05-01T05:09:36.045813Z"
+    },
+    {
+      "snapshot_at": "2023-05-02",
+      "snapshot_timestamp": "2023-05-02T21:01:39.243165Z"
+    },
+    {
+      "snapshot_at": "2023-05-08",
+      "snapshot_timestamp": "2023-05-08T21:01:30.919088Z"
+    },
+    {
+      "snapshot_at": "2023-05-15",
+      "snapshot_timestamp": "2023-05-15T21:01:27.866594Z"
+    },
+    {
+      "snapshot_at": "2023-05-22",
+      "snapshot_timestamp": "2023-05-22T21:01:29.746426Z"
+    },
+    {
+      "snapshot_at": "2023-05-29",
+      "snapshot_timestamp": "2023-05-29T21:01:38.282067Z"
+    },
+    {
+      "snapshot_at": "2023-06-05",
+      "snapshot_timestamp": "2023-06-05T21:01:37.724475Z"
+    },
+    {
+      "snapshot_at": "2023-06-12",
+      "snapshot_timestamp": "2023-06-12T21:01:39.091573Z"
+    },
+    {
+      "snapshot_at": "2023-06-20",
+      "snapshot_timestamp": "2023-06-20T21:01:37.028600Z"
+    },
+    {
+      "snapshot_at": "2023-06-26",
+      "snapshot_timestamp": "2023-06-26T21:01:38.702142Z"
+    },
+    {
+      "snapshot_at": "2023-07-03",
+      "snapshot_timestamp": "2023-07-03T21:01:30.072045Z"
+    },
+    {
+      "snapshot_at": "2023-07-10",
+      "snapshot_timestamp": "2023-07-10T21:01:26.494006Z"
+    },
+    {
+      "snapshot_at": "2023-07-17",
+      "snapshot_timestamp": "2023-07-17T21:01:27.538690Z"
+    },
+    {
+      "snapshot_at": "2023-07-24",
+      "snapshot_timestamp": "2023-07-24T21:01:27.035185Z"
+    },
+    {
+      "snapshot_at": "2023-07-31",
+      "snapshot_timestamp": "2023-07-31T21:01:30.722347Z"
+    },
+    {
+      "snapshot_at": "2023-08-07",
+      "snapshot_timestamp": "2023-08-07T21:01:27.909109Z"
+    },
+    {
+      "snapshot_at": "2023-08-14",
+      "snapshot_timestamp": "2023-08-14T21:01:22.219852Z"
+    },
+    {
+      "snapshot_at": "2023-08-21",
+      "snapshot_timestamp": "2023-08-21T21:01:25.918039Z"
+    },
+    {
+      "snapshot_at": "2023-08-28",
+      "snapshot_timestamp": "2023-08-28T21:01:21.433477Z"
+    },
+    {
+      "snapshot_at": "2023-09-04",
+      "snapshot_timestamp": "2023-09-04T21:01:22.928703Z"
+    },
+    {
+      "snapshot_at": "2023-09-11",
+      "snapshot_timestamp": "2023-09-11T21:01:25.316347Z"
+    },
+    {
+      "snapshot_at": "2023-09-18",
+      "snapshot_timestamp": "2023-09-18T21:01:30.362173Z"
+    },
+    {
+      "snapshot_at": "2023-09-26",
+      "snapshot_timestamp": "2023-09-26T21:01:21.933650Z"
+    },
+    {
+      "snapshot_at": "2023-10-02",
+      "snapshot_timestamp": "2023-10-02T21:01:29.638850Z"
+    },
+    {
+      "snapshot_at": "2023-10-09",
+      "snapshot_timestamp": "2023-10-09T21:01:28.717411Z"
+    },
+    {
+      "snapshot_at": "2023-10-16",
+      "snapshot_timestamp": "2023-10-16T21:01:27.811395Z"
+    },
+    {
+      "snapshot_at": "2023-10-23",
+      "snapshot_timestamp": "2023-10-23T21:01:31.784324Z"
+    },
+    {
+      "snapshot_at": "2023-10-30",
+      "snapshot_timestamp": "2023-10-30T21:01:29.113369Z"
+    },
+    {
+      "snapshot_at": "2023-11-06",
+      "snapshot_timestamp": "2023-11-06T21:01:31.793088Z"
+    },
+    {
+      "snapshot_at": "2023-11-13",
+      "snapshot_timestamp": "2023-11-13T21:01:19.984825Z"
+    },
+    {
+      "snapshot_at": "2023-11-20",
+      "snapshot_timestamp": "2023-11-20T21:01:25.361772Z"
+    },
+    {
+      "snapshot_at": "2023-11-27",
+      "snapshot_timestamp": "2023-11-27T21:01:22.307765Z"
+    },
+    {
+      "snapshot_at": "2023-12-04",
+      "snapshot_timestamp": "2023-12-04T21:01:27.023695Z"
+    },
+    {
+      "snapshot_at": "2023-12-11",
+      "snapshot_timestamp": "2023-12-11T21:01:29.260471Z"
+    },
+    {
+      "snapshot_at": "2023-12-18",
+      "snapshot_timestamp": "2023-12-18T21:01:16.759656Z"
+    },
+    {
+      "snapshot_at": "2023-12-25",
+      "snapshot_timestamp": "2023-12-25T21:01:28.602414Z"
+    },
+    {
+      "snapshot_at": "2024-01-01",
+      "snapshot_timestamp": "2024-01-01T21:01:38.824466Z"
+    },
+    {
+      "snapshot_at": "2024-01-08",
+      "snapshot_timestamp": "2024-01-08T21:01:26.160683Z"
+    },
+    {
+      "snapshot_at": "2024-01-15",
+      "snapshot_timestamp": "2024-01-15T21:01:26.488818Z"
+    },
+    {
+      "snapshot_at": "2024-01-22",
+      "snapshot_timestamp": "2024-01-22T21:01:22.816853Z"
+    },
+    {
+      "snapshot_at": "2024-01-29",
+      "snapshot_timestamp": "2024-01-29T21:01:27.701381Z"
+    },
+    {
+      "snapshot_at": "2024-02-05",
+      "snapshot_timestamp": "2024-02-05T21:01:31.228897Z"
+    },
+    {
+      "snapshot_at": "2024-02-12",
+      "snapshot_timestamp": "2024-02-12T21:01:24.944861Z"
+    },
+    {
+      "snapshot_at": "2024-02-19",
+      "snapshot_timestamp": "2024-02-19T21:01:24.170247Z"
+    },
+    {
+      "snapshot_at": "2024-02-26",
+      "snapshot_timestamp": "2024-02-26T21:01:17.318111Z"
+    },
+    {
+      "snapshot_at": "2024-03-04",
+      "snapshot_timestamp": "2024-03-04T21:01:24.886520Z"
+    },
+    {
+      "snapshot_at": "2024-03-05",
+      "snapshot_timestamp": "2024-03-05T21:01:18.902911Z"
+    },
+    {
+      "snapshot_at": "2024-03-11",
+      "snapshot_timestamp": "2024-03-11T21:01:18.845328Z"
+    },
+    {
+      "snapshot_at": "2024-03-18",
+      "snapshot_timestamp": "2024-03-18T21:01:22.972057Z"
+    },
+    {
+      "snapshot_at": "2024-03-25",
+      "snapshot_timestamp": "2024-03-25T21:01:01.106972Z"
+    },
+    {
+      "snapshot_at": "2024-04-01",
+      "snapshot_timestamp": "2024-04-01T21:00:40.312251Z"
+    },
+    {
+      "snapshot_at": "2024-04-09",
+      "snapshot_timestamp": "2024-04-09T21:00:42.728418Z"
+    },
+    {
+      "snapshot_at": "2024-04-15",
+      "snapshot_timestamp": "2024-04-15T21:00:43.991061Z"
+    },
+    {
+      "snapshot_at": "2024-04-21",
+      "snapshot_timestamp": "2024-04-21T21:00:46.839235Z"
+    },
+    {
+      "snapshot_at": "2024-04-29",
+      "snapshot_timestamp": "2024-04-29T21:00:44.480401Z"
+    },
+    {
+      "snapshot_at": "2024-05-09",
+      "snapshot_timestamp": "2024-05-09T02:54:23.193328Z"
+    },
+    {
+      "snapshot_at": "2024-05-13",
+      "snapshot_timestamp": "2024-05-13T21:00:43.991195Z"
+    },
+    {
+      "snapshot_at": "2024-05-20",
+      "snapshot_timestamp": "2024-05-20T21:51:05.132838Z"
+    },
+    {
+      "snapshot_at": "2024-05-27",
+      "snapshot_timestamp": "2024-05-27T21:00:47.968297Z"
+    },
+    {
+      "snapshot_at": "2024-06-03",
+      "snapshot_timestamp": "2024-06-03T21:00:39.949274Z"
+    },
+    {
+      "snapshot_at": "2024-06-10",
+      "snapshot_timestamp": "2024-06-10T21:00:37.438065Z"
+    },
+    {
+      "snapshot_at": "2024-06-17",
+      "snapshot_timestamp": "2024-06-17T21:00:40.373236Z"
+    },
+    {
+      "snapshot_at": "2024-06-24",
+      "snapshot_timestamp": "2024-06-24T21:00:41.505481Z"
+    },
+    {
+      "snapshot_at": "2024-07-01",
+      "snapshot_timestamp": "2024-07-01T21:00:42.720159Z"
+    },
+    {
+      "snapshot_at": "2024-07-08",
+      "snapshot_timestamp": "2024-07-08T21:00:39.655598Z"
+    },
+    {
+      "snapshot_at": "2024-07-09",
+      "snapshot_timestamp": "2024-07-09T21:00:41.447203Z"
+    },
+    {
+      "snapshot_at": "2024-07-15",
+      "snapshot_timestamp": "2024-07-15T21:00:40.317251Z"
+    },
+    {
+      "snapshot_at": "2024-07-23",
+      "snapshot_timestamp": "2024-07-23T21:00:40.525402Z"
+    },
+    {
+      "snapshot_at": "2024-07-29",
+      "snapshot_timestamp": "2024-07-29T21:00:43.758331Z"
+    },
+    {
+      "snapshot_at": "2024-08-05",
+      "snapshot_timestamp": "2024-08-05T21:01:03.246241Z"
+    },
+    {
+      "snapshot_at": "2024-08-12",
+      "snapshot_timestamp": "2024-08-12T21:00:54.797809Z"
+    },
+    {
+      "snapshot_at": "2024-08-19",
+      "snapshot_timestamp": "2024-08-19T21:00:43.354481Z"
+    },
+    {
+      "snapshot_at": "2024-08-29",
+      "snapshot_timestamp": "2024-08-29T04:39:16.121656Z"
+    },
+    {
+      "snapshot_at": "2024-09-02",
+      "snapshot_timestamp": "2024-09-02T21:00:45.355914Z"
+    },
+    {
+      "snapshot_at": "2024-09-09",
+      "snapshot_timestamp": "2024-09-09T21:00:43.146231Z"
+    },
+    {
+      "snapshot_at": "2024-09-16",
+      "snapshot_timestamp": "2024-09-16T21:00:53.364153Z"
+    },
+    {
+      "snapshot_at": "2024-09-23",
+      "snapshot_timestamp": "2024-09-23T21:00:54.033651Z"
+    },
+    {
+      "snapshot_at": "2024-09-30",
+      "snapshot_timestamp": "2024-09-30T21:00:51.181638Z"
+    },
+    {
+      "snapshot_at": "2024-10-07",
+      "snapshot_timestamp": "2024-10-07T21:00:48.571004Z"
+    },
+    {
+      "snapshot_at": "2024-10-14",
+      "snapshot_timestamp": "2024-10-14T22:02:03.172493Z"
+    },
+    {
+      "snapshot_at": "2024-10-21",
+      "snapshot_timestamp": "2024-10-21T21:00:52.159063Z"
+    },
+    {
+      "snapshot_at": "2024-10-28",
+      "snapshot_timestamp": "2024-10-28T21:00:48.902523Z"
+    },
+    {
+      "snapshot_at": "2024-11-04",
+      "snapshot_timestamp": "2024-11-04T21:00:49.434887Z"
+    },
+    {
+      "snapshot_at": "2024-11-11",
+      "snapshot_timestamp": "2024-11-11T21:01:03.908177Z"
+    },
+    {
+      "snapshot_at": "2024-11-19",
+      "snapshot_timestamp": "2024-11-19T01:09:39.173206Z"
+    },
+    {
+      "snapshot_at": "2024-11-25",
+      "snapshot_timestamp": "2024-11-25T21:00:47.803342Z"
+    },
+    {
+      "snapshot_at": "2024-12-02",
+      "snapshot_timestamp": "2024-12-02T21:00:47.202858Z"
+    },
+    {
+      "snapshot_at": "2024-12-09",
+      "snapshot_timestamp": "2024-12-09T21:00:55.118844Z"
+    },
+    {
+      "snapshot_at": "2024-12-16",
+      "snapshot_timestamp": "2024-12-16T21:00:46.341394Z"
+    },
+    {
+      "snapshot_at": "2024-12-23",
+      "snapshot_timestamp": "2024-12-23T21:00:50.237782Z"
+    },
+    {
+      "snapshot_at": "2024-12-30",
+      "snapshot_timestamp": "2024-12-30T21:00:45.311751Z"
+    },
+    {
+      "snapshot_at": "2025-01-06",
+      "snapshot_timestamp": "2025-01-06T21:00:51.199464Z"
+    },
+    {
+      "snapshot_at": "2025-01-13",
+      "snapshot_timestamp": "2025-01-13T21:00:47.444982Z"
+    },
+    {
+      "snapshot_at": "2025-01-20",
+      "snapshot_timestamp": "2025-01-20T21:00:44.111089Z"
+    },
+    {
+      "snapshot_at": "2025-01-27",
+      "snapshot_timestamp": "2025-01-27T21:00:45.143469Z"
+    },
+    {
+      "snapshot_at": "2025-02-03",
+      "snapshot_timestamp": "2025-02-03T21:00:46.983251Z"
+    },
+    {
+      "snapshot_at": "2025-02-10",
+      "snapshot_timestamp": "2025-02-10T21:00:55.990900Z"
+    },
+    {
+      "snapshot_at": "2025-02-18",
+      "snapshot_timestamp": "2025-02-18T02:19:20.096623Z"
+    },
+    {
+      "snapshot_at": "2025-02-25",
+      "snapshot_timestamp": "2025-02-25T04:59:51.105884Z"
+    },
+    {
+      "snapshot_at": "2025-03-03",
+      "snapshot_timestamp": "2025-03-03T21:00:57.347700Z"
+    },
+    {
+      "snapshot_at": "2025-03-10",
+      "snapshot_timestamp": "2025-03-10T21:00:49.413275Z"
+    },
+    {
+      "snapshot_at": "2025-03-18",
+      "snapshot_timestamp": "2025-03-18T02:21:58.234836Z"
+    },
+    {
+      "snapshot_at": "2025-03-24",
+      "snapshot_timestamp": "2025-03-24T21:00:44.947280Z"
+    },
+    {
+      "snapshot_at": "2025-03-31",
+      "snapshot_timestamp": "2025-03-31T21:00:52.680431Z"
+    },
+    {
+      "snapshot_at": "2025-04-07",
+      "snapshot_timestamp": "2025-04-07T21:00:51.568589Z"
+    },
+    {
+      "snapshot_at": "2025-04-14",
+      "snapshot_timestamp": "2025-04-14T21:00:44.479352Z"
+    },
+    {
+      "snapshot_at": "2025-04-22",
+      "snapshot_timestamp": "2025-04-22T01:04:30.709280Z"
+    },
+    {
+      "snapshot_at": "2025-04-28",
+      "snapshot_timestamp": "2025-04-28T21:00:54.101204Z"
+    },
+    {
+      "snapshot_at": "2025-05-05",
+      "snapshot_timestamp": "2025-05-05T21:00:52.349351Z"
+    },
+    {
+      "snapshot_at": "2025-05-12",
+      "snapshot_timestamp": "2025-05-12T21:00:54.017604Z"
+    },
+    {
+      "snapshot_at": "2025-05-19",
+      "snapshot_timestamp": "2025-05-19T21:00:47.037017Z"
+    },
+    {
+      "snapshot_at": "2025-05-26",
+      "snapshot_timestamp": "2025-05-26T21:00:50.971133Z"
+    },
+    {
+      "snapshot_at": "2025-06-02",
+      "snapshot_timestamp": "2025-06-02T21:00:54.697419Z"
+    },
+    {
+      "snapshot_at": "2025-06-09",
+      "snapshot_timestamp": "2025-06-09T21:00:58.818792Z"
+    },
+    {
+      "snapshot_at": "2025-06-16",
+      "snapshot_timestamp": "2025-06-16T21:01:03.770571Z"
+    },
+    {
+      "snapshot_at": "2025-06-23",
+      "snapshot_timestamp": "2025-06-23T21:00:50.778946Z"
+    },
+    {
+      "snapshot_at": "2025-06-30",
+      "snapshot_timestamp": "2025-06-30T21:00:51.468070Z"
+    },
+    {
+      "snapshot_at": "2025-07-07",
+      "snapshot_timestamp": "2025-07-07T21:01:02.713548Z"
+    },
+    {
+      "snapshot_at": "2025-07-14",
+      "snapshot_timestamp": "2025-07-14T21:00:49.349510Z"
+    },
+    {
+      "snapshot_at": "2025-07-21",
+      "snapshot_timestamp": "2025-07-21T21:00:48.043077Z"
+    },
+    {
+      "snapshot_at": "2025-07-28",
+      "snapshot_timestamp": "2025-07-28T21:00:58.578114Z"
+    },
+    {
+      "snapshot_at": "2025-08-04",
+      "snapshot_timestamp": "2025-08-04T20:50:46.937416Z"
+    },
+    {
+      "snapshot_at": "2025-08-11",
+      "snapshot_timestamp": "2025-08-11T21:00:53.835801Z"
+    },
+    {
+      "snapshot_at": "2025-08-18",
+      "snapshot_timestamp": "2025-08-18T21:00:47.234749Z"
+    },
+    {
+      "snapshot_at": "2025-08-25",
+      "snapshot_timestamp": "2025-08-25T21:00:59.054033Z"
+    },
+    {
+      "snapshot_at": "2025-09-01",
+      "snapshot_timestamp": "2025-09-01T21:00:44.151556Z"
+    },
+    {
+      "snapshot_at": "2025-09-08",
+      "snapshot_timestamp": "2025-09-08T21:00:47.280833Z"
+    },
+    {
+      "snapshot_at": "2025-09-15",
+      "snapshot_timestamp": "2025-09-15T21:00:46.898898Z"
+    },
+    {
+      "snapshot_at": "2025-09-22",
+      "snapshot_timestamp": "2025-09-22T21:00:45.818658Z"
+    },
+    {
+      "snapshot_at": "2025-09-29",
+      "snapshot_timestamp": "2025-09-29T21:00:46.603370Z"
+    },
+    {
+      "snapshot_at": "2025-10-06",
+      "snapshot_timestamp": "2025-10-06T21:01:04.782994Z"
+    },
+    {
+      "snapshot_at": "2025-10-13",
+      "snapshot_timestamp": "2025-10-13T21:00:49.546507Z"
+    },
+    {
+      "snapshot_at": "2025-10-20",
+      "snapshot_timestamp": "2025-10-20T21:00:57.247655Z"
+    },
+    {
+      "snapshot_at": "2025-10-27",
+      "snapshot_timestamp": "2025-10-27T21:00:50.599754Z"
+    },
+    {
+      "snapshot_at": "2025-11-03",
+      "snapshot_timestamp": "2025-11-03T21:00:51.537760Z"
+    },
+    {
+      "snapshot_at": "2025-11-10",
+      "snapshot_timestamp": "2025-11-10T21:00:54.219074Z"
+    },
+    {
+      "snapshot_at": "2025-11-17",
+      "snapshot_timestamp": "2025-11-17T21:00:58.014746Z"
+    },
+    {
+      "snapshot_at": "2025-11-24",
+      "snapshot_timestamp": "2025-11-24T23:20:46.207140Z"
+    },
+    {
+      "snapshot_at": "2025-12-01",
+      "snapshot_timestamp": "2025-12-01T21:00:50.611233Z"
+    },
+    {
+      "snapshot_at": "2025-12-08",
+      "snapshot_timestamp": "2025-12-08T22:01:08.045082Z"
+    },
+    {
+      "snapshot_at": "2025-12-15",
+      "snapshot_timestamp": "2025-12-15T21:00:04.272709Z"
+    },
+    {
+      "snapshot_at": "2025-12-22",
+      "snapshot_timestamp": "2025-12-22T23:27:30.149879Z"
+    },
+    {
+      "snapshot_at": "2025-12-29",
+      "snapshot_timestamp": "2025-12-29T21:00:46.883758Z"
+    },
+    {
+      "snapshot_at": "2026-01-05",
+      "snapshot_timestamp": "2026-01-05T23:35:17.553094Z"
+    },
+    {
+      "snapshot_at": "2026-01-12",
+      "snapshot_timestamp": "2026-01-12T21:59:12.210323Z"
+    },
+    {
+      "snapshot_at": "2026-01-19",
+      "snapshot_timestamp": "2026-01-19T21:00:50.572817Z"
+    },
+    {
+      "snapshot_at": "2026-01-26",
+      "snapshot_timestamp": "2026-01-26T21:00:56.002597Z"
+    },
+    {
+      "snapshot_at": "2026-02-13",
+      "snapshot_timestamp": "2026-02-13T03:08:14.454364Z"
+    },
+    {
+      "snapshot_at": "2026-02-16",
+      "snapshot_timestamp": "2026-02-16T21:00:52.067362Z"
+    },
+    {
+      "snapshot_at": "2026-02-23",
+      "snapshot_timestamp": "2026-02-23T21:00:56.375217Z"
+    },
+    {
+      "snapshot_at": "2026-03-02",
+      "snapshot_timestamp": "2026-03-02T21:00:54.639250Z"
+    },
+    {
+      "snapshot_at": "2026-03-09",
+      "snapshot_timestamp": "2026-03-09T21:00:59.259379Z"
+    },
+    {
+      "snapshot_at": "2026-03-10",
+      "snapshot_timestamp": "2026-03-10T08:29:57.595617Z"
+    },
+    {
+      "snapshot_at": "2026-03-16",
+      "snapshot_timestamp": "2026-03-16T21:54:53.176709Z"
+    },
+    {
+      "snapshot_at": "2026-03-23",
+      "snapshot_timestamp": "2026-03-23T21:01:01.160347Z"
+    },
+    {
+      "snapshot_at": "2026-03-30",
+      "snapshot_timestamp": "2026-03-30T21:01:01.879088Z"
+    },
+    {
+      "snapshot_at": "2026-04-06",
+      "snapshot_timestamp": "2026-04-06T21:00:48.099008Z"
+    },
+    {
+      "snapshot_at": "2026-04-13",
+      "snapshot_timestamp": "2026-04-13T21:00:58.670264Z"
+    },
+    {
+      "snapshot_at": "2026-04-14",
+      "snapshot_timestamp": "2026-04-14T05:32:47.278417Z"
+    },
+    {
+      "snapshot_at": "2026-04-20",
+      "snapshot_timestamp": "2026-04-20T21:00:53.072495Z"
+    },
+    {
+      "snapshot_at": "2026-04-28",
+      "snapshot_timestamp": "2026-04-28T01:42:12.100133Z"
+    },
+    {
+      "snapshot_at": "2026-05-05",
+      "snapshot_timestamp": "2026-05-05T01:20:05.943302Z"
+    },
+    {
+      "snapshot_at": "2026-05-11",
+      "snapshot_timestamp": "2026-05-11T21:00:51.136754Z"
+    },
+    {
+      "snapshot_at": "2026-05-18",
+      "snapshot_timestamp": "2026-05-18T21:00:52.746634Z"
+    },
+    {
+      "snapshot_at": "2026-06-01",
+      "snapshot_timestamp": "2026-06-01T21:00:47.508265Z"
+    },
+    {
+      "snapshot_at": "2026-06-11",
+      "snapshot_timestamp": "2026-06-11T22:24:59.160977Z"
+    },
+    {
+      "snapshot_at": "2026-06-15",
+      "snapshot_timestamp": "2026-06-15T21:00:56.616609Z"
+    },
+    {
+      "snapshot_at": "2026-06-23",
+      "snapshot_timestamp": "2026-06-23T13:18:31.091955Z"
+    },
+    {
+      "snapshot_at": "2026-06-29",
+      "snapshot_timestamp": "2026-06-29T21:01:04.666572Z"
+    },
+    {
+      "snapshot_at": "2026-07-06",
+      "snapshot_timestamp": "2026-07-06T21:01:02.173393Z"
+    },
+    {
+      "snapshot_at": "2026-07-13",
+      "snapshot_timestamp": "2026-07-13T21:01:00.508977Z"
+    },
+    {
+      "snapshot_at": "2026-07-20",
+      "snapshot_timestamp": "2026-07-20T21:01:01.867879Z"
+    },
+    {
+      "snapshot_at": "2026-07-27",
+      "snapshot_timestamp": "2026-07-27T21:01:02.499118Z"
+    },
+    {
+      "snapshot_at": "2026-08-03",
+      "snapshot_timestamp": "2026-08-03T21:01:38.660317Z"
+    },
+    {
+      "snapshot_at": "2026-08-10",
+      "snapshot_timestamp": "2026-08-10T21:00:59.972346Z"
+    },
+    {
+      "snapshot_at": "2026-08-17",
+      "snapshot_timestamp": "2026-08-17T21:00:56.611755Z"
+    },
+    {
+      "snapshot_at": "2026-08-24",
+      "snapshot_timestamp": "2026-08-24T21:01:08.477988Z"
+    },
+    {
+      "snapshot_at": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z"
+    }
+  ],
+  "examples": [
+    {
+      "name": "lodash",
+      "requirement": "^4.17.21",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\018\\attempts\\6345ebcc83f147bba1930e7caf5f3547\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 9702538,
+          "start_index": 0,
+          "end_index": 197,
+          "status": "RESOLVED",
+          "normalized_range": ">=4.17.21 <5.0.0-0",
+          "target_package_id": 8006164,
+          "target_version": "4.17.21"
+        },
+        {
+          "lookup_id": 9702538,
+          "start_index": 197,
+          "end_index": 207,
+          "status": "RESOLVED",
+          "normalized_range": ">=4.17.21 <5.0.0-0",
+          "target_package_id": 8006164,
+          "target_version": "4.17.23"
+        },
+        {
+          "lookup_id": 9702538,
+          "start_index": 207,
+          "end_index": 229,
+          "status": "RESOLVED",
+          "normalized_range": ">=4.17.21 <5.0.0-0",
+          "target_package_id": 8006164,
+          "target_version": "4.18.1"
+        }
+      ]
+    },
+    {
+      "name": "react",
+      "requirement": "^18.0.0",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\118\\attempts\\9e5e5a04f50c47eb808d4f9e8a4cc090\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 10280592,
+          "start_index": 0,
+          "end_index": 6,
+          "status": "RESOLVED",
+          "normalized_range": ">=18.0.0 <19.0.0-0",
+          "target_package_id": 9633488,
+          "target_version": "18.1.0"
+        },
+        {
+          "lookup_id": 10280592,
+          "start_index": 6,
+          "end_index": 105,
+          "status": "RESOLVED",
+          "normalized_range": ">=18.0.0 <19.0.0-0",
+          "target_package_id": 9633488,
+          "target_version": "18.2.0"
+        },
+        {
+          "lookup_id": 10280592,
+          "start_index": 105,
+          "end_index": 229,
+          "status": "RESOLVED",
+          "normalized_range": ">=18.0.0 <19.0.0-0",
+          "target_package_id": 9633488,
+          "target_version": "18.3.1"
+        }
+      ]
+    },
+    {
+      "name": "axios",
+      "requirement": "~1.6.0",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\042\\attempts\\4b816126e10b4c42a19018d2f5db9aad\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 8705625,
+          "start_index": 0,
+          "end_index": 78,
+          "status": "NO_SATISFYING_VERSION",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": null,
+          "target_version": null
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 78,
+          "end_index": 80,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.0"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 80,
+          "end_index": 81,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.1"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 81,
+          "end_index": 87,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.2"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 87,
+          "end_index": 88,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.3"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 88,
+          "end_index": 91,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.5"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 91,
+          "end_index": 99,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.7"
+        },
+        {
+          "lookup_id": 8705625,
+          "start_index": 99,
+          "end_index": 229,
+          "status": "RESOLVED",
+          "normalized_range": ">=1.6.0 <1.7.0-0",
+          "target_package_id": 4867906,
+          "target_version": "1.6.8"
+        }
+      ]
+    },
+    {
+      "name": "semver",
+      "requirement": "^7.0.0",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\043\\attempts\\d77f8a16a36345f48bf8b48db9ef4a01\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 10488997,
+          "start_index": 0,
+          "end_index": 22,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.3.7"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 22,
+          "end_index": 49,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.3.8"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 49,
+          "end_index": 54,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.5.0"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 54,
+          "end_index": 59,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.5.1"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 59,
+          "end_index": 60,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.5.2"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 60,
+          "end_index": 62,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.5.3"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 62,
+          "end_index": 92,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.5.4"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 92,
+          "end_index": 106,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.6.0"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 106,
+          "end_index": 107,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.6.1"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 107,
+          "end_index": 118,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.6.2"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 118,
+          "end_index": 146,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.6.3"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 146,
+          "end_index": 147,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.7.0"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 147,
+          "end_index": 160,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.7.1"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 160,
+          "end_index": 182,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.7.2"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 182,
+          "end_index": 198,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.7.3"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 198,
+          "end_index": 213,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.7.4"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 213,
+          "end_index": 215,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.8.0"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 215,
+          "end_index": 216,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.8.1"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 216,
+          "end_index": 218,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.8.4"
+        },
+        {
+          "lookup_id": 10488997,
+          "start_index": 218,
+          "end_index": 229,
+          "status": "RESOLVED",
+          "normalized_range": ">=7.0.0 <8.0.0-0",
+          "target_package_id": 9991998,
+          "target_version": "7.8.5"
+        }
+      ]
+    },
+    {
+      "name": "lodash",
+      "requirement": "latest",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\018\\attempts\\6345ebcc83f147bba1930e7caf5f3547\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 9702634,
+          "start_index": 0,
+          "end_index": 229,
+          "status": "UNSUPPORTED_TAG",
+          "normalized_range": null,
+          "target_package_id": null,
+          "target_version": null
+        }
+      ]
+    },
+    {
+      "name": "@material-ui/lab",
+      "requirement": "^4.0.0-alpha.60",
+      "source_file": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-pilot-a\\32\\run\\partitions\\043\\attempts\\d77f8a16a36345f48bf8b48db9ef4a01\\lookup_intervals.parquet",
+      "intervals": [
+        {
+          "lookup_id": 3811755,
+          "start_index": 0,
+          "end_index": 229,
+          "status": "UNMAPPED_TARGET_PACKAGE",
+          "normalized_range": ">=4.0.0-alpha.60 <5.0.0-0",
+          "target_package_id": null,
+          "target_version": null
+        }
+      ]
+    }
+  ]
+}

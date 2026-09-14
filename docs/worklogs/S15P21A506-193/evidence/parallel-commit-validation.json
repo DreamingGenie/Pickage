@@ -1,0 +1,135 @@
+{
+  "status": "PASS",
+  "base_commit": "1ec693cfe2f77b2757d072a95a0c84abd2702ea2",
+  "files": [
+    "docs/worklogs/S15P21A506-193/.gitattributes",
+    "docs/worklogs/S15P21A506-193/02-plan.md",
+    "docs/worklogs/S15P21A506-193/04-work-log.md",
+    "docs/worklogs/S15P21A506-193/README.md",
+    "docs/worklogs/S15P21A506-193/25-parallel-execution-plan.md",
+    "docs/worklogs/S15P21A506-193/26-parallel-input-cpu-execution.md",
+    "docs/worklogs/S15P21A506-193/27-input-verification-storage-optimization.md",
+    "pipeline/version_dependents/.gitattributes",
+    "pipeline/version_dependents/README.md",
+    "pipeline/version_dependents/historical_parallel.py",
+    "pipeline/version_dependents/historical_parallel_benchmark.py",
+    "pipeline/version_dependents/historical_parallel_input.py",
+    "pipeline/version_dependents/historical_parallel_optimization_benchmark.py",
+    "pipeline/version_dependents/historical_parallel_pool.py",
+    "pipeline/version_dependents/historical_parallel_verify.py",
+    "pipeline/version_dependents/historical_parallel_worker.py",
+    "pipeline/version_dependents/historical_parallel_writer.py",
+    "pipeline/version_dependents/test_historical_parallel.py",
+    "pipeline/version_dependents/test_historical_parallel_input.py",
+    "pipeline/version_dependents/test_historical_parallel_pool.py",
+    "pipeline/version_dependents/test_historical_parallel_writer.py",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-cpu-results.json",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-input-final-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-storage-integration-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-storage-new-preparation.json",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-storage-old-preparation.json",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-storage-results.json",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-storage-writer-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-commit-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/parallel-commit-validation.json"
+  ],
+  "tests": {
+    "count": 25,
+    "seconds": 51.835,
+    "log_sha256": "1bd050536fc799e33dfdca4fee50507c37e0dda4c6a724b7b06f926200de74a6"
+  },
+  "ast_files": 12,
+  "generation_contract": {
+    "format": "historical-parallel-cpu-v2",
+    "input": {
+      "parallel_input_sha256": "4e002ebd6cb6ac6703404be51f88e0fc730e14e860a2272c3aef102ad2be0ccf",
+      "validation_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "validation_sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "base_input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      }
+    },
+    "production": {
+      "runner_sha256": "68f564c90fa616391adbc0785e99a2e997701e75c440346c0f031c495468e56b",
+      "resolver_adapter_sha256": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+      "sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      },
+      "h4_generation": {
+        "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+        "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+        "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+        "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+        "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+        "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+        "pipeline/requirements_resolution/bridge.py": "e17449af1c892f66973bb34d51a7518b2f175310c1d474aeb8ecbbd0ab228147",
+        "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+        "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f"
+      },
+      "h4_writer_sha256": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+      "production_writer_sha256": "eb33b7675c5c8d8e7937083389631aff3c30ae5ddb54118c5a8271ab107881ab",
+      "production_cache_sha256": "5c76d2a00e7934b6e1e1af6724d8ae4a33d9af135d3181de1d0ac0732c9512b3",
+      "production_daily_sha256": "78bc92c4bb9c9fc4f620e83544872a4e06ff24656718400efd5f1e5abb8b68ef",
+      "algorithm": "weighted-events-v2",
+      "weighted_events_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "weighted_quality_sha256": "1ce36a263531b18ab60f915fb6a54c709b7a45cdcefdc7303f5be495d2569ba4",
+      "resolver_backend": "cpu",
+      "resolver_generation": {
+        "historical_production_resolver.py": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+        "historical_gpu.py": "c5f206062cc9a564bc69c6f0dc94271f14ef8a53c893cfaf39aac5fbcde3bc25",
+        "historical_gpu_normalize.cjs": "f347afe8cd5e980a6d95f1e0a9411caff71d7db8afd07f6d6a790f4f96cfd664"
+      }
+    },
+    "code": {
+      "historical_parallel": "52fd5d959dd50757de6588b6beec32befc8e56f4774ab578571dc25711eb4e96",
+      "historical_parallel_worker": "a55eac98456dfeb8a5d08eef878863186f10e9d901b35a5f27af3bd5e32ef20d",
+      "historical_parallel_pool": "91fb95dba2ae74784f057d72b37f24231cf2cb625913e64cef17d18c1a2032f9",
+      "historical_parallel_writer": "69871e356dc49c67e79c6e88156a9d87fec2f6d536268ae4fa72c548d0b347a5",
+      "historical_parallel_verify": "f907b9b8bc9d07390b2f3bbae203b97e889a718244a8b3d29d0e11cdd60883e0"
+    }
+  },
+  "generation_matches_measurement": true,
+  "preserved_artifact_counts": {
+    "data/vd-p0/baseline.json": 2640,
+    "data/vd-p3-base/baseline.json": 4557
+  },
+  "scope": "CPU parallel execution, input preparation and grouped date storage; no full population, GPU overlap, DB or push",
+  "evidence_sha256": {
+    "parallel-cpu-results.json": "5cf53b06e82a77b7b929e8ebe536bb25ca29e3585f1ee352800fa6e362eb37ed",
+    "parallel-storage-new-preparation.json": "c0d0040d01e2b93890abdfa8552bde1e88b99850366426e321e6ad318994ae48",
+    "parallel-storage-old-preparation.json": "2a0653bfde5d1e0e4eeb6b0f41bfbc7d772a29a2b9c16e5ca38e74a4cdb4bd81",
+    "parallel-storage-results.json": "9fae3effbee9c093eff3563c92a608ad6da3037170ea39aedb15299cbd09f328"
+  }
+}

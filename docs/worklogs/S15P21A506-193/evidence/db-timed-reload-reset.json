@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-12T14:57:31.545647+00:00",
+  "elapsed_seconds": 3.0016583999968134,
+  "public_history_unchanged": true,
+  "removed_dates": 19,
+  "removed_rows": 43616976,
+  "schema": "vd193_reload_20260912_ready01",
+  "status": "RESET_COMPLETE",
+  "target_exists": false,
+  "target_rows": 0
+}

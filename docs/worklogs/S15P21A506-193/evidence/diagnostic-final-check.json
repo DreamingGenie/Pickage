@@ -1,0 +1,33 @@
+{
+  "recorded_at_utc": "2026-09-10T08:00:27.950894+00:00",
+  "ast_files": 9,
+  "markdown_files": 11,
+  "local_links_checked": 104,
+  "format_or_link_problems": [],
+  "git_diff_check_exit_code": 0,
+  "protected_tracked_code_diff_exit_code": 0,
+  "source_sha256": {
+    "pipeline/version_dependents/__init__.py": "909caecbb0b310450e16dc3ef59c14fbcd4fd9d058ebdb29482d5d8663426fae",
+    "pipeline/version_dependents/__main__.py": "cebbcb58035294052c01d3c6571d34f82b7eef2d432074696489f7d39275667f",
+    "pipeline/version_dependents/aggregate.py": "0760e5da1b345c9d27ead5d9ce61982c2fc360487369bdf272b8dc551c76bca8",
+    "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+    "pipeline/version_dependents/diagnostic.py": "1b58481f3bdc0b9dc6f4668510774baf0f285684a040ab5428712ac2e9bc33cc",
+    "pipeline/version_dependents/diagnostic_input.py": "5f21be78cb41df254b6c8133719b81b627c3937165eb8c03c22cbab227da8278",
+    "pipeline/version_dependents/test_aggregate.py": "3a49f4921b6f866ef44ade81c67d9eb3873d5adc1389b4c444dbb71b05ee62d8",
+    "pipeline/version_dependents/test_artifact.py": "d25584d90cb0f6b236ad98ec472da33cf0f8bd39ee817e3fcd5c230413332120",
+    "pipeline/version_dependents/test_diagnostic.py": "ccf72fc31cb36198ccd78f8115ab2447c15258550e8ea3b515b2df2e7962442b"
+  },
+  "post_logging_fix_diagnostic_tests": {
+    "test_count": 22,
+    "failed": 0,
+    "seconds": 4.78,
+    "evidence_source": "native test subagent executed and reported after stdout progress setting change"
+  },
+  "full_regression_before_logging_fix": {
+    "test_count": 60,
+    "failed": 0,
+    "evidence": "diagnostic-validation.json"
+  },
+  "data_build_and_independent_verify": "diagnostic-full-run.json",
+  "previous_artifact_source_hashes_unchanged": true
+}

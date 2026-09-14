@@ -1,0 +1,21 @@
+*.py text eol=lf
+historical_gpu_normalize.cjs text eol=lf
+historical_gpu_pipeline_normalize.cjs text eol=lf
+
+# 기존 H4/H5 산출물이 이 worker의 CRLF 원본 바이트 SHA를 고정한다.
+# 자동 줄바꿈 변환 없이 보존하고, CR은 줄바꿈으로 인정하며 나머지 공백 검사는 유지한다.
+historical_semver_worker.cjs -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# 실제 32개 CPU/GPU 실행이 고정한 원본 바이트를 커밋에서도 보존한다.
+# 아래 세 파일에는 측정 당시 끝 줄 CRLF가 포함되어 있다.
+historical_production_resolver.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_production_backend_benchmark.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+test_historical_production_resolver.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# 병렬 입력과 실행 결과가 고정한 생성 코드의 원본 SHA를 보존한다.
+historical_parallel.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_input.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_pool.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_worker.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_writer.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+historical_parallel_verify.py -text diff whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "checked_at_utc": "2026-09-11T06:32:12.158671+00:00",
+  "cpu_checkpoint_commit": "ff1777f379325fc4178a42ba5f061ef02680bb39",
+  "tests": 257,
+  "test_seconds": 91.586,
+  "real_cuda_tests_enabled": true,
+  "test_environment": "VD_GPU_TESTS=1; existing miniforge Python plus venv-bq site-packages",
+  "command": "python -B -m unittest discover -s pipeline/version_dependents -t .",
+  "production_generation_unchanged": true,
+  "tracked_production_source_unchanged": true,
+  "current_code_matches_benchmark_hashes": true,
+  "new_code_sha256": {
+    "historical_gpu.py": "c5f206062cc9a564bc69c6f0dc94271f14ef8a53c893cfaf39aac5fbcde3bc25",
+    "historical_gpu_benchmark.py": "a4545ace018d02093f8f758f9dfe00dc34ecbb36adb48cebbc1eec87fcb232a6",
+    "historical_gpu_normalize.cjs": "f347afe8cd5e980a6d95f1e0a9411caff71d7db8afd07f6d6a790f4f96cfd664",
+    "test_historical_gpu.py": "3bb6cbb56cfe0446211ee94cad99c96cb65e43d0bb08abb49a942c5026dce99a"
+  },
+  "reports": [
+    {
+      "file": "gpu-lightdash-results.json",
+      "sha256": "1315d619d4fc5aa5b7bccfaac1a772b87cbce570696c06c512d88e26a88e520e",
+      "package": "@lightdash/common",
+      "candidates": 7371,
+      "cases": 3,
+      "comparison_days_including_nested_samples": 306631,
+      "range_membership_comparisons": 9869769
+    },
+    {
+      "file": "gpu-octopus-results.json",
+      "sha256": "b2aae7af03943490e4b7e1c34dc65b617f429ddb6dc86513f9a519c1b4dea886",
+      "package": "@octopusdeploy/type-utils",
+      "candidates": 33966,
+      "cases": 3,
+      "comparison_days_including_nested_samples": 306631,
+      "range_membership_comparisons": 45480474
+    }
+  ],
+  "review_blockers": [],
+  "review_watch": [
+    "workspace_mib bounds chunk temporaries, not all GPU allocations",
+    "Resolver-only; production aggregation/write/resume integration not performed",
+    "Legacy measured once; CPU/GPU warm paths 5 repetitions in alternating order",
+    "Python import and complete CUDA cold-start were not separately timed"
+  ],
+  "gpu_production_integration": false,
+  "full_selected_execution": false,
+  "db_load_executed": false,
+  "push_executed": false
+}

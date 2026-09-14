@@ -1,0 +1,106 @@
+{
+  "status": "PASS",
+  "scope": "FULL_KEYS_AND_ISOLATED_DAILY_PUBLISHER",
+  "full_service_load_executed": false,
+  "key_verification": {
+    "status": "VERIFIED",
+    "database": "pickage_267_full_defaulted",
+    "counts": {
+      "identities": 97745,
+      "versions": 7822819
+    },
+    "calendar": {
+      "rows": 229
+    },
+    "files": {
+      "identities": {
+        "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-h7-keys-20260912-01\\identities.tsv",
+        "bytes": 2804295,
+        "sha256": "1fa2d00cb1d7323071d261b10c4a518f4e08ec150577eafaf008ab389840a459"
+      },
+      "versions": {
+        "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-h7-keys-20260912-01\\versions.tsv",
+        "bytes": 118781373,
+        "sha256": "11dbdeaed8eb9231e33bcff2ecdc15b721dda21ddad0e6bf0dd24d7c088cf8e1"
+      }
+    },
+    "lineage": {
+      "population": "MATCHED",
+      "calendar": "MATCHED",
+      "snapshot_count": 229
+    },
+    "elapsed_seconds": 42.98399999999674
+  },
+  "latest_date_preparation": {
+    "snapshot": "2026-08-31",
+    "seconds": 7.328,
+    "counts": {
+      "identities": 97745,
+      "package_version_snapshot": 7822819
+    },
+    "files": [
+      {
+        "role": "identities",
+        "sha256": "1fa2d00cb1d7323071d261b10c4a518f4e08ec150577eafaf008ab389840a459",
+        "bytes": 2804295,
+        "rows": 97745
+      },
+      {
+        "role": "counts",
+        "sha256": "316e65b29199abd88b7cf3c4dace27df4399527c338ae9e7b857755ee3afe808",
+        "bytes": 221203502,
+        "rows": 7822819
+      }
+    ],
+    "quality": {
+      "run_plan_sha256": "81d2390239cea024e26adb005ca9564f9dd4c37a700e7eee95a7641305bdb2af",
+      "snapshot_at": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31 21:01:10.517131+00:00",
+      "calculation_status": "COMPLETE",
+      "resolution_status": "PARTIAL",
+      "ready_for_load": false,
+      "source_versions": 32567788,
+      "target_versions": 7822819,
+      "positive_target_versions": 2345847,
+      "zero_target_versions": 5476972,
+      "selected_declarations": 239556025,
+      "resolved_declarations": 236651273,
+      "unresolved_declarations": 2904752,
+      "distinct_edges": 236651273,
+      "duplicate_resolved_declarations": 0,
+      "max_dependents_count": 2606910,
+      "quality_json": "{\"declaration_status_counts\":{\"INVALID_PACKAGE_NAME\":4573,\"INVALID_SPEC\":64917,\"NO_SATISFYING_VERSION\":1292743,\"RESOLVED\":236651273,\"UNMAPPED_TARGET_PACKAGE\":530827,\"UNSUPPORTED_ALIAS\":129976,\"UNSUPPORTED_FILE\":19611,\"UNSUPPORTED_GIT\":175400,\"UNSUPPORTED_TAG\":633996,\"UNSUPPORTED_URL\":52709},\"distinct_edges\":236651273,\"duplicate_resolved_declarations\":0,\"excluded_kind_declarations\":{\"optional_dependencies\":0,\"peer_dependencies\":0},\"prefiltered_exclusion_counts\":\"NOT_ORIGINAL_POPULATION_COUNTS\",\"quality_scope\":\"SELECTED_TARGET_DECLARATIONS_FROM_H1_ELIGIBLE_SOURCES\",\"resolution_status\":\"PARTIAL\",\"resolved_declarations\":236651273,\"selected_declarations\":239556025,\"source_future_excluded\":0,\"source_null_publication_excluded\":0,\"source_status_counts\":{\"DEPENDENCY_EXTRACTION_ERROR\":1684487,\"PARTIAL\":1144436,\"RESOLVED\":29560383,\"UNRESOLVED\":178482},\"source_status_scope\":\"SOURCES_WITH_SELECTED_TARGET_DECLARATIONS\",\"source_versions\":32567788,\"target_rejections\":{},\"target_versions\":7822819,\"unresolved_declarations\":2904752,\"upstream_exclusions_scope\":\"H1_MANIFEST\",\"upstream_resolution_status\":\"PARTIAL\"}\n"
+    }
+  },
+  "cli_read_only": {
+    "seconds": 53.25,
+    "status": "KEYS_VERIFIED",
+    "measured_contract": {
+      "historical_db_keys.py": "e8e9a5b89945e80c8a7818cd104ed5e05a6fa3dcbb5726da471766bc91e2dca4",
+      "historical_db_load.py": "593ac0f22ef6898be4b0c26731cd0db705f33a7a231cd1b3d4b340988845a052",
+      "historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+      "historical_db_publish.py": "748ba87d4bc6d0057e8f7d8fa8397f3a9305f41bedeb4eaafde5fe901ec6e55d",
+      "historical_db_source.py": "4bcaa0dd2dc8483b365bb5b23c67a3e1b169fe0e7951d03f487023082a317447",
+      "postgres.py": "58cf10af376351b85022517fd3e2d456629fe1c68a5116ef080d629fa83af91a"
+    },
+    "note": "After this measurement, source progress display was disabled and source-open failure reporting was repaired; targeted coordinator tests passed on final code."
+  },
+  "tests": {
+    "executions": 50,
+    "distinct_behaviors": 42,
+    "shared_key_test_repeats": 8,
+    "seconds": 53.9,
+    "skipped": 0,
+    "failures": 0,
+    "log": "data/vd-h7-tests-20260912.txt"
+  },
+  "final_loader_contract": {
+    "historical_db_load.py": "f2434a39b4cccccd5b677d87b91eef5fe4c06497e601b75bb43a1a1a58d65a92",
+    "historical_db_source.py": "e57fd47b4c1a4f93178832896f35c130a445c34ac81b20160dc66ead9544de54",
+    "historical_db_keys.py": "e8e9a5b89945e80c8a7818cd104ed5e05a6fa3dcbb5726da471766bc91e2dca4",
+    "historical_db_publish.py": "748ba87d4bc6d0057e8f7d8fa8397f3a9305f41bedeb4eaafde5fe901ec6e55d",
+    "historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+    "postgres.py": "58cf10af376351b85022517fd3e2d456629fe1c68a5116ef080d629fa83af91a"
+  },
+  "preserved_run_manifest_sha256": "1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94"
+}

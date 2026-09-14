@@ -1,0 +1,88 @@
+{
+  "expected_dates": 229,
+  "expected_rows": 1007084608,
+  "key_verification": {
+    "calendar": {
+      "rows": 229
+    },
+    "counts": {
+      "identities": 97745,
+      "versions": 7822819
+    },
+    "database": "pickage_267_full_defaulted",
+    "files": {
+      "identities": {
+        "bytes": 2804295,
+        "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-db-reload-ready-20260912-01\\job\\check-source-c29aedc37f514a3ba9f82c0100a0bd9d\\identities.tsv",
+        "sha256": "1fa2d00cb1d7323071d261b10c4a518f4e08ec150577eafaf008ab389840a459"
+      },
+      "versions": {
+        "bytes": 118781373,
+        "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-db-reload-ready-20260912-01\\job\\check-source-c29aedc37f514a3ba9f82c0100a0bd9d\\versions.tsv",
+        "sha256": "11dbdeaed8eb9231e33bcff2ecdc15b721dda21ddad0e6bf0dd24d7c088cf8e1"
+      }
+    },
+    "lineage": {
+      "calendar": "MATCHED",
+      "population": "MATCHED",
+      "snapshot_count": 229
+    },
+    "status": "VERIFIED"
+  },
+  "resources": {
+    "database_available_bytes": 839652511744,
+    "database_disk_ok": true,
+    "host_scratch_available_bytes": 1225740615680,
+    "host_scratch_ok": true,
+    "minimum_bytes": 214748364800
+  },
+  "source_expected": {
+    "identities": 97745,
+    "versions": 7822819
+  },
+  "status": "CHECKED",
+  "target": {
+    "completed_dates": 0,
+    "completed_rows": 0,
+    "exists": false,
+    "service_contract": {
+      "acl": null,
+      "columns": [
+        [
+          "package_id",
+          "integer",
+          true,
+          null
+        ],
+        [
+          "version",
+          "character varying(100)",
+          true,
+          null
+        ],
+        [
+          "snapshot_at",
+          "date",
+          true,
+          null
+        ],
+        [
+          "dependents_count",
+          "integer",
+          true,
+          "0"
+        ]
+      ],
+      "constraints": [
+        "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+        "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)",
+        "PRIMARY KEY (package_id, version, snapshot_at)"
+      ],
+      "oid": 87774,
+      "owner": "postgres",
+      "rls": false,
+      "rules": false,
+      "triggers": 0
+    }
+  }
+}
