@@ -129,13 +129,23 @@ nginx 가 컨테이너로 들어왔다. 호스트 것을 켜 두면 **80·443 �
 > 인증서 만료가 **2026-11-30**, 최종 발표가 **2026-09-28** 이다. 확인했다.
 > 일정이 밀리면 갱신을 webroot 방식으로 바꿔야 한다.
 
-### 2. `.env` 를 만든다
+### 2. `.env` 를 만든다 — 실체는 `/srv/pickage/app.env` 다
 
 ```bash
-cd ~/S15P21A506/deploy/prod/app
-cp .env.example .env
-openssl rand -base64 24        # 나온 값을 .env 의 POSTGRES_PASSWORD 에 넣는다
+sudo mkdir -p /srv/pickage && sudo chown gitlab-runner:gitlab-runner /srv/pickage
+cp deploy/prod/app/.env.example /tmp/app.env
+openssl rand -base64 24        # 나온 값을 POSTGRES_PASSWORD 에 넣는다
+sudo install -o gitlab-runner -g gitlab-runner -m 600 /tmp/app.env /srv/pickage/app.env && rm /tmp/app.env
 ```
+
+```bash
+sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 이면 채워졌다
+```
+
+**체크아웃 안이 아니라 `/srv/pickage/app.env` 에 두는 이유**는 배포가 CI 로 넘어갔기
+때문이다. 배포 잡은 매번 새 작업 디렉터리에서 돌고 그 안의 추적되지 않는 파일은 지워진다.
+파일을 바깥에 두고 **배포 잡이 `.env` 심볼릭 링크를 걸어** 쓴다
+([`deploy/ci/README.md`](../ci/README.md) 의 "배포 러너").
 
 채우지 않고 `up` 하면 **컨테이너를 만들기 전에 멈추고 어느 변수가 비었는지 알려 준다.**
 스프링은 그 말을 안 해 주기 때문에(빈 값을 문자열 그대로 넘긴다) 검사를 compose 로 앞당겼다.
@@ -143,12 +153,16 @@ openssl rand -base64 24        # 나온 값을 .env 의 POSTGRES_PASSWORD 에 �
 `.env` 는 커밋되지 않는다. **서버에 한 번 두고 계속 쓴다.** CI 는 이 파일을 만들지 않고
 `API_TAG` · `WEB_TAG` 두 줄만 갈아 끼운다.
 
+> ⚠ **두 벌을 만들지 말 것.** 예전 체크아웃(`~/S15P21A506/deploy/prod/app/.env`)에 파일이
+> 남아 있으면, 거기서 손으로 `up` 한 날 CI 가 아는 태그와 실제로 뜬 태그가 갈린다.
+> 옮겼으면 원본은 남기지 않는다.
+
 ### 3. 자격증명은 어디에 사나
 
 | 값 | 어디 | 누가 바꾸나 |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD` | 서버의 `.env` | **사람이 한 번.** 그다음 안 바꾼다 |
-| `API_TAG` · `WEB_TAG` | 서버의 `.env` | **배포가 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
+| `POSTGRES_PASSWORD` | `/srv/pickage/app.env` | **사람이 한 번.** 그다음 안 바꾼다 |
+| `API_TAG` · `WEB_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
 
 **"env 를 바꿀 때마다 손으로 해야 하나" 의 답은 아니다.** 비밀은 한 번 정하고 안 바꾸고,
 매번 바뀌는 건 이미지 태그뿐인데 그건 배포가 알아서 한다.
@@ -283,7 +297,7 @@ free -h
 | `vm.swappiness` | 10 | 10 |
 | `stat -fc %T /sys/fs/cgroup` | `cgroup2fs` | `cgroup2fs` |
 | `findmnt --verify --fstab` | `0 errors` (sudo 없이 돌려 경고 6) | `0 errors` (경고 1 — 위의 무해한 것) |
-| `df -h /` | 4% 사용 (300G 남음) | 15% 사용 (264G 남음) |
+| `df -h /` | 4% 사용 (300G 남음, 09-13 — **DB 가 비었을 때**) → 56% (137G, 09-15) | 15% 사용 (264G 남음, 09-13) |
 
 `cgroup2fs` 라서 이 문서의 `memory.swap.max` 경로가 양 노드에서 그대로 통한다.
 
@@ -298,7 +312,7 @@ free -h
 `memswap_limit` 이 들어간 compose 를 적용하지 않으면 위의 "2배" 가 그대로 남는다.
 
 ```bash
-cd ~/S15P21A506/deploy/prod/app && git pull && docker compose up -d --wait
+cd /srv/pickage/repo/deploy/prod/app && docker compose up -d --wait
 ```
 
 `data` 노드는 **`--wait` 를 붙이지 않는다** — [data/README.md](data/README.md) 의
@@ -351,7 +365,16 @@ sudo rm /swapfile /etc/sysctl.d/99-swap.conf
 ## 평소
 
 ```bash
-cd ~/S15P21A506/deploy/prod/app
+cd /srv/pickage/repo/deploy/prod/app
+```
+
+**이 경로에서 한다.** `/srv/pickage/repo` 는 배포 잡이 매번 갱신하는 심볼릭 링크로,
+**지금 떠 있는 컨테이너가 물고 있는 파일들이 이 아래 있다** (`nginx/app.conf`, `.env`).
+다른 체크아웃에서 같은 명령을 쳐도 compose 프로젝트 이름이 같아 대개는 동작하지만,
+**설정 파일을 고치는 명령만은 다른 파일을 고치게 된다** — 아래 nginx reload 가 그렇다.
+
+```bash
+git -C /srv/pickage/repo log -1 --oneline   # 지금 서버에 뜬 커밋
 ```
 
 ```bash
@@ -377,22 +400,56 @@ docker compose exec postgres psql -U pickage -d pickage
 
 ---
 
+## 배포 — `develop`·`main` 에 머지되면 저절로 뜬다
+
+`.gitlab-ci.yml` 의 `deploy-app` 잡이 아래 "손으로" 와 **같은 순서**를 돌린다
+(S15P21A506-223). 잡의 구성과 러너 등록은 [`deploy/ci/README.md`](../ci/README.md).
+
+**스테이징이 없다.** 서버가 한 벌뿐이라 `develop` 에 머지된 것이 곧 사용자가 보는 것이다.
+
+```
+MR 머지 → 파이프라인 → 검증 잡 전부 → deploy-app → 수십 초 끊김 → 새 버전
+```
+
+확인은 GitLab 의 **Deployments → Environments → `production`** 에서 한다. 어느 커밋이
+언제 떴는지가 거기 남는다. 서버에서 보려면 위 "평소" 의 `git -C /srv/pickage/repo log -1`.
+
+> ⚠ **배치 시각에는 머지하지 말 것.** 배포가 배치와 겹치면 메모리가 상한을 넘고, 컨테이너
+> 스왑이 0 이라 즉시 OOM Kill 이다 (아래 "하지 말 것"). 배포가 자동이 된 뒤로 이것을
+> 막아 주는 것은 **머지 시각뿐이다.**
+
 ## 배포 (손으로)
 
-CI 자동 배포가 붙기 전까지, 그리고 **CI 가 고장 났을 때** 쓰는 절차다.
-**CI 도 정확히 이 순서를 돌린다.**
+**CI 가 고장 났을 때** 쓰는 절차다. 위 `deploy-app` 이 정확히 이 순서를 돌린다 —
+한쪽을 고치면 다른 쪽도 고친다.
+
+한 가지만 다르다. **손으로 할 때는 두 태그를 다 갈아 끼우므로 api·web 이 둘 다 다시 뜬다.**
+잡은 내용이 안 바뀐 쪽의 태그를 되돌려 그 컨테이너를 건드리지 않는다
+([`deploy/ci/README.md`](../ci/README.md) 의 "안 바뀐 것은 다시 띄우지 않는다").
+급할 때 쓰는 절차라 단순한 쪽을 남겨 뒀다 — 대신 **1분 가까이 끊긴다.**
 
 ```bash
-cd ~/S15P21A506
-git checkout main && git pull
+cd /srv/pickage/repo
+git fetch origin && git checkout -f origin/main    # develop 을 띄우려면 origin/develop
 cd deploy/prod/app
 
 TAG=$(git rev-parse --short HEAD)
-sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/" .env
+sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/" /srv/pickage/app.env
 
 docker compose build
 docker compose up -d --wait --wait-timeout 300
 ```
+
+`.env` 가 아니라 `/srv/pickage/app.env` 를 고치는 것에 주의한다. 체크아웃 안의 `.env` 는
+그 파일을 가리키는 심볼릭 링크고, `sed -i` 는 링크를 **덮어써서 일반 파일로 바꿔 버린다** —
+그러면 다음 배포부터 태그가 두 곳에서 갈린다.
+
+```bash
+ls -l /srv/pickage/repo/deploy/prod/app/.env   # -> /srv/pickage/app.env 여야 한다
+```
+
+> 이 체크아웃은 배포 잡의 작업 디렉터리다. **다음 배포가 `git checkout -f` 로 덮어쓴다** —
+> 여기서 소스를 고쳐 두지 말 것. 급히 고쳐야 하면 고치고 배포한 뒤, 같은 내용을 MR 로 올린다.
 
 ### `--wait` 가 무엇을 해 주나
 
@@ -416,18 +473,97 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://j15a506.p.ssafy.io/   # 200
 > 배포 중 **수십 초 끊긴다.** 무중단은 v1 에서 하지 않는다 — api 인스턴스가 하나라
 > 블루/그린이 필요하고, 3주 프로젝트에서 그 값을 치를 이유가 없다.
 
+## 환경변수만 고쳤을 때 — 이미지는 그대로다
+
+비밀번호를 잘못 넣었다거나 `SPARK_WORKER_CORES` 를 바꾸는 경우다. `/srv/pickage/app.env`
+를 고치고 **Run pipeline 을 누르면** 배포 잡이 그대로 돈다(`develop`·`main` 에서).
+손으로 할 거면 `docker compose up -d` 다.
+
+`.env` 는 **빌드 컨텍스트(`backend/`·`frontend/`) 밖**이라 아무리 고쳐도 이미지는 안 바뀐다.
+그래서 배포 잡의 "내용이 같으면 태그 유지" 가 그대로 걸리고, **다시 굽지 않는다.** 맞는 동작이다.
+
+컨테이너를 다시 만들지 말지는 compose 가 따로 판단한다. **이미지 이름만 보는 게 아니라
+치환까지 끝난 서비스 설정 전체를 해시로 비교**한다. `${POSTGRES_PASSWORD}` 처럼
+`compose.yaml` 안에서 치환되는 값은 여기 들어가므로, 고치면 그 서비스가 다시 뜬다.
+
+| 값 | 어떻게 들어가나 | 고치면 다시 뜨나 |
+| --- | --- | --- |
+| `POSTGRES_*` | `${}` 치환 (postgres · api) | ✅ |
+| `API_TAG` · `WEB_TAG` | `${}` 치환 (api · web) | ✅ |
+| `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | `${}` 치환 (spark-worker-2) | ✅ |
+| **`MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD`** | **`env_file: ./.env`** (spark-worker-2) | ⚠ **확인 필요** |
+
+마지막 줄이 다르다. 이 둘만은 `compose.yaml` 안에서 치환되지 않고 `env_file` 로 통째로
+들어간다. **파일 내용 변경을 compose 가 설정 변경으로 세는지는 버전에 따라 달랐다.**
+서버에서 확인하지 않고 "고쳤으니 반영됐겠지" 로 넘기면 안 되는 값이다 — 틀리면 Spark
+executor 만 `NoAuthWithAWSException` 으로 죽고, 그건 **쓰기 단계에 가서야** 드러난다.
+
+무엇이 다시 뜰지 미리 보려면:
+
+```bash
+docker compose up -d --dry-run
+```
+
+`Recreate` 라고 찍힌 서비스만 다시 뜬다. 이 플래그가 없는 버전이면 다음으로 확인한다.
+
+```bash
+docker compose config --hash='*'
+```
+
+```bash
+docker inspect --format '{{.Name}} {{index .Config.Labels "com.docker.compose.config-hash"}}' $(docker compose ps -q)
+```
+
+두 값이 다른 서비스가 다시 뜬다. **같은데 반영되어야 한다면 그 서비스만 강제로 만든다.**
+
+```bash
+docker compose up -d --force-recreate spark-worker-2
+```
+
+> 그래서 MinIO 자격증명을 고친 뒤에는 **강제 재생성을 기본으로 한다.** 맞았는지 확인하는
+> 비용(다음 배치까지 기다린다)이 컨테이너 하나 다시 띄우는 비용보다 훨씬 크다.
+
+## 배포가 실패하면 서버는 어떤 상태인가
+
+배포 잡이 빨간불이어도 **앞 단계까지는 이미 적용된 상태**다. 어디서 멈췄는지에 따라 다르다.
+
+| 어디서 실패했나 | 서버 상태 |
+| --- | --- |
+| `docker compose build` | 컨테이너는 **그대로 전 버전**이다. 사이트는 멀쩡하다 |
+| `up -d --wait` 시간 초과 | **새 컨테이너로 이미 바뀌었고 healthy 가 아니다.** 사이트가 내려가 있다 |
+| 마지막 `curl` | 컨테이너는 healthy 인데 nginx·TLS 쪽이 이상하다. 아래 "평소" 의 로그부터 본다 |
+
+> ⚠ **`/srv/pickage/app.env` 의 태그는 "마지막으로 성공한 것" 이 아니라 "마지막으로 시도한
+> 것" 이다.** 실패한 배포의 SHA 가 남아 있다. 되돌릴 때 그 값을 기준으로 삼지 말고
+> `docker images` 에서 **날짜를 보고** 고를 것 (아래 "롤백").
+
+가장 흔한 실패는 Flyway 다. 마이그레이션이 깨지면 api 가 기동에 실패하고 `--wait` 가
+시간 초과로 끝난다. 이때 `restart: unless-stopped` 때문에 **컨테이너가 계속 다시 뜨면서
+같은 실패를 반복한다** — 로그가 같은 스택트레이스로 채워지는 것이 그 신호다.
+
+```bash
+docker compose logs --since 5m api | head -50
+```
+
+**그다음은 롤백이다.** 그리고 `develop` 에 무엇이든 머지되면 배포가 다시 돌아 같은 실패를
+반복하므로, 고치는 커밋이 올라갈 때까지 팀에 머지를 멈추라고 알린다.
+
 ## 롤백
 
 **태그를 되돌리고 다시 올리는 것이 전부다.**
 
 ```bash
-cd ~/S15P21A506/deploy/prod/app
+cd /srv/pickage/repo/deploy/prod/app
 docker images pickage-api --format '{{.Tag}}\t{{.CreatedSince}}'   # 되돌아갈 곳 고르기
 docker images pickage-web --format '{{.Tag}}\t{{.CreatedSince}}'
 
-sed -i "s/^API_TAG=.*/API_TAG=<이전 SHA>/" .env      # 프런트만 되돌릴 거면 WEB_TAG 만
+sed -i "s/^API_TAG=.*/API_TAG=<이전 SHA>/" /srv/pickage/app.env    # 프런트만 되돌릴 거면 WEB_TAG 만
 docker compose up -d --no-build --wait
 ```
+
+> ⚠ **롤백은 다음 머지까지만 유효하다.** `develop`·`main` 에 무엇이든 머지되면 배포 잡이
+> 그 커밋으로 다시 덮어쓴다. 되돌린 이유가 남아 있다면 **되돌리는 커밋을 MR 로 올려서**
+> 통합 브랜치 자체를 고쳐야 한다. 그 전까지는 팀에 알려 머지를 멈춘다.
 
 태그를 둘로 나눠 둔 이유가 이것이다. **API 는 멀쩡한데 화면만 깨진 배포**가 실제로 생기고,
 그때 프런트만 되돌릴 수 있다.
@@ -453,6 +589,16 @@ docker compose exec -T postgres pg_dump -U pickage pickage | gzip > ~/backup/pic
 
 `-T` 가 없으면 TTY 를 붙이려다 출력에 제어문자가 섞여 **복원할 수 없는 덤프**가 나온다.
 
+> ⚠ **덤프가 DB 와 같은 파티션에 쌓인다.** `/dev/root` 하나뿐이라 `~/backup` 도 도커도
+> Postgres 도 같은 309G 를 나눠 쓴다. 데이터가 늘수록 덤프도 같이 커지므로, 날짜별로
+> 모아 두면 어느 순간 **DB 를 지키려고 만든 것이 DB 를 멈추게 한다.**
+>
+> ```bash
+> du -sh ~/backup && df -h / | tail -1
+> ```
+>
+> 오래된 덤프는 서버 밖으로 내리거나 지운다. 서버에는 최근 것 두어 개면 된다.
+
 ---
 
 ## 정리 — 여기서 실수하면 롤백을 잃는다
@@ -471,7 +617,13 @@ docker system prune -a         # ❌ 절대 금지
 `-a` 는 **지금 컨테이너가 안 쓰는 이미지를 전부** 지운다. 이전 SHA 태그가 여기 해당해서,
 한 번 치면 **되돌아갈 곳이 하나도 안 남는다.** 그리고 그 사실은 롤백이 필요한 순간에 알게 된다.
 
-오래된 태그를 줄여야 하면 **눈으로 보고 하나씩** 지운다. 최근 5개는 남긴다.
+**배포 잡이 이 정리를 대신 한다.** 매 배포 끝에 `pickage-api`·`pickage-web` 의 최근 5개
+태그만 남기고 그보다 오래된 태그를 떼고, 일주일 지난 빌드 캐시와 dangling 이미지를 지운다.
+컨테이너가 쓰고 있는 이미지는 docker 가 거부하므로 **떠 있는 것은 지워지지 않는다**
+(강제하지 않는다). 무엇을 뗐는지는 잡 로그의 `[정리]` 줄에 남는다.
+
+그래서 아래는 **CI 가 못 돌 때**의 절차다. 오래된 태그를 줄여야 하면 **눈으로 보고 하나씩**
+지운다. 최근 5개는 남긴다.
 
 ```bash
 docker images pickage-api --format '{{.Tag}}\t{{.CreatedSince}}' | sort -k2
@@ -491,7 +643,9 @@ docker rmi pickage-api:<지울 태그>
 | `.env` 를 커밋 | 운영 DB 비밀번호가 GitLab 에 남는다. 지워도 히스토리에 남는다 |
 | 적용된 `V__` 파일 수정 | checksum 불일치로 **운영 앱이 기동에 실패한다** |
 | `API_TAG=latest` | 지금 뜬 게 어느 커밋인지 알 수 없고 롤백할 이름이 없어진다 |
-| 배치 시각에 배포 | 메모리가 캡을 넘긴다. **컨테이너 스왑은 0 이라 즉시 OOM Kill** — 커널이 Postgres 를 고를 수도 있다 |
+| 배치 시각에 배포 (= **배치 시각에 머지**) | 메모리가 캡을 넘긴다. **컨테이너 스왑은 0 이라 즉시 OOM Kill** — 커널이 Postgres 를 고를 수도 있다 |
+| 배포 디렉터리(`/srv/pickage/repo`)에서 소스 고치기 | 다음 배포의 `git checkout -f` 가 덮어쓴다. 고쳤다는 사실만 남고 내용은 사라진다 |
+| 체크아웃 안의 `.env` 심볼릭 링크를 `sed -i` | 링크가 일반 파일이 되어 **태그가 두 곳에서 갈린다.** `/srv/pickage/app.env` 를 고칠 것 |
 
 ---
 
