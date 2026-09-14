@@ -248,9 +248,13 @@ def main():
     if not args.dry_run:
         s3 = client()
         completed = exists(s3, BUCKET, prefix + '/_SUCCESS')
-        if pointer_key:
+        if pointer_key and not completed:
             # 거부될 게시에 업로드를 먼저 태우지 않는다. 최종 판정은 publish_pointer 가
             # CAS 와 함께 다시 한다 — 그 사이에 포인터가 움직일 수 있기 때문이다.
+            #
+            # 이미 완료된 실행을 다시 도는 것은 게시가 아니라 전량 해시 재검증이고 버킷을
+            # 바꾸지 않는다(README 가 약속한 성질). 포인터가 더 나중을 가리킨다고 그 검증까지
+            # 막으면, 옛 회차가 온전한지 확인할 방법이 사라진다.
             seen = read_optional(s3, BUCKET, pointer_key)
             refuse_rollback(json.loads(seen[0]) if seen else None, date_value,
                             spec['partition'], pointer_key)
