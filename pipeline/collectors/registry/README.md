@@ -13,16 +13,18 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 
 | 파일 | 역할 |
 |---|---|
-| `collect.py` | 대상 CSV → 패키지별 요청(전체 문서) → 버전 행으로 파싱 → jsonl.gz. 요청 간격 토큰버킷(`--interval`, 기본 0.5초), 429 지수 백오프(15%씩 늘려 최대 3초, 연속 5회면 5분 휴식), 5xx·연결 오류 4회 재시도, SQLite 체크포인트, manifest.json. 원본 문서는 보존하지 않고 200MB(`--max-doc-mb`) 넘는 문서는 `failed` |
-| `to_parquet.py` | raw → `registry_versions/part-00000.parquet` + `registry_status.parquet`. (Name, Version) 중복은 최근 fetched_at 만 남김. 수집 중에도 실행 가능(쓰고 있는 part 는 건너뜀, 잘린 part 복구) |
+| `collect.py` | 대상 CSV → 패키지별 요청(전체 문서) → 버전 행으로 파싱 → jsonl.gz. 요청 간격 토큰버킷(`--interval`, 기본 0.5초), 429 지수 백오프(15%씩 늘려 상한 3초, 연속 5회면 5분 휴식, 같은 패키지에서 8회면 `failed`), 5xx·연결 오류 4회 재시도, SQLite 체크포인트, manifest.json. 원본 문서는 보존하지 않고 200MB(`--max-doc-mb`) 넘는 문서는 `failed` |
+| `to_parquet.py` | raw → `registry_versions/part-00000.parquet` + `registry_status.parquet`. (Name, Version) 중복은 최근 fetched_at 만 남김. 수집 중에도 실행 가능(쓰고 있는 part 는 건너뜀, 아무도 안 쓰는 잘린 part 는 복구) |
 | `status.py` | 진행 상태 한 화면(실행 여부·진행률·성공/미존재/전체삭제/실패·평균/최대 문서 크기·버전 행 수·속도·429·ETA). `--watch` 60초 갱신, `--refresh-parquet` 로 DuckDB UI 뷰까지 최신화 |
+| `test_collect.py` | 단위 시험. `python -m unittest discover -s pipeline/collectors/registry -v`. 파싱 계약(unpublish 행 NULL·비버전 time 키·deprecated 정규화)과 리뷰에서 나온 함정(쓰기 전 인코딩 확인, cp949 로그, 0바이트·잘린 gzip, 출력 경로 방어)을 고정한다 |
 | `start_registry.cmd` | 시작·재시작(더블클릭). 이미 돌고 있으면 새로 띄우지 않음. `OSS_SHIFT_UA_CONTACT` 없으면 안내 후 종료. 간격은 파일 머리의 `INTERVAL` |
 | `status_watch.cmd` | 현황 창(더블클릭). 60초 갱신, 닫아도 수집기 영향 없음 |
 
 ## 실측 (run=2026-09-09, 2026-09-10 완료)
 
-READY 99,209 · NOT_FOUND 358 · UNPUBLISHED 429 · FAILED 0. 버전 행 21,435,587(unpublish 827,939), 원본 73.4 GB 전송 → jsonl.gz 765 MB → Parquet 403 MB. 간격 0.5초, 429 0건, 순 수집 약 18시간(최대 문서 115 MB, `rendition`).
-deps.dev `requirements`(스냅샷 08-31)와 표본 2,000 대조 100% 일치, enzyme 개발용 의존 제거 전이 1,999건 검출. 상세는 계획 문서 §7.
+READY 99,209 · NOT_FOUND 358 · UNPUBLISHED 429 · FAILED 0. 버전 행 21,435,586(unpublish 827,938), 원본 73.4 GB 전송 → jsonl.gz 765 MB → Parquet 403 MB. 간격 0.5초, 429 0건, 순 수집 약 18시간(최대 문서 115 MB, `rendition`).
+deps.dev `requirements`(스냅샷 08-31)와 표본 2,000 대조 100% 일치, enzyme 개발용 의존 제거 전이 536건 / 474 패키지 검출. 상세는 계획 문서 §7.
+수치는 2026-09-14 재변환 기준이다. 자체 리뷰 뒤 파싱·변환 규칙 세 가지가 바뀌어 이전 기록과 다르다 — 비버전 `time` 키에서 생긴 가짜 버전 1행 제거, `deprecated`의 불리언·빈 문자열 9,565행을 NULL로 정규화, 전이 계산을 이동쌍 빌더와 같은 라인 분할 규칙으로 교체(옛 규칙 1,999건).
 
 ## 대상 목록
 
@@ -67,17 +69,18 @@ Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 
  "fetched_at":"2026-09-09T12:00:00+00:00","modified":"2026-07-26T14:51:07.471Z"}
 ```
 
-- `time[버전]` 이 발행 시각(UTC). `time.created`·`modified`·`unpublished` 는 버전이 아니라 건너뛴다.
+- `time[버전]` 이 발행 시각(UTC). `time` 의 키 중 **`^\d+\.\d+` 모양인 것만 버전으로 받는다**. `created`·`modified`·`unpublished` 말고도 모르는 키가 들어오고(실측: `appdirsjs` 의 `undefined`), 블랙리스트로 두면 그런 키가 전부 가짜 unpublish 버전 행이 되어 `first_published_at` 이 6년 반 틀어졌다. 버린 키 수는 manifest 의 `session_stats.odd_time_keys` 에 센다.
 - `versions` 에 없고 `time` 에만 있는 버전 = unpublish 된 버전(예: chalk 5.6.1). **행은 남기고 의존 네 열은 NULL(모름), `unpublished=true`**. `[]`(의존 없음)로 쓰면 lag() 비교에서 "의존 전부 제거"로 잘못 잡힌다(09-10 §5-3 검증에서 641건 과대 계상이 실제로 났다). 09-09 run 의 raw 는 `[]` 로 수집됐고 `to_parquet.py` 가 NULL 로 바꿔 준다.
-- `deprecated` 는 버전 단위 문구(없으면 null). 폐기 데이터셋(S15P21A506-272)과 대조 가능.
+- `deprecated` 는 버전 단위 **폐기 문구**, 없으면 null. 폐기 데이터셋(S15P21A506-272)과 대조 가능. 문서에는 문구 대신 불리언이 오기도 해서 정규화한다 — `false` 와 `""`(npm deprecate 로 문구를 비운 경우)는 "폐기 아님"이라 **null**, `true` 는 "문구 없는 폐기"라 문자열 `"true"` 로 남긴다. 그래서 `deprecated IS NOT NULL` 이 그대로 "폐기된 버전"이다(정규화 전에는 9,565행이 잘못 포함됐다). 09-09 run 의 raw 도 `to_parquet.py` 가 같은 규칙으로 맞춘다.
 - `modified` 는 문서의 `time.modified`. 주간 갱신(S15P21A506-273)에서 이 값이 바뀐 패키지만 다시 받는 근거로 쓴다(이번 수집기에는 주간 모드가 없다).
 - 축약 응답(`Accept: application/vnd.npm.install-v1+json`)은 devDependencies 가 빠지므로 쓰지 않는다.
 
-`checkpoint.sqlite` 의 `tasks.status`: `pending` / `done` / `not_found`(404) / `unpublished`(패키지 전체가 unpublish 되어 `versions` 없음) / `failed`(`error` 에 사유: `too_large:>NB`, `parse:…`, `conn:…`, 5xx 본문). `--retry-failed` 로만 다시 시도한다.
+`checkpoint.sqlite` 의 `tasks.status`: `pending` / `done` / `not_found`(404) / `unpublished`(패키지 전체가 unpublish 되어 `versions` 없음) / `failed`(`error` 에 사유: `too_large:>NB`, `parse:…`, `conn:…`, `http429:…`, 5xx 본문). `--retry-failed` 로만 다시 시도한다.
 
 ### Parquet (`data/registry/parquet/`)
 
-- `registry_versions/part-00000.parquet` — 위 열 그대로. 시각은 UTC TIMESTAMP, 배열은 `STRUCT(Name, Requirement)[]`(unpublish 행은 NULL). Name 순 정렬, zstd. 임시 폴더에 쓴 뒤 교체하므로 변환이 도중에 죽어도 이전 결과가 남는다. `checkpoint.sqlite` 가 없으면 변환하지 않는다.
+- `registry_versions/part-00000.parquet` — 위 열 그대로. 시각은 UTC TIMESTAMP, 배열은 `STRUCT(Name, Requirement)[]`(unpublish 행은 NULL). Name 순 정렬, zstd. 임시 폴더에 쓴 뒤 교체하므로 변환이 도중에 죽어도 이전 결과가 남는다. `checkpoint.sqlite` 가 없으면 변환하지 않는다. 행은 체크포인트가 `done`·`unpublished` 인 패키지만 남긴다(쓰다 만 패키지의 고아 행 제거).
+- `registry_source.json` — 이 출력 폴더를 어느 `--raw` 로 만들었는지. 다른 run 으로 덮어쓰려 하면 변환기가 멈춘다. 스모크 run 으로 `--refresh-parquet` 를 돌려 본 결과를 날리는 사고를 막기 위한 것이고, 정말 바꿔 쓰려면 `--force` 를 준다.
 - `registry_status.parquet` — 패키지 1행: `name, rank, status(READY / NOT_FOUND / UNPUBLISHED / FAILED / PENDING), n_versions, n_versions_unpublished, first_published_at, last_published_at, modified, fetched_at, http, doc_bytes, error`. 화면·통계에서 "자료 없음"을 0 과 구분하는 용도. 체크포인트가 정본이라 수집 중이면 PENDING 이 남는다.
 
 ## 진행 확인
@@ -88,6 +91,8 @@ pipeline\collectors\registry\status_watch.cmd
 # 한 화면 요약. --watch 를 붙이면 60초마다 갱신
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-09 --watch
 # 요약 + Parquet 갱신 → DuckDB UI 의 registry_versions 뷰에 지금까지 받은 패키지가 전부 보임
+# --watch 와 같이 쓰면 --refresh-min-interval(기본 3600초)마다, 그리고 수집이 끝날 때 한 번 더 돈다
+# 스모크 run 을 볼 때는 --parquet-out 도 같이 바꾼다. 안 바꾸면 변환기가 본 결과를 덮어쓰지 않으려고 멈춘다
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-09 --refresh-parquet
 
 # 원시 로그
@@ -97,15 +102,32 @@ python -c "import sqlite3;print(sqlite3.connect('data/registry/raw/run=2026-09-0
 
 ## 검증 (계획 §5)
 
+**연속 버전 전이는 이동쌍 빌더와 같은 규칙으로 센다.** 패키지를 한 줄로 세워 시각 순 인접쌍을 비교하면, 유지보수 릴리스(5.0.0 뒤에 나온 4.17.3)가 서로 다른 라인의 버전과 짝지어져 가짜 전이가 생긴다. 실측으로 정렬 방식에 따라 enzyme 제거 전이 수가 981~2,345건까지 흔들렸다. `pipeline/duckdb/build_migration_pairs.py` 는 이미 `PARTITION BY Name, line ORDER BY published_at` 으로 라인을 나누고 릴리스만 보므로, 검증도 그 규칙을 그대로 쓴다. 그래야 -136 빌더에 개발용 의존(`kind: dev`)을 넣었을 때 실제로 나올 값과 같아진다.
+
 ```sql
--- enzyme 을 개발용 의존에서 뺀 연속 버전 전이 수 (09-10 run: 1,999건 / 871 패키지)
--- unpublish 행은 의존을 모르므로(NULL) 비교에서 뺀다. 같은 시각에 발행된 버전이 있어 ORDER BY 에 Version 을 붙여 순서를 고정한다.
-WITH v AS (
+-- enzyme 을 개발용 의존에서 뺀 연속 릴리스 전이 수 (09-09 run: 536건 / 474 패키지)
+-- unpublish 행은 의존을 모르므로(NULL) 뺀다. 라인 정의·릴리스 조건은 build_migration_pairs.py 와 같다.
+WITH rel AS (
   SELECT Name, Version, published_at,
-         list_transform(DevDependencies, d -> d.Name) AS dev,
-         lag(list_transform(DevDependencies, d -> d.Name)) OVER (PARTITION BY Name ORDER BY published_at, Version) AS prev_dev
-  FROM registry_versions WHERE NOT unpublished)
-SELECT count(*) FROM v WHERE list_contains(prev_dev, 'enzyme') AND NOT list_contains(dev, 'enzyme');
+         CASE WHEN try_cast(regexp_extract(Version, '^(\d+)\.(\d+)', 1) AS INT) > 0
+              THEN regexp_extract(Version, '^(\d+)\.(\d+)', 1)
+              ELSE '0.' || regexp_extract(Version, '^(\d+)\.(\d+)', 2) END AS line,
+         list_transform(DevDependencies, d -> d.Name) AS dev
+  FROM registry_versions
+  WHERE NOT unpublished AND published_at IS NOT NULL
+    AND regexp_matches(Version, '^\d+\.\d+') AND NOT contains(Version, '-')),
+v AS (SELECT Name, dev, lag(dev) OVER (PARTITION BY Name, line ORDER BY published_at, Version) AS prev_dev FROM rel)
+SELECT count(*) AS transitions, count(DISTINCT Name) AS packages
+FROM v WHERE list_contains(prev_dev, 'enzyme') AND NOT list_contains(dev, 'enzyme');
+
+-- 정렬에 무관한 보조 지표: enzyme 을 쓴 적 있고 최신 버전에는 없는 패키지 수 (09-09 run: 827개)
+-- '최신'을 시각 기준으로 잡든 semver 기준으로 잡든 1,419개 중 20개만 달라진다. 전이 수보다 훨씬 안정적이다.
+WITH d AS (SELECT Name, Version, published_at, list_transform(DevDependencies, x -> x.Name) AS dev
+           FROM registry_versions WHERE NOT unpublished),
+last AS (SELECT Name, argmax(dev, (published_at, Version)) AS dev FROM d GROUP BY Name)
+SELECT count(*) FROM last
+WHERE NOT list_contains(dev, 'enzyme')
+  AND Name IN (SELECT Name FROM d WHERE list_contains(dev, 'enzyme'));
 
 -- 실행용 의존은 deps.dev 와 같아야 한다 (표본 대조). registry 쪽을 먼저 표본 추출한 뒤 조인한다 —
 -- 조인 뒤에 USING SAMPLE 을 붙이면 2,144만 × 7,856만 행 전체 조인이 먼저 실행돼 메모리 19 GB 를 넘긴다(09-10 실측).
