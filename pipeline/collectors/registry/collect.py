@@ -16,20 +16,34 @@ import csv
 import gzip
 import json
 import os
+import re
 import socket
 import sqlite3
+import sys
 import time
 from datetime import datetime, timezone
 from urllib.parse import quote
 
 import requests
 
+try:
+    # start_registry.cmd 는 stdout 을 로그 파일로 넘긴다. 콘솔이 아니면 인코딩이 로캘(cp949)로 정해져
+    # cp949 에 없는 글자 하나에 UnicodeEncodeError 로 수집기가 죽는다. chcp 65001 은 콘솔 코드페이지만 바꾼다.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 API = "https://registry.npmjs.org"
 # npm은 대량 호출 시 UA에 연락 가능한 주소를 요구한다. 개인 주소는 저장소에 올리지 않으므로 비워 두고,
 # 실행자가 환경변수 OSS_SHIFT_UA_CONTACT 로 넘긴다. 비어 있으면 실행을 거부한다(downloads 수집기와 동일).
 UA_CONTACT = os.environ.get("OSS_SHIFT_UA_CONTACT", "")
 UA = f"oss-shift-a506 collector (SSAFY student project; {UA_CONTACT})"
-NON_VERSION_TIME_KEYS = {"created", "modified", "unpublished"}  # time 객체에서 버전이 아닌 키
+NON_VERSION_TIME_KEYS = {"created", "modified", "unpublished"}  # time 객체의 알려진 비버전 키
+# time 의 키를 버전으로 받아들일 조건. 위 셋 말고도 모르는 키가 들어오고(실측: appdirsjs 의 "undefined"),
+# 블랙리스트로 두면 그런 키가 전부 가짜 unpublish 버전 행이 되어 first_published_at 을 망친다.
+# 이동쌍 빌더(pipeline/duckdb/build_migration_pairs.py)가 버전을 거르는 기준과 같은 모양을 쓴다.
+VERSION_KEY = re.compile(r"^\d+\.\d+")
 
 
 class TooLarge(Exception):
@@ -47,10 +61,11 @@ def dep_list(d):
     return [{"Name": k, "Requirement": v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)} for k, v in d.items()]
 
 
-def parse(doc, name, rank, fetched_at):
+def parse(doc, name, rank, fetched_at, stats=None):
     """전체 문서 → (버전 행 목록, time.modified). 패키지 전체가 unpublish 된 문서(versions 없음 + time.unpublished)는 (None, modified).
     versions 에 없고 time 에만 있는 버전 = unpublish 된 버전: 행은 남기고 의존 네 열은 NULL(모름), unpublished=True.
-    NULL 로 두는 이유: []('의존 없음') 로 쓰면 lag() 비교에서 '의존 전부 제거' 로 잘못 잡힌다(§5-3 검증에서 실제 발생)."""
+    NULL 로 두는 이유: []('의존 없음') 로 쓰면 lag() 비교에서 '의존 전부 제거' 로 잘못 잡힌다(§5-3 검증에서 실제 발생).
+    stats 를 주면 버전으로 보지 않고 버린 time 키 수를 odd_time_keys 에 센다(조용히 버리지 않기 위함)."""
     if not isinstance(doc, dict):
         raise ValueError(f"document is {type(doc).__name__}, not object")
     times = doc.get("time")
@@ -65,9 +80,13 @@ def parse(doc, name, rank, fetched_at):
     vers = list(versions.keys())
     seen = set(vers)
     for k in times:
-        if k not in NON_VERSION_TIME_KEYS and k not in seen:
+        if k in seen or k in NON_VERSION_TIME_KEYS:
+            continue
+        if VERSION_KEY.match(k):
             vers.append(k)
             seen.add(k)
+        elif stats is not None:
+            stats["odd_time_keys"] = stats.get("odd_time_keys", 0) + 1
     rows = []
     for v in vers:
         meta = versions.get(v)
@@ -75,7 +94,11 @@ def parse(doc, name, rank, fetched_at):
         if not isinstance(meta, dict):
             meta = {}
         dep = meta.get("deprecated")
-        if dep is not None and not isinstance(dep, str):
+        # 문구 대신 불리언이 오기도 한다. False 와 ""(npm deprecate 로 문구를 비운 경우)는 '폐기 아님'이라 NULL 로
+        # 정규화하고, True 는 '문구 없는 폐기'라 'true' 로 남긴다. 실측: false 9,561행 · true 1,145행 · "" 4행.
+        if dep is False or dep == "":
+            dep = None
+        elif dep is not None and not isinstance(dep, str):
             dep = json.dumps(dep, ensure_ascii=False)
         rows.append({
             "Name": name, "Version": v, "published_at": times.get(v), "rank": rank,
@@ -90,6 +113,17 @@ def parse(doc, name, rank, fetched_at):
     return rows, modified
 
 
+def serialize(rows):
+    """행 목록 → 쓸 준비가 끝난 줄 목록. utf-8 인코딩까지 여기서 확인한다.
+    쓰는 도중에 실패하면 '체크포인트는 failed 인데 앞부분 행은 raw 에 남은' 패키지가 되고,
+    그 고아 행은 (Name, Version) 중복 제거로도 걸러지지 않는다. 그래서 쓰기 전에 전부 만들어 본다.
+    실제 경로: 의존 요구사항 문자열에 lone surrogate 가 있으면 json.loads 는 통과시키고 인코딩에서 터진다."""
+    lines = [json.dumps(r, ensure_ascii=False) for r in rows]
+    for ln in lines:
+        ln.encode("utf-8")
+    return lines
+
+
 def online(session):
     """registry 가 닿는가. 연결 오류가 '이 패키지 문제'인지 '인터넷 끊김'인지 가르는 데 쓴다."""
     try:
@@ -100,7 +134,7 @@ def online(session):
 
 def wait_online(session, poll=30):
     """인터넷이 끊겼으면 복구될 때까지 기다린다. 끊긴 동안 패키지를 failed 로 넘기지 않기 위함(밤새 실행 대비)."""
-    print("[collect] offline? registry 에 닿지 않는다 — 30초마다 재확인, 복구되면 이어간다", flush=True)
+    print("[collect] offline? registry 에 닿지 않는다. 30초마다 재확인, 복구되면 이어간다", flush=True)
     t0 = time.time()
     while not online(session):
         time.sleep(poll)
@@ -136,11 +170,15 @@ class Writer:
         self.n = 0
         self.fh = gzip.open(os.path.join(self.outdir, f"part-{self.part:05d}.jsonl.gz"), "at", encoding="utf-8")
 
-    def write(self, obj):
-        self.fh.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    def write_line(self, line):
+        """이미 직렬화하고 utf-8 인코딩 가능까지 확인한 한 줄을 쓴다."""
+        self.fh.write(line + "\n")
         self.n += 1
         if self.n >= self.rotate:
             self._open()
+
+    def write(self, obj):
+        self.write_line(json.dumps(obj, ensure_ascii=False))
 
     def flush(self):
         """체크포인트 commit 직전에 호출. gzip 버퍼를 디스크에 내려 강제 종료 시 '체크포인트는 done 인데 행은 없는' 패키지가 생기지 않게 한다."""
@@ -158,7 +196,7 @@ def main():
     ap.add_argument("--run", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--interval", type=float, default=0.5,
-                    help="요청 간 최소 간격(초). 429 가 나오면 15%%씩 늘어난다(최대 3초)")
+                    help="요청 간 최소 간격(초). 429 가 나오면 15%%씩 늘어난다(상한은 3초, --interval 이 그보다 크면 --interval)")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--retry-failed", action="store_true")
     ap.add_argument("--max-doc-mb", type=float, default=200.0)
@@ -207,12 +245,13 @@ def main():
     S.headers["Accept"] = "application/json"  # 전체 문서. 축약형(vnd.npm.install-v1+json)은 devDependencies 가 없다
     W = Writer(rundir)
     stats = {"ok": 0, "not_found": 0, "unpublished": 0, "failed": 0, "http429": 0, "http5xx": 0, "conn_err": 0,
-             "too_large": 0, "bytes": 0, "max_bytes": 0, "max_bytes_name": None, "versions": 0}
+             "too_large": 0, "bytes": 0, "max_bytes": 0, "max_bytes_name": None, "versions": 0, "odd_time_keys": 0}
     started = time.time()
     last_start = 0.0
     consec429 = 0
-    interval = a.interval          # 적응형: 429가 나오면 15% 늘리고(최대 3 s), 200이 이어지면 천천히 되돌린다
-    interval_min, interval_max = a.interval, 3.0
+    interval = a.interval          # 적응형: 429가 나오면 15% 늘리고, 200이 이어지면 천천히 되돌린다
+    # 상한을 3초로 고정하면 --interval 을 3보다 크게 준 실행에서 429 가 간격을 오히려 줄인다(느리게 돌리라고 준 값인데).
+    interval_min, interval_max = a.interval, max(3.0, a.interval)
     recent = []                    # 최근 100 작업의 완료 시각 → 실제 처리율로 ETA 계산
     max_bytes = int(a.max_doc_mb * 1024 * 1024)
     manifest_path = os.path.join(rundir, "manifest.json")
@@ -238,6 +277,7 @@ def main():
     try:
         for i, (name, rank, attempts) in enumerate(pending):
             url = f"{API}/{enc(name)}"
+            pkg429 = 0
             while True:
                 wait = last_start + interval - time.time()
                 if wait > 0:
@@ -271,7 +311,15 @@ def main():
                 if r.status_code == 429:
                     stats["http429"] += 1
                     consec429 += 1
+                    pkg429 += 1
                     interval = min(interval * 1.15, interval_max)
+                    # 상한이 없으면 영구 스로틀(IP 차단)에 걸린 패키지가 pending 으로 영원히 남는다. pending 은
+                    # --retry-failed 로도 건질 수 없고, events 에 429 가 계속 찍혀 현황판은 RUNNING 으로 보인다.
+                    if pkg429 >= 8:
+                        db.execute("UPDATE tasks SET status='failed',http=429,error=? WHERE name=?",
+                                   (f"http429: rate limited {pkg429}x", name))
+                        stats["failed"] += 1
+                        break
                     time.sleep(300 if consec429 >= 5 else min(2 ** consec429, 60))
                     continue
                 consec429 = 0
@@ -296,27 +344,32 @@ def main():
                     stats["failed"] += 1
                     break
                 nbytes = len(body)
-                # 파싱·행 쓰기에서 나는 어떤 예외도 이 패키지의 failed 로 기록하고 다음으로 넘어간다.
+                # 파싱·직렬화에서 나는 어떤 예외도 이 패키지의 failed 로 기록하고 다음으로 넘어간다.
                 # 예외를 밖으로 흘리면 작업이 pending 으로 남아 재시작마다 같은 패키지에서 다시 죽는다(--retry-failed 로도 못 벗어남).
                 # 예: 본문이 JSON 객체가 아님(AttributeError), lone surrogate 문자열의 utf-8 인코딩(UnicodeEncodeError).
+                # 줄을 전부 만들고 인코딩까지 확인한 뒤에 쓴다. 쓰는 도중에 실패하면 '체크포인트는 failed 인데
+                # 앞부분 행은 raw 에 남은' 패키지가 되고, 그 고아 행은 (Name, Version) 중복 제거로도 걸러지지 않는다.
+                lines = None
                 try:
                     doc = json.loads(body)
-                    vrows, modified = parse(doc, name, rank, now)
+                    vrows, modified = parse(doc, name, rank, now, stats)
+                    doc = None                  # 큰 문서는 파싱 직후 버린다(줄 목록을 만들 메모리를 비워 준다)
                     if vrows is not None:
-                        for row in vrows:
-                            W.write(row)
+                        lines = serialize(vrows)
                 except Exception as e:
                     db.execute("UPDATE tasks SET status='failed',http=200,bytes=?,error=? WHERE name=?",
                                (nbytes, f"parse:{type(e).__name__}:{e}"[:200], name))
                     stats["failed"] += 1
                     break
                 finally:
-                    body = None  # 큰 문서는 파싱 직후 버린다
+                    body = None
                 if vrows is None:
                     db.execute("UPDATE tasks SET status='unpublished',http=200,fetched_at=?,bytes=?,n_versions=0,modified=? WHERE name=?",
                                (now, nbytes, modified, name))
                     stats["unpublished"] += 1
                     break
+                for ln in lines:   # 여기부터는 예외가 날 수 없다
+                    W.write_line(ln)
                 n_unpub = sum(1 for row in vrows if row["unpublished"])
                 db.execute(
                     "UPDATE tasks SET status='done',http=200,fetched_at=?,bytes=?,n_versions=?,n_unpublished=?,modified=? "
@@ -328,7 +381,7 @@ def main():
                 stats["versions"] += len(vrows)
                 if nbytes > stats["max_bytes"]:
                     stats["max_bytes"], stats["max_bytes_name"] = nbytes, name
-                doc = vrows = None
+                vrows = lines = None
                 break
             recent.append(time.time())
             if len(recent) > 100:
@@ -354,7 +407,7 @@ def main():
             if (i + 1) % 500 == 0:
                 manifest()
     except KeyboardInterrupt:
-        print("[collect] interrupted — checkpoint saved", flush=True)
+        print("[collect] interrupted, checkpoint saved", flush=True)
     finally:
         W.close()      # 행을 먼저 디스크에 내리고(gzip 트레일러 포함) 그 다음 체크포인트를 확정한다
         db.commit()
