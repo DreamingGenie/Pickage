@@ -1,20 +1,6 @@
-"""유사도 배치의 입력을 MinIO 에서 로컬로 내려받는다 (입력 잡).
+"""배치 입력을 MinIO 에서 로컬로 내려받는다.
 
-    python -m pipeline.similar_package.fetch --run 2026-09-15 --work data/similarity
-
-배치 컨테이너(`ai/similarity`)는 s3 클라이언트가 없다. 로컬 경로만 받아 계산한다.
-그래서 누군가 대신 받아 로컬에 놔 줘야 하고, 그게 이 모듈이다.
-
-받는 것 셋:
-
-    package_text.parquet    pickage-curated/package_text/run=<run>/
-    ONNX 모델 디렉터리        pickage-mlflow-artifacts/onnx_bge_v7/
-    text_hash_state.parquet  (선택) 직전 실행 출력 — 증분 재임베딩용
-
-끝나면 배치에 넘길 명령을 출력한다.
-
-접속 정보는 `pipeline/minio/ingest_raw.py` 의 `client()` 를 그대로 쓴다
-(`pipeline/minio/.env`, 서버는 `PICKAGE_MINIO_ENV=.env.server`).
+    python -m pipeline.similar_package.fetch --run 2026-09-15
 """
 from __future__ import annotations
 
@@ -30,27 +16,34 @@ from botocore.exceptions import ClientError
 
 from pipeline.minio.ingest_raw import client
 
-CURATED_BUCKET = "pickage-curated"
+try:  # Windows 콘솔 cp949 에서 한글 출력 보장
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+CURATED_BUCKET = "pickage-curated"        # TODO(팀 합의): build.py 와 같은 값이어야 한다
 MODEL_BUCKET = "pickage-mlflow-artifacts"
-PACKAGE_TEXT_PREFIX = "package_text"
-# ai/MODEL_CONTRACT.md — 계약 경로(models/similar-packages/vN/)가 아니라 실제 업로드 위치다.
-# v6 과 달리 model.onnx.data 가 없다. 단일 파일.
+PACKAGE_TEXT_PREFIX = "package_text"      # TODO(팀 합의): build.py 와 같은 값이어야 한다
+# ai/MODEL_CONTRACT.md 의 v7 업로드 경로
 MODEL_PREFIX = "onnx_bge_v7"
 MODEL_FILES = ("model.onnx", "tokenizer.json", "tokenizer_config.json")
 MODEL_OPTIONAL = ("run_manifest.json",)
 RUN_PATTERN = re.compile(r"[0-9A-Za-z_.-]{1,64}\Z")
 
-# 배치가 없으면 죽거나 결과가 0이 되는 컬럼.
+# 없으면 중단하는 컬럼
 REQUIRED_COLUMNS = ("name", "description", "keywords", "dependent_packages_count")
-# 없어도 배치는 돌지만 그 검사만 조용히 무효가 되는 컬럼.
+# 없으면 경고만 하는 컬럼
 EXPECTED_COLUMNS = ("latest_release_published_at", "status", "is_spam", "repo_archived")
 DEPRECATED_STATUSES = {"deprecated", "removed", "unpublished"}
 
 
+# 표준출력에 한 줄 남긴다.
 def log(message: str) -> None:
     print(message, flush=True)
 
 
+# 객체 하나를 읽는다. 없으면 None.
 def _get(s3, bucket: str, key: str) -> bytes | None:
     try:
         with s3.get_object(Bucket=bucket, Key=key)["Body"] as stream:
@@ -61,6 +54,7 @@ def _get(s3, bucket: str, key: str) -> bytes | None:
         raise
 
 
+# 객체를 내려받는다. 받는 동안은 .part 로 두고 끝나면 이름을 바꾼다.
 def _download(s3, bucket: str, key: str, target: Path) -> int:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(target.suffix + ".part")
@@ -71,6 +65,7 @@ def _download(s3, bucket: str, key: str, target: Path) -> int:
     return size
 
 
+# 접두사 아래 객체 키를 나열한다.
 def _list(s3, bucket: str, prefix: str) -> list[str]:
     keys, token = [], None
     while True:
@@ -84,15 +79,8 @@ def _list(s3, bucket: str, prefix: str) -> list[str]:
         token = page.get("NextContinuationToken")
 
 
-# ── package_text ────────────────────────────────────────────────────────
-
+# 게시가 끝난 run 인지 확인하고 package_text parquet 을 받는다.
 def fetch_package_text(s3, run: str, work: Path) -> tuple[Path, dict]:
-    """게시가 끝난 run 인지 확인하고 parquet 을 받는다.
-
-    `_SUCCESS` 는 빈 파일이 아니라 manifest 의 sha256 을 담는다
-    (`pipeline/postgresql/input.py` 의 curated 승인 방식과 같다). 마커만 있고
-    내용이 어긋나면 게시 도중이거나 파일이 바뀐 것이므로 받지 않는다.
-    """
     prefix = f"{PACKAGE_TEXT_PREFIX}/run={run}"
     marker = _get(s3, CURATED_BUCKET, f"{prefix}/_SUCCESS")
     if marker is None:
@@ -108,7 +96,6 @@ def fetch_package_text(s3, run: str, work: Path) -> tuple[Path, dict]:
     except json.JSONDecodeError:
         marker_json = None
     if marker_json is None:
-        # 게시 쪽이 아직 빈 마커를 쓴다면 해시 대조를 못 한다. 막지는 않되 남긴다.
         log("  경고: _SUCCESS 에 manifest_sha256 이 없다 — 내용 검증을 건너뛴다")
     elif marker_json != {"manifest_sha256": expected}:
         raise SystemExit("_SUCCESS 와 run_manifest.json 이 어긋난다 — 게시가 끝나지 않았거나 파일이 바뀌었다")
@@ -122,11 +109,10 @@ def fetch_package_text(s3, run: str, work: Path) -> tuple[Path, dict]:
 
     target_dir = work / "package_text"
     if len(keys) == 1:
-        # 파일 하나면 파일 경로를 그대로 배치에 넘긴다.
         target = work / "package_text.parquet"
         _download(s3, CURATED_BUCKET, keys[0], target)
     else:
-        # Spark 로 쓰면 part-*.parquet 여러 개다. 배치는 pyarrow 로 디렉터리째 읽는다.
+        # 여러 개면 디렉터리 경로를 넘긴다.
         for key in keys:
             _download(s3, CURATED_BUCKET, key, target_dir / Path(key).name)
         target = target_dir
@@ -134,8 +120,7 @@ def fetch_package_text(s3, run: str, work: Path) -> tuple[Path, dict]:
     return target, manifest
 
 
-# ── 모델 ────────────────────────────────────────────────────────────────
-
+# ONNX 모델 디렉터리를 받는다.
 def fetch_model(s3, work: Path) -> Path:
     target = work / MODEL_PREFIX
     log(f"모델 {MODEL_PREFIX}")
@@ -149,21 +134,12 @@ def fetch_model(s3, work: Path) -> Path:
         try:
             _download(s3, MODEL_BUCKET, f"{MODEL_PREFIX}/{name}", target / name)
         except ClientError:
-            # run_manifest.json 이 없으면 배치가 model_ver 을 "unknown" 으로 넣고,
-            # 적재기가 그걸 거부한다. 미리 알려 준다.
             log(f"  경고: {name} 이 없다 — model_ver 이 unknown 이 되어 적재가 거부된다")
     return target
 
 
-# ── state (선택) ────────────────────────────────────────────────────────
-
+# 직전 실행의 text_hash_state.parquet 을 받는다. 없으면 None.
 def fetch_state(s3, bucket: str, key: str, work: Path) -> Path | None:
-    """직전 실행의 text_hash_state.parquet.
-
-    ⚠ 현재 배치는 이 파일을 읽지 못한다. `write_output` 은 {name, text_hash} 만 쓰는데
-    `load_state` 는 vector 컬럼을 요구해 KeyError 로 죽는다. 고쳐지기 전까지는
-    --state-key 를 주지 말 것 (전수 재임베딩, 10만 건 약 20분).
-    """
     target = work / "text_hash_state.parquet"
     try:
         _download(s3, bucket, key, target)
@@ -174,19 +150,8 @@ def fetch_state(s3, bucket: str, key: str, work: Path) -> Path | None:
     return target
 
 
-# ── 프리플라이트 ────────────────────────────────────────────────────────
-
+# 받은 parquet 의 컬럼·행 수를 확인하고 품질 수치를 남긴다.
 def preflight(path: Path, manifest: dict, min_dependents: int, max_age_months: int) -> dict:
-    """배치에 넘기기 전에 parquet 을 훑어 본다.
-
-    배치는 모든 컬럼을 `.get()` 으로 읽는다. 컬럼이 통째로 빠져도 에러 없이 돌고
-    그 검사만 무효가 된다 — `is_spam` 이 없으면 스팸이 전부 통과하고,
-    `repo_archived` 가 없으면 보관 저장소 관문이 사라진다. 결과가 나빠질 뿐
-    아무도 이유를 모른다. 그래서 넘기기 전에 여기서 본다.
-
-    필수 컬럼 누락과 manifest 행 수 불일치는 중단. 나머지는 숫자만 남긴다.
-    매주 같은 숫자를 비교하면 입력이 언제 달라졌는지 보인다.
-    """
     import pyarrow.dataset as pads
 
     dataset = pads.dataset(str(path), format="parquet")
@@ -237,7 +202,7 @@ def preflight(path: Path, manifest: dict, min_dependents: int, max_age_months: i
             if block.get("repo_archived", [None] * batch.num_rows)[i]:
                 stat["repo_archived"] += 1
 
-            # 배치의 qualify() 와 같은 조건. 실제로 임베딩될 행 수를 미리 본다.
+            # 배치의 qualify() 와 같은 조건
             released = block.get("latest_release_published_at", [None] * batch.num_rows)[i]
             if isinstance(released, (dt.datetime,)):
                 released = released.date()
@@ -273,19 +238,15 @@ def preflight(path: Path, manifest: dict, min_dependents: int, max_age_months: i
     log(f"  repo_archived    {stat['repo_archived']:,}")
 
     if stat["duplicate_names"]:
-        # 이름이 배치의 증분 상태 키이자 적재기의 조인 키다. 중복은 조용히 틀어진다.
         raise SystemExit(f"name 이 {stat['duplicate_names']} 건 중복이다 — 생성 쪽 중복 제거 확인")
     if stat["qualified"] == 0:
         raise SystemExit("자격을 통과하는 행이 하나도 없다 — 배치가 즉시 중단된다")
     if stat["null_description"] / rows > 0.5:
-        # 빈 description 은 'DESCRIPTION:  / KEYWORDS: ' 가 되어 내용 없는 벡터를 만든다.
-        # 그런 것끼리 서로 유사하다고 나온다. 막지는 않되 눈에 띄게 남긴다.
         log("  경고: description 이 절반 이상 비어 있다 — 임베딩 품질이 크게 떨어진다")
     return stat
 
 
-# ── main ────────────────────────────────────────────────────────────────
-
+# package_text·모델·상태를 받고 배치 실행 명령을 출력한다.
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", required=True, help="package_text 의 run 이름 (예: 2026-09-15)")
