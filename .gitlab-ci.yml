@@ -185,11 +185,19 @@ frontend:
   variables:
     # Gradle 홈이 기본값($HOME/.gradle)이면 컨테이너와 함께 사라져 매번 의존성을 다시 받는다.
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
-    # --no-daemon 과 짝이다. 데몬을 띄우면 잡이 끝난 뒤에도 JVM 이 남아 메모리를 잡고 있고,
-    # 컨테이너가 사라지면서 어차피 버려진다.
-    # Xmx 를 박는 이유: 러너에 건 컨테이너 상한(deploy/ci/README.md) 안에서 돌아야 한다.
+    # ⚠ 이 컨테이너 안에 JVM 이 **셋** 이다. 하나만 막으면 상한 계산이 맞지 않는다.
+    #
+    #   gradle 런처   앞의 -Xmx256m        (이 변수는 런처 JVM 의 명령줄로 들어간다)
+    #   데몬          -Dorg.gradle.jvmargs (아래. `--no-daemon` 이어도 single-use 로 포크된다)
+    #   Test 워커     backend/build.gradle 의 maxHeapSize
+    #
+    # `--no-daemon` 은 잡이 끝난 뒤 JVM 이 남지 않게 하는 것이지 데몬을 안 만드는 것이
+    # 아니다 — jvmargs 가 있으면 Gradle 이 "single-use Daemon" 을 따로 포크한다(9.7.1 확인).
+    # 데몬은 컴파일만 하므로 시험이 도는 워커보다 클 이유가 없다.
+    #
+    # 셋을 합쳐 러너의 컨테이너 상한(deploy/ci/README.md) 안에 들어와야 한다.
     # JVM 은 상한을 모르면 호스트 메모리 기준으로 힙을 잡는다.
-    GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx1g"
+    GRADLE_OPTS: "-Xmx256m -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx768m"
   cache:
     key:
       files:

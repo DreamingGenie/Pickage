@@ -251,13 +251,35 @@ sudo gitlab-runner verify          # 등록이 살아 있는지
 호스트 메모리를 기준으로 힙을 잡고, 그 결과가 "커널이 무엇을 죽일지 우리가 못 고르는" 상황이다 —
 **Postgres 를 고를 수도 있다.**
 
-그래서 두 겹으로 막는다.
+그래서 컨테이너 상한(`[runners.docker] memory = "2g"`) 안에 **JVM 세 개의 힙을 각각** 박는다.
 
-1. 컨테이너 상한 — `[runners.docker] memory = "2g"`
-2. JVM 힙 상한 — `.gitlab-ci.yml` 의 `GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx1g`
+> ### ⚠ 백엔드 잡 하나에 JVM 이 셋이다
+>
+> `-Dorg.gradle.jvmargs` 는 **데몬에만** 걸린다. 하나만 박고 "막았다" 고 보면 나머지 둘이
+> 계산에서 빠진다.
+>
+> | JVM | 힙 | 어디서 정하나 |
+> | --- | --- | --- |
+> | gradle 런처 | 256m | `.gitlab-ci.yml` 의 `GRADLE_OPTS` 앞부분 `-Xmx256m` |
+> | single-use 데몬 | 768m | 같은 변수의 `-Dorg.gradle.jvmargs` |
+> | Test 워커 | 512m | `backend/build.gradle` 의 `maxHeapSize` |
+>
+> `--no-daemon` 은 잡이 끝난 뒤 JVM 이 남지 않게 하는 것이지 데몬을 안 만드는 것이 아니다.
+> `jvmargs` 가 있으면 Gradle 이 single-use 데몬을 따로 포크한다 — 로그에 이렇게 나온다.
+>
+> ```
+> To honour the JVM settings for this build a single-use Daemon process will be forked.
+> ```
+>
+> 시험은 그 데몬도 아닌 **Test 워커**에서 돈다. `backend-integration-test` 는 그 워커에
+> Spring 컨텍스트·Flyway·Hibernate 가 다 뜨므로 셋 중 RSS 가 가장 크다. 값을 지정하지
+> 않으면 Gradle 기본값 512m 이 조용히 쓰이고, 상한을 계산할 때 이 몫이 보이지 않는다.
 
-잡이 **exit code 137** 로 죽으면 1번에 걸린 것이다. 로그 마지막에 아무 설명이 없는 것이
-특징이다.
+힙 합계는 1536m 이고, 나머지가 JVM 세 개의 메타스페이스·코드캐시·스레드 스택 몫이다.
+
+잡이 **exit code 137** 로 죽으면 컨테이너 상한에 걸린 것이다. 로그 마지막에 아무 설명이
+없는 것이 특징이다. 힙을 늘려야 하면 위 표의 값과 `[runners.docker] memory` 를 **함께**
+올린다 — `memory_swap` = `memory` 라 넘기는 순간 완충 없이 죽는다.
 
 ## 디스크 — 정리는 하되, `-a` 는 쓰지 않는다
 
