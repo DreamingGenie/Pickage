@@ -97,6 +97,27 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 - deprecated 지목 가산 없음 (`DEC-RANK-20260909-01`).
 - `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬.
 
+## 채점 게이트 설계 메모 (§4.1, S15P21A506-335)
+
+`scoring_gate()`는 **재학습(재파인튜닝) 트리거가 아니다.** "직전 운영값 대비 recall 하락 시 중단"의
+"중단"은 `gate_allows_success()`를 통해 `_SUCCESS`를 안 남겨서 **이번 배치 결과의 발행만 막는 것**이다.
+자동 재학습 트리거는 위 "손대지 말 것" 목록에 있는 별개의(아직 범위 밖인) 기능이다.
+
+**51K holdout 정답 노후화(staleness) 문제 (2026-09-14 발견)**: 정답이 "A → B"로 고정돼 있는데 B 자신이
+나중에 리브랜딩해 C가 되면, 모델이 C라고 정확히 답해도 낡은 정답 기준으로는 오답 처리된다. 실제 위험도
+확인됨 — `functional_succession`/`succession_mid` 학습 데이터 버킷(같은 종류의 "폐기→대체" 데이터)을
+다른 LLM으로 교차검증했더니 144쌍 표본의 72.9%가 "다른 회사 제품"이 아니라 "같은 저자의 리브랜딩"이었다.
+
+이 홀드아웃의 원천은 `pipeline/duckdb/build_deprecated_dataset.py` → `datasets/deprecated_replacement_260831/`
+(28,241행, deps.dev BigQuery의 `Deprecated` 원문을 정규식으로 파싱). 이미 있는 것: A의 폐기 문구 원문,
+대체품(B) 이름, A의 GitHub 저장소(`source_repo`), **대체품 생존 여부(`replacement_alive` — 2,325건이
+이미 "대체품도 죽음"으로 표시돼 있어 staleness 검증에 바로 재사용 가능)**. 없는 것: B의 GitHub 저장소
+정보라 "A와 B가 같은 팀인지" 비교가 불가능 — 데이터 팀에 보완 요청함(S15P21A506-338).
+
+**정밀도 함정**: 이 데이터셋의 `replacement_confidence`(high/medium)는 "정규식이 이름을 제대로
+추출했는지"의 신뢰도일 뿐, "같은 팀인지"와는 무관하다. 이름 때문에 오해하기 쉽고, 실제로 이 혼동이
+위 72.9% 오류율 사고의 원인 중 하나로 보인다.
+
 ## 관련 문서
 
 - `docs/Pickage_기능별_개발_구상안_0909.md` — 시스템 확정안 (0904 는 `docs/history/` 로 이관)
