@@ -1,0 +1,161 @@
+{
+  "removed_pkgs_legacy": 34960,
+  "removals_legacy": 220166,
+  "removals_full": 193420,
+  "reclassified_to_dev": 26746,
+  "reclassified_pct": 12.15,
+  "pkgs_fully_reclassified": 3359,
+  "legacy_strict_pairs": 143,
+  "strict_pairs_gone": 0,
+  "strict_pairs_demoted": 4,
+  "strict_pairs_kept": 139,
+  "depsdev_strict_pairs": 1195,
+  "depsdev_strict_x_total": 782,
+  "depsdev_strict_x_measurable": 746,
+  "depsdev_strict_x_with_reclassified": 532,
+  "depsdev_strict_pairs_with_reclassified_x": 909,
+  "most_affected": [
+    {
+      "from_pkg": "eslint",
+      "legacy_removals": 231,
+      "full_removals": 40,
+      "reclassified_pct": 82.7,
+      "depsdev_strict_pairs": 3
+    },
+    {
+      "from_pkg": "@types/jest",
+      "legacy_removals": 112,
+      "full_removals": 22,
+      "reclassified_pct": 80.4,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "eslint-config-prettier",
+      "legacy_removals": 79,
+      "full_removals": 16,
+      "reclassified_pct": 79.7,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "@babel/cli",
+      "legacy_removals": 39,
+      "full_removals": 8,
+      "reclassified_pct": 79.5,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "jest",
+      "legacy_removals": 151,
+      "full_removals": 34,
+      "reclassified_pct": 77.5,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "babel-cli",
+      "legacy_removals": 75,
+      "full_removals": 17,
+      "reclassified_pct": 77.3,
+      "depsdev_strict_pairs": 3
+    },
+    {
+      "from_pkg": "@types/react-dom",
+      "legacy_removals": 113,
+      "full_removals": 26,
+      "reclassified_pct": 77.0,
+      "depsdev_strict_pairs": 4
+    },
+    {
+      "from_pkg": "istanbul",
+      "legacy_removals": 24,
+      "full_removals": 6,
+      "reclassified_pct": 75.0,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "typescript",
+      "legacy_removals": 582,
+      "full_removals": 156,
+      "reclassified_pct": 73.2,
+      "depsdev_strict_pairs": 3
+    },
+    {
+      "from_pkg": "eslint-plugin-prettier",
+      "legacy_removals": 80,
+      "full_removals": 23,
+      "reclassified_pct": 71.3,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "@typescript-eslint/eslint-plugin",
+      "legacy_removals": 111,
+      "full_removals": 36,
+      "reclassified_pct": 67.6,
+      "depsdev_strict_pairs": 5
+    },
+    {
+      "from_pkg": "gulp",
+      "legacy_removals": 88,
+      "full_removals": 30,
+      "reclassified_pct": 65.9,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "babel-jest",
+      "legacy_removals": 41,
+      "full_removals": 14,
+      "reclassified_pct": 65.9,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "tslint",
+      "legacy_removals": 43,
+      "full_removals": 15,
+      "reclassified_pct": 65.1,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "babel",
+      "legacy_removals": 56,
+      "full_removals": 20,
+      "reclassified_pct": 64.3,
+      "depsdev_strict_pairs": 3
+    },
+    {
+      "from_pkg": "typedoc",
+      "legacy_removals": 50,
+      "full_removals": 18,
+      "reclassified_pct": 64.0,
+      "depsdev_strict_pairs": 1
+    },
+    {
+      "from_pkg": "babel-preset-react",
+      "legacy_removals": 48,
+      "full_removals": 18,
+      "reclassified_pct": 62.5,
+      "depsdev_strict_pairs": 4
+    },
+    {
+      "from_pkg": "babel-preset-es2015",
+      "legacy_removals": 123,
+      "full_removals": 47,
+      "reclassified_pct": 61.8,
+      "depsdev_strict_pairs": 4
+    },
+    {
+      "from_pkg": "vue",
+      "legacy_removals": 141,
+      "full_removals": 54,
+      "reclassified_pct": 61.7,
+      "depsdev_strict_pairs": 2
+    },
+    {
+      "from_pkg": "snyk",
+      "legacy_removals": 70,
+      "full_removals": 27,
+      "reclassified_pct": 61.4,
+      "depsdev_strict_pairs": 1
+    }
+  ],
+  "elapsed_sec": 0,
+  "note": "registry 상위 10만 모집단에서 필터만 바꿔 잰 값이다. 그 밖 패키지의 dependencies→devDependencies 강등은 deps.dev 원천에 dev 칸이 없어 여전히 잴 수 없다."
+}
