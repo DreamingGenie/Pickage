@@ -189,6 +189,44 @@ frontend:
     - npm run build
 
 # ── 백엔드 ──────────────────────────────────────────────────────
+#
+# 위 힙 값들이 러너 상한 안에 들어오는지는 **계산이 아니라 이 조각이 답한다.** `-Xmx` 는
+# 예약이 아니라 상한이라 셋을 더해도 실제 사용량은 알 수 없다.
+#
+# ⚠ **`after_script` 에 두지 말 것. 거기서는 엉뚱한 값이 나온다.**
+#   2026-09-14 실제로 그렇게 넣었다가 `최대 사용: 4 MiB` 를 받았다. Gradle 이 세 개의
+#   JVM 을 돌린 직후인데 4 MiB 일 수가 없다. `after_script` 가 읽는 cgroup 은 시험이 돌던
+#   그것이 아니다. 그래서 **각 잡의 script 끝**, Gradle 이 끝난 바로 그 자리에서 읽는다.
+#
+#   대가: 잡이 실패하면 안 찍힌다. 다만 exit 137 로 죽었다면 사용량은 물어볼 필요가 없다 —
+#   상한에 닿았다는 뜻이고, 그 값이 곧 상한이다.
+#
+# 읽는 법과 얼마면 조정해야 하는지는 deploy/ci/README.md 의 "메모리".
+.mem-report: &mem-report |
+  # cgroup v2(memory.peak) 와 v1(max_usage_in_bytes) 을 모두 본다.
+  for f in /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory/memory.max_usage_in_bytes; do
+    [ -r "$f" ] || continue
+    peak=$(( $(cat "$f") / 1024 / 1024 ))
+    echo "[메모리] 최대 사용: ${peak} MiB   (읽은 곳: $f)"
+    # 자기 검사 — JVM 을 셋 돌린 잡이 이만큼 작을 수 없다. 작으면 값이 아니라
+    # 읽은 자리가 틀린 것이다(위 ⚠). 숫자를 믿고 상한을 내리는 일을 막는다.
+    # `[ ... ] && echo` 로 쓰지 않는다 — 조건이 거짓이면 종료 코드 1 이라, 이 줄이 script 의
+    # 마지막 명령이 되는 순간 멀쩡한 잡이 실패한다.
+    if [ "$peak" -lt 64 ]; then
+      echo "[메모리] ⚠ 값이 비정상적으로 작다. 이 잡의 cgroup 이 아닐 수 있다"
+    fi
+    break
+  done
+  for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+    [ -r "$f" ] || continue
+    v=$(cat "$f")
+    case "$v" in
+      max|9223372036854771712) echo "[메모리] 상한 없음 — 러너에 memory 가 안 걸려 있다" ;;
+      *) echo "[메모리] 상한: $(( v / 1024 / 1024 )) MiB" ;;
+    esac
+    break
+  done
+
 .backend:
   stage: test
   # backend/Dockerfile 의 빌드 단계와 같은 이미지.
@@ -230,6 +268,7 @@ backend-test:
   script:
     - cd backend
     - ./gradlew --no-daemon test
+    - *mem-report
   artifacts:
     # 실패했을 때가 리포트가 필요한 때다. 기본값(on_success)이면 정작 볼 수가 없다.
     when: always
@@ -276,6 +315,9 @@ backend-integration-test:
       done
     - cd backend
     - ./gradlew --no-daemon integrationTest
+    # 이 잡이 셋 중 가장 크다 — 워커에 Spring 컨텍스트·Flyway·Hibernate 가 뜬다.
+    # 상한을 조정할지 말지는 여기서 나온 숫자로 판단한다.
+    - *mem-report
   artifacts:
     when: always
     expire_in: 1 week
