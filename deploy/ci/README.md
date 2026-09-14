@@ -310,10 +310,44 @@ CI 로 처음 돌렸을 때 **우리 코드가 아니라 파이프라인 설정 
 | `npm run build` | 통과 |
 | `npm run format:check` | **실패** — 71개 파일. 이래서 CI 에 넣지 않았다 (위 "아직 없는 것") |
 | `./gradlew test` | 통과 (3분 20초) |
-| `./gradlew integrationTest` | **아직 못 돌려 봤다** — 로컬 Docker 가 꺼져 있었다. postgres 서비스를 붙이는 이 잡이 이 파이프라인에서 가장 불확실한 부분이고, 실제 러너에서 확인해야 한다 |
+| `./gradlew integrationTest` | 통과 — 다만 **이 잡은 로컬 통과가 CI 통과를 뜻하지 않는다.** 아래 "통합 시험은 CI 조건으로 돌려 봐야 한다" |
 
 `npm run lint` 의 경고 4개는 그대로 둔다. `--max-warnings 0` 을 붙이면 오류로 바뀌는데,
 그건 CI 를 세우는 일이 아니라 코드를 고치는 일이라 여기서 같이 하지 않는다.
+
+### 통합 시험은 CI 조건으로 돌려 봐야 한다
+
+로컬에는 `localhost:15432` 에 postgres 가 떠 있다. 그래서 **앱의 기본 DB 주소에 그냥
+붙어 버리는 시험**은 로컬에서 통과하고 CI 에서만 깨진다 — CI 러너의 `localhost` 에는
+아무것도 없고, postgres 는 서비스 별칭 `postgres:5432` 로만 닿기 때문이다.
+
+격리 DB 를 다른 포트에 띄우고 `15432` 를 내리면 그 조건을 로컬에서 만들 수 있다.
+
+```bash
+docker run -d --name pg-ci-check -e POSTGRES_PASSWORD=pickage -p 15433:5432 postgres:16
+docker compose --profile api stop postgres
+
+cd backend
+PICKAGE_TEST_POSTGRES_URL_PREFIX="jdbc:postgresql://localhost:15433/" ./gradlew integrationTest
+
+docker rm -f pg-ci-check && docker compose --profile api start postgres
+```
+
+**`BUILD SUCCESSFUL` 이면 CI 에서도 통과한다.** 여기서 `Connection refused ... localhost:15432`
+가 나오면 그 시험이 격리 DB 를 안 쓰고 앱 설정의 주소로 붙고 있다는 뜻이다
+(`DisposableTestDatabase` 를 거치지 않거나, `@SpringBootTest` 에
+`@DynamicPropertySource` 가 빠진 경우).
+
+실행 수를 세어 확인하려면:
+
+```bash
+grep -ho 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' \
+  backend/build/test-results/integrationTest/*.xml \
+  | awk -F'"' '{t+=$2; s+=$4; f+=$6; e+=$8} END {print "tests="t, "skipped="s, "failures="f, "errors="e}'
+```
+
+`skipped` 가 3이면 정상이다 — `RepositoryVerificationRealNetworkTest` 가
+`GITHUB_COMMUNITY_TOKEN` 없이 건너뛴 것이다.
 
 ### 같이 고친 것 — `backend/gradlew` 의 실행 권한
 
