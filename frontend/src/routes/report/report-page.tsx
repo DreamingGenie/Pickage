@@ -1,9 +1,9 @@
 import { ArrowLeftIcon, FileDownIcon } from 'lucide-react'
-import { Suspense, lazy, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router'
+import { Suspense, lazy, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 
-import type { PdfJob } from '@/api/types'
-import { paths } from '@/app/routes'
+import { MAX_NAMES, type PdfJob } from '@/api/types'
+import { REPORT_NAMES_PARAM, paths } from '@/app/routes'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -34,8 +34,51 @@ const prefetch = {
 
 export type ReportTab = 'ecosystem' | 'features'
 
-/** 라우터 state 없이 들어왔을 때의 비교 조합. */
-const DEFAULT_COMPARISON = ['winston', 'pino', 'bunyan']
+/** 주소에서 읽어낸 비교 대상. */
+interface ReportNames {
+  /** 실제로 조회할 이름. 중복을 지우고 상한까지만 남긴다. */
+  names: string[]
+  /**
+   * 상한을 넘겨 빠진 이름.
+   *
+   * **버리되 밝힌다.** 조용히 자르면 주소에 네 개가 적혀 있는데 화면에는 세 개만 뜨고,
+   * 어느 것이 빠졌는지 알 방법이 없다. 이 화면이 없애려는 실패가 바로 그것이다.
+   */
+  dropped: string[]
+}
+
+/**
+ * 주소에서 비교 대상을 읽는다 (`?names=a,b,c`).
+ *
+ * **없으면 기본 조합으로 대체하지 않는다.** 예전에는 라우터 state 가 없을 때 조용히
+ * winston·pino·bunyan 으로 떨어졌다. 공유받은 링크에서 그 일이 일어나면 받는 사람은
+ * 보낸 사람과 다른 보고서를 보면서도 화면에 아무 표시가 없다 — 비어 있는 것보다
+ * 틀린 것을 맞다고 보여주는 쪽이 나쁘다.
+ *
+ * 서버가 어차피 같은 규칙으로 검증하므로(0.1) 여기서는 형식까지 보지 않는다.
+ * 보내기 전에 줄이는 것만 한다 — 중복 제거와 상한이다. 상한을 넘겨 보내면 V002 로
+ * 거절당해 네 요청이 전부 빈다.
+ *
+ * <h2>두 값을 한 {@code useMemo} 안에서 만든다</h2>
+ *
+ * 밖에서 잘라내면 렌더마다 새 배열이 나오고, 그 배열이 {@code EcosystemReportTab} 의
+ * 질의 키에 그대로 들어가 **끝나지 않는 재조회**가 된다. 같은 memo 결과 안에 두면
+ * 호출부에서 구조분해해도 두 배열의 참조가 그대로다.
+ */
+function useReportNames(raw: string | null): ReportNames {
+  return useMemo(() => {
+    if (!raw) return { names: [], dropped: [] }
+    const cleaned = [
+      ...new Set(
+        raw
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean),
+      ),
+    ]
+    return { names: cleaned.slice(0, MAX_NAMES), dropped: cleaned.slice(MAX_NAMES) }
+  }, [raw])
+}
 
 /**
  * 03A / 03B 를 담는 셸.
@@ -47,14 +90,11 @@ const DEFAULT_COMPARISON = ['winston', 'pino', 'bunyan']
  */
 export function ReportPage() {
   const navigate = useNavigate()
-  /**
-   * 비교 대상. 새로고침하면 라우터 state 가 없으므로 기본 조합으로 떨어진다.
-   * 미해결: URL 쿼리(`?names=`)로 옮겨야 링크 공유가 된다 — API 가 이미 그 모양이라
-   * 옮기는 비용은 크지 않다.
-   */
-  const packages = ((useLocation().state as { packages?: string[] } | null)?.packages ??
-    DEFAULT_COMPARISON) as string[]
   const [searchParams, setSearchParams] = useSearchParams()
+  /**
+   * 비교 대상은 주소가 들고 있다. 새로고침·뒤로가기·공유 링크가 전부 같은 보고서를 연다.
+   */
+  const { names: packages, dropped } = useReportNames(searchParams.get(REPORT_NAMES_PARAM))
   const evidenceId = searchParams.get('evidence')
 
   /**
@@ -88,6 +128,30 @@ export function ReportPage() {
     setTab('features')
   }
 
+  /*
+    주소에 비교 대상이 없다. 링크가 잘렸거나 `/report/draft` 를 손으로 친 경우다.
+    무엇을 보여줄지 정할 근거가 없으므로 지어내지 않고 되돌려 보낸다.
+  */
+  if (packages.length === 0) {
+    return (
+      <div className="flex flex-col gap-7">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <h1 className="text-2xl font-semibold tracking-tight">분석 결과</h1>
+        </header>
+        <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
+          <p className="text-sm">주소에 비교 대상이 없습니다.</p>
+          <p className="text-base text-muted-foreground">
+            보고서 주소는 <span className="font-mono">?{REPORT_NAMES_PARAM}=</span> 에 비교 대상을
+            담습니다. 링크가 잘렸거나 주소를 직접 입력했을 수 있습니다.
+          </p>
+          <Button size="sm" onClick={() => navigate(paths.analyze)}>
+            분석 시작하기
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-7">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -114,6 +178,18 @@ export function ReportPage() {
           </Button>
         </div>
       </header>
+
+      {/*
+        주소에 상한을 넘는 이름이 있었다. 탭과 무관한 "주소" 이야기라 페이지 위에 둔다 —
+        생태계 탭 안의 "찾지 못한 패키지"(서버가 이름을 못 찾음)와는 다른 사실이고,
+        둘이 함께 뜰 수도 있다.
+      */}
+      {dropped.length > 0 && (
+        <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
+          한 번에 {MAX_NAMES}개까지 비교합니다. 주소에 더 있어서{' '}
+          <span className="font-mono text-foreground">{dropped.join(', ')}</span> 는 제외했습니다.
+        </p>
+      )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as ReportTab)}>
         <TabsList>

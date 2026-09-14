@@ -171,9 +171,19 @@ cd backend && ./gradlew bootRun          # 8080
 cd frontend && npm run dev               # 5173, /api 는 8080 으로 프록시된다
 ```
 
-`http://localhost:5173/report/draft` 로 바로 들어가면 기본 조합(winston·pino·bunyan)으로
-생태계 탭이 뜬다. **화면-01·02 를 거칠 필요가 없다** — 그쪽은 아직
-`routes/analyze/sample-registry.ts` 하드코딩이라 서버를 타지 않는다(S15P21A506-120).
+**보고서 주소가 비교 대상을 들고 있다**(S15P21A506-187). 화면-01·02 를 거치지 않고
+바로 보려면 이름을 주소에 적는다.
+
+```
+http://localhost:5173/report/draft?names=winston,pino,bunyan
+```
+
+`?names=` 없이 `/report/draft` 로 들어가면 **빈 안내**가 뜬다. 예전에는 기본 조합으로
+조용히 떨어졌는데, 그러면 공유받은 링크에서 보낸 사람과 다른 보고서를 보면서도
+화면에 아무 표시가 없다.
+
+화면-01·02 도 이제 서버를 탄다 — 기준 패키지 확인과 후보 목록이 모두
+`/api/packages/similar` 한 번으로 온다(S15P21A506-305).
 
 시드를 갈아 끼우면 같은 화면에서 상태 네 가지를 다 볼 수 있다.
 
