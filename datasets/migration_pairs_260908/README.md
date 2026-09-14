@@ -110,15 +110,34 @@ X 782개는 절대 수로는 적지만, 채택자 기준으로 보면 크다. `r
 | node-sass → sass | ✔ | 382.1 | 4,601 |
 | tslint → eslint | ✔ (votes 13.0, 하한 12에 근접) | 13.0 | 1,087 |
 | moment → dayjs / date-fns | ✔ / ✔ | 347.4 / 166.5 | 1,398 / 720 |
-| enzyme → @testing-library/react | **✘** 미검출 | | |
+| enzyme → @testing-library/react | **✘** 미검출 (이 원천으로는. 아래 참고) | | |
 
 5쌍 중 4쌍 재현. `enzyme`은 제거 이벤트 96건이 있지만 `@testing-library/react`와 같은 전이에 나온 게 표 3 미만이다. 이유는 enzyme이 대개 `devDependencies`에 있고 deps.dev `NPMRequirements`는 dev 의존성을 담지 않기 때문으로 본다. 테스트·린트·빌드 도구 계열(`tslint`, `mocha`, `jest`, `enzyme`)은 이 데이터에서 구조적으로 약하다.
+
+**2026-09-14 추가 — 원인 확인, 다른 원천으로 해결됨(S15P21A506-349).** 위 추정이 맞았다. npm registry 수집분
+(S15P21A506-280, 상위 10만)에는 `devDependencies`가 있어 같은 계산을 개발용 의존에 돌리면
+`enzyme → @testing-library/react`가 **strict 1위로 잡힌다**(votes 52.5 · publisher_months 110 · a_rate 44.8% · lift 2,010).
+`tslint → eslint`, `mocha → jest`/`vitest`, `babel-eslint → @babel/eslint-parser`도 같이 나온다.
+결과는 [`../migration_pairs_dev_260914/`](../migration_pairs_dev_260914/)에 따로 있다 — **모집단이 달라 이 폴더의
+수치와 더하거나 lift를 비교하면 안 된다.** 정답지 재현은 두 폴더를 합쳐 5/5다.
 
 ## 5. 주의
 
 - **양방향 쌍**: `lodash → lodash-es`(1,243표)와 `lodash-es → lodash`(537표)가 둘 다 strict를 통과한다. ESM/CJS 전환처럼 왕복하는 관계다. 라벨로 쓸 때 (X,Y)와 (Y,X)가 모두 있으면 "대체"가 아니라 "변종"으로 따로 다루는 편이 맞다.
 - **동반 추가 잡음**: `rxjs → tslib`(lift 729)처럼 X 제거와 무관하게 같은 릴리스에 딸려 들어온 것이 남는다. lift 하한을 높이는 것보다 `dependents`·`publisher_months`가 `co_events`에 비해 작은 쌍(소수 주체의 반복)을 감점하는 쪽이 효과적이다.
-- **dev 의존성 부재**: 4절 참고. 도구 계열 마이그레이션은 이 데이터로 말할 수 없다.
+- **dev 의존성 부재**: 4절 참고. 도구 계열 마이그레이션은 **이 폴더의 데이터로는** 말할 수 없다.
+  개발용 의존 기준 결과는 [`../migration_pairs_dev_260914/`](../migration_pairs_dev_260914/)에 있다(상위 10만 한정).
+- **실행용 → 개발용 강등이 '제거'로 섞여 있다** (2026-09-14 측정, S15P21A506-349): deps.dev 원천에 dev 칸이 없어,
+  `dependencies`에서 빼고 같은 전이에서 `devDependencies`로 **옮긴** 것을 이 폴더는 전부 제거로 센다.
+  설계 문서 §5-1의 peerDependencies 함정과 같은 함정이 dev 칸에도 있었다. 같은 모집단에서 필터만 바꿔 재 보니:
+  - **쌍 CSV 3종은 영향이 거의 없다.** strict 143쌍 중 사라진 쌍 0, 하한 언저리에서 기준 미달 4쌍뿐.
+    강등은 대체재를 함께 넣지 않아 애초에 쌍 집계에 들어오지 않기 때문이다. **이 폴더의 1,195쌍은 그대로 써도 된다.**
+  - **제거 통계(§7)는 12.15% 부풀어 있다.** 제거 전이 220,166 → 193,420. `eslint`는 '제거'의 82.7%,
+    `jest`는 77.5%가 칸 이동이다. **"대체 없이 떠남" 비율을 화면에 쓸 때 이 보정을 먼저 볼 것.**
+  - 측정 가능 범위: strict 출발 패키지 782개 중 746개(상위 10만 안)만 잴 수 있고 그중 532개에 재분류가 섞여 있다.
+    나머지는 '영향 없음'이 아니라 '못 잼'이다.
+
+  수치·보정 파일은 [`../migration_pairs_dev_260914/README.md`](../migration_pairs_dev_260914/README.md) §4.
 - **B의 분모는 전이 수**: 한 전이에서 Y가 여러 번 추가될 수는 없으므로 B는 "전이 중 Y 추가 비율"이다. 63개 실측의 B와 직접 비교하지 말고 lift 순위만 비교한다.
 - 설계 5단계(배포주체 묶기)는 여전히 `publisher_months` 열로 근사만 했다. 5·7단계(share 계산, "대체 없이 제거" 비율)는 `data/migration_pairs.duckdb`의 `events` 테이블에서 바로 뽑을 수 있다.
 

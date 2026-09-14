@@ -38,3 +38,11 @@ docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/*
 
 # BigQuery 작업용 로컬 venv
 .venv-bq/
+
+# 이동쌍 재분류 대조 실행 결과 (S15P21A506-349) — 커밋하지 않음
+# build_migration_pairs.py --source registry --kind regular 를 필터만 바꿔 두 번 돌린 중간물이다.
+# 값이 있는 것은 두 실행의 '차이'뿐이고, 그 차이는 compare_reclassify_effect.py 가
+# datasets/migration_pairs_dev_260914/reclassify_effect_* 로 뽑아 추적한다.
+# 재현: 위 두 명령 + compare_reclassify_effect.py (각 3~6분)
+/datasets/migration_pairs_regular_260914/
+/datasets/migration_pairs_regular_legacy_260914/
