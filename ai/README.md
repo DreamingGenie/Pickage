@@ -5,26 +5,23 @@
 
 설계 근거: `docs/Pickage_기능별_개발_구상안_0909.md` §3.3~3.5, §4.1, §4.2, §14.
 
+> **재학습 관련 안내 (2026-09-14)**: 모델 재학습(재파인튜닝)은 최대한 지양하는 방향으로
+> 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 현재 서빙
+> 모델(v7)의 스펙과 학습 이력은 `ai/MODEL_CONTRACT.md`에 남아 있다. 아래 내용은
+> **이미 만들어진 모델을 유지·서빙하는 배치**(`similarity/`)에 집중한다.
+
 ## 폴더
 
 | 폴더 | 역할 | 실행 위치 |
 |---|---|---|
 | `similarity/` | 유사도 배치 파이프라인 컨테이너 (§4.1 6단계). CPU 추론·재랭킹·채점 게이트·MinIO 산출 | EC2 #1 (x86_64 — 2026-09-09 확인, 문서는 t4g/ARM 전제), cron 1회성 |
-| `training/` | GPU 재학습 오케스트레이터(`run_pipeline.sh`)의 **참조용 사본**. 학습 코드 본체(`finetune_bge_small_lora.py`, `merge_and_export_onnx_v6.py` 등)는 jupyter05에만 있고 레포에 커밋하지 않는다 | jupyter05 (GPU) |
-
-> 학습 코드가 레포 밖이므로 **재현성은 산출물 계약으로만 보장**된다. 학습 실행마다
-> `run_manifest.json`(코드 git hash·데이터 스냅샷 ID·하이퍼파라미터·base 모델 SHA)을
-> 모델 산출물과 함께 남긴다.
+| `training/` | 과거 학습 실행 스크립트의 참조용 사본. 재학습 파이프라인 자동화는 진행하지 않는다 | jupyter05 (GPU) |
 
 ## 전체 흐름 (방식 C — SIM/LOAD 분리)
 
 ```
-[jupyter05 GPU]  training_pairs pull → LoRA 파인튜닝 → merge → ONNX export
-        │                                                        │
-        │  (EC2 #1 SSH 터널: Tailscale 대체, §3.4 이탈 — 인프라 승인 필요)
-        ▼                                                        ▼
-[EC2 #1 CPU]  MLflow @candidate 등록·평가·@production 승격         │
-        │                                                        │
+[MLflow @production 모델]
+        │
         ├── ai/similarity 배치: 변경분 재임베딩 → 의미 검색 top-30 → 구조적 관문 →
         │   cos 정렬(§4.2) → 채점 게이트(Recall@N/@10) → MinIO 산출물 + manifest
         ▼
@@ -35,50 +32,35 @@
 
 `ai/similarity` 이미지는 PostgreSQL을 건드리지 않는다 (`psql`·PG 드라이버 없음).
 
-## 현재 상태 (2026-09-09)
+## 현재 상태 (2026-09-14)
 
 **완료**
-- GPU 서버 세팅 (jupyter05, L40S ×4) — S15P21A506-232
-- 임베딩 모델 선정: **bge-small-en-v1.5 + LoRA** (r=16, lr=5e-5, batch=32, epoch=10) — S15P21A506-167, 237
-- 실제 LoRA 파인튜닝·대규모 재검증 (2026-09-08) — S15P21A506-237
-  - 계승형 recall@3 0.864 vs 베이스라인 0.802 (z=5.57, 유의)
-  - 공존형 recall@3 0.833 vs 0.806 (미유의 — 평가셋 설계 한계)
-  - 산출물: `train_combined_v6.jsonl`(20,132쌍), `held_out_eval_bundle_v5.json`, `lora_final_v6`
 - CPU 추론 처리량 (더미벡터): EC2 #1에서 10만×384dim flat cosine top-20 = 110.9초 — S15P21A506-169 (티켓엔 "t4g/ARM"으로 기재됐으나 실측 노드는 x86_64)
-- **ONNX export 완료 (2026-09-09)**: `lora_final_v6` merge → `onnx_bge_v6/model.onnx` (opset 18, legacy TorchScript exporter, `dynamo=False`). GPU에서 PyTorch vs ONNX 오차 0.000000. pooling(CLS)+L2 정규화는 ONNX **밖**. — S15P21A506-287
+- **ONNX export 완료 (2026-09-09)**: GPU에서 PyTorch vs ONNX 오차 0.000000. pooling(CLS)+L2 정규화는 ONNX **밖**. — S15P21A506-287
 - 유사도 배치 컨테이너 골격 (`ai/similarity/`) — S15P21A506-282
 - 배치 본체 구현 + 2단계 랭커(검색 top-30 → 구조적 관문 → cos 정렬) — MR !102, S15P21A506-168, 2026-09-11 develop 머지
-- **v7 모델로 교체 (2026-09-11)** — S15P21A506-329. v6는 학습셋 positive 86%가 리네임이라 near-duplicate만 학습된 것으로 판명(재파인튜닝 금지). v7은 새 학습셋(`ai/training/train_v7_hiconf_norebrand.jsonl`)으로 재학습, held-out "기능적 대안" recall@3 **0.153**(base 대비 +40%). ONNX export·MinIO 업로드까지 완료, 상세 스펙은 `ai/MODEL_CONTRACT.md` 참고. **v6가 했던 EC2 #1 CPU 실측 검증(S15P21A506-287)은 v7으로 아직 안 함 — 미해결.**
+- **v7 모델로 교체 (2026-09-11)** — S15P21A506-329. ONNX export·MinIO 업로드까지 완료, 상세 배경·스펙은
+  `ai/MODEL_CONTRACT.md` 참고. **EC2 #1 CPU 실측 검증(S15P21A506-287)은 v7으로 아직 안 함 — 미해결.**
 
 **진행 중 / 블로커**
 
 | # | 블로커 | 담당 |
 |---|---|---|
-| B1 | `run_pipeline.sh`의 `EC2_HOST` 실제값 = EC2 #1(MinIO·MLflow 노드) 확인 | 인프라 |
-| B2 | jupyter05 → EC2 #1 pem 키 배치 + 보안그룹 22번에 jupyter05 IP 허용 | 인프라 |
-| B3 | Tailscale→SSH 터널 대체안 승인 (§3.7 내부 포트 접근 규칙 변경) | 인프라 + AI |
-| B4 | MinIO **읽기전용** curated 키 (admin 아님 — §3.7). 공유 서버라 중요 | 인프라 |
-| B5 | `pickage-curated`에 `training_pairs` 존재 여부 — S7 Spark 잡 미구현 → v6 학습셋이 GPU 로컬에만 있을 가능성 | AI |
-| B6 | EC2 #1 MLflow(5000) 배포 — 미배포. `run_pipeline.sh` 5단계·S15P21A506-236 공통 블로커 | 인프라 |
-| B7 | EC2 #1 = 4 vCPU / 15 GiB / **swap 2 GiB (컨테이너에는 0)** (Intel Xeon 8259CL, x86_64). Spark(~10G)·MinIO·MLflow·cron ETL과 공유 → 동시 실행 시 OOM 위험은 그대로다. AI 배치를 Spark ETL과 시간 겹치지 않게 cron 스케줄 분리 필요 (미정). **AI 배치를 compose 에 올릴 때 `mem_limit` 과 `memswap_limit` 을 짝으로 쓸 것** — 한쪽만 쓰면 상한이 조용히 2배가 된다 (deploy/prod/README.md 의 "Swap") | AI + 인프라 |
+| B1 | EC2 #1 = 4 vCPU / 15 GiB / **swap 2 GiB (컨테이너에는 0)** (Intel Xeon 8259CL, x86_64). Spark(~10G)·MinIO·MLflow·cron ETL과 공유 → 동시 실행 시 OOM 위험은 그대로다. AI 배치를 Spark ETL과 시간 겹치지 않게 cron 스케줄 분리 필요 (미정). **AI 배치를 compose 에 올릴 때 `mem_limit` 과 `memswap_limit` 을 짝으로 쓸 것** — 한쪽만 쓰면 상한이 조용히 2배가 된다 (deploy/prod/README.md 의 "Swap") | AI + 인프라 |
 
 ## 앞으로의 단계
 
 | Step | 내용 | 티켓 |
 |---|---|---|
-| 0 | `./run_pipeline.sh --no-train` — 터널 + MinIO pull 검증. B1·B2·B4·B5 확인 | — |
-| 1 | B5 판정: `training_pairs` 없으면 v6 학습셋을 MinIO `pickage-curated`에 업로드 (S7 임시 대체) | 신규 (조건부) |
-| 2 | `run_pipeline.sh` TODO 채우기 — 3개 스크립트 `--help` 확인, `TRAIN_CMD` 하이퍼파라미터, `prepare_training_format()`, `run_manifest.json` | 신규 |
-| 3 | 학습 + ONNX export (MLflow 제외). 산출물 수동 저장 | Step 2 티켓 |
-| 4 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
-| 5 | `ai/MODEL_CONTRACT.md` v7 갱신 — **완료**, 단 EC2 CPU 실측·저장 경로 불일치는 미해결 | S15P21A506-329 |
-| 6 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인) | S15P21A506-169 |
-| 7 | 인프라: MLflow 배포(B6) → `register_mlflow` 활성화 → @candidate/@production 경로 | S15P21A506-236 |
-| 8 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) — **완료**, 2026-09-11 develop 머지 | MR !102, S15P21A506-168 |
-| 9 | `similar_packages` 로더 (방식 C의 LOAD). `pipeline/postgresql/load.py` 패턴 재사용 | 신규 |
+| 1 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
+| 2 | `ai/MODEL_CONTRACT.md` v7 갱신 — **완료**, 단 EC2 CPU 실측·저장 경로 불일치는 미해결 | S15P21A506-329 |
+| 3 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인). 51K holdout 정답 노후화 문제 있음 — 아래 "채점 게이트 설계 메모" 참고 | S15P21A506-169 |
+| 4 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) — **완료**, 2026-09-11 develop 머지 | MR !102, S15P21A506-168 |
+| 5 | `similar_packages` 로더 (방식 C의 LOAD). `pipeline/postgresql/load.py` 패턴 재사용 | 신규 |
 | — | 제외 규칙·오추천 필터·재현성 검증 | S15P21A506-172, 173, 174 |
 
-**손대지 말 것 (지금)**: 리랭킹(S15P21A506-170, 보류), 근거 카드·RAG(147, 175~180 — 확장), 재파인튜닝 자동 트리거(236의 자동화 부분).
+**손대지 말 것 (지금)**: 재학습(재파인튜닝) 파이프라인 자체(자동 트리거 포함, 236) — 재학습은 최대한
+지양하는 방향으로 결정(2026-09-14), 리랭킹(S15P21A506-170, 보류), 근거 카드·RAG(147, 175~180 — 확장).
 
 ## 재랭킹 규칙 (§4.2)
 
