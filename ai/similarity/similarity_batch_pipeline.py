@@ -11,8 +11,8 @@
   1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
-  4 구조적 관문      구현 — plugin/adapter·same-family drop (--gate, 기본 on).
-                      보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
+                      S15P21A506-333). 보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -318,20 +318,34 @@ def is_same_family(a: str, b: str) -> bool:
     return False
 
 
+def is_repo_archived(value) -> bool:
+    """GitHub 저장소가 archived(보관 처리)됐는가 (S15P21A506-333).
+
+    `repo_full_name` 이 없어 build_package_text.py 의 repo_stat 과 LEFT JOIN 이 안 되면
+    이 값은 NULL(None) — 그 경우는 보관 아님으로 취급한다.
+    """
+    return bool(value)
+
+
 def apply_gates(
     hits: list[tuple[int, int, float]],
     names: list[str],
     keywords_by_idx: dict[int, list],
     enabled: bool,
+    archived_by_idx: dict[int, bool] | None = None,
 ) -> tuple[list[tuple[int, int, float]], dict]:
     """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
 
-    보완재 감점(의존 그래프)은 아직 미구현 — 여기서는 이름·keywords 만으로 판정 가능한
-    plugin/adapter 와 same-family(우산·하위모듈·스코프)만 drop 한다. enabled=False 면 무변경.
+    plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
+    GitHub 저장소가 archived 된 후보도 drop 한다(S15P21A506-333). 보완재 감점(의존 그래프)은
+    아직 미구현. enabled=False 면 무변경.
     """
     if not enabled:
         return hits, {}
-    kept, drops = [], {"plugin_adapter": 0, "same_family": 0}
+    drops = {"plugin_adapter": 0, "same_family": 0}
+    if archived_by_idx is not None:
+        drops["repo_archived"] = 0
+    kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
         if is_plugin_adapter(cand, keywords_by_idx.get(cand_idx)):
@@ -339,6 +353,9 @@ def apply_gates(
             continue
         if is_same_family(names[base_idx], cand):
             drops["same_family"] += 1
+            continue
+        if archived_by_idx is not None and is_repo_archived(archived_by_idx.get(cand_idx)):
+            drops["repo_archived"] += 1
             continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
@@ -450,7 +467,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     log(f"검색 top-{args.retrieve_k}: {len(hits)} 쌍 ({len(names)} base)")
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
-    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate)
+    archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
+    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate, archived_by_idx)
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
