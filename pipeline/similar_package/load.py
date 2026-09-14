@@ -29,6 +29,11 @@ DATASET = "similar-package"
 LOCK_KEY = 5150211                        # TODO(팀 합의): advisory lock 키 관리 규칙이 있으면 맞출 것
 # CK_SIMILAR_PACKAGE_RANK — rank BETWEEN 1 AND 50
 RANK_MAX = 50
+# 전량 교체가 남긴 dead tuple 정리. 트랜잭션 밖이어야 하고, 실패해도 적재는 유효하다.
+VACUUM = """
+\\set ON_ERROR_STOP off
+VACUUM (ANALYZE) public."similar_package";
+"""
 
 
 # 적재기 코드와 DB 마이그레이션을 하나의 해시로 묶는다.
@@ -223,7 +228,7 @@ ON CONFLICT (dataset) DO UPDATE
 SELECT to_jsonb(q) FROM quality q;
 
 {"ROLLBACK;" if verify_only else "COMMIT;"}
-"""
+{VACUUM if not verify_only else ""}"""
     return head, tail
 
 
