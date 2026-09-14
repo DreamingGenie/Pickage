@@ -114,19 +114,25 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "data", "registry", "raw"))
     ap.add_argument("--watch", action="store_true")
     ap.add_argument("--interval", type=int, default=60)
-    ap.add_argument("--refresh-parquet", action="store_true", help="to_parquet.py를 실행해 data/registry/parquet 갱신")
+    ap.add_argument("--refresh-parquet", action="store_true", help="to_parquet.py를 실행해 Parquet 갱신")
+    ap.add_argument("--parquet-out", default=os.path.join(ROOT, "data", "registry", "parquet"),
+                    help="변환 결과를 쓸 폴더. --run 을 바꿔 돌릴 때 여기도 바꾸지 않으면 to_parquet 가 거부한다")
+    ap.add_argument("--refresh-min-interval", type=int, default=3600,
+                    help="--refresh-parquet 재실행 최소 간격(초). 변환은 2,000만 행 규모에서 수십 분이라 자주 돌리면 수집기와 자원을 다툰다")
     a = ap.parse_args()
-    last_parts = -1
+    last_refresh = 0.0
     while True:
         finished = report(a.run, a.out)
-        if a.refresh_parquet:
-            # 변환은 2,000만 행 규모에서 수십 분·수십 GB 라 완성된 part 수가 늘었을 때만 다시 돈다(--watch 와 같이 써도 연속 실행되지 않게)
+        # part 수가 늘었는지로 판단하면 15초에 하나씩 늘어나는 동안 60초 주기마다 매번 참이라 변환이 등을 맞대고 돈다.
+        # 시간 하한을 두고, 수집이 끝났으면 하한과 무관하게 마지막 한 번은 돌려 마지막 part 를 결과에 넣는다.
+        if a.refresh_parquet and (finished or time.time() - last_refresh >= a.refresh_min_interval):
             rundir = os.path.join(a.out, f"run={a.run}")
-            n_parts = len([f for f in os.listdir(rundir) if f.startswith("part-") and f.endswith(".jsonl.gz")]) if os.path.isdir(rundir) else 0
-            if n_parts != last_parts:
-                last_parts = n_parts
-                subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", rundir,
-                                "--out", os.path.join(ROOT, "data", "registry", "parquet")], check=False)
+            p = subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", rundir,
+                                "--out", a.parquet_out])
+            if p.returncode == 0:
+                last_refresh = time.time()
+            else:   # 실패했으면 시각을 갱신하지 않아 다음 주기에 다시 시도한다
+                print(f"  변환   실패(exit {p.returncode}). 다음 주기에 다시 시도한다")
         if not a.watch or finished:
             break
         time.sleep(a.interval)
