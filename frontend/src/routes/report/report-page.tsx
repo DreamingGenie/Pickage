@@ -217,7 +217,7 @@ export function ReportPage() {
         </TabsContent>
         <TabsContent value="features" className="pt-7">
           <Suspense fallback={<TabFallback />}>
-            <FeatureCompareTab run={run} onOpenEvidence={openEvidence} />
+            <FeatureCompareTab packages={packages} run={run} onOpenEvidence={openEvidence} />
           </Suspense>
         </TabsContent>
       </Tabs>
