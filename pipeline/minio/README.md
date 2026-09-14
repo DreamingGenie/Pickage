@@ -29,7 +29,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 | 버킷 | 역할 | 저장 대상 | 현재 상태 |
 | --- | --- | --- | --- |
 | `pickage-raw` | Bronze 원본 보관 | 수집된 Parquet 원본, 원본·검증 manifest, 완료 표시 | deps.dev 데이터 입고 완료 |
-| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고 |
+| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과, 빌더가 만든 파생 데이터셋 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고 |
 | `pickage-vectors` | 벡터 산출물 보관 | 향후 패키지 임베딩과 패키지·모델 버전 연결 정보 | 버킷 생성만 완료; 벡터 생성·검색 연동 미구현 |
 | `pickage-mlflow-artifacts` | 학습·실험 산출물 보관 | 향후 MLflow의 모델 파일, 평가 보고서 등 | 버킷 생성만 완료; MLflow 연동 미구현 |
 | `pickage-quarantine` | 검증 실패 데이터 격리 | 향후 오류 레코드와 실패 사유 등 조사 대상 | 버킷 생성만 완료; 자동 격리 미구현 |
@@ -41,7 +41,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 
 ## 현재 진행 상황
 
-2026-09-09 확인 기준이다. 아래 입고 수치는 저장된 검증 manifest 기준이며,
+2026-09-14 확인 기준이다. 아래 입고 수치는 저장된 검증 manifest 기준이며,
 이 문서 작성 시 전체 객체의 해시를 다시 계산한 결과는 아니다.
 
 - [x] 루트 Compose에서 로컬 MinIO 실행 및 데이터 볼륨 관리
@@ -52,6 +52,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] `package`·`version` Curated 전처리 구현 및 로컬 전체 데이터 저장·재검증
 - [x] 서버 MinIO 기동 및 로컬에서 터널로 적재하는 경로 (2026-09-09)
 - [x] ecosyste.ms keywords 원본 서버 입고 (`keywords-20260909-v1`)
+- [x] 파생 데이터셋 입고 경로 (`ingest_derived.py`) — 폐기→대체 데이터셋 서버 입고 (`deprecated-replacement-20260914-v1`)
 - [ ] npm registry 원본 입고 — **수집이 아직 진행 중이다.** 입고 경로는 준비되어 있고,
       `manifest.json` 의 `pending` 이 0 이 되면 실행한다
 - [ ] PostgreSQL 적재
@@ -84,6 +85,12 @@ Curated 전처리는 위 Bronze 중 `2026-08-31` 스냅샷의 `versions_full`과
 Bronze 원본을 변경하거나 `pickage-quarantine`으로 이동하지 않는다.
 `curated-20260907-v2`에서 package 11,080,940행과 version 54,188,349행을 생성했고,
 관리·품질 파일을 포함해 Parquet 44개(약 4.85GB)를 저장했다.
+
+파생 데이터셋은 `deprecated-replacement-20260914-v1` 로 폐기→대체 데이터셋
+Parquet 1개(2,839,460바이트·28,241행)를 서버 `pickage-curated` 에 넣었다. 같은 실행 ID로
+재실행해 객체가 늘지 않고 해시 재검증만 통과하는 것을 확인했다. 같은 버킷의
+`migration-pairs-20260909-v1`(Parquet 3개)은 이 경로가 생기기 전에 손으로 올린 것이라
+`run_manifest.json` 형태가 조금 다르다.
 
 수집기 원본은 `keywords-20260909-v1` 로 ecosyste.ms keywords 수집일 `2026-09-08` 을
 서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
@@ -226,6 +233,27 @@ PICKAGE_S3_ENDPOINT=http://localhost:19000 (.env.server)
 `boto3`는 로컬 MinIO의 S3 API 호출에, `duckdb`는 입고 전 Parquet 메타데이터의
 행 수 확인에 사용한다. DuckDB 서버를 별도로 띄우거나 MinIO 컨테이너에 설치하지 않는다.
 
+## 파생 데이터셋 입고 실행
+
+`pipeline/duckdb/build_*.py` 가 원본에서 계산해 낸 작은 데이터셋은 `pickage-raw` 가 아니라
+`pickage-curated` 에 넣는다. 원본이 아니라 원본을 가공한 결과이기 때문이다.
+
+```powershell
+$env:PICKAGE_MINIO_ENV=".env.server"
+.venv-bq/Scripts/python.exe -m pipeline.minio.ingest_derived --dataset deprecated-replacement --dry-run
+.venv-bq/Scripts/python.exe -m pipeline.minio.ingest_derived --dataset deprecated-replacement --run-id deprecated-replacement-20260914-v1
+```
+
+`--dataset` 에 넣을 수 있는 값과 각 데이터셋의 로컬 경로·설명·Jira 키는
+`ingest_derived.py` 의 `DATASETS` 에 있다. 빌더를 먼저 돌려 Parquet 을 만들어 둬야 한다.
+
+**재생성할 수 있는데 왜 올리나.** 빌더는 `data/raw` 의 수십 GB Parquet 을 그대로 들고 있는
+PC 에서만 돈다. 그 PC 가 사라지면 git 의 CSV 만 남고, 그것을 만든 계산은 복원할 수 없다.
+
+`run_manifest.json` 에는 업로드 시각을 넣지 않는다. 같은 실행 ID 로 다시 돌리면 만들어지는
+manifest 가 이미 올라간 것과 한 바이트도 다르지 않아야, 덮어쓰기 대신 **전량 해시 재검증**으로
+통과한다. 시각이 들어가면 재검증 자체가 실패한다.
+
 ## 수집기 원본 입고 실행
 
 deps.dev 스냅샷은 위의 `ingest_raw.py` 가 맡는다. API 수집기(ecosyste.ms keywords,
@@ -277,6 +305,17 @@ depsdev/v1/{table}/snapshot={date}/run_id={run}/
   source_manifest.json # 원본 _MANIFEST.json 보존
   run_manifest.json    # 파일별 크기·SHA-256 및 입고 검증 결과
   _SUCCESS             # 해당 데이터셋·스냅샷·실행의 검증 완료 표시
+```
+
+빌더가 만든 파생 데이터셋은 `pickage-curated` 의 다음 경로에 넣는다. 관리 파일에
+`source_manifest.json` 이 없는 것은 원본 manifest 를 물려받을 원본이 없기 때문이고,
+대신 `run_manifest.json` 에 빌더 경로·원천·Jira 키·주의사항을 적는다.
+
+```text
+depsdev/v1/{dataset}/snapshot={date}/run_id={run}/
+  data/*.parquet        # 빌더 산출물
+  run_manifest.json     # 파일별 크기·행 수·SHA-256, 빌더·원천·README 위치, notes
+  _SUCCESS              # 해당 데이터셋·스냅샷·실행의 검증 완료 표시
 ```
 
 수집기 원본은 소스별로 다음 경로에 넣는다. 검증 규칙과 관리 파일은 위와 같다.
