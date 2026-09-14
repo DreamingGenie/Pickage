@@ -165,6 +165,18 @@ class Pointer(unittest.TestCase):
         self.assertEqual(state, 'advanced')
         self.assertEqual(json.loads(s3.objects[self.KEY])['collected_date'], '2026-10-06')
 
+    def test_repeated_put_failure_surfaces_the_real_error(self):
+        """깨지면: 권한 오류가 동시성 충돌로 둔갑해, 운영자가 있지도 않은 동시 게시자를
+        찾는다. 첫 실패는 경합일 수 있어 다시 읽어 보지만 두 번째는 원인을 올려야 한다."""
+        class Denying(FakeS3):
+            def put_object(self, **kwargs):
+                raise ClientError({'Error': {'Code': 'AccessDenied'}}, 'PutObject')
+
+        with self.assertRaises(ClientError):
+            publish_pointer(Denying(), self.KEY,
+                            self.value('2026-09-08', 'package-text-20260908-v1'),
+                            'collected_date')
+
     def test_same_date_new_run_id_advances(self):
         """잘못 올린 회차를 고칠 길은 남겨 둔다 — 같은 수집일의 새 run 은 막지 않는다."""
         s3 = FakeS3()

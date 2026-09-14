@@ -24,9 +24,11 @@ import re
 import uuid
 
 from boto3.s3.transfer import TransferConfig
-from botocore.exceptions import ClientError
 import duckdb
 
+# 포인터 게시에 필요한 조건부 PUT 은 Curated 쪽에 이미 있다 (put_once 는 ETag 를 돌려주지
+# 않아 CAS 를 못 한다). 기반 계층이 상위 패키지를 부르는 모양이라 리뷰에서 볼 것 — 다만
+# storage.py 는 pipeline.minio 를 import 하지 않으므로 순환은 아니다.
 from pipeline.curated.storage import compare_and_swap_json, json_bytes, read_optional
 from pipeline.minio.ingest_raw import ROOT, client, digest, exists, put_once
 
@@ -154,6 +156,21 @@ def pointer_value(spec, date_value, run_id, manifest_sha):
             'run_path': f'{spec["partition"]}={date_value}/run_id={run_id}'}
 
 
+def refuse_rollback(current, date_value, date_key, key):
+    """Raise when the pointer already names a later collection than the one publishing.
+
+    Re-verifying an older completed run is fine; sending the consumer back to that
+    older corpus is not. Called twice per run - once before uploading, so a refusal
+    costs nothing, and again inside publish_pointer, which is the decision that counts.
+    """
+    if not isinstance(current, dict):
+        return                      # 없거나 알아볼 수 없는 포인터는 이 판정의 대상이 아니다
+    seen = str(current.get(date_key, ''))
+    if seen > date_value:
+        raise ValueError(f'Current pointer is newer ({seen} > {date_value}):'
+                         f' refusing to roll {key} back')
+
+
 def publish_pointer(s3, key, value, date_key):
     """Move _current.json to this run, or refuse. Returns what it did.
 
@@ -161,22 +178,29 @@ def publish_pointer(s3, key, value, date_key):
     same dataset at once. A lock would only add one that someone has to clear after
     a hard stop.
     """
-    for _ in range(2):
+    for attempt in range(2):
         previous = read_optional(s3, BUCKET, key)
         current = json.loads(previous[0]) if previous else None
         if current == value:
             return 'unchanged'
-        if current is not None and str(current.get(date_key, '')) > value[date_key]:
-            # Re-verifying an older completed run is fine; sending the consumer back
-            # to its corpus is not.
-            raise ValueError(f'Current pointer is newer ({current.get(date_key)} >'
-                             f' {value[date_key]}): refusing to roll {key} back')
+        try:
+            refuse_rollback(current, value[date_key], date_key, key)
+        except ValueError as error:
+            # 여기까지 왔으면 객체·manifest·_SUCCESS 는 이미 다 올라가 있다. 그 사실을
+            # 말해 주지 않으면 "실패했으니 아무것도 안 올라갔다" 로 읽는다.
+            raise ValueError(f'{error}. 이 실행의 객체와 _SUCCESS 는 이미 게시됐고'
+                             ' 포인터만 그대로 둔다') from error
         try:
             compare_and_swap_json(s3, BUCKET, key, value, previous[1] if previous else None)
             return 'created' if current is None else 'advanced'
-        except ClientError:
-            continue  # someone wrote first; read once more and judge again
-    raise ValueError('Pointer changed twice while publishing: ' + key)
+        except Exception:
+            # 오류 코드로 분류하지 않고 결과를 다시 읽어 판정한다 (storage.put_immutable 과
+            # 같은 방식). 로컬과 운영의 MinIO 버전이 달라 코드 문자열을 믿기 어렵다.
+            # 두 번째도 실패하면 원인을 감추지 않고 그대로 올린다 — 권한 오류를 경합으로
+            # 둔갑시키면 운영자가 있지도 않은 동시 게시자를 찾는다.
+            if attempt:
+                raise
+    raise AssertionError('publish_pointer: 도달할 수 없는 경로')
 
 
 def main():
@@ -198,7 +222,8 @@ def main():
         # The pointer decides whether to advance by comparing these as dates.
         if date.fromisoformat(date_value).isoformat() != date_value:
             raise ValueError
-    except ValueError:
+    except (TypeError, ValueError):
+        # TypeError 는 데이터셋에 date 를 빠뜨렸을 때다 (fromisoformat(None)).
         ap.error(f'Partition date must be YYYY-MM-DD: {date_value}')
 
     files = select_files(spec, ROOT / spec['root'], date_value)
@@ -223,6 +248,12 @@ def main():
     if not args.dry_run:
         s3 = client()
         completed = exists(s3, BUCKET, prefix + '/_SUCCESS')
+        if pointer_key:
+            # 거부될 게시에 업로드를 먼저 태우지 않는다. 최종 판정은 publish_pointer 가
+            # CAS 와 함께 다시 한다 — 그 사이에 포인터가 움직일 수 있기 때문이다.
+            seen = read_optional(s3, BUCKET, pointer_key)
+            refuse_rollback(json.loads(seen[0]) if seen else None, date_value,
+                            spec['partition'], pointer_key)
 
         def upload(path):
             key = prefix + '/data/' + names[path]
