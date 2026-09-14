@@ -15,7 +15,6 @@ MR 을 열면 무엇이 돌고, 그것을 돌리는 러너를 어떻게 세우�
 | 잡 | 이미지 | 무엇을 검증하나 |
 | --- | --- | --- |
 | `frontend` | `node:22-alpine` | `npm ci` → `npm run typecheck` → `npm run lint` → `npm run build` |
-| `frontend-format` | `node:22-alpine` | `npm run format:check` (Prettier). **지금은 실패해도 MR 을 막지 않는다** — 아래 "아직 없는 것" |
 | `backend-test` | `eclipse-temurin:21-jdk` | `gradlew test` — DB 가 필요 없는 단위 시험 |
 | `backend-integration-test` | `eclipse-temurin:21-jdk` + `postgres:16` 서비스 | `gradlew integrationTest` — 진짜 Postgres 에 Flyway 전체를 적용하고 도는 시험 |
 | `pipeline-ok` | `alpine:3.21` | 코드는 검증하지 않는다. **맨 앞에서 2초** — 아래 "맨 앞에서 2초" |
@@ -30,7 +29,7 @@ CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를
 
 | 무엇을 고쳤나 | 도는 잡 |
 | --- | --- |
-| `frontend/` 아래 | `frontend`, `frontend-format` |
+| `frontend/` 아래 | `frontend` |
 | `backend/` 아래 | `backend-test`, `backend-integration-test` |
 | `.gitlab-ci.yml` | **전부** (CI 를 고친 MR 이 CI 를 안 돌리고 통과하면 안 된다) |
 | 문서·`pipeline/` 등 그 외 | `pipeline-ok` 만 |
@@ -264,7 +263,7 @@ docker builder prune -f --filter "until=168h"
 | **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m unittest discover -s pipeline/curated`, `python -m unittest pipeline.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
 | **CD(자동 배포)** | 별도 이슈 **S15P21A506-223**. 이 파이프라인은 검증만 한다 |
 | **Gradle 캐시를 호스트 볼륨으로** | 지금은 GitLab 캐시(압축·해제)를 쓴다. `[runners.docker] volumes` 에 호스트 디렉터리를 물리면 더 빠르지만, 러너 설정과 파이프라인이 묶인다 |
-| **`frontend-format` 을 blocking 으로** | `npm run format:check` 가 2026-09-12 기준 develop 에서 **71개 파일**에 걸린다. 한꺼번에 `npm run format` 을 돌리면 포맷만 바뀐 큰 diff 가 진행 중인 프런트 브랜치와 충돌하므로, 그 정리를 별도 이슈로 하고 그때 `.gitlab-ci.yml` 의 `allow_failure` 를 지운다 |
+| **프런트 포맷 검사(Prettier)** | 프런트는 한 사람이 단독으로 작업해 포맷이 갈릴 상대가 없고, 동작에 영향을 주는 검사도 아니다. 넣어 두면 develop 기준 **71개 파일**(2026-09-12)이 걸려 항상 빨간불이거나 항상 무시하는 노란불이 되고, 그러면 나머지 검사의 신호까지 갉아먹는다. 여럿이 만지기 시작하면 `npm run format` 으로 한 번 정리하고 `frontend` 잡의 script 를 `npm run check` 한 줄로 바꾼다. 그 전까지도 로컬에서는 `npm run format:check` 로 언제든 볼 수 있다 |
 
 ## 올리기 전에 로컬에서 확인한 것 (2026-09-12)
 
@@ -276,7 +275,7 @@ CI 로 처음 돌렸을 때 **우리 코드가 아니라 파이프라인 설정 
 | `npm run typecheck` | 통과 |
 | `npm run lint` | 통과 (경고 4개, 오류 0 — eslint 는 경고로 실패하지 않는다) |
 | `npm run build` | 통과 |
-| `npm run format:check` | **실패** — 71개 파일. 위 "아직 없는 것" |
+| `npm run format:check` | **실패** — 71개 파일. 이래서 CI 에 넣지 않았다 (위 "아직 없는 것") |
 | `./gradlew test` | 통과 (3분 20초) |
 | `./gradlew integrationTest` | **아직 못 돌려 봤다** — 로컬 Docker 가 꺼져 있었다. postgres 서비스를 붙이는 이 잡이 이 파이프라인에서 가장 불확실한 부분이고, 실제 러너에서 확인해야 한다 |
 

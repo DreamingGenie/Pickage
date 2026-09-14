@@ -3,7 +3,6 @@
 # 무엇을 검증하나
 #
 #   frontend                  npm ci → typecheck → lint → vite build
-#   frontend-format           prettier 검사. **실패해도 MR 을 막지 않는다** (아래 프런트 주석)
 #   backend-test              gradlew test            (DB 가 필요 없는 단위 시험)
 #   backend-integration-test  gradlew integrationTest (postgres 서비스를 붙여 돌린다)
 #   pipeline-ok               맨 앞에서 2초. 환경 확인 겸, 돌 잡이 없을 때 대신 서 있는 잡
@@ -117,12 +116,15 @@ variables:
 # 이미지를 `frontend/Dockerfile` 의 빌드 단계와 같은 node:22-alpine 으로 맞춘다.
 # 여기서 통과한 것이 배포 이미지 빌드에서 처음 깨지는 일을 막는다 (로컬 Node 는 24 다).
 #
-# ⚠ package.json 의 `check`(typecheck && lint && format:check)를 그대로 부르지 않고 쪼갰다.
-#   **format:check 가 지금 develop 에서 실패한다** — 2026-09-12 기준 71개 파일.
-#   여기서 한꺼번에 `npm run format` 을 돌리면 포맷만 바뀐 큰 diff 가 생겨 진행 중인 프런트
-#   브랜치와 충돌한다. 그래서 포맷은 아래 `frontend-format` 에서 따로, 실패해도 MR 을 막지
-#   않게 돌린다. **정리가 끝나면 allow_failure 와 이 주석을 함께 지우고 `npm run check`
-#   한 줄로 되돌린다.**
+# ⚠ package.json 의 `check`(typecheck && lint && format:check)를 그대로 부르지 않는다.
+#   **포맷 검사는 CI 에서 돌리지 않는다.** 프런트는 한 사람이 단독으로 작업하고 있어 포맷이
+#   갈릴 상대가 없고, 동작에 영향을 주는 검사도 아니다. 넣어 두면 develop 기준 71개 파일이
+#   걸려(2026-09-12) 항상 빨간불이거나 항상 무시하는 노란불이 되는데, 둘 다 나머지 검사의
+#   신호를 갉아먹는다.
+#
+#   포맷 검사가 필요해지는 때는 프런트를 여럿이 만지기 시작할 때다. 그때 `npm run format`
+#   으로 한 번 정리한 뒤 아래 script 를 `npm run check` 한 줄로 바꾸면 된다.
+#   그 전까지도 `npm run format:check` 는 로컬에서 언제든 돌릴 수 있다.
 
 # 락파일이 바뀌면 새 캐시를 쓴다. 브랜치별로 갈리지 않으므로 남의 브랜치가 받아 둔
 # 것도 그대로 쓴다.
@@ -158,21 +160,6 @@ frontend:
     # 타입과 lint 를 통과해도 빌드는 깨질 수 있다(vite 플러그인·번들 단계).
     # 배포되는 산출물을 실제로 만들어 보는 것이 이 줄이다.
     - npm run build
-
-frontend-format:
-  extends:
-    - .frontend
-    - .rules-frontend
-  timeout: 15m
-  # 노란 경고로만 뜬다. 지금 실패하는 것이 알려진 상태인데 빨간불로 두면 그 빨간불이
-  # **전부** 무시되기 시작한다 — 그러면 진짜 실패도 같이 묻힌다.
-  allow_failure: true
-  cache:
-    <<: *npm-cache
-    # 같은 캐시를 위 frontend 잡이 이미 올린다. 두 번 올릴 이유가 없다.
-    policy: pull
-  script:
-    - npm run format:check
 
 # ── 백엔드 ──────────────────────────────────────────────────────
 .backend:
