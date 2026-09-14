@@ -18,6 +18,7 @@ import shlex
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -36,6 +37,11 @@ ROOT_TABLES = (
 CHILD_PATTERN = re.compile(r"^d\d{8}$")
 CANDIDATE_PATTERN = re.compile(r"^pickage_import_341_[a-z0-9][a-z0-9_-]*$")
 DB_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+# PostgreSQL's exported snapshot names are generated as two hexadecimal
+# transaction identifiers followed by a decimal sequence number.  Keep this
+# deliberately narrow: accepting arbitrary strings here would make a typo
+# reach pg_dump after the archive directory has already been created.
+SNAPSHOT_TOKEN_PATTERN = re.compile(r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{8}-[0-9]+$")
 MANIFEST_NAME = "archive-manifest.json"
 
 
@@ -55,6 +61,18 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_snapshot_token(value: str | None) -> str | None:
+    """Validate an optional token returned by ``pg_export_snapshot``."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not SNAPSHOT_TOKEN_PATTERN.fullmatch(value):
+        raise TransferError(
+            "snapshot token must match PostgreSQL's exported form "
+            "XXXXXXXX-XXXXXXXX-N"
+        )
+    return value
+
+
 def archive_files(archive: Path) -> list[Path]:
     if not archive.is_dir():
         raise TransferError(f"archive directory does not exist: {archive}")
@@ -65,16 +83,52 @@ def archive_files(archive: Path) -> list[Path]:
 
 
 def write_json(path: Path, payload: dict) -> None:
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    """Write JSON atomically, tolerating transient Windows sharing locks.
+
+    A unique sibling temporary file avoids collisions with a reader or with
+    another writer.  ``os.replace`` remains the only operation that changes
+    the destination, so a failed write leaves its previous contents intact.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    encoded = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    try:
+        with temporary.open("w", encoding="utf-8", newline="") as stream:
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        attempts = 8 if os.name == "nt" else 1
+        delay = 0.05
+        for attempt in range(attempts):
+            try:
+                os.replace(temporary, path)
+                return
+            except OSError as exc:
+                winerror = getattr(exc, "winerror", None)
+                retryable = os.name == "nt" and winerror in {5, 32, 33}
+                if not retryable or attempt + 1 == attempts:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 0.5)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def manifest_path(archive: Path) -> Path:
     return archive.parent / MANIFEST_NAME
 
 
-def write_manifest(archive: Path, *, source_db: str, jobs: int, compression: str) -> Path:
+def write_manifest(
+    archive: Path,
+    *,
+    source_db: str,
+    jobs: int,
+    compression: str,
+    snapshot: str | None = None,
+) -> Path:
     files = [
         {"path": str(path.relative_to(archive)).replace(os.sep, "/"), "size": path.stat().st_size, "sha256": sha256_file(path)}
         for path in archive_files(archive)
@@ -86,6 +140,7 @@ def write_manifest(archive: Path, *, source_db: str, jobs: int, compression: str
         "format": "pg_dump-directory",
         "jobs": jobs,
         "compression": compression,
+        "snapshot": validate_snapshot_token(snapshot),
         "root_tables": list(ROOT_TABLES),
         "child_schema": CHILD_SCHEMA,
         "files": files,
@@ -270,6 +325,7 @@ def verify_container_files(archive: Path, args: argparse.Namespace, manifest: di
 def dump_archive(args: argparse.Namespace) -> Path:
     if not DB_NAME_PATTERN.fullmatch(args.source_db):
         raise TransferError("source DB must be a plain database name, not a connection URI")
+    snapshot = validate_snapshot_token(getattr(args, "snapshot", None))
     archive = Path(args.archive_dir).resolve()
     if manifest_path(archive).exists():
         raise TransferError("run directory already has a manifest; choose a new run directory")
@@ -285,15 +341,24 @@ def dump_archive(args: argparse.Namespace) -> Path:
         f"--dbname={args.source_db}",
         f"--jobs={args.jobs}",
         f"--compress={args.compression}",
+        "--lock-wait-timeout=30s",
         "--no-owner",
         "--no-privileges",
     ]
+    if snapshot is not None:
+        dump_args.append(f"--snapshot={snapshot}")
     dump_args.extend(f"--table=public.{table}" for table in ROOT_TABLES[:-1])
     dump_args.append("--table-and-children=public.package_version_snapshot")
     started = time.monotonic()
     run_checked(client_command("pg_dump", args.container, with_user(args, dump_args)), label="pg_dump")
     validate_toc(archive, args)
-    manifest = write_manifest(archive, source_db=args.source_db, jobs=args.jobs, compression=args.compression)
+    manifest = write_manifest(
+        archive,
+        source_db=args.source_db,
+        jobs=args.jobs,
+        compression=args.compression,
+        snapshot=snapshot,
+    )
     if args.container:
         verify_container_files(archive, args)
     print(json.dumps({"archive": str(archive), "manifest": str(manifest), "elapsed_seconds": round(time.monotonic() - started, 3)}))
@@ -414,6 +479,8 @@ def build_parser() -> argparse.ArgumentParser:
     dump.add_argument("--archive-dir", type=Path, required=True)
     dump.add_argument("--jobs", type=int, default=4)
     dump.add_argument("--compression", default="zstd:1", choices=("zstd:1", "gzip:1"))
+    dump.add_argument("--snapshot", type=validate_snapshot_token,
+                      help="PostgreSQL exported snapshot token from pg_export_snapshot()")
     dump.add_argument("--container")
     dump.add_argument("--container-archive-dir")
 

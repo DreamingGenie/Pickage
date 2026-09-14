@@ -30,6 +30,21 @@ class ServiceDataTransferTests(unittest.TestCase):
             with self.assertRaises(transfer.TransferError):
                 transfer.verify_manifest(archive)
 
+    def test_snapshot_token_is_recorded_and_validated(self):
+        token = "00000003-0000001B-1"
+        with tempfile.TemporaryDirectory() as raw:
+            archive = Path(raw) / "archive"
+            archive.mkdir()
+            (archive / "toc.dat").write_bytes(b"archive")
+            manifest_path = transfer.write_manifest(
+                archive, source_db="source", jobs=4, compression="zstd:1", snapshot=token
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["snapshot"], token)
+            self.assertEqual(transfer.verify_manifest(archive)["snapshot"], token)
+            with self.assertRaises(transfer.TransferError):
+                transfer.validate_snapshot_token("not-a-snapshot")
+
     def test_candidate_name_and_database_guards(self):
         args = type("Args", (), {"candidate_db": "pickage_import_341_run1", "source_db": "pickage", "service_db": "pickage"})()
         transfer.assert_candidate(args)
@@ -105,11 +120,30 @@ class ServiceDataTransferTests(unittest.TestCase):
             args = type("Args", (), {
                 "source_db": "source", "archive_dir": Path(raw) / "archive", "jobs": 4,
                 "compression": "zstd:1", "container": None, "container_archive_dir": None, "user": "postgres",
+                "snapshot": "00000003-0000001B-1",
             })()
             transfer.dump_archive(args)
             command = run_checked.call_args_list[0].args[0]
             self.assertIn("--table=public.package", command)
             self.assertIn("--table-and-children=public.package_version_snapshot", command)
+            self.assertIn("--lock-wait-timeout=30s", command)
+            self.assertIn("--snapshot=00000003-0000001B-1", command)
+            manifest = json.loads(transfer.manifest_path(Path(raw) / "archive").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["snapshot"], "00000003-0000001B-1")
+
+    @patch.object(transfer, "run_checked")
+    def test_invalid_snapshot_is_rejected_before_archive_side_effects(self, run_checked):
+        with tempfile.TemporaryDirectory() as raw:
+            archive = Path(raw) / "archive"
+            args = type("Args", (), {
+                "source_db": "source", "archive_dir": archive, "jobs": 4,
+                "compression": "zstd:1", "container": None, "container_archive_dir": None,
+                "user": "postgres", "snapshot": "malformed-token",
+            })()
+            with self.assertRaises(transfer.TransferError):
+                transfer.dump_archive(args)
+            self.assertFalse(archive.exists())
+            run_checked.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -77,6 +77,63 @@ python -m unittest tests.test_service_data_migration -v
 
 ## 아직 실행하지 않은 범위
 
-- 원본 컨테이너의 실제 대용량 archive 저장 경로/클라이언트 연결 준비. 위 Docker 예시는 해당 경로가 이미 마운트된 경우이며 기존 컨테이너의 마운트를 자동 변경하지 않는다.
-- SSH/SFTP 이어받기 전송, 기존 서버 백업·후보 DB 생성, 서버 Flyway 실행기, 서비스 연결 전환.
-- 서버 자원 측정, 전체 데이터 검증, 실패한 COPY의 테이블별 재개. 따라서 현재는 전체 이관 준비 완료 상태가 아니다.
+- 전체 크기의 archive 생성/전송/복원, 서비스 연결 전환.
+- 전체 데이터 검증, 실패한 COPY의 테이블별 재개. 따라서 현재는 전체 이관 준비 완료 상태가 아니다.
+
+로컬 원본의 덤프 클라이언트와 실제 저장 경로는 [연결 안내](../../docs/worklogs/S15P21A506-341/04-local-dump-access.md)에서 확인한다. 위 Docker 예시는 경로가 이미 마운트된 경우이며 기존 컨테이너의 마운트를 자동 변경하지 않는다.
+
+작은 서버 표본에서는 SFTP 이어받기, 기존 서버 백업·후보 DB 생성, 실제 Flyway 실행과 값 검증까지 확인했다. [서버 결과](../../docs/worklogs/S15P21A506-341/05-server-pilot.md)에 실행 위치·측정값·미실행 범위를 기록했다. 서버의 서비스 연결은 바꾸지 않았다.
+
+## 큰 서버 표본 측정
+
+`build_benchmark_sample.py --output data/service-data-migration/benchmark-N`은 기존 원본에서
+표본과 필요한 FK 참조를 추출해 별도 로컬 DB를 만든다. 기존 출력과 같은 이름의 컨테이너는 덮어쓰지 않는다.
+표본 생성 자체는 전체 배포 절차에 포함되지 않는다. 준비된 표본 DB에 `transfer.py dump`를 별도로 실행한다.
+
+`server_pilot.py --work-dir <서버의 새 341 작업 폴더> --benchmark`는
+`341-large-server-benchmark` 범위의 SHA 검증된 번들만 받는다. archive 최대 2GiB와 서버 여유 공간 20GiB를 검사한다.
+이 모드의 `expected-signatures.json`은 다섯 테이블별 `{rows, sum_hi, sum_lo}`를 담는다.
+행 전체 JSON의 MD5 앞/뒤 64비트를 signed bigint로 바꿔 합산하므로 행 정렬에 영향을 받지 않는다.
+열 순서와 DateStyle은 원본/복원 DB에서 같아야 한다.
+
+306만 행 시험은 서버 절차 50.293초로 PASS였다. [측정 결과와 환산 한계](../../docs/worklogs/S15P21A506-341/06-large-benchmark.md)를 확인한다.
+
+## 전체 덤프와 같은 시점의 원본 검증
+
+`prepare_full_dump.py`는 export한 MVCC snapshot을 `transfer.py dump --snapshot`과 모든 검증 연결에 전달한다.
+읽기 전용 보관 세션은 전체 작업 동안 유지하며, root와 날짜 자식의 데이터/값 서명을 계산한다.
+`package_snapshot`은 한 번 읽어 날짜별로 집계하고 PVS는 자식별 receipt를 합산한다.
+
+```powershell
+python scripts/service-data-migration/prepare_full_dump.py `
+  --run-dir data/service-data-migration/341/local-dump-probe/full-new-run
+```
+
+실제 run 이름은 ASCII 영문/숫자/하이픈/밑줄만 사용한다. 기본 원본과 마운트는 준비된 로컬 덤프 클라이언트 기준이다.
+실행 결과가 있는 폴더는 재사용하지 않는다. 긴 실제 실행은 코드를 run의 `code/`에 복사한 뒤
+Windows `Start-Process -WindowStyle Hidden`으로 stdout/stderr를 파일에 보내도록 시작했다.
+전체 작업 시간제한은 두지 않으며 `M3_COMPLETE`에서만 전송 가능한 상태로 표시한다.
+
+현재 실행 위치와 자세한 확인 방법은 [M3 전체 덤프 안내](../../docs/worklogs/S15P21A506-341/07-full-dump.md)에 있다.
+
+
+## 전체 서버 복원 (원본 전수 값 검증 유예)
+
+사용자 요청에 따라 `server_pilot.py --full-restore --work-dir <서버 작업 폴더>`를 추가했다.
+`341-full-server-restore` scope 번들과 `source_validation=DEFERRED_BY_USER` 표시를 요구한다.
+파일 SHA/TOC, 실제 V1 이력, 복원 오류, Flyway 및 구조는 검사하며 원본/서버 전수 값 비교는 실행하지 않는다.
+복원 성공은 `RESTORED_UNVERIFIED`, `ready_for_service=false`로 남긴다. API 연결은 바꾸지 않는다.
+전체 작업에 시간제한을 두지 않으며 서버에서 SSH와 독립적으로 실행한다.
+[전체 서버 복원 기록](../../docs/worklogs/S15P21A506-341/08-full-server-restore.md)을 참고한다.
+
+## 인덱스 우선 재개
+
+`transfer.py restore`는 계속 새 후보 전용이다. COPY 완료 후 중단된 후보는 별도
+`resume_postdata.py`로 같은 아카이브에서 만든 schema-only reference DB와 객체 정의를 비교해 재개한다.
+테이블 연결이나 기존 정의가 다르면 중단하며, 데이터 COPY와 완료된 객체를 반복하지 않는다.
+
+`stop_for_ordered_resume.py`는 식별된 기존 runner/helper만 종료하고 연결이 사라졌다는 기록을 남긴다.
+`finish_resumed_restore.py`는 이 기록을 요구하고 인덱스/연결 → VACUUM/ANALYZE → 대표 날짜 실제 계획
+→ 남은 FK → Flyway/구조 검사 순서로 진행한다. 원본 전수 값 대조 유예와 서비스 미전환 경계는 유지한다.
+체크포인트와 코드/아카이브/참조 DB가 함께 필요하며, 임의의 다른 DB에 상태 파일만 복사해서 재개하면 안 된다.
+구체적인 실행 위치와 검증 결과는 [순서 변경 재개 기록](../../docs/worklogs/S15P21A506-341/10-ordered-restore-resume.md)에 있다.
