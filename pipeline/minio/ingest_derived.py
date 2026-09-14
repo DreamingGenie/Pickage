@@ -1,25 +1,33 @@
 """Upload derived Parquet datasets to pickage-curated; verify every object by GET SHA-256.
 
 deps.dev snapshots go through ingest_raw.py and API collector runs through
-ingest_collector_raw.py, both into pickage-raw. This one takes the small
-datasets that pipeline/duckdb/build_*.py computes from those originals. They
-belong next to the Curated package/version output, not among the raw sources:
-re-running the builder reproduces them, but only on a machine still holding the
-tens of gigabytes of raw Parquet.
+ingest_collector_raw.py, both into pickage-raw. This one takes the smaller
+datasets that a builder computes from those originals - pipeline/duckdb/build_*.py
+and the collectors' own build_*.py. They belong next to the Curated
+package/version output, not among the raw sources: re-running the builder
+reproduces them, but only on a machine still holding the tens of gigabytes of
+raw Parquet.
+
+A dataset marked `pointer` also publishes `_current.json` at its prefix root,
+naming the run that consumers should read. For package-text that file is what
+makes the similarity batch run at all.
 
     python -m pipeline.minio.ingest_derived --dataset deprecated-replacement --dry-run
-    python -m pipeline.minio.ingest_derived --dataset deprecated-replacement --run-id deprecated-replacement-20260914-v1
+    python -m pipeline.minio.ingest_derived --dataset package-text --run-id package-text-20260908-v1
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import hashlib
 import json
 import re
 import uuid
 
 from boto3.s3.transfer import TransferConfig
+from botocore.exceptions import ClientError
 import duckdb
 
+from pipeline.curated.storage import compare_and_swap_json, json_bytes, read_optional
 from pipeline.minio.ingest_raw import ROOT, client, digest, exists, put_once
 
 
@@ -28,11 +36,21 @@ BUCKET = 'pickage-curated'
 # A dataset says where its Parquet is built locally, where it goes in the bucket,
 # and which git README explains the columns. `notes` carries what someone holding
 # only the bucket could not work out - precision, what was deliberately left out.
+#
+#   partition    name of the date partition key. The raw ingesters already differ
+#                (deps.dev has snapshot=, the API collectors have collected_date=)
+#                and a derived set keeps the word its source uses.
+#   date         default partition value; --date overrides it.
+#   glob         picks this run's files only. '{date}' is filled in. Without it a
+#                second collection date sitting in the same folder joins this run.
+#   object_name  fixed name under data/. Only for a consumer that hardcodes it.
+#   pointer      publish _current.json at the prefix root.
 DATASETS = {
     'deprecated-replacement': {
         'root': 'data/deprecated_replacement',
         'prefix': 'depsdev/v1/deprecated-replacement',
-        'snapshot': '2026-08-31',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
         'builder': 'pipeline/duckdb/build_deprecated_dataset.py',
         'source': 'pickage-raw depsdev/v1 versions_full + pkg_project (snapshot=2026-08-31)',
         'readme': 'datasets/deprecated_replacement_260831/README.md',
@@ -45,13 +63,127 @@ DATASETS = {
             '같은 내용의 CSV·JSONL 은 git datasets/deprecated_replacement_260831/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'package-text': {
+        'root': 'data/keywords/package_text',
+        'prefix': 'ecosystems-keywords/v1/package-text',
+        'partition': 'collected_date',
+        'date': '2026-09-08',
+        'glob': 'package_text_{date}.parquet',
+        'object_name': 'package_text.parquet',
+        'pointer': True,
+        'builder': 'pipeline/collectors/keywords/build_package_text.py',
+        'source': 'pickage-raw ecosystems-keywords/v1/collected_date=2026-09-08/'
+                  'run_id=keywords-20260909-v1 + deps.dev versions_full Description',
+        'readme': 'pipeline/collectors/keywords/README.md',
+        'jira': ['S15P21A506-275', 'S15P21A506-348'],
+        'notes': [
+            '유사 패키지 모델의 임베딩 입력. 수집 1,000,000 행 → name 기준 중복 제거 999,801'
+            ' → status removed·unpublished 제외 922,322 행.',
+            '로컬 파일명은 package_text_<수집일>.parquet 이고 올릴 때만 package_text.parquet 으로'
+            ' 바꾼다. ai-similarity 가 --package-text /work/in/package_text.parquet 으로 이름을'
+            ' 고정해 받기 때문이다.',
+            'keywords_source: npm 516,008 / github_topics 40,441 / none 365,873.'
+            ' description_source: npm 840,467 / repo 10,568 / depsdev 10,062 / none 61,225.',
+            'is_spam 23,589 행은 지우지 않고 표시만 했다. 거르는 것은 쓰는 쪽 몫이다 —'
+            ' 학습에 쓸 때는 NOT is_spam AND description IS NOT NULL AND keywords_source <> \'none\'.',
+            '원본 keywords 는 ecosyste.ms 이고 CC BY-SA 4.0 이다. 파생물을 발표·배포할 때 출처를 밝힌다.',
+            '이 prefix 의 _current.json 이 이 실행을 가리키면 유사도 배치가 다음 회차에 이 코퍼스를 집는다.',
+        ],
+    },
 }
+
+
+def run_prefix(spec, date_value, run_id):
+    """Bucket-relative path of one run. The partition key name differs per dataset."""
+    return f'{spec["prefix"]}/{spec["partition"]}={date_value}/run_id={run_id}'
+
+
+def select_files(spec, folder, date_value):
+    """This run's Parquet only - a later collection date in the same folder is not ours."""
+    pattern = spec.get('glob', '*.parquet').format(date=date_value)
+    files = sorted(folder.glob(pattern))
+    if not files:
+        raise ValueError(f'No Parquet matching {pattern} under {spec["root"]}:'
+                         f' run {spec["builder"]} first')
+    return files
+
+
+def object_names(spec, files):
+    """Local path -> name under data/. Renaming is for a consumer that hardcodes it."""
+    fixed = spec.get('object_name')
+    if not fixed:
+        return {path: path.name for path in files}
+    if len(files) != 1:
+        # Two files under one name would upload over each other, and the threads
+        # would report it as 'Remote checksum mismatch' - which does not say why.
+        raise ValueError(f'object_name expects exactly one file, found {len(files)}:'
+                         f' {", ".join(p.name for p in files)}')
+    return {files[0]: fixed}
+
+
+def build_manifest(spec, dataset, date_value, run_id, records, size, row_total):
+    """Manifest body. The date key is named after the dataset's own partition."""
+    return {'contract_version': 1, 'run_id': run_id, 'status': 'PASSED',
+            'dataset': dataset, spec['partition']: date_value,
+            'file_count': len(records), 'bytes': size, 'row_count': row_total,
+            'verification': 'GET_SHA256_ALL_FILES',
+            'builder': spec['builder'], 'source': spec['source'],
+            'readme': spec['readme'], 'jira': spec['jira'], 'notes': spec['notes'],
+            'files': records}
+
+
+def manifest_bytes(manifest):
+    """Do not switch this to storage.json_bytes (compact separators). put_once compares
+    bytes, so a different serializer makes every run already in the bucket fail to
+    re-verify instead of passing."""
+    return json.dumps(manifest, ensure_ascii=False, sort_keys=True).encode()
+
+
+def pointer_value(spec, date_value, run_id, manifest_sha):
+    """_current.json body.
+
+    run_path is relative to the dataset prefix because the consumer already holds
+    that prefix in its own config (.env AI_CORPUS_PREFIX); carrying the whole path
+    here would give the two copies a place to disagree. run_id stays flat - it is
+    stamped into the consumer's output path, where an extra '/' would change the
+    directory depth.
+    """
+    return {spec['partition']: date_value,
+            'manifest_sha256': manifest_sha,
+            'run_id': run_id,
+            'run_path': f'{spec["partition"]}={date_value}/run_id={run_id}'}
+
+
+def publish_pointer(s3, key, value, date_key):
+    """Move _current.json to this run, or refuse. Returns what it did.
+
+    No writer lock: one person runs this by hand and no two of them publish the
+    same dataset at once. A lock would only add one that someone has to clear after
+    a hard stop.
+    """
+    for _ in range(2):
+        previous = read_optional(s3, BUCKET, key)
+        current = json.loads(previous[0]) if previous else None
+        if current == value:
+            return 'unchanged'
+        if current is not None and str(current.get(date_key, '')) > value[date_key]:
+            # Re-verifying an older completed run is fine; sending the consumer back
+            # to its corpus is not.
+            raise ValueError(f'Current pointer is newer ({current.get(date_key)} >'
+                             f' {value[date_key]}): refusing to roll {key} back')
+        try:
+            compare_and_swap_json(s3, BUCKET, key, value, previous[1] if previous else None)
+            return 'created' if current is None else 'advanced'
+        except ClientError:
+            continue  # someone wrote first; read once more and judge again
+    raise ValueError('Pointer changed twice while publishing: ' + key)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--dataset', choices=sorted(DATASETS), required=True)
-    ap.add_argument('--snapshot', help='Source snapshot date. Default: the dataset entry')
+    ap.add_argument('--date', '--snapshot', dest='date',
+                    help='Partition date. Default: the dataset entry')
     ap.add_argument('--run-id', default=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ_')
                     + uuid.uuid4().hex[:8])
     ap.add_argument('--workers', type=int, default=4)
@@ -61,29 +193,39 @@ def main():
         ap.error('Invalid run ID or workers (1..16)')
 
     spec = DATASETS[args.dataset]
-    snapshot = args.snapshot or spec['snapshot']
-    folder = ROOT / spec['root']
-    files = sorted(folder.glob('*.parquet'))
-    if not files:
-        raise ValueError(f'No Parquet under {spec["root"]}: run {spec["builder"]} first')
+    date_value = args.date or spec['date']
+    try:
+        # The pointer decides whether to advance by comparing these as dates.
+        if date.fromisoformat(date_value).isoformat() != date_value:
+            raise ValueError
+    except ValueError:
+        ap.error(f'Partition date must be YYYY-MM-DD: {date_value}')
+
+    files = select_files(spec, ROOT / spec['root'], date_value)
+    names = object_names(spec, files)
 
     con = duckdb.connect()
     rows = {p.name: con.execute('SELECT sum(num_rows) FROM parquet_file_metadata(?)',
                                 [str(p)]).fetchone()[0] for p in files}
     size = sum(p.stat().st_size for p in files)
-    prefix = f'{spec["prefix"]}/snapshot={snapshot}/run_id={args.run_id}'
+    prefix = run_prefix(spec, date_value, args.run_id)
+    pointer_key = spec['prefix'] + '/_current.json' if spec.get('pointer') else None
     print('RUN_ID=' + args.run_id, flush=True)
-    print(f'{args.dataset}/{snapshot}: files={len(files)} bytes={size} rows={sum(rows.values())}',
-          flush=True)
+    print(f'{args.dataset}/{date_value}: files={len(files)} bytes={size}'
+          f' rows={sum(rows.values())}', flush=True)
     for p in files:
-        print(f'  {p.name}: {p.stat().st_size:,} bytes, {rows[p.name]:,} rows', flush=True)
+        renamed = '' if names[p] == p.name else f' -> {names[p]}'
+        print(f'  {p.name}{renamed}: {p.stat().st_size:,} bytes, {rows[p.name]:,} rows', flush=True)
+    if pointer_key:
+        print(f'  pointer {pointer_key} -> {spec["partition"]}={date_value}/run_id={args.run_id}',
+              flush=True)
 
     if not args.dry_run:
         s3 = client()
         completed = exists(s3, BUCKET, prefix + '/_SUCCESS')
 
         def upload(path):
-            key = prefix + '/data/' + path.name
+            key = prefix + '/data/' + names[path]
             with path.open('rb') as stream:
                 checksum = digest(stream)
             if not exists(s3, BUCKET, key):
@@ -98,28 +240,34 @@ def main():
                 actual = digest(stream)
             if actual != checksum:
                 raise ValueError('Remote checksum mismatch: ' + key)
-            return {'file': 'data/' + path.name, 'bytes': path.stat().st_size,
-                    'sha256': checksum, 'rows': rows[path.name]}
+            record = {'file': 'data/' + names[path], 'bytes': path.stat().st_size,
+                      'sha256': checksum, 'rows': rows[path.name]}
+            if names[path] != path.name:
+                # Without this the rename leaves no trace in the bucket.
+                record['source_file'] = path.name
+            return record
 
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             records = list(pool.map(upload, files))
         # No upload timestamp here on purpose. put_once refuses to overwrite an
         # object whose bytes differ, so a manifest carrying the clock would make
         # re-running the same run ID fail instead of re-verifying what is there.
-        result = {'contract_version': 1, 'run_id': args.run_id, 'status': 'PASSED',
-                  'dataset': args.dataset, 'snapshot': snapshot,
-                  'file_count': len(files), 'bytes': size, 'row_count': sum(rows.values()),
-                  'verification': 'GET_SHA256_ALL_FILES',
-                  'builder': spec['builder'], 'source': spec['source'],
-                  'readme': spec['readme'], 'jira': spec['jira'], 'notes': spec['notes'],
-                  'files': records}
-        put_once(s3, BUCKET, prefix + '/run_manifest.json',
-                 json.dumps(result, ensure_ascii=False, sort_keys=True).encode())
+        body = manifest_bytes(build_manifest(spec, args.dataset, date_value, args.run_id,
+                                             records, size, sum(rows.values())))
+        put_once(s3, BUCKET, prefix + '/run_manifest.json', body)
         put_once(s3, BUCKET, prefix + '/_SUCCESS', b'')
+        # Last, and only now: the pointer may only name a run that is whole.
+        if pointer_key:
+            state = publish_pointer(s3, pointer_key,
+                                    pointer_value(spec, date_value, args.run_id,
+                                                  hashlib.sha256(body).hexdigest()),
+                                    spec['partition'])
+            print(f'_current.json {state}: {pointer_key}', flush=True)
 
-    print(json.dumps({'dataset': args.dataset, 'snapshot': snapshot, 'files': len(files),
-                      'bytes': size, 'rows': sum(rows.values()), 'prefix': prefix,
-                      'dry_run': args.dry_run}, ensure_ascii=False), flush=True)
+    print(json.dumps({'dataset': args.dataset, spec['partition']: date_value,
+                      'files': len(files), 'bytes': size, 'rows': sum(rows.values()),
+                      'prefix': prefix, 'pointer': pointer_key, 'dry_run': args.dry_run},
+                     ensure_ascii=False), flush=True)
 
 
 if __name__ == '__main__':
