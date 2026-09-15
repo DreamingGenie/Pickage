@@ -1,0 +1,352 @@
+# Pickage CI — MR 을 열면 바뀐 폴더의 잡이 돈다 (S15P21A506-143)
+#
+# 무엇을 검증하나
+#
+#   frontend                  npm ci → typecheck → lint → vite build
+#   backend-test              gradlew test            (DB 가 필요 없는 단위 시험)
+#   backend-integration-test  gradlew integrationTest (postgres 서비스를 붙여 돌린다)
+#   pipeline-ok               맨 앞에서 2초. 환경 확인 겸, 돌 잡이 없을 때 대신 서 있는 잡
+#
+# **여기 없는 것**
+#
+#   · 파이썬(`pipeline/`) 시험 — 폴더마다 실행 방법과 가상환경이 다르고 일부는 docker·
+#     Postgres 를 요구한다. 어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업이라 후속
+#     이슈로 뺐다. 근거는 `deploy/ci/README.md`
+#   · 배포(CD) — 별도 이슈 S15P21A506-223. 이 파일은 검증만 한다
+#
+# 러너는 팀 서버(`app` 노드)에 우리가 등록한 docker executor 하나다. 등록 절차·메모리
+# 상한·자주 걸리는 문제는 **`deploy/ci/README.md`** 에 있다. 러너가 없으면 파이프라인은
+# "pending" 으로 멈춰 있는다 — 실패가 아니라 아무도 집어가지 않는 상태다.
+
+stages:
+  # 2초짜리 pipeline-ok 하나. 검증이 아니라 **환경 확인**이다 — 아래 그 잡의 주석.
+  - smoke
+  - test
+
+# 파이프라인이 언제 생기나.
+#
+# 러너가 하나뿐이라 "돌 수 있는 모든 때"에 돌리면 대기열이 밀린다. 그래서 **리뷰를 요청한
+# 시점(MR)과 반영된 시점(develop·main)** 두 군데로 좁힌다. 그냥 브랜치에 push 하는 것은
+# 아직 남에게 보여 줄 상태가 아니므로 아무것도 돌지 않는다.
+#
+# ⚠ **Draft → Ready 로 바꾸는 것은 파이프라인 트리거가 아니다.** GitLab 이 MR 파이프라인을
+#   만드는 사건은 세 가지뿐이다 — MR 생성, 소스 브랜치에 push, MR 의 Pipelines 탭에서
+#   Run pipeline. 그래서 Draft 로 열어 두고 push 를 끝낸 뒤 Ready 로만 바꾸면 **한 번도
+#   검증하지 않은 MR 이 된다.** Ready 로 바꾼 다음 커밋을 하나 더 올리거나, MR 의
+#   Pipelines 탭에서 Run pipeline 을 누를 것. (GitLab 이슈 25426 — 아직 열려 있다)
+workflow:
+  # 같은 브랜치에 새 커밋이 오면 돌던 파이프라인의 `interruptible` 잡을 끊는다.
+  # 프로젝트 설정("Auto-cancel redundant pipelines")에 기대지 않고 파일에 박아 두는 쪽이
+  # 낫다 — 설정은 누가 언제 껐는지 저장소에 남지 않는다.
+  # (GitLab 16.8 이상 문법. lab.ssafy.com 은 18.11.5)
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    # Draft 인 동안은 돌지 않는다. 제목 정규식(`/^Draft:/`)이 아니라 이 변수를 쓰는 이유는
+    # GitLab 이 지원하는 Draft 표기 형식을 전부 알아서 잡아 주기 때문이다.
+    # (CI_MERGE_REQUEST_DRAFT 는 GitLab 17.10 이상. lab.ssafy.com 은 18.11.5)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    # MR 이 열려 있는 동안의 push → MR 파이프라인 하나.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # 머지된 뒤 → 통합 브랜치에서 전체가 한 번. CD(S15P21A506-223)도 여기에 붙는다.
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    # 손으로 돌리는 경우(Pipelines → Run pipeline). 두 자리에서 필요하다 —
+    # ①이 파일 자체를 고칠 때. MR 없이 확인할 유일한 방법이다.
+    # ②위 ⚠ 의 Draft → Ready 직후 한 번 돌릴 때.
+    - if: $CI_PIPELINE_SOURCE == "web"
+    # 그 외(MR 없는 브랜치 push 등) → 파이프라인을 만들지 않는다.
+    - when: never
+
+default:
+  # "이 잡은 중간에 끊어도 된다" 는 표시다. 실제로 끊는 것은 위 workflow 의 auto_cancel.
+  # 러너가 하나라 낡은 커밋을 계속 돌리고 있으면 새 커밋이 그만큼 기다린다.
+  interruptible: true
+  retry:
+    max: 2
+    # 코드가 틀려서 실패한 것은 다시 돌려도 똑같이 실패한다. 러너·네트워크 쪽 사고만 재시도.
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+variables:
+  # 전체 히스토리를 받을 이유가 없다. 서버 디스크와 클론 시간을 아낀다.
+  # (아래 rules 의 changes·compare_to 는 러너가 아니라 **GitLab 서버**가 판단하므로
+  #  얕게 받아도 영향이 없다)
+  GIT_DEPTH: "20"
+
+# ── 어떤 잡이 도는가 ────────────────────────────────────────────
+#
+# 문서만 고친 MR 에서 프런트 빌드와 통합 시험까지 도는 것은 러너가 하나인 지금 그대로
+# 대기 시간이다. 그래서 **바뀐 폴더의 잡만** 돌린다. 다만 조건부 실행은 "아무것도 안 돌고
+# 초록불" 을 만들기 쉬워서, 아래 네 가지를 같이 둔다.
+#
+#   1. 경로 목록에 **`.gitlab-ci.yml` 자신**을 넣는다 — 안 그러면 CI 를 고친 MR 이
+#      정작 CI 를 안 돌리고 통과한다
+#   2. `develop`·`main` 파이프라인은 **조건 없이 전부** 돈다 — 머지된 뒤 한 번은 전체가
+#      돌아야 안전망이다. `main` 으로 가는 MR(릴리스)도 같다
+#   3. 브랜치 파이프라인(= `web` 수동 실행)에는 compare_to 를 붙여 develop 과 비교한다 —
+#      이게 없으면 changes 가 **직전 커밋과** 비교해서, 같은 브랜치에 두 번째 push 를 하면
+#      첫 push 에 바꾼 폴더의 잡이 사라진다. (MR 파이프라인은 대상 브랜치와 비교하므로
+#      compare_to 가 필요 없다 — 그래서 세 번째·네 번째 규칙이 따로 있다)
+#   4. 돌 잡이 하나도 없을 때를 위해 `pipeline-ok` 를 둔다 (파일 맨 아래)
+#
+# (`changes: paths:` + `compare_to` 는 GitLab 15.3 이상 문법이다. lab.ssafy.com 은
+#  18.11.5 라 쓸 수 있다 — 2026-09-12 `/help` 확인)
+
+.frontend-paths: &frontend-paths
+  - frontend/**/*
+  - .gitlab-ci.yml
+
+.backend-paths: &backend-paths
+  - backend/**/*
+  - .gitlab-ci.yml
+
+.rules-frontend:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths: *frontend-paths
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths: *frontend-paths
+        compare_to: develop
+
+.rules-backend:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths: *backend-paths
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths: *backend-paths
+        compare_to: develop
+
+# ── 프런트 ──────────────────────────────────────────────────────
+#
+# 이미지를 `frontend/Dockerfile` 의 빌드 단계와 같은 node:22-alpine 으로 맞춘다.
+# 여기서 통과한 것이 배포 이미지 빌드에서 처음 깨지는 일을 막는다 (로컬 Node 는 24 다).
+#
+# ⚠ package.json 의 `check`(typecheck && lint && format:check)를 그대로 부르지 않는다.
+#   **포맷 검사는 CI 에서 돌리지 않는다.** 프런트는 한 사람이 단독으로 작업하고 있어 포맷이
+#   갈릴 상대가 없고, 동작에 영향을 주는 검사도 아니다. 넣어 두면 develop 기준 71개 파일이
+#   걸려(2026-09-12) 항상 빨간불이거나 항상 무시하는 노란불이 되는데, 둘 다 나머지 검사의
+#   신호를 갉아먹는다.
+#
+#   포맷 검사가 필요해지는 때는 프런트를 여럿이 만지기 시작할 때다. 그때 `npm run format`
+#   으로 한 번 정리한 뒤 아래 script 를 `npm run check` 한 줄로 바꾸면 된다.
+#   그 전까지도 `npm run format:check` 는 로컬에서 언제든 돌릴 수 있다.
+
+# 락파일이 바뀌면 새 캐시를 쓴다. 브랜치별로 갈리지 않으므로 남의 브랜치가 받아 둔
+# 것도 그대로 쓴다.
+.npm-cache: &npm-cache
+  key:
+    files:
+      - frontend/package-lock.json
+  paths:
+    - .npm/
+
+.frontend:
+  stage: test
+  image: node:22-alpine
+  variables:
+    # 기본 캐시 경로($HOME/.npm)는 컨테이너와 함께 사라진다. 프로젝트 안으로 옮겨야
+    # 위 cache 가 집어갈 수 있다.
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  before_script:
+    - cd frontend
+    # `npm install` 이 아니라 `npm ci` 다 — 락파일 그대로 설치한다 (Dockerfile 과 같은 이유).
+    - npm ci --prefer-offline --no-audit --no-fund
+
+frontend:
+  extends:
+    - .frontend
+    - .rules-frontend
+  timeout: 20m
+  cache:
+    <<: *npm-cache
+  script:
+    # ⚠ **일부러 두 번 돈다. 지우지 말 것.**
+    #
+    # 아래 `npm run build` 는 `tsc -b && vite build` 라 타입 검사가 그 안에 또 들어 있다.
+    # 그래서 이 줄은 없애도 검증 범위가 같고, tsc 한 번치를 아낄 수 있다 — 실제로 리뷰에서
+    # 한 번 지적됐다(2026-09-14).
+    #
+    # 그래도 두는 이유는 **실패의 이름**이다. 이 줄이 없으면 타입 오류가 "build 실패" 로
+    # 뭉뚱그려진다. 잡 목록만 보고 무엇이 틀렸는지 알 수 있는 것과, 로그를 열어야 아는 것의
+    # 차이다. 검사를 세우는 자리에서 아낄 것은 몇 초가 아니라 사람이 원인을 찾는 시간이다.
+    #
+    # (러너 대기열을 줄이는 것은 이 파일의 `rules: changes:` 가 맡는다 — 애초에 돌 필요가
+    #  없는 잡을 안 돌리는 쪽이지, 돌기로 한 검사를 흐리는 쪽이 아니다.)
+    - npm run typecheck
+    - npm run lint
+    # 타입과 lint 를 통과해도 빌드는 깨질 수 있다(vite 플러그인·번들 단계).
+    # 배포되는 산출물을 실제로 만들어 보는 것이 이 줄이다.
+    - npm run build
+
+# ── 백엔드 ──────────────────────────────────────────────────────
+#
+# 위 힙 값들이 러너 상한 안에 들어오는지는 **계산이 아니라 이 조각이 답한다.** `-Xmx` 는
+# 예약이 아니라 상한이라 셋을 더해도 실제 사용량은 알 수 없다.
+#
+# ⚠ **`after_script` 에 두지 말 것. 거기서는 엉뚱한 값이 나온다.**
+#   2026-09-14 실제로 그렇게 넣었다가 `최대 사용: 4 MiB` 를 받았다. Gradle 이 세 개의
+#   JVM 을 돌린 직후인데 4 MiB 일 수가 없다. `after_script` 가 읽는 cgroup 은 시험이 돌던
+#   그것이 아니다. 그래서 **각 잡의 script 끝**, Gradle 이 끝난 바로 그 자리에서 읽는다.
+#
+#   대가: 잡이 실패하면 안 찍힌다. 다만 exit 137 로 죽었다면 사용량은 물어볼 필요가 없다 —
+#   상한에 닿았다는 뜻이고, 그 값이 곧 상한이다.
+#
+# 읽는 법과 얼마면 조정해야 하는지는 deploy/ci/README.md 의 "메모리".
+.mem-report: &mem-report |
+  # cgroup v2(memory.peak) 와 v1(max_usage_in_bytes) 을 모두 본다.
+  for f in /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory/memory.max_usage_in_bytes; do
+    [ -r "$f" ] || continue
+    peak=$(( $(cat "$f") / 1024 / 1024 ))
+    echo "[메모리] 최대 사용: ${peak} MiB   (읽은 곳: $f)"
+    # 자기 검사 — JVM 을 셋 돌린 잡이 이만큼 작을 수 없다. 작으면 값이 아니라
+    # 읽은 자리가 틀린 것이다(위 ⚠). 숫자를 믿고 상한을 내리는 일을 막는다.
+    # `[ ... ] && echo` 로 쓰지 않는다 — 조건이 거짓이면 종료 코드 1 이라, 이 줄이 script 의
+    # 마지막 명령이 되는 순간 멀쩡한 잡이 실패한다.
+    if [ "$peak" -lt 64 ]; then
+      echo "[메모리] ⚠ 값이 비정상적으로 작다. 이 잡의 cgroup 이 아닐 수 있다"
+    fi
+    break
+  done
+  for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+    [ -r "$f" ] || continue
+    v=$(cat "$f")
+    case "$v" in
+      max|9223372036854771712) echo "[메모리] 상한 없음 — 러너에 memory 가 안 걸려 있다" ;;
+      *) echo "[메모리] 상한: $(( v / 1024 / 1024 )) MiB" ;;
+    esac
+    break
+  done
+
+.backend:
+  stage: test
+  # backend/Dockerfile 의 빌드 단계와 같은 이미지.
+  image: eclipse-temurin:21-jdk
+  timeout: 30m
+  variables:
+    # Gradle 홈이 기본값($HOME/.gradle)이면 컨테이너와 함께 사라져 매번 의존성을 다시 받는다.
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    # ⚠ 이 컨테이너 안에 JVM 이 **셋** 이다. 하나만 막으면 상한 계산이 맞지 않는다.
+    #
+    #   gradle 런처   앞의 -Xmx256m        (이 변수는 런처 JVM 의 명령줄로 들어간다)
+    #   데몬          -Dorg.gradle.jvmargs (아래. `--no-daemon` 이어도 single-use 로 포크된다)
+    #   Test 워커     backend/build.gradle 의 maxHeapSize
+    #
+    # `--no-daemon` 은 잡이 끝난 뒤 JVM 이 남지 않게 하는 것이지 데몬을 안 만드는 것이
+    # 아니다 — jvmargs 가 있으면 Gradle 이 "single-use Daemon" 을 따로 포크한다(9.7.1 확인).
+    # 데몬은 컴파일만 하므로 시험이 도는 워커보다 클 이유가 없다.
+    #
+    # 셋을 합쳐 러너의 컨테이너 상한(deploy/ci/README.md) 안에 들어와야 한다.
+    # JVM 은 상한을 모르면 호스트 메모리 기준으로 힙을 잡는다.
+    GRADLE_OPTS: "-Xmx256m -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx768m"
+  cache:
+    key:
+      files:
+        - backend/build.gradle
+        - backend/gradle/wrapper/gradle-wrapper.properties
+    paths:
+      - .gradle/wrapper
+      # `.gradle/caches` 를 통째로 담지 않는다. 그 안에는 `journal-1` 과 `*.lock` 이 있어,
+      # 러너를 둘 이상으로 늘리면 `Could not acquire lock` 으로 터지는 알려진 자리다.
+      # 지금은 concurrent = 1 이라 안 터지지만, 그때 원인을 찾기 어렵다.
+      # 받아 둘 값이 있는 것은 내려받은 의존성뿐이고 그건 여기 있다.
+      - .gradle/caches/modules-2
+
+backend-test:
+  extends:
+    - .backend
+    - .rules-backend
+  script:
+    - cd backend
+    - ./gradlew --no-daemon test
+    - *mem-report
+  artifacts:
+    # 실패했을 때가 리포트가 필요한 때다. 기본값(on_success)이면 정작 볼 수가 없다.
+    when: always
+    expire_in: 1 week
+    reports:
+      # MR 화면의 "Test summary" 에 실패한 시험 이름이 뜬다. 로그를 뒤지지 않아도 된다.
+      junit: backend/build/test-results/test/TEST-*.xml
+
+backend-integration-test:
+  extends:
+    - .backend
+    - .rules-backend
+  # 진짜 Postgres 가 필요하다. `DisposableTestDatabase` 가 시험마다 DB 를 새로 만들고
+  # Flyway 로 db/migration 전체를 적용한 뒤 지운다 — 그래서 CREATE DATABASE 권한이 있는
+  # 계정(여기서는 superuser 인 postgres)이어야 한다.
+  #
+  # 이 잡을 MR 파이프라인에 넣는 것은 backend/build.gradle 의 요구다 — 야간·수동으로만
+  # 돌리면 기동 실패가 머지된 뒤에 드러난다.
+  services:
+    # 운영·로컬 compose 와 같은 16. 버전이 갈리면 여기서 통과한 마이그레이션이
+    # 서버에서 처음 깨진다.
+    - name: postgres:16
+      alias: postgres
+  variables:
+    # 서비스 컨테이너(postgres 이미지)가 읽는 값.
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: pickage
+    # 시험 코드가 읽는 값. 기본값은 로컬 compose 의 localhost:15432 이고,
+    # CI 에서는 서비스 별칭(postgres)으로 덮어쓴다 — DisposableTestDatabase 의 주석 참고.
+    #
+    # ⚠ 비밀이 아니다. 이 컨테이너는 잡이 끝나면 사라지고 밖에서 닿을 수 없다.
+    #    운영 자격증명은 여기 쓰지 않는다 (Settings → CI/CD → Variables 에 둔다).
+    PICKAGE_TEST_POSTGRES_URL_PREFIX: "jdbc:postgresql://postgres:5432/"
+    PICKAGE_TEST_POSTGRES_USER: postgres
+    PICKAGE_TEST_POSTGRES_PASSWORD: pickage
+  script:
+    # 러너가 서비스의 포트가 열릴 때까지는 기다려 주지만, 포트가 열린 것과 initdb 가
+    # 끝난 것은 다르다. 첫 접속이 거부되면 시험 전체가 한 번에 죽으므로 여기서 한 번 더 센다.
+    - |
+      for _ in $(seq 1 30); do
+        (exec 3<>/dev/tcp/postgres/5432) 2>/dev/null && break
+        sleep 1
+      done
+    - cd backend
+    - ./gradlew --no-daemon integrationTest
+    # 이 잡이 셋 중 가장 크다 — 워커에 Spring 컨텍스트·Flyway·Hibernate 가 뜬다.
+    # 상한을 조정할지 말지는 여기서 나온 숫자로 판단한다.
+    - *mem-report
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: backend/build/test-results/integrationTest/TEST-*.xml
+
+# ── 맨 앞에서 2초 ───────────────────────────────────────────────
+#
+# 이 잡은 두 가지를 한다.
+#
+# 1. **돌 잡이 없을 때 대신 서 있는다.** 문서만 고친 MR 은 위 잡이 하나도 해당되지
+#    않는다. 그러면 파이프라인이 아예 생기지 않고, MR 화면에는 검증한 흔적이 남지 않는다 —
+#    "검사할 것이 없었다" 와 "검사가 고장 났다" 가 똑같아 보인다.
+# 2. **환경이 멀쩡한지 먼저 본다.** 그래서 `test` 가 아니라 **앞 스테이지**에 둔다.
+#    Docker Hub pull 한도·디스크 참·러너 설정 같은 문제라면, npm ci 를 3분 기다린 뒤가
+#    아니라 여기서 2초 만에 드러난다. `GIT_STRATEGY: none` 이라 클론도 하지 않는다.
+#
+# ⚠ 러너가 아예 없거나 죽어 있으면 이 잡도 똑같이 pending 이다. 그건 이 잡이 잡아 주는
+#   문제가 아니라 파이프라인 전체가 못 도는 상태다 (deploy/ci/README.md 의 "러너가 없으면").
+#
+# 스테이지를 가른 값: 다른 잡들이 이 2초를 기다린다. 러너가 하나라 어차피 순서대로다.
+pipeline-ok:
+  stage: smoke
+  image: alpine:3.21
+  # 받아 둘 것도, 올릴 것도 없다.
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "검증할 변경이 없거나, 나머지 잡이 따로 돌고 있다. 러너는 살아 있다."
+  rules:
+    - when: always

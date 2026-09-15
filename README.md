@@ -75,6 +75,7 @@ feat: deps.dev BigQuery 수집기 추가 (S15P21A506-122)
 | `backend/` | Spring Boot 서빙 API. Flyway 마이그레이션(`src/main/resources/db/migration/`)이 DB 스키마 정본 |
 | `frontend/` | Vite + React + TS SPA. 문서는 `frontend/README.md` |
 | `deploy/local/` | 로컬 개발용 MinIO·Spark·시드. 루트 `compose.yaml`과 함께 사용. 절차는 `deploy/local/README.md` |
+| `deploy/ci/`, `.gitlab-ci.yml` | MR 에서 도는 검증 파이프라인(프런트 검사·빌드, 백엔드 단위·통합 시험). 러너 등록 절차는 `deploy/ci/README.md` |
 | `scripts/` | git hook 설치·브랜치 생성 헬퍼. 브랜치명 규칙 구현은 `scripts/lib/check-branch-name.sh` |
 | `.githooks/` | `commit-msg`(커밋 형식·Jira 키), `pre-push`(브랜치명). `setup-hooks` 로 켭니다 |
 | `.venv-bq/` | 수집용 Python 가상환경(gitignore) |
