@@ -538,7 +538,7 @@ docker compose up -d --force-recreate spark-worker-2
 | `docker compose build` | 컨테이너는 **그대로 전 버전**이다. 사이트는 멀쩡하다 |
 | `up -d --wait` 시간 초과 | **새 컨테이너로 이미 바뀌었고 healthy 가 아니다.** 사이트가 내려가 있다 |
 | `nginx -t` | 컨테이너는 새것으로 떴고 **nginx 는 옛 설정으로 돈다.** 사이트는 멀쩡하다 — `nginx/app.conf` 의 문법을 고쳐 다시 배포한다 |
-| 마지막 `curl` | 컨테이너는 healthy 인데 nginx·TLS 쪽이 이상하다. 아래 "평소" 의 로그부터 본다 |
+| 마지막 `curl` (5번 다) | **배포는 이미 적용됐다.** 컨테이너는 healthy 인데 밖에서 안 닿는 것이라 nginx·TLS 쪽을 본다. 아래 "평소" 의 로그부터 |
 
 > ⚠ **`/srv/pickage/app.env` 의 태그는 "마지막으로 성공한 것" 이 아니라 "마지막으로 시도한
 > 것" 이다.** 실패한 배포의 SHA 가 남아 있다. 되돌릴 때 그 값을 기준으로 삼지 말고

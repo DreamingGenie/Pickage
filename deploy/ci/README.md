@@ -644,6 +644,7 @@ docker builder prune -f --filter "until=168h"
 | 배포 잡이 `pending` 인데 러너는 초록 | 러너가 **Protected** 인데 그 브랜치가 보호 브랜치가 아니다. 위 "2. 보호 브랜치" |
 | 작업 브랜치의 `deploy` 태그 잡이 안 돈다 | **설계대로다.** Protected 러너는 보호 브랜치의 잡만 집어간다 |
 | 앱만 배포했는데 Spark worker 가 재시작한다 | `compose.yaml` 의 spark-worker-2 에 `env_file` 이 되살아났는지 본다. 위 "안 바뀐 것은…" |
+| 배포 끝의 `curl` 이 `(55) Failed sending HTTP request` | 바로 앞의 `nginx -s reload` 와 겹친 것이다. 잡이 5번까지 다시 치므로 한두 번은 정상이고, **5번 다 실패했으면 진짜로 안 닿는 것**이다 |
 | 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), 수동 실행에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
 | push 했는데 **파이프라인 자체가 안 생긴다** | 설계대로다. MR 이 없거나 Draft 다 — 위 "언제 도나" |
 | Ready 로 바꿨는데 파이프라인이 안 생긴다 | Draft → Ready 는 트리거가 아니다. Pipelines 탭의 **Run pipeline** — 위 "언제 도나" |
