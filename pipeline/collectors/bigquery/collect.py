@@ -36,6 +36,10 @@ HERE = pathlib.Path(__file__).resolve().parent
 SQL_DIR = HERE / "sql"
 LEDGER = HERE / "ledger" / "ledger.jsonl"
 GiB = 2**30
+# 요청한 스냅샷 파티션이 아직 없을 때의 종료 코드. 다른 중단(예산 초과·행 수 불일치)은
+# 전부 1이다 — 그쪽은 사람이 봐야 하고, 이쪽은 기다리면 된다.
+# pipeline/weekly/steps.py 의 SNAPSHOT_NOT_READY_EXIT 와 같아야 한다.
+EXIT_SNAPSHOT_NOT_READY = 3
 MiB = 2**20
 
 # 테이블 → (SQL 템플릿, 하드캡 GiB, 최신 스냅샷 기대치 GiB[2026-08-31 dry-run 실측], 원천 테이블명)
@@ -284,7 +288,13 @@ class Collector:
         else:
             snap = self.args.snap or latest
             if (TABLES[self.tables[0]][3], snap) not in self.rows_meta:
-                raise SystemExit(f"중단: {snap} 파티션이 {TABLES[self.tables[0]][3]}에 없다. 스냅샷 날짜를 확인하라. 최신={latest}")
+                # 실패가 아니라 "아직" 이다. 공급자가 그 주 스냅샷을 아직 안 올렸을 뿐이고,
+                # 기다리면 해결된다. 주간 실행기가 이 종료 코드를 보고 재시도 횟수를 세지 않는다
+                # (pipeline/weekly/steps.py). 날짜를 잘못 준 경우와 구분되지 않지만, 그쪽도
+                # 사람이 고칠 일이라 유예 시간이 지나면 결국 실패로 올라간다.
+                log(f"중단: {snap} 파티션이 {TABLES[self.tables[0]][3]}에 없다. "
+                    f"스냅샷 날짜를 확인하라. 최신={latest}")
+                raise SystemExit(EXIT_SNAPSHOT_NOT_READY)
             plan = [(t, snap) for t in self.tables]
         log(f"최신 스냅샷 {latest} · 잡 {len(plan)}개")
         try:
