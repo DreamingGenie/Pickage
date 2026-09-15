@@ -91,6 +91,11 @@ export const INTERVALS: IntervalOption[] = [
   { key: '13w', label: '분기', step: 13 },
 ]
 
+/** 간격 key → 몇 주마다 한 점. 못 찾으면 매주(1)로 돌아간다. */
+export function stepOf(intervalKey: string): number {
+  return INTERVALS.find((i) => i.key === intervalKey)?.step ?? 1
+}
+
 /**
  * 추이 그래프가 선을 그리기 위한 최소 점 개수.
  * 이보다 적으면 선 대신 "데이터 축적 중"을 띄운다(명세 §4 화면 연결).
@@ -170,6 +175,18 @@ export interface PackageCardModel {
    * 유입·이탈로 나누지 않는다 — 합계값이라 그렇게 나눌 수 없다.
    */
   dependentsDelta: number | null
+  /**
+   * 위 증감을 낸 양 끝 스냅샷 날짜(311c). `sampleEvery`가 뒤에서부터 솎으므로 "표시된 첫
+   * point"가 구간 시작과 정확히 같지 않을 수 있어, 그 사실을 카드에서 그대로 보여준다.
+   */
+  dependentsDeltaFrom: string | null
+  dependentsDeltaTo: string | null
+
+  /**
+   * Version Share 응답 자체의 기준일. 개요의 `snapshotAt`(전체 카드 공통 기준일)과는
+   * 다른 값일 수 있어 이름을 구분한다 — 둘을 섞으면 "이 분포가 언제 것인지"를 잘못 말한다.
+   */
+  versionShareSnapshotAt: string | null
 
   /**
    * 구상안 §5.2 `availableDisplayVersions` — 이 패키지에서 고를 수 있는 major.

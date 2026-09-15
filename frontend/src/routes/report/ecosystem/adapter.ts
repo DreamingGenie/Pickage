@@ -120,16 +120,28 @@ function observedFromOf(series: ChartSeries[]): string | undefined {
   return starts.length ? starts.reduce((a, b) => (a > b ? a : b)) : undefined
 }
 
+export interface Delta {
+  value: number
+  /** 증감을 낸 양 끝 스냅샷 날짜. */
+  from: string
+  to: string
+}
+
 /**
  * 구간 양 끝의 차이. 점이 둘 미만이면 증감을 말할 수 없다.
  *
  * 표시 버전을 바꾸면 화면 쪽에서도 이 값을 다시 세야 해서 밖으로 연다.
  * 두 곳에서 각자 빼면 언젠가 결측 처리가 갈린다.
+ *
+ * **부르는 쪽은 반드시 화면에 그린 것과 같은(windowed) 시리즈를 넘겨야 한다** — 창을
+ * 씌우기 전 전체 시리즈로 부르면 카드의 증감이 차트에 보이는 구간과 다른 것을 가리킨다(311c).
  */
-export function deltaOf(series: ChartSeries | undefined): number | null {
+export function deltaOf(series: ChartSeries | undefined): Delta | null {
   const points = series?.points.filter((p) => p.v !== null) ?? []
   if (points.length < 2) return null
-  return (points[points.length - 1].v as number) - (points[0].v as number)
+  const first = points[0]
+  const last = points[points.length - 1]
+  return { value: (last.v as number) - (first.v as number), from: first.t, to: last.t }
 }
 
 /**
@@ -192,24 +204,31 @@ export function toEcosystemModel({
 
   const shareByName = new Map((versionShare?.items ?? []).map((i) => [i.name, i.slices]))
 
-  const packages: PackageCardModel[] = overview.items.map((item) => ({
-    key: item.name,
-    repoUrl: item.repo_url,
-    latestVersion: item.latest_version,
-    publishedAt: item.published_at,
-    description: item.description,
-    licenses: item.licenses,
-    isDeprecated: item.is_deprecated,
-    downloads: item.downloads,
-    stars: item.stars,
-    starsDelta: item.stars_delta,
-    openIssues: item.open_issues,
-    openIssuesDelta: item.open_issues_delta,
-    versionShare: foldSlices(shareByName.get(item.name) ?? []),
-    dependentsDelta: deltaOf(dependentsByName.get(item.name)),
-    // 구상안 §5.2 `availableDisplayVersions`. 자료가 있는 major 만 고를 수 있다.
-    availableMajors: (majorsByName.get(item.name) ?? []).map((m) => m.major),
-  }))
+  const packages: PackageCardModel[] = overview.items.map((item) => {
+    const delta = deltaOf(dependentsByName.get(item.name))
+    return {
+      key: item.name,
+      repoUrl: item.repo_url,
+      latestVersion: item.latest_version,
+      publishedAt: item.published_at,
+      description: item.description,
+      licenses: item.licenses,
+      isDeprecated: item.is_deprecated,
+      downloads: item.downloads,
+      stars: item.stars,
+      starsDelta: item.stars_delta,
+      openIssues: item.open_issues,
+      openIssuesDelta: item.open_issues_delta,
+      versionShare: foldSlices(shareByName.get(item.name) ?? []),
+      dependentsDelta: delta?.value ?? null,
+      dependentsDeltaFrom: delta?.from ?? null,
+      dependentsDeltaTo: delta?.to ?? null,
+      // §6 — 이 응답 전체의 기준일. 패키지마다 갈리지 않는다(요청 하나에 스냅샷 하나).
+      versionShareSnapshotAt: versionShare?.snapshot_at ?? null,
+      // 구상안 §5.2 `availableDisplayVersions`. 자료가 있는 major 만 고를 수 있다.
+      availableMajors: (majorsByName.get(item.name) ?? []).map((m) => m.major),
+    }
+  })
 
   /**
    * 0.2 — 세 응답이 각자 `not_found` 를 준다. 같은 이름이 여러 번 나오므로 합집합을 만든다.
