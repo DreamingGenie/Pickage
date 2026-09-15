@@ -18,7 +18,7 @@ react 용과 vue 용은 서로 대체가 아니다.
 
 `pairs` (기본) — 쌍 목록에 등장한 패키지만. 이동쌍·폐기쌍의 (A, B) 를 실제로 비교한다.
 `all` — npm 전수에서 peer 를 가진 패키지 전부. 쌍 목록에 없는 임의의 조합도 즉석 비교할 수
-있게 하는 재료다. 다만 peer 보유 103만 중 40.1%가 릴리스 1개짜리이므로(2026-09-14 실측)
+있게 하는 재료다. 다만 peer 보유 81.4만 중 23.9%가 릴리스 1개짜리이므로(2026-09-15 실측)
 `--recent-since` 하한을 넘긴 것을 따로 한 파일 더 낸다.
 
 출력  --scope pairs
@@ -106,14 +106,31 @@ def build_latest_release(where_extra=""):
 
     '최신'은 versions_full 의 is_release 중 ordinal 이 가장 큰 것이다. published_at 이 아니라
     ordinal 을 쓰는 이유는 유지보수 릴리스(5.0.0 뒤에 나온 4.17.3)가 최신으로 잡히지 않게 하기
-    위해서다. 표본 스크립트 build_feature_candidates.py 와 같은 방식이다.
+    위해서다.
+
+    `published_at IS NOT NULL` 은 배포일을 쓰려는 게 아니라 **가짜 패키지를 빼려는 것이다.**
+    deps.dev 의 npm 노드에는 `@winglang/sdk>0.76.19>cdktf>safe-buffer` 처럼 번들된 중첩
+    의존성의 경로가 패키지처럼 들어 있다. npm 이름에 `>` 는 쓸 수 없으므로 실제 패키지가
+    아니다. 2026-09-15 실측으로 versions_full 고유 이름 1,138만 중 705만(61.9%)이 이 형태이고,
+    그 7,052,193 행은 **전부** published_at 이 NULL 이다(정상 패키지는 430 행만 NULL). 그래서
+    배포일 조건 하나로 정확히 갈린다. S15P21A506-283 의 `unknown_published_at=exclude` 와
+    같은 기준이다.
+
+    이 조건이 없던 동안 `--scope all` 산출물에 219,299 행(21.2%)이 섞여 있었다. 그때는 그것을
+    "릴리스 1 개짜리 방치 패키지" 로 읽었지만 실제로는 패키지가 아니었다. `--recent-since`
+    하한이 NULL 을 함께 떨궈 recent 파일만 우연히 깨끗했던 것이지 설계가 막은 게 아니다.
+
+    형제 스크립트 build_feature_candidates.py 는 한 곳(69 행)에서 이미 이 조건을 쓰고 다른
+    곳(132 행)에서는 쓰지 않는다. 이 함수는 예전에 후자를 따랐다. 132 행 쪽은 이 MR 범위가
+    아니라 손대지 않는다.
     """
     con.execute(f"""CREATE OR REPLACE TABLE lat AS
     SELECT Name, Version, published_at, Deprecated, n_rel FROM (
       SELECT Name, Version, published_at, Deprecated,
              count(*) OVER (PARTITION BY Name) AS n_rel,
              row_number() OVER (PARTITION BY Name ORDER BY ordinal DESC) rn
-      FROM read_parquet('{V}') WHERE is_release {where_extra}) WHERE rn = 1""")
+      FROM read_parquet('{V}')
+      WHERE is_release AND published_at IS NOT NULL {where_extra}) WHERE rn = 1""")
     return con.execute("SELECT count(*) FROM lat").fetchone()[0]
 
 
@@ -121,11 +138,11 @@ if args.scope == "all":
     # npm 전수에서 peer 를 가진 패키지 전부. 쌍 목록과 무관하게, 임의의 두 패키지를 즉석에서
     # 비교할 수 있게 하는 용도다.
     #
-    # peer 가 없는 패키지(전체의 90.7%)는 넣지 않는다. "peer 가 없다" 는 사실은 이 표에
-    # 행이 없다는 것으로 똑같이 표현되고, 빈 배열 1,005만 행은 파일만 3.5배 키운다.
+    # peer 가 없는 패키지(전체의 80.0%)는 넣지 않는다. "peer 가 없다" 는 사실은 이 표에
+    # 행이 없다는 것으로 똑같이 표현되고, 빈 배열 325만 행은 파일만 키운다.
     #
-    # 품질 열을 함께 담는 이유: peer 보유 패키지 103만 중 40.1%가 릴리스 1개짜리이고
-    # 27.3%가 3년 넘게 방치돼 있다(2026-09-14 실측). 어디서 끊을지는 쓰는 용도마다 달라서
+    # 품질 열을 함께 담는 이유: peer 보유 패키지 814,025 중 23.9%가 릴리스 1개짜리이고
+    # 41.1%가 3년 넘게 방치돼 있다(2026-09-15 실측). 어디서 끊을지는 쓰는 용도마다 달라서
     # 여기서 하나로 정하지 않고, 판단 재료를 열로 준다.
     log("전수 모드 — 최신 릴리스 집계 중 (1~2분)")
     stats["packages_total"] = build_latest_release()

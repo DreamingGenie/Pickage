@@ -1,28 +1,28 @@
 {
   "scope": "all",
-  "packages_total": 11081241,
-  "peer_bearing": 1033323,
+  "packages_total": 4065913,
+  "peer_bearing": 814025,
   "recent_since": "2023-01-01",
-  "peer_bearing_recent": 531829,
+  "peer_bearing_recent": 531830,
   "agg_all": {
-    "packages": 1033323,
-    "peer_declarations": 2520086,
-    "single_release": 413878,
-    "deprecated": 28758,
+    "packages": 814025,
+    "peer_declarations": 2075257,
+    "single_release": 194580,
+    "deprecated": 28668,
     "in_top100k": 29193,
-    "distinct_scopes": 601553
+    "distinct_scopes": 520455
   },
   "agg_recent": {
-    "packages": 531829,
-    "peer_declarations": 1381634,
-    "single_release": 121016,
+    "packages": 531830,
+    "peer_declarations": 1381645,
+    "single_release": 121017,
     "deprecated": 14983,
     "in_top100k": 25061,
-    "distinct_scopes": 319710
+    "distinct_scopes": 319711
   },
   "file_bytes": {
-    "package_peers_all.parquet": 28849789,
-    "package_peers_recent.parquet": 18926832
+    "package_peers_all.parquet": 27959563,
+    "package_peers_recent.parquet": 18934766
   },
-  "elapsed_sec": 47
+  "elapsed_sec": 65
 }

@@ -8,7 +8,7 @@
 | `feature_candidates_260908/` | AI 학습 보강 변수 후보 3종(이동쌍·dependencies·peerDependencies) 표본 각 100건 | `pipeline/duckdb/build_feature_candidates.py` | 폴더 README |
 | `migration_pairs_260908/` | 마이그레이션 이동쌍 — **실행용 의존** 기준, npm 전수. strict·recommended·all 3종 + stats.json | `pipeline/duckdb/build_migration_pairs.py` | 폴더 README, 비개발자용 `migration_pairs_all_안내.md` |
 | `migration_pairs_dev_260914/` | 같은 계산의 **개발용 의존(devDependencies)** 기준, 상위 10만. 도구 계열 이동(enzyme·tslint·mocha·jest)은 여기에만 있다 | `build_migration_pairs.py --source registry --kind dev` | 폴더 README. **위 폴더와 모집단이 달라 수치를 더하거나 lift를 비교하지 말 것** |
-| `peer_similarity_260914/` | 대체 후보 **peer 의존 유사도** — 쌍 1행(양쪽 peer 목록·교집합·Jaccard·판정) 53,155 + 패키지 1행 57,820. "A가 B를 대체할 수 있나"의 호환성 특징. `--scope all` 로 만든 npm 전수 peer 목록(103만/53만)은 Parquet 만 있고 여기엔 집계 JSON 만 있다(폴더 README §6) | `pipeline/duckdb/build_peer_similarity.py` | 폴더 README. **`peer_jaccard` 의 NULL 을 0 으로 채우지 말 것** — 쌍의 60%가 비교 불가이고 그건 유사도 0이 아니다. **전수는 그대로 쓰지 말 것** — 40%가 릴리스 1개짜리다 |
+| `peer_similarity_260914/` | 대체 후보 **peer 의존 유사도** — 쌍 1행(양쪽 peer 목록·교집합·Jaccard·판정) 53,155 + 패키지 1행 57,820. "A가 B를 대체할 수 있나"의 호환성 특징. `--scope all` 로 만든 npm 전수 peer 목록(81.4만/53.2만)은 Parquet 만 있고 여기엔 집계 JSON 만 있다(폴더 README §6) | `pipeline/duckdb/build_peer_similarity.py` | 폴더 README. **`peer_jaccard` 의 NULL 을 0 으로 채우지 말 것** — 쌍의 60%가 비교 불가이고 그건 유사도 0이 아니다. **전수는 그대로 쓰지 말 것** — 23.9%가 릴리스 1개짜리다. 2026-09-15 정정으로 가짜 노드 219,299행을 뺐다(폴더 README §6-2) |
 | `targets/rank_top100k_20260902.csv` | ecosyste.ms 다운로드 순위 상위 10만 (downloads 수집 대상 목록) | ecosyste.ms 목록 API 100페이지 (`pipeline/collectors/downloads/README.md`) | — |
 
 규칙

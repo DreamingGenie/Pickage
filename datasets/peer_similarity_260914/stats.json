@@ -1,4 +1,5 @@
 {
+  "scope": "pairs",
   "pairs_in": {
     "deprecated/all": 25916,
     "migration/all": 16835,
@@ -56,5 +57,5 @@
   },
   "version_basis": "latest release (versions_full.is_release, ordinal DESC)",
   "snapshot": "2026-08-31",
-  "elapsed_sec": 8
+  "elapsed_sec": 9
 }
