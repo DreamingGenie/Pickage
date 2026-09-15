@@ -1,0 +1,55 @@
+[Unit]
+Description=Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze)
+Documentation=https://ssafy.atlassian.net/browse/S15P21A506-273
+# 일회성 컨테이너를 띄운다. MinIO 는 같은 호스트의 compose 네트워크 안에 있다.
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/S15P21A506/deploy/prod/data
+ExecStart=/bin/sh run-weekly-ingest.sh
+
+# ⚠ 타임아웃이 죽이는 것은 `docker compose run` **클라이언트**다. 컨테이너가 아니다.
+#   그대로 두면 유령 컨테이너가 계속 npm 을 두드리면서 checkpoint 를 쓰고, 다음 발화가
+#   그 위에 하나를 더 띄운다. 정상 종료·타임아웃·실패 어느 쪽이든 지나가도록 `-` 를 붙인다
+#   (앞의 `-` 는 "이 명령이 실패해도 유닛을 실패로 보지 말라" 는 뜻이다).
+#
+#   run-weekly-ingest.sh 도 시작할 때 같은 정리를 한다. 두 겹인 이유는 사람이 손으로
+#   실행하다 Ctrl-C 로 끊는 경우에는 systemd 가 개입하지 않기 때문이다.
+ExecStopPost=-/usr/bin/docker rm -f pickage-weekly-run
+
+# 한 회차가 23시간쯤 걸린다. 기본값(DefaultTimeoutStartSec, 보통 90초)으로 두면
+# downloads 단계 한복판에서 죽는다. oneshot 은 ExecStart 전체에 이 값이 걸린다.
+#
+# ⚠ infinity 로 두지 않는다. 끝나지 않는 단계를 아무도 죽일 수 없게 되는데, 유닛이 active 인
+#   동안은 타이머가 새 실행을 시작하지 않으므로 **그 뒤 모든 주가 통째로 건너뛰어진다.**
+#   npm 다운로드는 놓친 기간을 소급 조회할 수 없어 그대로 영구 손실이다.
+#
+#   30h 는 schedule.py 의 STALE_RUNNING(26h)보다 크다. 그래서 systemd 가 죽인 뒤 다음 발화가
+#   그 회차를 "멈춘 실행" 으로 보고 회수한다 — 죽이는 쪽과 회수하는 쪽의 순서가 어긋나지 않는다.
+TimeoutStartSec=30h
+
+# ── ⚠ 자원 제어를 여기 쓰지 않는다 ────────────────────────────
+#
+# app 노드에서 돌던 때는 이 자리에 MemoryMax·CPUQuota·Nice·IOScheduling 이 있었다.
+# 그때는 수집기가 곧 이 유닛의 자식 프로세스여서 cgroup 이 그대로 걸렸다.
+#
+# **지금은 걸리지 않는다.** 실제 작업은 컨테이너 안에서 돌고, 컨테이너의 cgroup 은
+# docker 데몬 아래에 생긴다 — 이 유닛의 cgroup 밖이다. 여기에 MemoryMax 를 써도
+# 제한되는 것은 `docker compose run` 클라이언트뿐이고, 그건 몇 MB 짜리다.
+# 있으면 "상한이 걸려 있다" 고 잘못 읽히므로 아예 두지 않는다.
+#
+# 상한은 compose 에 있다 — deploy/prod/data/compose.yaml 의 ingest-weekly:
+#   mem_limit 3g / memswap_limit 3g (스왑 0)
+#
+# CPU 는 일부러 제한하지 않았다. app 노드에서 CPUQuota=150% 와 Nice=10 을 준 것은 그
+# 노드에 사용자 트래픽이 돌기 때문이었다. 이 노드는 그렇지 않고, 무거운 이웃(Spark 셋·
+# 유사도 배치)은 전부 profiles 안이라 평소에 뜨지 않는다. 겹치는 것은 배치 시각뿐이고
+# 그건 시간대 분리로 푼다 — README.md 의 "유사도 배치와 시간을 겹치지 말 것".
+
+# 실패해도 systemd 가 다시 띄우지 않는다. 재시도는 10분 뒤 타이머가 하고, 무엇을
+# 이어받을지는 컨테이너 안의 판정이 정한다 — 상태를 아는 쪽이 정해야 한다.
+Restart=no

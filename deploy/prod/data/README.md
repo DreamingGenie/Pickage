@@ -608,7 +608,169 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 ### `up -d --profile batch` 로 띄우지 말 것
 
 이 잡은 정상적으로 끝나는데 compose 는 그걸 컨테이너가 죽은 것으로 본다 —
-`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 둘이다.
+`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 셋이다
+(`minio-init`, `ai-*`, `ingest-weekly`).
+
+## 주간 수집
+
+매주 화요일, deps.dev 주간 증분과 npm 다운로드 직전 14일을 받아 MinIO Bronze 까지 넣는다.
+**systemd 타이머가 10분마다 깨우고, 할 일이 없으면 아무것도 하지 않고 끝난다.**
+
+```
+[timer 10분] → run-weekly-ingest.sh → docker compose run --rm ingest-weekly
+                (잠금·정리만)          (판정도 실행도 컨테이너 안에서)
+```
+
+실행기 자체의 설명(단계·날짜 규약·유예·정리)은 [`pipeline/weekly/README.md`](../../../pipeline/weekly/README.md).
+
+### 0. 처음 한 번 — 디렉터리와 자격증명
+
+```bash
+sudo mkdir -p /srv/pickage/ingest-work /srv/pickage/secrets
+# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔다
+sudo chown -R 1000:1000 /srv/pickage
+```
+
+⚠ **소유권을 넘기지 않으면 쓰기가 막힌다.** 컨테이너가 uid 1000 으로 돌고, 없는 바인드
+디렉터리는 Docker 가 root 소유로 만든다. root 로 쓰게 두지 않는 이유는 그렇게 쌓인
+산출물을 `ubuntu` 계정이 못 지워서 **지난 회차 정리가 거기서 막히기** 때문이다.
+
+자격증명은 환경변수가 아니라 **파일**이다(`pipeline/minio/ingest_raw.py` 의 `client()`).
+
+```bash
+cd ~/S15P21A506
+cp pipeline/minio/.env.data.example pipeline/minio/.env.data
+# 같은 노드의 MinIO 값을 넣는다:
+docker inspect pickage-data-minio-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MINIO_ROOT
+```
+
+`deploy/prod/data/.env` 에 `OSS_SHIFT_UA_CONTACT` 도 채운다. 비어 있으면 수집기가
+시작하지 않는다.
+
+### 1. 이미지 빌드
+
+이 노드에는 CI 배포 러너도 레지스트리도 없다. `app` 노드의 api·web 과 같이 서버에서 빌드한다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose build ingest-weekly
+docker compose run --rm ingest-weekly --help      # 인자 목록이 나오면 성공
+```
+
+**이미지에는 코드가 없다.** `pipeline/` 은 마운트된다 — 코드를 고쳤을 때 다시 빌드할 필요가
+없고, 되돌리는 방법도 태그 교체가 아니라 `git checkout` 이다. 다시 빌드할 일은 의존성이
+바뀔 때뿐이다.
+
+### 2. 손으로 한 번 돌려 본다
+
+타이머를 켜기 전에 확인한다. `--dry-run` 은 단계를 돌리지 않고 판정과 상태 전이만 한다.
+
+```bash
+sh run-weekly-ingest.sh --dry-run
+```
+
+그리고 **실제 자격증명이 통하는지**는 따로 본다. 드라이런은 외부 CLI 를 부르지 않으므로
+여기서 드러나지 않는다.
+
+```bash
+docker compose run --rm ingest-weekly --only gcs_sync
+```
+
+⚠ gcloud 와 파이썬이 **인증 경로가 다르다.** BigQuery 파이썬 클라이언트는
+`GOOGLE_APPLICATION_CREDENTIALS` 를, `gcloud storage` 는 자체 저장소를 본다. 이미지가
+둘 다 같은 키 파일을 가리키게 해 뒀지만, 실제로 불러 봐야 확인된다.
+
+### 3. 타이머를 켠다
+
+```bash
+sudo cp systemd/pickage-weekly.service systemd/pickage-weekly.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now pickage-weekly.timer
+systemctl list-timers pickage-weekly.timer
+```
+
+### 지금 어디까지 왔나
+
+**이것이 배포와 무관한 확인 경로다.** 운영자용 조회 API(S15P21A506-347)는 백엔드가
+배포된 뒤에야 쓸 수 있고, 지금 운영 이미지에는 그 API 가 없다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+mc() { docker compose exec -T minio sh -c "mc alias set l http://127.0.0.1:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null && $1"; }
+
+# 어떤 회차들이 있나
+mc "mc ls l/pickage-raw/_ops/weekly/"
+
+# 그 회차의 상태 전부 (status·coverage·연속 실패·단계별)
+mc "mc cat l/pickage-raw/_ops/weekly/2026-09-21/run.json"
+```
+
+읽는 법.
+
+| 보는 것 | 뜻 |
+| --- | --- |
+| `coverage.downloads_through` | **언제 데이터까지 들어왔나.** `SUCCEEDED` 회차 중 최신 것이 지금 가진 데이터의 끝이다 |
+| `status` | `PENDING`·`RUNNING`·`SUCCEEDED`·`FAILED`·`BLOCKED` |
+| `consecutive_failures` | 이 회차에서 연속 몇 번 실패했나. 10 이면 `BLOCKED` 다 |
+| `steps[]` 중 `SUCCEEDED` 가 아닌 첫 항목 | 어디서 멈췄나. `error_message` 에 꼬리 4 KB |
+
+타이머 쪽은 systemd 로 본다.
+
+```bash
+systemctl list-timers pickage-weekly.timer     # 다음 발화 시각
+journalctl -u pickage-weekly.service -n 50     # 최근 발화들
+docker ps -a --filter name=pickage-weekly-run  # 지금 도는 중인가
+```
+
+단계별 출력 전문은 `/srv/pickage/ingest-work/downloads-weekly/<week_of>/logs/<step>.log`.
+
+### `BLOCKED` 을 푸는 법
+
+연속 10회 실패하면 자동 재시도를 멈춘다. 같은 실패를 10분마다 영원히 반복하지 않기
+위한 것이다. 푸는 방법은 **수동 실행 요청 하나**다.
+
+정상 경로는 백엔드 API(`POST /api/v1/ops/weekly/runs/{weekOf}/manual-request`)지만,
+그것이 배포되기 전에는 우편함 객체를 직접 넣으면 된다.
+
+```bash
+mc 'printf "{\"requested_at\": \"%s\"}" "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+    | mc pipe l/pickage-raw/_ops/weekly/2026-09-21/manual-request.json'
+```
+
+다음 발화(최대 10분)에서 실행기가 집어 가며 연속 실패 횟수를 0으로 되돌린다. 집어 갔는지는
+`run.json` 의 `manual_claimed_at` 으로 확인한다 — 그 값이 `requested_at` 보다 나중이면
+소비된 것이다.
+
+`mc pipe` 를 쓰는 이유는 호스트에서 컨테이너로 파일을 옮기는 단계가 없어서다.
+시각은 컨테이너 안에서 만든다(호스트 셸의 `date` 형식에 의존하지 않는다).
+
+**먼저 원인을 보라.** `BLOCKED` 은 같은 실패가 10번 반복됐다는 뜻이라, 요청만 넣으면
+11번째 실패가 난다. `run.json` 의 `last_error` 와 단계 로그를 먼저 읽는다.
+
+### ⚠ 유사도 배치와 시간을 겹치지 말 것
+
+평소에는 여유롭다 — 상주가 `minio` 1g + `mlflow` 512m 뿐이라 수집 3g 를 얹어도 4.5g 다.
+
+문제는 **배치 시각**이다.
+
+```
+Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi      ← 여기에 3g 를 더 얹을 자리가 없다
+```
+
+수집 창은 **화 10:00 부터 다음 날 09:00 KST** 다(한 바퀴 약 23시간). 유사도 배치 타이머는
+아직 없으므로, **그것을 만들 때 이 창 밖으로 잡으면 충돌이 애초에 생기지 않는다.**
+
+### ⚠ 디스크 — MinIO 와 같은 파티션이다
+
+산출물이 주당 약 10 GB 쌓인다. 실행기가 성공한 회차에 한해 2주치만 남기고 지우지만,
+그게 멈추면 계속 쌓인다.
+
+```bash
+df -h /
+du -sh /srv/pickage/ingest-work
+```
+
+여기를 채우면 수집만 멈추는 게 아니다. **MinIO 가 같은 파티션을 쓰므로 저장소가 통째로 선다.**
 
 ## Spark (배치)
 
