@@ -2,7 +2,7 @@ import { Loader2Icon, XIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { fetchPackageSearch } from '@/api/endpoints'
+import { fetchPackageSearch, postCommunityRefresh } from '@/api/endpoints'
 import { useSimilarPackages } from '@/api/queries'
 import { MAX_NAMES, SEARCH_LIMIT_MAX } from '@/api/types'
 import { paths } from '@/app/routes'
@@ -182,6 +182,8 @@ export function AnalyzePage() {
    *
    * **비교 대상은 주소에 싣는다**(`?names=`). 라우터 state 로만 넘기면 그 링크를 받은
    * 사람에게는 state 가 없어 보고서가 조용히 다른 조합으로 떨어진다(S15P21A506-187).
+   * `basePackage`는 예외다 — 공유 링크 재현과 무관한, 커뮤니티 탭이 `packages[0]`과
+   * 대조해 문맥 충돌을 판정하기 위한 부가 신호일 뿐이라 state 로만 넘긴다(S15P21A506-316).
    *
    * 미해결: id 발급 주체. 지금은 서버 왕복을 흉내 내고 draft 로 들어간다.
    * 실패하면 오버레이를 걷고 이 화면에 남아 선택을 잃지 않게 해야 한다.
@@ -189,8 +191,14 @@ export function AnalyzePage() {
   async function createReport() {
     if (!base) return
     setCreating(true)
+
+    // 커뮤니티 수집 선착수(ANALYSIS_CONFIRMED). 비차단 — 응답을 기다리지 않고
+    // 보고서 이동을 계속한다. 실패해도 커뮤니티 탭 최초 오픈이 TAB_OPENED 로 다시
+    // 시도하므로 여기서는 조용히 삼킨다(구현계획 §2).
+    postCommunityRefresh(base, 'ANALYSIS_CONFIRMED').catch(() => {})
+
     await new Promise((r) => setTimeout(r, CREATE_MS))
-    navigate(paths.report('draft', selected))
+    navigate(paths.report('draft', selected), { state: { basePackage: base } })
   }
 
   /*
