@@ -116,7 +116,11 @@ def bronze_run_id(week_of: date, source: str) -> str:
 
 @dataclass(frozen=True)
 class RunRecord:
-    """weekly_ingest_run 한 행."""
+    """회차 하나의 상태.
+
+    **저장소를 모른다.** 이 파일 전체가 그렇다 — 값만 채워 주면 decide() 가 돈다.
+    지금은 state.py 가 MinIO 의 run.json 에서 만들어 넣는다.
+    """
 
     week_of: date
     status: str

@@ -235,13 +235,15 @@ def bronze_downloads(ctx: Context) -> dict:
 def purge_week(ctx: Context, week_of: date) -> list[str]:
     """지난 회차의 로컬 산출물을 지운다.
 
-    MinIO 에 `_SUCCESS` 가 붙은 뒤로 로컬 사본은 사본일 뿐인데, 지우지 않으면 app 노드에
-    주당 약 10 GB 씩 쌓여 postgres 볼륨·Docker 이미지와 같은 파티션을 잠식한다.
+    MinIO 에 `_SUCCESS` 가 붙은 뒤로 로컬 사본은 사본일 뿐인데, 지우지 않으면 주당 약
+    10 GB 씩 쌓인다. data 노드에서는 그 자리가 **MinIO 데이터와 같은 파티션**이라,
+    채우면 수집만 멈추는 게 아니라 저장소가 통째로 선다.
 
     ⚠ **`data/raw` 에서는 그 주차 스냅샷만 건드린다.** 거기에는 T0·T1 백필(projects 229
     스냅샷, 2022년부터)이 같이 들어 있고 그건 BigQuery 50 GiB 를 다시 스캔해야 복구된다.
-    그래서 호출자가 `weekly_ingest_run` 에서 SUCCEEDED 로 확인한 주차만 넘기고, 여기서도
-    경로 이름에 그 날짜가 박혀 있는지 다시 본다. 한 번의 실수가 되돌릴 수 없다.
+    그래서 호출자가 상태 객체에서 SUCCEEDED 로 확인한 주차만 넘기고(`state.py` 의
+    `purgeable_weeks`), 여기서도 경로 이름에 그 날짜가 박혀 있는지 다시 본다.
+    한 번의 실수가 되돌릴 수 없다.
 
     이 단계는 STEPS 에 넣지 않는다 — 청소가 실패했다고 수집까지 실패로 표시할 이유가 없다.
     """
