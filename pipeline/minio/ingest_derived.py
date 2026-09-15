@@ -91,6 +91,38 @@ DATASETS = {
             ' git datasets/migration_pairs_dev_260914/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'package-dependents': {
+        'root': 'data/package_dependents',
+        'prefix': 'depsdev/v1/package-dependents',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_package_dependents.py',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)'
+                  ' + datasets/targets/rank_top100k_20260902.csv (대상 목록)',
+        'readme': 'datasets/package_dependents_260915/README.md',
+        'jira': ['S15P21A506-354', 'S15P21A506-173'],
+        'notes': [
+            '패키지별 dependents(의존자) 이름 목록. (name, kind) 1행 299,988 = 대상 99,996 ×'
+            ' regular/peer/optional. 기존 dependents 데이터는 전부 수(count) 뿐이라'
+            ' 교집합을 잴 수 없어서 목록으로 새로 냈다.',
+            '대상은 다운로드 상위 10만이고 의존자는 npm 전수 4,065,913 이다. 그래서 대상 밖'
+            ' 패키지의 dependents 는 알 수 없다 — 폐기→대체 정답지 25,601 쌍 중 양쪽 다'
+            ' 데이터가 있는 것은 905 쌍(3.5%) 뿐이다.',
+            '쓰는 쪽에서 교집합을 잴 때 분모는 min(|A|,|B|) 로 한다. Jaccard 로 재면'
+            ' webpack↔webpack-cli 가 0.231 이라 보완재인데 0.3 관문을 통과해 버린다.',
+            'devDependencies 는 원천(NPMRequirements)에 없다. typescript 가 57,189 로'
+            ' ecosyste.ms 488,056 의 0.12 배다. eslint·jest·prettier 류 판단에 쓰면 안 된다.',
+            '의존자 모집단에서 번들 중첩 의존 경로 노드를 뺐다. versions_full 고유 이름'
+            ' 1,138만 중 705만(61.9%)이 `@winglang/sdk>0.76.19>cdktf>safe-buffer` 형태이고'
+            ' 전부 published_at 이 NULL 이다. 빼지 않으면 tslib 이 116,820 대신 972,523 이 된다.',
+            '직접 의존만이다. 2-hop 은 이 파일로 계산할 수 없다 — 의존자로 등장하는 고유'
+            ' 패키지 2,157,744 중 이 표에 행이 있는 것은 64,706(3.0%) 뿐이다.',
+            '정답지 이동쌍의 8~11% 가 0.3 관문에 걸린다(거짓 탈락). @types/X→X,'
+            ' -compat/-shim→본체 가 주 패턴이므로 hard filter 가 아니라 감점으로 쓴다.',
+            '배열을 뺀 요약 CSV·stats.json 은 git datasets/package_dependents_260915/ 에 있어'
+            ' 여기 올리지 않음. 배열은 CSV 셀에 들어가지 않는다(react 한 행이 19만 원소).',
+        ],
+    },
     'package-text': {
         'root': 'data/keywords/package_text',
         'prefix': 'ecosystems-keywords/v1/package-text',

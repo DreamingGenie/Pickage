@@ -26,6 +26,16 @@
 
 **배열은 CSV로 내지 않는다.** `react` 한 행의 `dependents`가 19만 원소라 한 셀에 넣을 수 없다. 목록이 필요하면 parquet을 쓴다.
 
+parquet은 2026-09-15 서버 MinIO에 올렸다. 접속은 `pipeline/minio/README.md`의 터널 절차를 따른다.
+
+```text
+pickage-curated/depsdev/v1/package-dependents/snapshot=2026-08-31/
+  run_id=package-dependents-20260915-v1/
+    data/package_dependents.parquet    104,143,713 바이트 · 299,988행
+    run_manifest.json                  SHA-256·행 수
+    _SUCCESS
+```
+
 ### 열
 
 | 열 | 뜻 |
@@ -73,6 +83,31 @@
 
 **`min분모`(overlap coefficient)를 쓸 것.** 위 표에서 두 방식이 갈리는 유일한 행이 바로 그 사례다.
 
+### 그래도 진짜 대체쌍의 8~11%가 걸린다 — hard filter로 쓰지 말 것
+
+정답지로 실측했다. 여기 걸리는 것은 **거짓 탈락**이다.
+
+| 정답지 | 양쪽 다 데이터 있음 | 거짓 탈락(>0.3) | 중앙 | p95 |
+|---|---:|---:|---:|---:|
+| 이동쌍 strict | 1,128 / 1,195 (94%) | 110 (**9.75%**) | 0.060 | 0.468 |
+| 이동쌍 recommended | 998 / 1,167 (86%) | 83 (**8.32%**) | 0.050 | 0.435 |
+| 폐기→대체(high) | 905 / 25,601 (**3.5%**) | 59 (6.73%) | 0.000 | 0.504 |
+
+걸리는 쌍에는 패턴이 있다.
+
+| 패턴 | 예 | overlap |
+|---|---|---:|
+| **`@types/X` → `X`** | `@types/axios`→`axios` · `@types/moment`→`moment` | 0.80~0.89 |
+| **shim/compat → 본체** | `rxjs-compat`→`rxjs` · `vue-property-decorator`→`vue` | 0.85~0.87 |
+| 같은 모노레포 | `@vaadin/component-base`→`@vaadin/overlay` | 0.938 |
+| 함께 쓰이는 저수준 유틸 | `get-intrinsic`→`es-errors` · `node-addon-api`→`node-gyp-build` | 0.92~0.93 |
+
+앞의 둘은 **관문 앞에서 이름 규칙으로 빼면 된다.** 셋째는 기존 `is_same_family()`가 `@scope`로 이미 거른다.
+
+### 데이터가 없으면 통과시킬 것
+
+폐기→대체 정답지는 **95.9%가 한쪽 이상 top100k 밖**이라 관문을 적용할 수 없다. "데이터 없음"을 탈락으로 흘리면 그 대부분이 죽는다. `n_dependents = 0`(행은 있고 의존자가 없음)과 "행 자체가 없음"도 서로 다른 사실이다.
+
 ## 4. 알려진 한계 — 쓰기 전에 반드시 읽을 것
 
 ### 4-1. devDependencies가 원천에 없다
@@ -95,9 +130,13 @@ deps.dev `NPMRequirements`는 `Dependencies`·`PeerDependencies`·`OptionalDepen
 
 `react`는 peer 의존자가 regular보다 **많다.** 플러그인·컴포넌트가 react를 자기 것으로 설치하지 않고 peer로 요구하기 때문이다. `kind`를 골라 쓸 수 있게 만든 이유가 이것이다.
 
-### 4-3. 직접 의존만 — 전이 의존은 없다
+### 4-3. 직접 의존만 — 전이 의존은 없고, 이 파일로는 계산할 수도 없다
 
 `A → B → C`에서 C의 dependents에 A는 없다. deps.dev `Dependents` 테이블에는 all-depth가 있지만 npm 한 스냅샷이 650 GiB라 쓸 수 없다(`docs/api & data/수집계획_BigQuery_Parquet_v2_260902.md` §1).
+
+2-hop을 직접 계산하려 해도 **이 파일로는 안 된다.** 의존자로 등장하는 고유 패키지가 2,157,744개인데 그중 이 표에 행이 있는 것은 **64,706개(3.0%)** 뿐이다 — 나머지는 대상 목록 밖이라 그들의 dependents를 모른다. 대상 제한을 풀고 다시 돌리면(전수 대상 725,023개) 원리상 가능하다.
+
+다만 **넣으면 관문이 나빠질 것으로 본다**(실측하지 않은 예상이다). `tslib`·`chalk`·`debug` 같은 보편 유틸이 거의 모든 패키지의 간접 의존에 들어가므로 모든 쌍의 교집합이 함께 올라가 구분력이 사라진다. 지금도 `chalk`↔`debug`가 0.138인데 2-hop이면 훨씬 높아진다.
 
 ### 4-4. 선언 기반이고, 최신 릴리스 1개만 본다
 
