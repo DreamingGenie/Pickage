@@ -25,8 +25,8 @@ src/
   app/          router.tsx · providers.tsx · app-layout.tsx · routes.ts(경로 단일 출처)
   routes/
     intro/                  00-service-intro
-    analyze/input/          01-package-input
-    analyze/candidates/     02-candidate-select
+    analyze/                01-package-input + 02-candidate-select. IA는 별도 화면이지만
+                             analyze-page.tsx 하나에서 단계로 아래로 쌓인다(step-card.tsx)
     report/
       report-page.tsx       03 셸 (탭)
       ecosystem/            03A
