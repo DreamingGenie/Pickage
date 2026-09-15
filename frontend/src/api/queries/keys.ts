@@ -36,4 +36,9 @@ export const queryKeys = {
     // 생성은 뮤테이션이라 키가 없다. 미리보기만 캐시한다 — 같은 보고서는 내용이 안 바뀐다.
     preview: (reportId: string) => [...queryKeys.report.all, 'preview', reportId] as const,
   },
+  community: {
+    all: ['community'] as const,
+    // 기준 패키지 하나에 대한 조회라 이름 하나만 키에 들어간다(§316).
+    status: (name: string) => [...queryKeys.community.all, 'status', name] as const,
+  },
 } as const
