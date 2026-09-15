@@ -228,6 +228,8 @@ export function ReportPage() {
         open={exporting}
         onOpenChange={setExporting}
         packages={packages}
+        run={run}
+        onGoToFeatures={() => setTab('features')}
         onPreview={(job) => {
           // 생성 모달을 닫고 미리보기로 넘긴다. 둘이 겹쳐 뜨면 어느 쪽을 닫는 것인지
           // 알 수 없고, 뒤 모달의 포커스 덫에 갇힌다.
