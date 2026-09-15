@@ -343,6 +343,7 @@ s3 = boto3.client(
 | 기동 실패 — `Validate failed ... checksum mismatch` | 적용된 `V__` 파일을 고쳤다. **정상 동작이다** — 로그의 안내 두 갈래 중 하나를 고를 것 (위 "스키마를 바꿀 때") |
 | 기동 실패 — `SchemaManagementException` / `missing column` | 엔티티와 테이블 불일치. **정상 동작이다** — `V__` 마이그레이션을 먼저 쓸 것 |
 | 시드를 고쳤는데 반영 안 됨 | 시드는 앱이 넣지 않는다. `psql -f seed/seed_sample.sql` 을 다시 돌릴 것 (위 "샘플 데이터 넣기") |
+| 시드 적용 실패 — `no partition of relation "package_version_snapshot" found for row` | V6 이전에 쓰던 옛 시드다. 최신 시드를 다시 돌린 뒤 `docker compose exec postgres psql -U postgres -d pickage -c "SELECT count(*) FROM pg_inherits WHERE inhparent = 'package_version_snapshot'::regclass;"` 가 시드의 스냅샷 날짜 수와 같은지 확인할 것 |
 
 ## 버전을 고정한 이유
 

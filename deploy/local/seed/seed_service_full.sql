@@ -537,6 +537,54 @@ JOIN (SELECT package_id, MAX(ordinal) AS max_ord FROM version GROUP BY package_i
      ON m.package_id = v.package_id
 JOIN pkg_curve c ON c.package_id = v.package_id;
 
+-- 날짜별 파티션을 **먼저** 만든다.
+--
+-- V6 (2026-09-14) 가 package_version_snapshot 을 snapshot_at RANGE 파티션 부모로 바꿨다.
+-- 새 DB 에는 자식이 하나도 없고, DEFAULT 파티션은 V6 계약이 금지한다. 그래서 이 블록이
+-- 없으면 바로 아래 INSERT 가 통째로
+--   ERROR: no partition of relation "package_version_snapshot" found for row
+-- 로 멈춘다. 2026-09-15 CI 의 R14(공용 시드 전체 실행) 실패가 이것이었다.
+--
+-- "적재 작업이 [D, D+1) 자식을 준비한 뒤 넣는다" 는 규칙을 시드도 그대로 따르는 것이다 —
+-- docs/worklogs/S15P21A506-341/14-constraint-names-and-partitions.md ④ 항목.
+--
+-- ⚠ 날짜 목록을 여기 적어 두지 않고 방금 넣은 snapshot 에서 읽는다. 두 곳에 적으면
+--   스냅샷 날짜를 고칠 때 한쪽만 고쳐 놓고 "왜 또 파티션이 없다고 하지" 를 반복하게 된다.
+--   package_version_snapshot.snapshot_at 은 snapshot 을 참조하는 FK 라 이 목록이 곧 전부다.
+--
+-- ⚠ 이름이 아니라 **실제 부모 연결(pg_inherits)과 범위** 로 있는지 확인한다. 운영에서
+--   복원한 DB 는 같은 날짜의 자식을 vd193_reload_… 스키마에 다른 이름으로 갖고 있다.
+--   이름만 보고 판단하면 이미 있는 날짜를 또 만들다가 범위 겹침으로 실패한다.
+--
+-- TRUNCATE 는 자식 파티션을 지우지 않는다. 그래서 두 번째 실행부터는 아무것도 만들지 않고,
+-- 이 시드는 몇 번을 돌려도 결과가 같다는 성질을 유지한다.
+DO $seed_partition$
+DECLARE
+    d date;
+BEGIN
+    -- 아래에서 파티션 경계 문자열을 날짜로 되읽으므로 표기를 고정한다 (V6 와 같은 이유).
+    PERFORM set_config('DateStyle', 'ISO, YMD', true);
+
+    FOR d IN SELECT snapshot_at FROM snapshot ORDER BY snapshot_at LOOP
+        IF NOT EXISTS (
+            SELECT 1
+              FROM pg_inherits i
+              JOIN pg_class c ON c.oid = i.inhrelid
+             WHERE i.inhparent = 'public.package_version_snapshot'::regclass
+               AND d >= substring(pg_get_expr(c.relpartbound, c.oid, true)
+                                  FROM $bound$FROM \('([0-9-]+)'\)$bound$)::date
+               AND d <  substring(pg_get_expr(c.relpartbound, c.oid, true)
+                                  FROM $bound$TO \('([0-9-]+)'\)$bound$)::date
+        ) THEN
+            EXECUTE format(
+                'CREATE TABLE public.%I PARTITION OF public.package_version_snapshot '
+                'FOR VALUES FROM (%L) TO (%L)',
+                'package_version_snapshot_' || to_char(d, 'YYYYMMDD'), d, d + 1);
+        END IF;
+    END LOOP;
+END
+$seed_partition$;
+
 --
 -- 채택률만으로 만들면 버전 합계가 dep_scale 에 딱 붙어 **추이 그래프가 자로 그은 직선**이 된다
 -- (한 버전이 잃는 만큼 다음 버전이 그대로 가져가므로). 그래서 두 항을 더한다.
