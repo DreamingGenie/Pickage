@@ -486,17 +486,22 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://j15a506.p.ssafy.io/   # 200
 치환까지 끝난 서비스 설정 전체를 해시로 비교**한다. `${POSTGRES_PASSWORD}` 처럼
 `compose.yaml` 안에서 치환되는 값은 여기 들어가므로, 고치면 그 서비스가 다시 뜬다.
 
-| 값 | 어떻게 들어가나 | 고치면 다시 뜨나 |
-| --- | --- | --- |
-| `POSTGRES_*` | `${}` 치환 (postgres · api) | ✅ |
-| `API_TAG` · `WEB_TAG` | `${}` 치환 (api · web) | ✅ |
-| `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | `${}` 치환 (spark-worker-2) | ✅ |
-| **`MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD`** | **`env_file: ./.env`** (spark-worker-2) | ⚠ **확인 필요** |
+`app` 노드의 compose 는 **모든 값을 `${}` 치환으로 받는다.** `env_file` 을 쓰는 서비스가
+하나도 없다. 그래서 고친 변수를 쓰는 서비스만 다시 뜬다.
 
-마지막 줄이 다르다. 이 둘만은 `compose.yaml` 안에서 치환되지 않고 `env_file` 로 통째로
-들어간다. **파일 내용 변경을 compose 가 설정 변경으로 세는지는 버전에 따라 달랐다.**
-서버에서 확인하지 않고 "고쳤으니 반영됐겠지" 로 넘기면 안 되는 값이다 — 틀리면 Spark
-executor 만 `NoAuthWithAWSException` 으로 죽고, 그건 **쓰기 단계에 가서야** 드러난다.
+| 값 | 쓰는 서비스 | 고치면 다시 뜨나 |
+| --- | --- | --- |
+| `POSTGRES_*` | postgres · api | ✅ |
+| `API_TAG` · `WEB_TAG` | api · web | ✅ |
+| `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | spark-worker-2 | ✅ |
+| `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | spark-worker-2 | ✅ |
+
+> **예전에는 spark-worker-2 가 `env_file: ./.env` 로 파일을 통째로 받았다.** 그러면 파일의
+> **어느 줄이 바뀌어도** 그 서비스의 설정이 바뀐 것이 되어 worker 가 다시 만들어진다.
+> 배포가 매번 `API_TAG`·`WEB_TAG` 를 고치므로, **앱만 배포해도 Spark worker 가 재시작**
+> 하고 그때 돌던 배치의 executor 가 같이 죽었다. 2026-09-15 에 compose 29.6.1 로
+> 재현해서 확인했다 — `env_file` 쪽만 `Recreated`, 치환 쪽은 `Running` 이었다.
+> 그래서 이 컨테이너가 실제로 쓰는 두 값만 이름을 대서 넘기도록 고쳤다.
 
 무엇이 다시 뜰지 미리 보려면:
 
@@ -520,8 +525,9 @@ docker inspect --format '{{.Name}} {{index .Config.Labels "com.docker.compose.co
 docker compose up -d --force-recreate spark-worker-2
 ```
 
-> 그래서 MinIO 자격증명을 고친 뒤에는 **강제 재생성을 기본으로 한다.** 맞았는지 확인하는
-> 비용(다음 배치까지 기다린다)이 컨테이너 하나 다시 띄우는 비용보다 훨씬 크다.
+> **마운트한 파일의 내용은 여기 안 걸린다.** `nginx/app.conf` 가 그렇다 — 내용을 고쳐도
+> compose 가 보는 설정은 그대로라 컨테이너를 다시 만들지 않는다. 그래서 배포 잡이 마지막에
+> `nginx -t` 와 `nginx -s reload` 를 따로 친다. 손으로 고쳤을 때도 같다.
 
 ## 배포가 실패하면 서버는 어떤 상태인가
 
@@ -531,6 +537,7 @@ docker compose up -d --force-recreate spark-worker-2
 | --- | --- |
 | `docker compose build` | 컨테이너는 **그대로 전 버전**이다. 사이트는 멀쩡하다 |
 | `up -d --wait` 시간 초과 | **새 컨테이너로 이미 바뀌었고 healthy 가 아니다.** 사이트가 내려가 있다 |
+| `nginx -t` | 컨테이너는 새것으로 떴고 **nginx 는 옛 설정으로 돈다.** 사이트는 멀쩡하다 — `nginx/app.conf` 의 문법을 고쳐 다시 배포한다 |
 | 마지막 `curl` | 컨테이너는 healthy 인데 nginx·TLS 쪽이 이상하다. 아래 "평소" 의 로그부터 본다 |
 
 > ⚠ **`/srv/pickage/app.env` 의 태그는 "마지막으로 성공한 것" 이 아니라 "마지막으로 시도한

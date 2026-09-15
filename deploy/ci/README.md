@@ -255,7 +255,22 @@ sudo usermod -aG docker gitlab-runner
 sudo -u gitlab-runner docker ps >/dev/null && echo "러너가 docker 를 쓸 수 있다"
 ```
 
-### 2. GitLab 에서 러너를 만든다 (웹)
+### 2. `develop`·`main` 을 보호 브랜치로 만든다
+
+**3번의 Protected 러너가 성립하려면 이게 먼저다.** Settings → Repository →
+**Protected branches** 에서 `main` 과 `develop` 이 목록에 있어야 한다. `main` 은 기본
+브랜치라 대개 이미 들어 있고, **`develop` 은 손으로 넣어야 한다.**
+
+```
+Allowed to merge : Maintainers   (팀 상황에 맞게)
+Allowed to push  : No one        (MR 로만 들어오게 — AGENTS.md 4.1)
+```
+
+> ⚠ **순서를 뒤집지 말 것.** 러너를 Protected 로 만들어 놓고 `develop` 이 보호 브랜치가
+> 아니면, `develop` 의 배포 잡을 집어갈 러너가 없어서 **파이프라인이 영영 `pending`** 이다.
+> 실패가 아니라 멈춰 있는 상태라 알아채기 어렵다.
+
+### 3. GitLab 에서 러너를 만든다 (웹)
 
 Settings → CI/CD → Runners → **New project runner**
 
@@ -263,8 +278,27 @@ Settings → CI/CD → Runners → **New project runner**
 - **"Run untagged jobs" 는 끈다.** 켜 두면 이 러너가 `frontend` 잡을 집어가서
   `node: command not found` 로 죽는다 — 호스트에는 node 도 JDK 도 없다.
   증상이 "어떤 파이프라인은 되고 어떤 파이프라인은 안 된다" 라서 원인을 찾기 어렵다.
+- **"Protected" 를 켠다.** ← **빠뜨리면 안 되는 항목이다.**
 
-### 3. 등록
+> ### ⚠ Protected 를 켜지 않으면 리뷰 전 코드가 운영 서버에서 돈다
+>
+> 태그는 접근 제어가 아니라 **이름표**다. 누구든 자기 브랜치에서 `.gitlab-ci.yml` 에
+> `tags: [deploy]` 를 단 잡을 하나 써 넣고 MR 을 열면, 그 잡이 이 러너에 배정된다.
+> 그리고 이 러너는 **shell executor** 다 — 컨테이너 안이 아니라 **운영 호스트에서 직접**
+> 돌고, `gitlab-runner` 계정은 docker 그룹에 들어 있다. docker 소켓은 호스트 root 와
+> 동등하다. 즉 리뷰도 승인도 거치지 않은 코드가 운영 서버에서 무엇이든 할 수 있고,
+> `/srv/pickage/app.env` 의 DB 비밀번호와 MinIO 키도 그중 하나다.
+>
+> **Protected 러너는 보호 브랜치의 잡만 집어간다.** 그래서 작업 브랜치의 MR 파이프라인은
+> 무슨 태그를 달든 이 러너를 쓰지 못한다(그 잡이 `pending` 으로 남는다). 여기서부터는
+> "`develop` 에 머지할 수 있는 사람은 운영 서버에서 코드를 돌릴 수 있다" 가 되는데,
+> 그건 CD 를 두기로 한 이상 받아들이는 경계다.
+>
+> 이 러너는 **검증 잡용 docker 러너와 성질이 다르다.** 그쪽은 컨테이너 안에서 돌고 운영
+> 자격증명에 닿지 않아 Protected 가 아니어도 된다. 같은 화면에서 만드는 바람에 같은
+> 설정을 쓰기 쉬운데, 여기서는 갈라야 한다.
+
+### 4. 등록
 
 ```bash
 sudo gitlab-runner register --non-interactive \
@@ -277,16 +311,17 @@ sudo gitlab-runner register --non-interactive \
 
 `--docker-image` 는 주지 않는다. shell executor 에는 이미지가 없다 — 잡이 호스트에서 그대로 돈다.
 
-### 4. 확인
+### 5. 확인
 
 ```bash
 sudo gitlab-runner verify
 sudo gitlab-runner list          # 둘이 보여야 한다: pickage-app-docker, pickage-app-deploy
 ```
 
-Settings → CI/CD → Runners 에서 새 러너가 초록이고 **태그가 `deploy` 하나**인지 본다.
+Settings → CI/CD → Runners 에서 새 러너가 초록이고, **태그가 `deploy` 하나**이고,
+**Protected 뱃지가 붙어 있는지** 본다. 셋 다여야 한다.
 
-### 5. 첫 배포는 컨테이너를 전부 새로 만든다
+### 6. 첫 배포는 컨테이너를 전부 새로 만든다
 
 지금까지는 `~/S15P21A506` 에서 `up` 했다. 첫 배포부터는 러너의 작업 디렉터리에서 돈다 —
 compose 가 보기에 **설정이 바뀐 것**이라(`web` 의 nginx 설정이 다른 경로에서 온다)
@@ -606,6 +641,9 @@ docker builder prune -f --filter "until=168h"
 | 배포 잡이 `permission denied … docker.sock` | `gitlab-runner` 가 docker 그룹에 없다. 위 `usermod -aG docker` |
 | `frontend` 잡이 `node: command not found` | shell 러너가 집어간 것. 그 러너의 **Run untagged jobs 를 끈다** |
 | 설정을 고쳤는데 nginx 가 안 바뀐다 | 컨테이너가 물고 있는 파일은 `/srv/pickage/repo/...` 다. 위 "사람이 찾아갈 경로" |
+| 배포 잡이 `pending` 인데 러너는 초록 | 러너가 **Protected** 인데 그 브랜치가 보호 브랜치가 아니다. 위 "2. 보호 브랜치" |
+| 작업 브랜치의 `deploy` 태그 잡이 안 돈다 | **설계대로다.** Protected 러너는 보호 브랜치의 잡만 집어간다 |
+| 앱만 배포했는데 Spark worker 가 재시작한다 | `compose.yaml` 의 spark-worker-2 에 `env_file` 이 되살아났는지 본다. 위 "안 바뀐 것은…" |
 | 돌아야 할 잡이 파이프라인에 아예 없다 | `changes:` 규칙. 바꾼 경로가 목록에 없거나(위 "바뀐 폴더의 잡만 돈다"), 수동 실행에서 `compare_to` 기준으로 이미 develop 과 같은 상태다 |
 | push 했는데 **파이프라인 자체가 안 생긴다** | 설계대로다. MR 이 없거나 Draft 다 — 위 "언제 도나" |
 | Ready 로 바꿨는데 파이프라인이 안 생긴다 | Draft → Ready 는 트리거가 아니다. Pipelines 탭의 **Run pipeline** — 위 "언제 도나" |

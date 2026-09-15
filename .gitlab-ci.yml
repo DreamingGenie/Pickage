@@ -385,6 +385,11 @@ deploy-app:
   # 이 태그가 붙은 잡만 shell 러너가 집어간다. 반대로 검증 잡들은 태그가 없어서 docker
   # 러너로 간다 — **shell 러너의 "Run untagged jobs" 를 꺼 두는 것**이 그 전제다.
   # 켜 두면 shell 러너가 `frontend` 를 집어가서 "node: command not found" 로 죽는다.
+  #
+  # ⚠ **태그는 접근 제어가 아니다.** 누구든 자기 브랜치에서 이 태그를 단 잡을 써 넣으면
+  #   같은 러너에 배정된다 — 그리고 그 러너는 운영 호스트에서 직접 돈다. 막는 것은
+  #   **러너의 Protected 설정**이고, 그게 성립하려면 develop·main 이 보호 브랜치여야
+  #   한다. deploy/ci/README.md 의 "2. 보호 브랜치" · "3. …Protected 를 켠다".
   tags:
     - deploy
   environment:
@@ -473,6 +478,21 @@ deploy-app:
     # `--wait` 는 모든 컨테이너가 healthy 가 될 때까지 기다리고, 안 되면 0 이 아닌 코드로
     # 끝난다. 없으면 앱이 30초 뒤에 죽어도 이 잡은 초록이다.
     - docker compose up -d --wait --wait-timeout 300
+    # ── nginx 설정을 다시 읽힌다 ────────────────────────────────
+    #
+    # `nginx/app.conf` 는 이미지에 굽지 않고 **마운트**한다. 그래서 파일 내용이 바뀌어도
+    # compose 가 보는 서비스 설정은 그대로고, **컨테이너를 다시 만들지 않는다.** nginx 는
+    # 기동할 때 설정을 한 번 읽으므로 그대로 두면 **옛 설정으로 계속 서비스하면서 배포는
+    # 초록**이 된다. 프런트가 같이 바뀌어 web 이 재생성된 날에만 우연히 반영된다.
+    #
+    # reload 는 워커를 새 설정으로 갈아 끼울 뿐이라 연결이 끊기지 않는다. 매번 걸어도
+    # 손해가 없어서 조건 없이 돌린다.
+    #
+    # ⚠ `-T` 가 필요하다. 없으면 TTY 를 붙이려다 CI 처럼 터미널이 없는 데서 실패한다.
+    # ⚠ 문법 검사를 먼저 한다. 깨진 설정으로 reload 하면 nginx 는 **거부하고 옛 설정으로
+    #   계속 돈다** — 사이트는 멀쩡한데 배포만 실패하는 상태이고, 그게 맞는 신호다.
+    - docker compose exec -T web nginx -t
+    - docker compose exec -T web nginx -s reload
     # healthcheck 는 컨테이너 안에서만 본다. TLS·nginx·프런트 정적파일은 그 밖이라
     # 여기서 한 번 더 친다. `--resolve` 로 DNS 와 공인 IP 를 건너뛰는 이유는 호스트가
     # 자기 공인 IP 로 되돌아오지 못하는 구성이 있어서다 — 인증서 이름만 맞춰 준다.
