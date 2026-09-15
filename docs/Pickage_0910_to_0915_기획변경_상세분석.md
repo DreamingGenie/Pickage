@@ -54,11 +54,23 @@ Jira: `S15P21A506-358` (상위 에픽 `S15P21A506-20`)
 
 - dependency overlap 관문·채점 게이트는 AI팀 후속 결정 대기.
 - GitHub 커뮤니티 프런트 tab은 미착수 — 다음 프런트 작업 후보.
-- 미병합 원격 브랜치 6개(`ai/fix/S15P21A506-334-same-family-scope-org-match`, `data/feat/S15P21A506-273-weekly-ingest-on-data-node`, `data/feat/S15P21A506-350-peer-dependency-similarity`, `data/feat/S15P21A506-354-package-dependents-list`, `frontend/fix/S15P21A506-308-analyze-page-undefined-seterror`, `infra/feat/S15P21A506-273-weekly-ingest-runner`)는 병합 전이라 이번 갱신에 반영하지 않았다. 병합되면 다음 정기 갱신에서 반영한다.
+- **2026-09-15 최종 재확인**: 최초 분석 구간(`8830091..7578740`) 확정 이후 develop에 2개 병합이 더 들어왔다 — `92eb485`(`ai/fix/S15P21A506-334-same-family-scope-org-match`, `ai/README.md`·`ai/similarity/**`만 변경, 이미 구현된 same-family 관문의 오탐 보완이라 §4.2 문구 영향 없음), `bfaae87`(`infra/fix/S15P21A506-223-image-identity`, `.gitlab-ci.yml`·`deploy/ci/README.md`만 변경, CI 인프라라 5개 문서 범위 밖). 두 커밋 모두 `git show --stat`로 직접 대조해 문서 수정이 필요 없음을 확인했다.
+- 미병합 원격 브랜치는 2026-09-15 최종 기준 5개다(`data/feat/S15P21A506-273-weekly-ingest-on-data-node`, `data/feat/S15P21A506-350-peer-dependency-similarity`, `data/feat/S15P21A506-354-package-dependents-list`, `frontend/fix/S15P21A506-308-analyze-page-undefined-seterror`, `infra/feat/S15P21A506-273-weekly-ingest-runner`). `ai/fix/S15P21A506-334-same-family-scope-org-match`는 그 사이 병합되어 위 `92eb485`로 반영·확인됐고, `infra/fix/S15P21A506-223-image-identity-smoke`(신규, 인프라 CI 후속)가 미병합 목록에 새로 나타났다 — 5개 문서 범위 밖이라 반영 대상 아님. 병합되는 브랜치는 다음 정기 갱신에서 반영한다.
 
 ## 5. 변경 대상에서 제외한 것
 
 - `docs/history/**`(모든 과거 세대)
-- 완료된 과거 worklog(`S15P21A506-193/-267/-278/-283/-288/-297/-300/-306/-307/-321/-327` 등)
+- 완료된 과거 worklog(`S15P21A506-193/-267/-278/-283/-288/-297/-300/-306/-307/-321/-327/-351` 등), `docs/for_community/review-315/`의 완료 감사 기록
 - Jira `S15P21A506-111`(진행 중 상태 — 댓글도 남기지 않음, 보고 시 별도 플래그)
-- 미병합 브랜치 6개(위 4장)
+- 미병합 브랜치(위 4장)
+- `datasets/feature_candidates_260908/README.md`의 `Pickage_기능별_개발_구상안_0904.md` 인용 — 데이터셋을 만들 당시 실제로 참조한 문서를 기록한 출처 표기라 역사적 사실 그대로 둔다(탐색 링크가 아니라 provenance).
+
+## 6. 문서 간 추적성(README·CLAUDE.md) 정정
+
+docs root 밖에서 구버전 Pickage 문서를 가리키던 "작업 전 필독" 성격의 살아있는 안내문 3곳을 함께 고쳤다(단순 인용이 아니라 실제로 작업 전에 참조되는 지침이라 방치하면 다음 작업자가 구 계약을 읽게 됨):
+
+- `frontend/CLAUDE.md` — `Pickage_메뉴구조_IA_0910.md`·`Pickage_기능별_개발_구상안_0910.md`·`Pickage_0909_to_0910_기획변경_상세분석.md` 참조를 `_0915.md`·`Pickage_0910_to_0915_기획변경_상세분석.md`로 갱신.
+- `ai/README.md` — `Pickage_기능별_개발_구상안_0909.md` 참조 2곳(설계 근거, 관련 문서)을 `_0915.md`로 갱신. 이 파일은 0910 세트로 넘어갈 때도 갱신되지 않아 이미 두 세대 뒤처져 있었다.
+- `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` — 요구사항 명세서 링크를 `_0910.md`에서 `_0915.md`로 갱신(확장-03 절 번호는 그대로 유효).
+
+`frontend/README.md`, 루트 `README.md`, `backend/`, `pipeline/*/README.md`, `deploy/*/README.md`는 버전이 박힌 Pickage 문서를 직접 인용하지 않아 수정 대상이 없었다(전수 grep 확인).
