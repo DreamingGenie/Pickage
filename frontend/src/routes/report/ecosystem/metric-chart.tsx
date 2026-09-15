@@ -79,7 +79,13 @@ export function MetricChart({
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="font-mono text-base text-muted-foreground">{unit}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="font-mono text-base text-muted-foreground">{unit}</span>
+          {/* 311 — 눈금은 원래 값 단위지만 간격 자체는 로그다. 그 사실을 알린다. */}
+          <span className="rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+            로그축
+          </span>
+        </span>
       </header>
 
       {showLegend && state.status === 'ready' && (
@@ -134,7 +140,7 @@ export function MetricChart({
               유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
             */
             maxGapDays={step * 7 + 1}
-            ariaLabel={`${title} 추이`}
+            ariaLabel={`${title} 추이 (로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요)`}
           />
           {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
           {accumulating.length > 0 && <AccumulatingNotes series={accumulating} />}
