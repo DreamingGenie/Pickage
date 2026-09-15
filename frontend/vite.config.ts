@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+// `vitest/config`의 defineConfig 는 Vite 설정 타입을 그대로 확장해 `test` 블록만 추가한다.
+// 파일을 따로 두면 `@` alias·플러그인을 두 번 적어야 한다.
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -46,5 +48,12 @@ export default defineConfig({
       /** 사전 파일(명세 §2.2). 봉투를 쓰지 않는 정적 파일이라 경로가 다르다. */
       '/static': { target: DEV_API_TARGET, changeOrigin: true },
     },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    // 명시적으로 import 하게 둔다 — globals:true 로 describe/it/expect 를 전역으로 열면
+    // eslint 에도 vitest 전역을 새로 등록해야 하는데, 테스트 파일 몇 개뿐이라 그 값어치가 없다.
+    globals: false,
   },
 })
