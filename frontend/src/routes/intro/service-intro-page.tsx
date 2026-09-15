@@ -149,13 +149,14 @@ export function ServiceIntroPage() {
           <Step
             {...steps.props(1)}
             keyword="후보 선택"
-            desc="설명·키워드가 가까운 후보를 최대 3개까지 제시하고, 상위 2개를 미리 골라둡니다. 직접 추가할 수도 있습니다."
+            desc="설명이 가까운 후보를 최대 3개까지 보여줍니다. 기준 패키지를 포함해 최종 비교는 총 3개까지라, 후보 중 최대 2개를 고를 수 있습니다. 모두 미선택 상태로 시작하니 직접 고르거나 이름으로 추가하세요."
           >
             <div className="flex flex-col gap-1.5">
               {[
                 { name: 'winston', tag: '해제 불가', picked: true, delay: 0 },
-                { name: 'pino', tag: '유사도 0.92', picked: true, delay: 260 },
-                { name: 'bunyan', tag: '유사도 0.87', picked: false, delay: 0 },
+                { name: 'pino', tag: '1위', picked: false, delay: 0 },
+                { name: 'bunyan', tag: '2위', picked: false, delay: 0 },
+                { name: 'log4js', tag: '3위', picked: false, delay: 0 },
               ].map((c) => (
                 <div
                   key={c.name}
@@ -187,7 +188,7 @@ export function ServiceIntroPage() {
                 className="mt-0.5 text-base text-muted-foreground tabular-nums opacity-0 group-data-[on=true]:animate-oss-rise"
                 style={{ animationDelay: '700ms' }}
               >
-                2 / 3 선택됨
+                1 / 3 선택됨
               </span>
             </div>
           </Step>
@@ -241,8 +242,8 @@ export function ServiceIntroPage() {
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-semibold tracking-tight">분석 결과 예시</h2>
           <p className="text-sm text-muted-foreground">
-            보고서는 두 장입니다. 아래 수치는 예시이고, 기능 비교표는 winston · pino · bunyan 실제
-            검증 결과입니다.
+            보고서는 두 장입니다. 둘 다 winston · pino · bunyan 조합의 예시이며, 기능 비교표는 이
+            서비스가 지금 만든 결과가 아니라 그 세 패키지를 실제로 검증한 결과를 옮긴 것입니다.
           </p>
         </div>
 
@@ -311,6 +312,23 @@ export function ServiceIntroPage() {
             </p>
           </article>
         </div>
+      </section>
+
+      {/* ── 관측 범위와 판단 한계 (IA 4.1-5·4.2 "범위 안내") ────── */}
+      <section className="flex flex-col gap-3 rounded-2xl border border-dashed p-7">
+        <h2 className="text-xl font-semibold tracking-tight">관측 범위와 판단 한계</h2>
+        <ul className="flex flex-col gap-2 text-base leading-relaxed text-muted-foreground">
+          <li>
+            후보의 유사도 순위는 설명·키워드가 가까운 정도이며, 기술 품질이나 우열 판정이 아닙니다.
+            어느 쪽이 낫다는 판정은 하지 않습니다.
+          </li>
+          <li>다운로드 추이는 npm 공식 자료를 최대 104주까지 관측한 범위입니다.</li>
+          <li>
+            버전 분포는 최신 DB Snapshot 기준일의 관측이며, 실제 설치 비중이나 요구조건 해석 결과가
+            아닙니다.
+          </li>
+          <li>이 페이지의 수치와 그래프는 모두 예시이며, 실제 분석 결과가 아닙니다.</li>
+        </ul>
       </section>
     </div>
   )

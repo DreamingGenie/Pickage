@@ -1,10 +1,10 @@
 import { Loader2Icon, XIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { fetchPackageSearch } from '@/api/endpoints'
 import { useSimilarPackages } from '@/api/queries'
-import { MAX_NAMES } from '@/api/types'
+import { MAX_NAMES, SEARCH_LIMIT_MAX } from '@/api/types'
 import { paths } from '@/app/routes'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
 import { Button } from '@/components/ui/button'
@@ -13,17 +13,16 @@ import { PackageSearch } from '@/routes/analyze/package-search'
 import { StepCard, StepConnector, type StepState } from '@/routes/analyze/step-card'
 import { cn } from '@/lib/utils'
 
-/** 기준 패키지를 포함한 비교 대상 수(IA 1.4). 서버의 `names` 상한과 같은 값이다. */
+/** 기준 패키지를 포함한 비교 대상 수(IA §1-3). 서버의 `names` 상한과 같은 값이다. */
 const MAX_COMPARISON = MAX_NAMES
 
 /**
- * 화면에 깔 후보 수.
+ * 화면에 깔 후보 수(IA §6.1-4: 기준 제외 최대 3개, 모두 미선택으로 노출).
  *
- * 서버는 `limit` 만큼(기본 20) 주지만 다 펼치지 않는다. 고를 수 있는 자리가
- * `MAX_COMPARISON - 1` 개뿐이라, 후보를 스무 개 늘어놓으면 고르는 일이 아니라
- * 훑는 일이 된다. 늘리려면 이 숫자만 바꾸면 된다.
+ * 고를 수 있는 자리는 `MAX_COMPARISON - 1`개뿐이지만, 노출 자체는 선택 가능 수가 아니라
+ * IA가 정한 3개다 — 다 고르지 못하더라도 후보 폭은 그대로 보여준다(S15P21A506-309).
  */
-const VISIBLE_CANDIDATES = 2
+const VISIBLE_CANDIDATES = 3
 
 /**
  * 화면-01 · 02 (Figma 220:195 · 220:196).
@@ -59,6 +58,11 @@ export function AnalyzePage() {
    * 두 응답 사이에 이름이 사라지는 경우까지 다뤄야 한다.
    */
   const [submitted, setSubmitted] = useState<string | null>(nav?.prefill ?? restore?.[0] ?? null)
+  /** 직접 추가 왕복 중 기준이 바뀌었는지 판별용 — state 클로저는 await 뒤에도 옛 값이라 ref 로 최신값을 쥔다. */
+  const submittedRef = useRef(submitted)
+  useEffect(() => {
+    submittedRef.current = submitted
+  }, [submitted])
 
   const similar = useSimilarPackages(submitted ?? '')
 
@@ -67,7 +71,8 @@ export function AnalyzePage() {
     similar.data && similar.data.not_found.length > 0 ? similar.data.not_found[0] : null
 
   const base = submitted && similar.data && !missing ? submitted : null
-  const checking = Boolean(submitted) && similar.isPending
+  // isPending 만 보면 실패 후 재조회(isRefetching) 동안 스피너·비활성화가 안 걸린다 — isFetching 은 둘 다 포함
+  const checking = Boolean(submitted) && similar.isFetching
 
   const error = missing
     ? `npm 레지스트리에서 ${missing} 을(를) 찾지 못했습니다. 철자를 확인해 주세요.`
@@ -78,8 +83,9 @@ export function AnalyzePage() {
   /**
    * 서버는 `limit` 만큼 주지만 화면에는 일부만 깐다.
    *
-   * **기본 선택을 하지 않는다.** 고를 자리가 두 개인데 두 개를 미리 켜 두면 고르는 단계가
-   * 사라진다 — 사용자는 자기가 고르지 않은 조합으로 보고서를 받는다.
+   * **기본 선택을 하지 않는다.** 후보 3개를 모두 미선택으로 띄운다(IA §6.1-4·§6.3,
+   * `DEC-RANK-UI-20260910-01`) — 미리 켜 두면 고르는 단계가 사라져 사용자는 자기가
+   * 고르지 않은 조합으로 보고서를 받는다.
    */
   const candidates = (similar.data?.candidates ?? []).slice(0, VISIBLE_CANDIDATES)
   const selected = base ? [base, ...picked] : []
@@ -88,6 +94,11 @@ export function AnalyzePage() {
   function verify(name: string) {
     const q = name.trim()
     if (!q) return
+    // 같은 이름 재확인은 상태가 안 바뀌어 react-query 가 다시 안 보낸다 — 직접 refetch (S15P21A506-332)
+    if (q === submitted) {
+      void similar.refetch()
+      return
+    }
     setPicked([])
     setLimitHit(false)
     setSubmitted(q)
@@ -121,6 +132,12 @@ export function AnalyzePage() {
    *
    * 존재 확인은 검색 엔드포인트로 한다 — 접두사 검색이라 정확히 같은 이름이 결과에
    * 들어 있는지를 본다. 앞이 같은 다른 이름(`express-session`)이 통과하면 안 된다.
+   * `SEARCH_LIMIT_MAX`(서버 상한)까지 받는다 — 상위 5개만 보면 인기순 밖으로 밀린
+   * 정상 패키지를 "없음"으로 오판할 수 있다(부재 증명이 아니다).
+   *
+   * **왕복 사이 레이스 방어.** `await` 도중 기준이 바뀌거나, 같은 이름이 동시에 또
+   * 들어오거나, 다른 추가로 한도가 다 찼을 수 있다 — 응답이 오면 그 시점 최신 상태로
+   * 다시 확인한 뒤에만 반영한다(S15P21A506-309).
    */
   async function addManual(name: string) {
     const q = name.trim()
@@ -135,8 +152,10 @@ export function AnalyzePage() {
       return
     }
 
+    const requestedFor = submitted
+
     try {
-      const found = await fetchPackageSearch(q, 5)
+      const found = await fetchPackageSearch(q, SEARCH_LIMIT_MAX)
       if (!found.items.includes(q)) {
         setExtraError(`npm 레지스트리에서 ${q} 을(를) 찾지 못했습니다.`)
         return
@@ -146,8 +165,16 @@ export function AnalyzePage() {
       return
     }
 
-    setPicked((prev) => [...prev, q])
-    setExtraDraft('')
+    // 기준이 바뀐 뒤 늦게 도착한 응답이면 지금 선택 목록과 무관하니 버린다.
+    if (submittedRef.current !== requestedFor) return
+
+    let added = false
+    setPicked((prev) => {
+      if (prev.includes(q) || 1 + prev.length >= MAX_COMPARISON) return prev
+      added = true
+      return [...prev, q]
+    })
+    if (added) setExtraDraft('')
   }
 
   /**

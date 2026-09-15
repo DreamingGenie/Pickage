@@ -1,4 +1,4 @@
-import { CheckIcon, Loader2Icon } from 'lucide-react'
+import { CheckIcon, CircleAlertIcon, Loader2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
@@ -14,27 +14,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
  *
- * <p>상태 셋을 한 모달 안에서 넘긴다 — `READY → GENERATING → COMPLETE`.
- * 창을 따로 띄우면 진행 중에 뒤 화면이 바뀌고, 돌아왔을 때 무엇을 만들던 중이었는지
- * 다시 알려줘야 한다.
+ * <p>상태 다섯을 한 모달 안에서 넘긴다 — `READY → GENERATING → COMPLETE`, 적격성 실패는
+ * `BLOCKED`, 생성 시작 후 실패는 `FAILED`(구상안 §13.2·13.3). 창을 따로 띄우면 진행 중에
+ * 뒤 화면이 바뀌고, 돌아왔을 때 무엇을 만들던 중이었는지 다시 알려줘야 한다.
  *
- * <h2>`BLOCKED` 는 아직 없다</h2>
+ * <h2>`BLOCKED` 사유는 아직 둘뿐이다</h2>
  *
- * 구상안 §13.2 의 차단 사유 다섯 중 셋이 기능 비교에 달려 있고 그 기능이 없다. 지금
- * 넣으면 <b>언제나 차단인 화면</b>이 되어 아무것도 확인할 수 없다. 기능 비교가 붙을 때
- * 적격성 검사와 함께 더한다.
+ * 구상안 §13.2 의 차단 사유 다섯 중 클라이언트에서 지금 실제로 판단 가능한 건
+ * `FEATURE_ANALYSIS_REQUIRED`(기능 비교 미실행)·`VERSION_RESULT_MISMATCH`(재분석 중,
+ * `ANALYSIS_RUNNING`과 겹쳐 판단)뿐이다. 나머지 셋(`COMPARISON_NOT_CONFIRMED`·
+ * `ECOSYSTEM_RESULT_INCOMPLETE`·`SNAPSHOT_CREATION_ERROR`)은 타입에는 있지만 판단할
+ * 신호가 아직 없어 항상 통과시킨다 — 신호가 생기면 `blockReasonsFor` 안의 조건만 채운다.
  *
- * <h2>진행 단계는 흉내다</h2>
+ * <h2>진행 표시는 있는 신호만 쓴다</h2>
  *
- * 서버가 지금은 요청 안에서 문서를 만들어 돌려주므로 단계별 신호가 없다. 그래도 단계를
- * 보여주는 이유는, 생성이 #1 워커로 옮겨가면 실제로 그 신호가 오기 때문이다 —
- * 그때 이 자리에 값만 꽂으면 된다. 대신 <b>가짜 진행률로 사용자를 속이지 않는다</b>:
- * 완료 전까지는 마지막 단계에서 멈춰 있고, 남은 시간을 예측해 보여주지 않는다.
+ * 서버가 지금은 요청 안에서 문서를 만들어 돌려주므로 단계별 신호가 없다. 예전엔 가짜
+ * 타이머로 단계를 흉내 냈으나(INSPECT 스캐폴딩, S15P21A506-220에서 제거) 실제로 없는
+ * 정보를 지어내는 셈이라 뺐다 — `generate.isPending` 하나로 "진행 중"만 보여준다.
  */
 export function PdfExportDialog({
   open,
@@ -43,7 +44,9 @@ export function PdfExportDialog({
   from,
   to,
   snapshotAt,
+  run,
   onPreview,
+  onGoToFeatures,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,17 +54,26 @@ export function PdfExportDialog({
   from?: string
   to?: string
   snapshotAt?: string
+  /** 기능 비교 진행 상태 — BLOCKED 판단과 재분석 시 stale COMPLETE 방지에 쓴다. */
+  run: AnalysisRun
   /** 미리보기 모달을 여는 일은 부모가 한다 — 이 모달은 닫히고 그쪽이 열려야 한다. */
   onPreview: (job: PdfJob) => void
+  /** BLOCKED 화면에서 "기능 비교로 이동"을 눌렀을 때. 탭 전환은 부모(report-page)가 한다. */
+  onGoToFeatures: () => void
 }) {
   const [sections, setSections] = useState<ReportSection[]>([])
   const generate = useGeneratePdf()
-
-  /* ⚠ 임시 (UI 확인용) — 아래 INSPECT 표시가 붙은 곳을 함께 지운다 ─────────── */
-  const [held, setHeld] = useState(false)
-  /* ───────────────────────────────────────────────────────────────────── */
-
   const job = generate.data
+  const blockReasons = blockReasonsFor(run)
+  const blocked = blockReasons.length > 0
+
+  // 재분석이 새로 시작되면 이전 COMPLETE 파일을 더는 "지금 선택 버전 결과"로 보여주지
+  // 않는다 — 실제로 있던 버그(다이얼로그가 report-page에 항상 마운트돼 있어 미리보기로
+  // 넘어간 뒤엔 생성 결과가 리셋되지 않고 남아 있었다).
+  useEffect(() => {
+    generate.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.runId])
 
   function toggle(section: ReportSection) {
     setSections((prev) =>
@@ -73,28 +85,31 @@ export function PdfExportDialog({
     onOpenChange(next)
     // 닫으면 결과를 버린다. 다시 열었을 때 지난번 문서가 떠 있으면, 그 사이 비교 대상이
     // 바뀌었는지 사용자가 알 수 없다.
-    if (!next) {
-      generate.reset()
-      setHeld(false) // INSPECT
-    }
+    if (!next) generate.reset()
   }
 
   function submit() {
-    /* ⚠ INSPECT — 생성이 너무 빨라 진행 화면을 볼 수 없어서 붙잡아 둔다.
-       서버가 단계 신호를 주기 시작하면 이 자리는 그 신호로 대체된다. */
-    setHeld(true)
-    window.setTimeout(() => setHeld(false), STEPS.length * INSPECT_STEP_MS)
-
     generate.mutate({ names: packages, from, to, snapshot_at: snapshotAt, sections })
   }
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-2xl">
-        {generate.isPending || held ? (
+        {generate.isPending ? (
           <Generating names={packages} />
+        ) : generate.isError ? (
+          <Failed error={generate.error} onRetry={submit} onClose={() => close(false)} />
         ) : job ? (
           <Complete job={job} onPreview={() => onPreview(job)} onClose={() => close(false)} />
+        ) : blocked ? (
+          <Blocked
+            reasons={blockReasons}
+            onGoToFeatures={() => {
+              close(false)
+              onGoToFeatures()
+            }}
+            onClose={() => close(false)}
+          />
         ) : (
           <Ready
             packages={packages}
@@ -103,13 +118,78 @@ export function PdfExportDialog({
             snapshotAt={snapshotAt}
             sections={sections}
             onToggle={toggle}
-            error={generate.error}
             onCancel={() => close(false)}
             onSubmit={submit}
           />
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * BLOCKED — 적격성 실패 (구상안 §13.2)
+ * ------------------------------------------------------------------ */
+
+type BlockReason =
+  | 'COMPARISON_NOT_CONFIRMED'
+  | 'ECOSYSTEM_RESULT_INCOMPLETE'
+  | 'SNAPSHOT_CREATION_ERROR'
+  | 'FEATURE_ANALYSIS_REQUIRED'
+  | 'VERSION_RESULT_MISMATCH'
+
+const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
+  COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
+  ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
+  SNAPSHOT_CREATION_ERROR: '보고서 스냅샷 생성 중 오류가 발생했습니다.',
+  FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
+  VERSION_RESULT_MISMATCH: '기능 비교가 다시 실행되는 중입니다. 완료 후 다시 시도해 주세요.',
+}
+
+/**
+ * 지금 실제로 판단 가능한 두 사유만 채운다. 나머지 셋은 신호가 없어 늘 통과한다 —
+ * 자세한 사유는 이 파일 상단 주석 참고.
+ */
+function blockReasonsFor(run: AnalysisRun): BlockReason[] {
+  if (!run.hasCompletedOnce) return ['FEATURE_ANALYSIS_REQUIRED']
+  if (run.status === 'RUNNING') return ['VERSION_RESULT_MISMATCH']
+  return []
+}
+
+function Blocked({
+  reasons,
+  onGoToFeatures,
+  onClose,
+}: {
+  reasons: BlockReason[]
+  onGoToFeatures: () => void
+  onClose: () => void
+}) {
+  return (
+    <>
+      <DialogHeader>
+        <span aria-hidden className="text-2xl text-muted-foreground">
+          <CircleAlertIcon className="size-7" />
+        </span>
+        <DialogTitle>지금은 PDF를 만들 수 없습니다</DialogTitle>
+      </DialogHeader>
+
+      <ul className="flex flex-col gap-2 rounded-lg border px-4 py-3">
+        {reasons.map((r) => (
+          <li key={r} className="flex items-start gap-2">
+            <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+            <span>{BLOCK_REASON_LABEL[r]}</span>
+          </li>
+        ))}
+      </ul>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          닫기
+        </Button>
+        <Button onClick={onGoToFeatures}>기능 비교로 이동</Button>
+      </DialogFooter>
+    </>
   )
 }
 
@@ -128,7 +208,6 @@ function Ready({
   snapshotAt,
   sections,
   onToggle,
-  error,
   onCancel,
   onSubmit,
 }: {
@@ -138,12 +217,9 @@ function Ready({
   snapshotAt?: string
   sections: ReportSection[]
   onToggle: (section: ReportSection) => void
-  error: unknown
   onCancel: () => void
   onSubmit: () => void
 }) {
-  const notice = error ? errorNotice(error) : null
-
   return (
     <>
       <DialogHeader>
@@ -203,8 +279,6 @@ function Ready({
         있습니다.
       </p>
 
-      {notice && <p className="text-destructive">{notice.message}</p>}
-
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
           취소
@@ -257,35 +331,13 @@ function Row({ label, value }: { label: string; value: string }) {
  * GENERATING — 생성 중
  * ------------------------------------------------------------------ */
 
-const STEPS = [
-  '생태계 ReportSnapshot 확인',
-  '그래프와 Snapshot 문서 배치',
-  '자료 상태·해석 한계 정리',
-  '파일 준비',
-] as const
-
 /**
- * ⚠ 임시 (UI 확인용) — 단계 하나를 보여줄 시간.
- *
- * 서버가 요청 안에서 문서를 만들어 돌려주므로 실제로는 순식간에 지나가 진행 화면을
- * 눈으로 볼 수 없다. 확인이 끝나면 이 상수와 `INSPECT` 표시가 붙은 자리를 지운다.
+ * 서버가 요청 안에서 문서를 만들어 돌려주므로 단계별 신호가 없다. 예전엔 타이머로 단계를
+ * 흉내 냈지만(S15P21A506-220에서 제거) 없는 정보를 지어내는 셈이었다 — `isPending` 하나로
+ * "진행 중"만 정직하게 보여준다. 생성이 #1 워커로 옮겨가 실제 단계 신호가 오면 그때
+ * 다시 단계별 표시를 붙인다.
  */
-const INSPECT_STEP_MS = 1000
-
 function Generating({ names }: { names: string[] }) {
-  /*
-    ⚠ INSPECT — 서버가 단계 신호를 주지 않으므로 시간으로 넘긴다.
-    이 컴포넌트는 생성 중에만 붙으므로 다시 열 때마다 0 에서 시작한다.
-  */
-  const [step, setStep] = useState(0)
-  useEffect(() => {
-    const id = window.setInterval(
-      () => setStep((s) => Math.min(s + 1, STEPS.length - 1)),
-      INSPECT_STEP_MS,
-    )
-    return () => window.clearInterval(id)
-  }, [])
-
   return (
     <>
       <DialogHeader>
@@ -293,36 +345,50 @@ function Generating({ names }: { names: string[] }) {
         <DialogDescription className="font-mono">{names.join(' · ')}</DialogDescription>
       </DialogHeader>
 
-      {/* 진행 막대. 남은 시간을 예측하지 않고 지나온 단계만 비율로 보인다 */}
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full bg-foreground transition-[width] duration-500"
-          style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-        />
+      <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
+        <Loader2Icon className="size-4 shrink-0 animate-spin" aria-hidden />
+        <span>생태계 결과와 자료 상태를 정리해 문서를 만드는 중입니다.</span>
       </div>
 
-      <ul className="flex flex-col gap-1">
-        {STEPS.map((label, i) => {
-          const done = i < step
-          const current = i === step
-          return (
-            <li key={label} className="flex items-center gap-3 rounded-md px-3 py-2.5">
-              {done ? (
-                <CheckIcon className="size-4 shrink-0 text-emerald-600" aria-hidden />
-              ) : current ? (
-                <Loader2Icon className="size-4 shrink-0 animate-spin" aria-hidden />
-              ) : (
-                <span aria-hidden className="size-4 shrink-0 rounded-full border" />
-              )}
-              <span className={cn(done || current ? 'text-foreground' : 'text-muted-foreground')}>
-                {label}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-
       <p className="text-muted-foreground">이 창을 닫아도 생성은 계속됩니다.</p>
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * FAILED — 생성 실패 (구상안 §13.3: 다운로드 실패와 분리)
+ * ------------------------------------------------------------------ */
+
+function Failed({
+  error,
+  onRetry,
+  onClose,
+}: {
+  error: unknown
+  onRetry: () => void
+  onClose: () => void
+}) {
+  const notice = errorNotice(error)
+  return (
+    <>
+      <DialogHeader>
+        <span aria-hidden className="text-2xl text-destructive">
+          <CircleAlertIcon className="size-7" />
+        </span>
+        <DialogTitle>PDF 생성에 실패했습니다</DialogTitle>
+        <DialogDescription>{notice.message}</DialogDescription>
+      </DialogHeader>
+
+      <p className="text-muted-foreground">
+        완료된 파일이 있다고 가정하지 않습니다. 다시 시도하면 새로 만듭니다.
+      </p>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          닫기
+        </Button>
+        <Button onClick={onRetry}>다시 시도</Button>
+      </DialogFooter>
     </>
   )
 }
@@ -376,7 +442,7 @@ function Complete({
 }
 
 function sectionLabel(section: ReportSection): string {
-  return section === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석';
+  return section === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

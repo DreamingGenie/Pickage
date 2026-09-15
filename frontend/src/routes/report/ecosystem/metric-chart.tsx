@@ -1,14 +1,18 @@
-import { sampleEvery, type ChartSeries } from '@/components/charts/geometry'
+import type { ChartSeries } from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  INTERVALS,
   MIN_POINTS_FOR_LINE,
   type MetricState,
   type SnapshotWindow,
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
+
+/** 결측을 뺀, 실제로 그릴 수 있는 관측치 수. */
+function validCount(s: ChartSeries): number {
+  return s.points.filter((p) => p.v !== null).length
+}
 
 /**
  * 지표 하나짜리 독립 카드.
@@ -23,11 +27,12 @@ import { cn } from '@/lib/utils'
 export function MetricChart({
   title,
   unit,
-  series: full,
+  series,
+  step,
   window,
-  intervalKey,
   observedFrom,
   coverageNote,
+  maxWeeksNote,
   emphasisKeys = null,
   height = 192,
   showLegend = false,
@@ -36,11 +41,15 @@ export function MetricChart({
 }: {
   title: string
   unit: string
+  /** 이미 표시 구간·간격이 반영된 시리즈다 — 여기서 다시 자르지 않는다(부르는 쪽: `EcosystemView`). */
   series: ChartSeries[]
+  /** 공백 판정(`maxGapDays`)과 푸터의 "N주 간격" 표시에 쓴다. */
+  step: number
   window: SnapshotWindow
-  intervalKey: string
   observedFrom?: string
   coverageNote?: string
+  /** Downloads 카드의 "최대 104주 조회" 같은 고정 안내(126). 카드마다 다르면 부르는 쪽이 정한다. */
+  maxWeeksNote?: string
   emphasisKeys?: readonly string[] | null
   height?: number
   showLegend?: boolean
@@ -48,26 +57,35 @@ export function MetricChart({
   state?: MetricState
   className?: string
 }) {
-  const step = INTERVALS.find((i) => i.key === intervalKey)?.step ?? 1
-
   /** 고른 시작이 이 지표의 관측 시작보다 앞서면 여기서 잘린다. */
   const clamped = Boolean(observedFrom && window.start < observedFrom)
 
-  const series = full.map((s) => {
-    const windowed = s.points.filter((p) => p.t >= window.start && p.t <= window.end)
-    return { ...s, points: sampleEvery(windowed, step) }
-  })
-
-  /** 가장 긴 시리즈 기준으로 본다. 짧은 시리즈 하나 때문에 전체를 막지 않는다. */
-  const maxPoints = Math.max(0, ...series.map((s) => s.points.length))
+  /**
+   * **시리즈별로** 선을 그릴지 가른다(311b) — 예전에는 가장 긴 시리즈 하나로 카드 전체를
+   * gate 해서, 짧은 시리즈 하나가 다른 시리즈들 옆에 추세인 것처럼 그대로 그려졌다.
+   * "관측 행이 있는가"(raw)와 "그릴 값이 있는가"(valid, null 제외)도 구분한다.
+   */
+  const rawMax = Math.max(0, ...series.map((s) => s.points.length))
   const allDates = [...new Set(series.flatMap((s) => s.points.map((p) => p.t)))].sort()
-  const accumulating = maxPoints > 0 && maxPoints < MIN_POINTS_FOR_LINE
+  const maxValidPoints = Math.max(0, ...series.map(validCount))
+
+  const lined = series.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
+  const accumulating = series.filter((s) => {
+    const c = validCount(s)
+    return c > 0 && c < MIN_POINTS_FOR_LINE
+  })
 
   return (
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="font-mono text-base text-muted-foreground">{unit}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="font-mono text-base text-muted-foreground">{unit}</span>
+          {/* 311 — 눈금은 원래 값 단위지만 간격 자체는 로그다. 그 사실을 알린다. */}
+          <span className="rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+            로그축
+          </span>
+        </span>
       </header>
 
       {showLegend && state.status === 'ready' && (
@@ -78,49 +96,55 @@ export function MetricChart({
         <Skeleton className="w-full rounded-xl" style={{ height }} />
       ) : state.status === 'error' ? (
         <MetricError height={height} error={state.error} onRetry={state.onRetry} />
-      ) : maxPoints === 0 ? (
+      ) : rawMax === 0 ? (
         <EmptyState height={height}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
-      ) : accumulating ? (
+      ) : lined.length === 0 ? (
         /*
-          점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다.
-          관측치는 숨기지 않고 그대로 적되, 선은 그리지 않는다.
+          점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
+          그릴 선이 하나도 없다 — 관측치는 숨기지 않고 그대로 적되, 선은 그리지 않는다.
         */
         <EmptyState height={height}>
-          <span className="font-medium text-foreground">데이터 축적 중 · {maxPoints}주차</span>
-          <span>
-            추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다. 현재 관측:{' '}
-            <span className="font-mono">{allDates.join(', ')}</span>
-          </span>
+          {accumulating.map((s) => (
+            <span key={s.key}>
+              <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
+              {validCount(s)}주차
+            </span>
+          ))}
+          <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
         </EmptyState>
       ) : (
-        <LineChart
-          series={series}
-          height={height}
-          emphasisKeys={emphasisKeys}
-          observedFrom={observedFrom}
-          /*
-            공백 판정 기준을 지금 보고 있는 간격에 맞춘다.
+        <>
+          <LineChart
+            series={lined}
+            height={height}
+            emphasisKeys={emphasisKeys}
+            observedFrom={observedFrom}
+            /*
+              공백 판정 기준을 지금 보고 있는 간격에 맞춘다.
 
-            매주 보기(step 1)면 8일이지만, 4주 간격으로 솎아 보는 중이면 이웃 점 사이가
-            원래 28일이다. 8일을 그대로 쓰면 정상 구간까지 전부 공백으로 판정돼 선이
-            아예 사라진다.
+              매주 보기(step 1)면 8일이지만, 4주 간격으로 솎아 보는 중이면 이웃 점 사이가
+              원래 28일이다. 8일을 그대로 쓰면 정상 구간까지 전부 공백으로 판정돼 선이
+              아예 사라진다.
 
-            **솎아도 공백은 그대로 드러난다.** `sampleEvery` 가 시간이 아니라 인덱스로
-            솎으므로 남은 두 점은 항상 정확히 step 칸 떨어져 있고, 그 사이에 행이 하나라도
-            빠지면 간격이 (step+1)×7 일이 되어 이 기준을 반드시 넘는다. 그래서 이 식은
-            배율이 무엇이든 **"사이에 빠진 주가 있는가"** 라는 같은 질문을 던진다.
+              **솎아도 공백은 그대로 드러난다.** `sampleEvery` 가 시간이 아니라 인덱스로
+              솎으므로 남은 두 점은 항상 정확히 step 칸 떨어져 있고, 그 사이에 행이 하나라도
+              빠지면 간격이 (step+1)×7 일이 되어 이 기준을 반드시 넘는다. 그래서 이 식은
+              배율이 무엇이든 **"사이에 빠진 주가 있는가"** 라는 같은 질문을 던진다.
 
-            비례해서 느슨하게 잡으면 안 된다. step×7 의 1.5 배쯤으로 두면 분기 보기의
-            임계값이 19주가 되어 **한 달 넘는 수집 중단이 연속한 선으로 그려진다** —
-            이 판정을 넣은 이유(`DEC-RECONCILIATION-20260910-01` 7번)를 가장 티가 안 나는
-            자리에서 다시 어기는 셈이다.
+              비례해서 느슨하게 잡으면 안 된다. step×7 의 1.5 배쯤으로 두면 분기 보기의
+              임계값이 19주가 되어 **한 달 넘는 수집 중단이 연속한 선으로 그려진다** —
+              이 판정을 넣은 이유(`DEC-RECONCILIATION-20260910-01` 7번)를 가장 티가 안 나는
+              자리에서 다시 어기는 셈이다.
 
-            +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
-            유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
-          */
-          maxGapDays={step * 7 + 1}
-          ariaLabel={`${title} 추이`}
-        />
+              +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
+              유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
+            */
+            maxGapDays={step * 7 + 1}
+            ariaLabel={`${title} 추이 (로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요)`}
+          />
+          {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
+          {accumulating.length > 0 && <AccumulatingNotes series={accumulating} />}
+        </>
       )}
 
       {/* 구간·개수는 받은 자료를 설명하는 줄이다. 못 받았으면 할 말이 없다 */}
@@ -130,7 +154,7 @@ export function MetricChart({
             {allDates.length ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : '자료 없음'}
           </span>
           <span className="font-mono tabular-nums">
-            스냅샷 {maxPoints}개{step > 1 && ` · ${step}주 간격`}
+            스냅샷 {maxValidPoints}개{step > 1 && ` · ${step}주 간격`}
           </span>
         </div>
       )}
@@ -145,7 +169,25 @@ export function MetricChart({
           그렸습니다.
         </p>
       )}
+
+      {state.status === 'ready' && maxWeeksNote && (
+        <p className="-mt-1.5 text-base leading-relaxed text-muted-foreground">{maxWeeksNote}</p>
+      )}
     </section>
+  )
+}
+
+/** 선을 그리기엔 짧은(1~2 point) 시리즈 목록. 선 위에 겹쳐 그리지 않고 별도 줄로 뺀다. */
+function AccumulatingNotes({ series }: { series: ChartSeries[] }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-dashed px-4 py-3 text-base leading-relaxed text-muted-foreground">
+      {series.map((s) => (
+        <span key={s.key}>
+          <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
+          {validCount(s)}주차
+        </span>
+      ))}
+    </div>
   )
 }
 

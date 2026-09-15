@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { windowSeries } from '@/components/charts/geometry'
 import { SeriesLegend } from '@/components/charts/line-chart'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
@@ -10,6 +11,8 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
+  FETCH_WEEKS,
+  stepOf,
   type EcosystemModel,
   type MajorSelection,
   type MetricKey,
@@ -22,6 +25,7 @@ const READY: Record<MetricKey, MetricState> = {
   dependents: { status: 'ready' },
   downloads: { status: 'ready' },
 }
+const READY_STATE: MetricState = { status: 'ready' }
 
 /**
  * 생태계 변화.
@@ -39,6 +43,7 @@ const READY: Record<MetricKey, MetricState> = {
 export function EcosystemView({
   model,
   metricState = READY,
+  versionShareState = READY_STATE,
   compactChart = false,
   className,
 }: {
@@ -48,6 +53,11 @@ export function EcosystemView({
    * 자리에는 로딩도 실패도 없다.
    */
   metricState?: Record<MetricKey, MetricState>
+  /**
+   * Version Share 조회의 처지. Dependency·Downloads와 별도 호출이라 따로 실패·로딩할 수
+   * 있다(126) — 패키지마다 갈리지 않는다(응답 하나가 전체 패키지를 담는다).
+   */
+  versionShareState?: MetricState
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */
   compactChart?: boolean
   className?: string
@@ -119,12 +129,25 @@ export function EcosystemView({
     ),
   )
 
-  const seriesByName = new Map(dependentsSeries.map((s) => [s.key, s]))
-  const packages = model.packages.map((p) => ({
-    ...p,
+  /**
+   * 표시 구간·간격은 여기서 한 번만 계산해 차트와 카드 증감이 같은 것을 본다(311c).
+   * `MetricChart`는 이미 이 결과를 받으므로 안에서 다시 자르지 않는다.
+   */
+  const step = stepOf(intervalKey)
+  const windowedDependents = windowSeries(dependentsSeries, window.start, window.end, step)
+  const windowedDownloads = windowSeries(model.series.downloads, window.start, window.end, step)
+
+  const windowedByName = new Map(windowedDependents.map((s) => [s.key, s]))
+  const packages = model.packages.map((p) => {
     // 어댑터와 같은 함수를 쓴다. 결측 처리를 두 곳에서 각자 하면 언젠가 갈린다.
-    dependentsDelta: deltaOf(seriesByName.get(p.key)),
-  }))
+    const delta = deltaOf(windowedByName.get(p.key))
+    return {
+      ...p,
+      dependentsDelta: delta?.value ?? null,
+      dependentsDeltaFrom: delta?.from ?? null,
+      dependentsDeltaTo: delta?.to ?? null,
+    }
+  })
 
   /**
    * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.
@@ -184,9 +207,9 @@ export function EcosystemView({
           <MetricChart
             title="Dependents"
             unit="의존 수 · 버전별 합계"
-            series={dependentsSeries}
+            series={windowedDependents}
+            step={step}
             window={window}
-            intervalKey={intervalKey}
             observedFrom={model.observedFrom.dependents}
             coverageNote="이 지표의 관측 시작"
             emphasisKeys={expanded}
@@ -196,14 +219,15 @@ export function EcosystemView({
           <MetricChart
             title="Downloads"
             unit="주간 · npm 공식 자료"
-            series={model.series.downloads}
+            series={windowedDownloads}
+            step={step}
             window={window}
-            intervalKey={intervalKey}
             observedFrom={model.observedFrom.downloads}
             coverageNote="이 지표의 관측 시작"
             emphasisKeys={expanded}
             height={height}
             state={metricState.downloads}
+            maxWeeksNote={`최대 ${FETCH_WEEKS}주 조회`}
           />
         </div>
 
@@ -216,6 +240,7 @@ export function EcosystemView({
               expanded={expanded.includes(p.key)}
               selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
               onVersionChange={(next) => selectVersion(p.key, next)}
+              versionShareState={versionShareState}
               onToggle={() =>
                 setCollapsed({
                   key: packageKeys,

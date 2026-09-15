@@ -62,17 +62,34 @@ export function niceMax(v: number): number {
   return step * mag
 }
 
+/**
+ * y축은 로그 공간에서 그린다(311a). 의존 수·다운로드 모두 몇 자릿수를 오가서, 선형 축이면
+ * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 0을 포함하는
+ * 도메인(`extentY`가 항상 0을 하한으로 둔다)에서 `log(0)`이 `-Infinity`가 되는 것을 피하기
+ * 위해서다 — `log1p(0) = 0`이라 0이 항상 바닥에 안전하게 찍힌다.
+ */
+const toLog = (v: number) => Math.log1p(Math.max(0, v))
+
 export function ticksY([lo, hi]: Domain, count = 3): number[] {
+  const lLo = toLog(lo)
+  const lHi = toLog(hi)
   const out: number[] = []
-  for (let i = 0; i <= count; i++) out.push(lo + ((hi - lo) * i) / count)
+  for (let i = 0; i <= count; i++) out.push(Math.expm1(lLo + ((lHi - lLo) * i) / count))
   return out
 }
 
 export const scaleX = (v: number, d: Domain, b: Box) =>
   d[1] === d[0] ? b.x : b.x + ((v - d[0]) / (d[1] - d[0])) * b.w
 
-export const scaleY = (v: number, d: Domain, b: Box) =>
-  d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
+/**
+ * 값·도메인 양끝을 로그 공간으로 옮긴 뒤 선형 보간한다. 변환이 여기 안에 갇혀 있어서
+ * `buildLine`/`buildArea`/`buildPoints`는 `scaleY`를 통해서만 좌표를 얻는 한 그대로 쓸 수 있다.
+ */
+export const scaleY = (v: number, d: Domain, b: Box) => {
+  const lLo = toLog(d[0])
+  const lHi = toLog(d[1])
+  return lHi === lLo ? b.y + b.h : b.y + b.h - ((toLog(v) - lLo) / (lHi - lLo)) * b.h
+}
 
 /**
  * 관측 공백으로 볼 간격의 기본값(일).
@@ -183,6 +200,23 @@ export function sampleEvery(points: TimePoint[], step: number): TimePoint[] {
   const out: TimePoint[] = []
   for (let i = points.length - 1; i >= 0; i -= step) out.push(points[i])
   return out.reverse()
+}
+
+/**
+ * 표시 구간으로 자르고 간격만큼 솎는다. 카드마다 각자 하면 같은 계산이 두 번 일어나고,
+ * 증감(`deltaOf`)이 이 결과가 아닌 원본 시리즈를 보고 계산되는 일이 생긴다(311c) —
+ * 그래서 화면이 그리는 시리즈와 증감을 세는 시리즈가 **항상 같은 함수의 결과**이게 한다.
+ */
+export function windowSeries(
+  series: ChartSeries[],
+  start: string,
+  end: string,
+  step: number,
+): ChartSeries[] {
+  return series.map((s) => {
+    const windowed = s.points.filter((p) => p.t >= start && p.t <= end)
+    return { ...s, points: sampleEvery(windowed, step) }
+  })
 }
 
 /**

@@ -98,8 +98,14 @@ variables:
   - frontend/**/*
   - .gitlab-ci.yml
 
+# 시드가 여기 들어 있는 이유: CommunityAcceptanceIntegrationTest 의 R14 가
+# `../deploy/local/seed` 의 공용 script 를 읽어 그대로 실행한다. 시드는 backend 시험의
+# **입력**이므로 시드만 고친 변경도 backend 잡이 돌아야 한다. 빠져 있는 동안에는 V6 의
+# 파티션 전환과 어긋난 시드가 브랜치·MR 파이프라인을 그냥 통과하고, develop 에 들어간
+# 뒤에야 깨졌다 (2026-09-15, S15P21A506-341).
 .backend-paths: &backend-paths
   - backend/**/*
+  - deploy/local/seed/**/*
   - .gitlab-ci.yml
 
 .rules-frontend:
