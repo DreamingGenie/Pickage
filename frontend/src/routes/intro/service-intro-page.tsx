@@ -149,13 +149,13 @@ export function ServiceIntroPage() {
           <Step
             {...steps.props(1)}
             keyword="후보 선택"
-            desc="설명·키워드가 가까운 후보를 최대 3개까지 제시하고, 상위 2개를 미리 골라둡니다. 직접 추가할 수도 있습니다."
+            desc="설명이 가까운 후보를 최대 3개까지 보여줍니다. 모두 미선택 상태로 시작하니, 마음에 드는 것을 직접 고르거나 이름으로 추가하세요."
           >
             <div className="flex flex-col gap-1.5">
               {[
                 { name: 'winston', tag: '해제 불가', picked: true, delay: 0 },
-                { name: 'pino', tag: '유사도 0.92', picked: true, delay: 260 },
-                { name: 'bunyan', tag: '유사도 0.87', picked: false, delay: 0 },
+                { name: 'pino', tag: '1위', picked: true, delay: 260 },
+                { name: 'bunyan', tag: '2위', picked: false, delay: 0 },
               ].map((c) => (
                 <div
                   key={c.name}
@@ -241,8 +241,8 @@ export function ServiceIntroPage() {
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-semibold tracking-tight">분석 결과 예시</h2>
           <p className="text-sm text-muted-foreground">
-            보고서는 두 장입니다. 아래 수치는 예시이고, 기능 비교표는 winston · pino · bunyan 실제
-            검증 결과입니다.
+            보고서는 두 장입니다. 둘 다 winston · pino · bunyan 조합의 예시이며, 기능 비교표는 이
+            서비스가 지금 만든 결과가 아니라 그 세 패키지를 실제로 검증한 결과를 옮긴 것입니다.
           </p>
         </div>
 
