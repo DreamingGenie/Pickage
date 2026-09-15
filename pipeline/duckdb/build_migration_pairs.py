@@ -12,25 +12,71 @@
       data/migration_pairs/removal_stats.parquet, removal_by_year.parquet   위 두 표 필터 없이 전부
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_migration_pairs.py   (중간 결과 data/migration_pairs.duckdb)
 
+원천·의존 종류 (S15P21A506-349, 2026-09-14 추가)
+  --source depsdev  (기본) deps.dev NPMRequirements · npm 전수 · 실행용 의존만. 위 출력 경로 그대로
+  --source registry --kind dev      npm registry 수집분(S15P21A506-280) · 상위 10만 · 개발용 의존
+  --source registry --kind regular  같은 입력의 실행용 의존. depsdev 결과의 재분류 과대 계상을 재는 대조군
+
 계산은 docs/설계_마이그레이션쌍_탐지_260831.md 0~4단계. build_feature_candidates.py 와 같은 로직이되
-- TARGETS 제한 없이 모든 removed 패키지를 X 로 본다 (분모 B 도 npm 전수 전이)
-- 5-1 반영: 다음 버전의 Peer/OptionalDependencies 로 옮겨진 이름은 제거가 아니라 재분류로 보고 X 후보에서 뺀다
+- TARGETS 제한 없이 모든 removed 패키지를 X 로 본다 (분모 B 도 그 모집단의 전수 전이)
+- 5-1 반영: 다음 버전의 "다른 의존 칸"으로 옮겨진 이름은 제거가 아니라 재분류로 보고 X 후보에서 뺀다.
+  어느 칸을 보는지는 KIND 가 정한다 — regular 면 Dev/Peer/Optional, dev 면 Dependencies/Peer/Optional.
+  depsdev 원천에는 Dev 칸 자체가 없어 Peer/Optional 만 본다(그래서 regular→dev 강등이 제거로 남는다. 이게 대조군이 필요한 이유)
 - 7단계(S15P21A506-281): trans 를 지우기 전에 "대체 없이 제거"(X 를 뺐지만 같은 전이에서 아무것도 안 넣음) 와
   연도별 이탈 수를 removal_stats / removal_by_year 로 집계. 점유율은 votes 기준 share 와 함께 (배포주체, 월) 기준 share_pm 도 낸다
+
+주의: lift 의 분모 B 는 그 실행의 모집단 전이 수다. depsdev(전수 3,958만)와 registry(상위 10만 726만)는
+모집단이 달라 lift 절댓값을 직접 비교할 수 없다. 쌍을 합치거나 votes 를 더하지 말 것.
 """
+import argparse
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
 import duckdb
 
+try:
+    # 콘솔이 아니면(로그 파일 리다이렉트·파이프) stdout 인코딩이 로캘(cp949)로 정해져
+    # 한글 한 글자에 UnicodeEncodeError 로 죽는다. chcp 65001 은 콘솔 코드페이지만 바꾼다.
+    # 수집기(pipeline/collectors/registry/collect.py)와 같은 방어.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--source", choices=("depsdev", "registry"), default="depsdev")
+ap.add_argument("--kind", choices=("regular", "dev"), default="regular")
+ap.add_argument("--tag", default="", help="출력 폴더 접미사. 비우면 원천·종류로 정한다")
+ap.add_argument("--reclassify-legacy", action="store_true",
+                help="재분류 판정에서 Dev 칸을 보지 않는다(Peer/Optional 만). depsdev 원천의 한계를 "
+                     "registry 모집단에서 그대로 재현하는 대조군용 — 같은 모집단에서 필터만 바꿔 "
+                     "비교해야 '필터 효과'와 '모집단 차이'가 섞이지 않는다")
+args = ap.parse_args()
+if args.source == "depsdev" and args.kind != "regular":
+    ap.error("depsdev 원천에는 개발용 의존이 없습니다. --source registry 와 함께 쓰세요.")
+
 ROOT = Path(__file__).resolve().parents[2].as_posix()  # 리포 루트
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
-OUT = f"{ROOT}/datasets/migration_pairs_260908"
-EV_DIR = f"{ROOT}/data/migration_pairs"
-DB = f"{ROOT}/data/migration_pairs.duckdb"
+RG = f"{ROOT}/data/registry/parquet/registry_versions/*.parquet"
+
+# 의존 칸: 분석 대상(deps) 과 "여기로 옮겨졌으면 제거가 아니라 재분류"(nonreg)
+KIND_COL = {"regular": "Dependencies", "dev": "DevDependencies"}[args.kind]
+OTHER_COLS = {"regular": ["DevDependencies", "PeerDependencies", "OptionalDependencies"],
+              "dev": ["Dependencies", "PeerDependencies", "OptionalDependencies"]}[args.kind]
+if args.source == "depsdev" or args.reclassify_legacy:
+    OTHER_COLS = ["PeerDependencies", "OptionalDependencies"]  # depsdev 는 원천에 Dev 칸이 없다
+
+if args.source == "depsdev":
+    SUFFIX, DATESTAMP = "", "260908"   # 기존 산출물 경로를 그대로 쓴다 (재실행 호환)
+else:
+    SUFFIX, DATESTAMP = args.tag or f"_{args.kind}" + ("_legacy" if args.reclassify_legacy else ""), "260914"
+OUT = f"{ROOT}/datasets/migration_pairs{SUFFIX}_{DATESTAMP}"
+EV_DIR = f"{ROOT}/data/migration_pairs{SUFFIX}"
+DB = f"{ROOT}/data/migration_pairs{SUFFIX}.duckdb"
 TMP = f"{ROOT}/data/duckdb_tmp"
 for d in (OUT, EV_DIR, TMP):
     os.makedirs(d, exist_ok=True)
@@ -49,16 +95,37 @@ def one(sql):
 con = duckdb.connect(DB)
 con.execute(f"SET threads=12; SET memory_limit='40GB'; SET temp_directory='{TMP}'; SET preserve_insertion_order=false")
 
+ADOPT_SRC = R if args.source == "depsdev" else RG
+
 stats = {}
 
-# 1) 릴리스 + 의존성 (regular / peer+optional 이름 분리)
-con.execute(f"""CREATE OR REPLACE TABLE rel AS
-SELECT r.Name, r.Version, v.published_at, v.source_repo,
-       list_sort(list_transform(r.Dependencies, x -> x.Name)) AS deps,
-       coalesce(list_transform(r.PeerDependencies, x -> x.Name), []::VARCHAR[])
-         || coalesce(list_transform(r.OptionalDependencies, x -> x.Name), []::VARCHAR[]) AS nonreg
+# 1) 릴리스 + 의존성 (분석 대상 KIND_COL / 다른 칸으로 옮겨진 것 = 재분류이지 제거가 아니다)
+_NONREG = " || ".join(f"coalesce(list_transform(r.{c}, x -> x.Name), []::VARCHAR[])" for c in OTHER_COLS)
+if args.source == "depsdev":
+    SELECT_REL = f"""SELECT r.Name, r.Version, v.published_at, v.source_repo,
+       list_sort(list_transform(r.{KIND_COL}, x -> x.Name)) AS deps,
+       {_NONREG} AS nonreg
 FROM read_parquet('{R}') r JOIN read_parquet('{V}') v ON v.Name=r.Name AND v.Version=r.Version
-WHERE v.is_release AND v.published_at IS NOT NULL AND regexp_matches(r.Version,'^\\d+\\.\\d+')""")
+WHERE v.is_release AND v.published_at IS NOT NULL AND regexp_matches(r.Version,'^\\d+\\.\\d+')"""
+else:
+    # registry 원천 (S15P21A506-349)
+    #  - is_release 조인이 필요 없다. 조인 적중 2,039만 행에서 is_release 와 "버전에 '-' 가 없다" 가
+    #    불일치 0건으로 동치임을 확인했다(09-14). 조인을 하나 줄여 실행이 빠르다
+    #  - source_repo 는 패키지 단위로 붙인다. 버전 단위로 조인하면 08-31 스냅샷 이후 발행된
+    #    20.1만 행(2만 패키지)이 비어 publisher 가 이름으로 떨어진다. 저장소는 버전마다 바뀌지 않으므로
+    #    any_value 로 패키지에 한 번 붙인다 (91,582 / 97,733 패키지 적중)
+    #  - unpublished 행은 의존을 모른다(NULL). 넣으면 "의존 전부 제거"로 잡힌다 — 수집계획 §5-3
+    SELECT_REL = f"""SELECT r.Name, r.Version, r.published_at, v.source_repo,
+       list_sort(list_transform(r.{KIND_COL}, x -> x.Name)) AS deps,
+       {_NONREG} AS nonreg
+FROM read_parquet('{RG}') r
+LEFT JOIN (SELECT Name, any_value(source_repo) AS source_repo FROM read_parquet('{V}')
+           WHERE source_repo IS NOT NULL GROUP BY Name) v ON v.Name = r.Name
+WHERE NOT r.unpublished AND r.published_at IS NOT NULL
+  AND regexp_matches(r.Version,'^\\d+\\.\\d+') AND NOT contains(r.Version,'-')"""
+
+con.execute(f"""CREATE OR REPLACE TABLE rel AS
+{SELECT_REL}""")
 stats["releases"] = one("SELECT count(*) FROM rel")
 stats["packages_total"] = one("SELECT count(DISTINCT Name) FROM rel")
 log("releases", stats["releases"], "packages", stats["packages_total"])
@@ -93,7 +160,9 @@ stats["transitions"] = n_trans
 stats["packages_with_transition"] = one("SELECT count(DISTINCT Name) FROM trans")
 stats["transitions_with_dep_change"] = one("SELECT count(*) FROM trans WHERE len(removed)>0 OR len(added)>0")
 stats["transitions_removed_and_added"] = one("SELECT count(*) FROM trans WHERE len(removed)>0 AND len(added)>0")
-stats["reclassified_to_peer_or_optional"] = one("SELECT coalesce(sum(len(reclassified)),0) FROM trans")
+# 어느 칸으로 옮겨진 것을 세는지는 OTHER_COLS 가 정한다(stats["reclassify_columns"] 로 함께 남긴다).
+# depsdev 는 Peer/Optional 만, registry 는 여기에 반대쪽 의존 칸이 더해진다
+stats["reclassified_to_other_kinds"] = one("SELECT coalesce(sum(len(reclassified)),0) FROM trans")
 log("transitions", stats)
 
 # 4) 제거 이벤트 (추가가 있는 것만) → 표 분배
@@ -167,10 +236,11 @@ for name, cond in (("strict", STRICT), ("loose", LOOSE)):
     stats[f"{name}_pairs"] = one(f"SELECT count(*) FROM pairs WHERE {cond}")
     stats[f"{name}_from_pkgs"] = one(f"SELECT count(DISTINCT from_pkg) FROM pairs WHERE {cond}")
     stats[f"{name}_to_pkgs"] = one(f"SELECT count(DISTINCT to_pkg) FROM pairs WHERE {cond}")
-    # 이 from_pkg 들을 regular 의존성으로 가진 적 있는 패키지 수 (이동 안내를 받을 수 있는 잠재 대상)
+    # 이 from_pkg 들을 해당 의존 칸에 가진 적 있는 패키지 수 (이동 안내를 받을 수 있는 잠재 대상)
+    # 모집단이 원천마다 다르다 — depsdev 는 npm 전수, registry 는 상위 10만. 원천이 다르면 이 수를 비교하지 말 것
     stats[f"{name}_adopters_of_from_pkgs"] = one(f"""
-        SELECT count(DISTINCT r.Name) FROM read_parquet('{R}') r
-        WHERE len(list_intersect(list_transform(r.Dependencies, x -> x.Name),
+        SELECT count(DISTINCT r.Name) FROM read_parquet('{ADOPT_SRC}') r
+        WHERE len(list_intersect(list_transform(r.{KIND_COL}, x -> x.Name),
                                  (SELECT list(DISTINCT from_pkg) FROM pairs WHERE {cond}))) > 0""")
     log(name, {k: v for k, v in stats.items() if k.startswith(name)})
 
@@ -236,10 +306,20 @@ stats["file_bytes"] = {
     "migration_events.csv": sz(f"{EV_DIR}/migration_events.csv"),
     "migration_pairs.duckdb": sz(DB),
 }
-stats["input_bytes"] = {
-    "requirements_parquet": sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(f"{ROOT}/data/raw/requirements") for f in fs),
-    "versions_full_parquet": sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(f"{ROOT}/data/raw/versions_full") for f in fs),
-}
+def dir_bytes(d):
+    return sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(d) for f in fs)
+
+
+stats["input_bytes"] = {"versions_full_parquet": dir_bytes(f"{ROOT}/data/raw/versions_full")}
+if args.source == "depsdev":
+    stats["input_bytes"]["requirements_parquet"] = dir_bytes(f"{ROOT}/data/raw/requirements")
+else:
+    stats["input_bytes"]["registry_versions_parquet"] = dir_bytes(f"{ROOT}/data/registry/parquet/registry_versions")
+stats["source"] = args.source
+stats["kind"] = args.kind
+stats["dep_column"] = KIND_COL
+stats["reclassify_columns"] = OTHER_COLS
+stats["reclassify_legacy"] = args.reclassify_legacy
 stats["elapsed_sec"] = round(time.time() - t0)
 with open(f"{OUT}/stats.json", "w", encoding="utf-8") as fh:
     json.dump(stats, fh, ensure_ascii=False, indent=2)

@@ -82,6 +82,24 @@ public final class DisposableTestDatabase implements AutoCloseable {
 		return dataSource;
 	}
 
+	/**
+	 * 이 DB 의 JDBC URL. {@code @SpringBootTest} 처럼 <b>스프링이 제 손으로 DataSource 를
+	 * 만드는</b> 시험에 이 DB 를 물려줄 때 쓴다 — {@code @DynamicPropertySource} 로
+	 * {@code spring.datasource.*} 를 덮어쓰는 경로다. 그런 시험에는 {@link #dataSource()}
+	 * 를 건네줄 자리가 없어서 값 자체가 필요하다.
+	 */
+	public String jdbcUrl() {
+		return URL_PREFIX + databaseName;
+	}
+
+	public String username() {
+		return USERNAME;
+	}
+
+	public String password() {
+		return PASSWORD;
+	}
+
 	private void createDatabase() {
 		try (Connection connection = adminConnection();
 			Statement statement = connection.createStatement()) {
@@ -102,9 +120,9 @@ public final class DisposableTestDatabase implements AutoCloseable {
 
 	private DataSource buildDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
-		dataSource.setUrl(URL_PREFIX + databaseName);
-		dataSource.setUsername(USERNAME);
-		dataSource.setPassword(PASSWORD);
+		dataSource.setUrl(jdbcUrl());
+		dataSource.setUsername(username());
+		dataSource.setPassword(password());
 		return dataSource;
 	}
 
