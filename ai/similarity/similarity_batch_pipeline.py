@@ -317,6 +317,9 @@ def is_same_family(a: str, b: str) -> bool:
     만든 조직이 곧 이 이름의 프로젝트"라는 훨씬 강한 신호라 위의 오탐 사례와
     다르다. 조직명이 아니라 하위 경로까지 우연히 같은 경우(예: 'passport'와
     '@passport-next/passport')는 잡지 않는다 — 스코프 자체가 다르면 별개 조직이다.
+
+    '@types/x'는 예외로 스코프가 아니라 슬래시 뒤 이름으로 비교한다 — DefinitelyTyped
+    관례상 '@types/x'는 항상 'x'의 타입 선언 파일이지 'x'의 대안이 될 수 없다.
     """
     a, b = a.lower(), b.lower()
     if a == b:
@@ -326,7 +329,10 @@ def is_same_family(a: str, b: str) -> bool:
         return a.split("/", 1)[0] == b.split("/", 1)[0]
     if a_scoped or b_scoped:
         scoped, unscoped = (a, b) if a_scoped else (b, a)
-        return scoped[1:].split("/", 1)[0] == unscoped
+        scope, _, subpath = scoped[1:].partition("/")
+        if scope == "types":
+            return subpath == unscoped
+        return scope == unscoped
     for x, y in ((a, b), (b, a)):
         if len(y) > len(x) and y.startswith(x) and y[len(x)] in "-._":
             return True
