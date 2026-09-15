@@ -1,6 +1,6 @@
 /**
  * 인트로 화면 정적 콘텐츠.
- * 기준 문서: docs/OSS_Shift_메뉴구조_IA_0902.md, docs/OSS_Shift_기능별_개발구상안_0902.md
+ * 기준 문서: docs/Pickage_메뉴구조_IA_0910.md, docs/Pickage_기능별_개발_구상안_0910.md
  *
  * 예시 데이터는 보고서 쪽과 하나를 쓴다 —
  *   생태계 시계열 : @/components/charts/sample
