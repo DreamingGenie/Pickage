@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import {
+  fetchCommunityStatus,
   fetchDependentsTrend,
   fetchDictManifest,
   fetchDictionary,
@@ -11,10 +12,11 @@ import {
   fetchSimilarPackages,
   fetchVersionShare,
   generatePdf,
+  postCommunityRefresh,
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
 import { ApiError } from '@/api/client'
-import { MAX_NAMES } from '@/api/types'
+import { MAX_NAMES, type CommunityRefreshTrigger } from '@/api/types'
 
 export { queryKeys }
 
@@ -196,5 +198,49 @@ export function useVersionShare(names: readonly string[], snapshotAt?: string, r
     queryFn: () => fetchVersionShare(names, snapshotAt),
     enabled: ready && usable(names),
     retry,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-316. GitHub 커뮤니티 현황
+ * ------------------------------------------------------------------ */
+
+/**
+ * 잡 상태 조회다 — 재마운트마다 새로 받아야 하므로 `staleTime: 0`.
+ * `refetchInterval` 은 마지막으로 받은 응답이 QUEUED/RUNNING 일 때만 서버가 알려준
+ * `poll_after_seconds` 간격으로 다시 부른다(그 외엔 폴링을 끈다) — 문서 §8.2·8.3.
+ *
+ * `enabled` 는 호출부(`community-report-tab.tsx`)가 "탭이 실제로 보이는가"를 판단해
+ * 넘긴다. 언마운트가 아니라 이 값으로 폴링을 끄는 이유는 report-page 가 탭을
+ * 마운트 보존하기 때문이다(생태계 필터 유지) — 언마운트를 기대할 수 없다.
+ */
+export function useCommunityStatus(name: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.community.status(name),
+    queryFn: ({ signal }) => fetchCommunityStatus(name, signal),
+    enabled: enabled && name.trim().length > 0,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const status = query.state.data?.refresh?.status
+      if (status !== 'QUEUED' && status !== 'RUNNING') return false
+      return (query.state.data?.refresh?.poll_after_seconds ?? 2) * 1000
+    },
+    refetchIntervalInBackground: false,
+    retry: (count, error) => {
+      if (count >= 2) return false
+      // V*(형식 오류)·C006(패키지 없음)·호출자 취소는 다시 해도 같은 결과다.
+      // 그 외(네트워크·타임아웃·5xx)만 최대 2회 재시도한다(§8.1).
+      if (error instanceof ApiError) return !error.isValidation && error.code !== 'C006'
+      return false
+    },
+  })
+}
+
+/** 조회가 아니라 동작이다 — POST 는 자동 재시도하지 않는다(§8.1). */
+export function useCommunityRefresh() {
+  return useMutation({
+    mutationFn: ({ name, trigger }: { name: string; trigger: CommunityRefreshTrigger }) =>
+      postCommunityRefresh(name, trigger),
+    retry: false,
   })
 }
