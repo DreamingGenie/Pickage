@@ -103,7 +103,7 @@ def main():
         fresh = database("fresh", "latest")
         assert scalar(fresh, "SELECT relkind FROM pg_class WHERE oid='public.package_version_snapshot'::regclass;") == "p"
         flyway(fresh, action="validate")
-        check("Flyway V1-to-V6 fresh database")
+        check("Flyway V1-to-latest fresh database")
 
         populated = database("populated")
         sql(container, populated, """INSERT INTO public.package VALUES (1,'fixture',NULL);
@@ -265,7 +265,7 @@ def run_transfer_pilot(container, source, output, database, flyway, scalar, expe
     cli("restore", options)
     flyway(candidate)
     flyway(candidate, action="validate")
-    check("restored V1 history plus Flyway V2-to-V6 adoption")
+    check("restored V1 history plus Flyway V2-to-latest adoption")
     validator = (HERE / "validate_structure.sql").read_text(encoding="utf-8")
     sql(container, candidate, validator)
     first_child = "vd193_reload_20260912_ready01.d" + report["snapshot_dates"][0].replace("-", "")

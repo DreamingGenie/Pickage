@@ -1,5 +1,19 @@
 # 서비스 데이터 이관 도구
 
+## 리뷰 후속: 제약 이름과 신규 날짜 적재
+
+`V7__normalize_package_version_snapshot_constraints.sql`은 V6의 새 DB 경로와 과거 덤프 복원 경로에서 서로 다른 부모 제약 이름을 통일한다. 제약 정의를 확인한 뒤 이름만 변경하며, V1~V6 및 이미 복원된 데이터를 수정하지 않는다. 운영 적용은 별도 Flyway 실행이 필요하다. 과거 실행 번들의 고정된 마이그레이션·해시는 그대로 보존한다.
+
+V6/V7은 날짜별 자식을 자동 생성하지 않는다. **데이터 업데이트 작업이 날짜 D의 `[D, D+1)` 파티션을 생성하거나 기존 범위를 확인한 다음 적재한다.** 새 로컬 DB도 같은 순서를 따른다. 스키마·소유권·동시 실행·재실행 처리는 후속 업데이트 작업에서 구현한다. 자세한 계약과 검증 결과는 [후속 기록](../../docs/worklogs/S15P21A506-341/14-constraint-names-and-partitions.md)을 참고한다.
+
+원본 데이터 없이 전용 PostgreSQL 16 컨테이너에서 새 DB/복원 DB의 이름 통일과 객체 보존을 검증한다. 아래 시험은 기존 로컬 통합 시험과 같은 `PICKAGE_341_JAVA_CLASSPATH` 설정이 필요하며 서버에는 접속하지 않는다.
+
+```powershell
+python scripts/service-data-migration/test_constraint_names.py --output data/service-data-migration/341/constraint-names-new-run
+```
+
+아래 절은 기존 이관 도구의 단계별 사용법이며, 과거 V6 실행 결과를 V7 적용 완료로 해석하지 않는다.
+
 `transfer.py`는 다섯 개의 서비스 테이블과 `package_version_snapshot`의 날짜별 자식 파티션을 하나의 PostgreSQL directory dump로 만들고, 파일별 SHA-256 검증 후 별도 후보 DB에 복원하기 위한 도구다.
 
 이 도구는 서버 DB를 생성·삭제하거나 API의 `DB_URL`을 바꾸지 않는다. 후보 DB는 별도 준비 단계에서 만들어야 하며 이름은 반드시 `pickage_import_341_<run-id>` 형식이어야 한다. 후보 DB에 대상 테이블이 하나라도 있으면 복원을 거부한다. 실패한 복원은 같은 DB에 재시도하지 말고 새 후보 DB를 준비한다.
