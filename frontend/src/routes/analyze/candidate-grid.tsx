@@ -9,7 +9,11 @@ import { cn } from '@/lib/utils'
  * **버전은 고르지 않는다.** 최신 버전을 적는 것은 "언제 것인지" 를 보여주는 정보이지
  * 선택지가 아니다 — 비교 버전은 보고서 안에서 카드마다 따로 고른다(구상안 §5.2).
  *
- * 선택 상태를 색으로만 알리지 않는다 — 체크 표시와 `aria-pressed` 를 함께 쓴다(IA 1.11).
+ * 선택 상태를 색으로만 알리지 않는다 — 체크 표시와 `aria-pressed` 를 함께 쓴다(IA §1-13).
+ *
+ * 3열 고정(`sm:grid-cols-3`). 노출 후보가 3개(`VISIBLE_CANDIDATES`, IA §6.1-4)인데 2열로
+ * 두면 세 번째 카드가 혼자 다음 줄에 남아 세 후보가 대등한 선택지라는 인상이 깨진다
+ * (S15P21A506-309 재검수에서 발견).
  */
 export function CandidateGrid({
   candidates,
@@ -21,7 +25,7 @@ export function CandidateGrid({
   onToggle: (name: string) => void
 }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2">
+    <ul className="grid gap-4 sm:grid-cols-3">
       {candidates.map((c) => {
         const on = picked.includes(c.name)
         return (
