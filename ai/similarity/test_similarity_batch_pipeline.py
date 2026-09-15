@@ -382,6 +382,47 @@ class IsSameFamily(unittest.TestCase):
             with self.subTest(pair=(a, b)):
                 self.assertFalse(sbp.is_same_family(a, b))
 
+    def test_flags_unscoped_name_matching_scope_org(self):
+        """S15P21A506-334 후속: 스코프 없는 이름이 상대방의 스코프(조직명)와
+        정확히 같으면, 그 조직이 낸 서브패키지로 본다 — parcel 이 낸
+        @parcel/graph 를 parcel 의 "대안"으로 잘못 추천하는 사례(실측)."""
+        for a, b in (
+            ("parcel", "@parcel/graph"),
+            ("@parcel/graph", "parcel"),
+            ("vitest", "@vitest/runner"),
+            ("rollup", "@rollup/browser"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertTrue(sbp.is_same_family(a, b))
+
+    def test_does_not_flag_unrelated_scope_org(self):
+        """스코프(조직명) 자체가 다르면 여전히 무관한 패키지로 남는다 —
+        조직명 일치라는 좁은 조건만 잡고, 그 밖의 우연한 접두어 겹침이나
+        느슨하게 연관된 리브랜딩(passport vs passport-next)까지 잡지 않는다."""
+        for a, b in (
+            ("markdown-it", "@ts-stack/markdown"),
+            ("terser", "@node-minify/babel-minify"),
+            ("passport", "@passport-next/passport"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertFalse(sbp.is_same_family(a, b))
+
+    def test_flags_types_declaration_package(self):
+        """@types/X 는 항상 X 의 타입 선언 파일 — DefinitelyTyped 관례상 예외가
+        없어 X 자신의 "대안"으로 추천되면 안 된다."""
+        for a, b in (
+            ("lodash", "@types/lodash"),
+            ("@types/lodash", "lodash"),
+            ("express", "@types/express"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertTrue(sbp.is_same_family(a, b))
+
+    def test_types_scope_requires_matching_subpath(self):
+        """@types/ 규칙은 스코프 뒤 이름이 정확히 같을 때만 — 엉뚱한 패키지의
+        타입 선언까지 같은 계열로 잡지 않는다."""
+        self.assertFalse(sbp.is_same_family("lodash", "@types/express"))
+
 
 class IsRepoArchived(unittest.TestCase):
     def test_flags_true(self):
