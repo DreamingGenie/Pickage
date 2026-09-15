@@ -171,12 +171,20 @@ services:
       # 자동 탐지에 맡기면 docker0(172.17.0.1)를 광고할 수 있다.
       # 그러면 master 와 driver 가 이 worker 에 되연결하지 못한다.
       SPARK_LOCAL_IP: ${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것}
+      # ⚠ 여기 둘은 **`env_file: ./.env` 로 받지 않는다.** 그렇게 하면 `.env` 의 어느 줄이
+      #   바뀌어도 이 서비스의 설정이 바뀐 것이 되어 compose 가 worker 를 다시 만든다.
+      #   배포는 매번 같은 파일의 API_TAG·WEB_TAG 를 고치므로, **앱만 배포해도 Spark
+      #   worker 가 재시작**하고 그때 돌던 배치의 executor 가 같이 죽는다.
+      #   (compose 29.6.1 로 재현 확인 — env_file 쪽만 Recreated, 치환 쪽은 Running)
+      #   그래서 이 컨테이너가 실제로 쓰는 값만 이름을 대서 넘긴다. spark-env.sh 가
+      #   이 둘을 읽어 AWS_* 로 바꿔 s3a 에 넘긴다.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       # 두 노드가 **같은 설정 파일**을 쓴다. 갈라지면 executor 만 설정이 다른
       # 상태가 되고, 그건 "일부 파티션만 실패" 로 나타난다.
       - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
       - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
-    env_file: ./.env
     mem_limit: 6.5g
     memswap_limit: 6.5g   # 스왑 0. Spark 에 주면 안 되는 이유는 data/compose.yaml 의 worker① 주석
 
