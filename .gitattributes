@@ -6,6 +6,14 @@
 *.sh    text eol=lf
 *.conf  text eol=lf
 
+# systemd 유닛과 서버에서 `.` 로 읽거나 파싱하는 env 원본. 같은 이유다 —
+# CRLF 로 내려오면 systemd 는 값 끝에 \r 을 붙이고, sh 는 변수 끝에 \r 을 남기며,
+# .env 를 직접 파싱하는 파이썬(pipeline/minio/ingest_raw.py 의 client())은 비밀번호
+# 끝에 \r 을 달고 인증에 실패한다. 셋 다 "값이 맞는데 왜 안 되지" 로 나타난다.
+*.service    text eol=lf
+*.timer      text eol=lf
+*.example    text eol=lf
+
 # 마이그레이션 SQL 은 Flyway 가 체크섬을 계산한다.
 # 줄바꿈이 OS 마다 다르면 같은 파일인데 체크섬이 달라져
 # 다른 OS 팀원의 DB 에서 검증이 실패한다.
