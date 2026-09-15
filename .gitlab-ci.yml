@@ -456,9 +456,21 @@ deploy-app:
     # 여기서는 잡이 항상 돌고, 무엇을 건너뛰었는지 로그에 남는다. 그리고 경로 규칙이
     # 놓치는 것(기반 이미지 갱신, Dockerfile 변경)도 구운 결과로는 드러난다.
     - |
+      # ⚠ **`{{.Id}}` 로 비교하면 안 된다.** 전 단계가 캐시 히트여도 매 빌드마다 값이 바뀐다.
+      #   BuildKit 이 attestation manifest(빌드 출처 정보)를 매번 새로 만들고, 그것이
+      #   manifest list 의 다이제스트를 바꾸는데 `.Id` 가 그 값이기 때문이다.
+      #   **2026-09-15 두 번째 배포에서 실제로 그랬다** — 모든 단계가 CACHED 였는데 둘 다
+      #   "새 이미지" 로 판정되어 api·web 이 괜히 다시 떴다. 그 로그에서 `exporting config`
+      #   다이제스트는 두 배포가 같고 `attestation manifest` 만 달랐다.
+      #
+      #   그래서 **레이어 목록과 실행 설정**으로 비교한다. 레이어가 내용이고, 설정은
+      #   레이어를 안 바꾸면서 동작만 바꾸는 경우(ENTRYPOINT·ENV 수정)를 잡는다.
+      #   (`--provenance=false` 로 attestation 을 끄는 방법도 있는데, compose 에서 그것을
+      #    넘기는 방식이 버전마다 달라 비교하는 쪽을 고쳤다)
+      FP='{{.RootFS.Layers}}|{{.Config.Entrypoint}}|{{.Config.Cmd}}|{{.Config.Env}}|{{.Config.WorkingDir}}|{{.Config.User}}'
       keep_if_same() {   # $1=API|WEB  $2=api|web  $3=이전 태그
-        new=$(docker image inspect -f '{{.Id}}' "pickage-$2:$CI_COMMIT_SHORT_SHA")
-        old=$(docker image inspect -f '{{.Id}}' "pickage-$2:$3" 2>/dev/null || true)
+        new=$(docker image inspect -f "$FP" "pickage-$2:$CI_COMMIT_SHORT_SHA")
+        old=$(docker image inspect -f "$FP" "pickage-$2:$3" 2>/dev/null || true)
         if [ -n "$old" ] && [ "$old" = "$new" ]; then
           echo "[$2] 내용이 그대로다 — $3 를 유지한다. 이 컨테이너는 다시 뜨지 않는다"
           sed -i "s/^$1_TAG=.*/$1_TAG=$3/" /srv/pickage/app.env
