@@ -1,7 +1,11 @@
 """배치 결과를 PostgreSQL similar_package 에 원자 게시한다.
 
-    python -m pipeline.similar_package.load --run-dir <dir> --execution-id <id> \
-      --docker-container <name> --database <db>
+산출물은 #1 data 의 MinIO 에 있다 (run-similarity-batch.sh 의 ai-collect 가 올린다).
+--run 으로 실행 하나를 지정하면 받아서 적재하고, --run-dir 로 이미 받아 둔
+디렉터리를 줄 수도 있다.
+
+    python -m pipeline.similar_package.load --run model=v3/corpus=package-text-20260908-v1 \
+      --execution-id <id> --docker-container <name> --database <db>
 """
 from __future__ import annotations
 
@@ -25,6 +29,12 @@ except Exception:
 ROOT = Path(__file__).resolve().parents[2]
 SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,200}\Z")
 DATASET = "similar-package"
+# .env 의 AI_DST_RESULT 와 같은 값. ai-collect 가 여기에 올린다
+RESULT_BUCKET = "pickage-vectors"
+# run-similarity-batch.sh 의 OUT_RUN="model=v$MODEL_VER/corpus=$CORPUS_RUN"
+RUN_PATTERN = re.compile(r"model=[A-Za-z0-9_.-]{1,40}/corpus=[A-Za-z0-9_.-]{1,64}\Z")
+# ai-collect 가 /work/out 에서 그대로 올린 파일들
+RUN_FILES = ("candidates.parquet", "run_manifest.json")
 # curated 적재기와 다른 advisory lock 키
 LOCK_KEY = 5150211                        # TODO(팀 합의): advisory lock 키 관리 규칙이 있으면 맞출 것
 # CK_SIMILAR_PACKAGE_RANK — rank BETWEEN 1 AND 50
@@ -47,6 +57,49 @@ def contract_sha256() -> str:
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+# 접두사 아래 객체 키를 나열한다.
+def list_keys(s3, prefix: str) -> list[str]:
+    keys, token = [], None
+    while True:
+        kwargs = {"Bucket": RESULT_BUCKET, "Prefix": prefix}
+        if token:
+            kwargs["ContinuationToken"] = token
+        page = s3.list_objects_v2(**kwargs)
+        keys += [item["Key"] for item in page.get("Contents", [])]
+        if not page.get("IsTruncated"):
+            return keys
+        token = page.get("NextContinuationToken")
+
+
+# _SUCCESS 가 있는 실행을 최신순으로 나열한다.
+def list_runs(s3) -> list[str]:
+    runs = [key[: -len("/_SUCCESS")] for key in list_keys(s3, "model=")
+            if key.endswith("/_SUCCESS")]
+    # corpus 이름에 수집일이 들어가 문자열 정렬이 곧 시간 순서다 (S15P21A506-348)
+    return sorted(runs, key=lambda r: r.split("corpus=")[-1])
+
+
+# 지정한 실행을 로컬로 받아 run-dir 를 만든다.
+def pull_run(s3, run: str, target: Path) -> Path:
+    from pipeline.minio.ingest_raw import exists
+
+    if not exists(s3, RESULT_BUCKET, f"{run}/_SUCCESS"):
+        raise SystemExit(f"완료 마커가 없다: s3://{RESULT_BUCKET}/{run}/_SUCCESS\n"
+                         "배치가 끝나지 않았거나 채점 게이트를 통과하지 못한 실행이다")
+    target.mkdir(parents=True, exist_ok=True)
+    for name in RUN_FILES:
+        key = f"{run}/{name}"
+        if not exists(s3, RESULT_BUCKET, key):
+            raise SystemExit(f"필수 객체가 없다: s3://{RESULT_BUCKET}/{key}")
+        path = target / name
+        temporary = path.with_suffix(path.suffix + ".part")
+        s3.download_file(RESULT_BUCKET, key, str(temporary))
+        temporary.replace(path)  # 중간에 끊긴 파일을 완성본으로 오인하지 않게 한다
+        print(f"  ↓ {name}  ({path.stat().st_size / 1e6:.1f} MB)", flush=True)
+    (target / "_SUCCESS").write_bytes(b"")
+    return target
 
 
 # 배치 산출물이 게시해도 되는 상태인지 확인하고 manifest 를 돌려준다.
@@ -248,26 +301,59 @@ def psql_command(args) -> list[str]:
 # 산출물 확인 → TSV 변환 → psql 실행 → 유실 통계 출력.
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", type=Path, required=True, help="배치의 --out 디렉터리")
-    parser.add_argument("--execution-id", required=True, help="이 게시의 식별자. 재실행 시 같은 값을 준다")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--run", help="MinIO 의 실행 경로 (model=v3/corpus=package-text-20260908-v1)")
+    source.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리")
+    source.add_argument("--list", action="store_true", help="적재할 수 있는 실행을 나열하고 끝낸다")
+    parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다. "
+                                               "--run 이면 생략 시 실행 경로에서 만든다")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "data/similar_package")
     parser.add_argument("--allow-gate-skip", action="store_true",
                         help="채점 게이트가 SKIPPED 여도 게시한다 (게이트 미구현 기간용)")
     parser.add_argument("--verify-only", action="store_true",
                         help="게시 직전까지 전부 실행한 뒤 ROLLBACK. DB 는 그대로 둔다")
-    target = parser.add_mutually_exclusive_group(required=True)
+    target = parser.add_mutually_exclusive_group()
     target.add_argument("--docker-container", help="로컬 PostgreSQL 컨테이너 이름")
     target.add_argument("--psql", help="psql 실행 파일 경로")
-    parser.add_argument("--database", required=True)
+    parser.add_argument("--database")
     parser.add_argument("--db-user", default="postgres")
     args = parser.parse_args(argv)
 
-    if not SAFE_ID.fullmatch(args.execution_id):
-        raise SystemExit("execution-id 는 영문·숫자·밑줄·하이픈 1~200자")
+    if args.list:
+        from pipeline.minio.ingest_raw import client
+        runs = list_runs(client())
+        if not runs:
+            print("적재할 수 있는 실행이 없다 (_SUCCESS 가 붙은 산출물 없음)", flush=True)
+            return 1
+        for run in runs:
+            print(("* " if run == runs[-1] else "  ") + run, flush=True)
+        return 0
 
-    run_dir = args.run_dir.resolve()
-    selected = select_run(run_dir, args.allow_gate_skip)
+    if not args.database or not (args.docker_container or args.psql):
+        raise SystemExit("--database 와 --docker-container/--psql 이 필요하다")
+
     attempt_id = uuid.uuid4().hex
+    if args.run:
+        if not RUN_PATTERN.fullmatch(args.run):
+            raise SystemExit("--run 은 model=<버전>/corpus=<코퍼스> 형태여야 한다")
+        curated_run_id = args.run.split("corpus=")[-1]
+        execution_id = args.execution_id or f"{DATASET}-{args.run.replace('/', '-').replace('=', '')}"
+    else:
+        run_dir = args.run_dir.resolve()
+        curated_run_id = run_dir.name
+        execution_id = args.execution_id or f"{DATASET}-{curated_run_id}"
+    if not SAFE_ID.fullmatch(execution_id):
+        raise SystemExit("execution-id 는 영문·숫자·밑줄·하이픈 1~200자")
+    args.execution_id = execution_id
+
+    if args.run:
+        from pipeline.minio.ingest_raw import client
+        run_dir = (args.work_dir / "runs" / args.run.replace("/", "_")).resolve()
+        print(f"산출물 받기: s3://{RESULT_BUCKET}/{args.run}/", flush=True)
+        pull_run(client(), args.run, run_dir)
+
+    selected = select_run(run_dir, args.allow_gate_skip)
+    selected["curated_run_id"] = curated_run_id
     work = (args.work_dir / args.execution_id / attempt_id).resolve()
     work.mkdir(parents=True, exist_ok=False)
 
@@ -298,8 +384,8 @@ def main(argv=None) -> int:
         "-v", f"model_ver={selected['model_ver']}",
         "-v", f"snapshot_at={selected['snapshot_at']}",
         "-v", f"snapshot_timestamp={selected['created_at']}",
-        "-v", f"curated_run_id={run_dir.name}",
-        "-v", f"run_prefix={run_dir.as_posix()}",
+        "-v", f"curated_run_id={selected['curated_run_id']}",
+        "-v", f"run_prefix={args.run or run_dir.as_posix()}",
         "-v", f"manifest_sha256={selected['manifest_sha256']}",
         "-v", f"contract_sha256={contract_sha256()}",
         "-v", "manifest=" + json.dumps(selected["manifest"], ensure_ascii=False),
