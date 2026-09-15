@@ -241,8 +241,8 @@ export function ServiceIntroPage() {
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-semibold tracking-tight">분석 결과 예시</h2>
           <p className="text-sm text-muted-foreground">
-            보고서는 두 장입니다. 아래 수치는 예시이고, 기능 비교표는 winston · pino · bunyan 실제
-            검증 결과입니다.
+            보고서는 두 장입니다. 둘 다 winston · pino · bunyan 조합의 예시이며, 기능 비교표는 이
+            서비스가 지금 만든 결과가 아니라 그 세 패키지를 실제로 검증한 결과를 옮긴 것입니다.
           </p>
         </div>
 
