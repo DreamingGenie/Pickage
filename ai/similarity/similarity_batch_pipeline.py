@@ -310,6 +310,13 @@ def is_same_family(a: str, b: str) -> bool:
     (S15P21A506-334). 한쪽만 스코프가 있으면 그 판정에서 제외한다 — 스코프를 벗겨낸
     뒤 남는 이름이 우연히 같은 단어를 포함할 뿐인 무관한 패키지(예: 'markdown-it' 와
     '@ts-stack/markdown')를 같은 계열로 오탐하기 때문이다.
+
+    다만 스코프 없는 이름이 상대방의 **스코프(조직명) 자체와 정확히 같으면** 그
+    조직이 낸 서브패키지로 본다 (S15P21A506-334 후속) — 'parcel'과 그 프로젝트가
+    낸 '@parcel/graph'처럼. 이건 이름 조각이 우연히 겹치는 것과 달리, "이 스코프를
+    만든 조직이 곧 이 이름의 프로젝트"라는 훨씬 강한 신호라 위의 오탐 사례와
+    다르다. 조직명이 아니라 하위 경로까지 우연히 같은 경우(예: 'passport'와
+    '@passport-next/passport')는 잡지 않는다 — 스코프 자체가 다르면 별개 조직이다.
     """
     a, b = a.lower(), b.lower()
     if a == b:
@@ -318,7 +325,8 @@ def is_same_family(a: str, b: str) -> bool:
     if a_scoped and b_scoped:
         return a.split("/", 1)[0] == b.split("/", 1)[0]
     if a_scoped or b_scoped:
-        return False
+        scoped, unscoped = (a, b) if a_scoped else (b, a)
+        return scoped[1:].split("/", 1)[0] == unscoped
     for x, y in ((a, b), (b, a)):
         if len(y) > len(x) and y.startswith(x) and y[len(x)] in "-._":
             return True
