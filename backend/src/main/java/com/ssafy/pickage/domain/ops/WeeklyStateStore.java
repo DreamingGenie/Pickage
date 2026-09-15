@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -265,6 +266,20 @@ public class WeeklyStateStore {
 
 	/** 우편함 객체. 수집기의 {@code state.py} 가 {@code requested_at} 하나만 읽는다. */
 	record ManualRequest(OffsetDateTime requestedAt) {
+	}
+
+	/**
+	 * 컨테이너가 내려갈 때 연결 풀을 닫는다.
+	 *
+	 * <p>프로세스가 끝나면 어차피 사라지지만, 시험이나 컨텍스트 재시작처럼 같은 JVM 안에서
+	 * 빈이 여러 번 만들어지는 경우에는 닫지 않으면 풀과 스레드가 쌓인다.
+	 */
+	@PreDestroy
+	void close() {
+		S3Client local = client;
+		if (local != null) {
+			local.close();
+		}
 	}
 
 	/** 시험이 가짜 클라이언트를 밀어 넣는 자리. 운영 경로에서는 쓰지 않는다. */

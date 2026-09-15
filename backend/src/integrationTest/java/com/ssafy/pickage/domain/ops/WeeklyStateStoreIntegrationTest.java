@@ -111,6 +111,9 @@ class WeeklyStateStoreIntegrationTest {
 	@AfterEach
 	void tearDown() {
 		clean();
+		// 시험에는 스프링 컨테이너가 없어 @PreDestroy 가 불리지 않는다. 직접 닫지 않으면
+		// 시험마다 연결 풀이 하나씩 남는다.
+		store.close();
 		s3.close();
 	}
 
