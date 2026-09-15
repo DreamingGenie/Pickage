@@ -432,7 +432,7 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 스크립트가 매번 읽어 확정한다.
 
 ```
-코퍼스   $AI_CORPUS_PREFIX/_current.json      →  run_id
+코퍼스   $AI_CORPUS_PREFIX/_current.json      →  run_path(코퍼스 경로) + run_id(산출물 이름)
 모델     MLflow  $AI_MODEL_NAME@$AI_MODEL_ALIAS  →  s3:// 경로
 ```
 
@@ -450,12 +450,28 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 #### 확정한 값을 산출물 경로에 박는다
 
 ```
-pickage-vectors/model=v7/corpus=collected_date=2026-09-08/run_id=package-text-.../
+pickage-vectors/model=v7/corpus=package-text-20260908-v1/
 ```
 
 포인터를 따라가면서도 **"이 결과가 어느 모델·어느 코퍼스에서 나왔나" 가 경로에 남는다.**
 `_current.json` 은 다음 실행에 바뀌므로, 재현하려면 이 경로를 봐야 한다
 (`pipeline/curated/README.md` 의 같은 원칙).
+
+##### `_current.json` 이 싣는 값 (S15P21A506-348)
+
+```json
+{"collected_date":"2026-09-08","manifest_sha256":"…",
+ "run_id":"package-text-20260908-v1",
+ "run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v1"}
+```
+
+| 키 | 쓰임 | 왜 이 모양인가 |
+| --- | --- | --- |
+| `run_path` | 코퍼스를 찾는다 (`$AI_CORPUS_PREFIX/$run_path/data`) | **prefix 상대**다. `.env` 가 prefix 를 이미 들고 있어서, 전체 경로를 실으면 두 값이 갈라질 자리가 생긴다 |
+| `run_id` | 산출물 경로 `corpus=<run_id>` 에 박는다 | **평평해야 한다.** `/` 가 들어가면 `/work/out` 의 깊이가 한 단 깊어져 `ai-collect` 의 `for d in /work/out/*/*` 가 `_SUCCESS` 를 한 단계 위에 찍는다. 중복 확인은 전체 경로를 보므로 같은 회차를 매번 다시 돌게 된다 |
+| `manifest_sha256` | 그 실행의 `run_manifest.json` 바이트 해시 | `depsdev` 포인터와 같은 항목 |
+
+게시하는 쪽은 `pipeline/minio/ingest_derived.py`(`pointer` 가 켜진 데이터셋)다.
 
 그 경로의 `_SUCCESS` 가 곧 "이미 했다" 의 근거다. 별도 상태 저장소를 두지 않는다.
 
@@ -479,7 +495,7 @@ MLflow 도 `127.0.0.1:5000` 이라 호스트가 바로 부를 수 있다.
 
 | | 없으면 어디서 멈추나 | 누구 |
 | --- | --- | --- |
-| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다 | 데이터 |
+| ~~`package_text` + `_current.json`~~ | **2026-09-14 게시됨** (`package-text-20260908-v1`, S15P21A506-348) | 데이터 |
 | MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다 | AI |
 | **로더** | 배치는 돌지만 `similar_package` 가 계속 비어 서비스에 안 닿는다 | 미정 |
 | 스케줄러 | 사람이 스크립트를 친다 | 인프라 |
@@ -524,10 +540,10 @@ sh run-similarity-batch.sh
 
 ```
 [1/5] 코퍼스 확정
-  run_id=collected_date=2026-09-08/run_id=package-text-20260911-v1
+  run_id=package-text-20260908-v1  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v1
 [2/5] 모델 확정
   v7  pickage-mlflow-artifacts/onnx_bge_v7
-[3/5] 중복 확인  model=v7/corpus=collected_date=2026-09-08/run_id=package-text-20260911-v1
+[3/5] 중복 확인  model=v7/corpus=package-text-20260908-v1
 [4/5] 스테이징
 [5/5] 배치
       회수
@@ -541,7 +557,7 @@ sh run-similarity-batch.sh
 
 | | 서비스 | 하는 일 |
 | --- | --- | --- |
-| 1 | (스크립트) | `_current.json` → 코퍼스 run 확정 |
+| 1 | (스크립트) | `_current.json` → `run_path`(코퍼스)·`run_id`(산출물 이름) 확정 |
 | 2 | (스크립트) | MLflow `@production` → 모델 `s3://` 경로 확정 |
 | 3 | (스크립트) | 산출물 경로에 `_SUCCESS` 가 있으면 **여기서 끝** |
 | 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown` |
@@ -567,8 +583,8 @@ sh run-similarity-batch.sh
 
 ```bash
 docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-vectors/'
-# model=v7/corpus=collected_date=2026-09-08/run_id=.../_SUCCESS
-# model=v7/corpus=collected_date=2026-09-08/run_id=.../...
+# model=v7/corpus=package-text-20260908-v1/_SUCCESS
+# model=v7/corpus=package-text-20260908-v1/...
 ```
 
 **`_SUCCESS` 가 곧 "이 회차는 끝났다" 의 근거다.** 이게 있으면 다음 실행이 건너뛴다 —
@@ -821,7 +837,7 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 | | 없으면 어디서 멈추나 | 누구 |
 | --- | --- | --- |
-| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다. 게시 형식은 `depsdev` 의 `_current.json` 과 맞출 것 | 데이터 |
+| ~~`package_text` + `_current.json`~~ | **2026-09-14 게시됨** — `package-text-20260908-v1`. 포인터는 `run_path`·`run_id`·`manifest_sha256`·`collected_date` 를 싣는다(위 "`_current.json` 이 싣는 값") | 데이터 |
 | MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다. GPU 가 `run_pipeline.sh` 5단계로 등록한다 | AI |
 | **로더** | 배치는 돌지만 `similar_package` 가 비어 있어 **서비스에 안 닿는다** ([../README.md](../README.md) 의 "유사도 결과 로더는 어디서 도나") | 미정 |
 | 스케줄러 | 사람이 스크립트를 친다. 위가 서면 timer 가 부르기만 하면 된다 | 인프라 |
