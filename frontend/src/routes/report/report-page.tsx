@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, FileDownIcon } from 'lucide-react'
-import { Suspense, lazy, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import { MAX_NAMES, type PdfJob } from '@/api/types'
 import { REPORT_NAMES_PARAM, paths } from '@/app/routes'
@@ -11,6 +11,7 @@ import { EvidenceDrawer } from '@/routes/report/_components/evidence-drawer'
 import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
+import { cn } from '@/lib/utils'
 
 /**
  * 탭은 한 번에 하나만 마운트되므로(Radix 기본 동작) 탭 단위로 한 번 더 쪼갠다.
@@ -26,13 +27,40 @@ const FeatureCompareTab = lazy(() =>
     default: m.FeatureCompareTab,
   })),
 )
+const CommunityReportTab = lazy(() =>
+  import('@/routes/report/community/community-report-tab').then((m) => ({
+    default: m.CommunityReportTab,
+  })),
+)
 
 const prefetch = {
   ecosystem: () => import('@/routes/report/ecosystem/ecosystem-report-tab'),
   features: () => import('@/routes/report/features/feature-compare-tab'),
+  community: () => import('@/routes/report/community/community-report-tab'),
 } as const
 
-export type ReportTab = 'ecosystem' | 'features'
+export type ReportTab = 'ecosystem' | 'features' | 'community'
+
+/**
+ * 기준 패키지(S15P21A506-316). `analyze-page.tsx`가 router state 로 명시해 넘긴다.
+ *
+ * **없으면 `packages[0]`으로 대체한다** — 새로고침·공유 링크는 state 를 잃으므로
+ * 이 호환이 없으면 커뮤니티 탭이 매번 "문맥 없음"이 된다. 반대로 **명시된 값이
+ * `packages[0]`과 다르면 임의로 고치지 않고 충돌로 표시**한다 — 조용히 고치면
+ * 사용자가 고른 기준과 다른 저장소를 보여주게 된다(구현계획 §8.1).
+ */
+function useReportBasePackage(packages: readonly string[]): {
+  basePackage: string | null
+  conflict: boolean
+} {
+  const location = useLocation()
+  return useMemo(() => {
+    const explicit = (location.state as { basePackage?: string } | null)?.basePackage
+    if (!explicit) return { basePackage: packages[0] ?? null, conflict: false }
+    if (packages[0] !== explicit) return { basePackage: null, conflict: true }
+    return { basePackage: explicit, conflict: false }
+  }, [location.state, packages])
+}
 
 /** 주소에서 읽어낸 비교 대상. */
 interface ReportNames {
@@ -96,6 +124,7 @@ export function ReportPage() {
    */
   const { names: packages, dropped } = useReportNames(searchParams.get(REPORT_NAMES_PARAM))
   const evidenceId = searchParams.get('evidence')
+  const { basePackage, conflict: baseConflict } = useReportBasePackage(packages)
 
   /**
    * 탭은 로컬 state 다. 단 `?evidence=` 가 있으면 기능 비교로 강제한다.
@@ -104,6 +133,22 @@ export function ReportPage() {
   const [picked, setTab] = useState<ReportTab>('ecosystem')
   const tab: ReportTab = evidenceId ? 'features' : picked
   const run = useAnalysisRun()
+
+  /**
+   * 한 번 방문한 탭은 언마운트하지 않는다(S15P21A506-316).
+   *
+   * Radix `TabsContent` 기본 동작은 비활성 탭을 DOM 에서 지운다 — 생태계 탭의 구간·버전·
+   * 접힘 선택이 전부 로컬 state 라 탭을 오가면 매번 초기화된다. `forceMount` + 수동
+   * `hidden` 으로 바꾸되, **아직 한 번도 안 연 탭은 여전히 렌더하지 않는다** — 그래야
+   * 방문 전 lazy 청크를 안 받는 기존 코드 스플리팅이 그대로 유지된다.
+   *
+   * 커뮤니티 탭은 이 때문에 언마운트로 폴링을 멈출 수 없다 — 그래서 `active` prop 을
+   * 따로 내려 명시적으로 폴링을 끈다(아래 `CommunityReportTab`).
+   */
+  const [visited, setVisited] = useState<Set<ReportTab>>(() => new Set(['ecosystem']))
+  useEffect(() => {
+    setVisited((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)))
+  }, [tab])
 
   /**
    * PDF 내보내기. 두 모달이 이어진다 — 내보내기(생성)가 닫히고 미리보기가 열린다.
@@ -208,18 +253,52 @@ export function ReportPage() {
               </>
             )}
           </TabsTrigger>
+          <TabsTrigger value="community" onMouseEnter={prefetch.community}>
+            GitHub 커뮤니티
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ecosystem" className="pt-7">
-          <Suspense fallback={<TabFallback />}>
-            <EcosystemReportTab packages={packages} />
-          </Suspense>
-        </TabsContent>
-        <TabsContent value="features" className="pt-7">
-          <Suspense fallback={<TabFallback />}>
-            <FeatureCompareTab packages={packages} run={run} onOpenEvidence={openEvidence} />
-          </Suspense>
-        </TabsContent>
+        {/*
+          세 탭 모두 방문 후에는 `forceMount` 로 마운트를 유지하고 `hidden` 으로만 감춘다
+          (위 `visited` 주석). 방문 전에는 아예 렌더하지 않아 lazy 청크를 받지 않는다.
+        */}
+        {visited.has('ecosystem') && (
+          <TabsContent
+            value="ecosystem"
+            forceMount
+            className={cn('pt-7', tab !== 'ecosystem' && 'hidden')}
+          >
+            <Suspense fallback={<TabFallback />}>
+              <EcosystemReportTab packages={packages} />
+            </Suspense>
+          </TabsContent>
+        )}
+        {visited.has('features') && (
+          <TabsContent
+            value="features"
+            forceMount
+            className={cn('pt-7', tab !== 'features' && 'hidden')}
+          >
+            <Suspense fallback={<TabFallback />}>
+              <FeatureCompareTab packages={packages} run={run} onOpenEvidence={openEvidence} />
+            </Suspense>
+          </TabsContent>
+        )}
+        {visited.has('community') && (
+          <TabsContent
+            value="community"
+            forceMount
+            className={cn('pt-7', tab !== 'community' && 'hidden')}
+          >
+            <Suspense fallback={<TabFallback />}>
+              <CommunityReportTab
+                basePackage={basePackage}
+                baseConflict={baseConflict}
+                active={tab === 'community'}
+              />
+            </Suspense>
+          </TabsContent>
+        )}
       </Tabs>
 
       <EvidenceDrawer evidenceId={evidenceId} onClose={closeEvidence} />
