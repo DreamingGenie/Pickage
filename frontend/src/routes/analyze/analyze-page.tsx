@@ -67,7 +67,8 @@ export function AnalyzePage() {
     similar.data && similar.data.not_found.length > 0 ? similar.data.not_found[0] : null
 
   const base = submitted && similar.data && !missing ? submitted : null
-  const checking = Boolean(submitted) && similar.isPending
+  // isPending 만 보면 실패 후 재조회(isRefetching) 동안 스피너·비활성화가 안 걸린다 — isFetching 은 둘 다 포함
+  const checking = Boolean(submitted) && similar.isFetching
 
   const error = missing
     ? `npm 레지스트리에서 ${missing} 을(를) 찾지 못했습니다. 철자를 확인해 주세요.`
@@ -88,6 +89,11 @@ export function AnalyzePage() {
   function verify(name: string) {
     const q = name.trim()
     if (!q) return
+    // 같은 이름 재확인은 상태가 안 바뀌어 react-query 가 다시 안 보낸다 — 직접 refetch (S15P21A506-332)
+    if (q === submitted) {
+      void similar.refetch()
+      return
+    }
     setPicked([])
     setLimitHit(false)
     setSubmitted(q)
