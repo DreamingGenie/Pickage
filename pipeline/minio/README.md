@@ -105,6 +105,18 @@ lift 를 비교하면 안 된다** — `datasets/migration_pairs_dev_260914/READ
 해시 재검증만 통과하는 것을 확인했다. 비교 대상 쌍에 registry 기반 개발용 이동쌍이 섞여 있지만
 peer 열 자체는 deps.dev `requirements` 에서만 오므로 `depsdev/v1` 아래에 둔다.
 
+`package-peers-20260915-v1` 로 **npm 전수** peer 목록 Parquet 2개(47,776,621바이트·1,565,152행)를
+`depsdev/v1/package-peers/snapshot=2026-08-31/` 에 넣었다(S15P21A506-350). 위 `peer-similarity` 가
+쌍 단위 비교라면 이쪽은 패키지 단위 재료로, 쌍 목록에 없는 임의 조합을 즉석 비교할 때 쓴다.
+`package_peers_all`(1,033,323행)과 그 부분집합 `package_peers_recent`(531,829행, 최신 릴리스
+2023-01-01 이후)이며 열 구성은 같다. **전수를 그대로 쓰지 말 것** — `all` 의 40.1%가 릴리스
+1개짜리이고 다운로드 상위 10만 안에 드는 것은 2.8%뿐이다. 하한 판단용으로 `n_releases`·
+`last_published_at`·`is_deprecated`·`download_rank` 를 열로 담았다.
+
+두 데이터셋은 `data/` 폴더를 나눠 쓴다(`data/peer_similarity` · `data/package_peers`).
+이 입고기가 데이터셋 root 의 `*.parquet` 를 통째로 올리므로, 한 폴더에 섞으면 이미 `_SUCCESS`
+가 찍힌 실행에 파일이 늘어 `Completed run missing object` 로 막힌다.
+
 수집기 원본은 `keywords-20260909-v1` 로 ecosyste.ms keywords 수집일 `2026-09-08` 을
 서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
 더해 1,003객체이며, 원본 manifest 기준 1,000/1,000페이지·100만 행이다. 같은 실행 ID로

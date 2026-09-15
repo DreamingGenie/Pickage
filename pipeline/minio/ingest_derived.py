@@ -92,6 +92,31 @@ DATASETS = {
             '같은 내용의 CSV 는 git datasets/peer_similarity_260914/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'package-peers': {
+        # peer-similarity 와 폴더를 나눈다. 이 입고기는 root 의 *.parquet 를 통째로 올리므로
+        # 한 폴더에 두면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어 재검증이 막힌다.
+        'root': 'data/package_peers',
+        'prefix': 'depsdev/v1/package-peers',
+        'snapshot': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_peer_similarity.py --scope all',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31), '
+                  'download_rank 은 datasets/targets/rank_top100k_20260902.csv',
+        'readme': 'datasets/peer_similarity_260914/README.md',
+        'jira': ['S15P21A506-350', 'S15P21A506-110'],
+        'notes': [
+            'npm 전수에서 peerDependencies 를 가진 패키지의 최신 릴리스 peer 목록. 쌍 목록과 무관하게'
+            ' 임의의 두 패키지를 즉석에서 비교하기 위한 재료다. peer 가 없는 패키지(전체 1,108만 중'
+            ' 90.7%)는 행 자체를 넣지 않는다 — 없다는 사실은 행이 없는 것으로 똑같이 표현된다.',
+            'package_peers_all 1,033,323행 · package_peers_recent 531,829행(최신 릴리스 2023-01-01 이후).'
+            ' recent 는 all 의 부분집합이고 열 구성이 같다.',
+            '전수를 그대로 쓰지 말 것. all 의 40.1%가 릴리스 1개짜리이고 27.3%는 3년 넘게 방치돼 있다.'
+            ' 다운로드 상위 10만 안에 드는 것은 29,193개(2.8%)뿐이다. 하한을 어디에 둘지는 용도마다'
+            ' 달라서 n_releases·last_published_at·is_deprecated·download_rank 를 열로 함께 담았다.',
+            'last_published_at 이 NULL 인 219,299행은 전부 릴리스 1개짜리이고 상위 10만에 하나도 없다.'
+            ' recent 에서 빠지는 이유가 "오래됨"이 아니라 "날짜 없음"이므로 사유가 다르다.',
+            '쌍 단위 비교 결과는 같은 버킷의 depsdev/v1/peer-similarity/ 에 있다.',
+        ],
+    },
 }
 
 

@@ -14,13 +14,28 @@ react 용과 vue 용은 서로 대체가 아니다.
       datasets/migration_pairs_260908/          실행용 의존 이동쌍 (npm 전수)
       datasets/migration_pairs_dev_260914/      개발용 의존 이동쌍 (상위 10만, S15P21A506-349)
       datasets/deprecated_replacement_260831/   폐기→대체 학습쌍
-출력  data/peer_similarity/
+## 두 가지 범위 (--scope)
+
+`pairs` (기본) — 쌍 목록에 등장한 패키지만. 이동쌍·폐기쌍의 (A, B) 를 실제로 비교한다.
+`all` — npm 전수에서 peer 를 가진 패키지 전부. 쌍 목록에 없는 임의의 조합도 즉석 비교할 수
+있게 하는 재료다. 다만 peer 보유 103만 중 40.1%가 릴리스 1개짜리이므로(2026-09-14 실측)
+`--recent-since` 하한을 넘긴 것을 따로 한 파일 더 낸다.
+
+출력  --scope pairs
+      data/peer_similarity/
         package_peers.parquet          패키지 1행 — 최신 릴리스의 peer 목록
         pair_peer_similarity.parquet   쌍 1행 — 양쪽 peer 목록·교집합·Jaccard·판정
       datasets/peer_similarity_260914/
         package_peers.csv, pair_peer_similarity.csv   같은 내용 (UTF-8 BOM, 배열은 | 로 이음)
         stats.json
-실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_peer_similarity.py   (약 5분)
+
+      --scope all
+      data/package_peers/
+        package_peers_all.parquet      peer 보유 패키지 전부 + 품질 열 4종
+        package_peers_recent.parquet   그중 최신 릴리스가 --recent-since 이후인 것
+      datasets/peer_similarity_260914/package_peers_scope_all_stats.json
+실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_peer_similarity.py               (약 10초)
+      .venv-bq/Scripts/python.exe pipeline/duckdb/build_peer_similarity.py --scope all   (약 50초)
 
 ## 읽는 사람이 반드시 알아야 할 것
 
@@ -32,6 +47,7 @@ react 용과 vue 용은 서로 대체가 아니다.
 진짜 대체쌍이다(tslint 의 peer 는 typescript, eslint 는 없음/다름). peer 불일치만으로 탈락시키면
 이런 쌍을 잃는다. `feature_candidates` README §1-3 의 권고와 같다.
 """
+import argparse
 import json
 import os
 import sys
@@ -47,16 +63,28 @@ try:
 except Exception:
     pass
 
+ap = argparse.ArgumentParser()
+ap.add_argument("--scope", choices=("pairs", "all"), default="pairs",
+                help="pairs(기본) 쌍 목록에 등장한 패키지만 · all npm 전수에서 peer 를 가진 패키지 전부")
+ap.add_argument("--recent-since", default="2023-01-01",
+                help="--scope all 에서 '살아 있음' 하한. 최신 릴리스가 이 날짜 이후인 것만 따로 낸다")
+args = ap.parse_args()
+
 ROOT = Path(__file__).resolve().parents[2].as_posix()
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
 MP = f"{ROOT}/datasets/migration_pairs_260908"
 MP_DEV = f"{ROOT}/datasets/migration_pairs_dev_260914"
 DEPRECATED = f"{ROOT}/datasets/deprecated_replacement_260831/deprecated_replacement_20260831.jsonl"
+TARGETS = f"{ROOT}/datasets/targets/rank_top100k_20260902.csv"
 PQ_DIR = f"{ROOT}/data/peer_similarity"
+# 전수 모드는 출력 폴더를 따로 쓴다. pipeline/minio/ingest_derived.py 가 데이터셋 root 의
+# *.parquet 를 통째로 올리므로, 한 폴더에 섞으면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어
+# "Completed run missing object" 로 막힌다.
+PQ_DIR_ALL = f"{ROOT}/data/package_peers"
 OUT = f"{ROOT}/datasets/peer_similarity_260914"
 TMP = f"{ROOT}/data/duckdb_tmp"
-for d in (PQ_DIR, OUT, TMP):
+for d in (PQ_DIR, PQ_DIR_ALL, OUT, TMP):
     os.makedirs(d, exist_ok=True)
 
 t0 = time.time()
@@ -70,7 +98,92 @@ con = duckdb.connect()
 con.execute(f"SET threads=8; SET memory_limit='24GB'; SET temp_directory='{TMP}'; "
             "SET preserve_insertion_order=false")
 
-stats = {}
+stats = {"scope": args.scope}
+
+
+def build_latest_release(where_extra=""):
+    """패키지 1행 = 최신 릴리스. 두 모드가 같은 판정을 쓰게 하려고 함수로 뺐다.
+
+    '최신'은 versions_full 의 is_release 중 ordinal 이 가장 큰 것이다. published_at 이 아니라
+    ordinal 을 쓰는 이유는 유지보수 릴리스(5.0.0 뒤에 나온 4.17.3)가 최신으로 잡히지 않게 하기
+    위해서다. 표본 스크립트 build_feature_candidates.py 와 같은 방식이다.
+    """
+    con.execute(f"""CREATE OR REPLACE TABLE lat AS
+    SELECT Name, Version, published_at, Deprecated, n_rel FROM (
+      SELECT Name, Version, published_at, Deprecated,
+             count(*) OVER (PARTITION BY Name) AS n_rel,
+             row_number() OVER (PARTITION BY Name ORDER BY ordinal DESC) rn
+      FROM read_parquet('{V}') WHERE is_release {where_extra}) WHERE rn = 1""")
+    return con.execute("SELECT count(*) FROM lat").fetchone()[0]
+
+
+if args.scope == "all":
+    # npm 전수에서 peer 를 가진 패키지 전부. 쌍 목록과 무관하게, 임의의 두 패키지를 즉석에서
+    # 비교할 수 있게 하는 용도다.
+    #
+    # peer 가 없는 패키지(전체의 90.7%)는 넣지 않는다. "peer 가 없다" 는 사실은 이 표에
+    # 행이 없다는 것으로 똑같이 표현되고, 빈 배열 1,005만 행은 파일만 3.5배 키운다.
+    #
+    # 품질 열을 함께 담는 이유: peer 보유 패키지 103만 중 40.1%가 릴리스 1개짜리이고
+    # 27.3%가 3년 넘게 방치돼 있다(2026-09-14 실측). 어디서 끊을지는 쓰는 용도마다 달라서
+    # 여기서 하나로 정하지 않고, 판단 재료를 열로 준다.
+    log("전수 모드 — 최신 릴리스 집계 중 (1~2분)")
+    stats["packages_total"] = build_latest_release()
+    log("최신 릴리스 있는 패키지", f"{stats['packages_total']:,}")
+
+    con.execute(f"""CREATE TABLE rank AS
+    SELECT name, min(rank) AS download_rank FROM read_csv_auto('{TARGETS}') GROUP BY 1""")
+
+    con.execute(f"""CREATE TABLE package_peers AS
+    SELECT l.Name AS name, l.Version AS version,
+           list_sort(list_transform(r.PeerDependencies, x -> x.Name)) AS peers,
+           list_sort(list_transform(r.PeerDependencies, x -> x.Name || '@' || x.Requirement)) AS peers_req,
+           len(r.PeerDependencies) AS n_peers,
+           l.n_rel AS n_releases,
+           l.published_at AS last_published_at,
+           (l.Deprecated IS NOT NULL AND l.Deprecated <> '') AS is_deprecated,
+           k.download_rank
+    FROM lat l
+    JOIN read_parquet('{R}') r ON r.Name = l.Name AND r.Version = l.Version
+    LEFT JOIN rank k ON k.name = l.Name
+    WHERE len(coalesce(r.PeerDependencies, [])) > 0""")
+    stats["peer_bearing"] = con.execute("SELECT count(*) FROM package_peers").fetchone()[0]
+    log("peer 보유", f"{stats['peer_bearing']:,}")
+
+    SINCE = args.recent_since
+    stats["recent_since"] = SINCE
+    stats["peer_bearing_recent"] = con.execute(
+        f"SELECT count(*) FROM package_peers WHERE last_published_at >= TIMESTAMP '{SINCE}'").fetchone()[0]
+
+    # 두 파일로 나눠 낸다. recent 는 all 의 부분집합이며 열 구성이 같다
+    con.execute(f"""COPY (SELECT * FROM package_peers ORDER BY name)
+                    TO '{PQ_DIR_ALL}/package_peers_all.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)""")
+    con.execute(f"""COPY (SELECT * FROM package_peers
+                          WHERE last_published_at >= TIMESTAMP '{SINCE}' ORDER BY name)
+                    TO '{PQ_DIR_ALL}/package_peers_recent.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)""")
+
+    # 집계 — 두 파일이 서로 얼마나 다른지, 그리고 어디서 더 끊을 수 있는지
+    def agg(where):
+        return con.execute(f"""SELECT count(*), sum(n_peers),
+            count(*) FILTER (WHERE n_releases = 1),
+            count(*) FILTER (WHERE is_deprecated),
+            count(*) FILTER (WHERE download_rank IS NOT NULL),
+            count(DISTINCT CASE WHEN name LIKE '@%' THEN split_part(name,'/',1) ELSE name END)
+            FROM package_peers WHERE {where}""").fetchone()
+
+    keys = ("packages", "peer_declarations", "single_release", "deprecated",
+            "in_top100k", "distinct_scopes")
+    stats["agg_all"] = dict(zip(keys, agg("TRUE")))
+    stats["agg_recent"] = dict(zip(keys, agg(f"last_published_at >= TIMESTAMP '{SINCE}'")))
+    stats["file_bytes"] = {
+        "package_peers_all.parquet": os.path.getsize(f"{PQ_DIR_ALL}/package_peers_all.parquet"),
+        "package_peers_recent.parquet": os.path.getsize(f"{PQ_DIR_ALL}/package_peers_recent.parquet"),
+    }
+    stats["elapsed_sec"] = round(time.time() - t0)
+    with open(f"{OUT}/package_peers_scope_all_stats.json", "w", encoding="utf-8") as fh:
+        json.dump(stats, fh, ensure_ascii=False, indent=2)
+    log("done", json.dumps(stats, ensure_ascii=False))
+    sys.exit(0)
 
 # 1) 비교할 쌍 모으기 ----------------------------------------------------------
 #    source 로 어느 원천에서 왔는지 남긴다. 이동쌍은 등급이 포개져 있으므로(all ⊃ recommended)
@@ -102,11 +215,7 @@ stats["packages_in_pairs"] = con.execute("SELECT count(*) FROM names").fetchone(
 #    "A 가 B 를 대체할 수 있나" 는 지금 시점 판단이라 최신 릴리스를 쓴다(표본 스크립트와 같은 방식).
 #    한계: A 가 폐기·방치된 패키지면 그 최신은 몇 년 전 선언이라 그 시절 생태계를 반영한다.
 #    예) moment 의 peer 는 2020년 기준이다. 이동 시점 기준이 필요하면 별도 작업이다.
-con.execute(f"""CREATE TABLE lat AS
-SELECT Name, Version FROM (
-  SELECT Name, Version, row_number() OVER (PARTITION BY Name ORDER BY ordinal DESC) rn
-  FROM read_parquet('{V}') WHERE is_release AND Name IN (SELECT name FROM names)) WHERE rn = 1""")
-stats["packages_with_release"] = con.execute("SELECT count(*) FROM lat").fetchone()[0]
+stats["packages_with_release"] = build_latest_release("AND Name IN (SELECT name FROM names)")
 log("최신 릴리스", stats["packages_with_release"], "/", stats["packages_in_pairs"])
 
 con.execute(f"""CREATE TABLE package_peers AS
