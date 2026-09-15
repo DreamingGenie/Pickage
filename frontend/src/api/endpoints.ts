@@ -9,6 +9,7 @@
  */
 
 import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
+import { mockCommunityRefresh, mockCommunityStatus } from '@/api/mock/community'
 import {
   mockDependentsTrend,
   mockDictManifest,
@@ -22,6 +23,8 @@ import {
   mockVersionShare,
 } from '@/api/mock/handlers'
 import type {
+  CommunityRefreshTrigger,
+  CommunityStatusResponse,
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
@@ -173,4 +176,34 @@ export function fetchVersionShare(
   return USE_MOCK
     ? mockVersionShare(names, snapshotAt)
     : get<VersionShareResponse>('/packages/version', { names, snapshot_at: snapshotAt })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-316. GitHub 커뮤니티 현황
+ * ------------------------------------------------------------------ */
+
+/** 부작용 없음. GET 은 수집을 시작하지 않는다(구현계획 §2). */
+export function fetchCommunityStatus(
+  name: string,
+  signal?: AbortSignal,
+): Promise<CommunityStatusResponse> {
+  return USE_MOCK
+    ? mockCommunityStatus(name)
+    : get<CommunityStatusResponse>('/packages/community', { name }, { signal })
+}
+
+/**
+ * body 가 없고 `name`·`trigger` 둘 다 query string 이다(§6.1) — `post()`에 `params`로 넘긴다.
+ * 새 task 수락(202) 또는 기존 상태 반환(200) 모두 같은 봉투이므로 화면은 HTTP status 를
+ * 보지 않는다. **재시도하지 않는다**(§8.1) — react-query 훅 쪽에서 `retry: false`로 강제한다.
+ */
+export function postCommunityRefresh(
+  name: string,
+  trigger: CommunityRefreshTrigger,
+): Promise<CommunityStatusResponse> {
+  return USE_MOCK
+    ? mockCommunityRefresh(name, trigger)
+    : post<CommunityStatusResponse>('/packages/community/refresh', undefined, {
+        params: { name, trigger },
+      })
 }
