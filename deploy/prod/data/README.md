@@ -666,13 +666,26 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 
 ```bash
 sudo mkdir -p /srv/pickage/ingest-work /srv/pickage/secrets
-# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔다
-sudo chown -R 1000:1000 /srv/pickage
+sudo chown -R 1000:1000 /srv/pickage/ingest-work /srv/pickage/secrets
+# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔 뒤
+sudo chown 1000:1000 /srv/pickage/secrets/gcp-service-account.json
+sudo chmod 600 /srv/pickage/secrets/gcp-service-account.json
 ```
 
 ⚠ **소유권을 넘기지 않으면 쓰기가 막힌다.** 컨테이너가 uid 1000 으로 돌고, 없는 바인드
 디렉터리는 Docker 가 root 소유로 만든다. root 로 쓰게 두지 않는 이유는 그렇게 쌓인
 산출물을 `ubuntu` 계정이 못 지워서 **지난 회차 정리가 거기서 막히기** 때문이다.
+키 파일도 같은 이유로 uid 1000 소유여야 한다 — `600` 이면서 root 소유면 못 읽는다.
+
+⚠⚠ **부모 `/srv/pickage` 를 통째로 `chown` 하지 말 것.** 그 디렉터리는 이 노드에서
+이미 쓰이고 있다 — 배포 러너가 `gitlab-runner` 소유로 만들고 그 아래 `data.env`
+(MinIO 루트 자격증명)를 둔다([`deploy/ci/README.md`](../../ci/README.md) 의 "데이터 노드
+배포 러너"). 통째로 넘기면 `deploy-ai` 잡이 `AI_TAG` 를 고치지 못해 **유사도 배치 이미지
+배포가 실패한다.** 증상이 주간 수집과 연결되지 않아 원인을 찾기 어렵다.
+
+부모 디렉터리 권한은 컨테이너와 무관하다. 바인드 경로는 Docker 데몬(root)이 해석해서
+마운트하므로, 컨테이너 안의 uid 1000 은 호스트의 부모 경로를 거치지 않는다. **마운트되는
+두 디렉터리의 소유권만 맞으면 된다.**
 
 자격증명은 환경변수가 아니라 **파일**이다(`pipeline/minio/ingest_raw.py` 의 `client()`).
 
