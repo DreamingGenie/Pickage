@@ -316,6 +316,176 @@ export interface VersionShareResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * GitHub 커뮤니티 현황 (S15P21A506-316)
+ *
+ * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
+ * 실제 `backend/.../domain/community` DTO(더 신뢰도 높은 근거). 위 섹션과 같은 이유로
+ * snake_case 그대로 둔다 — camelCase 변환은 `routes/report/community/adapter.ts`가 한다.
+ * ------------------------------------------------------------------ */
+
+export type CommunityViewStatus = 'IDLE' | 'PROCESSING' | 'RESULT' | 'FAILED'
+export type CommunityFreshness = 'FRESH' | 'STALE'
+export type CommunityRefreshTrigger = 'ANALYSIS_CONFIRMED' | 'TAB_OPENED'
+export type CommunityRefreshStatus =
+  'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CAPACITY_LIMITED'
+export type CommunityRefreshStage =
+  | 'VERIFYING_REPOSITORY'
+  | 'SEARCHING_ISSUES'
+  | 'COLLECTING_COMMENTS'
+  | 'SUMMARIZING'
+  | 'VALIDATING'
+  | 'PUBLISHING'
+export type CommunityErrorCode =
+  | 'GITHUB_RATE_LIMITED'
+  | 'GITHUB_UNAVAILABLE'
+  | 'NPM_UNAVAILABLE'
+  | 'GMS_UNAVAILABLE'
+  | 'REFRESH_DEADLINE_EXCEEDED'
+  | 'PUBLISH_FAILED'
+  | 'CAPACITY_LIMITED'
+  | 'LOCAL_RATE_LIMITED'
+  | 'COMMUNITY_DISABLED'
+export type CommunityDataStatus =
+  | 'AVAILABLE'
+  | 'PARTIAL'
+  | 'UNVERIFIED_REPOSITORY'
+  | 'AMBIGUOUS_SCOPE'
+  | 'UNSUPPORTED_HOST'
+  | 'NO_DISCUSSION_DATA'
+export type CommunitySummaryStatus = 'READY' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+export type CommunityCollectionStatus = 'COMPLETE' | 'TRUNCATED' | 'FAILED'
+export type CommunityRepositoryScope = 'PACKAGE_SCOPED' | 'REPOSITORY_WIDE'
+export type CommunityMessageRole =
+  'ISSUE_AUTHOR' | 'REPOSITORY_OWNER' | 'ORGANIZATION_MEMBER' | 'COLLABORATOR' | 'CONTRIBUTOR'
+export type CommunityMessageKind = 'DISCUSSION' | 'USER_SOLUTION'
+
+/** 서버가 고정 한국어 문구를 만드는 한계 코드. 문구는 `message`로 그대로 온다 — 화면에서 다시 만들지 않는다. */
+export type CommunityLimitationCode =
+  | 'REPOSITORY_SOURCE_CONFLICT'
+  | 'REPOSITORY_WIDE_SCOPE'
+  | 'ROOT_PACKAGE_SCOPE_HEURISTIC'
+  | 'NPM_REPOSITORY_ONLY'
+  | 'REPOSITORY_ARCHIVED'
+  | 'SEARCH_INCOMPLETE'
+  | 'ISSUE_FILTERED'
+  | 'COMMENTS_TRUNCATED'
+  | 'COMMENTS_UNAVAILABLE'
+  | 'SUMMARY_INPUT_LIMITED'
+  | 'SUMMARY_UNAVAILABLE'
+  | 'RESPONSE_SIZE_LIMITED'
+
+export interface CommunityRepository {
+  owner: string
+  name: string
+  full_name: string
+  scope: CommunityRepositoryScope
+  archived: boolean
+}
+
+export interface CommunitySummary {
+  issue_count: number
+  open_issue_count: number
+  comment_count: number
+  reaction_count: number
+}
+
+export interface CommunityFlowStep {
+  text: string
+}
+
+export interface CommunityMessage {
+  author_login: string | null
+  role: CommunityMessageRole | null
+  kind: CommunityMessageKind
+  /** ISO 8601 UTC */
+  created_at: string
+  text: string
+}
+
+/** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
+export interface CommunityTopic {
+  issue_number: number
+  state: 'OPEN' | 'CLOSED'
+  /** ISO 8601 UTC */
+  updated_at: string
+  /** ISO 8601 UTC */
+  created_at: string
+  /** 최대 200자로 잘려 온다 */
+  title_original: string
+  title_ko: string | null
+  comments_count: number
+  reactions_count: number
+  collection_status: CommunityCollectionStatus
+  summary_status: CommunitySummaryStatus
+  summary_ko: string | null
+  flow: CommunityFlowStep[]
+  /** 최대 3개 */
+  messages: CommunityMessage[]
+}
+
+export interface CommunityLimitation {
+  code: CommunityLimitationCode
+  /** 서버 템플릿이 만든 한국어 문구. 화면은 이걸 그대로 보여준다 */
+  message: string
+  issue_number: number | null
+}
+
+export interface CommunityDataLimits {
+  policy_version: string
+  lookback_days: 180 | 365
+  max_issues: number
+  max_comments_per_issue: number
+  max_messages_per_issue: number
+  source_note: string
+}
+
+export interface CommunityResult {
+  snapshot_id: string
+  /** ISO 8601 UTC */
+  collected_at: string
+  /** ISO 8601 UTC */
+  fresh_until: string
+  /** ISO 8601 UTC */
+  serve_until: string
+  data_status: CommunityDataStatus
+  summary_status: CommunitySummaryStatus
+  /** ISO 8601 UTC. 전체 요약 실패가 아니면 null */
+  summary_retry_at: string | null
+  /** 검증 실패로 terminal 상태가 된 경우 null */
+  repository: CommunityRepository | null
+  summary: CommunitySummary
+  topics: CommunityTopic[]
+  limitations: CommunityLimitation[]
+  data_limits: CommunityDataLimits
+}
+
+export interface CommunityRefreshInfo {
+  refresh_id: string | null
+  status: CommunityRefreshStatus
+  /** RUNNING 일 때만 값이 있다 */
+  stage: CommunityRefreshStage | null
+  /** 서버가 만든 고정 한국어 문구. 가짜 진행률이 아니다 — 화면은 이 문구를 그대로 쓴다 */
+  stage_message: string
+  /** ISO 8601 UTC. worker 시작 전이면 null */
+  started_at: string | null
+  /** ISO 8601 UTC */
+  last_updated_at: string
+  /** QUEUED/RUNNING 일 때만 값(초), 그 외 null */
+  poll_after_seconds: number | null
+  /** ISO 8601 UTC. 재시도 가능 시각 */
+  retry_at: string | null
+  error_code: CommunityErrorCode | null
+}
+
+export interface CommunityStatusResponse {
+  package_name: string
+  view_status: CommunityViewStatus
+  freshness: CommunityFreshness | null
+  refresh: CommunityRefreshInfo | null
+  result: CommunityResult | null
+}
+
+/* ------------------------------------------------------------------ *
  * 화면 전용 타입 (서버 스펙 아님)
  * ------------------------------------------------------------------ */
 
