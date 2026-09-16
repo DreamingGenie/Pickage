@@ -90,30 +90,43 @@ public class CommunityConfig {
      */
     @Bean
     public CommunitySummarizer communitySummarizer(HttpClient communityHttpClient) {
-        String apiKey = System.getenv("GMS_API_KEY");
-        String baseUrl = System.getenv("GMS_BASE_URL");
-        String requestPath = System.getenv("GMS_REQUEST_PATH");
-        String authHeader = System.getenv("GMS_AUTH_HEADER");
-        String authScheme = System.getenv("GMS_AUTH_SCHEME");
-        String model = System.getenv("GMS_MODEL");
-        if (apiKey == null
-                || apiKey.isBlank()
-                || baseUrl == null
-                || requestPath == null
-                || authHeader == null
-                || authScheme == null
-                || model == null) {
+        return resolveSummarizer(
+                communityHttpClient,
+                System.getenv("GMS_API_KEY"),
+                System.getenv("GMS_BASE_URL"),
+                System.getenv("GMS_REQUEST_PATH"),
+                System.getenv("GMS_AUTH_HEADER"),
+                System.getenv("GMS_AUTH_SCHEME"),
+                System.getenv("GMS_MODEL"));
+    }
+
+    /**
+     * env var 읽기와 분리해 둔다 — {@code System.getenv}는 테스트에서 값을 바꿔치기하기 번거로우니,
+     * 빈 문자열/null 판정 로직 자체는 순수 함수로 검증한다(S15P21A506-368).
+     */
+    static CommunitySummarizer resolveSummarizer(
+            HttpClient client,
+            String apiKey,
+            String baseUrl,
+            String requestPath,
+            String authHeader,
+            String authScheme,
+            String model) {
+        if (isBlank(apiKey)
+                || isBlank(baseUrl)
+                || isBlank(requestPath)
+                || isBlank(authHeader)
+                || isBlank(authScheme)
+                || isBlank(model)) {
             return new FakeCommunitySummarizer();
         }
         return new GmsCommunitySummarizer(
-                communityHttpClient,
-                baseUrl,
-                requestPath,
-                apiKey,
-                authHeader,
-                authScheme,
-                model,
-                MAX_RESPONSE_BYTES);
+                client, baseUrl, requestPath, apiKey, authHeader, authScheme, model, MAX_RESPONSE_BYTES);
+    }
+
+    /** null과 빈 문자열을 같이 "설정 안 됨"으로 본다 — env var가 값 없이 존재하는 경우까지 걸러낸다. */
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     @Bean(destroyMethod = "close")
