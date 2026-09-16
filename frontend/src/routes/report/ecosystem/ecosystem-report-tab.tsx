@@ -86,6 +86,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     downloads: stateOf(downloads),
     dependents: stateOf(dependents),
   }
+  const versionShareState = stateOf(versionShare)
 
   const model = toEcosystemModel({
     overview: overview.data,
@@ -107,7 +108,11 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
           것이고, 모양만 v1 API 명세를 따릅니다.
         </p>
       )}
-      <EcosystemView model={model} metricState={metricState} />
+      <EcosystemView
+        model={model}
+        metricState={metricState}
+        versionShareState={versionShareState}
+      />
     </div>
   )
 }

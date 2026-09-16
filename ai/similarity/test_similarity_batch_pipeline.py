@@ -372,11 +372,75 @@ class IsSameFamily(unittest.TestCase):
             sbp.is_same_family("d3", "d3-scale"), sbp.is_same_family("d3-scale", "d3")
         )
 
+    def test_does_not_flag_scoped_vs_unscoped_name_coincidence(self):
+        """S15P21A506-334: 스코프를 벗겨낸 뒤 접두어만 비교하면, 서로 무관한
+        패키지가 우연히 같은 단어를 이름에 포함할 때 오탐한다."""
+        for a, b in (
+            ("markdown-it", "@ts-stack/markdown"),
+            ("@ts-stack/markdown", "markdown-it"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertFalse(sbp.is_same_family(a, b))
+
+    def test_flags_unscoped_name_matching_scope_org(self):
+        """S15P21A506-334 후속: 스코프 없는 이름이 상대방의 스코프(조직명)와
+        정확히 같으면, 그 조직이 낸 서브패키지로 본다 — parcel 이 낸
+        @parcel/graph 를 parcel 의 "대안"으로 잘못 추천하는 사례(실측)."""
+        for a, b in (
+            ("parcel", "@parcel/graph"),
+            ("@parcel/graph", "parcel"),
+            ("vitest", "@vitest/runner"),
+            ("rollup", "@rollup/browser"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertTrue(sbp.is_same_family(a, b))
+
+    def test_does_not_flag_unrelated_scope_org(self):
+        """스코프(조직명) 자체가 다르면 여전히 무관한 패키지로 남는다 —
+        조직명 일치라는 좁은 조건만 잡고, 그 밖의 우연한 접두어 겹침이나
+        느슨하게 연관된 리브랜딩(passport vs passport-next)까지 잡지 않는다."""
+        for a, b in (
+            ("markdown-it", "@ts-stack/markdown"),
+            ("terser", "@node-minify/babel-minify"),
+            ("passport", "@passport-next/passport"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertFalse(sbp.is_same_family(a, b))
+
+    def test_flags_types_declaration_package(self):
+        """@types/X 는 항상 X 의 타입 선언 파일 — DefinitelyTyped 관례상 예외가
+        없어 X 자신의 "대안"으로 추천되면 안 된다."""
+        for a, b in (
+            ("lodash", "@types/lodash"),
+            ("@types/lodash", "lodash"),
+            ("express", "@types/express"),
+        ):
+            with self.subTest(pair=(a, b)):
+                self.assertTrue(sbp.is_same_family(a, b))
+
+    def test_types_scope_requires_matching_subpath(self):
+        """@types/ 규칙은 스코프 뒤 이름이 정확히 같을 때만 — 엉뚱한 패키지의
+        타입 선언까지 같은 계열로 잡지 않는다."""
+        self.assertFalse(sbp.is_same_family("lodash", "@types/express"))
+
+
+class IsRepoArchived(unittest.TestCase):
+    def test_flags_true(self):
+        self.assertTrue(sbp.is_repo_archived(True))
+
+    def test_does_not_flag_false(self):
+        self.assertFalse(sbp.is_repo_archived(False))
+
+    def test_does_not_flag_none(self):
+        """repo_full_name 이 없어 repo_stat 과 LEFT JOIN 이 안 되면 NULL — 보관 아님으로 취급."""
+        self.assertFalse(sbp.is_repo_archived(None))
+
 
 class ApplyGates(unittest.TestCase):
-    NAMES = ["moment", "dayjs", "moment-timezone", "eslint-plugin-x", "luxon"]
-    KW = {i: [] for i in range(5)}
-    HITS = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7), (0, 4, 0.6)]
+    NAMES = ["moment", "dayjs", "moment-timezone", "eslint-plugin-x", "luxon", "date-fns"]
+    KW = {i: [] for i in range(6)}
+    ARCHIVED = {i: False for i in range(6)}
+    HITS = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7), (0, 4, 0.6), (0, 5, 0.5)]
 
     def test_disabled_returns_hits_unchanged(self):
         kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=False)
@@ -395,13 +459,27 @@ class ApplyGates(unittest.TestCase):
 
     def test_keeps_genuine_alternatives(self):
         kept, _ = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
-        self.assertEqual([c for _, c, _ in kept], [1, 4])  # dayjs, luxon
+        self.assertEqual([c for _, c, _ in kept], [1, 4, 5])  # dayjs, luxon, date-fns
 
     def test_drops_via_keyword_signal(self):
         kw = {**self.KW, 1: ["plugin"]}
         kept, drops = sbp.apply_gates([(0, 1, 0.9)], self.NAMES, kw, enabled=True)
         self.assertEqual(kept, [])
         self.assertEqual(drops["plugin_adapter"], 1)
+
+    def test_drops_archived_candidate(self):
+        archived = {**self.ARCHIVED, 5: True}  # date-fns 를 보관 처리된 것으로 가정
+        kept, drops = sbp.apply_gates(
+            self.HITS, self.NAMES, self.KW, enabled=True, archived_by_idx=archived
+        )
+        self.assertNotIn(5, [c for _, c, _ in kept])
+        self.assertEqual(drops["repo_archived"], 1)
+
+    def test_no_archived_by_idx_keeps_previous_behavior(self):
+        """archived_by_idx 를 안 주면(옛 호출부) 아무도 archived 로 안 걸린다."""
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
+        self.assertNotIn("repo_archived", drops)
 
 
 class ParseArgs(unittest.TestCase):

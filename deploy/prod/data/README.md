@@ -432,7 +432,7 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 스크립트가 매번 읽어 확정한다.
 
 ```
-코퍼스   $AI_CORPUS_PREFIX/_current.json      →  run_id
+코퍼스   $AI_CORPUS_PREFIX/_current.json      →  run_path(코퍼스 경로) + run_id(산출물 이름)
 모델     MLflow  $AI_MODEL_NAME@$AI_MODEL_ALIAS  →  s3:// 경로
 ```
 
@@ -450,12 +450,28 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 #### 확정한 값을 산출물 경로에 박는다
 
 ```
-pickage-vectors/model=v7/corpus=collected_date=2026-09-08/run_id=package-text-.../
+pickage-vectors/model=v7/corpus=package-text-20260908-v1/
 ```
 
 포인터를 따라가면서도 **"이 결과가 어느 모델·어느 코퍼스에서 나왔나" 가 경로에 남는다.**
 `_current.json` 은 다음 실행에 바뀌므로, 재현하려면 이 경로를 봐야 한다
 (`pipeline/curated/README.md` 의 같은 원칙).
+
+##### `_current.json` 이 싣는 값 (S15P21A506-348)
+
+```json
+{"collected_date":"2026-09-08","manifest_sha256":"…",
+ "run_id":"package-text-20260908-v1",
+ "run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v1"}
+```
+
+| 키 | 쓰임 | 왜 이 모양인가 |
+| --- | --- | --- |
+| `run_path` | 코퍼스를 찾는다 (`$AI_CORPUS_PREFIX/$run_path/data`) | **prefix 상대**다. `.env` 가 prefix 를 이미 들고 있어서, 전체 경로를 실으면 두 값이 갈라질 자리가 생긴다 |
+| `run_id` | 산출물 경로 `corpus=<run_id>` 에 박는다 | **평평해야 한다.** `/` 가 들어가면 `/work/out` 의 깊이가 한 단 깊어져 `ai-collect` 의 `for d in /work/out/*/*` 가 `_SUCCESS` 를 한 단계 위에 찍는다. 중복 확인은 전체 경로를 보므로 같은 회차를 매번 다시 돌게 된다 |
+| `manifest_sha256` | 그 실행의 `run_manifest.json` 바이트 해시 | `depsdev` 포인터와 같은 항목 |
+
+게시하는 쪽은 `pipeline/minio/ingest_derived.py`(`pointer` 가 켜진 데이터셋)다.
 
 그 경로의 `_SUCCESS` 가 곧 "이미 했다" 의 근거다. 별도 상태 저장소를 두지 않는다.
 
@@ -479,7 +495,7 @@ MLflow 도 `127.0.0.1:5000` 이라 호스트가 바로 부를 수 있다.
 
 | | 없으면 어디서 멈추나 | 누구 |
 | --- | --- | --- |
-| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다 | 데이터 |
+| ~~`package_text` + `_current.json`~~ | **2026-09-14 게시됨** (`package-text-20260908-v1`, S15P21A506-348) | 데이터 |
 | MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다 | AI |
 | **로더** | 배치는 돌지만 `similar_package` 가 계속 비어 서비스에 안 닿는다 | 미정 |
 | 스케줄러 | 사람이 스크립트를 친다 | 인프라 |
@@ -524,10 +540,10 @@ sh run-similarity-batch.sh
 
 ```
 [1/5] 코퍼스 확정
-  run_id=collected_date=2026-09-08/run_id=package-text-20260911-v1
+  run_id=package-text-20260908-v1  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v1
 [2/5] 모델 확정
   v7  pickage-mlflow-artifacts/onnx_bge_v7
-[3/5] 중복 확인  model=v7/corpus=collected_date=2026-09-08/run_id=package-text-20260911-v1
+[3/5] 중복 확인  model=v7/corpus=package-text-20260908-v1
 [4/5] 스테이징
 [5/5] 배치
       회수
@@ -541,7 +557,7 @@ sh run-similarity-batch.sh
 
 | | 서비스 | 하는 일 |
 | --- | --- | --- |
-| 1 | (스크립트) | `_current.json` → 코퍼스 run 확정 |
+| 1 | (스크립트) | `_current.json` → `run_path`(코퍼스)·`run_id`(산출물 이름) 확정 |
 | 2 | (스크립트) | MLflow `@production` → 모델 `s3://` 경로 확정 |
 | 3 | (스크립트) | 산출물 경로에 `_SUCCESS` 가 있으면 **여기서 끝** |
 | 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown` |
@@ -567,8 +583,8 @@ sh run-similarity-batch.sh
 
 ```bash
 docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive l/pickage-vectors/'
-# model=v7/corpus=collected_date=2026-09-08/run_id=.../_SUCCESS
-# model=v7/corpus=collected_date=2026-09-08/run_id=.../...
+# model=v7/corpus=package-text-20260908-v1/_SUCCESS
+# model=v7/corpus=package-text-20260908-v1/...
 ```
 
 **`_SUCCESS` 가 곧 "이 회차는 끝났다" 의 근거다.** 이게 있으면 다음 실행이 건너뛴다 —
@@ -592,7 +608,180 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 ### `up -d --profile batch` 로 띄우지 말 것
 
 이 잡은 정상적으로 끝나는데 compose 는 그걸 컨테이너가 죽은 것으로 본다 —
-`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 둘이다.
+`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 셋이다
+(`minio-init`, `ai-*`, `ingest-weekly`).
+
+## 주간 수집
+
+매주 화요일, deps.dev 주간 증분과 npm 다운로드 직전 14일을 받아 MinIO Bronze 까지 넣는다.
+**systemd 타이머가 10분마다 깨우고, 할 일이 없으면 아무것도 하지 않고 끝난다.**
+
+```
+[timer 10분] → run-weekly-ingest.sh → docker compose run --rm ingest-weekly
+                (잠금·정리만)          (판정도 실행도 컨테이너 안에서)
+```
+
+실행기 자체의 설명(단계·날짜 규약·유예·정리)은 [`pipeline/weekly/README.md`](../../../pipeline/weekly/README.md).
+
+### 0. 처음 한 번 — 디렉터리와 자격증명
+
+```bash
+sudo mkdir -p /srv/pickage/ingest-work /srv/pickage/secrets
+# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔다
+sudo chown -R 1000:1000 /srv/pickage
+```
+
+⚠ **소유권을 넘기지 않으면 쓰기가 막힌다.** 컨테이너가 uid 1000 으로 돌고, 없는 바인드
+디렉터리는 Docker 가 root 소유로 만든다. root 로 쓰게 두지 않는 이유는 그렇게 쌓인
+산출물을 `ubuntu` 계정이 못 지워서 **지난 회차 정리가 거기서 막히기** 때문이다.
+
+자격증명은 환경변수가 아니라 **파일**이다(`pipeline/minio/ingest_raw.py` 의 `client()`).
+
+```bash
+cd ~/S15P21A506
+cp pipeline/minio/.env.data.example pipeline/minio/.env.data
+# 같은 노드의 MinIO 값을 넣는다:
+docker inspect pickage-data-minio-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MINIO_ROOT
+```
+
+`deploy/prod/data/.env` 에 `OSS_SHIFT_UA_CONTACT` 도 채운다. 비어 있으면 수집기가
+시작하지 않는다.
+
+### 1. 이미지 빌드
+
+이 노드에는 CI 배포 러너도 레지스트리도 없다. `app` 노드의 api·web 과 같이 서버에서 빌드한다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose build ingest-weekly
+docker compose run --rm ingest-weekly --help      # 인자 목록이 나오면 성공
+```
+
+**이미지에는 코드가 없다.** `pipeline/` 은 마운트된다 — 코드를 고쳤을 때 다시 빌드할 필요가
+없고, 되돌리는 방법도 태그 교체가 아니라 `git checkout` 이다. 다시 빌드할 일은 의존성이
+바뀔 때뿐이다.
+
+### 2. 손으로 한 번 돌려 본다
+
+타이머를 켜기 전에 확인한다. `--dry-run` 은 단계를 돌리지 않고 **판정만 흉내 낸다.**
+
+```bash
+sh run-weekly-ingest.sh --dry-run
+```
+
+**상태 객체에는 쓰지 않는다.** 전이는 메모리에서만 일어나고 `run.json` 은 그대로다.
+그래서 수집 창이 열린 뒤에 돌려도 그 주 회차를 건드리지 않는다.
+
+그리고 **실제 자격증명이 통하는지**는 따로 본다. 드라이런은 외부 CLI 를 부르지 않으므로
+여기서 드러나지 않는다.
+
+```bash
+docker compose run --rm ingest-weekly --only gcs_sync
+```
+
+⚠ gcloud 와 파이썬이 **인증 경로가 다르다.** BigQuery 파이썬 클라이언트는
+`GOOGLE_APPLICATION_CREDENTIALS` 를, `gcloud storage` 는 자체 저장소를 본다. 이미지가
+둘 다 같은 키 파일을 가리키게 해 뒀지만, 실제로 불러 봐야 확인된다.
+
+### 3. 타이머를 켠다
+
+```bash
+sudo cp systemd/pickage-weekly.service systemd/pickage-weekly.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now pickage-weekly.timer
+systemctl list-timers pickage-weekly.timer
+```
+
+### 지금 어디까지 왔나
+
+**이것이 배포와 무관한 확인 경로다.** 운영자용 조회 API(S15P21A506-347)는 백엔드가
+배포된 뒤에야 쓸 수 있고, 지금 운영 이미지에는 그 API 가 없다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+mc() { docker compose exec -T minio sh -c "mc alias set l http://127.0.0.1:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null && $1"; }
+
+# 어떤 회차들이 있나
+mc "mc ls l/pickage-raw/_ops/weekly/"
+
+# 그 회차의 상태 전부 (status·coverage·연속 실패·단계별)
+mc "mc cat l/pickage-raw/_ops/weekly/2026-09-21/run.json"
+```
+
+읽는 법.
+
+| 보는 것 | 뜻 |
+| --- | --- |
+| `coverage.downloads_through` | **언제 데이터까지 들어왔나.** `SUCCEEDED` 회차 중 최신 것이 지금 가진 데이터의 끝이다 |
+| `status` | `PENDING`·`RUNNING`·`SUCCEEDED`·`FAILED`·`BLOCKED` |
+| `consecutive_failures` | 이 회차에서 연속 몇 번 실패했나. 10 이면 `BLOCKED` 다 |
+| `steps[]` 중 `SUCCEEDED` 가 아닌 첫 항목 | 어디서 멈췄나. `error_message` 에 꼬리 4 KB |
+
+타이머 쪽은 systemd 로 본다.
+
+```bash
+systemctl list-timers pickage-weekly.timer     # 다음 발화 시각
+journalctl -u pickage-weekly.service -n 50     # 최근 발화들
+docker ps -a --filter name=pickage-weekly-run  # 지금 도는 중인가
+```
+
+단계별 출력 전문은 `/srv/pickage/ingest-work/downloads-weekly/<week_of>/logs/<step>.log`.
+
+### `BLOCKED` 을 푸는 법
+
+연속 10회 실패하면 자동 재시도를 멈춘다. 같은 실패를 10분마다 영원히 반복하지 않기
+위한 것이다. 푸는 방법은 **수동 실행 요청 하나**다.
+
+정상 경로는 백엔드 API(`POST /api/v1/ops/weekly/runs/{weekOf}/manual-request`)지만,
+그것이 배포되기 전에는 우편함 객체를 직접 넣으면 된다.
+
+```bash
+mc 'printf "{\"requested_at\": \"%s\"}" "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+    | mc pipe l/pickage-raw/_ops/weekly/2026-09-21/manual-request.json'
+```
+
+다음 발화(최대 10분)에서 실행기가 집어 가며 연속 실패 횟수를 0으로 되돌린다. 집어 갔는지는
+`run.json` 의 `manual_claimed_at` 으로 확인한다 — 그 값이 `requested_at` 보다 나중이면
+소비된 것이다.
+
+**지난 회차에도 걸 수 있다.** 실행기는 이번 주에 할 일이 없을 때 우편함이 걸린 지난 회차를
+훑어 **오래된 것부터** 한 회차씩 집어 간다(다시 받을 수 있는 한계가 18개월이라 오래된 쪽이
+급하다). 다만 이번 주 수집이 우선이므로, 화요일 창이 열려 회차가 도는 동안(약 23시간)은
+지난 회차가 기다린다 — 러너는 한 번에 한 회차만 돈다.
+
+⚠ 지난 회차를 다시 돌리면 그 주 로컬 산출물이 이미 정리됐을 수 있다(`--keep-weeks` 기본
+2주). 그러면 체크포인트가 없어 **처음부터 다시 받는다** — 약 23시간이다.
+
+`mc pipe` 를 쓰는 이유는 호스트에서 컨테이너로 파일을 옮기는 단계가 없어서다.
+시각은 컨테이너 안에서 만든다(호스트 셸의 `date` 형식에 의존하지 않는다).
+
+**먼저 원인을 보라.** `BLOCKED` 은 같은 실패가 10번 반복됐다는 뜻이라, 요청만 넣으면
+11번째 실패가 난다. `run.json` 의 `last_error` 와 단계 로그를 먼저 읽는다.
+
+### ⚠ 유사도 배치와 시간을 겹치지 말 것
+
+평소에는 여유롭다 — 상주가 `minio` 1g + `mlflow` 512m 뿐이라 수집 3g 를 얹어도 4.5g 다.
+
+문제는 **배치 시각**이다.
+
+```
+Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi      ← 여기에 3g 를 더 얹을 자리가 없다
+```
+
+수집 창은 **화 10:00 부터 다음 날 09:00 KST** 다(한 바퀴 약 23시간). 유사도 배치 타이머는
+아직 없으므로, **그것을 만들 때 이 창 밖으로 잡으면 충돌이 애초에 생기지 않는다.**
+
+### ⚠ 디스크 — MinIO 와 같은 파티션이다
+
+산출물이 주당 약 10 GB 쌓인다. 실행기가 성공한 회차에 한해 2주치만 남기고 지우지만,
+그게 멈추면 계속 쌓인다.
+
+```bash
+df -h /
+du -sh /srv/pickage/ingest-work
+```
+
+여기를 채우면 수집만 멈추는 게 아니다. **MinIO 가 같은 파티션을 쓰므로 저장소가 통째로 선다.**
 
 ## Spark (배치)
 
@@ -697,6 +886,67 @@ docker compose up -d --force-recreate spark-worker-2
 docker compose exec minio sh -c 'mc admin user svcacct ls l "$MINIO_ROOT_USER"'
 docker compose exec minio sh -c 'mc admin user svcacct rm l <ACCESS_KEY>'
 ```
+
+### app 노드 api 에 줄 계정 — 주간 수집 운영 API 전용
+
+`app` 노드의 백엔드가 주간 수집 현황을 보여 주고 수동 실행 요청을 받는다
+(S15P21A506-347). 그 api 컨테이너가 쓸 계정이다.
+
+⚠ **위 worker② 의 키를 재사용하지 말 것.** 그건 `spark-env.sh` 가 읽는 자리라 이름이
+`MINIO_ROOT_*` 이고 권한도 넓다. 여기는 `_ops/weekly/` 밖으로 나갈 일이 없다.
+
+권한 내용은 [pipeline/minio/policies/ops.json](../../../pipeline/minio/policies/ops.json).
+
+| | |
+| --- | --- |
+| 목록 | `pickage-raw` 의 `_ops/weekly/` prefix **만** |
+| 읽기 | `_ops/weekly/**` |
+| **쓰기** | **`_ops/weekly/*/manual-request.json` 만** |
+| 삭제 | **없다** |
+
+**`run.json` 에 못 쓰는 것이 이 계정의 핵심이다.** 그 객체의 필자는 수집 러너 하나뿐이고,
+그래서 러너가 잠금 없이 읽고-고쳐-쓰기를 한다. 백엔드가 같이 쓰기 시작하면 그 전제가
+무너진다. 여기서는 그걸 **규약이 아니라 권한으로** 막는다 — 코드가 실수해도 저장소가 거부한다.
+
+**1. 정책을 만든다.**
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-ops /tmp/p.json' < ../../../pipeline/minio/policies/ops.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-ops "$S" >/dev/null && mc admin policy attach l pickage-ops --user pickage-ops >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-ops "$S"'
+```
+
+나온 값을 `app` 노드의 `deploy/prod/app/.env` 에 `PICKAGE_OPS_S3_ACCESS_KEY` ·
+`PICKAGE_OPS_S3_SECRET_KEY` 로 넣고 api 를 다시 만든다.
+
+⚠ **`PICKAGE_` 를 빼지 말 것.** 백엔드가 읽는 프로퍼티가 `pickage.ops.s3.*` 이고,
+스프링이 **이름만으로** 이어 준다 — `application-prod.yaml` 에 배선이 없다. 이름이
+어긋나면 오류가 아니라 **조용히** 기본값으로 떨어져서, 값을 제대로 넣고도 운영 API 가
+"설정이 없습니다" 로만 답한다 (S15P21A506-347).
+
+**3. 권한이 의도대로인지 확인한다.**
+
+여섯 가지가 전부 맞아야 한다. 특히 2번(`ListBucket` 의 prefix 조건)과 4번이 중요하다 —
+2번이 틀리면 목록 조회가 조용히 비고, 4번이 뚫려 있으면 이 계정을 만든 의미가 없다.
+
+```bash
+docker compose exec -T minio sh -c '
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+echo "1 상태 읽기     :"; mc cat chk/pickage-raw/_ops/weekly/ 2>&1 | head -1
+echo "2 prefix 목록   :"; mc ls  chk/pickage-raw/_ops/weekly/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "3 우편함 쓰기   :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/manual-request.json >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "4 run.json 쓰기 :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/run.json      >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "5 원본 읽기     :"; mc ls  chk/pickage-raw/depsdev/ >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "6 삭제          :"; mc rm  chk/pickage-raw/_ops/weekly/2099-01-05/manual-request.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부'
+```
+
+> `mc admin` 하위 명령 구성은 릴리스마다 바뀐 이력이 있다. 이 절은 로컬(더 새 `mc`)에서
+> 확인했으므로, 이 노드의 더 오래된 이미지에서 안 되면 `mc admin policy --help` 를 먼저 볼 것.
 
 ### GPU 서버용 계정
 
@@ -821,7 +1071,7 @@ compose 에 `user: root` 를 넣으면 executor 까지 root 가 되므로 그렇
 
 | | 없으면 어디서 멈추나 | 누구 |
 | --- | --- | --- |
-| `package_text` + `_current.json` | **1단계.** 트리거 자체가 없다. 게시 형식은 `depsdev` 의 `_current.json` 과 맞출 것 | 데이터 |
+| ~~`package_text` + `_current.json`~~ | **2026-09-14 게시됨** — `package-text-20260908-v1`. 포인터는 `run_path`·`run_id`·`manifest_sha256`·`collected_date` 를 싣는다(위 "`_current.json` 이 싣는 값") | 데이터 |
 | MLflow 에 등록된 모델 | **2단계.** `@production` 이 없다. GPU 가 `run_pipeline.sh` 5단계로 등록한다 | AI |
 | **로더** | 배치는 돌지만 `similar_package` 가 비어 있어 **서비스에 안 닿는다** ([../README.md](../README.md) 의 "유사도 결과 로더는 어디서 도나") | 미정 |
 | 스케줄러 | 사람이 스크립트를 친다. 위가 서면 timer 가 부르기만 하면 된다 | 인프라 |

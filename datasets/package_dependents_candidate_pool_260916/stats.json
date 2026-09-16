@@ -1,0 +1,150 @@
+{
+  "snapshot": "2026-08-31",
+  "built_at": "2026-09-16T09:51:22",
+  "packages_with_release": 4065913,
+  "bundled_path_nodes_excluded": 7052193,
+  "targets_list": "datasets/targets/candidate_pool_260916.csv",
+  "targets": 29310,
+  "targets_outside_top100k": 11297,
+  "edges": 7860899,
+  "regular": {
+    "targets_with_dependents": 26884,
+    "edges": 6363644,
+    "max": 192736,
+    "p50_p90_p99": [
+      9.0,
+      145.0,
+      3444.1299999999937
+    ]
+  },
+  "peer": {
+    "targets_with_dependents": 11155,
+    "edges": 1475824,
+    "max": 344357,
+    "p50_p90_p99": [
+      0.0,
+      14.0,
+      349.0
+    ]
+  },
+  "optional": {
+    "targets_with_dependents": 2487,
+    "edges": 21431,
+    "max": 777,
+    "p50_p90_p99": [
+      0.0,
+      0.0,
+      12.0
+    ]
+  },
+  "targets_no_dependents_any_kind": 2036,
+  "targets_missing_from_npm": 151,
+  "top20_regular": [
+    [
+      "react",
+      192736,
+      275174
+    ],
+    [
+      "react-dom",
+      158317,
+      211813
+    ],
+    [
+      "axios",
+      152103,
+      97210
+    ],
+    [
+      "lodash",
+      150499,
+      159122
+    ],
+    [
+      "chalk",
+      148880,
+      130085
+    ],
+    [
+      "commander",
+      138877,
+      74942
+    ],
+    [
+      "zod",
+      110324,
+      6111
+    ],
+    [
+      "inquirer",
+      100280,
+      47744
+    ],
+    [
+      "express",
+      94109,
+      93237
+    ],
+    [
+      "vue",
+      80580,
+      95178
+    ],
+    [
+      "fs-extra",
+      73470,
+      73834
+    ],
+    [
+      "dotenv",
+      67540,
+      42583
+    ],
+    [
+      "next",
+      60607,
+      8463
+    ],
+    [
+      "uuid",
+      57328,
+      41299
+    ],
+    [
+      "typescript",
+      57189,
+      488056
+    ],
+    [
+      "core-js",
+      49138,
+      68956
+    ],
+    [
+      "ora",
+      44574,
+      34717
+    ],
+    [
+      "glob",
+      37402,
+      48165
+    ],
+    [
+      "yargs",
+      37138,
+      42638
+    ],
+    [
+      "@types/node",
+      34687,
+      257481
+    ]
+  ],
+  "vs_ecosystems": [
+    17538,
+    0.8333333333333334
+  ],
+  "file_bytes": 61553105,
+  "elapsed_sec": 86
+}

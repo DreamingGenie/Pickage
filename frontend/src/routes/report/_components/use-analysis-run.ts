@@ -29,6 +29,11 @@ export interface AnalysisRun {
   elapsedSec: number
   /** 한 번이라도 완료된 적이 있는지. 재분석 중에도 이전 결과를 계속 보여주려면 필요하다. */
   hasCompletedOnce: boolean
+  /**
+   * run이 바뀔 때마다(=재분석 시작) 값이 바뀌는 식별자.
+   * PDF 모달이 이 값을 감시해, 재분석이 시작되면 이전 COMPLETE 파일을 버린다(S15P21A506-220).
+   */
+  runId: number
   /** 새 run 시작. 성공해야만 결과 포인터가 바뀐다(구상안 9.3). */
   restart: () => void
 }
@@ -75,6 +80,7 @@ export function useAnalysisRun(): AnalysisRun {
     doneCount,
     elapsedSec,
     hasCompletedOnce,
+    runId,
     restart: () => setRunId((n) => n + 1),
   }
 }

@@ -1,0 +1,25 @@
+[Unit]
+Description=Pickage 주간 수집 발화 (10분마다)
+Documentation=https://ssafy.atlassian.net/browse/S15P21A506-273
+
+[Timer]
+# 10분마다 깨우지만 거의 매번 아무것도 하지 않고 끝난다. 컨테이너가 MinIO 객체를 한 번
+# 읽어 "이번 주는 끝났다" 를 확인하면 그대로 종료한다 — BigQuery 도 건드리지 않는다.
+#
+# 주 1회가 아니라 10분인 이유가 셋이다.
+#   1. 실패한 단계를 다음 발화가 이어받는다. 주 1회면 한 번 실패에 그 주를 통째로 잃는데,
+#      주간 모드는 14일 창만 받으므로 **다음 회차가 그 구멍을 메우지 않는다.** 사람이
+#      그 주차를 다시 돌려야 한다.
+#   2. 수동 실행 요청(백엔드가 MinIO 에 넣는 manual-request.json)을 10분 안에 집어 간다.
+#   3. deps.dev 발행이 늦어도 창이 열린 뒤 알아서 시작한다.
+#
+# 발화 한 번의 비용은 컨테이너 하나가 1초쯤 떴다 지는 것과 GET 두 번이다.
+OnCalendar=*-*-* *:00/10
+
+# 껐다 켜서 놓친 발화를 부팅 후 한 번 보충한다. 10분 간격이라 몰아치지 않는다.
+Persistent=true
+AccuracySec=1min
+Unit=pickage-weekly.service
+
+[Install]
+WantedBy=timers.target

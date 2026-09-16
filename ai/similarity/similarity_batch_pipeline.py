@@ -11,8 +11,8 @@
   1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
-  4 구조적 관문      구현 — plugin/adapter·same-family drop (--gate, 기본 on).
-                      보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
+                      S15P21A506-333). 보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -305,17 +305,47 @@ def is_same_family(a: str, b: str) -> bool:
 
     'd3'↔'d3-axis', 'lodash'↔'lodash.pickby', 'lodash'↔'lodash-es',
     '@babel/core'↔'@babel/preset-env'. 대안이 아니다. 'react'↔'preact' 는 계열 아님.
+
+    우산↔하위모듈 판정(접두어 비교)은 **스코프를 벗겨내지 않고 전체 이름**으로 한다
+    (S15P21A506-334). 한쪽만 스코프가 있으면 그 판정에서 제외한다 — 스코프를 벗겨낸
+    뒤 남는 이름이 우연히 같은 단어를 포함할 뿐인 무관한 패키지(예: 'markdown-it' 와
+    '@ts-stack/markdown')를 같은 계열로 오탐하기 때문이다.
+
+    다만 스코프 없는 이름이 상대방의 **스코프(조직명) 자체와 정확히 같으면** 그
+    조직이 낸 서브패키지로 본다 (S15P21A506-334 후속) — 'parcel'과 그 프로젝트가
+    낸 '@parcel/graph'처럼. 이건 이름 조각이 우연히 겹치는 것과 달리, "이 스코프를
+    만든 조직이 곧 이 이름의 프로젝트"라는 훨씬 강한 신호라 위의 오탐 사례와
+    다르다. 조직명이 아니라 하위 경로까지 우연히 같은 경우(예: 'passport'와
+    '@passport-next/passport')는 잡지 않는다 — 스코프 자체가 다르면 별개 조직이다.
+
+    '@types/x'는 예외로 스코프가 아니라 슬래시 뒤 이름으로 비교한다 — DefinitelyTyped
+    관례상 '@types/x'는 항상 'x'의 타입 선언 파일이지 'x'의 대안이 될 수 없다.
     """
     a, b = a.lower(), b.lower()
     if a == b:
         return True
-    if a.startswith("@") and b.startswith("@") and a.split("/", 1)[0] == b.split("/", 1)[0]:
-        return True
-    ba, bb = a.rsplit("/", 1)[-1], b.rsplit("/", 1)[-1]
-    for x, y in ((ba, bb), (bb, ba)):
+    a_scoped, b_scoped = a.startswith("@"), b.startswith("@")
+    if a_scoped and b_scoped:
+        return a.split("/", 1)[0] == b.split("/", 1)[0]
+    if a_scoped or b_scoped:
+        scoped, unscoped = (a, b) if a_scoped else (b, a)
+        scope, _, subpath = scoped[1:].partition("/")
+        if scope == "types":
+            return subpath == unscoped
+        return scope == unscoped
+    for x, y in ((a, b), (b, a)):
         if len(y) > len(x) and y.startswith(x) and y[len(x)] in "-._":
             return True
     return False
+
+
+def is_repo_archived(value) -> bool:
+    """GitHub 저장소가 archived(보관 처리)됐는가 (S15P21A506-333).
+
+    `repo_full_name` 이 없어 build_package_text.py 의 repo_stat 과 LEFT JOIN 이 안 되면
+    이 값은 NULL(None) — 그 경우는 보관 아님으로 취급한다.
+    """
+    return bool(value)
 
 
 def apply_gates(
@@ -323,15 +353,20 @@ def apply_gates(
     names: list[str],
     keywords_by_idx: dict[int, list],
     enabled: bool,
+    archived_by_idx: dict[int, bool] | None = None,
 ) -> tuple[list[tuple[int, int, float]], dict]:
     """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
 
-    보완재 감점(의존 그래프)은 아직 미구현 — 여기서는 이름·keywords 만으로 판정 가능한
-    plugin/adapter 와 same-family(우산·하위모듈·스코프)만 drop 한다. enabled=False 면 무변경.
+    plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
+    GitHub 저장소가 archived 된 후보도 drop 한다(S15P21A506-333). 보완재 감점(의존 그래프)은
+    아직 미구현. enabled=False 면 무변경.
     """
     if not enabled:
         return hits, {}
-    kept, drops = [], {"plugin_adapter": 0, "same_family": 0}
+    drops = {"plugin_adapter": 0, "same_family": 0}
+    if archived_by_idx is not None:
+        drops["repo_archived"] = 0
+    kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
         if is_plugin_adapter(cand, keywords_by_idx.get(cand_idx)):
@@ -339,6 +374,9 @@ def apply_gates(
             continue
         if is_same_family(names[base_idx], cand):
             drops["same_family"] += 1
+            continue
+        if archived_by_idx is not None and is_repo_archived(archived_by_idx.get(cand_idx)):
+            drops["repo_archived"] += 1
             continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
@@ -450,7 +488,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     log(f"검색 top-{args.retrieve_k}: {len(hits)} 쌍 ({len(names)} base)")
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
-    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate)
+    archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
+    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate, archived_by_idx)
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 

@@ -1,6 +1,6 @@
-# OSS Shift — Web Service (v1)
+# Pickage — Web Service (v1)
 
-Vite + React + TS SPA. Figma `OSS_Shift / OSS_Shift_v1_web-service` 기준.
+Vite + React + TS SPA. Figma `Pickage_v2_web-service`(`485:241`) 기준. 작업 기준 문서는 `CLAUDE.md` 참고.
 
 ## 스택
 
@@ -25,8 +25,8 @@ src/
   app/          router.tsx · providers.tsx · app-layout.tsx · routes.ts(경로 단일 출처)
   routes/
     intro/                  00-service-intro
-    analyze/input/          01-package-input
-    analyze/candidates/     02-candidate-select
+    analyze/                01-package-input + 02-candidate-select. IA는 별도 화면이지만
+                             analyze-page.tsx 하나에서 단계로 아래로 쌓인다(step-card.tsx)
     report/
       report-page.tsx       03 셸 (탭)
       ecosystem/            03A
@@ -48,7 +48,8 @@ src/
 - **보더 토큰 단일**: `--border` / `--input` = `#dbdee5` (`src/index.css`). 다른 보더 색 추가 금지.
 - **탭은 로컬 state**. 단 `?evidence=` 쿼리가 있으면 `features` 탭으로 강제하고 근거 드로어를 연다 (`report-page.tsx`).
 - **차트는 목업**. 교체 시 `components/charts/mock-chart.tsx`의 `ChartProps` 시그니처 유지.
-- 스코프: intro · 01 · 02 · 03A · 03B. **PDF(04) / EXT-03 제외** — `routes/print`, `routes/report/community` 미생성.
+- 스코프: intro · 01 · 02 · 03A · 03B. PDF(04)는 미리보기·다운로드 UI 구현됨(상태·차단 사유 로직은 미완).
+  EXT-03(GitHub 커뮤니티)은 미착수 — `routes/report/community` 미생성. 상세는 `CLAUDE.md` "현재 스코프" 참고.
 
 ## 코드 스플리팅
 
@@ -59,8 +60,8 @@ src/
 ## 미해결
 
 - **리포트 id 발급 주체** — 지금은 서버 발급 가정. 02에서 "리포트 생성" 시 임시로 `/report/draft` 로 진입만 시켜둠.
+  비교 대상 자체는 주소(`?names=`)에 싣는다(`S15P21A506-187`) — id 미발급과는 별개 문제.
 - **`StatusBadge`의 warn/err 색상** — `ok` 기준으로 파생시킨 값. 디자이너 확인 필요 (`components/common/status-badge.tsx`).
-- **`api/types`는 화면에서 역산한 초안**. Spring 스펙 확정 시 이 파일만 교체하면 되도록 화면은 타입에만 의존시킴.
 
 ## 참고
 

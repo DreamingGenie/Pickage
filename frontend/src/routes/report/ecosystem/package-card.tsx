@@ -1,11 +1,14 @@
 import { ChevronDownIcon } from 'lucide-react'
 
+import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
   ALL_MAJORS,
   type MajorSelection,
+  type MetricState,
   type PackageCardModel,
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
@@ -28,6 +31,7 @@ export function PackageCard({
   onToggle,
   selectedVersion,
   onVersionChange,
+  versionShareState = { status: 'ready' },
 }: {
   model: PackageCardModel
   index: number
@@ -36,6 +40,8 @@ export function PackageCard({
   /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
   selectedVersion: MajorSelection
   onVersionChange: (next: MajorSelection) => void
+  /** Version Share 조회의 처지(126) — 응답 하나가 전체 카드를 담으므로 카드마다 갈리지 않는다. */
+  versionShareState?: MetricState
 }) {
   const style = seriesStyle(index)
   const isBase = index === 0
@@ -126,6 +132,15 @@ export function PackageCard({
             </span>
           </span>
         </div>
+        {/*
+          311c — 표시 간격에 따라 "화면에 뜬 첫 점"이 구간 시작과 정확히 같지 않을 수 있다
+          (`sampleEvery`가 뒤에서부터 솎기 때문). 그래서 실제로 증감을 낸 두 날짜를 그대로 적는다.
+        */}
+        {delta !== null && model.dependentsDeltaFrom && model.dependentsDeltaTo && (
+          <p className="-mt-1.5 font-mono text-base text-muted-foreground">
+            {model.dependentsDeltaFrom} ~ {model.dependentsDeltaTo}
+          </p>
+        )}
 
         <VersionPicker
           majors={model.availableMajors}
@@ -135,10 +150,14 @@ export function PackageCard({
         />
       </div>
 
-      {/* Version Share */}
+      {/* Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다 */}
       <div className="flex flex-col gap-3 border-t pt-5">
         <span className="text-base text-muted-foreground">Version Share</span>
-        {model.versionShare.length === 0 ? (
+        {versionShareState.status === 'loading' ? (
+          <Skeleton className="h-28 w-full rounded-xl" />
+        ) : versionShareState.status === 'error' ? (
+          <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
+        ) : model.versionShare.length === 0 ? (
           <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
         ) : (
           <>
@@ -158,7 +177,27 @@ export function PackageCard({
               공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
               프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
             </p>
+            {/* 개요의 snapshotAt(카드 전체 공통 기준일)과 다른 값일 수 있어 따로 적는다 */}
+            {model.versionShareSnapshotAt && (
+              <p className="font-mono text-base text-muted-foreground">
+                기준일 {model.versionShareSnapshotAt}
+              </p>
+            )}
           </>
+        )}
+        {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
+          <p className="-mt-1.5 flex flex-wrap items-baseline gap-2 text-base leading-relaxed text-muted-foreground">
+            <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+            {versionShareState.onRetry && errorNotice(versionShareState.refreshError).retryable && (
+              <button
+                type="button"
+                onClick={versionShareState.onRetry}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                다시 시도
+              </button>
+            )}
+          </p>
         )}
       </div>
 
@@ -255,6 +294,28 @@ function VersionPicker({
           ? '전 버전을 합한 값입니다. 여러 개를 골라 합쳐 볼 수 있습니다.'
           : `고른 ${selected.length}개 버전을 합한 값입니다. 다른 패키지의 선택과는 무관합니다.`}
       </p>
+    </div>
+  )
+}
+
+/**
+ * Version Share 조회 자체가 실패했을 때. "이 시점 자료 없음"(정상 200, 빈 배열)과는
+ * 다른 문구를 쓴다 — 전자는 조회했지만 그 시점 자료가 없다는 뜻이고, 이건 조회를 못 했다는 뜻이다.
+ */
+function VersionShareError({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const notice = errorNotice(error)
+  return (
+    <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed px-4 py-3 text-base text-muted-foreground">
+      <span className="font-medium text-foreground">{notice.message}</span>
+      {onRetry && notice.retryable && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-md border px-3 py-1.5 text-xs transition-colors hover:border-foreground/40"
+        >
+          다시 시도
+        </button>
+      )}
     </div>
   )
 }

@@ -118,20 +118,36 @@ async function unwrap<T>(res: Response): Promise<T> {
   )
 }
 
+/** 호출자가 넘기는 취소 신호. react-query 의 폴링 취소 등에 쓰인다. */
+interface CallOptions {
+  signal?: AbortSignal
+}
+
+/** POST 에 query string 이 필요한 호출(예: 커뮤니티 refresh)을 위한 확장 옵션. */
+interface PostCallOptions extends CallOptions {
+  params?: Params
+}
+
 async function request<T>(
   method: 'GET' | 'POST',
   path: string,
-  { params, body }: { params?: Params; body?: unknown } = {},
+  { params, body, signal }: { params?: Params; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
+
   let res: Response
   try {
     res = await fetch(buildUrl(path, params), {
       method,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      signal: combinedSignal,
     })
   } catch (e) {
+    // 호출자가 스스로 취소한 것 — react-query 가 취소로 인식하도록 그대로 던진다.
+    // ApiError 로 감싸면 "폴링 정지"가 화면에 오류로 뜬다.
+    if (signal?.aborted) throw e
     const aborted = e instanceof DOMException && e.name === 'TimeoutError'
     throw new ApiError(
       0,
@@ -143,13 +159,17 @@ async function request<T>(
   return unwrap<T>(res)
 }
 
-/** 봉투를 벗겨 `data` 를 돌려준다. */
-export function get<T>(path: string, params?: Params): Promise<T> {
-  return request<T>('GET', path, { params })
+/** 봉투를 벗겨 `data` 를 돌려준다. `options.signal` 은 15초 타임아웃과 함께 결합된다. */
+export function get<T>(path: string, params?: Params, options?: CallOptions): Promise<T> {
+  return request<T>('GET', path, { params, signal: options?.signal })
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('POST', path, { body })
+/**
+ * `options.params` 는 body 대신/함께 query string 이 필요한 POST(커뮤니티 refresh 등)를 위한 것이다.
+ * 대부분의 POST 는 body 만 쓰므로 생략하면 기존과 동일하게 동작한다.
+ */
+export function post<T>(path: string, body?: unknown, options?: PostCallOptions): Promise<T> {
+  return request<T>('POST', path, { body, params: options?.params, signal: options?.signal })
 }
 
 /**

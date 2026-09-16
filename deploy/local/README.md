@@ -171,9 +171,19 @@ cd backend && ./gradlew bootRun          # 8080
 cd frontend && npm run dev               # 5173, /api 는 8080 으로 프록시된다
 ```
 
-`http://localhost:5173/report/draft` 로 바로 들어가면 기본 조합(winston·pino·bunyan)으로
-생태계 탭이 뜬다. **화면-01·02 를 거칠 필요가 없다** — 그쪽은 아직
-`routes/analyze/sample-registry.ts` 하드코딩이라 서버를 타지 않는다(S15P21A506-120).
+**보고서 주소가 비교 대상을 들고 있다**(S15P21A506-187). 화면-01·02 를 거치지 않고
+바로 보려면 이름을 주소에 적는다.
+
+```
+http://localhost:5173/report/draft?names=winston,pino,bunyan
+```
+
+`?names=` 없이 `/report/draft` 로 들어가면 **빈 안내**가 뜬다. 예전에는 기본 조합으로
+조용히 떨어졌는데, 그러면 공유받은 링크에서 보낸 사람과 다른 보고서를 보면서도
+화면에 아무 표시가 없다.
+
+화면-01·02 도 이제 서버를 탄다 — 기준 패키지 확인과 후보 목록이 모두
+`/api/packages/similar` 한 번으로 온다(S15P21A506-305).
 
 시드를 갈아 끼우면 같은 화면에서 상태 네 가지를 다 볼 수 있다.
 
@@ -333,6 +343,7 @@ s3 = boto3.client(
 | 기동 실패 — `Validate failed ... checksum mismatch` | 적용된 `V__` 파일을 고쳤다. **정상 동작이다** — 로그의 안내 두 갈래 중 하나를 고를 것 (위 "스키마를 바꿀 때") |
 | 기동 실패 — `SchemaManagementException` / `missing column` | 엔티티와 테이블 불일치. **정상 동작이다** — `V__` 마이그레이션을 먼저 쓸 것 |
 | 시드를 고쳤는데 반영 안 됨 | 시드는 앱이 넣지 않는다. `psql -f seed/seed_sample.sql` 을 다시 돌릴 것 (위 "샘플 데이터 넣기") |
+| 시드 적용 실패 — `no partition of relation "package_version_snapshot" found for row` | V6 이전에 쓰던 옛 시드다. 최신 시드를 다시 돌린 뒤 `docker compose exec postgres psql -U postgres -d pickage -c "SELECT count(*) FROM pg_inherits WHERE inhparent = 'package_version_snapshot'::regclass;"` 가 시드의 스냅샷 날짜 수와 같은지 확인할 것 |
 
 ## 버전을 고정한 이유
 

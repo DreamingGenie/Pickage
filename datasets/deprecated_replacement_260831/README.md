@@ -8,7 +8,12 @@ deps.dev BigQuery(`PackageVersions`, System='NPM') 2026-08-31 스냅샷에서, *
 | `deprecated_replacement_20260831.csv` | 28,241 | 엑셀·구글시트. UTF-8 BOM. 배열 열(`licenses`, `keywords`)은 `\|`로 이어 붙임. 불리언은 `true`/`false` |
 | `deprecated_replacement_20260831.jsonl` | 28,241 | 한 줄 = 패키지 하나(JSON). 배열·null 그대로. 학습 데이터로 바로 투입 가능 |
 
-생성 스크립트: `pipeline/duckdb/build_deprecated_dataset.py` (입력 `data/raw/versions_full`, DuckDB, 약 100초). 재생성하면 같은 결과가 나온다.
+생성 스크립트: `pipeline/duckdb/build_deprecated_dataset.py` (입력 `data/raw/versions_full`·`data/raw/pkg_project`, DuckDB, 약 130초). 재생성하면 같은 결과가 나온다.
+
+같은 내용의 Parquet 은 빌더가 `data/deprecated_replacement/` 에 만들고(git 제외),
+서버 MinIO `pickage-curated/depsdev/v1/deprecated-replacement/snapshot=2026-08-31/run_id=deprecated-replacement-20260914-v1/`
+에 보관한다. 넣는 방법은 [pipeline/minio/README.md](../../pipeline/minio/README.md) 의
+"파생 데이터셋 입고 실행" 절에 있다.
 
 ## 열 설명
 
@@ -27,7 +32,9 @@ deps.dev BigQuery(`PackageVersions`, System='NPM') 2026-08-31 스냅샷에서, *
 | `replacement_alive` | 대체 패키지의 최신 릴리스가 폐기되지 **않았으면** true. false면 대체 대상도 죽은 것(2,325건) | 파생 |
 | `replacement_last_version` | 대체 패키지의 최신 릴리스 버전 | PackageVersions |
 | `replacement_confidence` | `high`: 이름에 `@ / . - 숫자`가 있거나 문구에서 따옴표·백틱으로 감싸져 있음(25,601). `medium`: 평범한 소문자 단어 하나(2,640). medium은 일반 영단어 오탐 가능성이 남아 있음 | 파생 |
-| `source_repo` | 소스 저장소 URL(`Links` 중 SOURCE_REPO). 없으면 null | Links |
+| `replacement_source_repo` | **대체 패키지**의 소스 저장소 URL 원문. `git+ssh://`·`git@host:`·`owner/repo` 약식이 섞여 있다(24,777) | PackageVersions.Links |
+| `replacement_repo_url` | **대체 패키지**의 저장소 주소를 `https://호스트/owner/repo`로 정리한 값(24,868 = 88.1%). GitHub 24,440 · GitLab 306 · Bitbucket 122 | PackageVersionToProject |
+| `source_repo` | 폐기된 패키지의 소스 저장소 URL(`Links` 중 SOURCE_REPO). 없으면 null | Links |
 | `licenses` | 라이선스 목록 | Licenses |
 | `snapshot_at` | 원천 스냅샷 날짜 | SnapshotAt |
 
@@ -37,6 +44,24 @@ deps.dev BigQuery(`PackageVersions`, System='NPM') 2026-08-31 스냅샷에서, *
 2. 불용어 약 200개 제외(the, it, npm, available, distributed, github …). npm에는 이런 단어 이름의 스쿼팅 패키지가 실제로 있어 "실존 검사"만으로는 못 걸러서 명시 목록이 필요했다.
 3. 후보가 npm에 실존하는 패키지여야 하고, 자기 자신은 제외.
 4. 무작위 30건 눈검사 기준 정밀도 약 85~90%. `replacement_confidence = 'high'`만 쓰면 더 높다.
+
+## 대체 패키지 저장소 주소를 만든 방법
+
+`replacement_repo_url`은 새로 수집한 값이 아니라 이미 받아 둔 `data/raw/pkg_project`
+(deps.dev `PackageVersionToProject`)에서 붙인 것이다. 대체 패키지의 릴리스 중
+`ordinal`이 가장 큰 것에 걸린 `RelationType = 'SOURCE_REPO_TYPE'` 매핑을 쓴다.
+
+`versions_full`의 `source_repo` 원문을 직접 파싱하지 않은 이유는 형식이 한 가지가
+아니기 때문이다 — `git+https://`, `git://`, `git+ssh://`, `git@github.com:owner/repo.git`,
+호스트가 없는 `owner/repo` 약식, 심지어 저장소가 아닌 npm 패키지명까지 들어 있다.
+deps.dev는 이것을 이미 `owner/repo`로 정규화해 두었다.
+
+호스트는 `ProjectType`으로 정한다(`GITHUB` → github.com 등). 원문이 함께 있는 2만여
+건을 대조했을 때 둘이 어긋나는 행은 없었다. self-hosted GitLab은 `GITLAB`으로 분류되지
+않고 매핑 자체가 빠지므로 잘못된 gitlab.com 주소가 만들어지지 않는다.
+
+매핑이 없어 `replacement_repo_url`이 비는 334건은 원문 `replacement_source_repo`만
+있다(self-hosted 호스트, monorepo 등). 필요하면 그쪽을 직접 파싱한다.
 
 ## 모집단 대비 위치 (2026-08-31, npm 최신 릴리스 기준)
 

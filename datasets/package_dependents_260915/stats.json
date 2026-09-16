@@ -1,0 +1,150 @@
+{
+  "snapshot": "2026-08-31",
+  "built_at": "2026-09-16T09:53:11",
+  "packages_with_release": 4065913,
+  "bundled_path_nodes_excluded": 7052193,
+  "targets_list": "datasets/targets/rank_top100k_20260902.csv",
+  "targets": 99996,
+  "targets_outside_top100k": 0,
+  "edges": 13392517,
+  "regular": {
+    "targets_with_dependents": 81780,
+    "edges": 11465242,
+    "max": 192736,
+    "p50_p90_p99": [
+      5.0,
+      90.0,
+      1696.050000000003
+    ]
+  },
+  "peer": {
+    "targets_with_dependents": 27636,
+    "edges": 1882181,
+    "max": 344357,
+    "p50_p90_p99": [
+      0.0,
+      5.0,
+      123.0
+    ]
+  },
+  "optional": {
+    "targets_with_dependents": 7946,
+    "edges": 45094,
+    "max": 3399,
+    "p50_p90_p99": [
+      0.0,
+      0.0,
+      7.0
+    ]
+  },
+  "targets_no_dependents_any_kind": 15050,
+  "targets_missing_from_npm": 2251,
+  "top20_regular": [
+    [
+      "react",
+      192736,
+      275174
+    ],
+    [
+      "react-dom",
+      158317,
+      211813
+    ],
+    [
+      "axios",
+      152103,
+      97210
+    ],
+    [
+      "lodash",
+      150499,
+      159122
+    ],
+    [
+      "chalk",
+      148880,
+      130085
+    ],
+    [
+      "commander",
+      138877,
+      74942
+    ],
+    [
+      "tslib",
+      116820,
+      122729
+    ],
+    [
+      "zod",
+      110324,
+      6111
+    ],
+    [
+      "inquirer",
+      100280,
+      47744
+    ],
+    [
+      "express",
+      94109,
+      93237
+    ],
+    [
+      "vue",
+      80580,
+      95178
+    ],
+    [
+      "fs-extra",
+      73470,
+      73834
+    ],
+    [
+      "dotenv",
+      67540,
+      42583
+    ],
+    [
+      "@modelcontextprotocol/sdk",
+      66820,
+      0
+    ],
+    [
+      "next",
+      60607,
+      8463
+    ],
+    [
+      "uuid",
+      57328,
+      41299
+    ],
+    [
+      "typescript",
+      57189,
+      488056
+    ],
+    [
+      "moment",
+      51317,
+      54055
+    ],
+    [
+      "core-js",
+      49138,
+      68956
+    ],
+    [
+      "debug",
+      47257,
+      46672
+    ]
+  ],
+  "vs_ecosystems": [
+    65307,
+    0.710077519379845
+  ],
+  "file_bytes": 104143713,
+  "elapsed_sec": 94
+}

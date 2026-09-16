@@ -45,3 +45,25 @@ management:
 logging:
   level:
     root: INFO
+
+# ── 주간 수집 운영 API (S15P21A506-347) ────────────────────────
+#
+# 수집은 data 노드에서 돌고 상태는 그 노드의 MinIO 객체에 있다. api 는 읽기만 하고,
+# 수동 실행 요청만 우편함 객체로 쓴다. (WeeklyStateStore 주석)
+#
+# **여기에 pickage.ops.s3.* 를 적지 않는다.** 기본값이 WeeklyStateStore 의 @Value 에
+# 이미 있는데 여기에 또 두면, 코드 쪽을 고친 사람이 "왜 안 먹지" 를 겪는다 — 이 파일이
+# 프로퍼티를 정의해 버려서 코드의 기본값은 운영에서 영영 쓰이지 않기 때문이다.
+#
+# 대신 환경변수 이름을 프로퍼티에 맞춰 두었다. 스프링이 이름만으로 이어 준다:
+#
+#   PICKAGE_OPS_S3_ENDPOINT     -> pickage.ops.s3.endpoint
+#   PICKAGE_OPS_S3_ACCESS_KEY   -> pickage.ops.s3.access-key    (하이픈도 _ 로)
+#   PICKAGE_OPS_S3_SECRET_KEY   -> pickage.ops.s3.secret-key
+#   PICKAGE_OPS_S3_BUCKET       -> pickage.ops.s3.bucket        (기본 pickage-raw)
+#
+# ⚠ 그래서 **이름이 틀려도 조용하다.** 못 찾으면 예외가 아니라 @Value 의 기본값으로
+#   떨어지고, ops API 만 "설정이 없습니다" 로 답한다. 이름을 두 곳(여기 설명·compose)에
+#   적어 두는 대신 OpsEnvironmentContractTest 가 compose 와 코드를 대조한다.
+#
+# 값을 넣는 곳은 deploy/prod/app/.env 이고, compose 가 api 컨테이너로 넘긴다.
