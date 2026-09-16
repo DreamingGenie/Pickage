@@ -247,7 +247,8 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         }
         if (!"completed".equals(root.path("status").asText())) {
             log.warn(
-                    "GMS 응답 status가 completed가 아님: status={}, incomplete_reason={}",
+                    "GMS 응답 status가 completed가 아님: issue={}, status={}, incomplete_reason={}",
+                    issue.issueNumber(),
                     root.path("status").asText(null),
                     root.path("incomplete_details").path("reason").asText(null));
             return TopicSummary.failed();
@@ -259,7 +260,8 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             payload = JSON.readTree(text);
         } catch (IOException e) {
             log.warn(
-                    "GMS output_text가 유효한 JSON이 아님: length={}, preview={}",
+                    "GMS output_text가 유효한 JSON이 아님: issue={}, length={}, preview={}",
+                    issue.issueNumber(),
                     text.length(),
                     text.substring(0, Math.min(text.length(), 200)));
             return TopicSummary.failed();
