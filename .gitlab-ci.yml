@@ -2,7 +2,7 @@
 #
 # 무엇을 검증하나
 #
-#   frontend                  npm ci → typecheck → lint → vite build
+#   frontend                  npm ci → typecheck → lint → vitest → vite build
 #   backend-test              gradlew test            (DB 가 필요 없는 단위 시험)
 #   backend-integration-test  gradlew integrationTest (postgres 서비스를 붙여 돌린다)
 #   pipeline-ok               맨 앞에서 2초. 환경 확인 겸, 돌 잡이 없을 때 대신 서 있는 잡
@@ -197,6 +197,10 @@ frontend:
     #  없는 잡을 안 돌리는 쪽이지, 돌기로 한 검사를 흐리는 쪽이 아니다.)
     - npm run typecheck
     - npm run lint
+    # Vitest(S15P21A506-316) 도입 후 추가. 지금까지는 커버가 없어 typecheck·lint·build만
+    # 통과하면 로직 회귀는 리뷰어 눈에만 의존했다 — 이 잡이 도는 파일이 바뀔 때만 돌므로
+    # (`.rules-frontend`) 비용은 그때만 든다.
+    - npm run test
     # 타입과 lint 를 통과해도 빌드는 깨질 수 있다(vite 플러그인·번들 단계).
     # 배포되는 산출물을 실제로 만들어 보는 것이 이 줄이다.
     - npm run build
