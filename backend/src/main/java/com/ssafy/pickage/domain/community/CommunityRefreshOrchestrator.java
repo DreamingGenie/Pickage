@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /** 검증→수집→제한된 요약→검증→원자 게시. source 원문은 run의 지역 변수로만 보유한다. */
 public class CommunityRefreshOrchestrator {
@@ -97,17 +98,32 @@ public class CommunityRefreshOrchestrator {
             var success = (IssueCollectionResult.Success) collected;
             success.limitations()
                     .forEach(c -> limitations.add(CommunityPolicy.limitation(c, null)));
-            var topics = new ArrayList<TopicPayload>();
+            record PendingTopic(CollectedIssue issue, CommunitySummarySourceBundle sources) {}
+            var pending = new ArrayList<PendingTopic>();
             for (var issue : success.topics()) {
                 var sources = CommunitySummarySourceBundle.from(issue);
                 if (sources.limited())
                     limitations.add(
                             CommunityPolicy.limitation(
                                     "SUMMARY_INPUT_LIMITED", issue.issueNumber()));
-                task.advanceStage(RefreshStage.GMS);
-                var candidate = summarizer.summarize(sources, task.collectionTimeLeft());
-                task.advanceStage(RefreshStage.VALIDATING);
-                var summary = CommunitySummaryValidator.validate(sources, candidate);
+                pending.add(new PendingTopic(issue, sources));
+            }
+
+            // 이슈별 GMS 호출을 동시에 디스패치한다(S15P21A506-368 후속) — 순차로 돌면 이슈1이
+            // 시간을 다 쓰고 이슈2는 시작하자마자 예산이 바닥나는 문제가 실제로 재현됐다. 남은
+            // 예산은 디스패치 시점에 한 번만 읽어 두 호출이 같은 창을 공정하게 나눠 쓰게 한다.
+            task.advanceStage(RefreshStage.GMS);
+            var budget = task.collectionTimeLeft();
+            var futures =
+                    pending.stream().map(p -> summarizer.summarizeAsync(p.sources(), budget)).toList();
+            var candidates = futures.stream().map(CompletableFuture::join).toList();
+
+            task.advanceStage(RefreshStage.VALIDATING);
+            var topics = new ArrayList<TopicPayload>();
+            for (int i = 0; i < pending.size(); i++) {
+                var issue = pending.get(i).issue();
+                var sources = pending.get(i).sources();
+                var summary = CommunitySummaryValidator.validate(sources, candidates.get(i));
                 if (summary.status() == SummaryStatus.FAILED)
                     limitations.add(
                             CommunityPolicy.limitation("SUMMARY_UNAVAILABLE", issue.issueNumber()));

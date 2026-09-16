@@ -25,7 +25,9 @@ USER appuser
 # MINIO_ENDPOINT / MINIO_ACCESS_KEY / MINIO_SECRET_KEY / MLFLOW_TRACKING_URI 등은
 # 여기서 하드코딩하지 않음 — 실행 시 인프라팀 배포 방식(compose env_file 등)으로 주입
 
-# ENTRYPOINT 로 둔다 — 배치가 곧 --snapshot / --model-ver 같은 인자를 받으므로
-#   docker run <img> --snapshot 2026-09-07
+# ENTRYPOINT 로 둔다 — 배치가 곧 --package-text / --model-dir / --out 같은 인자를
+# 받으므로(실제 CLI는 parse_args() 참고, S15P21A506-364에서 실행 검증함):
+#   docker run <img> --package-text /work/package_text.parquet \
+#     --model-dir /work/onnx_bge_v7 --out /work/out/2026-09-16
 # 형태로 그대로 넘어가게 한다.
 ENTRYPOINT ["python", "similarity_batch_pipeline.py"]

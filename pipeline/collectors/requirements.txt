@@ -1,0 +1,17 @@
+# 원천 수집기(bigquery·downloads·keywords·registry)를 돌리는 데 필요한 것.
+#
+# 이 파일이 없던 동안 의존성은 로컬 .venv-bq 에 손으로 설치돼 있었고 README 본문에만
+# 적혀 있었다. 서버에서 주간 배치를 돌리려면 재현할 수 있어야 한다 (S15P21A506-346).
+# 버전은 2026-09-14 로컬 .venv-bq 실측값이다 — 수집 결과를 만든 조합과 같은 것을 쓴다.
+#
+#   python -m venv .venv && .venv/bin/pip install -r pipeline/collectors/requirements.txt
+#
+# BigQuery 수집기는 이 목록 외에 gcloud CLI 와 자격증명이 따로 필요하다
+# (extract 잡 결과를 GCS 에서 내려받는 데 gcloud storage rsync 를 쓴다).
+# Python 3.12 기준이다.
+
+google-cloud-bigquery==3.44.0
+google-cloud-storage==3.13.1
+requests==2.34.2
+pyarrow==25.0.1
+duckdb==1.5.5

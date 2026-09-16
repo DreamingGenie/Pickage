@@ -4,6 +4,46 @@
 > 어떤 Phase도 이 정보로 코드를 만들지 않았다 — Phase 4(317)가 GMS 요약 연동을 실제
 > 구현할 때 이 문서를 시작점으로 쓴다.
 
+## 2026-09-16 실측 결과 (S15P21A506-365 착수 전 검증)
+
+아래 "아직 확인 안 된 것" 항목 중 4개를 실제 호출로 확인했다(`gpt-4.1` 기준, `S15P21A506-365`가
+쓸 모델은 `gpt-5.4-mini`로 별도 결정 — 이 모델명 자체는 아직 호출 검증 안 됨, 착수 시 한 번
+더 확인할 것).
+
+- **구조화 출력(JSON Schema strict) 지원됨.** `text.format`에 `{"type":"json_schema",
+  "name":..., "schema":{...}, "strict":true}`를 넘기면 GMS 프록시가 그대로 통과시키고,
+  응답의 `output[0].content[0].text`에 스키마와 정확히 일치하는 JSON 문자열이 온다(그 자체가
+  문자열이라 한 번 더 파싱해야 함).
+- **역할 분리 입력 배열 지원됨.** `input`을 문자열 대신 `[{"role":"system","content":...},
+  {"role":"user","content":...}]` 배열로 보내면 system 지시가 실제로 반영된다(한국어 한 문장
+  요약 지시 → 정확히 한국어 한 문장 응답).
+- **에러 응답은 OpenAI 원본이 아니라 GMS 자체 포맷.** 존재하지 않는 모델명으로 호출하면
+  `HTTP 400` + `{"statusCode":400,"message":"[GMS 에러] Model X is not available in
+  Model"}` — OpenAI의 `{"error": {...}}` 형태가 아니다. 파싱 코드는 `error` 필드를 찾지
+  말고 `statusCode`/`message`를 봐야 한다.
+- **rate limit 헤더 있음, OpenAI 표준 그대로 통과.** `X-Ratelimit-Limit-Requests: 10000`,
+  `X-Ratelimit-Limit-Tokens: 30000000` 등. `Openai-Organization: ssafy-bq2l7v`로 찍히는
+  것으로 보아 **SSAFY 조직 계정 하나를 팀 전체가 공유**하는 구조로 보인다 — 한도 자체는
+  넉넉하지만 공유 자원이라는 점은 인지해 둘 것.
+
+**2026-09-16 추가 확인 (S15P21A506-365 구현 후 실제 클라이언트로 재검증):**
+`gpt-5.4-mini` 모델명 허용됨, 중첩 배열/객체 스키마(`summary_support`·`flow`·`messages`
+전부 array-of-object, `flow[].support`처럼 2단 중첩까지 포함)에도 strict 모드가 그대로
+동작함 — `GmsCommunitySummarizerRealNetworkTest`로 실제 GitHub 이슈 fixture 하나를 넣어
+`status=READY`, 스키마와 정확히 일치하는 응답을 확인했다(대표 메시지 kind가
+`USER_SOLUTION`으로 올바르게 분류됨).
+
+여전히 미확인: `max_output_tokens`(2048) 초과 시 `status`가 `incomplete`로 오는지와 그때의
+`output` 형태 — 실제로 이 상한에 걸리는 대형 이슈로 아직 시험하지 않음. `GmsCommunitySummarizer`는
+`completed`가 아니면 무조건 실패 처리하므로 안전하게 저하되지만(FAILED), 실제로 이 경로를
+타는지는 미확인 상태로 남는다.
+
+설정 이름 6종(`GMS_API_KEY`/`GMS_BASE_URL`/`GMS_REQUEST_PATH`/`GMS_AUTH_HEADER`/
+`GMS_AUTH_SCHEME`/`GMS_MODEL`)은 `S15P21A506-363`에서 운영 compose에 이미 선택값으로
+배선됨 — `GMS_BASE_URL=https://gms.ssafy.io/gmsapi/api.openai.com`,
+`GMS_REQUEST_PATH=/v1/responses`, `GMS_AUTH_HEADER=Authorization`,
+`GMS_AUTH_SCHEME=Bearer`가 이번 실측으로 확정됐다.
+
 ## 확인된 사실 (사용자가 직접 검증)
 
 ```bash

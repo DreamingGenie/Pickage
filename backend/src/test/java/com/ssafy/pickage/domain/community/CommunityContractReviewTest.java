@@ -161,7 +161,7 @@ class CommunityContractReviewTest {
         var first = new java.util.concurrent.atomic.AtomicBoolean(true);
         try (var bounded =
                 new BoundedCommunitySummarizer(
-                        i -> {
+                        (i, budget) -> {
                             if (first.getAndSet(false)) {
                                 try {
                                     new java.util.concurrent.CountDownLatch(1).await();
@@ -336,12 +336,13 @@ class CommunityContractReviewTest {
     @Test
     void R05_fakeForExistingTopicsMustReportFailure() {
         assertEquals(
-                SummaryStatus.FAILED, new FakeCommunitySummarizer().summarize(issue(1)).status());
+                SummaryStatus.FAILED,
+                new FakeCommunitySummarizer().summarize(issue(1), Duration.ofSeconds(1)).status());
     }
 
     @Test
     void R05_partialSummaryMustNotScheduleFiveMinuteRetry() {
-        orchestrator(i -> i.issueNumber() == 1 ? ready(i) : TopicSummary.failed())
+        orchestrator((i, budget) -> i.issueNumber() == 1 ? ready(i) : TopicSummary.failed())
                 .run(new RefreshTask(7, RefreshStatus.RUNNING), "fixture", 7, null);
         assertNull(store.findByPackageId(7).orElseThrow().result().summaryRetryAt());
     }

@@ -11,15 +11,30 @@ S15P21A506-193 의 버전별 `dependents_count` 둘 다 의존자의 신원이 �
 
 입력  data/raw/requirements    (Dependencies·PeerDependencies·OptionalDependencies) — 2026-08-31 스냅샷
       data/raw/versions_full   (최신 릴리스 판정)
-      datasets/targets/rank_top100k_20260902.csv  (대상 목록 + 대조용 ecosyste.ms 수)
+      --targets 의 CSV          (대상 목록. name 열만 있으면 된다)
+      datasets/targets/rank_top100k_20260902.csv
+        대상 목록이 무엇이든 download_rank·ecosystems_dependent_count 는 항상 여기서 온다.
+        상위 10만 밖이면 두 열이 NULL 이고, 그것이 "순위 밖" 이라는 사실을 담는다.
 
-출력  data/package_dependents/package_dependents.parquet
+출력  data/package_dependents<_label>/package_dependents.parquet
         (name, kind) 1행 — dependents[] 배열과 개수, 판단 재료 열
-      datasets/package_dependents_260915/
+      datasets/package_dependents_<label 또는 260915>/
         dependents_summary.csv   같은 표에서 배열만 뺀 것
         stats.json
 
-실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_package_dependents.py   (약 3~5분)
+실행  기본 회차 — 다운로드 상위 10만 대상 (약 90초)
+      .venv-bq/Scripts/python.exe pipeline/duckdb/build_package_dependents.py
+
+      다른 대상 목록으로 한 회차 더 (예: AI 후보 풀, S15P21A506-359)
+      .venv-bq/Scripts/python.exe pipeline/duckdb/build_package_dependents.py \
+        --targets datasets/targets/candidate_pool_260916.csv --label candidate_pool_260916
+
+`--label` 은 폴더 이름이 되므로 영문 소문자·숫자·밑줄만 쓴다. 한글을 넣으면 MinIO
+객체 키까지 한글이 되고, 이 저장소의 datasets 폴더는 모두 영문이라 관례와도 어긋난다.
+
+`--label` 을 주면 출력 폴더가 갈린다. 회차를 한 폴더에 섞으면 안 되는 이유는 아래
+PQ_DIR 주석에 있다. 대상 목록만 다르고 계산은 같으므로, 두 회차에 겹치는 패키지의
+값은 같아야 한다 — 다르면 둘 중 하나가 잘못된 것이다.
 
 ## 읽는 사람이 반드시 알아야 할 것
 
@@ -50,8 +65,10 @@ OptionalDependencies 세 가지만 담는다. 그래서 주로 개발 의존으�
 한계는 datasets/package_dependents_260915/README.md 에 적었다 —
 직접 의존만·선언 기반·생존 편향·대표 릴리스 조건 차이.
 """
+import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -66,11 +83,53 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parents[2].as_posix()
+RANK = f"{ROOT}/datasets/targets/rank_top100k_20260902.csv"
+# 기본 회차(상위 10만)가 쓰는 datasets 폴더 접미사. S15P21A506-354 부터 쓰던 이름이라
+# 바꾸면 기존 산출물 경로가 달라진다. 아래에서 예약어로 막는다.
+DEFAULT_LABEL = "260915"
+
+ap = argparse.ArgumentParser(description=__doc__)
+ap.add_argument("--targets", default=RANK,
+                help="대상 목록 CSV. name 열만 있으면 된다 (기본: 다운로드 상위 10만)")
+ap.add_argument("--label", default=None,
+                help="회차 이름. 주면 출력 폴더가 갈린다. 기본 회차(상위 10만)는 생략한다")
+args = ap.parse_args()
+
+# label 은 폴더 이름이 되고 MinIO 객체 키에도 그대로 들어간다. 위 docstring 이 규칙을
+# 적어 두는 것만으로는 막지 못해서(2026-09-16 한글 label 로 폴더를 만들었다가 지웠다)
+# 여기서 거부한다.
+if args.label is not None and not re.fullmatch(r"[a-z0-9_]+", args.label):
+    ap.error("--label 은 영문 소문자·숫자·밑줄만 쓴다 (폴더 이름이자 MinIO 객체 키가 된다)")
+
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
-TARGETS = f"{ROOT}/datasets/targets/rank_top100k_20260902.csv"
-PQ_DIR = f"{ROOT}/data/package_dependents"
-OUT = f"{ROOT}/datasets/package_dependents_260915"
+# 상대경로는 실행 위치가 아니라 저장소 루트 기준으로 읽는다. 이 파일의 다른 경로가 모두
+# ROOT 기준이라 --targets 만 cwd 기준이면 어디서 실행하느냐로 결과가 갈린다.
+TARGETS = args.targets if os.path.isabs(args.targets) else f"{ROOT}/{args.targets}"
+if not os.path.isfile(TARGETS):
+    ap.error(f"대상 목록을 찾을 수 없다: {TARGETS}")
+
+# label 을 생략하면 아래 경로가 **기본 회차 그 자체**가 된다. 그래서 대상 목록을 바꿨는데
+# label 이 없으면 다른 모집단의 결과가 상위 10만 산출물을 조용히 덮어쓴다. 같은 폴더의
+# README 는 이 스크립트가 쓰지 않아 "상위 10만 대상" 이라는 설명만 남고, ingest_derived 의
+# package-dependents 가 그 폴더를 root 로 쓰므로 다음 입고에서 서버까지 간다.
+if TARGETS != RANK and args.label is None:
+    ap.error("--targets 를 바꿀 때는 --label 도 줘야 한다."
+             " 없으면 기본 회차(상위 10만) 산출물을 덮어쓴다")
+
+# PQ_DIR 은 label 이 있을 때만 접미사가 붙고 OUT 은 label 을 항상 쓴다. 이 비대칭은 기존
+# 경로를 보존하려고 남긴 것이라, DEFAULT_LABEL 을 직접 주면 parquet 은 새 폴더로 가는데
+# CSV·stats 만 기본 회차 폴더를 덮어써 한 폴더 안에서 두 회차가 섞인다.
+if args.label == DEFAULT_LABEL:
+    ap.error(f"--label {DEFAULT_LABEL} 은 기본 회차가 쓰는 이름이다."
+             " label 없이 실행하거나 다른 이름을 쓴다")
+
+# 출력 폴더는 회차마다 갈라야 한다. pipeline/minio/ingest_derived.py 가 root 의 *.parquet 를
+# 통째로 올리므로, 한 폴더에 두 회차를 섞으면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어
+# 재검증이 막힌다 (build_peer_similarity.py 가 같은 이유로 폴더를 나눈다).
+_suffix = f"_{args.label}" if args.label else ""
+PQ_DIR = f"{ROOT}/data/package_dependents{_suffix}"
+OUT = f"{ROOT}/datasets/package_dependents_{args.label or DEFAULT_LABEL}"
 TMP = f"{ROOT}/data/duckdb_tmp"
 for d in (PQ_DIR, OUT, TMP):
     os.makedirs(d, exist_ok=True)
@@ -118,13 +177,29 @@ log("   최신 릴리스 있는 패키지", f"{stats['packages_with_release']:,}
     f"(번들 경로 노드 {stats['bundled_path_nodes_excluded']:,} 제외)")
 
 # 2) 대상 목록 ---------------------------------------------------------------
-#    CSV 에 같은 이름이 여러 행으로 있을 수 있어 접는다 (순위는 가장 높은 것).
+#    CSV 에 같은 이름이 여러 행으로 있을 수 있어 접는다.
+#
+#    대상 목록에는 name 열만 요구하고, download_rank·eco_cnt 는 목록이 무엇이든 **항상 상위
+#    10만 표에서** 왼쪽 조인해 온다. 그래야 두 가지가 지켜진다 — 임의의 목록을 받아도 열
+#    구성이 같고, 상위 10만 밖 패키지는 NULL 이 되어 "순위 밖" 이라는 사실이 값으로 남는다.
+#    (대상이 상위 10만 그 자체이면 조인 결과가 예전과 같아 기본 회차는 동작이 바뀌지 않는다.)
 log("2/4 대상 목록")
 con.execute(f"""CREATE OR REPLACE TABLE tgt AS
-SELECT name, min(rank) AS download_rank, max(dependent_packages_count) AS eco_cnt
-FROM read_csv_auto('{TARGETS}') GROUP BY 1""")
+SELECT t.name,
+       k.download_rank,
+       k.eco_cnt
+FROM (SELECT DISTINCT trim(name) AS name FROM read_csv_auto('{TARGETS}', header=true)
+      WHERE name IS NOT NULL AND trim(name) <> '') t
+LEFT JOIN (SELECT trim(name) AS name, min(rank) AS download_rank,
+                  max(dependent_packages_count) AS eco_cnt
+           FROM read_csv_auto('{RANK}') WHERE name IS NOT NULL GROUP BY 1) k
+       ON k.name = t.name""")
+stats["targets_list"] = TARGETS.replace(ROOT + "/", "")
 stats["targets"] = con.execute("SELECT count(*) FROM tgt").fetchone()[0]
-log("   대상", f"{stats['targets']:,}")
+stats["targets_outside_top100k"] = con.execute(
+    "SELECT count(*) FROM tgt WHERE download_rank IS NULL").fetchone()[0]
+log("   대상", f"{stats['targets']:,}",
+    f"(상위 10만 밖 {stats['targets_outside_top100k']:,})")
 
 # 3) 엣지 -------------------------------------------------------------------
 #    세 종류를 한 번에 펼치고 kind 로 구분한다. 쓰는 쪽에서 무엇을 셀지 고르게 하려는 것이고,
@@ -168,14 +243,21 @@ CROSS JOIN (SELECT unnest(['regular', 'peer', 'optional']) AS kind) k
 LEFT JOIN agg a ON a.target = t.name AND a.kind = k.kind
 LEFT JOIN lat l ON l.Name = t.name""")
 
-con.execute(f"""COPY (SELECT * FROM out ORDER BY download_rank, kind)
+# 정렬 키에 name 을 반드시 넣는다. download_rank 만으로는 **동순위가 생겨 실행마다 행 순서가
+# 달라지고**, 내용이 같은데도 파일 바이트가 흔들린다. 상위 10만 대상만 쓸 때는 순위가 유일해서
+# 드러나지 않았지만, 순위 밖 패키지가 섞인 목록에서는 그 행들의 download_rank 가 전부 NULL 이라
+# 동순위가 된다 — 2026-09-16 후보 풀 회차에서 같은 입력으로 세 번 돌려 61,674,812 / 61,674,384 /
+# 61,673,694 바이트가 나왔다(내용은 동일). NULLS LAST 는 순위 있는 것을 앞에 두려는 것이다.
+ORDER = "ORDER BY download_rank NULLS LAST, name, kind"
+
+con.execute(f"""COPY (SELECT * FROM out {ORDER})
                 TO '{PQ_DIR}/package_dependents.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)""")
 
 # 배열을 뺀 요약만 CSV 로 낸다. react 한 행의 배열이 19만 원소라 CSV 셀에 들어가지 않는다.
 CSV = f"{OUT}/dependents_summary.csv"
 con.execute(f"""COPY (SELECT name, kind, n_dependents, download_rank,
                              ecosystems_dependent_count, package_exists
-                      FROM out ORDER BY download_rank, kind)
+                      FROM out {ORDER})
                 TO '{CSV}' (FORMAT CSV, HEADER)""")
 # datasets/README.md 규칙 — CSV 는 UTF-8 BOM (엑셀·구글시트가 BOM 없이는 한글을 깬다).
 # DuckDB COPY 는 BOM 을 쓰지 않으므로 여기서 붙인다.

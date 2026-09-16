@@ -1,9 +1,12 @@
 """raw jsonl.gz → registry_versions/part-00000.parquet + registry_status.parquet (수집계획 §2-2).
 
   python to_parquet.py --raw data/registry/raw/run=2026-09-09 --out data/registry/parquet
+  python to_parquet.py --raw data/registry/raw/run=2026-09-16-s* --out data/registry/parquet   # 4분할 수집(샤드 폴더 여러 개)
 
 registry_versions: 한 행 = 패키지 × 버전. 열 이름은 deps.dev requirements 와 같게(Dependencies·PeerDependencies·OptionalDependencies)
                    + DevDependencies. 배열은 STRUCT(Name, Requirement)[]. unpublish 버전의 의존 네 열은 NULL(모름). Name 순 정렬, zstd.
+형태 6열(S15P21A506-366): unpacked_size · file_count · module_type · main · types · exports.
+                   6열이 없던 09-09 raw 도 그대로 읽힌다(없는 키는 NULL). license 는 여기서 받지 않고 deps.dev 와 조인한다.
 registry_status  : 패키지 1행. status = READY / NOT_FOUND / UNPUBLISHED / FAILED / PENDING (체크포인트 기준).
                    화면·통계에서 "자료 없음"을 0과 구분하는 용도.
 수집 중에도 실행 가능: 수집기가 쓰고 있는 마지막 part 는 건너뛰고, 수집기가 없는데 잘린 part(강제 종료)는 읽히는 줄까지 복구한다.
@@ -77,14 +80,14 @@ def _p(path):
     return path.replace(os.sep, "/")
 
 
-def newest_is_busy(newest, repair_newest=False):
+def newest_is_busy(newest, repair_newest=False, n_alive=None):
     """마지막 part 를 건드려도 되는가. alive() 는 실패하면 -1 을 돌려주는데(PowerShell 부재·20초 시간초과),
     그것을 '수집기 없음' 으로 읽으면 살아 있는 파일을 .broken 으로 옮겨 버린다. 리눅스에서는 rename 이 성공해
     수집기가 고아 inode 에 계속 쓰고 그 뒤 행이 전부 사라진다. 그래서 확실히 0 일 때만, 그리고 파일이
     조용해진 뒤에만 손댄다. 알 수 없는 환경에서 강제로 복구하려면 --repair-newest 를 준다."""
     if repair_newest:
         return False
-    n = alive()
+    n = alive() if n_alive is None else n_alive
     if n < 0:
         print("[to_parquet] 수집기 실행 여부를 알 수 없다(alive=-1). 마지막 part 는 건드리지 않는다. "
               "죽은 수집기의 잘린 part 를 살리려면 --repair-newest 를 줄 것")
@@ -113,37 +116,57 @@ def check_output_source(out, raw_abs, force=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--raw", required=True)
+    ap.add_argument("--raw", required=True, nargs="+",
+                    help="run 폴더. 4분할 수집이면 샤드 폴더를 전부 나열한다(쉘 글롭 가능)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--repair-newest", action="store_true",
                     help="수집기 실행 여부를 확인할 수 없는 환경에서 마지막 part 까지 복구 대상으로 본다")
     ap.add_argument("--force", action="store_true", help="다른 run 으로 만든 출력 폴더를 덮어쓴다")
     a = ap.parse_args()
 
-    ckpath = os.path.join(a.raw, "checkpoint.sqlite")
-    assert os.path.exists(ckpath), f"checkpoint.sqlite not found under {a.raw}. 패키지 상태의 정본이라 없으면 변환하지 않는다"
-    files = sorted(glob.glob(os.path.join(a.raw, "part-*.jsonl.gz")))
-    assert files, "no parts under " + a.raw
-    raw_abs = _p(os.path.abspath(a.raw))
+    raws = [os.path.abspath(r) for r in a.raw]
+    ckpaths = []
+    for r in raws:
+        ck = os.path.join(r, "checkpoint.sqlite")
+        assert os.path.exists(ck), f"checkpoint.sqlite not found under {r}. 패키지 상태의 정본이라 없으면 변환하지 않는다"
+        ckpaths.append(ck)
+    # 정렬해서 잇는다. 나열 순서만 다른 같은 집합이 '다른 run' 으로 보이면 --force 를 습관적으로 붙이게 되고,
+    # 그러면 스모크 run 이 본 결과를 덮어쓰는 것을 막으려던 가드가 무력해진다. raws 자체의 순서는 바꾸지 않는다.
+    raw_abs = ";".join(sorted(_p(r) for r in raws))
     marker = check_output_source(a.out, raw_abs, a.force)   # raw 를 건드리기 전에 확인한다
 
-    newest = files[-1]
-    incomplete = [f for f in files if not _complete(f)]
-    busy = newest_is_busy(newest, a.repair_newest)
-    for f in incomplete:
-        if f == newest and busy:
-            continue  # 수집기가 지금 쓰고 있을 수 있는 파일
-        _repair(f)    # 아무도 안 쓰는 잘린 파일이므로 살릴 수 있는 만큼 살린다
-    if newest in incomplete and busy:
-        print(f"[to_parquet] skipping in-progress part: {os.path.basename(newest)}")
-        files = files[:-1]
+    # alive() 는 PowerShell 을 띄운다(최대 20초). 샤드마다 부르면 그만큼 늘어나므로 한 번만 재서 나눠 쓴다.
+    n_alive = None if a.repair_newest else alive()
+    files = []
+    for r in raws:
+        fs = sorted(glob.glob(os.path.join(r, "part-*.jsonl.gz")))
+        assert fs, "no parts under " + r
+        newest = fs[-1]
+        incomplete = [f for f in fs if not _complete(f)]
+        busy = newest_is_busy(newest, a.repair_newest, n_alive)
+        for f in incomplete:
+            if f == newest and busy:
+                continue  # 수집기가 지금 쓰고 있을 수 있는 파일
+            _repair(f)    # 아무도 안 쓰는 잘린 파일이므로 살릴 수 있는 만큼 살린다
+        if newest in incomplete and busy:
+            print(f"[to_parquet] skipping in-progress part: {os.path.basename(r)}/{os.path.basename(newest)}")
+            fs = fs[:-1]
+        files.extend(fs)
     assert files, "no complete parts yet"
 
     DEP = "STRUCT(Name VARCHAR, Requirement VARCHAR)[]"
     con = duckdb.connect()
     # 패키지 단위 상태는 체크포인트가 정본이다. 버전 행도 체크포인트로 걸러, 쓰다 만 패키지(failed·pending)의
     # 고아 행이 registry_versions 에 남지 않게 한다. (Name, Version) 중복 제거로는 그 행을 걸러낼 수 없다.
-    con.execute(f"ATTACH '{_p(ckpath)}' AS ck (TYPE sqlite, READ_ONLY)")
+    for i, ck in enumerate(ckpaths):
+        con.execute(f"ATTACH '{_p(ck)}' AS ck{i} (TYPE sqlite, READ_ONLY)")
+    con.execute("CREATE VIEW ck_tasks AS " +
+                " UNION ALL ".join(f"SELECT * FROM ck{i}.tasks" for i in range(len(ckpaths))))
+    # 샤드는 대상이 겹치지 않아야 한다(shard_targets.py 가 순위로 나눈다). 겹치면 같은 패키지가 상태 표에
+    # 두 행으로 남아 합계가 틀어지므로, 조용히 넘어가지 않고 여기서 멈춘다.
+    n_task, n_name = con.execute("SELECT count(*), count(DISTINCT name) FROM ck_tasks").fetchone()
+    assert n_task == n_name, (
+        f"샤드 대상이 겹친다: 작업 {n_task}건 중 이름 {n_name}개. --raw 로 준 run 폴더를 확인할 것")
     # read_json 결과를 바로 v 로 만든다(raw 를 따로 물질화하면 2,000만 행 기준 메모리가 두 배, 약 32 GB).
     # 같은 (Name, Version) 이 여러 번 받혔으면(재시작 중복·재시도) 가장 최근 fetched_at 만 남긴다.
     # 시각 문자열은 ISO 8601(Z 포함) → TIMESTAMPTZ 로 읽어 UTC 기준 TIMESTAMP 로 저장.
@@ -160,14 +183,18 @@ def main():
               CASE WHEN unpublished THEN NULL ELSE PeerDependencies END AS PeerDependencies,
               CASE WHEN unpublished THEN NULL ELSE OptionalDependencies END AS OptionalDependencies,
               CASE WHEN deprecated IN ('false', '') THEN NULL ELSE deprecated END AS deprecated, unpublished,
+              unpacked_size, file_count, module_type, main, types, exports,
               try_cast(fetched_at AS TIMESTAMPTZ) AT TIME ZONE 'UTC' AS fetched_at,
               try_cast(modified AS TIMESTAMPTZ) AT TIME ZONE 'UTC' AS modified
        FROM read_json({[_p(f) for f in files]!r}, format='newline_delimited',
             columns={{'Name':'VARCHAR','Version':'VARCHAR','published_at':'VARCHAR','rank':'INTEGER',
                      'Dependencies':'{DEP}','DevDependencies':'{DEP}','PeerDependencies':'{DEP}','OptionalDependencies':'{DEP}',
-                     'deprecated':'VARCHAR','unpublished':'BOOLEAN','fetched_at':'VARCHAR','modified':'VARCHAR'}})
+                     'deprecated':'VARCHAR','unpublished':'BOOLEAN',
+                     'unpacked_size':'BIGINT','file_count':'BIGINT','module_type':'VARCHAR','main':'VARCHAR',
+                     'types':'VARCHAR','exports':'VARCHAR',
+                     'fetched_at':'VARCHAR','modified':'VARCHAR'}})
        WHERE regexp_matches(Version, '^\d+\.\d+')
-         AND Name IN (SELECT name FROM ck.tasks WHERE status IN ('done', 'unpublished'))
+         AND Name IN (SELECT name FROM ck_tasks WHERE status IN ('done', 'unpublished'))
        QUALIFY row_number() OVER (PARTITION BY Name, Version ORDER BY fetched_at DESC) = 1"""
     )
 
@@ -182,7 +209,7 @@ def main():
               try_cast(t.modified AS TIMESTAMPTZ) AT TIME ZONE 'UTC' AS modified,
               try_cast(t.fetched_at AS TIMESTAMPTZ) AT TIME ZONE 'UTC' AS fetched_at,
               t.http::INTEGER AS http, t.bytes::BIGINT AS doc_bytes, t.error
-       FROM ck.tasks t
+       FROM ck_tasks t
        LEFT JOIN (SELECT Name, count(*) AS n_versions, count(*) FILTER (WHERE unpublished) AS n_unpub,
                          min(published_at) AS first_published_at, max(published_at) AS last_published_at
                   FROM v GROUP BY Name) a ON a.Name = t.name
@@ -216,15 +243,19 @@ def main():
         shutil.rmtree(old)
     shutil.rmtree(tmp)
 
-    n_v, n_pkg, n_unpub, n_dev = con.execute(
+    n_v, n_pkg, n_unpub, n_dev, n_size, n_exp, n_types = con.execute(
         "SELECT count(*), count(DISTINCT Name), count(*) FILTER (WHERE unpublished), "
-        "count(*) FILTER (WHERE len(DevDependencies) > 0) FROM v"
+        "count(*) FILTER (WHERE len(DevDependencies) > 0), count(*) FILTER (WHERE unpacked_size IS NOT NULL), "
+        "count(*) FILTER (WHERE exports IS NOT NULL), count(*) FILTER (WHERE types IS NOT NULL) FROM v"
     ).fetchone()
     n_st = con.execute("SELECT count(*) FROM st").fetchone()[0]
     by = dict(con.execute("SELECT status, count(*) FROM st GROUP BY status ORDER BY status").fetchall())
     con.close()
     print(f"[to_parquet] registry_versions rows={n_v} packages={n_pkg} unpublished_versions={n_unpub} rows_with_devDeps={n_dev} "
           f"| registry_status rows={n_st} {by} -> {a.out}")
+    if n_v:
+        print(f"[to_parquet] 형태 6열 채움: unpacked_size {n_size:,}({n_size/n_v:.1%}) "
+              f"exports {n_exp:,}({n_exp/n_v:.1%}) types {n_types:,}({n_types/n_v:.1%})")
 
 
 if __name__ == "__main__":

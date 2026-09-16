@@ -1,9 +1,11 @@
 {
   "snapshot": "2026-08-31",
-  "built_at": "2026-09-15T14:05:33",
+  "built_at": "2026-09-16T09:53:11",
   "packages_with_release": 4065913,
   "bundled_path_nodes_excluded": 7052193,
+  "targets_list": "datasets/targets/rank_top100k_20260902.csv",
   "targets": 99996,
+  "targets_outside_top100k": 0,
   "edges": 13392517,
   "regular": {
     "targets_with_dependents": 81780,
@@ -144,5 +146,5 @@
     0.710077519379845
   ],
   "file_bytes": 104143713,
-  "elapsed_sec": 89
+  "elapsed_sec": 94
 }

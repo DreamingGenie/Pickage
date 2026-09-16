@@ -17,7 +17,7 @@ public final class BoundedCommunitySummarizer implements AutoCloseable {
         if (budget.isZero() || budget.isNegative()) return TopicSummary.failed();
         Future<TopicSummary> future;
         try {
-            future = executor.submit(() -> delegate.summarize(source.issue()));
+            future = executor.submit(() -> delegate.summarize(source.issue(), budget));
         } catch (RejectedExecutionException e) {
             return TopicSummary.failed();
         }
@@ -32,6 +32,18 @@ public final class BoundedCommunitySummarizer implements AutoCloseable {
             future.cancel(true);
             executor.purge();
         }
+    }
+
+    /**
+     * {@link #summarize}와 같은 보장(예산 안에서 완료하거나 강제 인터럽트)을 별도 스레드에서
+     * 기다리는 형태로 감싼다 — 호출자(={@link CommunityRefreshOrchestrator})가 이슈 여러 개를
+     * 순차로 블로킹하지 않고 동시에 디스패치할 수 있게 한다(S15P21A506-368 후속). 실제 GMS
+     * 호출 자체는 여전히 이 클래스의 2-worker {@code executor}에서만 돈다 — 동시 실행 상한은
+     * 그대로 2다.
+     */
+    public CompletableFuture<TopicSummary> summarizeAsync(
+            CommunitySummarySourceBundle source, Duration budget) {
+        return CompletableFuture.supplyAsync(() -> summarize(source, budget));
     }
 
     public void close() {
