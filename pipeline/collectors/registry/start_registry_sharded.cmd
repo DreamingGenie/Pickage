@@ -39,11 +39,17 @@ if not exist "%RAWDIR%" mkdir "%RAWDIR%"
 
 rem 이 RUN 의 샤드가 아닌 수집기가 돌고 있으면 아무것도 띄우지 않는다.
 rem 같은 IP 에서 예정보다 많이 돌면 429 만 늘어난다(직렬 start_registry.cmd 가 떠 있는 경우 등).
-powershell -NoProfile -Command "if ((Get-CimInstance Win32_Process -Filter \"Name like 'python%%'\" | Where-Object { $_.CommandLine -like '*registry*collect.py*' -and $_.CommandLine -notlike '*--run %RUN%-s*' } | Measure-Object).Count -gt 0) { exit 1 } else { exit 0 }"
-if errorlevel 1 (
+powershell -NoProfile -Command "if ((Get-CimInstance Win32_Process -Filter \"Name like 'python%%'\" | Where-Object { $_.CommandLine -like '*registry*collect.py*' -and $_.CommandLine -notlike '*--run %RUN%-s*' } | Measure-Object).Count -gt 0) { exit 3 } else { exit 0 }"
+set RC=%ERRORLEVEL%
+if "%RC%"=="3" (
   echo [start_registry_sharded] 이 RUN 의 샤드가 아닌 registry 수집기가 이미 돌고 있습니다. 그것이 끝난 뒤 시작하세요.
   pause
   exit /b 0
+)
+if not "%RC%"=="0" (
+  echo [start_registry_sharded] 실행 중 검사가 실패했습니다. errorlevel=%RC% - 이미 도는 수집기가 있는지 알 수 없어 아무것도 띄우지 않습니다.
+  pause
+  exit /b 1
 )
 
 rem 대상 CSV 를 순위로 돌아가며 나눈다(결정적이라 다시 돌려도 같은 결과).
@@ -73,9 +79,15 @@ set IDX=%1
 set SRUN=%RUN%-s%IDX%
 set SCSV=%SHARDDIR%\%BASENAME%-s%IDX%of%SHARDS%.csv
 set SLOG=%RAWDIR%\registry_%RUN%-s%IDX%.log
-powershell -NoProfile -Command "if ((Get-CimInstance Win32_Process -Filter \"Name like 'python%%'\" | Where-Object { $_.CommandLine -like '*registry*collect.py*' -and $_.CommandLine -like '*--run %SRUN% *' } | Measure-Object).Count -gt 0) { exit 1 } else { exit 0 }"
-if errorlevel 1 (
+powershell -NoProfile -Command "if ((Get-CimInstance Win32_Process -Filter \"Name like 'python%%'\" | Where-Object { $_.CommandLine -like '*registry*collect.py*' -and $_.CommandLine -like '*--run %SRUN% *' } | Measure-Object).Count -gt 0) { exit 3 } else { exit 0 }"
+set RC=%ERRORLEVEL%
+if "%RC%"=="3" (
   echo [start_registry_sharded] 샤드 %IDX%/%SHARDS%  run=%SRUN%  이미 실행 중 — 건너뜁니다
+  set /a SKIPPED+=1
+  exit /b 0
+)
+if not "%RC%"=="0" (
+  echo [start_registry_sharded] 샤드 %IDX%/%SHARDS%  실행 중 검사 실패 errorlevel=%RC% - 두 번 띄우지 않으려고 건너뜁니다
   set /a SKIPPED+=1
   exit /b 0
 )

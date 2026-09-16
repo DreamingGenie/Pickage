@@ -137,16 +137,23 @@ LEFT JOIN versions_full v ON v.Name = r.Name AND v.Version = r.Version;
 ## 진행 확인
 
 ```bash
-# 현황 창 (더블클릭)
+# 4분할 수집 현황 창 (더블클릭). 합계 진행률·완료 예상 시각 + 샤드별 상태
+pipeline\collectors\registry\status_watch_sharded.cmd
+# 4분할을 한 화면 요약. --shards 를 주면 <run>-s1 … <run>-sN 으로 펼쳐 합산한다
+.venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-16 --shards 4 --watch
+
+# 직렬 run 하나만 볼 때 (예: 09-09)
 pipeline\collectors\registry\status_watch.cmd
-# 한 화면 요약. --watch 를 붙이면 60초마다 갱신
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-09 --watch
 # 요약 + Parquet 갱신 → DuckDB UI 의 registry_versions 뷰에 지금까지 받은 패키지가 전부 보임
 # --watch 와 같이 쓰면 --refresh-min-interval(기본 3600초)마다, 그리고 수집이 끝날 때 한 번 더 돈다
 # 스모크 run 을 볼 때는 --parquet-out 도 같이 바꾼다. 안 바꾸면 변환기가 본 결과를 덮어쓰지 않으려고 멈춘다
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-09 --refresh-parquet
+# 분할 수집은 run 이름이 바뀌어 같은 출력 폴더의 출처 검사에 막힌다. 이전 결과를 이번 것으로 갈아탈 때만 --parquet-force
+.venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-16 --shards 4 --refresh-parquet --parquet-force
 
-# 원시 로그
+# 원시 로그 (분할 수집은 샤드마다 따로 쌓인다)
+tail -3 data/registry/raw/registry_2026-09-16-s1.log
 tail -3 data/registry/raw/registry_2026-09-09.log
 python -c "import sqlite3;print(sqlite3.connect('data/registry/raw/run=2026-09-09/checkpoint.sqlite').execute('select status,count(*) from tasks group by status').fetchall())"
 ```
