@@ -13,6 +13,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -85,5 +86,80 @@ class GmsCommunitySummarizerRealNetworkTest {
         assertThat(summary.titleKo()).isNotBlank();
         assertThat(summary.summaryKo()).isNotBlank();
         assertThat(summary.discussionFlow()).isNotEmpty();
+    }
+
+    /**
+     * S15P21A506-373 0단계 — 댓글 85개 안팎(합성, 실제 GitHub 이슈 아님)으로 실제 GMS를 호출해
+     * {@code max_output_tokens=2048} 근처에서 응답이 {@code incomplete}로 잘리는지, 페이로드 파싱이
+     * 실패하는지를 관측한다. 이 테스트의 목적 자체가 "READY로 끝나는지 아닌지 관측"이므로,
+     * {@link SummaryStatus#READY}를 단정하지 않는다 — 실패하면 {@link GmsCommunitySummarizer}에
+     * 추가된 {@code log.warn}이 실제 {@code status}/파싱 실패 형태를 남긴다(콘솔·테스트 로그 확인).
+     */
+    @Test
+    void 실제_GMS_호출로_대용량_댓글_이슈를_요약한다() {
+        var issue = largeSyntheticIssue(85);
+
+        TopicSummary summary = client().summarize(issue, Duration.ofSeconds(15));
+
+        System.out.println(
+                "[실네트워크 GMS 대형 fixture 결과] status="
+                        + summary.status()
+                        + ", flow.size="
+                        + summary.discussionFlow().size()
+                        + ", messages.size="
+                        + summary.messages().size());
+        assertThat(summary).as("항상 TopicSummary를 반환해야 함(예외 전파 금지)").isNotNull();
+    }
+
+    private static CollectedIssue largeSyntheticIssue(int commentCount) {
+        String[] templates = {
+            "I'm seeing the same issue on version %d.x — happens every time the config is"
+                    + " missing a required field. Here's my workaround for now: I wrap the call"
+                    + " in a try/catch and fall back to a default schema.",
+            "Any update on this? We've been blocked by this for a couple of weeks and it's"
+                    + " affecting our CI pipeline. Happy to help test a fix if someone puts one"
+                    + " up.",
+            "I think the root cause is that the validator doesn't narrow the union type"
+                    + " correctly when the discriminant field is optional. I traced it down to"
+                    + " the parser internals but haven't found a clean fix yet.",
+            "+1, also hitting this. For anyone else stuck, downgrading to the previous minor"
+                    + " version fixes it, but obviously that's not a long-term solution.",
+            "Thanks for the detailed repro! I was able to reproduce it locally. Looking into a"
+                    + " fix now — will open a PR once I have something working with tests."
+        };
+        List<CollectedComment> comments = new ArrayList<>(commentCount);
+        Instant start = Instant.parse("2026-01-02T00:00:00Z");
+        for (int i = 0; i < commentCount; i++) {
+            String body = templates[i % templates.length] + " (comment #" + i + ")";
+            comments.add(
+                    new CollectedComment(
+                            String.valueOf(9_100_000_000_000L + i),
+                            "synthetic-user-" + (i % 20),
+                            i % 7 == 0 ? "MEMBER" : "NONE",
+                            false,
+                            start.plusSeconds(3600L * i),
+                            String.format(body, i % 5 + 1),
+                            "synthetic-author-" + (i % 20)));
+        }
+        return new CollectedIssue(
+                479,
+                "Large synthetic issue for S15P21A506-373 0단계 diagnostics ("
+                        + commentCount
+                        + " comments)",
+                "open",
+                start.plusSeconds(3600L * commentCount),
+                "synthetic-reporter",
+                commentCount,
+                0,
+                CommentCollectionStatus.COMPLETE,
+                comments,
+                List.of(),
+                "701701",
+                start,
+                "synthetic-reporter-id",
+                "This is a synthetic (fabricated) issue body used only to test how"
+                        + " GmsCommunitySummarizer behaves with a large number of comments. It"
+                        + " is not a real GitHub issue and does not reference any real user or"
+                        + " repository content.");
     }
 }

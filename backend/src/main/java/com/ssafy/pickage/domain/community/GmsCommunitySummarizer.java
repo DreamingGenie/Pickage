@@ -245,13 +245,23 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         } catch (IOException e) {
             return TopicSummary.failed();
         }
-        if (!"completed".equals(root.path("status").asText())) return TopicSummary.failed();
+        if (!"completed".equals(root.path("status").asText())) {
+            log.warn(
+                    "GMS 응답 status가 completed가 아님: status={}, incomplete_reason={}",
+                    root.path("status").asText(null),
+                    root.path("incomplete_details").path("reason").asText(null));
+            return TopicSummary.failed();
+        }
         String text = extractOutputText(root.path("output"));
         if (text == null) return TopicSummary.failed();
         JsonNode payload;
         try {
             payload = JSON.readTree(text);
         } catch (IOException e) {
+            log.warn(
+                    "GMS output_text가 유효한 JSON이 아님: length={}, preview={}",
+                    text.length(),
+                    text.substring(0, Math.min(text.length(), 200)));
             return TopicSummary.failed();
         }
         return toTopicSummary(issue, payload);
