@@ -83,9 +83,37 @@ public class CommunityConfig {
         return new IssueCollectionService(search, comments);
     }
 
+    /**
+     * GMS_API_KEY 등 다섯 값이 전부 있어야 실제 GMS 클라이언트를 쓴다(S15P21A506-363이 배선한
+     * 이름 그대로). 하나라도 없으면 조용히 FakeCommunitySummarizer로 남는다 — CommunityReadiness가
+     * summarizerReady=false로 이미 그 상태를 감지하므로, 여기서 따로 오류를 내지 않는다.
+     */
     @Bean
-    public CommunitySummarizer communitySummarizer() {
-        return new FakeCommunitySummarizer();
+    public CommunitySummarizer communitySummarizer(HttpClient communityHttpClient) {
+        String apiKey = System.getenv("GMS_API_KEY");
+        String baseUrl = System.getenv("GMS_BASE_URL");
+        String requestPath = System.getenv("GMS_REQUEST_PATH");
+        String authHeader = System.getenv("GMS_AUTH_HEADER");
+        String authScheme = System.getenv("GMS_AUTH_SCHEME");
+        String model = System.getenv("GMS_MODEL");
+        if (apiKey == null
+                || apiKey.isBlank()
+                || baseUrl == null
+                || requestPath == null
+                || authHeader == null
+                || authScheme == null
+                || model == null) {
+            return new FakeCommunitySummarizer();
+        }
+        return new GmsCommunitySummarizer(
+                communityHttpClient,
+                baseUrl,
+                requestPath,
+                apiKey,
+                authHeader,
+                authScheme,
+                model,
+                MAX_RESPONSE_BYTES);
     }
 
     @Bean(destroyMethod = "close")
