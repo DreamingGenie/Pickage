@@ -84,9 +84,11 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             kind describes whether a message resembles a discussion reply or a proposed solution \
             (USER_SOLUTION) — it is not an authorship or acceptance judgment. Never summarize the \
             issue body itself as a message. Produce at most 3 flow steps, one per given comment, \
-            in the order they were given. Produce at most 3 messages, one per given comment. Cite \
-            at most 4 distinct source ids in total across summary_support and flow_support (issue \
-            body + up to 3 comments).""";
+            in the order they were given. Every single flow step, with no exception, MUST have at \
+            least one entry in flow_support citing the comment (or the issue body) it is based on \
+            — never leave a flow step without a matching flow_support entry for its flow_index. \
+            Produce at most 3 messages, one per given comment. Cite at most 4 distinct source ids \
+            in total across summary_support and flow_support (issue body + up to 3 comments).""";
 
     /**
      * S15P21A506-373 4단계(Map-Reduce) Reduce 전용 prompt. 원문 댓글이 아니라 배치별로 이미
