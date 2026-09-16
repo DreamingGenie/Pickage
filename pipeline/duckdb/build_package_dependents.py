@@ -84,6 +84,9 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parents[2].as_posix()
 RANK = f"{ROOT}/datasets/targets/rank_top100k_20260902.csv"
+# 기본 회차(상위 10만)가 쓰는 datasets 폴더 접미사. S15P21A506-354 부터 쓰던 이름이라
+# 바꾸면 기존 산출물 경로가 달라진다. 아래에서 예약어로 막는다.
+DEFAULT_LABEL = "260915"
 
 ap = argparse.ArgumentParser(description=__doc__)
 ap.add_argument("--targets", default=RANK,
@@ -106,12 +109,27 @@ TARGETS = args.targets if os.path.isabs(args.targets) else f"{ROOT}/{args.target
 if not os.path.isfile(TARGETS):
     ap.error(f"대상 목록을 찾을 수 없다: {TARGETS}")
 
+# label 을 생략하면 아래 경로가 **기본 회차 그 자체**가 된다. 그래서 대상 목록을 바꿨는데
+# label 이 없으면 다른 모집단의 결과가 상위 10만 산출물을 조용히 덮어쓴다. 같은 폴더의
+# README 는 이 스크립트가 쓰지 않아 "상위 10만 대상" 이라는 설명만 남고, ingest_derived 의
+# package-dependents 가 그 폴더를 root 로 쓰므로 다음 입고에서 서버까지 간다.
+if TARGETS != RANK and args.label is None:
+    ap.error("--targets 를 바꿀 때는 --label 도 줘야 한다."
+             " 없으면 기본 회차(상위 10만) 산출물을 덮어쓴다")
+
+# PQ_DIR 은 label 이 있을 때만 접미사가 붙고 OUT 은 label 을 항상 쓴다. 이 비대칭은 기존
+# 경로를 보존하려고 남긴 것이라, DEFAULT_LABEL 을 직접 주면 parquet 은 새 폴더로 가는데
+# CSV·stats 만 기본 회차 폴더를 덮어써 한 폴더 안에서 두 회차가 섞인다.
+if args.label == DEFAULT_LABEL:
+    ap.error(f"--label {DEFAULT_LABEL} 은 기본 회차가 쓰는 이름이다."
+             " label 없이 실행하거나 다른 이름을 쓴다")
+
 # 출력 폴더는 회차마다 갈라야 한다. pipeline/minio/ingest_derived.py 가 root 의 *.parquet 를
 # 통째로 올리므로, 한 폴더에 두 회차를 섞으면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어
 # 재검증이 막힌다 (build_peer_similarity.py 가 같은 이유로 폴더를 나눈다).
 _suffix = f"_{args.label}" if args.label else ""
 PQ_DIR = f"{ROOT}/data/package_dependents{_suffix}"
-OUT = f"{ROOT}/datasets/package_dependents_{args.label or '260915'}"
+OUT = f"{ROOT}/datasets/package_dependents_{args.label or DEFAULT_LABEL}"
 TMP = f"{ROOT}/data/duckdb_tmp"
 for d in (PQ_DIR, OUT, TMP):
     os.makedirs(d, exist_ok=True)
@@ -172,8 +190,10 @@ SELECT t.name,
        k.eco_cnt
 FROM (SELECT DISTINCT trim(name) AS name FROM read_csv_auto('{TARGETS}', header=true)
       WHERE name IS NOT NULL AND trim(name) <> '') t
-LEFT JOIN (SELECT name, min(rank) AS download_rank, max(dependent_packages_count) AS eco_cnt
-           FROM read_csv_auto('{RANK}') GROUP BY 1) k ON k.name = t.name""")
+LEFT JOIN (SELECT trim(name) AS name, min(rank) AS download_rank,
+                  max(dependent_packages_count) AS eco_cnt
+           FROM read_csv_auto('{RANK}') WHERE name IS NOT NULL GROUP BY 1) k
+       ON k.name = t.name""")
 stats["targets_list"] = TARGETS.replace(ROOT + "/", "")
 stats["targets"] = con.execute("SELECT count(*) FROM tgt").fetchone()[0]
 stats["targets_outside_top100k"] = con.execute(
