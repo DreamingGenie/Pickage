@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ssafy.pickage.domain.ops.dto.WeeklyRunResponse;
@@ -53,6 +54,16 @@ public class WeeklyIngestService {
 	private final WeeklyStateStore store;
 	private final Clock clock;
 
+	/**
+	 * ⚠ <b>{@code @Autowired} 가 필요하다.</b> 이 클래스에는 생성자가 둘이고(아래는 시험이
+	 * 시계를 넣는 자리), 스프링은 생성자가 <b>하나일 때만</b> 그것을 자동으로 고른다.
+	 * 둘인데 표시가 없으면 기본 생성자를 찾다가 {@code NoSuchMethodException} 으로 죽는다 —
+	 * 컨텍스트 자체가 안 뜨므로 <b>애플리케이션이 기동하지 않는다.</b>
+	 *
+	 * <p>단위 시험은 생성자를 직접 부르므로 이걸 못 잡는다. {@code PickageApplicationTests}
+	 * 의 {@code contextLoads()} 가 잡는다.
+	 */
+	@Autowired
 	public WeeklyIngestService(WeeklyStateStore store) {
 		// 수집기가 UTC 달력으로 회차를 판정한다(schedule.py 의 current_week_of).
 		// 여기서 지역시간을 쓰면 월요일 경계에서 서로 다른 주를 가리킨다.
