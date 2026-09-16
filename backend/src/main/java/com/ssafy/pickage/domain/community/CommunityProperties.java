@@ -32,10 +32,14 @@ public final class CommunityProperties {
      * 넘겨 HttpTimeoutException/InterruptedException으로 매번 실패했다(S15P21A506-368 후속).
      * 이슈 병렬 호출(S15P21A506-368 후속, {@link CommunityRefreshOrchestrator})로 GMS 몫은
      * 줄였지만, 그래도 수집(5~6초 안팎) + 병렬 GMS 최악값({@link
-     * GmsCommunitySummarizer}의 상한 15초) + 게시 여유를 더하면 20초는 여전히 빠듯해 30초로
-     * 올린다.
+     * GmsCommunitySummarizer}의 상한) + 게시 여유를 더하면 빠듯해 30초로 올렸다.
+     *
+     * <p>2026-09-16 4단계(Map-Reduce) 로컬 실측으로 30초→35초로 재조정 — 배치가 있는 이슈는
+     * Map(N회, 동시 디스패치)이 끝나야 Reduce(1회)가 순차로 붙어 GMS 구간이 단일 호출 상한
+     * ({@link GmsCommunitySummarizer}의 {@code MAX_CALL_TIMEOUT}=30초)보다 더 걸릴 수 있다 —
+     * 오세진 님이 시연 안정성을 위해 5초 여유를 더 두기로 결정.
      */
-    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(30);
+    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(35);
 
     /** DB 게시 트랜잭션의 {@code statement_timeout} 예약(314의 실제 값과 별개로, 이 Phase가 기대하는 상한). */
     public static final Duration PUBLISH_BUDGET = Duration.ofSeconds(2);
