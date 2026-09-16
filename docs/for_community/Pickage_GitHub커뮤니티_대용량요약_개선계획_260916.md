@@ -388,6 +388,8 @@ Spec 단계에서 다시 정밀 설계해야 한다.
 
 3단계 (⑤-A만, 예산 내 폴링): GMS 호출을 background:true + 폴링으로 전환
    → §2 "경로 A"(타임아웃)에만 도움. 여전히 실패하면 4단계로
+   → **2026-09-16 폐기**: 구현·실측 결과 이 GMS 프록시가 폴링 엔드포인트를
+     지원하지 않아(§7) 되돌렸다. 4단계로 직행한다.
 
 4단계 (구조 변경, Spec 별도 작성): ④ Map-Reduce
    → 3단계(⑤-A)를 전제조건으로 두지 않는다(재검수로 정정 — ⑤-A는 호출 방식만
@@ -430,10 +432,17 @@ Spec 단계에서 다시 정밀 설계해야 한다.
 - ~~`GitHubIssueCommentsClient`가 현재 `reactions.total_count`를 이미 파싱하고
   있는지~~ — **재검수로 확인 완료**: 파싱하지 않는다(§3②). 더 이상 미확인이
   아니다.
-- GMS(`gms.ssafy.io` 프록시)가 OpenAI `background: true` 파라미터를 그대로
-  통과시키는지, `GET /v1/responses/{id}` 폴링 엔드포인트를 프록시하는지 — 웹
-  검색으로 OpenAI 공식 문서상 존재는 확인했으나 **이 특정 GMS 프록시로 실제
-  호출해 확인한 적은 없다**
+- ~~GMS(`gms.ssafy.io` 프록시)가 OpenAI `background: true` 파라미터를 그대로
+  통과시키는지, `GET /v1/responses/{id}` 폴링 엔드포인트를 프록시하는지~~ —
+  **2026-09-16, S15P21A506-373 3단계 실측으로 확인 완료(부정적 결과)**:
+  `background:true`는 받아주지만(`queued`+`id` 응답), `GET
+  {endpoint}/{id}` 폴링은 매번 HTTP 500 — 이 GMS 프록시는 폴링 엔드포인트를
+  지원하지 않는다. ⑤-A(3단계) 구현을 완료해 검증했으나 이 결과로 **폐기하고
+  되돌렸다**(배포 시 요약이 100% 실패하게 됨) — 오세진 님 결정, 상세 근거는
+  [`specs/S15P21A506-373-step3-background-polling.md`](specs/S15P21A506-373-step3-background-polling.md)
+  §6과 [`phases/S15P21A506-373-step3-background-polling-abandoned.md`](phases/S15P21A506-373-step3-background-polling-abandoned.md).
+  향후 GMS 프록시가 바뀌거나 다른 폴링 URL 형태가 확인되지 않는 한 재시도하지
+  않는다.
 - gpt-5.4-mini의 실제 max context 토큰 수, 4096 output 토큰 생성이 15초
   타임아웃 안에 들어오는지
 - zod #479/#372를 1~3단계 적용 후 실제로 재수집했을 때 결과가 개선되는지 —

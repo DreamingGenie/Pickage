@@ -18,7 +18,7 @@
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
 | 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
 | 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 완료(2026-09-16 Jira 조회로 확인 — 이 표의 "진행 중" 표기는 병합 전 스냅샷이라 stale했음) |
-| 6 | [S15P21A506-373](https://ssafy.atlassian.net/browse/S15P21A506-373) [BE][구현] GMS 대용량 이슈 요약 실패 개선(0~4단계) | 백엔드 | 0단계 `api/feat/S15P21A506-373-large-issue-summary-diagnostics`(병합됨, MR [!162](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/162)) → 1·2단계 `api/feat/S15P21A506-373-max-output-tokens-and-schema-flatten`(로컬 커밋만, 미push) | [373 0단계 Spec](../specs/S15P21A506-373-step0-diagnostics.md)·[1단계 Spec](../specs/S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 Spec](../specs/S15P21A506-373-step2-reaction-based-selection.md)(3~4단계는 진행하며 추가) | Phase 5 | 진행 중(0단계 완료·병합, 1·2단계 구현·테스트·리뷰 완료 — [1단계 기록](S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 기록](S15P21A506-373-step2-reaction-based-selection.md) — push·MR은 오세진 님 지시 대기) |
+| 6 | [S15P21A506-373](https://ssafy.atlassian.net/browse/S15P21A506-373) [BE][구현] GMS 대용량 이슈 요약 실패 개선(0~4단계) | 백엔드 | 0단계 `api/feat/S15P21A506-373-large-issue-summary-diagnostics`(병합됨, MR [!162](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/162)) → 1·2단계 `api/feat/S15P21A506-373-max-output-tokens-and-schema-flatten`(로컬 커밋만, 미push) | [373 0단계 Spec](../specs/S15P21A506-373-step0-diagnostics.md)·[1단계 Spec](../specs/S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 Spec](../specs/S15P21A506-373-step2-reaction-based-selection.md)·[3단계 Spec(폐기)](../specs/S15P21A506-373-step3-background-polling.md)(4단계는 진행하며 추가) | Phase 5 | 진행 중(0단계 완료·병합, 1·2단계 구현·테스트·리뷰 완료, 3단계는 구현·테스트·리뷰까지 마쳤으나 실측으로 폐기·되돌림 — [1단계 기록](S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 기록](S15P21A506-373-step2-reaction-based-selection.md)·[3단계 폐기 기록](S15P21A506-373-step3-background-polling-abandoned.md) — push·MR은 오세진 님 지시 대기) |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
 GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).
@@ -75,6 +75,11 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
   구현·테스트·리뷰 완료(2026-09-16), 1단계와 같은 브랜치에 이어서 커밋. 댓글 선택을
   반응 수 기반(동률은 최신, 이슈 작성자 최초 댓글은 특례)으로 교체 — PRD §4.1이 위임한
   선택 정책 세부 설계를 Spec에서 확정. 여전히 push·MR 보류.
+- [Phase 6, 3단계 — S15P21A506-373 (폐기)](S15P21A506-373-step3-background-polling-abandoned.md)
+  구현·테스트·리뷰(2026-09-16)까지 전부 통과했으나, 실네트워크 확인 결과 GMS 프록시가
+  `GET /v1/responses/{id}` 폴링을 지원하지 않아(매번 HTTP 500) **폐기하고
+  되돌렸다** — 이대로 배포하면 요약이 100% 실패하게 되는 상황이라 오세진 님이 명시적으로
+  중단 지시. 코드는 커밋된 적이 없어 `git restore`로만 복원. 4단계로 직행한다.
 
 ## WIP=1 예외 기록
 

@@ -183,3 +183,46 @@ summarize(issue, budget)
 **승인**: 2026-09-16, 오세진 님 — "진행하자" 지시로 착수. push·MR은 계속 보류(로컬
 커밋까지만). 외부 의존성(GMS의 background/폴링 지원 여부) 확인은 구현 직후 실네트워크
 테스트로 이 Phase 안에서 직접 닫는다.
+
+## §6 실측 결과 — 2026-09-16, 폐기 결정
+
+구현을 완료하고(단위 테스트 12/12, `CommunityAcceptanceIntegrationTest` R11/R12 17/17,
+`/code-review` finding 0건) `GMS_API_KEY`로 `GmsCommunitySummarizerRealNetworkTest`
+2개를 실행했다. **둘 다 `FAILED`로 끝났다.**
+
+진단 로그(0단계에서 추가해 둔 것이 그대로 도움이 됨):
+
+```
+GMS 폴링 실패: issue=7, status=500
+GMS 폴링이 예산 안에 완료되지 않음: issue=7
+GMS 폴링 실패: issue=479, status=500
+```
+
+**해석**: 초기 POST(`background:true`)는 성공해 `queued`+`id`로 응답했다 — GMS가
+`background:true` 파라미터 자체는 받아준다는 뜻이다. 하지만 이후 `GET
+{endpoint}/{id}` 폴링 요청이 매번 HTTP 500으로 실패했다 — GMS 프록시가 상태 조회
+엔드포인트는 프록시하지 않는 것으로 보인다.
+
+**폐기 결정 — 2026-09-16, 오세진 님**: "이런 작업은 아예 하지 말자. 되돌리고 앞으로도
+하지 말자." 이유: `background:true`를 켜면 초기 POST가 더 이상 `status=completed`로
+오지 않는데(항상 `queued`), 폴링도 이 GMS 프록시에서는 항상 실패하므로 **이 상태로
+배포하면 GMS 요약이 100% 실패한다** — 3단계 착수 전(동기 호출)보다 명백히 나쁜
+결과다. 코드 자체는 안전하게 저하됐지만(크래시·행 없음, `/code-review`도 로직
+정확성은 확인함), 그것과 별개로 이 접근 자체가 이 GMS 프록시 환경에서 성립하지
+않는다.
+
+**되돌림**: `backend/src/main/java/.../GmsCommunitySummarizer.java`·
+`GmsCommunitySummarizerTest.java`의 3단계 변경분을 커밋 전에 `git restore`로 전부
+되돌렸다(로컬 커밋에 3단계 코드가 한 번도 들어간 적 없어 revert 커밋이 아니라 단순
+작업트리 복원으로 충분했다) — 2단계 종료 시점 상태로 정확히 복귀, 회귀 테스트로 확인.
+
+**이 결정의 범위**: ⑤-A(예산 내 폴링)만 폐기한다. ④(4단계, Map-Reduce)는 별개
+접근이라(계획 문서 §4.2 — "④와 ⑤-A 사이에 구현 순서상의 하드 의존 없음") 이 결정의
+영향을 받지 않는다. ⑤-B(진짜 cross-request 비동기)는 원래도 보류 상태였고, ⑤-A가
+막힌 지금 재검토할 유인이 더 줄었다 — 다만 이 역시 별도 판단이 필요하면 사용자가
+다시 결정한다.
+
+**향후 재시도 조건**: GMS 프록시가 업데이트돼 `GET /v1/responses/{id}`를 지원하게
+되거나, 다른 폴링 URL 형태(쿼리 파라미터 기반 등)가 확인되지 않는 한 이 접근을 다시
+시도하지 않는다 — "그때그때 될 것 같아서" 재시도하지 않고, 명시적인 근거(새 GMS
+공지·재실측)가 있을 때만 재개한다.
