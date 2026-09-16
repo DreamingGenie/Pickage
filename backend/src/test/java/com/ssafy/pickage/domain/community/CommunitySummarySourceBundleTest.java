@@ -108,6 +108,69 @@ class CommunitySummarySourceBundleTest {
                 .doesNotContainKey(new TopicSummary.SourceRef("COMMENT", "second-author"));
     }
 
+    // --- S15P21A506-373 4단계: batches() ---------------------------------------------------
+
+    @Test
+    void 단일_bundle이_잘리지_않으면_batches는_빈_리스트를_반환한다() {
+        var comments = List.of(comment("c1", "other", 0, BASE));
+        assertThat(CommunitySummarySourceBundle.batches(issue("issue-author", comments))).isEmpty();
+    }
+
+    @Test
+    void 단일_bundle_예산을_넘는_이슈는_여러_배치로_나뉘고_배치_상한_안이면_전부_보존된다() {
+        // 200자 댓글 250개(50000자) — 단일 48000자 예산은 넘지만, 배치당(12000자) 여유가
+        // 충분해(배치 하나에 대략 55~60개) 배치 수 상한(5)에 걸리지 않고 전부 보존돼야 한다.
+        var comments = new ArrayList<CollectedComment>();
+        for (int i = 0; i < 250; i++)
+            comments.add(
+                    new CollectedComment(
+                            "c" + i,
+                            "user-other",
+                            "NONE",
+                            false,
+                            BASE.plusSeconds(i),
+                            "x".repeat(200),
+                            "other",
+                            0));
+        var batches = CommunitySummarySourceBundle.batches(issue("issue-author", comments));
+
+        assertThat(batches).isNotEmpty();
+        assertThat(batches.size()).isLessThanOrEqualTo(CommunityProperties.MAX_SUMMARY_BATCHES);
+        var selectedIds =
+                batches.stream()
+                        .flatMap(b -> b.issue().comments().stream())
+                        .map(CollectedComment::sourceCommentId)
+                        .toList();
+        assertThat(selectedIds).hasSize(250);
+        assertThat(new java.util.HashSet<>(selectedIds)).hasSize(250);
+        batches.forEach(
+                b -> {
+                    int len =
+                            b.issue().comments().stream()
+                                    .mapToInt(c -> c.body().codePointCount(0, c.body().length()))
+                                    .sum();
+                    assertThat(len).isLessThanOrEqualTo(CommunityProperties.SUMMARY_BATCH_CHAR_BUDGET);
+                    assertThat(b.limited()).isFalse();
+                });
+    }
+
+    @Test
+    void 배치_수_상한을_넘으면_남는_댓글은_버려지고_마지막_배치가_limited로_표시된다() {
+        // FULL_COMMENT(4000자)짜리 30개 — 배치 하나에 2~3개씩만 들어가 5배치로는 다 못 담는다.
+        var comments = new ArrayList<CollectedComment>();
+        for (int i = 0; i < 30; i++) comments.add(comment("c" + i, "other", 0, BASE.plusSeconds(i)));
+        var batches = CommunitySummarySourceBundle.batches(issue("issue-author", comments));
+
+        assertThat(batches).hasSize(CommunityProperties.MAX_SUMMARY_BATCHES);
+        var selectedIds =
+                batches.stream()
+                        .flatMap(b -> b.issue().comments().stream())
+                        .map(CollectedComment::sourceCommentId)
+                        .toList();
+        assertThat(selectedIds.size()).isLessThan(30);
+        assertThat(batches.get(batches.size() - 1).limited()).isTrue();
+    }
+
     @Test
     void 선택된_댓글은_반응_수_우선순위와_무관하게_항상_시각순으로_전달된다() {
         var newest = comment("newest", "other", 100, BASE.plusSeconds(300));

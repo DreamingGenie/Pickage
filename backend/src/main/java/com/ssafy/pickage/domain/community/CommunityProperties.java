@@ -67,4 +67,30 @@ public final class CommunityProperties {
      * CommentWindowResolver.TARGET_COMMENT_COUNT}와 별개로 둔다.
      */
     public static final int MAX_COMMENTS_PER_ISSUE = 100;
+
+    /**
+     * Map-Reduce(S15P21A506-373 4단계) 배치 하나의 문자 예산. {@link
+     * CommunitySummarySourceBundle#from}의 이슈 전체 48,000자 예산과 별개 — 이슈가 그 예산을
+     * 넘길 때만({@code limited()}) {@link CommunitySummarySourceBundle#batches}가 이 값으로
+     * 배치를 나눈다.
+     */
+    public static final int SUMMARY_BATCH_CHAR_BUDGET = 12000;
+
+    /**
+     * 이슈 하나당 만들 수 있는 배치 수 상한. 이 이상 남는 댓글은 버리고 저하(limited)로
+     * 표시한다 — 48,000자를 넘으면 버리는 것과 같은 종류의 저하.
+     */
+    public static final int MAX_SUMMARY_BATCHES = 5;
+
+    /**
+     * {@link BoundedCommunitySummarizer}의 GMS 호출 worker 수. {@link
+     * com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinator}가 쓰는 {@link
+     * #EXECUTOR_WORKER_COUNT}(refresh task 자체의 동시 실행 풀)와는 다른 별개의 풀이다 —
+     * Map-Reduce로 이슈 하나가 N+1번 GMS를 호출하게 되면서 기존 2로는 배치 호출이 곧바로 큐잉·
+     * 거부되므로 4단계에서 상향한다.
+     */
+    public static final int SUMMARIZER_WORKER_COUNT = 6;
+
+    /** {@link #SUMMARIZER_WORKER_COUNT} 워커가 꽉 찼을 때 대기할 수 있는 큐 용량. */
+    public static final int SUMMARIZER_QUEUE_CAPACITY = 8;
 }

@@ -296,6 +296,11 @@ class CommunityControllerIntegrationTest {
             return new BoundedCommunitySummarizer(s);
         }
 
+        @Bean
+        CommunityMapReduceSummarizer communityMapReduceSummarizer(BoundedCommunitySummarizer bounded) {
+            return new CommunityMapReduceSummarizer(bounded);
+        }
+
         @Bean(destroyMethod = "close")
         CommunitySnapshotPublisher publisher(CommunitySnapshotRepository r) {
             return new CommunitySnapshotPublisher(r);
@@ -305,7 +310,7 @@ class CommunityControllerIntegrationTest {
         CommunityRefreshOrchestrator communityRefreshOrchestrator(
                 RepositoryVerificationService repositoryVerificationService,
                 IssueCollectionService issueCollectionService,
-                BoundedCommunitySummarizer communitySummarizer,
+                CommunityMapReduceSummarizer communitySummarizer,
                 CommunitySnapshotPublisher communitySnapshotRepository) {
             return new CommunityRefreshOrchestrator(
                     repositoryVerificationService,

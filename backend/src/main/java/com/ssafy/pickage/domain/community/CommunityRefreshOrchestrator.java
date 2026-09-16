@@ -18,13 +18,13 @@ public class CommunityRefreshOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(CommunityRefreshOrchestrator.class);
     private final RepositoryVerificationService verification;
     private final IssueCollectionService collection;
-    private final BoundedCommunitySummarizer summarizer;
+    private final CommunityMapReduceSummarizer summarizer;
     private final CommunitySnapshotPublisher publisher;
 
     public CommunityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
-            BoundedCommunitySummarizer summarizer,
+            CommunityMapReduceSummarizer summarizer,
             CommunitySnapshotPublisher publisher) {
         this.verification = verification;
         this.collection = collection;
@@ -115,15 +115,15 @@ public class CommunityRefreshOrchestrator {
             task.advanceStage(RefreshStage.GMS);
             var budget = task.collectionTimeLeft();
             var futures =
-                    pending.stream().map(p -> summarizer.summarizeAsync(p.sources(), budget)).toList();
-            var candidates = futures.stream().map(CompletableFuture::join).toList();
+                    pending.stream().map(p -> summarizer.summarizeAsync(p.issue(), budget)).toList();
+            var attempts = futures.stream().map(CompletableFuture::join).toList();
 
             task.advanceStage(RefreshStage.VALIDATING);
             var topics = new ArrayList<TopicPayload>();
             for (int i = 0; i < pending.size(); i++) {
                 var issue = pending.get(i).issue();
-                var sources = pending.get(i).sources();
-                var summary = CommunitySummaryValidator.validate(sources, candidates.get(i));
+                var attempt = attempts.get(i);
+                var summary = CommunitySummaryValidator.validate(attempt.bundle(), attempt.raw());
                 if (summary.status() == SummaryStatus.FAILED)
                     limitations.add(
                             CommunityPolicy.limitation("SUMMARY_UNAVAILABLE", issue.issueNumber()));

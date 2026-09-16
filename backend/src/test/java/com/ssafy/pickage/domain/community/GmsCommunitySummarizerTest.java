@@ -245,6 +245,94 @@ class GmsCommunitySummarizerTest {
         assertThat(schema.path("required")).extracting(JsonNode::asText).contains("flow_support");
     }
 
+    // --- S15P21A506-373 4단계: reduce() ---------------------------------------------------
+
+    private static final String VALID_REDUCE_PAYLOAD =
+            """
+            {
+              "title_ko": "합성된 제목",
+              "summary_ko": "두 배치를 합성한 최종 요약이다.",
+              "summary_support": [{"type": "ISSUE_BODY", "id": "701"}],
+              "flow": [
+                {"text": "합성된 흐름"}
+              ],
+              "flow_support": [{"flow_index": 0, "type": "COMMENT", "id": "c1"}],
+              "messages": [
+                {"source_comment_id": "c1", "kind": "USER_SOLUTION", "text": "합성된 메시지"}
+              ]
+            }
+            """;
+
+    private CommunitySummarizer.BatchSummary batchSummary(String... ids) {
+        var refs = new java.util.LinkedHashSet<TopicSummary.SourceRef>();
+        for (String id : ids) refs.add(new TopicSummary.SourceRef("COMMENT", id));
+        refs.add(new TopicSummary.SourceRef("ISSUE_BODY", "701"));
+        var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", "701"));
+        var summary =
+                new TopicSummary(
+                        "배치 제목",
+                        "배치 요약",
+                        List.of(new com.ssafy.pickage.domain.community.payload.DiscussionStepPayload("배치 흐름")),
+                        List.of(),
+                        SummaryStatus.READY,
+                        support,
+                        List.of(support));
+        return new CommunitySummarizer.BatchSummary(summary, refs);
+    }
+
+    @Test
+    void reduce_정상_응답을_TopicSummary로_파싱한다() {
+        server.respond(PATH, 200, gmsEnvelope(VALID_REDUCE_PAYLOAD), java.util.Map.of());
+
+        TopicSummary summary = client().reduce(List.of(batchSummary("c1"), batchSummary("c2")), BUDGET);
+
+        assertThat(summary.status()).isEqualTo(SummaryStatus.READY);
+        assertThat(summary.titleKo()).isEqualTo("합성된 제목");
+        assertThat(summary.messages()).hasSize(1);
+        assertThat(summary.messages().get(0).kind()).isEqualTo("USER_SOLUTION");
+        assertThat(summary.flowSupport())
+                .containsExactly(List.of(new TopicSummary.SourceRef("COMMENT", "c1")));
+    }
+
+    @Test
+    void reduce_요청_스키마의_id는_주어진_source_id로만_제한된다() {
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_REDUCE_PAYLOAD), captured::set);
+
+        client().reduce(List.of(batchSummary("c1"), batchSummary("c2")), BUDGET);
+
+        JsonNode request = readTree(captured.get());
+        assertThat(request.path("input").get(0).path("role").asText()).isEqualTo("system");
+        JsonNode schema = request.path("text").path("format").path("schema");
+        assertThat(schema.path("properties").has("issue_number")).isFalse();
+        JsonNode idEnum =
+                schema.path("properties")
+                        .path("summary_support")
+                        .path("items")
+                        .path("properties")
+                        .path("id")
+                        .path("enum");
+        assertThat(idEnum).extracting(JsonNode::asText).containsExactlyInAnyOrder("c1", "c2", "701");
+    }
+
+    @Test
+    void reduce_비200_응답은_실패로_처리한다() {
+        server.respond(PATH, 500, "{\"statusCode\":500}", java.util.Map.of());
+
+        TopicSummary summary = client().reduce(List.of(batchSummary("c1")), BUDGET);
+
+        assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
+    }
+
+    @Test
+    void reduce_status가_completed가_아니면_실패로_처리한다() {
+        server.respond(PATH, 200, "{\"status\":\"incomplete\",\"output\":[]}", java.util.Map.of());
+
+        TopicSummary summary = client().reduce(List.of(batchSummary("c1")), BUDGET);
+
+        assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
+    }
+
     private static JsonNode readTree(String json) {
         try {
             return new ObjectMapper().readTree(json);
