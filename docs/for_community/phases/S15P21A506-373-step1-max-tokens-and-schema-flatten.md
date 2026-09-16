@@ -32,8 +32,13 @@
   실제로 안 바뀌었음을 회귀로 확인).
 - `./gradlew integrationTest --tests "*.CommunityAcceptanceIntegrationTest"` — 17/17
   통과(R11/R12 계열 포함), 로컬 postgres 컨테이너 사용.
-- 실네트워크 재확인(`GmsCommunitySummarizerRealNetworkTest`)은 이번 커밋에 포함하지
-  않음 — 오세진 님이 필요 시 별도로 `GMS_API_KEY`로 직접 실행 예정.
+- **실네트워크 재확인 완료(2026-09-16, 오세진 님 환경)**: `GmsCommunitySummarizerRealNetworkTest`
+  2개 테스트를 새 평탄화 스키마(`MAX_OUTPUT_TOKENS=4096`, 최상위 `flow_support`)로
+  재실행, 둘 다 `status=READY`. 단일 댓글 fixture의 `flowSupport`가
+  `[[SourceRef[type=ISSUE_BODY, id=701]], [SourceRef[type=COMMENT,
+  id=9007199254740993]]]`로 정확히 재조립됨을 확인 — `flow_index` 역참조 파싱이
+  mock이 아니라 실제 GMS 응답에서도 정상 동작한다. 대형 fixture도 `status=READY`
+  유지(flow.size=5, messages.size=5, 0단계 결과와 동일 수준).
 
 ## 리뷰 결과 (`/code-review`)
 
