@@ -30,15 +30,13 @@ public final class CommunityMapReduceSummarizer {
     }
 
     public CompletableFuture<SummaryAttempt> summarizeAsync(CollectedIssue issue, Duration budget) {
-        var single = CommunitySummarySourceBundle.from(issue);
-        // batches()는 댓글이 전부 비었거나 blank인 이슈(제목/본문만으로 이미 limited)에서는
-        // 빈 리스트를 돌려줄 수 있다 — 이때는 배치가 아니라 단일 호출 경로로 그대로 떨어진다.
-        var batches = single.limited() ? CommunitySummarySourceBundle.batches(issue) : List.<CommunitySummarySourceBundle>of();
-        if (batches.isEmpty())
-            return bounded.summarizeAsync(single, budget)
-                    .thenApply(raw -> new SummaryAttempt(single, raw));
-
-        return CompletableFuture.supplyAsync(() -> mapReduce(batches, budget));
+        // 2026-09-16 오세진 님 결정 — 논의 전체를 배치로 나눠 재구성하는 대신
+        // CommunitySummarySourceBundle.highlights(반응 최다 댓글 + 유지관리자 답글만)로 입력을
+        // 항상 작게 유지한다. 이 bundle은 사실상 48,000자를 넘길 일이 없어 배치(Map-Reduce)가
+        // 필요 없다 — batches()/mapReduce()는 코드는 남겨두되(추후 재사용 가능) 이 경로에서는
+        // 더 이상 호출하지 않는다.
+        var single = CommunitySummarySourceBundle.highlights(issue);
+        return bounded.summarizeAsync(single, budget).thenApply(raw -> new SummaryAttempt(single, raw));
     }
 
     private SummaryAttempt mapReduce(List<CommunitySummarySourceBundle> batches, Duration budget) {

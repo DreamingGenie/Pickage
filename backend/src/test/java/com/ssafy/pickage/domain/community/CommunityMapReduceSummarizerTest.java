@@ -19,8 +19,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * S15P21A506-373 4단계 — {@link CommunityMapReduceSummarizer}가 제한되지 않은 이슈는 기존 단일
- * 호출 경로를 그대로 쓰고, 제한된 이슈만 배치 Map(+배치별 검증) → Reduce로 처리하는지 검증한다.
+ * S15P21A506-373 4단계 — {@link CommunityMapReduceSummarizer}가 이슈 크기와 무관하게 항상
+ * {@link CommunitySummarySourceBundle#highlights}(반응 최다 댓글 + 유지관리자 답글)만으로 단일
+ * 호출한다는 걸 검증한다. 2026-09-16 오세진 님 결정으로 배치(Map-Reduce) 경로는 이 진입점에서
+ * 더 이상 쓰지 않는다 — {@code batches()}/{@code mapReduce()} 자체는 코드에 남아 있다
+ * (재사용 가능성 대비, 이 경로에서 호출만 안 함).
  */
 class CommunityMapReduceSummarizerTest {
 
@@ -59,7 +62,7 @@ class CommunityMapReduceSummarizerTest {
                 "본문");
     }
 
-    /** 4000자 댓글 15개(60,000자) — 단일 48,000자 예산은 넘지만, 배치당(12,000자) 2~3개씩만 들어가 5배치 상한에 걸린다. */
+    /** 4000자 댓글 15개 — 예전 배치(Map-Reduce) 경로였다면 여러 번 호출됐을 만큼 큰 이슈. */
     private static CollectedIssue bigIssue() {
         var comments = new ArrayList<CollectedComment>();
         for (int i = 0; i < 15; i++)
@@ -103,133 +106,71 @@ class CommunityMapReduceSummarizerTest {
     }
 
     @Test
-    void 댓글이_없어도_본문만으로_limited인_이슈는_배치_대신_단일_호출_경로로_떨어진다() {
-        // 본문이 4000자를 넘어 from().limited()는 true지만 댓글이 하나도 없어 batches()는
-        // 빈 리스트를 돌려준다(/code-review 지적) — unionBundle()이 빈 리스트를 받아
-        // IndexOutOfBoundsException을 던지지 않고, 단일 호출 경로로 안전하게 떨어져야 한다.
-        var issue =
-                new CollectedIssue(
-                        1,
-                        "제목",
-                        "open",
-                        BASE,
-                        "issue-author",
-                        0,
-                        0,
-                        CommentCollectionStatus.COMPLETE,
-                        List.of(),
-                        List.of(),
-                        "701",
-                        BASE,
-                        "issue-author-id",
-                        "x".repeat(5000));
+    void 작은_이슈는_highlights_bundle로_단일_호출한다() {
         var delegate = RecordingSummarizer.alwaysReady();
 
-        var attempt = mapReduce(delegate).summarizeAsync(issue, BUDGET).join();
-
-        assertThat(delegate.summarizeCalls).hasSize(1);
-        assertThat(delegate.reduceCalls.get()).isZero();
-        assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
-    }
-
-    @Test
-    void 제한되지_않은_이슈는_배치_없이_기존_단일_호출_경로를_그대로_쓴다() {
-        var delegate = RecordingSummarizer.alwaysReady();
         var attempt = mapReduce(delegate).summarizeAsync(smallIssue(), BUDGET).join();
 
         assertThat(delegate.summarizeCalls).hasSize(1);
         assertThat(delegate.reduceCalls.get()).isZero();
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
-        assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.from(smallIssue()));
+        assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(smallIssue()));
     }
 
     @Test
-    void 제한된_이슈는_배치별로_검증된_결과만_모아_Reduce를_한_번_호출한다() {
+    void 댓글이_많은_이슈도_배치_없이_highlights_bundle로_단일_호출한다() {
+        // 2026-09-16 오세진 님 결정 — 논의 전체를 배치로 나눠 재구성하지 않고, 이슈 크기와
+        // 무관하게 항상 반응 최다 댓글 + 유지관리자 답글만 골라 단일 호출한다.
         var delegate = RecordingSummarizer.alwaysReady();
+
         var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
 
-        int batchCount = CommunitySummarySourceBundle.batches(bigIssue()).size();
-        assertThat(delegate.summarizeCalls).hasSize(batchCount);
-        assertThat(delegate.reduceCalls.get()).isEqualTo(1);
-        assertThat(delegate.lastReduceParts).hasSize(batchCount); // 전부 검증 통과
-        assertThat(attempt.bundle().sources()).isNotEmpty();
+        assertThat(delegate.summarizeCalls).hasSize(1);
+        assertThat(delegate.reduceCalls.get()).isZero();
+        assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
+        assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(bigIssue()));
+        assertThat(attempt.bundle().issue().comments())
+                .as("highlights는 댓글 최대 2개만 골라야 한다")
+                .hasSizeLessThanOrEqualTo(2);
     }
 
     @Test
-    void Reduce에_넘기는_BatchSummary는_support가_비지_않은_raw_결과를_담는다() {
-        // 실네트워크 실측(2026-09-16)에서 발견한 버그 회귀 시험 — CommunitySummaryValidator.
-        // validate()는 검증에 성공해도 반환하는 TopicSummary의 summarySupport/flowSupport를
-        // 항상 List.of()로 비운다(최종 payload엔 근거가 필요 없어서). Reduce 입력을 만들 때
-        // 이 "비워진" validated 결과를 그대로 담으면 GmsCommunitySummarizer.renderParts가
-        // flowSupport().get(f)에서 빈 리스트를 인덱싱해 IndexOutOfBoundsException을 던진다 —
-        // BatchSummary에는 support가 살아있는 raw를 담아야 한다.
-        var delegate = RecordingSummarizer.alwaysReady();
-        mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
-
-        assertThat(delegate.lastReduceParts).isNotEmpty();
-        for (var part : delegate.lastReduceParts) {
-            assertThat(part.summary().flowSupport())
-                    .as("flowSupport 크기가 discussionFlow와 같아야(=비어있지 않아야) 한다")
-                    .hasSameSizeAs(part.summary().discussionFlow());
-            assertThat(part.summary().summarySupport()).isNotEmpty();
-        }
-    }
-
-    @Test
-    void 모든_배치가_검증에_실패하면_Reduce를_호출하지_않고_실패를_반환한다() {
+    void 요약이_실패하면_그대로_실패를_반환한다() {
         var delegate = RecordingSummarizer.alwaysFailed();
+
         var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
 
         assertThat(delegate.reduceCalls.get()).isZero();
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.FAILED);
     }
 
-    @Test
-    void 일부_배치만_검증을_통과하면_Reduce에는_그_배치들만_넘어간다() {
-        var delegate = RecordingSummarizer.failFirstCall();
-        var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
-
-        int batchCount = CommunitySummarySourceBundle.batches(bigIssue()).size();
-        assertThat(delegate.reduceCalls.get()).isEqualTo(1);
-        assertThat(delegate.lastReduceParts).hasSize(batchCount - 1);
-        assertThat(attempt).isNotNull();
-    }
-
     /** 호출 인자·횟수를 기록하는 {@link CommunitySummarizer} 대역. */
     private static final class RecordingSummarizer implements CommunitySummarizer {
         final List<CollectedIssue> summarizeCalls = new CopyOnWriteArrayList<>();
         final AtomicInteger reduceCalls = new AtomicInteger();
-        final AtomicInteger summarizeCallIndex = new AtomicInteger();
-        volatile List<BatchSummary> lastReduceParts = List.of();
-        private final java.util.function.IntPredicate failOnCallIndex;
+        private final boolean fail;
 
-        private RecordingSummarizer(java.util.function.IntPredicate failOnCallIndex) {
-            this.failOnCallIndex = failOnCallIndex;
+        private RecordingSummarizer(boolean fail) {
+            this.fail = fail;
         }
 
         static RecordingSummarizer alwaysReady() {
-            return new RecordingSummarizer(i -> false);
+            return new RecordingSummarizer(false);
         }
 
         static RecordingSummarizer alwaysFailed() {
-            return new RecordingSummarizer(i -> true);
-        }
-
-        static RecordingSummarizer failFirstCall() {
-            return new RecordingSummarizer(i -> i == 0);
+            return new RecordingSummarizer(true);
         }
 
         @Override
         public TopicSummary summarize(CollectedIssue issue, Duration budget) {
             summarizeCalls.add(issue);
-            int index = summarizeCallIndex.getAndIncrement();
-            return failOnCallIndex.test(index) ? TopicSummary.failed() : readySummaryCitingIssueBody(issue);
+            return fail ? TopicSummary.failed() : readySummaryCitingIssueBody(issue);
         }
 
         @Override
         public TopicSummary reduce(List<BatchSummary> parts, Duration budget) {
             reduceCalls.incrementAndGet();
-            lastReduceParts = parts;
             return readySummaryCitingIssueBody(bigIssue());
         }
     }

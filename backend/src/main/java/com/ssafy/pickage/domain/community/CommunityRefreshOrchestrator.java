@@ -101,7 +101,7 @@ public class CommunityRefreshOrchestrator {
             record PendingTopic(CollectedIssue issue, CommunitySummarySourceBundle sources) {}
             var pending = new ArrayList<PendingTopic>();
             for (var issue : success.topics()) {
-                var sources = CommunitySummarySourceBundle.from(issue);
+                var sources = CommunitySummarySourceBundle.highlights(issue);
                 if (sources.limited())
                     limitations.add(
                             CommunityPolicy.limitation(
