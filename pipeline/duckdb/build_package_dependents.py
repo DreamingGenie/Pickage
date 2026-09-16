@@ -65,10 +65,11 @@ OptionalDependencies 세 가지만 담는다. 그래서 주로 개발 의존으�
 한계는 datasets/package_dependents_260915/README.md 에 적었다 —
 직접 의존만·선언 기반·생존 편향·대표 릴리스 조건 차이.
 """
+import argparse
 import json
 import os
+import re
 import sys
-import argparse
 import time
 from pathlib import Path
 
@@ -91,9 +92,19 @@ ap.add_argument("--label", default=None,
                 help="회차 이름. 주면 출력 폴더가 갈린다. 기본 회차(상위 10만)는 생략한다")
 args = ap.parse_args()
 
+# label 은 폴더 이름이 되고 MinIO 객체 키에도 그대로 들어간다. 위 docstring 이 규칙을
+# 적어 두는 것만으로는 막지 못해서(2026-09-16 한글 label 로 폴더를 만들었다가 지웠다)
+# 여기서 거부한다.
+if args.label is not None and not re.fullmatch(r"[a-z0-9_]+", args.label):
+    ap.error("--label 은 영문 소문자·숫자·밑줄만 쓴다 (폴더 이름이자 MinIO 객체 키가 된다)")
+
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
-TARGETS = args.targets
+# 상대경로는 실행 위치가 아니라 저장소 루트 기준으로 읽는다. 이 파일의 다른 경로가 모두
+# ROOT 기준이라 --targets 만 cwd 기준이면 어디서 실행하느냐로 결과가 갈린다.
+TARGETS = args.targets if os.path.isabs(args.targets) else f"{ROOT}/{args.targets}"
+if not os.path.isfile(TARGETS):
+    ap.error(f"대상 목록을 찾을 수 없다: {TARGETS}")
 
 # 출력 폴더는 회차마다 갈라야 한다. pipeline/minio/ingest_derived.py 가 root 의 *.parquet 를
 # 통째로 올리므로, 한 폴더에 두 회차를 섞으면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어
