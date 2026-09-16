@@ -22,9 +22,11 @@ public final class CommunitySummaryValidator {
             require(
                     summary.status() == SummaryStatus.READY
                             || summary.status() == SummaryStatus.PARTIAL);
+            String titleKo = stripLinks(summary.titleKo());
+            String summaryKo = stripLinks(summary.summaryKo());
             require(
-                    CommunitySnapshotValidator.plain(summary.titleKo(), 200)
-                            && CommunitySnapshotValidator.plain(summary.summaryKo(), 500));
+                    CommunitySnapshotValidator.plain(titleKo, 200)
+                            && CommunitySnapshotValidator.plain(summaryKo, 500));
             support(bundle, summary.summarySupport());
             require(
                     summary.discussionFlow() != null
@@ -33,20 +35,22 @@ public final class CommunitySummaryValidator {
             require(
                     summary.flowSupport() != null
                             && summary.flowSupport().size() == summary.discussionFlow().size());
+            var flow = new ArrayList<DiscussionStepPayload>();
             for (int i = 0; i < summary.discussionFlow().size(); i++) {
-                require(
-                        CommunitySnapshotValidator.plain(
-                                summary.discussionFlow().get(i).text(), 200));
+                String stepText = stripLinks(summary.discussionFlow().get(i).text());
+                require(CommunitySnapshotValidator.plain(stepText, 200));
                 support(bundle, summary.flowSupport().get(i));
+                flow.add(new DiscussionStepPayload(stepText));
             }
             require(summary.messages() != null && summary.messages().size() <= 3);
             var messages = new ArrayList<MessagePayload>();
             var seen = new HashSet<String>();
             for (var m : summary.messages()) {
+                String messageText = m == null ? null : stripLinks(m.text());
                 require(
                         m != null
                                 && seen.add(m.sourceCommentId())
-                                && CommunitySnapshotValidator.plain(m.text(), 300));
+                                && CommunitySnapshotValidator.plain(messageText, 300));
                 require(
                         m.kind() != null
                                 && Set.of("DISCUSSION", "USER_SOLUTION").contains(m.kind()));
@@ -73,15 +77,15 @@ public final class CommunitySummaryValidator {
                                 c.authorLogin() != null && author,
                                 m.kind(),
                                 c.createdAt(),
-                                m.text()));
+                                messageText));
             }
             messages.sort(
                     Comparator.comparing(MessagePayload::createdAt)
                             .thenComparing(m -> new BigInteger(m.sourceCommentId())));
             return new TopicSummary(
-                    summary.titleKo(),
-                    summary.summaryKo(),
-                    List.copyOf(summary.discussionFlow()),
+                    titleKo,
+                    summaryKo,
+                    List.copyOf(flow),
                     List.copyOf(messages),
                     summary.status(),
                     List.of(),
@@ -96,6 +100,20 @@ public final class CommunitySummaryValidator {
                     summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();
         }
+    }
+
+    /**
+     * URL·마크다운 링크만 "(링크 생략)"으로 지우고 나머지 텍스트는 그대로 남긴다(2026-09-16
+     * 오세진 님 결정 — 실측에서 axios/prisma/vitest처럼 보안 권고문·문서 링크가 많은 이슈가
+     * 이 이유만으로 요약 전체가 FAILED로 떨어지는 사례가 잦았다). {@code <}/{@code >}(HTML
+     * 태그, XSS 방어)는 여기서 건드리지 않는다 — {@link CommunitySnapshotValidator#plain}이
+     * 이 메서드가 돌려준 텍스트에 대해서도 그대로 검사해 걸러낸다.
+     */
+    private static String stripLinks(String text) {
+        if (text == null) return null;
+        return text.replaceAll("\\[[^]]*]\\([^)]*\\)", "(링크 생략)")
+                .replaceAll("(?i)https?://\\S+", "(링크 생략)")
+                .replaceAll("(?i)\\bwww\\.\\S+", "(링크 생략)");
     }
 
     private static void support(
