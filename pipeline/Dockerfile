@@ -28,6 +28,10 @@ ENV PYTHONUNBUFFERED=1
 # 글자에 프로세스가 죽는다. 서버에서는 무해하고, 두 환경의 동작을 같게 만든다.
 ENV PYTHONIOENCODING=utf-8
 
+# ⚠ postgresql-client 도 같이 깐다. app 노드의 similarity-loader 가 load.py 의
+#   --psql 모드로 postgres:5432 에 붙는다 (S15P21A506-371). data 노드의 수집
+#   런타임에서는 안 쓰지만 같은 이미지라 함께 들어간다 — 몇 MB 다.
+
 # ── gcloud CLI ────────────────────────────────────────────────
 #
 # gcs_sync 단계가 `gcloud storage rsync` 를 부른다. BigQuery 는 파이썬 클라이언트로
@@ -43,7 +47,7 @@ RUN apt-get update \
       "https://packages.cloud.google.com/apt cloud-sdk main" \
       > /etc/apt/sources.list.d/google-cloud-sdk.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends google-cloud-cli \
+ && apt-get install -y --no-install-recommends google-cloud-cli postgresql-client \
  && apt-get purge -y gnupg \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
