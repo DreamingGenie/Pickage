@@ -24,7 +24,7 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 | `status.py` | 진행 상태 한 화면(실행 여부·진행률·성공/미존재/전체삭제/실패·평균/최대 문서 크기·버전 행 수·속도·429·ETA). **`--shards N` 을 주면 샤드를 합산**해 전체 진행률·완료 예상 시각을 함께 낸다. `--watch` 60초 갱신, `--refresh-parquet` 로 DuckDB UI 뷰까지 최신화 |
 | `test_collect.py` | 단위 시험. `python -m unittest discover -s pipeline/collectors/registry -v`. 파싱 계약(unpublish 행 NULL·비버전 time 키·deprecated 정규화)과 리뷰에서 나온 함정(쓰기 전 인코딩 확인, cp949 로그, 0바이트·잘린 gzip, 출력 경로 방어)을 고정한다 |
 | `start_registry.cmd` | 직렬 1개로 시작·재시작(더블클릭). 이미 돌고 있으면 새로 띄우지 않음. `OSS_SHIFT_UA_CONTACT` 없으면 안내 후 종료. 간격은 파일 머리의 `INTERVAL` |
-| `start_registry_sharded.cmd` | **4분할로 시작·재시작(더블클릭).** 대상을 나눈 뒤 `collect.py` 를 샤드 수만큼 띄운다. 샤드 수·기준 run 이름은 파일 머리의 `SHARDS`·`RUN` |
+| `start_registry_sharded.cmd` | **4분할로 시작·재시작(더블클릭).** 대상을 나눈 뒤 `collect.py` 를 샤드 수만큼 띄운다. 실행 검사는 **샤드별**이라, 하나만 죽었을 때 다시 더블클릭하면 그 하나만 이어서 띄운다. 이 RUN 의 샤드가 아닌 수집기가 돌고 있으면 아무것도 띄우지 않는다. 샤드 수·기준 run 이름은 파일 머리의 `SHARDS`·`RUN` |
 | `status_watch.cmd` | 현황 창(더블클릭). 60초 갱신, 닫아도 수집기 영향 없음 |
 | `status_watch_sharded.cmd` | 4분할 현황 창(더블클릭). 합계 진행률·완료 예상 시각 + 샤드별 상태 |
 
@@ -73,7 +73,12 @@ pipeline\collectors\registry\status_watch_sharded.cmd         # 현황 창 (더�
 ```
 
 Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 띄운다. **Claude Code 세션이 띄운 프로세스는 앱을 닫으면 함께 죽을 수 있으니**, 밤새 돌릴 때는 전진님 터미널이나 더블클릭으로 직접 띄운다. PC 절전 시 멈추고 깨어나면 이어간다.
-같은 IP 에서 수집기 두 개를 동시에 돌리지 않는다(429 만 늘어남). downloads 주간 갱신과 겹치면 하나가 끝난 뒤 시작한다.
+같은 IP 에서 수집기를 예정보다 많이 돌리지 않는다(429 만 늘어남). downloads 주간 갱신과 겹치면 하나가 끝난 뒤 시작한다.
+4분할 수집 중에 **429 가 보이면 `INTERVAL` 을 늘린다. `SHARDS` 를 줄이면 안 된다** — 대상 분배가 통째로 바뀌는데
+run 이름은 그대로라, 이미 받아 둔 샤드와 대상이 겹쳐 같은 패키지를 두 번 받고 `to_parquet` 의 이름 중복 검사에 걸려
+변환이 멈춘다. `SHARDS` 를 바꿔야 하면 `RUN` 도 새 이름으로 잡는다(받아 둔 것을 버리고 처음부터 받는다는 뜻이다).
+
+샤드 하나가 죽으면 `start_registry_sharded.cmd` 를 다시 더블클릭한다. 살아 있는 샤드는 건드리지 않고 죽은 것만 채운다.
 
 ## 출력 형식
 

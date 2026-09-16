@@ -152,6 +152,12 @@ def render(st, prefix=""):
     print(f"{prefix}  원본   {st['size_mb']:,.0f} MB  마지막 호출 {st['last_ts'] or '-'} UTC")
 
 
+def hours_to_hm(hours):
+    """소수 시간 → (시, 분). 시와 분을 따로 반올림하면 '2시간 60분' 이 나온다(0.9955h → 60분).
+    전체 분으로 먼저 반올림한 뒤 나눈다."""
+    return divmod(int(round(hours * 60)), 60)
+
+
 def bar(frac, width=32):
     """진행 막대. 콘솔이 cp949 로 잡히는 경로가 있어 ASCII 만 쓴다."""
     n = int(round(frac * width))
@@ -188,7 +194,7 @@ def render_total(sts):
     else:
         worst_h, worst_run = max(etas)
         end = datetime.fromtimestamp(time.time() + worst_h * 3600)
-        h, m = int(worst_h), int(round((worst_h - int(worst_h)) * 60))
+        h, m = hours_to_hm(worst_h)
         print(f"         남은 {h}시간 {m}분 → 완료 예상 {end.strftime('%m-%d %H:%M')}  "
               f"(가장 늦는 샤드 {worst_run}, 현재 속도 유지·PC 절전 없을 때)")
 

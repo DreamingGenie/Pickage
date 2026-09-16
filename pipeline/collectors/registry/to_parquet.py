@@ -130,7 +130,9 @@ def main():
         ck = os.path.join(r, "checkpoint.sqlite")
         assert os.path.exists(ck), f"checkpoint.sqlite not found under {r}. 패키지 상태의 정본이라 없으면 변환하지 않는다"
         ckpaths.append(ck)
-    raw_abs = ";".join(_p(r) for r in raws)
+    # 정렬해서 잇는다. 나열 순서만 다른 같은 집합이 '다른 run' 으로 보이면 --force 를 습관적으로 붙이게 되고,
+    # 그러면 스모크 run 이 본 결과를 덮어쓰는 것을 막으려던 가드가 무력해진다. raws 자체의 순서는 바꾸지 않는다.
+    raw_abs = ";".join(sorted(_p(r) for r in raws))
     marker = check_output_source(a.out, raw_abs, a.force)   # raw 를 건드리기 전에 확인한다
 
     # alive() 는 PowerShell 을 띄운다(최대 20초). 샤드마다 부르면 그만큼 늘어나므로 한 번만 재서 나눠 쓴다.

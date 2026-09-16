@@ -335,6 +335,19 @@ class ShardTargets(unittest.TestCase):
             self.assertEqual(f.readline().strip(), "rank,name,status")
 
 
+class RemainingTime(unittest.TestCase):
+    """현황 창의 '남은 N시간 M분'. 값이 맞아도 표기가 깨지면 계산이 틀린 것처럼 읽힌다."""
+
+    def test_minutes_never_reach_sixty(self):
+        """시와 분을 따로 반올림하면 2.9955h 가 '2시간 60분' 이 된다."""
+        self.assertEqual(status.hours_to_hm(2.9955), (3, 0))
+        self.assertEqual(status.hours_to_hm(3.0), (3, 0))
+        self.assertEqual(status.hours_to_hm(2.5), (2, 30))
+        self.assertEqual(status.hours_to_hm(0.01), (0, 1))
+        for h in (0.0, 0.004, 0.5, 1.999, 4.4999, 17.9):
+            self.assertLess(status.hours_to_hm(h)[1], 60, h)
+
+
 class AliveForRun(unittest.TestCase):
     """샤드별 실행 여부. 이름이 접두사로 겹치면 현황판이 엉뚱한 샤드를 RUNNING 으로 본다."""
 
