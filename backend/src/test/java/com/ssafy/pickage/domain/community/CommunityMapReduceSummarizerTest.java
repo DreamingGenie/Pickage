@@ -156,6 +156,26 @@ class CommunityMapReduceSummarizerTest {
     }
 
     @Test
+    void Reduce에_넘기는_BatchSummary는_support가_비지_않은_raw_결과를_담는다() {
+        // 실네트워크 실측(2026-09-16)에서 발견한 버그 회귀 시험 — CommunitySummaryValidator.
+        // validate()는 검증에 성공해도 반환하는 TopicSummary의 summarySupport/flowSupport를
+        // 항상 List.of()로 비운다(최종 payload엔 근거가 필요 없어서). Reduce 입력을 만들 때
+        // 이 "비워진" validated 결과를 그대로 담으면 GmsCommunitySummarizer.renderParts가
+        // flowSupport().get(f)에서 빈 리스트를 인덱싱해 IndexOutOfBoundsException을 던진다 —
+        // BatchSummary에는 support가 살아있는 raw를 담아야 한다.
+        var delegate = RecordingSummarizer.alwaysReady();
+        mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
+
+        assertThat(delegate.lastReduceParts).isNotEmpty();
+        for (var part : delegate.lastReduceParts) {
+            assertThat(part.summary().flowSupport())
+                    .as("flowSupport 크기가 discussionFlow와 같아야(=비어있지 않아야) 한다")
+                    .hasSameSizeAs(part.summary().discussionFlow());
+            assertThat(part.summary().summarySupport()).isNotEmpty();
+        }
+    }
+
+    @Test
     void 모든_배치가_검증에_실패하면_Reduce를_호출하지_않고_실패를_반환한다() {
         var delegate = RecordingSummarizer.alwaysFailed();
         var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();

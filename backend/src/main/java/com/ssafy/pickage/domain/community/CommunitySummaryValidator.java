@@ -3,11 +3,16 @@ package com.ssafy.pickage.domain.community;
 import com.ssafy.pickage.domain.community.dto.SummaryStatus;
 import com.ssafy.pickage.domain.community.payload.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigInteger;
 import java.util.*;
 
 /** 모델이 주장한 작성자/역할/시각은 사용하지 않고 전달했던 source에서만 복원한다. */
 public final class CommunitySummaryValidator {
+    private static final Logger log = LoggerFactory.getLogger(CommunitySummaryValidator.class);
+
     private CommunitySummaryValidator() {}
 
     public static TopicSummary validate(CommunitySummarySourceBundle bundle, TopicSummary summary) {
@@ -82,6 +87,13 @@ public final class CommunitySummaryValidator {
                     List.of(),
                     List.of());
         } catch (RuntimeException e) {
+            log.warn(
+                    "요약 검증 실패: {} — flow={}, flowSupport={}, messages={}, summarySupport={}",
+                    e.getClass().getSimpleName(),
+                    summary == null ? null : summary.discussionFlow().size(),
+                    summary == null ? null : summary.flowSupport().size(),
+                    summary == null ? null : summary.messages().size(),
+                    summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();
         }
     }

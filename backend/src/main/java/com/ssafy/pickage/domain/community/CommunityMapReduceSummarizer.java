@@ -52,10 +52,16 @@ public final class CommunityMapReduceSummarizer {
         for (int i = 0; i < batches.size(); i++) {
             var raw = futures.get(i).join();
             var validated = CommunitySummaryValidator.validate(batches.get(i), raw);
+            // validate()가 돌려주는 객체는 summarySupport/flowSupport를 의도적으로 비운다
+            // (최종 payload에는 근거가 필요 없어서, CommunitySummaryValidator.java 참고) —
+            // 그래서 검증 "통과 여부"는 validated.status()로 판정하되, Reduce에 넘길
+            // BatchSummary는 support가 살아있는 raw를 담는다. validate()가 실패로 던지지
+            // 않았다는 것 자체가 raw의 summarySupport/flowSupport가 이미 bundle에 대해
+            // 유효하다는 걸 보장한다.
             if (validated.status() != SummaryStatus.FAILED)
                 parts.add(
                         new CommunitySummarizer.BatchSummary(
-                                validated, batches.get(i).sources().keySet()));
+                                raw, batches.get(i).sources().keySet()));
         }
 
         var union = unionBundle(batches);

@@ -375,6 +375,7 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             return new TopicSummary(
                     titleKo, summaryKo, flow, messages, SummaryStatus.READY, summarySupport, flowSupport);
         } catch (RuntimeException e) {
+            log.warn("GMS reduce 응답 파싱 실패: error={}", e.getClass().getSimpleName());
             return TopicSummary.failed();
         }
     }
@@ -611,6 +612,7 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             return new TopicSummary(
                     titleKo, summaryKo, flow, messages, SummaryStatus.READY, summarySupport, flowSupport);
         } catch (RuntimeException e) {
+            log.warn("GMS 응답 파싱 실패: issue={}, error={}", issue.issueNumber(), e.getClass().getSimpleName());
             return TopicSummary.failed();
         }
     }
