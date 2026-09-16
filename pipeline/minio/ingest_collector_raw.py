@@ -6,6 +6,10 @@ parts next to the collector's own manifest.json.
 
     python -m pipeline.minio.ingest_collector_raw --source keywords --dry-run
     python -m pipeline.minio.ingest_collector_raw --source keywords --run-id keywords-20260909-v1
+
+A run may be split across shards (registry 4분할 수집, S15P21A506-366): run=<date>-s1 … -sN.
+Those are one collection, so they go under one collected_date=<date> with the shard kept in the
+object path (data/shard=sN/part-*.jsonl.gz). An unsharded run keeps the old layout byte for byte.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -48,6 +52,25 @@ BUCKET = 'pickage-raw'
 # Sweeping "everything" would publish trial data into the bucket that holds
 # collection originals, so a sweep takes dated runs only.
 DATED_RUN = re.compile(r'run=\d{4}-\d{2}-\d{2}')
+SHARD_RUN = re.compile(r'run=(\d{4}-\d{2}-\d{2})-s(\d+)')
+# 샤드 수는 대상 CSV 이름이 말해 준다 (rank_top100k_20260902-s1of4.csv). 폴더가 몇 개 있는지로
+# 판단하면 s3 폴더를 빠뜨린 채 올려도 통과한다 — 원본의 1/4 이 빠진 것을 _SUCCESS 가 덮는다.
+SHARD_TARGETS = re.compile(r'-s(\d+)of(\d+)\.csv$')
+
+
+def shard_of(folder_name):
+    """폴더 이름 → (collected_date, 샤드 번호 또는 None)."""
+    m = SHARD_RUN.fullmatch(folder_name)
+    if m:
+        return m.group(1), int(m.group(2))
+    return folder_name.removeprefix('run='), None
+
+
+def shard_total(manifest):
+    """수집기 manifest 의 targets 경로에서 전체 샤드 수를 읽는다. 모르면 None."""
+    name = (manifest.get('targets') or '').replace(chr(92), '/').rsplit('/', 1)[-1]
+    m = SHARD_TARGETS.search(name)
+    return int(m.group(2)) if m else None
 
 
 def main():
@@ -63,39 +86,67 @@ def main():
         ap.error('Invalid run ID or workers (1..16)')
     source = SOURCES[args.source]
     folders = sorted((ROOT / source['root']).glob('run=*'))
+    folders = [p for p in folders
+               if DATED_RUN.fullmatch(p.name) or SHARD_RUN.fullmatch(p.name)]
     if args.run:
-        folders = [p for p in folders if p.name == 'run=' + args.run]
-    else:
-        folders = [p for p in folders if DATED_RUN.fullmatch(p.name)]
+        # 날짜를 주면 그 날짜의 단일 run 이든 샤드 전부든 잡는다. 샤드 하나만 따로 올리면
+        # 그 collected_date 에 _SUCCESS 가 찍혀 1/N 짜리 원본이 완전한 것으로 보인다.
+        folders = [p for p in folders if shard_of(p.name)[0] == args.run]
     if not folders:
         raise ValueError('No collector runs selected under ' + source['root'])
+    groups = {}
+    for p in folders:
+        groups.setdefault(shard_of(p.name)[0], []).append(p)
     print('RUN_ID=' + args.run_id, flush=True)
     s3 = None if args.dry_run else client()
     total_files = total_bytes = 0
-    for folder in folders:
-        manifest_bytes = (folder / 'manifest.json').read_bytes()
-        original = json.loads(manifest_bytes)
-        # Only the collected payload. The checkpoint DB and logs are the
-        # collector's working state, not source data, and they keep changing.
-        files = sorted(folder.glob('part-*.jsonl.gz'))
-        size = sum(p.stat().st_size for p in files)
-        complete, detail = source['done'](original)
-        run = folder.name.removeprefix('run=')
-        if not files:
-            raise ValueError('Source has no parts: ' + str(folder))
-        if original.get('run') != run:
-            raise ValueError(f'Manifest run {original.get("run")!r} != folder {run!r}')
-        # A partial run must never be published: _SUCCESS would later read as a
-        # verified complete original, and nothing downstream would question it.
-        if not original.get('final') or not complete:
-            raise ValueError(f'Collection incomplete {folder}: final={original.get("final")} {detail}')
-        prefix = f'{source["prefix"]}/collected_date={run}/run_id={args.run_id}'
-        print(f'{args.source}/{run}: files={len(files)} bytes={size} {detail}', flush=True)
+    for collected_date, members in sorted(groups.items()):
+        # members = [(샤드 번호 또는 None, 폴더, manifest 바이트, manifest)]
+        # 섞임 검사를 정렬보다 먼저 한다. None 과 int 를 같이 정렬하면 TypeError 로 죽어서
+        # "샤드와 단일이 섞였다" 가 아니라 파이썬 내부 오류만 보인다.
+        indexes = [shard_of(f.name)[1] for f in members]
+        if None in indexes and any(i is not None for i in indexes):
+            raise ValueError(f'{collected_date}: 샤드 run 과 단일 run 이 섞여 있다 — '
+                             + ', '.join(sorted(f.name for f in members)))
+        sharded = indexes[0] is not None
+        members = sorted(((i, f, (f / 'manifest.json').read_bytes())
+                          for i, f in zip(indexes, members)), key=lambda t: t[0] or 0)
+        members = [(idx, f, raw, json.loads(raw)) for idx, f, raw in members]
+        files = []            # [(샤드 번호 또는 None, 경로)]
+        details = []
+        for idx, folder, _, original in members:
+            parts = sorted(folder.glob('part-*.jsonl.gz'))
+            complete, detail = source['done'](original)
+            run = folder.name.removeprefix('run=')
+            details.append(detail)
+            if not parts:
+                raise ValueError('Source has no parts: ' + str(folder))
+            if original.get('run') != run:
+                raise ValueError(f'Manifest run {original.get("run")!r} != folder {run!r}')
+            # A partial run must never be published: _SUCCESS would later read as a
+            # verified complete original, and nothing downstream would question it.
+            if not original.get('final') or not complete:
+                raise ValueError(f'Collection incomplete {folder}: final={original.get("final")} {detail}')
+            files += [(idx, p) for p in parts]
+        if sharded:
+            # 샤드가 하나라도 빠지면 그만큼의 원본이 통째로 없는 채 완료 표시가 찍힌다.
+            totals = {shard_total(o) for *_, o in members}
+            if totals != {len(members)} or None in totals:
+                raise ValueError(f'{collected_date}: 샤드 {sorted(i for i, *_ in members)} 가 있는데 '
+                                 f'대상 CSV 는 전체 {totals} 개라고 한다')
+            if sorted(i for i, *_ in members) != list(range(1, len(members) + 1)):
+                raise ValueError(f'{collected_date}: 샤드 번호가 1..N 이 아니다')
+        size = sum(p.stat().st_size for _, p in files)
+        detail = ' | '.join(details)
+        prefix = f'{source["prefix"]}/collected_date={collected_date}/run_id={args.run_id}'
+        print(f'{args.source}/{collected_date}: shards={len(members) if sharded else 1} '
+              f'files={len(files)} bytes={size} {detail}', flush=True)
         if not args.dry_run:
             completed = exists(s3, BUCKET, prefix + '/_SUCCESS')
 
-            def upload(path):
-                key = prefix + '/data/' + path.name
+            def upload(item):
+                idx, path = item
+                key = prefix + ('/data/' if idx is None else f'/data/shard=s{idx}/') + path.name
                 with path.open('rb') as stream:
                     checksum = digest(stream)
                 if not exists(s3, BUCKET, key):
@@ -113,18 +164,27 @@ def main():
             with ThreadPoolExecutor(max_workers=args.workers) as pool:
                 records = list(pool.map(upload, files))
             result = {'contract_version': 1, 'run_id': args.run_id, 'status': 'PASSED',
-                      'source': args.source, 'collected_date': run,
+                      'source': args.source, 'collected_date': collected_date,
                       'file_count': len(files), 'bytes': size,
                       'verification': 'GET_SHA256_ALL_FILES',
-                      'source_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(),
                       'files': records}
-            put_once(s3, BUCKET, prefix + '/source_manifest.json', manifest_bytes)
+            # 수집기 manifest 는 바꾸지 않고 그대로 올린다. 샤드는 원본이 넷이므로 합성하지 않고
+            # 넷을 각각 보존한다 — 합쳐 쓰면 어느 샤드가 무엇을 받았는지 되돌릴 수 없다.
+            if sharded:
+                result['shards'] = len(members)
+                result['source_manifest_sha256'] = {
+                    f's{idx}': hashlib.sha256(raw).hexdigest() for idx, _, raw, _ in members}
+                for idx, _, raw, _ in members:
+                    put_once(s3, BUCKET, prefix + f'/source_manifest/shard=s{idx}.json', raw)
+            else:
+                result['source_manifest_sha256'] = hashlib.sha256(members[0][2]).hexdigest()
+                put_once(s3, BUCKET, prefix + '/source_manifest.json', members[0][2])
             put_once(s3, BUCKET, prefix + '/run_manifest.json',
                      json.dumps(result, sort_keys=True).encode())
             put_once(s3, BUCKET, prefix + '/_SUCCESS', b'')
         total_files += len(files)
         total_bytes += size
-    print(json.dumps({'source': args.source, 'runs': len(folders), 'files': total_files,
+    print(json.dumps({'source': args.source, 'runs': len(groups), 'files': total_files,
                       'bytes': total_bytes, 'dry_run': args.dry_run}), flush=True)
 
 

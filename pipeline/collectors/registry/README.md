@@ -19,7 +19,7 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 | 파일 | 역할 |
 |---|---|
 | `collect.py` | 대상 CSV → 패키지별 요청(전체 문서) → 버전 행으로 파싱 → jsonl.gz. 요청 간격 토큰버킷(`--interval`, 기본 0.5초), 429 지수 백오프(15%씩 늘려 상한 3초, 연속 5회면 5분 휴식, 같은 패키지에서 8회면 `failed`), 5xx·연결 오류 4회 재시도, SQLite 체크포인트, manifest.json. 원본 문서는 보존하지 않고 200MB(`--max-doc-mb`) 넘는 문서는 `failed` |
-| `shard_targets.py` | 대상 CSV → 샤드 N개. 순위로 **돌아가며** 나눠(1→s1, 2→s2, …) 샤드들이 같은 순위 분포를 갖게 한다. 이름 중복은 상위 순위만 남긴다 |
+| `shard_targets.py` | 대상 CSV → 샤드 N개. 순위로 **돌아가며** 나눠(1→s1, 2→s2, …) 샤드들이 같은 순위 분포를 갖게 한다. 이름 중복은 상위 순위만 남긴다. 실제 배치는 아래 "샤드 배치" 절 |
 | `to_parquet.py` | raw → `registry_versions/part-00000.parquet` + `registry_status.parquet`. **`--raw` 에 run 폴더를 여러 개 줄 수 있다**(분할 수집). (Name, Version) 중복은 최근 fetched_at 만 남김. 수집 중에도 실행 가능(쓰고 있는 part 는 건너뜀, 아무도 안 쓰는 잘린 part 는 복구) |
 | `status.py` | 진행 상태 한 화면(실행 여부·진행률·성공/미존재/전체삭제/실패·평균/최대 문서 크기·버전 행 수·속도·429·ETA). **`--shards N` 을 주면 샤드를 합산**해 전체 진행률·완료 예상 시각을 함께 낸다. `--watch` 60초 갱신, `--refresh-parquet` 로 DuckDB UI 뷰까지 최신화 |
 | `test_collect.py` | 단위 시험. `python -m unittest discover -s pipeline/collectors/registry -v`. 파싱 계약(unpublish 행 NULL·비버전 time 키·deprecated 정규화)과 리뷰에서 나온 함정(쓰기 전 인코딩 확인, cp949 로그, 0바이트·잘린 gzip, 출력 경로 방어)을 고정한다 |
@@ -39,6 +39,33 @@ deps.dev `requirements`(스냅샷 08-31)와 표본 2,000 대조 100% 일치, enz
 2026-09-16 회차의 실제 행 60,000개에서 6열만 떼어 재 봤다 — 한 줄당 **평균 +315 B**(중앙값 135 B, p95 1,265 B).
 2,143만 행 환산 비압축 **+6.74 GB**. 압축 뒤에는 행당 35.7 B → **45.4 B**(+27%)라 `jsonl.gz` 가
 765 MB → **약 960 MB** 가 된다. 착수 전 표본으로 잡았던 +241 B·5.2 GB 보다 크다(표본이 오래된 패키지에 치우쳤다).
+
+## 샤드 배치 (2026-09-16 회차)
+
+대상 10만(이름 중복 4건을 뺀 99,996)을 **순위 나머지**로 넷에 돌아가며 나눴다. `rank % 4` 가
+1→s1 · 2→s2 · 3→s3 · 0→s4 다.
+
+| 샤드 | 대상 | 순위 | 평균 순위 | 성공 | 미존재 | 전체삭제 | 버전 행 | 전송 | part |
+|---|---|---|---|---|---|---|---|---|---|
+| s1 | 24,999 | 1, 5, 9, … 99,997 | 49,997.7 | 24,812 | 88 | 99 | 5,389,667 | 18.4 GB | 1,078 |
+| s2 | 24,999 | 2, 6, 10, … 99,998 | 49,998.7 | 24,802 | 84 | 113 | 5,377,745 | 18.2 GB | 1,076 |
+| s3 | 24,999 | 3, 7, 11, … 99,999 | 49,999.7 | 24,806 | 90 | 103 | 5,415,555 | 18.3 GB | 1,084 |
+| s4 | 24,999 | 4, 8, 12, … 100,000 | 50,000.7 | 24,789 | 96 | 114 | 5,384,183 | 19.0 GB | 1,077 |
+| 합계 | 99,996 | | | 99,209 | 358 | 429 | 21,567,150 | 73.9 GB | 4,315 |
+
+**샤드는 주제가 아니라 순위 나머지로 갈린다.** 특정 샤드에 "인기 패키지"나 "특정 생태계"가 몰려
+있지 않다. 네 샤드의 평균 순위가 1씩만 차이 나고(49,997.7 ~ 50,000.7), 전송량도 18.2~19.0 GB 로
+붙어 있다. 그래서 넷이 거의 같은 시각에 끝난다 — 앞에서부터 25,000개씩 끊었다면 상위권 샤드는
+문서가 크고 하위권 샤드는 CDN 이 차가워(지연 중앙값 0.18초 대 0.60초) 한참 어긋났을 것이다.
+
+어느 패키지가 어느 샤드에 있는지는 순위로 바로 나온다 — `semver`(1)→s1, `minimatch`(2)→s2,
+`ansi-styles`(3)→s3, `debug`(4)→s4, `brace-expansion`(5)→s1, `chalk`(9)→s1 …
+가장 큰 문서도 골고루 흩어졌다 — s1 `nocodb-daily`(105 MB), s2 `@tamagui/lucide-icons`(105 MB),
+s3 `@octopusdeploy/design-system-components`(105 MB), s4 `rendition`(115 MB).
+
+**읽을 때는 샤드를 신경 쓰지 않아도 된다.** `to_parquet.py` 가 네 샤드를 한 `registry_versions`
+로 합치고, Bronze 도 `collected_date=2026-09-16` 하나 아래에 둔다. 샤드는 받는 방식이지
+데이터의 성질이 아니다.
 
 ## 대상 목록
 
@@ -75,7 +102,10 @@ pipeline\collectors\registry\status_watch_sharded.cmd         # 현황 창 (더�
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/to_parquet.py --raw data/registry/raw/run=2026-09-09 --out data/registry/parquet
 .venv-bq/Scripts/python.exe pipeline/duckdb/duckdb_ui.py -c "select count(*) from registry_versions"
 
-# 원본 보존: GCS 가 아니라 서버 MinIO pickage-raw Bronze 입고 (downloads 와 동일, pipeline/downloads/ 방식). 별도 티켓에서 진행 — 계획 §6
+# 원본 보존: 서버 MinIO pickage-raw Bronze 입고 (S15P21A506-340, 2026-09-16 완료 — 계획 §6)
+# 터널(19000) 을 올린 뒤 PICKAGE_MINIO_ENV=.env.server 로 돌린다. 회차마다 run-id 를 붙인다
+PICKAGE_MINIO_ENV=.env.server .venv-bq/Scripts/python.exe -m pipeline.minio.ingest_collector_raw --source registry --run 2026-09-16 --run-id registry-20260916-v1
+# 먼저 --dry-run 으로 대상 파일 수·샤드 완결 판정을 본다. 샤드가 빠지면 여기서 거부한다
 ```
 
 Windows에서 장시간 실행은 `start_registry.cmd`(별도 최소화 창)로 띄운다. **Claude Code 세션이 띄운 프로세스는 앱을 닫으면 함께 죽을 수 있으니**, 밤새 돌릴 때는 전진님 터미널이나 더블클릭으로 직접 띄운다. PC 절전 시 멈추고 깨어나면 이어간다.
