@@ -242,37 +242,52 @@ class IssueCollectionServiceTest {
     }
 
     @Test
-    void 이슈_처리_중_예산이_소진돼도_이미_모은_결과는_버리지_않는다() {
-        // 댓글 수 내림차순 선정이므로 이슈 1이 먼저 처리된다. 그 처리에 예산(50ms)을 넘는
-        // 지연을 줘서, 이슈 2로 넘어가기 전 시간 확인에서 예산이 이미 바닥나게 만든다.
+    void 이슈_두_개의_댓글_수집을_동시에_디스패치한다() {
+        // S15P21A506-373 4단계 후속 — GMS 호출을 이슈 간 병렬로 디스패치한 것과 같은 이유로
+        // 댓글 수집도 병렬화했다(순차였다면 이슈1이 예산을 다 써 이슈2가 시작하자마자
+        // 시간 확인에서 걸리는 문제가 GMS 쪽에서 실제로 재현됐다). 각 호출을 300ms씩 일부러
+        // 늦추고, 전체 수집이 두 호출을 합친 시간(600ms)이 아니라 한 호출 시간(300ms) 안팎에
+        // 끝나는지, 두 호출의 시작 시각이 실제로 거의 겹치는지를 함께 확인한다.
         searchReturns(
                 2,
                 false,
                 """
 [{"number": 1, "title": "t1", "state": "open", "updated_at": "2026-01-01T00:00:00Z",
-  "comments": 5, "locked": false, "user": {"login": "a", "type": "User"}},
+  "comments": 2, "locked": false, "user": {"login": "a", "type": "User"}},
  {"number": 2, "title": "t2", "state": "open", "updated_at": "2026-01-01T00:00:00Z",
-  "comments": 3, "locked": false, "user": {"login": "a", "type": "User"}}]
+  "comments": 1, "locked": false, "user": {"login": "a", "type": "User"}}]
 """);
-        server.respondDynamic(
-                "/repos/owner/repo/issues/1/comments",
-                query -> {
-                    try {
-                        Thread.sleep(80);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                    return new FakeHttpServer.Answer(200, commentsPage(1, 1), Map.of());
-                });
-        // 이슈 2의 엔드포인트는 등록하지 않는다 — 예산 소진 검사가 이슈 2를 아예 시도하지
-        // 않아야 정상이므로, 만약 버그가 재발해 호출된다면 404로 실패해 드러난다.
+        var callStartedAtNanos = java.util.Collections.synchronizedList(new java.util.ArrayList<Long>());
+        for (int issueNumber : new int[] {1, 2}) {
+            server.respondDynamic(
+                    "/repos/owner/repo/issues/" + issueNumber + "/comments",
+                    query -> {
+                        callStartedAtNanos.add(System.nanoTime());
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return new FakeHttpServer.Answer(200, commentsPage(1, 1), Map.of());
+                    });
+        }
 
-        IssueCollectionResult result = service.collect("owner", "repo", Duration.ofMillis(50));
+        long startNanos = System.nanoTime();
+        IssueCollectionResult result = service.collect("owner", "repo", Duration.ofSeconds(20));
+        long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
 
         var success = (IssueCollectionResult.Success) result;
         assertThat(success.topics()).extracting(CollectedIssue::issueNumber).containsExactly(1, 2);
-        assertThat(success.topics())
-                .allMatch(t -> t.collectionStatus() == CommentCollectionStatus.FAILED);
+
+        assertThat(callStartedAtNanos).hasSize(2);
+        long startGapMs =
+                Math.abs(callStartedAtNanos.get(0) - callStartedAtNanos.get(1)) / 1_000_000;
+        assertThat(startGapMs)
+                .as("두 댓글 수집 호출이 순차였다면 300ms 가까이 벌어졌을 것이다")
+                .isLessThan(150);
+        assertThat(elapsedMs)
+                .as("순차였다면 600ms 이상 걸린다 — 병렬이면 300ms 안팎(+오버헤드)이어야 한다")
+                .isLessThan(550);
     }
 
     @Test

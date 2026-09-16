@@ -92,9 +92,14 @@ public final class CommunityProperties {
      * #EXECUTOR_WORKER_COUNT}(refresh task 자체의 동시 실행 풀)와는 다른 별개의 풀이다 —
      * Map-Reduce로 이슈 하나가 N+1번 GMS를 호출하게 되면서 기존 2로는 배치 호출이 곧바로 큐잉·
      * 거부되므로 4단계에서 상향한다.
+     *
+     * <p>2026-09-16 6→12로 재조정(오세진 님 결정, 시연 시간 단축) — 이슈 2개가 동시에
+     * {@link #MAX_SUMMARY_BATCHES}(5)까지 배치를 만들면 Map 호출만 최대 10개가 경합한다.
+     * 6개로는 두 파도로 나뉘어 순차 대기가 생기므로, 두 이슈의 Map 호출을 한 파도로 전부
+     * 소화할 수 있게 배치 상한의 2배로 올린다.
      */
-    public static final int SUMMARIZER_WORKER_COUNT = 6;
+    public static final int SUMMARIZER_WORKER_COUNT = 12;
 
     /** {@link #SUMMARIZER_WORKER_COUNT} 워커가 꽉 찼을 때 대기할 수 있는 큐 용량. */
-    public static final int SUMMARIZER_QUEUE_CAPACITY = 8;
+    public static final int SUMMARIZER_QUEUE_CAPACITY = 16;
 }
