@@ -42,8 +42,13 @@ import java.util.Set;
 public final class GmsCommunitySummarizer implements CommunitySummarizer {
     private static final Logger log = LoggerFactory.getLogger(GmsCommunitySummarizer.class);
     private static final ObjectMapper JSON = new ObjectMapper();
-    /** 남은 예산이 이보다 커도 호출 하나가 이 이상 붙들지 않는다(S15P21A506-368 후속). */
-    private static final Duration MAX_CALL_TIMEOUT = Duration.ofSeconds(15);
+    /**
+     * 남은 예산이 이보다 커도 호출 하나가 이 이상 붙들지 않는다(S15P21A506-368 후속). 2026-09-16
+     * 15초에서 25초로 올림 — 로컬 실측에서 모델 교체(gpt-5-mini) 직후 15초 안에 못 끝나
+     * HttpTimeoutException으로 실패하는 사례를 확인했다. TOTAL_BUDGET(30초)에서
+     * PUBLISH_BUDGET(2초)을 뺀 ~28초 안에 여전히 들어간다.
+     */
+    private static final Duration MAX_CALL_TIMEOUT = Duration.ofSeconds(25);
     /** HTTP 타임아웃이 {@link BoundedCommunitySummarizer}의 강제 인터럽트보다 살짝 먼저 터지게
      * 두는 여유 — 그래야 raw InterruptedException 대신 깔끔한 HttpTimeoutException으로 실패한다. */
     private static final Duration TIMEOUT_MARGIN = Duration.ofMillis(300);
