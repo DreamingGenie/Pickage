@@ -425,7 +425,10 @@ services:
       #
       #   ⚠ 디렉터리를 uid 1000 소유로 만들어 두어야 한다. 컨테이너가 uid 1000 으로
       #     돌고(Dockerfile), 없으면 Docker 가 root 소유로 만들어 쓰기가 막힌다.
-      #       sudo mkdir -p /srv/pickage/ingest-work && sudo chown -R 1000:1000 /srv/pickage
+      #       sudo mkdir -p /srv/pickage/ingest-work
+      #       sudo chown -R 1000:1000 /srv/pickage/ingest-work
+      #
+      #     **부모 /srv/pickage 는 건드리지 않는다.** 배포 러너의 data.env 가 거기 있다.
       - /srv/pickage/ingest-work:/opt/work/data
       # GCP 서비스 계정 키. 파이썬 클라이언트와 gcloud CLI 가 **둘 다** 이 파일을 본다
       # (Dockerfile 의 ENV 둘). 읽기 전용으로 넣는다.
