@@ -150,6 +150,63 @@ DATASETS = {
             '이 prefix 의 _current.json 이 이 실행을 가리키면 유사도 배치가 다음 회차에 이 코퍼스를 집는다.',
         ],
     },
+    'peer-similarity': {
+        'root': 'data/peer_similarity',
+        # peer 값 자체는 deps.dev requirements 에서만 온다. 비교 대상 쌍 목록에 registry 기반
+        # 개발용 이동쌍이 섞여 있지만, 열의 원천과 스냅샷 기준은 deps.dev 2026-08-31 이다.
+        'prefix': 'depsdev/v1/peer-similarity',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'pointer': True,
+        'builder': 'pipeline/duckdb/build_peer_similarity.py',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31). '
+                  '비교 대상 쌍: datasets/migration_pairs_260908 · migration_pairs_dev_260914 · '
+                  'deprecated_replacement_260831',
+        'readme': 'datasets/peer_similarity_260914/README.md',
+        'jira': ['S15P21A506-350', 'S15P21A506-110'],
+        'notes': [
+            '"A 가 B 를 대체할 수 있나" 판단용 peer 의존 유사도. package_peers 는 패키지 1행(최신 릴리스),'
+            ' pair_peer_similarity 는 쌍 1행이며 양쪽 peer 목록·교집합·Jaccard·판정을 담는다.',
+            'peer_verdict 의 no_peer_either(31,971행)는 결측이 아니라 범주다. peer 는 희소해서 쌍의'
+            ' 60%가 양쪽 다 없다. peer_jaccard NULL 을 0 으로 채우면 모델이 결측을 "대체 불가" 로 배운다.',
+            'hard filter 가 아니라 감점 입력이다. tslint→eslint 는 peer 겹침 0(typescript vs jiti)인데'
+            ' 정답지에 있는 진짜 대체쌍이다. 불일치만으로 탈락시키면 이런 쌍을 잃는다.',
+            '버전 기준은 최신 릴리스다. A 가 폐기·방치된 패키지면 그 최신은 몇 년 전 선언이라'
+            ' 그 시절 생태계를 반영한다(moment 의 peer 는 2020년 기준). 이동 시점 기준은 별도 작업.',
+            '같은 내용의 CSV 는 git datasets/peer_similarity_260914/ 에 있어 여기 올리지 않음.',
+        ],
+    },
+    'package-peers': {
+        # peer-similarity 와 폴더를 나눈다. 이 입고기는 root 의 *.parquet 를 통째로 올리므로
+        # 한 폴더에 두면 이미 _SUCCESS 가 찍힌 실행에 파일이 늘어 재검증이 막힌다.
+        'root': 'data/package_peers',
+        'prefix': 'depsdev/v1/package-peers',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'pointer': True,
+        'builder': 'pipeline/duckdb/build_peer_similarity.py --scope all',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31), '
+                  'download_rank 은 datasets/targets/rank_top100k_20260902.csv',
+        'readme': 'datasets/peer_similarity_260914/README.md',
+        'jira': ['S15P21A506-350', 'S15P21A506-110'],
+        'notes': [
+            'npm 전수에서 peerDependencies 를 가진 패키지의 최신 릴리스 peer 목록. 쌍 목록과 무관하게'
+            ' 임의의 두 패키지를 즉석에서 비교하기 위한 재료다. peer 가 없는 패키지(전체 406만 중'
+            ' 80.0%)는 행 자체를 넣지 않는다 — 없다는 사실은 행이 없는 것으로 똑같이 표현된다.',
+            'package_peers_all 814,025행 · package_peers_recent 531,830행(최신 릴리스 2023-01-01 이후).'
+            ' recent 는 all 의 부분집합이고 열 구성이 같다.',
+            '전수를 그대로 쓰지 말 것. all 의 23.9%가 릴리스 1개짜리이고 41.1%는 3년 넘게 방치돼 있다.'
+            ' 다운로드 상위 10만 안에 드는 것은 29,193개(3.6%)뿐이다. 하한을 어디에 둘지는 용도마다'
+            ' 달라서 n_releases·last_published_at·is_deprecated·download_rank 를 열로 함께 담았다.',
+            '2026-09-15 정정 — 앞선 run_id=package-peers-20260915-v1 의 all 1,033,323행에는 실제'
+            ' 패키지가 아닌 219,299행(21.2%)이 섞여 있었다. `@winglang/sdk>0.76.19>cdktf>safe-buffer`'
+            ' 처럼 deps.dev 가 번들 중첩 의존 경로를 노드로 담은 것들이고 npm 이름에 `>` 는 쓸 수 없다.'
+            ' 최신 릴리스 판정에 published_at IS NOT NULL 을 더해 걸러냈다(S15P21A506-283 과 같은 기준).'
+            ' 그 run 은 쓰지 말 것.',
+            '쌍 단위 비교 결과는 같은 버킷의 depsdev/v1/peer-similarity/ 에 있다. 그쪽은 대상 필터가'
+            ' 이미 가짜 노드를 걸러 영향이 없었고 재계산해도 결과가 바이트까지 같았다.',
+        ],
+    },
 }
 
 

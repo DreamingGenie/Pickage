@@ -109,6 +109,27 @@ Parquet 1개(2,839,460바이트·28,241행)를 서버 `pickage-curated` 에 넣�
 위 `migration-pairs-20260909-v1`(실행용 의존·npm 전수)과는 **모집단이 달라 수치를 더하거나
 lift 를 비교하면 안 된다** — `datasets/migration_pairs_dev_260914/README.md` §5.
 
+`peer-similarity-20260914-v1` 로 대체 후보 peer 의존 유사도 Parquet 2개(2,266,490바이트·110,975행)를
+`depsdev/v1/peer-similarity/snapshot=2026-08-31/` 에 넣었다(S15P21A506-350). 같은 실행 ID로 재실행해
+해시 재검증만 통과하는 것을 확인했다. 비교 대상 쌍에 registry 기반 개발용 이동쌍이 섞여 있지만
+peer 열 자체는 deps.dev `requirements` 에서만 오므로 `depsdev/v1` 아래에 둔다.
+
+`package-peers-20260915-v2` 로 **npm 전수** peer 목록 Parquet 2개(46,894,329바이트·1,345,855행)를
+`depsdev/v1/package-peers/snapshot=2026-08-31/` 에 넣었다(S15P21A506-350). 위 `peer-similarity` 가
+쌍 단위 비교라면 이쪽은 패키지 단위 재료로, 쌍 목록에 없는 임의 조합을 즉석 비교할 때 쓴다.
+`package_peers_all`(814,025행)과 그 부분집합 `package_peers_recent`(531,830행, 최신 릴리스
+2023-01-01 이후)이며 열 구성은 같다. **전수를 그대로 쓰지 말 것** — `all` 의 23.9%가 릴리스
+1개짜리이고 다운로드 상위 10만 안에 드는 것은 3.6%뿐이다. 하한 판단용으로 `n_releases`·
+`last_published_at`·`is_deprecated`·`download_rank` 를 열로 담았다.
+
+**앞선 `package-peers-20260915-v1` 은 쓰지 말 것.** `all` 1,033,323행 중 219,299행(21.2%)이
+실제 패키지가 아니라 deps.dev 가 번들 중첩 의존 경로를 담은 노드였다. 지우지 않고 그 prefix 에
+`_DEPRECATED.json` 을 두어 사유와 대체 회차를 적었다 — 아래 "폐기한 회차" 를 볼 것.
+
+두 데이터셋은 `data/` 폴더를 나눠 쓴다(`data/peer_similarity` · `data/package_peers`).
+이 입고기가 데이터셋 root 의 `*.parquet` 를 통째로 올리므로, 한 폴더에 섞으면 이미 `_SUCCESS`
+가 찍힌 실행에 파일이 늘어 `Completed run missing object` 로 막힌다.
+
 수집기 원본은 `keywords-20260909-v1` 로 ecosyste.ms keywords 수집일 `2026-09-08` 을
 서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
 더해 1,003객체이며, 원본 manifest 기준 1,000/1,000페이지·100만 행이다. 같은 실행 ID로
@@ -281,6 +302,21 @@ $env:PICKAGE_MINIO_ENV=".env.server"
 가리킨다. 갱신은 조건부 PUT(CAS)이고, 값이 같으면 아무것도 쓰지 않으며, 현재 포인터가 더 나중
 수집일을 가리키면 **거부한다** — 과거 실행을 재검증했을 뿐인데 소비자가 옛 코퍼스로 돌아가는
 일을 막는다. 같은 수집일의 새 실행 ID 는 통과시킨다(잘못 올린 회차를 고칠 길).
+
+포인터가 켜진 데이터셋은 `package-text`·`peer-similarity`·`package-peers` 다. 뒤의 둘은
+**회차가 둘 이상 생길 수 있어서** 켰다 — 실제로 `package-peers` 는 v1 을 버리고 v2 를 쓴다.
+포인터가 없으면 경로만 보고는 어느 회차가 정본인지 알 길이 없다.
+
+**폐기한 회차.** 잘못 만든 회차는 지우지 않고 그 prefix 에 `_DEPRECATED.json` 을 둔다.
+`run_id` · `status: DEPRECATED` · `reason` · `superseded_by{run_id, run_path, manifest_sha256}`
+를 싣는다. **입고기는 이 파일을 만들지도 읽지도 않는다 — 사람이 올리고 사람이 읽는다.**
+기계적으로 정본을 고르는 것은 위의 `_current.json` 이 하는 일이고, 이 파일은 포인터가 가리키지
+않는 쪽을 열어 본 사람에게 "왜 이게 남아 있는지" 를 알려 준다. 두 가지가 필요한 이유는
+`run_manifest.json` 의 `status: PASSED` 가 **업로드 해시 검증**만 뜻하고 내용의 정합성을
+보증하지 않기 때문이다 — 오염된 회차도 `PASSED` 로 남는다.
+
+지운 적이 없어 되돌릴 일도 없다. 버킷에서 실제로 지우는 것은 별도 판단이고, 지울 때는
+`_DEPRECATED.json` 이 가리키는 대체 회차가 온전한지 먼저 본다.
 
 **재생성할 수 있는데 왜 올리나.** 빌더는 `data/raw` 의 수십 GB Parquet 을 그대로 들고 있는
 PC 에서만 돈다. 그 PC 가 사라지면 git 의 CSV 만 남고, 그것을 만든 계산은 복원할 수 없다.
