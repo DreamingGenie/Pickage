@@ -8,6 +8,7 @@
 | `feature_candidates_260908/` | AI 학습 보강 변수 후보 3종(이동쌍·dependencies·peerDependencies) 표본 각 100건 | `pipeline/duckdb/build_feature_candidates.py` | 폴더 README |
 | `migration_pairs_260908/` | 마이그레이션 이동쌍 — **실행용 의존** 기준, npm 전수. strict·recommended·all 3종 + stats.json | `pipeline/duckdb/build_migration_pairs.py` | 폴더 README, 비개발자용 `migration_pairs_all_안내.md` |
 | `migration_pairs_dev_260914/` | 같은 계산의 **개발용 의존(devDependencies)** 기준, 상위 10만. 도구 계열 이동(enzyme·tslint·mocha·jest)은 여기에만 있다 | `build_migration_pairs.py --source registry --kind dev` | 폴더 README. **위 폴더와 모집단이 달라 수치를 더하거나 lift를 비교하지 말 것** |
+| `package_dependents_260915/` | 패키지별 **dependents(의존자) 이름 목록** — 상위 10만 대상 × `regular`/`peer`/`optional`. 보완재 감점 관문(S15P21A506-173)용 | `pipeline/duckdb/build_package_dependents.py` | 폴더 README. 배열 본체는 `data/package_dependents/*.parquet`(git 미추적), 여기엔 수만 담은 요약 CSV. **devDependencies가 원천에 없어 개발 도구는 과소 계상된다** |
 | `targets/rank_top100k_20260902.csv` | ecosyste.ms 다운로드 순위 상위 10만 (downloads 수집 대상 목록) | ecosyste.ms 목록 API 100페이지 (`pipeline/collectors/downloads/README.md`) | — |
 
 규칙
