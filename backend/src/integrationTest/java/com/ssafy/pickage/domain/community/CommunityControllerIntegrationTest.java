@@ -230,7 +230,7 @@ class CommunityControllerIntegrationTest {
 
         @Bean
         CommunitySummarizer communitySummarizer() {
-            return issue ->
+            return (issue, budget) ->
                     new TopicSummary(
                             null,
                             null,

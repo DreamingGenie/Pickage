@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,6 +24,7 @@ class GmsCommunitySummarizerTest {
 
     private static final long MAX_BYTES = 2L * 1024 * 1024;
     private static final String PATH = "/v1/responses";
+    private static final Duration BUDGET = Duration.ofSeconds(10);
 
     private FakeHttpServer server;
     private HttpClient httpClient;
@@ -111,7 +113,7 @@ class GmsCommunitySummarizerTest {
     void 정상_응답을_TopicSummary로_파싱한다() {
         server.respond(PATH, 200, gmsEnvelope(VALID_PAYLOAD), java.util.Map.of());
 
-        TopicSummary summary = client().summarize(issue(7));
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
 
         assertThat(summary.status()).isEqualTo(SummaryStatus.READY);
         assertThat(summary.titleKo()).isEqualTo("설정 동작 확인");
@@ -129,7 +131,7 @@ class GmsCommunitySummarizerTest {
         server.respond(PATH, 200, gmsEnvelope(VALID_PAYLOAD), java.util.Map.of());
 
         // 요청한 issue_number(999)와 응답의 issue_number(7 — VALID_PAYLOAD 고정)가 어긋남
-        TopicSummary summary = client().summarize(issue(999));
+        TopicSummary summary = client().summarize(issue(999), BUDGET);
 
         assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
     }
@@ -138,7 +140,7 @@ class GmsCommunitySummarizerTest {
     void 비200_응답은_실패로_처리한다() {
         server.respond(PATH, 400, "{\"statusCode\":400,\"message\":\"[GMS 에러] boom\"}", java.util.Map.of());
 
-        TopicSummary summary = client().summarize(issue(7));
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
 
         assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
     }
@@ -151,7 +153,7 @@ class GmsCommunitySummarizerTest {
                 "{\"status\":\"incomplete\",\"output\":[]}",
                 java.util.Map.of());
 
-        TopicSummary summary = client().summarize(issue(7));
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
 
         assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
     }
@@ -160,7 +162,7 @@ class GmsCommunitySummarizerTest {
     void output_text가_유효한_JSON이_아니면_실패로_처리한다() {
         server.respond(PATH, 200, gmsEnvelope("이건 JSON이 아니다"), java.util.Map.of());
 
-        TopicSummary summary = client().summarize(issue(7));
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
 
         assertThat(summary.status()).isEqualTo(SummaryStatus.FAILED);
     }
@@ -170,7 +172,7 @@ class GmsCommunitySummarizerTest {
         AtomicReference<String> captured = new AtomicReference<>();
         server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
 
-        client().summarize(issue(7));
+        client().summarize(issue(7), BUDGET);
 
         JsonNode request = readTree(captured.get());
         assertThat(request.path("model").asText()).isEqualTo("gpt-5.4-mini");

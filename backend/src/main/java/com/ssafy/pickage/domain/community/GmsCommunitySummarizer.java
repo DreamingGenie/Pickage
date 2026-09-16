@@ -39,7 +39,12 @@ import java.util.List;
 public final class GmsCommunitySummarizer implements CommunitySummarizer {
     private static final Logger log = LoggerFactory.getLogger(GmsCommunitySummarizer.class);
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final Duration CALL_TIMEOUT = Duration.ofSeconds(10);
+    /** 남은 예산이 이보다 커도 호출 하나가 이 이상 붙들지 않는다(S15P21A506-368 후속). */
+    private static final Duration MAX_CALL_TIMEOUT = Duration.ofSeconds(15);
+    /** HTTP 타임아웃이 {@link BoundedCommunitySummarizer}의 강제 인터럽트보다 살짝 먼저 터지게
+     * 두는 여유 — 그래야 raw InterruptedException 대신 깔끔한 HttpTimeoutException으로 실패한다. */
+    private static final Duration TIMEOUT_MARGIN = Duration.ofMillis(300);
+    private static final Duration MIN_CALL_TIMEOUT = Duration.ofSeconds(1);
     private static final int MAX_OUTPUT_TOKENS = 2048;
 
     private static final String SYSTEM_PROMPT =
@@ -83,12 +88,12 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
     }
 
     @Override
-    public TopicSummary summarize(CollectedIssue issue) {
+    public TopicSummary summarize(CollectedIssue issue, Duration budget) {
         try {
             String requestBody = buildRequestBody(issue);
             HttpRequest request =
                     HttpRequest.newBuilder(endpoint)
-                            .timeout(CALL_TIMEOUT)
+                            .timeout(clampTimeout(budget))
                             .header("Content-Type", "application/json")
                             .header(authHeader, authScheme + " " + apiKey)
                             .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
@@ -111,6 +116,18 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             log.warn("GMS 처리 오류: {}", e.getClass().getSimpleName());
             return TopicSummary.failed();
         }
+    }
+
+    /**
+     * 남은 예산에서 여유분을 뺀 값을 쓰되 [{@link #MIN_CALL_TIMEOUT}, {@link #MAX_CALL_TIMEOUT}]
+     * 범위로 자른다. 예산이 이미 다 됐거나 음수여도 최소값으로 한 번은 시도한다 — 어차피
+     * {@link BoundedCommunitySummarizer}가 그보다 먼저 끊을 수 있으니 여기서 미리 포기할 이유가
+     * 없다(실패해도 TopicSummary.failed()로 수렴하는 건 같다).
+     */
+    private static Duration clampTimeout(Duration budget) {
+        Duration withMargin = budget.minus(TIMEOUT_MARGIN);
+        if (withMargin.compareTo(MIN_CALL_TIMEOUT) < 0) return MIN_CALL_TIMEOUT;
+        return withMargin.compareTo(MAX_CALL_TIMEOUT) > 0 ? MAX_CALL_TIMEOUT : withMargin;
     }
 
     private String buildRequestBody(CollectedIssue issue) throws IOException {
