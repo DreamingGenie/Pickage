@@ -426,6 +426,45 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 
 **상주 서비스가 아니다.** 한 번 돌고 끝난다 — `profiles` 에 있어서 `up -d` 로는 뜨지 않는다.
 
+### 이미지는 이제 손으로 굽지 않는다 (S15P21A506-339)
+
+`develop`·`main` 에 머지되면 **`deploy-ai` 잡이 이 노드에서 굽고 `.env` 의 `AI_TAG` 를
+커밋 SHA 로 갈아 끼운다.** 그래서 아래 절차에서 빠진 것이 둘이다.
+
+| 전에 손으로 하던 것 | 지금 |
+| --- | --- |
+| `docker compose --profile batch build ai-similarity` | `deploy-ai` 가 한다 |
+| `.env` 의 `AI_TAG` 수정 | `deploy-ai` 가 한다 |
+| `sh run-similarity-batch.sh` | **그대로 사람이 친다** |
+
+**돌리는 절차는 아무것도 안 바뀌었다.** 다음 회차가 어느 이미지로 도는지만 확인하면 된다.
+
+```bash
+grep ^AI_TAG= /srv/pickage/data.env
+```
+
+```bash
+docker images pickage-ai-similarity --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | head -3
+```
+
+**위에서 나온 태그가 아래 목록에 있으면 준비된 것이다.** 없으면 `deploy-ai` 가 아직 안
+돌았거나 실패한 것이다 — GitLab 의 Build → Pipelines 에서 그 잡을 보고 **Retry** 하면 된다
+([`../../ci/README.md`](../../ci/README.md) 의 "유사도 배치 이미지").
+
+> ⚠ **`deploy-ai` 는 배치가 도는 중인지 보지 않는다.** `deploy-app` 과 같은 모양이라
+> 머지되면 그냥 굽는다. 겹치는 것을 막는 것은 아래 "Spark 배치와 시간을 겹치지 말 것" 과
+> 같은 규칙 하나뿐이다 — **배치 시각에는 머지하지 않는다.**
+
+> ⚠ **`.env` 는 `/srv/pickage/data.env` 하나뿐이고, 이 디렉터리의 것은 그것을 가리키는
+> 심볼릭 링크다.** 두 벌이 되면 잡이 고친 태그와 여기서 읽는 태그가 갈라진다.
+>
+> ```bash
+> readlink -f .env      # /srv/pickage/data.env
+> ```
+
+> `deploy-ai` 는 **이미지만 굽는다.** minio·mlflow·Spark 는 여전히 사람이 이 디렉터리에서
+> 올린다 — 그 잡은 `up` 도 `down` 도 치지 않는다.
+
 ### 사람이 인자를 주지 않는다 — 포인터 둘이 정한다
 
 `run-similarity-batch.sh` 는 **인자를 받지 않는다.** 무엇을 돌릴지는 두 포인터가 정하고,

@@ -5,21 +5,26 @@
 #   frontend                  npm ci → typecheck → lint → vitest → vite build
 #   backend-test              gradlew test            (DB 가 필요 없는 단위 시험)
 #   backend-integration-test  gradlew integrationTest (postgres 서비스를 붙여 돌린다)
+#   ai-test                   pip install(고정 핀) → 4개 의존성 동시 import → --help → pytest
 #   pipeline-ok               맨 앞에서 2초. 환경 확인 겸, 돌 잡이 없을 때 대신 서 있는 잡
 #   deploy-app                develop·main 에 머지되면 app 노드에 배포한다 (S15P21A506-223)
+#   deploy-ai                 같은 때에 data 노드에서 유사도 배치 이미지를 굽는다 (S15P21A506-339)
 #
 # **여기 없는 것**
 #
 #   · 파이썬(`pipeline/`) 시험 — 폴더마다 실행 방법과 가상환경이 다르고 일부는 docker·
 #     Postgres 를 요구한다. 어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업이라 후속
 #     이슈로 뺐다. 근거는 `deploy/ci/README.md`
-#   · **data 노드 배포** — `deploy-app` 은 app 노드(api·web)만 띄운다. minio·mlflow·
-#     Spark·유사도 배치는 아직 손으로 올린다. 다른 호스트라 SSH 나 그쪽 러너가 필요해
-#     이번에 같이 하지 않았다 (S15P21A506-223 후속)
+#   · **MinIO → PostgreSQL 로더**, **데이터 배치 수집기** — 아직 코드가 서지 않았다.
+#     무엇을 돌릴지가 정해지기 전에는 검사를 쓸 수 없다 (`deploy/prod/data/README.md`
+#     의 "아직 없는 것"). 그 둘이 서면 `ai-test`·`deploy-ai` 와 같은 모양으로 붙인다
+#   · **data 노드의 상주 서비스 배포** — `deploy-ai` 는 **이미지를 굽기만 한다.**
+#     minio·mlflow·Spark 는 손으로 올린다. 아래 `deploy-ai` 의 ⚠ 를 볼 것
 #
-# 러너는 둘 다 팀 서버(`app` 노드)에 있다 — 검증 잡을 집어가는 **docker executor** 와,
-# 배포 잡만 집어가는 **shell executor**(`tags: [deploy]`). 등록 절차·메모리
-# 상한·자주 걸리는 문제는 **`deploy/ci/README.md`** 에 있다. 러너가 없으면 파이프라인은
+# 러너는 **셋**이다. `app` 노드에 둘 — 검증 잡을 집어가는 **docker executor** 와, 배포
+# 잡만 집어가는 **shell executor**(`tags: [deploy]`). `data` 노드에 하나 — 유사도 배치
+# 이미지를 굽는 **shell executor**(`tags: [deploy-data]`). 등록 절차·메모리 상한·자주
+# 걸리는 문제는 **`deploy/ci/README.md`** 에 있다. 러너가 없으면 파이프라인은
 # "pending" 으로 멈춰 있는다 — 실패가 아니라 아무도 집어가지 않는 상태다.
 
 stages:
@@ -121,6 +126,13 @@ variables:
   - deploy/prod/app/compose.yaml
   - .gitlab-ci.yml
 
+# `ai/training/` 은 일부러 뺐다. jupyter05(GPU)에서 손으로 돌리는 참조용 사본이고
+# (`ai/README.md` 의 폴더 표), CI 에서 검증할 대상도 배포될 대상도 아니다.
+# 배포되는 것은 `ai/similarity/` 로 굽는 이미지 하나뿐이다.
+.ai-paths: &ai-paths
+  - ai/similarity/**/*
+  - .gitlab-ci.yml
+
 .rules-frontend:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
@@ -143,6 +155,18 @@ variables:
     - if: $CI_COMMIT_BRANCH
       changes:
         paths: *backend-paths
+        compare_to: develop
+
+.rules-ai:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths: *ai-paths
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths: *ai-paths
         compare_to: develop
 
 # ── 프런트 ──────────────────────────────────────────────────────
@@ -346,6 +370,74 @@ backend-integration-test:
     expire_in: 1 week
     reports:
       junit: backend/build/test-results/integrationTest/TEST-*.xml
+
+# ── AI (유사도 배치) ────────────────────────────────────────────
+#
+# 이 잡은 **두 가지를 검증한다. 둘째가 이 잡을 만든 이유다.**
+#
+#   1. 순수 로직 — `test_similarity_batch_pipeline.py` 의 73개. 무거운 의존성이 전부
+#      지연 import 라 numpy 만으로 돈다.
+#   2. **requirements.txt 의 핀이 실제로 Python 3.11 에 깔리고, 넷이 같이 import 되는가.**
+#
+# ⚠ 2번을 빼면 안 된다. 이 파일들이 처음 고정된 2026-09-16 에 numpy 를 2.5.3 으로 잘못
+#   박은 적이 있다 — **로컬 기본 파이썬(3.14)에서 확인했기 때문이다.** 2.5.3 은 3.11 에
+#   설치조차 안 되므로 이미지 빌드가 통째로 깨지는데, 유닛테스트는 전부 통과한다.
+#   `requirements.txt` 의 ⚠ 가 "버전을 다시 바꿀 때는 반드시 3.11 환경에서 설치·실행까지
+#   재확인할 것" 이라고 적은 그 재확인을, 사람 기억이 아니라 여기서 한다.
+#
+#   그래서 **이미지를 `python:3.11-slim-bookworm` 으로 맞춘다** — `ai/similarity/Dockerfile`
+#   의 FROM 과 같은 것이다. 프런트·백엔드가 각자 Dockerfile 과 이미지를 맞춘 이유와 같다.
+#
+# ⚠ **`docker build` 는 여기서 하지 않는다.** 이 잡이 도는 docker executor 러너에는
+#   소켓도 dind 도 없다 (`deploy/ci/README.md` 의 `config.toml` — `volumes = ["/cache"]`).
+#   이미지를 실제로 굽는 것은 `deploy-ai` 이고 그건 data 노드의 shell 러너에서 돈다.
+#   여기서 통과한 핀이 거기서 처음 깨지는 일은, 같은 핀을 같은 파이썬에 깔아 보는 위 2번이 막는다.
+ai-test:
+  stage: test
+  extends:
+    - .rules-ai
+  image: python:3.11-slim-bookworm
+  timeout: 20m
+  variables:
+    # 기본 캐시 경로($HOME/.cache/pip)는 컨테이너와 함께 사라진다. 프로젝트 안으로
+    # 옮겨야 아래 cache 가 집어간다 — 프런트의 npm_config_cache 와 같은 사정이다.
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  cache:
+    key:
+      files:
+        - ai/similarity/requirements.txt
+    paths:
+      - .pip/
+  script:
+    # 이미지가 실제로 쓰는 것과 **같은 파일**이다. 여기서 따로 목록을 쓰지 않는다.
+    - pip install -r ai/similarity/requirements.txt
+    # pytest 는 **이미지에 들어가지 않는다.** requirements.txt 에 넣으면 배치 컨테이너가
+    # 쓰지도 않을 것을 싣게 된다. 그래서 여기서만 깐다.
+    #
+    # 정확한 핀을 박지 않는 유일한 자리다. 나머지와 달리 산출물에 실리지 않아 운영에서
+    # 재현할 대상이 아니고, 핀을 박으면 아무 배포에도 영향이 없는 갱신 거리만 하나 는다.
+    # major 만 묶어 문법·리포트 형식이 통째로 바뀌는 것을 막는다.
+    - pip install "pytest<9"
+    # ⚠ 넷을 **한 줄에서 같이** import 한다. 따로 부르면 numpy ABI 불일치(onnxruntime 이
+    #   다른 numpy major 로 빌드된 경우)가 안 드러난다 — 그게 이 조합에서 가장 잘 깨지는 자리다.
+    - python -c "import numpy, onnxruntime, pyarrow, transformers; print('numpy', numpy.__version__, '| onnxruntime', onnxruntime.__version__, '| pyarrow', pyarrow.__version__, '| transformers', transformers.__version__)"
+    # 배치 본체가 import 단계를 지나 argparse 까지 가는지. 위 import 검사가 통과해도
+    # 모듈 최상단에서 죽는 경우(문법 오류·없는 심볼)를 여기서 잡는다.
+    - python ai/similarity/similarity_batch_pipeline.py --help > /dev/null
+    # ⚠ `pytest ...` 가 아니라 **`python -m pytest`** 다. 앞엣것은 sys.path 에 테스트 파일의
+    #   디렉터리(`ai/similarity`)를 넣지 저장소 루트를 넣지 않는다. 그런데 이 테스트는
+    #   `import ai.similarity.similarity_batch_pipeline` 로 **네임스페이스 패키지 경로**를
+    #   쓰므로(파일 첫 줄의 docstring), 루트가 sys.path 에 없으면 수집 단계에서 ModuleNotFoundError 다.
+    #   `python -m` 이 현재 디렉터리를 sys.path 맨 앞에 넣어 준다.
+    - python -m pytest ai/similarity/test_similarity_batch_pipeline.py -v --junitxml=ai-test-results.xml
+    - *mem-report
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      # 백엔드 잡과 같다 — MR 화면의 "Test summary" 에 실패한 시험 이름이 뜬다.
+      junit: ai-test-results.xml
 
 # ── 맨 앞에서 2초 ───────────────────────────────────────────────
 #
@@ -573,5 +665,182 @@ deploy-app:
       # 일주일 지난 빌드 캐시. 이게 이미지보다 빨리 쌓인다.
       docker builder prune -f --filter 'until=168h' >/dev/null 2>&1 || true
       # 이름 없는(dangling) 것만. 방금 태그를 뗀 이미지가 여기 해당한다.
+      docker image prune -f >/dev/null 2>&1 || true
+      df -h / | tail -1
+
+# ── 유사도 배치 이미지 (data 노드) ──────────────────────────────
+#
+# `deploy-app` 과 이름이 같은 자리에 있지만 **하는 일이 다르다. 아무것도 띄우지 않는다.**
+#
+#   deploy-app   이미지를 굽고 → `up -d --wait` 로 **띄우고** → health 를 친다
+#   deploy-ai    이미지를 굽고 → `.env` 의 AI_TAG 를 갈아 끼우고 → **끝난다**
+#
+# 유사도 배치는 상주 서비스가 아니라 `docker compose run --rm` 으로 한 번 돌고 끝나는
+# 1회성 잡이다 (`deploy/prod/data/compose.yaml` 의 ai-similarity). 그래서 "배포" 가
+# 뜻하는 것은 **다음 회차가 집어갈 이미지를 준비해 두는 것**뿐이다. 실제로 돌리는 것은
+# 여전히 `run-similarity-batch.sh` 이고, 그 스크립트는 AI_TAG 가 가리키는 이미지를 쓴다.
+#
+# 이 잡이 생기기 전에는 사람이 서버에서 `docker compose build ai-similarity` 를 치고
+# AI_TAG 를 손으로 고쳤다. 그 두 줄이 여기로 옮겨 온 것이 전부다 —
+# `deploy/prod/data/README.md` 의 "유사도 배치 돌리기" 는 그대로 쓴다.
+#
+# ⚠ **상주 서비스(minio·mlflow·spark)는 건드리지 않는다. `up` 도 `down` 도 쓰지 않는다.**
+#
+#   그 셋은 사람이 `~/S15P21A506/deploy/prod/data` 에서 띄워 뒀고, 이 잡은 러너의 작업
+#   디렉터리에서 돈다. compose 프로젝트 이름은 `pickage-data` 로 같지만 **bind 마운트의
+#   원본 경로가 다르다**(`../spark/spark-defaults.conf`, `../../../pipeline/minio/…`).
+#   여기서 `up` 을 한 번이라도 치면 compose 가 "설정이 바뀌었다" 고 보고 **MinIO 와 Spark 를
+#   전부 다시 만든다.** app 노드 첫 배포에서 실제로 그 일이 있었고(deploy/ci/README.md 의
+#   "6. 첫 배포는 컨테이너를 전부 새로 만든다"), 거기서는 받아들일 만했지만 여기서는
+#   수집 원본을 물고 있는 MinIO 다. `build` 는 도는 컨테이너를 건드리지 않으므로 안전하다.
+#
+#   ⇒ **이 잡에 `up`·`down`·`restart` 를 추가하지 말 것.** 필요해지면 그때는 사람이 쓰는
+#     디렉터리를 러너 작업 디렉터리로 옮기는 이관이 먼저다(app 노드가 그렇게 했다).
+#
+# ⚠ **배치 시각에 머지하지 말 것.** app 노드의 같은 경고보다 여기가 더 빠듯하다 —
+#   이 노드는 배치 중 상한 합이 14.5g / 15Gi 다 (`deploy/ci/README.md` 의 표).
+#
+#   ⚠ **그런데 이 잡은 그걸 스스로 확인하지 않는다. deploy-app 과 똑같이 그냥 굽는다.**
+#
+#     처음에는 빌드 전에 배치 컨테이너와 MemAvailable 을 보고 걸리면 실패시켰다. 그런데
+#     이 잡은 `rules: changes:` 가 없어서 **머지마다 무조건 돈다** — deploy-app 과 같은
+#     이유다(조건에 안 걸리면 잡이 사라지는데 화면은 초록이라 "머지했는데 안 떴다" 를
+#     아무도 못 본다). 그 둘을 같이 두면, **프런트만 고친 머지를 배치 시각에 했을 때
+#     AI 와 아무 상관없는 이유로 develop 파이프라인이 빨간불이 된다.** 그런 빨간불은
+#     다음에도 아무도 안 믿게 되고, 그러면 진짜 배포 실패까지 같이 묻힌다.
+#
+#     그래서 막는 것을 사람 규칙 하나로 통일한다 — 위의 "배치 시각에 머지하지 말 것".
+#     app 노드가 이미 그렇게 하고 있고, 두 노드에 서로 다른 안전장치를 두는 것보다
+#     같은 규칙 하나가 지켜진다. (2026-09-16 결정)
+#
+#     대가를 적어 둔다: 배치 중에 머지하면 이 빌드가 그 위에 얹힌다. 다만 레이어가
+#     캐시면 몇 초에 끝나고, 실제로 무거운 것은 `pip install` 을 다시 도는 경우 —
+#     즉 requirements.txt 가 바뀐 머지뿐이다.
+deploy-ai:
+  stage: deploy
+  # ⚠ `deploy` 가 아니라 `deploy-data` 다. 태그가 같으면 app 노드의 러너가 이 잡을
+  #   집어갈 수 있고, 그 노드에는 data 노드의 compose 도 `/srv/pickage/data.env` 도 없다.
+  #   증상은 "어떤 배포는 되고 어떤 배포는 안 된다" 라 원인을 찾기 어렵다.
+  #   두 러너 다 "Run untagged jobs" 를 꺼 두는 것이 전제다 (deploy/ci/README.md).
+  tags:
+    - deploy-data
+  environment:
+    # url 이 없다. 사람이 열어 볼 주소가 아니라 **다음 배치가 집어갈 이미지**다.
+    # 그래도 환경으로 두는 이유는 GitLab 의 Environments 화면이
+    # "지금 data 노드에 있는 배치 이미지가 어느 커밋인가" 를 기록해 주기 때문이다.
+    name: production-data
+  # app 배포와 **다른 그룹**이다. 다른 노드·다른 러너라 동시에 돌아도 서로 방해하지 않는다.
+  # 같은 값으로 묶으면 둘이 줄을 서느라 배포가 그만큼 늦어진다.
+  resource_group: data-node
+  # deploy-app 과 같은 이유다 — 굽는 중에 끊기면 반쯤 구운 상태로 남는다.
+  interruptible: false
+  retry: 0
+  timeout: 30m
+  variables:
+    GIT_DEPTH: "20"
+    # 기본값(`-ffdx`)은 추적되지 않는 파일을 전부 지운다 — 아래에서 만드는 `.env`
+    # 심볼릭 링크가 매 실행마다 사라진다.
+    GIT_CLEAN_FLAGS: -ffdx -e deploy/prod/data/.env
+  rules:
+    # deploy-app 과 같은 조건이다 — 통합 브랜치의 브랜치 파이프라인.
+    # 여기서도 `develop` 에서 Run pipeline 을 누르는 것이 **다시 굽기 버튼**이 된다.
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - cd deploy/prod/data
+    # MinIO 루트 자격증명이 들어 있는 파일이다. 저장소에도 CI 변수에도 없고,
+    # 서버에 한 번 둔 것을 가리키기만 한다 — deploy/ci/README.md 의 "데이터 노드 배포 러너".
+    - test -f /srv/pickage/data.env
+    - ln -sfn /srv/pickage/data.env .env
+    # 굽기 전에 남은 메모리를 **찍어만 둔다. 막지는 않는다** (위 ⚠ 의 결정).
+    # 나중에 이 노드에서 OOM 이 났을 때 "그때 배포가 겹쳤나" 를 보는 단서다.
+    # 이 줄 때문에 배포가 실패하는 일은 없어야 하므로 값을 읽지 못해도 그냥 넘어간다.
+    - |
+      avail=$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+      echo "[메모리] 굽기 전 남은 것: ${avail:-읽지 못함} MiB"
+    # ── 굽는다 ───────────────────────────────────────────────────
+    - |
+      prev_ai=$(sed -n 's/^AI_TAG=//p' /srv/pickage/data.env | tr -d '[:space:]')
+      # 줄이 아예 없으면 아래 sed 가 조용히 아무것도 안 하고, 그다음 compose 가
+      # `${AI_TAG:?}` 로 죽는다. 원인을 가리키는 자리에서 먼저 멈춘다.
+      if [ -z "$prev_ai" ]; then
+        echo "/srv/pickage/data.env 에 AI_TAG 줄이 없다. .env.example 을 보고 채울 것." >&2
+        exit 1
+      fi
+      echo "지금 .env 가 가리키는 것: ai=$prev_ai"
+    # ── 굽는다. ⚠ 이 단계에서는 `.env` 를 아직 고치지 않는다 ─────
+    #
+    # 태그를 먼저 쓰고 굽는 순서(deploy-app 이 그렇다)를 여기서 **일부러 뒤집었다.**
+    # 거기서는 빌드가 깨지면 잡이 멈추고 컨테이너가 전 버전 그대로 계속 도니 손해가
+    # 없다. 하지만 여기서 `.env` 에 남은 태그는 **나중에** 사람이
+    # `run-similarity-batch.sh` 를 칠 때 쓰인다. 빌드가 실패한 채로 새 태그가 박혀
+    # 있으면 그때 배치가 "no such image" 로 죽는데, 배포가 실패했다는 사실은 이미
+    # 화면에서 사라진 뒤다.
+    #
+    # 그래서 태그는 **compose 에게 인라인 환경변수로만** 준다. 셸 환경변수가 `.env` 보다
+    # 우선하므로, 파일은 그대로 두고 이번 빌드에만 새 태그를 붙일 수 있다.
+    #
+    # ⚠ `--profile batch` 가 필요하다. ai-similarity 는 profiles 에 들어 있어서 그냥
+    #   `build` 하면 대상에서 빠지는데, 그때 "No services to build" 를 찍고 **0 으로
+    #   끝난다.** 굽는 시늉만 하고 초록불이 되는 자리다 (2026-09-16 확인).
+    - AI_TAG=$CI_COMMIT_SHORT_SHA docker compose --profile batch build ai-similarity
+    # 구운 것이 실제로 실행되는지 본다. `--help` 는 argparse 가 필수 인자를 보기 전에
+    # 끝나므로 인자 없이 돌릴 수 있는 유일한 형태다. ai-test 가 CI 이미지에서 한 것을
+    # **배포될 이미지 자체로** 다시 하는 셈이다 — 이 둘이 갈리면 여기서 걸린다.
+    #
+    # ⚠ **`docker compose run` 이 아니라 `docker run` 이다.** compose 로 부르면 `aiwork`
+    #   볼륨이 같이 붙는데, 그 볼륨이 아직 없으면 **root 소유로 만들어진다.** 그러면
+    #   uid 1000 으로 도는 배치가 다음 회차에 `--out` 쓰기에서 Permission denied 로 죽는다
+    #   (data/README.md 의 "0. 처음 한 번 — 볼륨 소유권"). `--help` 는 볼륨을 쓰지 않으므로
+    #   붙일 이유가 없고, 안 붙이면 이 잡이 그 함정을 만들 수도 없다.
+    - docker run --rm "pickage-ai-similarity:$CI_COMMIT_SHORT_SHA" --help > /dev/null
+    # ── 어느 태그를 남길지 정하고, 그때 한 번만 쓴다 ─────────────
+    #
+    # 내용이 전과 같으면 이전 태그를 그대로 둔다. deploy-app 과 같은 판정이고(근거는 그
+    # 잡의 주석 — `.Id` 는 캐시 히트여도 매번 바뀐다), 목적만 다르다. 여기서는 다시 뜰
+    # 컨테이너가 없으므로 아끼는 것은 재시작이 아니라 **이름**이다. 문서만 고친 머지마다
+    # 같은 이미지에 태그가 하나씩 붙으면 아래 정리가 남기는 5개가 전부 같은 것이 되어,
+    # 롤백할 후보가 사라진다.
+    - |
+      FP='{{.RootFS.Layers}}|{{.Config.Entrypoint}}|{{.Config.Cmd}}|{{.Config.Env}}|{{.Config.WorkingDir}}|{{.Config.User}}'
+      new=$(docker image inspect -f "$FP" "pickage-ai-similarity:$CI_COMMIT_SHORT_SHA")
+      old=$(docker image inspect -f "$FP" "pickage-ai-similarity:$prev_ai" 2>/dev/null || true)
+      if [ -n "$old" ] && [ "$old" = "$new" ]; then
+        tag=$prev_ai
+        echo "[ai-similarity] 내용이 그대로다 — $prev_ai 를 유지한다"
+        # ⚠ `[ … ] && …` 로 쓰지 말 것 — 조건이 거짓이면 그 줄이 1 을 반환하고,
+        #   러너 스크립트는 set -e 라 거기서 잡이 죽는다.
+        if [ "$prev_ai" != "$CI_COMMIT_SHORT_SHA" ]; then
+          docker rmi "pickage-ai-similarity:$CI_COMMIT_SHORT_SHA" >/dev/null
+        fi
+      else
+        tag=$CI_COMMIT_SHORT_SHA
+        echo "[ai-similarity] 새 이미지 — 다음 배치는 $tag 로 돈다"
+      fi
+      # 이 줄이 이 잡에서 **서버 상태를 바꾸는 유일한 자리**다. 위가 전부 통과한 뒤에만 닿는다.
+      # 롤백은 이 값을 이전 SHA 로 되돌리는 것이 전부다 — 다시 띄울 것이 없다.
+      sed -i "s/^AI_TAG=.*/AI_TAG=$tag/" /srv/pickage/data.env
+    # 굽기만 했으므로 health 를 칠 대상이 없다. 대신 **다음 회차가 실제로 집어갈 것**을
+    # compose 에게 되물어 확인한다 — `.env` 를 잘못 썼거나 링크가 끊겼으면 여기서 드러난다.
+    - docker compose --profile batch config --images | grep "pickage-ai-similarity:$tag"
+    - echo "완료 — 다음 run-similarity-batch.sh 가 pickage-ai-similarity:$tag 로 돈다"
+  # ── 정리 ───────────────────────────────────────────────────────
+  #
+  # deploy-app 의 after_script 와 같은 이유·같은 범위다. 다만 이 노드의 디스크는
+  # **MinIO 수집 원본과 Spark 셔플이 같은 파티션에 산다** — 차면 컨테이너 하나가 아니라
+  # Docker 데몬과 OS 가 같이 죽는다 (deploy/prod/data/README.md 의 "평소").
+  after_script:
+    - |
+      df -h / | tail -1
+      # 최근 5개만 남긴다. 위에서 내용이 같으면 태그를 안 만들므로, 이 5개는
+      # **서로 다른 5개 빌드**다 — 그게 롤백 후보의 전부다.
+      docker images pickage-ai-similarity --format '{{.CreatedAt}}|{{.Tag}}' \
+        | sort -r | tail -n +6 | cut -d'|' -f2 \
+        | while read -r t; do
+            # 배치가 물고 있는 이미지는 docker 가 거부한다. 강제하지 않는다.
+            docker rmi "pickage-ai-similarity:$t" >/dev/null 2>&1 && echo "[정리] pickage-ai-similarity:$t" || true
+          done
+      # ⚠ `-a` 는 어디에도 쓰지 않는다. minio·mlflow·spark 이미지는 이 노드에서
+      #   **다시 받기 어렵다** — 그리고 지우면 상주 서비스가 다음 재시작에서 안 뜬다.
+      docker builder prune -f --filter 'until=168h' >/dev/null 2>&1 || true
       docker image prune -f >/dev/null 2>&1 || true
       df -h / | tail -1

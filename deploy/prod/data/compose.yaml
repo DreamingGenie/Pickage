@@ -340,6 +340,11 @@ services:
     # 레지스트리가 없어서 build 를 같이 둔다. `compose build` 가 만든 이미지에
     # 곧바로 이 태그가 붙는다 — app 노드의 api·web 과 같은 방식이다.
     # 롤백은 AI_TAG 를 이전 SHA 로 되돌리는 것이 전부다.
+    #
+    # 굽는 것은 `deploy-ai` 잡이다 (S15P21A506-339). ⚠ **그 잡은 `--profile batch` 를
+    # 붙인다.** 이 서비스가 profiles 에 있어서 그냥 `docker compose build` 로는
+    # 대상에서 빠지는데, 그때 "No services to build" 를 찍고 **0 으로 끝난다** —
+    # 손으로 칠 때도 같다. 굽는 시늉만 하고 초록불이 되는 자리라 여기 적어 둔다.
     image: pickage-ai-similarity:${AI_TAG:?.env 에 AI_TAG 를 채울 것 — api·web 과 같은 규칙(커밋 SHA)}
     build:
       # ⚠ context 가 `ai/` 가 아니라 `ai/similarity/` 다. 잡마다 디렉터리가 따로 있고
