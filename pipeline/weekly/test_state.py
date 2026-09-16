@@ -9,8 +9,8 @@ import unittest
 from datetime import date, datetime, timedelta, timezone
 
 from .schedule import STEPS
-from .state import (ObjectStore, WeeklyState, blank, coverage, manual_key,
-                    run_key)
+from .state import (CorruptState, ObjectStore, WeeklyState, blank, coverage,
+                    manual_key, run_key)
 
 WEEK = date(2026, 9, 21)          # 월요일
 NOW = datetime(2026, 9, 22, 1, 0, tzinfo=timezone.utc)
@@ -226,3 +226,34 @@ class PurgeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorruptDocumentTest(unittest.TestCase):
+    """빠진 값을 기본값으로 때우면 안 된다.
+
+    status 를 None 으로 채우면 decide() 의 세 가드(RUNNING·SUCCEEDED·BLOCKED)를 전부
+    빠져나가 "이어받기" 로 떨어진다. 이미 성공한 주를 23시간 들여 다시 받고 Bronze 에
+    중복 업로드한다는 뜻이다.
+    """
+
+    def _load_with(self, payload):
+        s3, state = build()
+        s3.objects[run_key(WEEK)] = json.dumps(payload).encode()
+        return state
+
+    def test_missing_status_stops_instead_of_defaulting(self):
+        state = self._load_with({"week_of": WEEK.isoformat()})
+        with self.assertRaises(CorruptState):
+            state.load(WEEK)
+
+    def test_missing_week_of_stops(self):
+        # 우편함 내용을 회차 경로에 잘못 쓴 경우가 이 모양이다.
+        state = self._load_with({"requested_at": NOW.isoformat()})
+        with self.assertRaises(CorruptState):
+            state.load(WEEK)
+
+    def test_message_names_what_is_missing(self):
+        state = self._load_with({"status": "RUNNING"})
+        with self.assertRaises(CorruptState) as caught:
+            state.load(WEEK)
+        self.assertIn("week_of", str(caught.exception))

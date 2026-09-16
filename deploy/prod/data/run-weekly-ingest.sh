@@ -35,7 +35,12 @@ cd "$(dirname "$0")"
 REPO=$(cd ../../.. && pwd)
 
 # 회차마다 같은 이름을 쓴다. **이름이 없으면 죽일 대상을 찾을 수 없다** — 아래 잠금 절을 볼 것.
-CONTAINER=${PICKAGE_WEEKLY_CONTAINER:-pickage-weekly-run}
+#
+# ⚠ **환경변수로 덮어쓸 수 있게 두지 않는다.** systemd/pickage-weekly.service 의
+#   ExecStopPost 가 같은 이름을 지우는데, 그쪽은 유닛 파일에 박혀 있다. 여기만 바뀌면
+#   타임아웃으로 죽였을 때 systemd 가 엉뚱한 이름을 지우고 **진짜 컨테이너는 살아남는다** —
+#   두 겹 정리가 막으려던 상황이 정확히 그것이다. 이름을 바꾸려면 두 파일을 같이 고칠 것.
+CONTAINER=pickage-weekly-run
 LOCK=${PICKAGE_WEEKLY_LOCK:-/tmp/pickage-weekly.lock}
 
 [ -f .env ] || {

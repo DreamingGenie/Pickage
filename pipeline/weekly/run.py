@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from .schedule import (KEEP_WEEKS, MAX_CONSECUTIVE_FAILURES, SNAPSHOT_GRACE, STEPS,
-                       current_week_of, decide, download_run, snapshot_grace_expired,
-                       window_end, window_start)
-from .state import BUCKET, WeeklyState, open_store
+from .schedule import (KEEP_WEEKS, MAX_CONSECUTIVE_FAILURES, SNAPSHOT_GRACE,
+                       STALE_RUNNING, STEPS, current_week_of, decide, download_run,
+                       snapshot_grace_expired, window_end, window_start)
+from .state import BUCKET, CorruptState, WeeklyState, open_store
 from .steps import HANDLERS, Context, StepError, StepNotReady, purge_week
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -79,6 +80,19 @@ def main(argv: list[str] | None = None) -> int:
     if decision.claim_manual:
         _say("수동 실행 요청을 집어 갔다. 연속 실패 횟수를 0으로 되돌린다")
 
+    try:
+        return _execute(state, args, week_of, now, steps)
+    except CorruptState:
+        # 손상된 상태 객체는 사람이 고쳐야 한다. 여기서 fail() 로 덮어쓰면 증거가 사라지고,
+        # 반쯤 유효한 문서가 남아 다음 판정이 더 꼬인다.
+        raise
+    except Exception as error:
+        return _abandon(state, week_of, error)
+
+
+def _execute(state: WeeklyState, args, week_of: date, now: datetime,
+             steps: list[dict]) -> int:
+    """`begin()` 뒤의 본체. 여기서 터지는 것은 `main()` 이 FAILED 로 내려놓는다."""
     context = Context(root=ROOT, python=args.python, week_of=week_of,
                       dry_run=args.dry_run, minio_workers=args.minio_workers)
     _say(f"downloads 창 {window_start(week_of)}~{window_end(week_of)}, "
@@ -147,6 +161,31 @@ def main(argv: list[str] | None = None) -> int:
     state.pause(week_of)
     _say("남은 단계: " + ", ".join(s for s in STEPS if s not in done))
     return 0
+
+
+def _abandon(state: WeeklyState, week_of: date, error: Exception) -> int:
+    """단계 **밖에서** 터진 것. 대개 상태 저장소 쓰기 실패다.
+
+    그대로 두면 문서가 RUNNING 인 채 남고, 다음 발화부터 `decide()` 가 "다른 실행이 진행
+    중이다" 로 판단해 **STALE_RUNNING(26시간) 동안 아무것도 하지 않는다.** 화요일 창에
+    걸리면 그 주 갱신이 하루 늦는다.
+
+    그래서 한 번 더 시도해 FAILED 로 내려놓는다. 저장소가 잠깐 흔들린 경우라면 이것으로
+    다음 발화가 바로 이어받는다 (boto3 가 이미 5회 재시도하므로, 여기까지 온 것은 그
+    창을 넘긴 경우다). 그것마저 실패하면 고칠 방법이 없으므로 **무엇이 일어나는지 로그에
+    분명히 적는다** — 26시간 동안 조용한 것이 정상으로 보이면 안 된다.
+    """
+    detail = f"{type(error).__name__}: {error}"
+    _say(f"실행기가 단계 밖에서 중단됐다 — {detail}")
+    traceback.print_exc()
+    try:
+        status, count = state.fail(week_of, "실행기 중단: " + detail)
+        _say(f"회차 {status} (연속 {count}회). 다음 발화가 이어받는다")
+    except Exception as second:
+        _say(f"상태도 기록하지 못했다 ({type(second).__name__}). 회차가 RUNNING 으로 남아 "
+             f"다음 발화는 {STALE_RUNNING} 동안 이 회차를 건너뛴다 — "
+             f"먼저 상태 저장소를 살릴 것")
+    return 1
 
 
 def _purge(state: WeeklyState, context: Context, week_of: date, args) -> None:

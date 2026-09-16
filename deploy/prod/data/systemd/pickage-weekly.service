@@ -19,6 +19,10 @@ ExecStart=/bin/sh run-weekly-ingest.sh
 #
 #   run-weekly-ingest.sh 도 시작할 때 같은 정리를 한다. 두 겹인 이유는 사람이 손으로
 #   실행하다 Ctrl-C 로 끊는 경우에는 systemd 가 개입하지 않기 때문이다.
+#
+# ⚠ 이름이 run-weekly-ingest.sh 의 CONTAINER 와 **같아야 한다.** 한쪽만 바꾸면 여기서
+#   엉뚱한 이름을 지우고 진짜 컨테이너는 살아남는다 — 그래서 스크립트 쪽도 환경변수로
+#   덮어쓸 수 없게 박아 두었다.
 ExecStopPost=-/usr/bin/docker rm -f pickage-weekly-run
 
 # 한 회차가 23시간쯤 걸린다. 기본값(DefaultTimeoutStartSec, 보통 90초)으로 두면

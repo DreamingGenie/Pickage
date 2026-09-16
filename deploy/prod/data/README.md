@@ -876,6 +876,62 @@ docker compose exec minio sh -c 'mc admin user svcacct ls l "$MINIO_ROOT_USER"'
 docker compose exec minio sh -c 'mc admin user svcacct rm l <ACCESS_KEY>'
 ```
 
+### app 노드 api 에 줄 계정 — 주간 수집 운영 API 전용
+
+`app` 노드의 백엔드가 주간 수집 현황을 보여 주고 수동 실행 요청을 받는다
+(S15P21A506-347). 그 api 컨테이너가 쓸 계정이다.
+
+⚠ **위 worker② 의 키를 재사용하지 말 것.** 그건 `spark-env.sh` 가 읽는 자리라 이름이
+`MINIO_ROOT_*` 이고 권한도 넓다. 여기는 `_ops/weekly/` 밖으로 나갈 일이 없다.
+
+권한 내용은 [pipeline/minio/policies/ops.json](../../../pipeline/minio/policies/ops.json).
+
+| | |
+| --- | --- |
+| 목록 | `pickage-raw` 의 `_ops/weekly/` prefix **만** |
+| 읽기 | `_ops/weekly/**` |
+| **쓰기** | **`_ops/weekly/*/manual-request.json` 만** |
+| 삭제 | **없다** |
+
+**`run.json` 에 못 쓰는 것이 이 계정의 핵심이다.** 그 객체의 필자는 수집 러너 하나뿐이고,
+그래서 러너가 잠금 없이 읽고-고쳐-쓰기를 한다. 백엔드가 같이 쓰기 시작하면 그 전제가
+무너진다. 여기서는 그걸 **규약이 아니라 권한으로** 막는다 — 코드가 실수해도 저장소가 거부한다.
+
+**1. 정책을 만든다.**
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-ops /tmp/p.json' < ../../../pipeline/minio/policies/ops.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-ops "$S" >/dev/null && mc admin policy attach l pickage-ops --user pickage-ops >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-ops "$S"'
+```
+
+나온 값을 `app` 노드의 `deploy/prod/app/.env` 에 `OPS_S3_ACCESS_KEY` · `OPS_S3_SECRET_KEY`
+로 넣고 api 를 다시 만든다.
+
+**3. 권한이 의도대로인지 확인한다.**
+
+여섯 가지가 전부 맞아야 한다. 특히 2번(`ListBucket` 의 prefix 조건)과 4번이 중요하다 —
+2번이 틀리면 목록 조회가 조용히 비고, 4번이 뚫려 있으면 이 계정을 만든 의미가 없다.
+
+```bash
+docker compose exec -T minio sh -c '
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+echo "1 상태 읽기     :"; mc cat chk/pickage-raw/_ops/weekly/ 2>&1 | head -1
+echo "2 prefix 목록   :"; mc ls  chk/pickage-raw/_ops/weekly/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "3 우편함 쓰기   :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/manual-request.json >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "4 run.json 쓰기 :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/run.json      >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "5 원본 읽기     :"; mc ls  chk/pickage-raw/depsdev/ >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "6 삭제          :"; mc rm  chk/pickage-raw/_ops/weekly/2099-01-05/manual-request.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부'
+```
+
+> `mc admin` 하위 명령 구성은 릴리스마다 바뀐 이력이 있다. 이 절은 로컬(더 새 `mc`)에서
+> 확인했으므로, 이 노드의 더 오래된 이미지에서 안 되면 `mc admin policy --help` 를 먼저 볼 것.
+
 ### GPU 서버용 계정
 
 외부 GPU 서버가 학습 데이터를 가져가고 **모델을 올릴 때** 쓴다.

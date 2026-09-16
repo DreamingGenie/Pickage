@@ -156,7 +156,24 @@ def blank(week_of: date) -> dict:
     }
 
 
+class CorruptState(RuntimeError):
+    """상태 객체를 믿을 수 없다. **사람이 고쳐야 한다.**
+
+    빠진 값을 기본값으로 때우지 않는 이유가 있다. `status` 를 None 으로 채우면
+    `decide()` 의 세 가드(RUNNING·SUCCEEDED·BLOCKED)를 전부 빠져나가 "이어받기" 로
+    떨어지는데, 그러면 **이미 성공한 주를 23시간 들여 다시 받고 Bronze 에 중복 업로드한다.**
+    조용히 틀리는 것보다 멈추는 쪽이 싸다.
+    """
+
+
 def _record(document: dict, manual: dict) -> RunRecord:
+    # 이 둘이 없으면 회차를 식별할 수도, 무엇을 할지 정할 수도 없다.
+    missing = [key for key in ("week_of", "status") if not document.get(key)]
+    if missing:
+        raise CorruptState(
+            "회차 객체에 " + ", ".join(missing) + " 가 없다. "
+            "손으로 고쳤거나 다른 내용이 덮어써진 것이다 — "
+            "pickage-raw/_ops/weekly/<week_of>/run.json 을 확인할 것")
     return RunRecord(
         week_of=date.fromisoformat(document["week_of"]),
         status=document["status"],

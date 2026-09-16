@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListWeeklyRuns",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::pickage-raw"],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["_ops/weekly/*"]
+        }
+      }
+    },
+    {
+      "Sid": "ReadWeeklyState",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::pickage-raw/_ops/weekly/*"]
+    },
+    {
+      "Sid": "WriteManualRequestOnly",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": ["arn:aws:s3:::pickage-raw/_ops/weekly/*/manual-request.json"]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import unittest
 from datetime import date, timedelta
 
 from . import run as runner
-from .state import ObjectStore, WeeklyState, run_key
+from .state import CorruptState, ObjectStore, WeeklyState, run_key
 from .steps import StepError, StepNotReady
 from .test_state import FakeS3
 
@@ -36,6 +36,8 @@ class _Harness:
         self.error = error
 
     def _raise(self, context):
+        if self.error is None:
+            return {"ok": True}      # error 를 주지 않으면 단계는 멀쩡히 끝난다
         raise self.error
 
     def document(self, week):
@@ -102,3 +104,44 @@ class WeekArgumentTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AbandonTest(unittest.TestCase):
+    """단계 **밖에서** 터졌을 때 회차를 RUNNING 으로 버려 두지 않는다.
+
+    버려 두면 다음 발화부터 decide() 가 "다른 실행이 진행 중" 으로 판단해
+    STALE_RUNNING(26시간) 동안 아무것도 하지 않는다. 화요일 창에 걸리면 그 주 갱신이
+    하루 늦는데, 로그에는 "진행 중" 만 찍혀서 정상처럼 보인다.
+    """
+
+    def test_storage_failure_lands_as_failed(self):
+        # 단계는 멀쩡히 끝나는데 **결과를 기록하는 쪽**이 터진다. 저장소가 재시도 창을
+        # 넘겨 죽어 있는 경우다.
+        harness = _Harness(self, None)
+        calls = {"n": 0}
+
+        def explode(self, week_of, step, status, **kwargs):
+            calls["n"] += 1
+            raise RuntimeError("PUT 실패")
+
+        self.enterContext(_patch(runner.WeeklyState, "step_finish", explode))
+        code = runner.main(["--force", "--dry-run", "--week-of", FUTURE_WEEK.isoformat()])
+
+        self.assertEqual(code, 1)
+        self.assertEqual(calls["n"], 1, "첫 단계 기록에서 터져야 한다")
+        document = harness.document(FUTURE_WEEK)
+        # RUNNING 으로 버려 두지 않는다 — 그러면 26시간 잠긴다.
+        self.assertEqual(document["status"], "FAILED")
+        self.assertIn("실행기 중단", document["last_error"])
+
+    def test_corrupt_state_is_not_overwritten(self):
+        # 손상은 사람이 고쳐야 한다. fail() 로 덮어쓰면 증거가 사라진다.
+        harness = _Harness(self, None)
+        self.enterContext(_patch(runner.WeeklyState, "step_start", _raise_corrupt))
+        with self.assertRaises(CorruptState):
+            runner.main(["--force", "--dry-run", "--week-of", FUTURE_WEEK.isoformat()])
+        self.assertEqual(harness.document(FUTURE_WEEK)["status"], "RUNNING")
+
+
+def _raise_corrupt(self, *args, **kwargs):
+    raise CorruptState("회차 객체에 status 가 없다")
