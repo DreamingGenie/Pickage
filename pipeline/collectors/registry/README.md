@@ -149,7 +149,12 @@ pipeline\collectors\registry\status_watch.cmd
 # --watch 와 같이 쓰면 --refresh-min-interval(기본 3600초)마다, 그리고 수집이 끝날 때 한 번 더 돈다
 # 스모크 run 을 볼 때는 --parquet-out 도 같이 바꾼다. 안 바꾸면 변환기가 본 결과를 덮어쓰지 않으려고 멈춘다
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-09 --refresh-parquet
-# 분할 수집은 run 이름이 바뀌어 같은 출력 폴더의 출처 검사에 막힌다. 이전 결과를 이번 것으로 갈아탈 때만 --parquet-force
+# 분할 수집은 run 이름이 바뀌어 같은 출력 폴더의 출처 검사에 막힌다.
+# 수집 중에 보고 싶으면 --parquet-force 가 아니라 --parquet-out 으로 폴더를 따로 준다.
+# 같은 폴더에 --force 로 덮으면 완성된 09-09 결과(403 MB)가 지워지고 절반짜리로 바뀐다 —
+# raw 가 남아 있어 다시 만들 수는 있지만 변환에 30분 걸리고, 그동안 팀의 registry_versions 뷰가 절반만 보인다.
+.venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-16 --shards 4 --refresh-parquet --parquet-out data/registry/parquet_2026-09-16
+# 수집이 끝나고 검증까지 마친 뒤, 본 폴더를 이번 회차로 갈아탈 때만 --parquet-force
 .venv-bq/Scripts/python.exe pipeline/collectors/registry/status.py --run 2026-09-16 --shards 4 --refresh-parquet --parquet-force
 
 # 원시 로그 (분할 수집은 샤드마다 따로 쌓인다)
