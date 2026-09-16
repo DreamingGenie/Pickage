@@ -71,7 +71,7 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 2. **구조적 관문** (`--gate`, 기본 **on**) — 점수 조정이 아니라 통과/탈락:
    - plugin/adapter/preset/loader·비말단 config (이름·keywords) → drop
    - same-family: 우산↔하위모듈(`d3`↔`d3-axis`)·같은 포장(`lodash`↔`lodash-es`)·같은 `@scope` → drop
-   - 보완재 감점(dependents 교집합 `> 0.3`) → **의존 그래프(Spark) 준비 후 추가** (`S15P21A506-173`)
+   - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 안 주면 이 관문은 자동으로 꺼진다(하위 호환)
 3. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
 4. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 
