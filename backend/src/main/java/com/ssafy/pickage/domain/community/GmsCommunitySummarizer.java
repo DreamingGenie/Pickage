@@ -62,7 +62,10 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             you below, using the exact type (ISSUE_BODY or COMMENT) and id shown. echo the given \
             issue_number back unchanged. kind describes whether a message resembles a discussion \
             reply or a proposed solution (USER_SOLUTION) — it is not an authorship or acceptance \
-            judgment. Never summarize the issue body itself as a message.""";
+            judgment. Never summarize the issue body itself as a message. Produce at most 4 flow \
+            steps (the most important turning points only, not every comment) and at most 3 \
+            messages (pick the most important ones — prefer USER_SOLUTION over plain discussion). \
+            Cite at most 101 distinct source ids in total across summary_support and flow_support.""";
 
     /**
      * S15P21A506-373 4단계(Map-Reduce) Reduce 전용 prompt. 원문 댓글이 아니라 배치별로 이미
@@ -82,7 +85,9 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             (ISSUE_BODY or COMMENT) and id shown — do not invent new ids. kind describes whether a \
             message resembles a discussion reply or a proposed solution (USER_SOLUTION) — it is \
             not an authorship or acceptance judgment. Prefer messages already marked \
-            USER_SOLUTION when narrowing down to the final message list.""";
+            USER_SOLUTION when narrowing down to the final message list. Produce at most 4 flow \
+            steps total (merge overlapping batch steps, keep only the most important turning \
+            points) and at most 3 messages total. Cite at most 101 distinct source ids in total.""";
 
     private final HttpClient httpClient;
     private final URI endpoint;
@@ -284,10 +289,10 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         ObjectNode props = root.putObject("properties");
         props.putObject("title_ko").put("type", "string");
         props.putObject("summary_ko").put("type", "string");
-        props.set("summary_support", arrayOf(sourceRef));
-        props.set("flow", arrayOf(flowItem));
-        props.set("flow_support", arrayOf(flowSupportRef));
-        props.set("messages", arrayOf(messageItem));
+        props.set("summary_support", arrayOf(sourceRef, 101));
+        props.set("flow", arrayOf(flowItem, 4));
+        props.set("flow_support", arrayOf(flowSupportRef, 4 * 101));
+        props.set("messages", arrayOf(messageItem, 3));
         root.putArray("required")
                 .add("title_ko")
                 .add("summary_ko")
@@ -486,10 +491,10 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         props.putObject("issue_number").put("type", "integer");
         props.putObject("title_ko").put("type", "string");
         props.putObject("summary_ko").put("type", "string");
-        props.set("summary_support", arrayOf(sourceRef));
-        props.set("flow", arrayOf(flowItem));
-        props.set("flow_support", arrayOf(flowSupportRef));
-        props.set("messages", arrayOf(messageItem));
+        props.set("summary_support", arrayOf(sourceRef, 101));
+        props.set("flow", arrayOf(flowItem, 4));
+        props.set("flow_support", arrayOf(flowSupportRef, 4 * 101));
+        props.set("messages", arrayOf(messageItem, 3));
         root.putArray("required")
                 .add("issue_number")
                 .add("title_ko")
@@ -506,6 +511,20 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         ObjectNode array = JSON.createObjectNode();
         array.put("type", "array");
         array.set("items", items);
+        return array;
+    }
+
+    /**
+     * {@link CommunitySummaryValidator}가 강제하는 개수 상한(flow ≤4, messages ≤3,
+     * summary_support ≤101)을 스키마 자체에도 걸어 둔다 — 지금까지는 이 상한이 검증기에만
+     * 있고 prompt·schema 어디에도 없어서, 실네트워크 실측(2026-09-16, 85개 댓글 배치)에서
+     * GMS가 flow 5~6개·messages 5개를 습관적으로 만들어 배치 5개가 전부 검증 탈락하는 것을
+     * 확인했다(S15P21A506-373 4단계 실측 기록 참고). 0~2단계부터 있던 공백이었으나 4단계
+     * 배치(코드 블록 포함 15개 댓글/배치)에서 처음 실측으로 드러났다.
+     */
+    private ObjectNode arrayOf(ObjectNode items, int maxItems) {
+        ObjectNode array = arrayOf(items);
+        array.put("maxItems", maxItems);
         return array;
     }
 
