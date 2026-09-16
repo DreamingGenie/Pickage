@@ -511,8 +511,31 @@ class IsComplement(unittest.TestCase):
     def test_threshold_is_configurable(self):
         base = {"a", "b", "c", "d"}
         cand = {"a", "b"}  # 비율 2/2 = 1.0
-        self.assertFalse(sbp.is_complement(base, cand, threshold=1.5))
-        self.assertTrue(sbp.is_complement(base, cand, threshold=0.3))
+        # min_sample 기본값(20)보다 작은 집합이라 표본 부족 판정과 섞이지 않게
+        # min_sample=1 로 threshold 자체의 동작만 분리해서 검증한다.
+        self.assertFalse(sbp.is_complement(base, cand, threshold=1.5, min_sample=1))
+        self.assertTrue(sbp.is_complement(base, cand, threshold=0.3, min_sample=1))
+
+    def test_small_sample_does_not_flag_even_with_high_ratio(self):
+        """실측(2026-09-16)에서 찾은 노이즈 사례 반영 — jest(dependents 11,228개) vs
+        @japa/runner(dependents 7개)가 우연히 4개 겹쳐 비율 0.571로 나왔지만, 표본이
+        7개뿐이라 통계적으로 못 믿을 수치다. 둘 중 작은 쪽이 min_sample 미만이면
+        비율이 아무리 높아도 판단을 보류(통과)한다."""
+        base = {f"user{i}" for i in range(11228)}
+        cand = {f"user{i}" for i in range(4)} | {"only-in-cand-1", "only-in-cand-2", "only-in-cand-3"}
+        self.assertEqual(len(cand), 7)
+        self.assertFalse(sbp.is_complement(base, cand))  # 비율 4/7=0.571 이지만 표본 부족
+
+    def test_sample_at_or_above_min_sample_is_judged_normally(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(20)}  # 정확히 min_sample 기본값(20), 비율 1.0
+        self.assertTrue(sbp.is_complement(base, cand))
+
+    def test_min_sample_is_configurable(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(7)}  # 비율 1.0 이지만 표본 7개
+        self.assertFalse(sbp.is_complement(base, cand))  # 기본 min_sample=20 이라 보류
+        self.assertTrue(sbp.is_complement(base, cand, min_sample=5))  # 낮추면 판단함
 
 
 class ApplyGates(unittest.TestCase):

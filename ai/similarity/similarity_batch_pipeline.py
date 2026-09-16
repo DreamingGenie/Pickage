@@ -367,7 +367,10 @@ def is_repo_archived(value) -> bool:
 
 
 def is_complement(
-    base_dependents: set[str] | None, cand_dependents: set[str] | None, threshold: float = 0.3
+    base_dependents: set[str] | None,
+    cand_dependents: set[str] | None,
+    threshold: float = 0.3,
+    min_sample: int = 20,
 ) -> bool:
     """base 와 cand 가 자주 같이 쓰이는 보완재인가 (S15P21A506-173).
 
@@ -379,8 +382,17 @@ def is_complement(
 
     둘 중 하나라도 dependents 데이터가 없으면(빈 집합 포함) 판단하지 않고 False —
     데이터 없다고 감점하면 안 되므로 통과가 기본값이다.
+
+    `min_sample`: 둘 중 더 작은 쪽의 dependents 수가 이보다 작으면 비율이 통계적으로
+    못 미더우니 판단을 보류한다(False). 실측(테스트 알테너티브 315쌍 교차검증) 중
+    `jest`↔`@japa/runner`가 dependents 7개짜리 우연한 겹침만으로 비율 0.571까지
+    나와 진짜 대안인데 오탐 위험이 있었던 걸 보고 추가한 안전장치 — 그 315쌍 중
+    이런 표본 부족 오탐은 이 사례 하나뿐이었고, 실제 보완재들은 전부 표본이 수백~
+    수만 규모라 20으로 잡아도 재현율에 영향이 없었다.
     """
     if not base_dependents or not cand_dependents:
+        return False
+    if min(len(base_dependents), len(cand_dependents)) < min_sample:
         return False
     inter = len(base_dependents & cand_dependents)
     ratio = inter / min(len(base_dependents), len(cand_dependents))
