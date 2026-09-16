@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shlex
 import sys
 import time
 from urllib.parse import urlsplit
@@ -41,16 +42,21 @@ def node_runtime():
             "classifier_worker": os.environ.get("EXPERIMENT_CLASSIFIER_WORKER", str(root / "requirements_resolution/semver_worker.cjs"))}
 
 
-def spark_session(partitions):
+def spark_session(partitions, event_dir=None):
     from pyspark.sql import SparkSession
-    spark = (SparkSession.builder.appName("pickage-preprocessing-experiment")
+    builder = (SparkSession.builder.appName("pickage-preprocessing-experiment")
              .config("spark.sql.session.timeZone", "UTC")
              .config("spark.sql.caseSensitive", "true")
              .config("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MICROS")
              .config("spark.sql.shuffle.partitions", str(partitions))
              .config("spark.sql.adaptive.enabled", "true")
-             .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
-             .getOrCreate())
+             .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false"))
+    if event_dir:
+        builder = (builder.config('spark.eventLog.enabled', 'true')
+                   .config('spark.eventLog.dir', event_dir.as_uri())
+                   .config('spark.eventLog.compress', 'false')
+                   .config('spark.eventLog.rolling.enabled', 'false'))
+    spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 
@@ -169,6 +175,8 @@ def main(argv=None):
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--partitions", type=int, default=4)
     parser.add_argument("--memory", default="2GB")
+    parser.add_argument("--telemetry-dir", type=Path,
+                        help="Dedicated local directory for cgroup samples and Spark event logs")
     args = parser.parse_args(argv)
     names = args.stages.split(",")
     if any(name not in STAGES for name in names) or len(names) != len(set(names)):
@@ -177,17 +185,38 @@ def main(argv=None):
         remote = urlsplit(args.output)
         if (remote.netloc != "pickage-curated" or not remote.path.startswith("/experiments/")
                 or any(p in ("", ".", "..") for p in remote.path.strip("/").split("/"))
-                or remote.query or remote.fragment or args.engine != "spark"):
-            parser.error("remote Spark output must use pickage-curated/experiments/<unique-run>")
+                or remote.query or remote.fragment or args.engine != "spark"
+                or args.telemetry_dir is None):
+            parser.error("remote Spark output must use pickage-curated/experiments/<unique-run> and --telemetry-dir")
+    from .telemetry import Sampler, read_snapshot, snapshot_delta, parse_event_log
+    event_dir = None
+    original_submit_args = os.environ.get('PYSPARK_SUBMIT_ARGS')
+    if args.telemetry_dir:
+        args.telemetry_dir = args.telemetry_dir.resolve()
+        args.telemetry_dir.mkdir(parents=True, exist_ok=False)
+        event_dir = args.telemetry_dir / 'events'
+        event_dir.mkdir()
+        if args.engine == 'baseline':
+            # The existing repository stage starts a local Spark session. Configure
+            # its event log through the process environment, without editing it.
+            flags = ['--conf', 'spark.eventLog.enabled=true', '--conf',
+                     'spark.eventLog.dir=' + event_dir.as_uri(), '--conf',
+                     'spark.eventLog.compress=false', '--conf', 'spark.eventLog.rolling.enabled=false']
+            os.environ['PYSPARK_SUBMIT_ARGS'] = shlex.join(flags) + ' ' + (original_submit_args or 'pyspark-shell')
     start = time.perf_counter()
     report = {"engine": args.engine, "scope": "FIXED_STAGE_INPUT_COMPARISON", "status": "RUNNING",
               "python": platform.python_version(), "code_sha256": code_sha(), "stages": {},
-              "settings": vars(args), "cpu_seconds": None, "peak_process_memory_bytes": None,
+              "settings": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
+              "cpu_seconds": None, "peak_process_memory_bytes": None,
               "executor_memory_bytes": None, "db_loaded": False, "production_publication": False}
     spark = None
+    sampler = None
+    stage_error = None
+    stage_traceback = None
     try:
+        sampler = Sampler().start()
         if args.engine == "spark":
-            spark = spark_session(args.partitions)
+            spark = spark_session(args.partitions, event_dir)
             report.update(spark_version=spark.version, master=spark.sparkContext.master,
                           application_id=spark.sparkContext.applicationId)
         report["startup_seconds"] = time.perf_counter() - start
@@ -200,22 +229,86 @@ def main(argv=None):
                 (r["sha256"], r["bytes"]) for r in manifest["input_files"])}, sort_keys=True).encode()).hexdigest())
         for name in names:
             began = time.perf_counter()
+            before_stage = read_snapshot()
+            if spark:
+                spark.sparkContext.setJobGroup(name, 'Preprocessing stage: ' + name)
             output = args.output.rstrip("/") + "/" + name
             value = (spark_stage(name, spark, manifest["stages"][name], output) if spark else
                      baseline(name, manifest["stages"][name], output, args.threads, args.memory))
-            report["stages"][name] = {"seconds": time.perf_counter() - began, "output": output, "result": value}
+            report["stages"][name] = {"seconds": time.perf_counter() - began, "output": output,
+                                     "result": value, "container_counters": snapshot_delta(before_stage, read_snapshot())}
             if spark:
                 spark.catalog.clearCache()
             print("EXPERIMENT_STAGE_COMPLETE", name, report["stages"][name]["seconds"], flush=True)
         report["status"] = "COMPUTED"
     except BaseException as error:
+        stage_error = error
+        stage_traceback = sys.exc_info()[2]
         report.update(status="FAILED", error={"type": type(error).__name__, "message": str(error)})
-        raise
     finally:
-        report["job_seconds"] = time.perf_counter() - start
-        write_json(args.output.rstrip("/") + "/report.json", report, spark)
+        cleanup_errors = []
+
+        def cleanup(label, action):
+            try:
+                return action()
+            except BaseException as error:
+                cleanup_errors.append({"step": label, "type": type(error).__name__, "message": str(error)})
+                return None
+
+        # Hadoop S3 report writing needs the live context. Its failure must not
+        # prevent local telemetry collection or environment restoration.
+        remote_output = args.output.startswith('s3a://')
+        if remote_output:
+            report['job_seconds'] = time.perf_counter() - start
+            report['telemetry_companion'] = str(args.telemetry_dir/'report-with-telemetry.json')
+            cleanup("provisional_remote_report", lambda: write_json(
+                args.output.rstrip('/') + '/report.json', report, spark))
         if spark:
-            spark.stop()
+            cleanup("spark_stop", spark.stop)
+        measured = cleanup("sampler_stop", sampler.stop) if sampler else None
+        if measured is None and sampler:
+            measured = cleanup("sampler_snapshot_fallback", sampler.summary)
+        report['job_seconds'] = time.perf_counter() - start
+        if measured is not None:
+            delta = measured['delta']
+            usage = delta['cpu']['usage_usec'] if delta else None
+            peaks = [s['memory']['peak'] for s in measured['samples'] if s['memory']['peak'] is not None]
+            report['telemetry'] = {'sample_count': measured['sample_count'], 'container_delta': delta,
+                                   'container_cpu_seconds': usage / 1e6 if usage is not None else None,
+                                   'container_peak_memory_bytes': max(peaks) if peaks else None,
+                                   'scope': 'CURRENT_CONTAINER_ONLY; distributed executors require per-host monitor',
+                                   'limitations': measured['samples'][0]['limitations'] if measured['samples'] else {}}
+            if args.telemetry_dir:
+                cleanup("local_samples_save", lambda: (args.telemetry_dir/'samples.json').write_text(
+                    json.dumps(measured), encoding='utf-8'))
+                try:
+                    report['telemetry']['spark_event_logs'] = [parse_event_log(p) for p in sorted(event_dir.iterdir())
+                        if p.is_file() and not p.name.startswith('.')]
+                except BaseException as error:
+                    cleanup_errors.append({"step": "event_log_parse", "type": type(error).__name__, "message": str(error)})
+                report['cleanup_errors'] = cleanup_errors
+                cleanup("local_telemetry_report_save", lambda: (args.telemetry_dir/'report-with-telemetry.json').write_text(
+                    json.dumps(report, default=str), encoding='utf-8'))
+        report['cleanup_errors'] = cleanup_errors
+        if not remote_output:
+            cleanup("local_report_save", lambda: write_json(args.output.rstrip('/') + '/report.json', report))
+        if original_submit_args is None:
+            cleanup("environment_restore", lambda: os.environ.pop('PYSPARK_SUBMIT_ARGS', None))
+        else:
+            cleanup("environment_restore", lambda: os.environ.__setitem__('PYSPARK_SUBMIT_ARGS', original_submit_args))
+        report['cleanup_errors'] = cleanup_errors
+        if cleanup_errors and report['status'] == 'COMPUTED':
+            report['status'] = 'CLEANUP_FAILED'
+        if args.telemetry_dir and measured is not None:
+            cleanup("final_local_telemetry_report_save", lambda: (args.telemetry_dir/'report-with-telemetry.json').write_text(
+                json.dumps(report, default=str), encoding='utf-8'))
+        if not remote_output and cleanup_errors:
+            cleanup("final_local_report_save", lambda: write_json(args.output.rstrip('/') + '/report.json', report))
+    if stage_error is not None:
+        raise stage_error.with_traceback(stage_traceback)
+    if cleanup_errors:
+        raise RuntimeError("experiment cleanup failed: " + "; ".join(
+            error['step'] + ": " + error['message'] for error in cleanup_errors))
     return 0
 
 

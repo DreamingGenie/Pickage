@@ -73,6 +73,7 @@ DRIVER_MEMORY="${{DRIVER_MEMORY:-1g}}"
 EXECUTOR_MEMORY="${{EXECUTOR_MEMORY:-2g}}"
 EXECUTOR_CORES="${{EXECUTOR_CORES:-1}}"
 TOTAL_EXECUTOR_CORES="${{TOTAL_EXECUTOR_CORES:-2}}"
+TELEMETRY_DIR="${{TELEMETRY_DIR:-$BUNDLE_DIR/telemetry}}"
 PYSPARK_PYTHON="${{PYSPARK_PYTHON:-python3}}"
 
 test -d "$CODE_ROOT"
@@ -104,7 +105,7 @@ export PYSPARK_PYTHON
   --conf spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs=false \
   "$CODE_ROOT/pipeline/spark_experiment/submit.py" \
   --manifest "$REMOTE_PREFIX/{manifest_name}" --engine spark \
-  --output "$REMOTE_PREFIX/output" --stages package_version,downloads,repository,package_snapshot,dependents
+  --output "$REMOTE_PREFIX/output" --telemetry-dir "$TELEMETRY_DIR" --stages package_version,downloads,repository,package_snapshot,dependents
 
 # The Spark job suppresses Hadoop _SUCCESS markers. Publication remains an
 # operator responsibility; this preparation launcher never writes one.

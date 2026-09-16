@@ -62,7 +62,10 @@ python -m pipeline.spark_experiment prepare --request data/request.json --work-d
 서비스 및 품질 Parquet 22개 그룹을 비교한다. NULL과 0, 중복 행 개수, 스키마를 구별하고
 JSON 객체 키 순서·열 순서·명시적인 UTC timestamp 표현 차이만 정규화한다.
 결과가 다르면 실행을 실패 처리하고 속도 비율을 유효한 수치로 제공하지 않는다.
-CPU 사용 시간, 최고 메모리, 셔플/네트워크 바이트는 아직 측정하지 않으며 보고서에서 NULL로 표시한다.
+실행기는 cgroup CPU 시간, 메모리(current/peak 및 anon/file/kernel 구분), 디스크 입출력과
+Spark event log의 단계별 셔플·스필을 기록한다. 누락된 측정값은 NULL이다.
+분산 worker는 각 EC2에서 별도 monitor를 실행해야 한다. host network의 트래픽은
+호스트 전체 범위이며 실험 전용 수치로 해석하지 않는다.
 작은 fixture 결과는 운영 속도 향상을 입증하지 않는다.
 
 ## 운영 두 노드 실험 준비
@@ -86,6 +89,54 @@ driver와 executor의 Python 버전, 코드 경로, Node/semver/npm-package-arg 
 로컬 비교 이미지는 Spark 3.5.7/Python 3.11/Java 17이므로 운영 호환성과 두 노드 성능은 별도 확인 대상이다.
 이번 준비는 운영 배포 파일이나 컨테이너를 수정하지 않는다.
 
+## 로컬 두 worker 런타임 스모크
+
+후속 실제 EC2 검증은 `runtime/ec2_smoke.py`, 단기 launcher `runtime/ec2_launch.py`,
+서비스 감시/실험 중단 도구 `runtime/ec2_guard.py`를 사용했다. 기존 app/data 배포는 유지하고
+별도 실험 master/worker를 실행했다. 이 파일들의 host/port/run ID는 해당 단기 실행에 고정되어
+있으므로 자동 운영 실행기로 사용하지 않는다. 재실행 전에는 새 run ID/빈 경로, 포트 가용성,
+운영 작업과 서비스 상태를 다시 확인해야 한다. 이전 결과에 덮어쓰지 않는다.
+실측 결과와 실패/복구 이력은 `docs/worklogs/raw-to-curated-pipeline/06-bounded-ec2-runtime.md`에 있다.
+두 EC2의 runtime/shuffle 검증은 통과했으며 실제 raw 성능 비교는 별도다.
+
+`runtime/compose.local.yaml`은 로컬 Docker 전용 standalone 클러스터다. `master`, `worker1`,
+`worker2`는 내부 네트워크에서만 통신하며 포트를 호스트에 공개하지 않는다. 공통 실험 이미지에
+CPU/메모리 상한을 적용하고 swap은 허용하지 않는다. driver는 `smoke` 프로필에서만 실행한다.
+코드 한 파일만 읽기 전용으로 mount하고, JSON 증거 파일을 쓰는 전용 출력 폴더만 쓰기 가능하다.
+입력 데이터, 사용자 홈, Docker socket, 자격증명, MinIO는 연결하지 않는다.
+
+이번 공통 런타임은 Spark 3.5.3 / Python 3.11 / Java 17 / Node 24다.
+`runtime/images.lock.json`에 amd64 베이스 이미지 digest를 고정했고, 아래 빌드 도구는 Docker Desktop의
+로컬 named pipe를 확인한 뒤 빈 build context로 별도 태그를 만든다. 기존 `:local` 이미지와
+Dockerfile 기본 Spark 3.5.7 설정은 유지한다. apt 및 pip 전이 의존성은 빌드 시 결정되므로 비교할 때는
+반드시 완성된 이미지 ID를 고정한다. 서버 배포/실행은 이 도구의 범위에 포함되지 않는다.
+
+```powershell
+& ./pipeline/spark_experiment/runtime/build.local.ps1
+```
+
+그 다음 저장소 루트 PowerShell에서 아래처럼
+명시적으로 Docker Desktop Linux context와 이미지 tag를 지정해 실행한다. 출력 디렉터리는 새 경로여야
+하며, compose는 자동으로 시작되지 않는다.
+
+```powershell
+$env:EXPERIMENT_IMAGE = docker --context desktop-linux image inspect pickage-spark-experiment:runtime-3.5.3 --format '{{.Id}}'
+$env:EXPERIMENT_OUTPUT_DIR = "C:/tmp/spark-local-cluster-evidence"
+New-Item -ItemType Directory -Path $env:EXPERIMENT_OUTPUT_DIR
+$compose = "pipeline/spark_experiment/runtime/compose.local.yaml"
+docker --context desktop-linux compose -p pickage-runtime-local-20260915 -f $compose up -d --wait master worker1 worker2
+docker --context desktop-linux compose -p pickage-runtime-local-20260915 -f $compose --profile smoke run --rm driver
+Get-Content "$env:EXPERIMENT_OUTPUT_DIR/cluster-smoke.json"
+docker --context desktop-linux compose -p pickage-runtime-local-20260915 -f $compose down --remove-orphans
+```
+
+두 파티션의 barrier stage가 함께 실행되므로 worker가 모자라면 Spark가 작업을 실패 처리한다.
+성공 증거의 `distinct_workers_observed`는 2 이상이어야 하며 `worker_hostnames`에 두 executor
+컨테이너의 호스트명이 기록된다. `runtime_versions`에는 각 worker의 Python·Java·Node 버전이,
+`node_semver_passed`에는 Node.js가 `semver.valid('1.2.3')`를 성공 호출했는지가 기록된다.
+이 스모크는 런타임 배치만 검증하며 실제
+고정 입력의 전처리 결과, 성능, 운영 호환성 또는 서버 네트워크를 검증하지 않는다.
+
 운영 실험에서는 동일 입력으로 baseline 1대, Spark local 1대, Spark 두 노드를 각각 비교하고,
 코어·메모리·스필·executor 배치·MinIO 트래픽을 함께 기록해야 한다. 노드 수가 다른 결과를
 엔진 자체의 성능 차이라고 단정하지 않는다. S3 업로드 완료만으로 게시 완료를 판단하지 않고,
@@ -93,4 +144,38 @@ driver와 executor의 Python 버전, 코드 경로, Node/semver/npm-package-arg 
 
 설계 참고: [Spark 제출 및 Python 배포 모드](https://spark.apache.org/docs/3.5.8/submitting-applications.html),
 [Spark 배열 필터 API](https://spark.apache.org/docs/3.5.8/api/python/reference/pyspark.sql/api/pyspark.sql.functions.filter.html).
-공식 3.5 계열 문서 확인과 실제 로컬 3.5.7 실행을 구분하며, 운영 3.5.3 실행은 미검증이다.
+공식 3.5 계열 문서 확인, 로컬 3.5.7 실행, 별도 3.5.3 이미지의 두 EC2 runtime/shuffle
+스모크를 구분한다. 실제 raw 성능 비교는 아직 실행하지 않았다.
+
+## 실제 raw 고정과 측정 준비
+
+`freeze_raw`는 raw 객체를 실험 전용 MinIO prefix와 data EC2 로컬 파일에 복사하고
+모든 객체의 SHA-256을 검증한다. 전처리는 실행하지 않는다. 작업 이력과 실제 입력 identity는
+`docs/worklogs/raw-to-curated-pipeline/07-real-input-and-telemetry.md`에 기록한다.
+
+`prepare-frozen --manifest <raw-inputs.json> --work-dir <새 경로>`는 고정된 로컬 raw만
+읽으며 기존 전처리를 실행해 5개 단계의 기준 입력을 만든다. 따라서 이 명령부터 실제 계산이다.
+raw 고정 완료와 5개 단계의 기준 입력 생성 완료를 혼동하지 않는다.
+
+각 서버에서 실험 컨테이너의 정확한 이름과 `pickage.experiment` 라벨을 지정해 측정한다.
+모니터는 Docker daemon을 조회할 권한 및 해당 cgroup/proc 읽기 권한이 필요하다.
+
+```bash
+sudo env PYTHONPATH="$CODE_ROOT" python3 -m pipeline.spark_experiment.runtime.monitor_container \
+  --container "$EXACT_CONTAINER_NAME" --run-id "$RUN_ID" \
+  --output "$NEW_METRICS_DIRECTORY" --duration-seconds 3600
+```
+
+data의 driver/master/worker와 app의 worker 각각에 실행한다. 컨테이너 교체·종료 시 측정을
+끝내며 기존 출력에 덮어쓰지 않는다. 모니터는 컨테이너를 중단하지 않는다. 서비스 감시 및
+실험 중단은 별도의 `ec2_guard.py` 역할이다. 작업 제출 전 모든 모니터의 첫 샘플을 확인한다.
+실험 전용 컨테이너를 새로 만들어 누적 CPU/메모리 peak 범위를 이전 작업과 분리한다.
+
+`job --telemetry-dir <새 로컬 경로>`는 `samples.json`, Spark `events/`, 종료 후 최종
+`report-with-telemetry.json`을 남긴다. S3의 report는 Spark 종료 전 기록이며 최종 측정은
+이 로컬 companion 보고서를 사용한다. Spark 이벤트는 `telemetry.parse_event_log(path)`로
+집계한다. 불완전 로그/누락 지표를 0으로 채우지 않는다. worker 측정의 CPU 시간은 합산하되,
+메모리는 같은 시각의 합계와 컨테이너별 peak를 구분한다.
+
+자원 상한 비교안은 `evidence/real-input-preparation/resource-profile.json`에 있다.
+전체 raw의 메모리 적합성, MinIO S3A 실제 전처리 실행과 성능은 후속 실험에서 확인한다.

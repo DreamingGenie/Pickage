@@ -1,0 +1,75 @@
+services:
+  master:
+    image: ${EXPERIMENT_IMAGE:?Set EXPERIMENT_IMAGE to the locally built experiment image}
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "master", "--port", "7077", "--webui-port", "8080"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    networks: [spark-experiment]
+    cpus: 0.5
+    mem_limit: 512m
+    memswap_limit: 512m
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/json/', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  worker1:
+    image: ${EXPERIMENT_IMAGE:?Set EXPERIMENT_IMAGE to the locally built experiment image}
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://master:7077", "--host", "worker1", "--cores", "1", "--memory", "1536M"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    depends_on:
+      master:
+        condition: service_healthy
+    networks: [spark-experiment]
+    cpus: 1.0
+    mem_limit: 2g
+    memswap_limit: 2g
+
+  worker2:
+    image: ${EXPERIMENT_IMAGE:?Set EXPERIMENT_IMAGE to the locally built experiment image}
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://master:7077", "--host", "worker2", "--cores", "1", "--memory", "1536M"]
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    depends_on:
+      master:
+        condition: service_healthy
+    networks: [spark-experiment]
+    cpus: 1.0
+    mem_limit: 2g
+    memswap_limit: 2g
+
+  driver:
+    image: ${EXPERIMENT_IMAGE:?Set EXPERIMENT_IMAGE to the locally built experiment image}
+    entrypoint: ["python3", "/experiment/code/cluster_smoke.py"]
+    environment:
+      SPARK_MASTER_URL: spark://master:7077
+      SPARK_WORKER_COUNT: "2"
+      SPARK_PARALLELISM: "2"
+      SPARK_RESULT_PATH: /experiment/output/cluster-smoke.json
+    volumes:
+      - type: bind
+        source: ./cluster_smoke.py
+        target: /experiment/code/cluster_smoke.py
+        read_only: true
+      - type: bind
+        source: ${EXPERIMENT_OUTPUT_DIR:?Set EXPERIMENT_OUTPUT_DIR to a dedicated local evidence directory}
+        target: /experiment/output
+    depends_on:
+      master:
+        condition: service_healthy
+      worker1:
+        condition: service_started
+      worker2:
+        condition: service_started
+    networks: [spark-experiment]
+    cpus: 1.0
+    mem_limit: 1g
+    memswap_limit: 1g
+    profiles: [smoke]
+
+networks:
+  spark-experiment:
+    driver: bridge
+    internal: true

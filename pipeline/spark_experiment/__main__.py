@@ -10,6 +10,9 @@ def main(argv=None):
     prepare = commands.add_parser("prepare", help="Read pinned MinIO inputs; freeze reference inputs locally")
     prepare.add_argument("--request", type=Path, required=True)
     prepare.add_argument("--work-dir", type=Path, required=True)
+    frozen = commands.add_parser("prepare-frozen", help="Compute baseline reference inputs from verified frozen raw; no live MinIO access")
+    frozen.add_argument("--manifest", type=Path, required=True)
+    frozen.add_argument("--work-dir", type=Path, required=True)
     fixture = commands.add_parser("fixture", help="Create a small synthetic experiment without MinIO credentials")
     fixture.add_argument("--work-dir", type=Path, required=True)
     bench = commands.add_parser("benchmark", help="Run both engines sequentially and compare every output row")
@@ -23,7 +26,15 @@ def main(argv=None):
     cluster.add_argument("--manifest", type=Path, required=True)
     cluster.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
-    if args.command in ("prepare", "fixture"):
+    if args.command == 'prepare-frozen':
+        import copy
+        from .frozen_raw_store import FrozenRawS3
+        from .prepare import prepare
+        source = FrozenRawS3(args.manifest)
+        request = copy.deepcopy(source.manifest['source_request'])
+        request['options']['repository_engine'] = 'native'
+        result = prepare(source, request, args.work_dir)
+    elif args.command in ("prepare", "fixture"):
         from .prepare import prepare
         if args.command == "fixture":
             from tests.orchestration_fixture import make_fixture

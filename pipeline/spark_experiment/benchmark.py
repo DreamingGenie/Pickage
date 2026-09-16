@@ -69,6 +69,7 @@ def benchmark(manifest_path, *, image="pickage-spark-experiment:local", repetiti
                     command += ["python3", "-m", "pipeline.spark_experiment.job"]
                 command += ["--manifest", container_batch + "/input.json", "--engine", engine,
                             "--output", output, "--threads", str(threads), "--memory", memory,
+                            "--telemetry-dir", output + "-telemetry",
                             "--stages", ",".join(stages)]
                 started = time.perf_counter()
                 with (batch / (name + ".log")).open("w", encoding="utf-8") as log:
