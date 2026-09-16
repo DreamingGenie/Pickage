@@ -74,6 +74,29 @@ public final class FakeHttpServer implements AutoCloseable {
     }
 
     /**
+     * 200 OK({@code body})를 돌려주면서 요청 본문 전체를 {@code capture}에 담는다. {@link
+     * #respondCapturingHeader}와 같은 이유로 단언은 이 안에서 하지 않는다 — POST 요청 payload(예: GMS 요청
+     * JSON) 검증용.
+     */
+    public void respondCapturingBody(String path, String body, Consumer<String> capture) {
+        server.createContext(
+                path,
+                exchange -> {
+                    String requestBody =
+                            new String(
+                                    exchange.getRequestBody().readAllBytes(),
+                                    StandardCharsets.UTF_8);
+                    capture.accept(requestBody);
+                    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, bytes.length);
+                    try (var os = exchange.getResponseBody()) {
+                        os.write(bytes);
+                    }
+                    exchange.close();
+                });
+    }
+
+    /**
      * 쿼리 파라미터 값(예: {@code page})에 따라 다른 응답을 준다 — GitHub 페이지네이션처럼 같은 경로를 여러 page로 반복 호출하는 API를 흉내낼 때
      * 쓴다. {@code answer}는 쿼리 문자열 전체(디코드 안 함, 필요하면 호출자가 {@link #queryParam}으로 값을 뽑는다)를 받아 {@link
      * Answer}를 돌려준다.
