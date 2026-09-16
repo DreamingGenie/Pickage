@@ -297,8 +297,8 @@ class CommunityControllerIntegrationTest {
         }
 
         @Bean
-        CommunityMapReduceSummarizer communityMapReduceSummarizer(BoundedCommunitySummarizer bounded) {
-            return new CommunityMapReduceSummarizer(bounded);
+        CommunityHighlightSummarizer communityMapReduceSummarizer(BoundedCommunitySummarizer bounded) {
+            return new CommunityHighlightSummarizer(bounded);
         }
 
         @Bean(destroyMethod = "close")
@@ -310,7 +310,7 @@ class CommunityControllerIntegrationTest {
         CommunityRefreshOrchestrator communityRefreshOrchestrator(
                 RepositoryVerificationService repositoryVerificationService,
                 IssueCollectionService issueCollectionService,
-                CommunityMapReduceSummarizer communitySummarizer,
+                CommunityHighlightSummarizer communitySummarizer,
                 CommunitySnapshotPublisher communitySnapshotRepository) {
             return new CommunityRefreshOrchestrator(
                     repositoryVerificationService,

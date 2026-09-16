@@ -18,13 +18,13 @@ public class CommunityRefreshOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(CommunityRefreshOrchestrator.class);
     private final RepositoryVerificationService verification;
     private final IssueCollectionService collection;
-    private final CommunityMapReduceSummarizer summarizer;
+    private final CommunityHighlightSummarizer summarizer;
     private final CommunitySnapshotPublisher publisher;
 
     public CommunityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
-            CommunityMapReduceSummarizer summarizer,
+            CommunityHighlightSummarizer summarizer,
             CommunitySnapshotPublisher publisher) {
         this.verification = verification;
         this.collection = collection;

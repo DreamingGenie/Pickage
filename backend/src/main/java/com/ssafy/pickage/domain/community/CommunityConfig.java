@@ -135,9 +135,9 @@ public class CommunityConfig {
     }
 
     @Bean
-    public CommunityMapReduceSummarizer communityMapReduceSummarizer(
+    public CommunityHighlightSummarizer communityHighlightSummarizer(
             BoundedCommunitySummarizer bounded) {
-        return new CommunityMapReduceSummarizer(bounded);
+        return new CommunityHighlightSummarizer(bounded);
     }
 
     @Bean(destroyMethod = "close")
@@ -169,7 +169,7 @@ public class CommunityConfig {
     public CommunityRefreshOrchestrator communityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
-            CommunityMapReduceSummarizer summarizer,
+            CommunityHighlightSummarizer summarizer,
             CommunitySnapshotPublisher publisher) {
         return new CommunityRefreshOrchestrator(verification, collection, summarizer, publisher);
     }

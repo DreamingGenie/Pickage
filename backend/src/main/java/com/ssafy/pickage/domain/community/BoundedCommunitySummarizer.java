@@ -1,7 +1,6 @@
 package com.ssafy.pickage.domain.community;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.*;
 
 /** refresh worker와 분리된 전역 pool/queue. 취소된 대기 작업도 queue에서 제거한다. */
@@ -32,21 +31,6 @@ public final class BoundedCommunitySummarizer implements AutoCloseable {
     public CompletableFuture<TopicSummary> summarizeAsync(
             CommunitySummarySourceBundle source, Duration budget) {
         return CompletableFuture.supplyAsync(() -> summarize(source, budget));
-    }
-
-    /**
-     * Map-Reduce(S15P21A506-373 4단계) Map 단계 — 배치 하나의 GMS 호출을 같은 bounded
-     * executor에서 동시에 디스패치한다. 이슈 간 병렬 디스패치({@link #summarizeAsync})와
-     * 같은 패턴이다.
-     */
-    CompletableFuture<TopicSummary> mapAsync(CommunitySummarySourceBundle batch, Duration budget) {
-        return CompletableFuture.supplyAsync(
-                () -> call(() -> delegate.summarize(batch.issue(), budget), budget));
-    }
-
-    /** Map-Reduce Reduce 단계 — 같은 bounded executor·타임아웃 보장을 공유한다. */
-    TopicSummary reduce(List<CommunitySummarizer.BatchSummary> parts, Duration budget) {
-        return call(() -> delegate.reduce(parts, budget), budget);
     }
 
     private TopicSummary call(Callable<TopicSummary> task, Duration budget) {

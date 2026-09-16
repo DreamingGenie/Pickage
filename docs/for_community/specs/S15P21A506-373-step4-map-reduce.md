@@ -1,4 +1,14 @@
-# Spec — S15P21A506-373 4단계: Map-Reduce 재구조화 (④)
+# Spec — S15P21A506-373 4단계: Map-Reduce 재구조화 (④) — 구현 후 폐기
+
+> **2026-09-17 추가**: 이 Spec대로 구현·테스트·실네트워크 검증까지 마쳤으나, 실측 결과
+> 이슈당 GMS 호출이 최대 6회(Map 5 + Reduce 1)까지 늘어 시연에 필요한 시간·비용을
+> 못 맞췄다(자세한 실측 수치는 [Phase 기록](../phases/S15P21A506-373-step4-map-reduce.md)
+> 참고). 오세진 님이 논의 전체 재구성 대신 "반응 최다 댓글 + 유지관리자 답글 + 그 주변
+> 댓글" 방식으로 방향을 바꾸도록 결정해, 이 Map-Reduce 코드(배치 분해·Reduce 호출)는
+> 최종적으로 **삭제했다** — git 이력에는 구현·삭제 커밋이 모두 남아 있다. 이 Spec은
+> "왜 이 방향을 먼저 시도했고 왜 못 썼는지"를 남기기 위한 기록이다. 실제로 배포된 설계는
+> [S15P21A506-373-step5-highlight-summary.md](S15P21A506-373-step5-highlight-summary.md)
+> 참고.
 
 > [`TEMPLATE.md`](TEMPLATE.md) 기반. Acceptance Criteria는 새로 쓰지 않고 Jira
 > S15P21A506-373의 "완료 판단 기준"을 그대로 인용한다.

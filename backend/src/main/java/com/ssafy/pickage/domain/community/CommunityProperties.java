@@ -34,10 +34,9 @@ public final class CommunityProperties {
      * 줄였지만, 그래도 수집(5~6초 안팎) + 병렬 GMS 최악값({@link
      * GmsCommunitySummarizer}의 상한) + 게시 여유를 더하면 빠듯해 30초로 올렸다.
      *
-     * <p>2026-09-16 4단계(Map-Reduce) 로컬 실측으로 30초→35초로 재조정 — 배치가 있는 이슈는
-     * Map(N회, 동시 디스패치)이 끝나야 Reduce(1회)가 순차로 붙어 GMS 구간이 단일 호출 상한
-     * ({@link GmsCommunitySummarizer}의 {@code MAX_CALL_TIMEOUT}=30초)보다 더 걸릴 수 있다 —
-     * 오세진 님이 시연 안정성을 위해 5초 여유를 더 두기로 결정.
+     * <p>2026-09-16 30초→35초로 재조정(오세진 님 결정) — 모델 교체(gpt-5-mini) 실측 중 GMS
+     * 호출 상한({@link GmsCommunitySummarizer}의 {@code MAX_CALL_TIMEOUT}=30초)을 함께
+     * 올리면서 시연 안정성을 위해 여유를 더 뒀다.
      */
     public static final Duration TOTAL_BUDGET = Duration.ofSeconds(35);
 
@@ -73,33 +72,15 @@ public final class CommunityProperties {
     public static final int MAX_COMMENTS_PER_ISSUE = 100;
 
     /**
-     * Map-Reduce(S15P21A506-373 4단계) 배치 하나의 문자 예산. {@link
-     * CommunitySummarySourceBundle#from}의 이슈 전체 48,000자 예산과 별개 — 이슈가 그 예산을
-     * 넘길 때만({@code limited()}) {@link CommunitySummarySourceBundle#batches}가 이 값으로
-     * 배치를 나눈다.
-     */
-    public static final int SUMMARY_BATCH_CHAR_BUDGET = 12000;
-
-    /**
-     * 이슈 하나당 만들 수 있는 배치 수 상한. 이 이상 남는 댓글은 버리고 저하(limited)로
-     * 표시한다 — 48,000자를 넘으면 버리는 것과 같은 종류의 저하.
-     */
-    public static final int MAX_SUMMARY_BATCHES = 5;
-
-    /**
      * {@link BoundedCommunitySummarizer}의 GMS 호출 worker 수. {@link
      * com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinator}가 쓰는 {@link
-     * #EXECUTOR_WORKER_COUNT}(refresh task 자체의 동시 실행 풀)와는 다른 별개의 풀이다 —
-     * Map-Reduce로 이슈 하나가 N+1번 GMS를 호출하게 되면서 기존 2로는 배치 호출이 곧바로 큐잉·
-     * 거부되므로 4단계에서 상향한다.
-     *
-     * <p>2026-09-16 6→12로 재조정(오세진 님 결정, 시연 시간 단축) — 이슈 2개가 동시에
-     * {@link #MAX_SUMMARY_BATCHES}(5)까지 배치를 만들면 Map 호출만 최대 10개가 경합한다.
-     * 6개로는 두 파도로 나뉘어 순차 대기가 생기므로, 두 이슈의 Map 호출을 한 파도로 전부
-     * 소화할 수 있게 배치 상한의 2배로 올린다.
+     * #EXECUTOR_WORKER_COUNT}(refresh task 자체의 동시 실행 풀)와는 다른 별개의 풀이다.
+     * 이슈 최대 2개({@code IssueSelectionPolicy.MAX_SELECTED_ISSUES})가 항상 동시에 디스패치
+     * 되므로(S15P21A506-368 후속) 최소 2는 필요하고, 재시도·다음 refresh와 겹치는 여유를 더해
+     * 4로 둔다.
      */
-    public static final int SUMMARIZER_WORKER_COUNT = 12;
+    public static final int SUMMARIZER_WORKER_COUNT = 4;
 
     /** {@link #SUMMARIZER_WORKER_COUNT} 워커가 꽉 찼을 때 대기할 수 있는 큐 용량. */
-    public static final int SUMMARIZER_QUEUE_CAPACITY = 16;
+    public static final int SUMMARIZER_QUEUE_CAPACITY = 8;
 }

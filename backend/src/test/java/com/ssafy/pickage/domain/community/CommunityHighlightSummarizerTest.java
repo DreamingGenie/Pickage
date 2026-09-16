@@ -16,16 +16,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * S15P21A506-373 4단계 — {@link CommunityMapReduceSummarizer}가 이슈 크기와 무관하게 항상
- * {@link CommunitySummarySourceBundle#highlights}(반응 최다 댓글 + 유지관리자 답글)만으로 단일
- * 호출한다는 걸 검증한다. 2026-09-16 오세진 님 결정으로 배치(Map-Reduce) 경로는 이 진입점에서
- * 더 이상 쓰지 않는다 — {@code batches()}/{@code mapReduce()} 자체는 코드에 남아 있다
- * (재사용 가능성 대비, 이 경로에서 호출만 안 함).
+ * S15P21A506-373 4단계 — {@link CommunityHighlightSummarizer}가 이슈 크기와 무관하게 항상
+ * {@link CommunitySummarySourceBundle#highlights}(반응 최다 댓글 + 유지관리자 답글 + 그 주변
+ * 댓글, 최대 3개)만으로 단일 호출한다는 걸 검증한다.
  */
-class CommunityMapReduceSummarizerTest {
+class CommunityHighlightSummarizerTest {
 
     private static final Instant BASE = Instant.parse("2026-01-01T00:00:00Z");
     private static final Duration BUDGET = Duration.ofSeconds(10);
@@ -37,9 +34,9 @@ class CommunityMapReduceSummarizerTest {
         if (bounded != null) bounded.close();
     }
 
-    private CommunityMapReduceSummarizer mapReduce(RecordingSummarizer delegate) {
+    private CommunityHighlightSummarizer highlightSummarizer(RecordingSummarizer delegate) {
         bounded = new BoundedCommunitySummarizer(delegate);
-        return new CommunityMapReduceSummarizer(bounded);
+        return new CommunityHighlightSummarizer(bounded);
     }
 
     private static CollectedIssue smallIssue() {
@@ -62,7 +59,7 @@ class CommunityMapReduceSummarizerTest {
                 "본문");
     }
 
-    /** 4000자 댓글 15개 — 예전 배치(Map-Reduce) 경로였다면 여러 번 호출됐을 만큼 큰 이슈. */
+    /** 4000자 댓글 15개 — 배치 없이도 highlights가 3개만 골라내는지 확인하는 큰 이슈. */
     private static CollectedIssue bigIssue() {
         var comments = new ArrayList<CollectedComment>();
         for (int i = 0; i < 15; i++)
@@ -109,24 +106,20 @@ class CommunityMapReduceSummarizerTest {
     void 작은_이슈는_highlights_bundle로_단일_호출한다() {
         var delegate = RecordingSummarizer.alwaysReady();
 
-        var attempt = mapReduce(delegate).summarizeAsync(smallIssue(), BUDGET).join();
+        var attempt = highlightSummarizer(delegate).summarizeAsync(smallIssue(), BUDGET).join();
 
         assertThat(delegate.summarizeCalls).hasSize(1);
-        assertThat(delegate.reduceCalls.get()).isZero();
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
         assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(smallIssue()));
     }
 
     @Test
-    void 댓글이_많은_이슈도_배치_없이_highlights_bundle로_단일_호출한다() {
-        // 2026-09-16 오세진 님 결정 — 논의 전체를 배치로 나눠 재구성하지 않고, 이슈 크기와
-        // 무관하게 항상 반응 최다 댓글 + 유지관리자 답글만 골라 단일 호출한다.
+    void 댓글이_많은_이슈도_highlights_bundle로_단일_호출하며_최대_3개만_고른다() {
         var delegate = RecordingSummarizer.alwaysReady();
 
-        var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
+        var attempt = highlightSummarizer(delegate).summarizeAsync(bigIssue(), BUDGET).join();
 
         assertThat(delegate.summarizeCalls).hasSize(1);
-        assertThat(delegate.reduceCalls.get()).isZero();
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
         assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(bigIssue()));
         assertThat(attempt.bundle().issue().comments())
@@ -138,16 +131,14 @@ class CommunityMapReduceSummarizerTest {
     void 요약이_실패하면_그대로_실패를_반환한다() {
         var delegate = RecordingSummarizer.alwaysFailed();
 
-        var attempt = mapReduce(delegate).summarizeAsync(bigIssue(), BUDGET).join();
+        var attempt = highlightSummarizer(delegate).summarizeAsync(bigIssue(), BUDGET).join();
 
-        assertThat(delegate.reduceCalls.get()).isZero();
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.FAILED);
     }
 
     /** 호출 인자·횟수를 기록하는 {@link CommunitySummarizer} 대역. */
     private static final class RecordingSummarizer implements CommunitySummarizer {
         final List<CollectedIssue> summarizeCalls = new CopyOnWriteArrayList<>();
-        final AtomicInteger reduceCalls = new AtomicInteger();
         private final boolean fail;
 
         private RecordingSummarizer(boolean fail) {
@@ -166,12 +157,6 @@ class CommunityMapReduceSummarizerTest {
         public TopicSummary summarize(CollectedIssue issue, Duration budget) {
             summarizeCalls.add(issue);
             return fail ? TopicSummary.failed() : readySummaryCitingIssueBody(issue);
-        }
-
-        @Override
-        public TopicSummary reduce(List<BatchSummary> parts, Duration budget) {
-            reduceCalls.incrementAndGet();
-            return readySummaryCitingIssueBody(bigIssue());
         }
     }
 }

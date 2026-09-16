@@ -27,7 +27,7 @@ public final class CommunityTestFixtures {
             CommunitySnapshotRepository repository) {
         var bounded = new BoundedCommunitySummarizer(s);
         CLEANUP.get().add(bounded::close);
-        var mapReduce = new CommunityMapReduceSummarizer(bounded);
+        var highlightSummarizer = new CommunityHighlightSummarizer(bounded);
         var publisher = mock(CommunitySnapshotPublisher.class);
         doAnswer(
                         call -> {
@@ -38,7 +38,7 @@ public final class CommunityTestFixtures {
                         })
                 .when(publisher)
                 .publish(any(), any());
-        return new CommunityRefreshOrchestrator(v, c, mapReduce, publisher);
+        return new CommunityRefreshOrchestrator(v, c, highlightSummarizer, publisher);
     }
 
     public static final class Cleanup implements AfterEachCallback {
