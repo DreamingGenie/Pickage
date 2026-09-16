@@ -135,6 +135,24 @@ def load_state(path: str | None) -> dict[str, dict]:
     return state
 
 
+def load_dependents(path: str | None, kind: str = "regular") -> dict[str, set[str]]:
+    """package_dependents 류 parquet(name·kind·dependents)를 name → dependents 집합으로.
+
+    데이터 팀이 후보 풀(29,310개) 기준으로 재계산해준 파일(2026-09-16, 100% 커버) 형태를
+    전제한다. kind 는 기본 'regular' — 실측(웹팩↔웹팩-cli 0.903 vs 웹팩↔롤업 0.075)으로
+    이 한 종류만으로도 보완재/대안 판별 신호가 뚜렷했다(S15P21A506-173). 파일이 없으면
+    빈 dict — 그러면 apply_gates() 의 보완재 관문이 자동으로 꺼진다(기존 호출부 그대로 둠).
+    """
+    if not path or not os.path.exists(path):
+        return {}
+    import pyarrow.parquet as pq
+
+    tbl = pq.read_table(path, columns=["name", "kind", "dependents"]).to_pylist()
+    deps = {r["name"]: set(r["dependents"] or []) for r in tbl if r["kind"] == kind}
+    log(f"dependents({kind}): {len(deps)} 개 패키지")
+    return deps
+
+
 class OnnxEmbedder:
     """ai/MODEL_CONTRACT.md 규격: 입력 int64, 출력 last_hidden_state,
     후처리는 여기서 (CLS pooling + L2 정규화). ONNX 밖."""
@@ -348,24 +366,48 @@ def is_repo_archived(value) -> bool:
     return bool(value)
 
 
+def is_complement(
+    base_dependents: set[str] | None, cand_dependents: set[str] | None, threshold: float = 0.3
+) -> bool:
+    """base 와 cand 가 자주 같이 쓰이는 보완재인가 (S15P21A506-173).
+
+    dependents(그 패키지를 쓰는 다른 패키지들) 집합의 겹침 비율 = 교집합 ÷ 둘 중
+    더 작은 쪽 크기(containment). 실측(2026-09-16, 후보 풀 29,310개 기준 dependents,
+    kind=regular)으로 이 계산이 보완재(webpack↔webpack-cli 0.903, express↔body-parser
+    0.873)와 진짜 대안(webpack↔rollup 0.075)을 뚜렷하게 갈라놓는 걸 확인했다. 큰 쪽
+    기준으로 나누면(예: webpack↔webpack-cli 0.237) 신호가 뭉개져 이 방식을 안 쓴다.
+
+    둘 중 하나라도 dependents 데이터가 없으면(빈 집합 포함) 판단하지 않고 False —
+    데이터 없다고 감점하면 안 되므로 통과가 기본값이다.
+    """
+    if not base_dependents or not cand_dependents:
+        return False
+    inter = len(base_dependents & cand_dependents)
+    ratio = inter / min(len(base_dependents), len(cand_dependents))
+    return ratio > threshold
+
+
 def apply_gates(
     hits: list[tuple[int, int, float]],
     names: list[str],
     keywords_by_idx: dict[int, list],
     enabled: bool,
     archived_by_idx: dict[int, bool] | None = None,
+    dependents_by_idx: dict[int, set[str]] | None = None,
 ) -> tuple[list[tuple[int, int, float]], dict]:
     """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
 
     plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
-    GitHub 저장소가 archived 된 후보도 drop 한다(S15P21A506-333). 보완재 감점(의존 그래프)은
-    아직 미구현. enabled=False 면 무변경.
+    GitHub 저장소가 archived 된 후보도, `dependents_by_idx` 를 주면 보완재(dependents
+    교집합 > 0.3, S15P21A506-173)도 drop 한다. enabled=False 면 무변경.
     """
     if not enabled:
         return hits, {}
     drops = {"plugin_adapter": 0, "same_family": 0}
     if archived_by_idx is not None:
         drops["repo_archived"] = 0
+    if dependents_by_idx is not None:
+        drops["complement"] = 0
     kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
@@ -377,6 +419,11 @@ def apply_gates(
             continue
         if archived_by_idx is not None and is_repo_archived(archived_by_idx.get(cand_idx)):
             drops["repo_archived"] += 1
+            continue
+        if dependents_by_idx is not None and is_complement(
+            dependents_by_idx.get(base_idx), dependents_by_idx.get(cand_idx)
+        ):
+            drops["complement"] += 1
             continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
@@ -453,6 +500,9 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--raw-text-column", default=None,
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
+    p.add_argument("--dependents", default=None,
+                   help="후보 풀 기준 package_dependents parquet (S15P21A506-173, 보완재 감점용). "
+                        "생략하면 보완재 관문이 꺼진다")
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--retrieve-k", type=int, default=30,
@@ -489,7 +539,11 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
-    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate, archived_by_idx)
+    dependents_map = load_dependents(args.dependents)
+    dependents_by_idx = {i: dependents_map.get(names[i]) for i in range(len(names))} if dependents_map else None
+    hits, gate_drops = apply_gates(
+        hits, names, keywords_by_idx, args.gate, archived_by_idx, dependents_by_idx
+    )
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
@@ -509,6 +563,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "user_k": args.user_k,
             "gate": args.gate,
             "gate_drops": gate_drops,
+            "dependents": args.dependents,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),

@@ -270,6 +270,51 @@ class LoadState(QuietMixin, unittest.TestCase):
         np.testing.assert_array_equal(state["p"]["vector"], np.array([1.0, 2.0, 3.0], dtype=np.float32))
 
 
+class LoadDependents(QuietMixin, unittest.TestCase):
+    """S15P21A506-173: package_dependents 류 parquet(name·kind·dependents) 로더."""
+
+    def test_none_path_returns_empty(self):
+        self.assertEqual(sbp.load_dependents(None), {})
+
+    def test_missing_file_returns_empty(self):
+        self.assertEqual(sbp.load_dependents("no/such/file.parquet"), {})
+
+    def test_reads_regular_kind_as_sets(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dependents.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": ["webpack", "webpack", "webpack-cli"],
+                    "kind": ["regular", "peer", "regular"],
+                    "dependents": [["a", "b", "c"], ["x"], ["a", "b"]],
+                }),
+                path,
+            )
+            deps = sbp.load_dependents(path)
+        self.assertEqual(deps["webpack"], {"a", "b", "c"})
+        self.assertEqual(deps["webpack-cli"], {"a", "b"})
+
+    def test_other_kind_can_be_selected(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dependents.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": ["webpack"],
+                    "kind": ["peer"],
+                    "dependents": [["x", "y"]],
+                }),
+                path,
+            )
+            deps = sbp.load_dependents(path, kind="peer")
+        self.assertEqual(deps["webpack"], {"x", "y"})
+
+
 class EmbedCorpus(QuietMixin, unittest.TestCase):
     def test_all_rows_embedded_when_state_empty(self):
         rows = [{"name": "a"}, {"name": "b"}]
@@ -436,6 +481,40 @@ class IsRepoArchived(unittest.TestCase):
         self.assertFalse(sbp.is_repo_archived(None))
 
 
+class IsComplement(unittest.TestCase):
+    """S15P21A506-173: dependents(나를 쓰는 패키지) 집합 겹침으로 보완재를 판별.
+
+    비율은 교집합 ÷ 둘 중 더 작은 쪽 크기(containment) — 실측(2026-09-16, 후보 풀
+    29,310개 기준 dependents)으로 이 계산이 보완재(webpack↔webpack-cli 0.903,
+    express↔body-parser 0.873)와 진짜 대안(webpack↔rollup 0.075)을 뚜렷하게
+    갈라놓는 걸 확인함. 큰 쪽 기준으로 나누면(webpack↔webpack-cli 0.237) 신호가
+    뭉개져서 이 방식을 쓰지 않는다.
+    """
+
+    def test_flags_high_overlap_as_complement(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(90)}  # cand 쪽 90/90 이 base 와 겹침
+        self.assertTrue(sbp.is_complement(base, cand))
+
+    def test_does_not_flag_low_overlap(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"other{i}" for i in range(20)} | {"user0", "user1"}  # 2/20 만 겹침
+        self.assertFalse(sbp.is_complement(base, cand))
+
+    def test_missing_data_does_not_flag(self):
+        """dependents 데이터가 없는 쪽은 판단하지 않고 통과시킨다(보수적 기본값) —
+        후보 풀의 61.5%만 커버되던 시점의 실측 전제와 같음."""
+        self.assertFalse(sbp.is_complement(None, {"a", "b"}))
+        self.assertFalse(sbp.is_complement({"a", "b"}, None))
+        self.assertFalse(sbp.is_complement(set(), {"a", "b"}))
+
+    def test_threshold_is_configurable(self):
+        base = {"a", "b", "c", "d"}
+        cand = {"a", "b"}  # 비율 2/2 = 1.0
+        self.assertFalse(sbp.is_complement(base, cand, threshold=1.5))
+        self.assertTrue(sbp.is_complement(base, cand, threshold=0.3))
+
+
 class ApplyGates(unittest.TestCase):
     NAMES = ["moment", "dayjs", "moment-timezone", "eslint-plugin-x", "luxon", "date-fns"]
     KW = {i: [] for i in range(6)}
@@ -481,6 +560,26 @@ class ApplyGates(unittest.TestCase):
         self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
         self.assertNotIn("repo_archived", drops)
 
+    def test_drops_complement_candidate(self):
+        """S15P21A506-173: dependents 겹침이 높은 후보(보완재)를 감점(=drop)한다."""
+        dependents = {
+            0: {f"user{i}" for i in range(100)},  # moment
+            1: {f"user{i}" for i in range(90)},   # dayjs — moment 와 90% 겹침(보완재로 취급)
+            4: {"other1", "other2"},              # luxon — 겹침 거의 없음(진짜 대안)
+            5: {"other3", "other4"},              # date-fns
+        }
+        kept, drops = sbp.apply_gates(
+            self.HITS, self.NAMES, self.KW, enabled=True, dependents_by_idx=dependents
+        )
+        self.assertNotIn(1, [c for _, c, _ in kept])
+        self.assertEqual(drops["complement"], 1)
+
+    def test_no_dependents_by_idx_keeps_previous_behavior(self):
+        """dependents_by_idx 를 안 주면(옛 호출부) 아무도 complement 로 안 걸린다."""
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
+        self.assertNotIn("complement", drops)
+
 
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
@@ -496,6 +595,15 @@ class ParseArgs(unittest.TestCase):
 
     def test_no_gate_turns_it_off(self):
         self.assertFalse(sbp.parse_args(self.BASE + ["--no-gate"]).gate)
+
+    def test_dependents_defaults_to_none(self):
+        """S15P21A506-173: 안 주면 보완재 관문이 자동으로 꺼진다(옛 호출부 호환)."""
+        self.assertIsNone(sbp.parse_args(self.BASE).dependents)
+
+    def test_dependents_parsed(self):
+        self.assertEqual(
+            sbp.parse_args(self.BASE + ["--dependents", "dep.parquet"]).dependents, "dep.parquet"
+        )
 
 
 class GateAllowsSuccess(unittest.TestCase):
