@@ -94,6 +94,10 @@ class GmsCommunitySummarizerRealNetworkTest {
      * 실패하는지를 관측한다. 이 테스트의 목적 자체가 "READY로 끝나는지 아닌지 관측"이므로,
      * {@link SummaryStatus#READY}를 단정하지 않는다 — 실패하면 {@link GmsCommunitySummarizer}에
      * 추가된 {@code log.warn}이 실제 {@code status}/파싱 실패 형태를 남긴다(콘솔·테스트 로그 확인).
+     *
+     * <p>댓글 본문은 코드 블록·스택트레이스를 포함해 500~1200자 안팎으로 만든다(짧은 템플릿
+     * 반복 댓글로는 모델 출력이 작아 {@code max_output_tokens}에 못 미쳐 {@code incomplete}가
+     * 재현되지 않는 것을 먼저 확인했다 — 이 무게로 다시 확인한다).
      */
     @Test
     void 실제_GMS_호출로_대용량_댓글_이슈를_요약한다() {
@@ -113,24 +117,109 @@ class GmsCommunitySummarizerRealNetworkTest {
 
     private static CollectedIssue largeSyntheticIssue(int commentCount) {
         String[] templates = {
-            "I'm seeing the same issue on version %d.x — happens every time the config is"
-                    + " missing a required field. Here's my workaround for now: I wrap the call"
-                    + " in a try/catch and fall back to a default schema.",
-            "Any update on this? We've been blocked by this for a couple of weeks and it's"
-                    + " affecting our CI pipeline. Happy to help test a fix if someone puts one"
-                    + " up.",
-            "I think the root cause is that the validator doesn't narrow the union type"
-                    + " correctly when the discriminant field is optional. I traced it down to"
-                    + " the parser internals but haven't found a clean fix yet.",
-            "+1, also hitting this. For anyone else stuck, downgrading to the previous minor"
-                    + " version fixes it, but obviously that's not a long-term solution.",
-            "Thanks for the detailed repro! I was able to reproduce it locally. Looking into a"
-                    + " fix now — will open a PR once I have something working with tests."
+            """
+            I can reproduce this consistently on v{V}.x. Minimal repro:
+
+            ```ts
+            import { z } from "somelib";
+            const Config = z.object({
+              host: z.string(),
+              port: z.number().int().positive(),
+              retries: z.number().optional(),
+            });
+            const raw = JSON.parse(fs.readFileSync("config.json", "utf8"));
+            const parsed = Config.parse(raw); // <- throws here when retries is a string
+            ```
+
+            Stack trace:
+            ```
+            ZodError: Invalid input
+              at Config.parse (dist/index.cjs:412:19)
+              at loadConfig (src/config.ts:28:34)
+              at Object.<anonymous> (src/index.ts:9:20)
+              at Module._compile (node:internal/modules/cjs/loader:1256:14)
+            ```
+
+            My node version is 20.11, package version is v{V}.2.0. Happy to share the full
+            config.json if that helps narrow it down further.
+            """,
+            """
+            Following up after digging in a bit more — I think the issue is in how the
+            discriminated union resolves when one branch has an optional discriminant key.
+            When I trace through the internal `_parse` call, the union resolver picks the
+            first matching branch by looking at required keys only, so an object missing the
+            discriminant entirely still matches branch A instead of failing fast. Here's a
+            smaller repro that isolates just that behavior:
+
+            ```ts
+            const A = z.object({ kind: z.literal("a"), value: z.string() });
+            const B = z.object({ kind: z.literal("b").optional(), value: z.number() });
+            const U = z.discriminatedUnion("kind", [A, B]);
+            console.log(U.safeParse({ value: 42 }));
+            ```
+
+            This prints a success with branch A coerced, which is clearly wrong given `value`
+            isn't even a string here. I don't have a fix yet but wanted to write this down
+            before I lose the thread.
+            """,
+            """
+            +1, hitting the exact same crash in production. For anyone stuck on this in the
+            meantime, here's the workaround we shipped: wrap the parse call and fall back to
+            a manually-constructed default object, then log a warning so we notice when it
+            happens.
+
+            ```ts
+            function safeLoad(raw: unknown) {
+              const result = Config.safeParse(raw);
+              if (!result.success) {
+                console.warn("config parse failed, using defaults", result.error.format());
+                return DEFAULT_CONFIG;
+              }
+              return result.data;
+            }
+            ```
+
+            Not ideal since it silently masks bad configs, but it stopped the crashes while
+            we wait for an upstream fix. Environment: node 18.19, alpine docker image,
+            package-lock pinned to v{V}.1.3.
+            """,
+            """
+            Thanks both for the detailed repros — this is genuinely useful. I was able to
+            reproduce the union resolution bug locally with the second snippet above. Rough
+            plan for a fix: change the discriminated-union matcher to require the discriminant
+            key to be *present and equal* to the literal, not just "no conflicting required
+            key missing". That should make the failing case above correctly report an error
+            instead of silently matching branch A. I'll open a draft PR with a fix and a
+            regression test covering optional-discriminant branches; will link it here once
+            it's up. Please hold off on further workarounds until we confirm this doesn't
+            regress the existing discriminated-union test suite (there are ~40 cases there).
+            """,
+            """
+            Just pushed a draft fix and ran the full suite locally — all existing
+            discriminated-union tests still pass, plus the two new regression cases from this
+            thread. Before/after on the repro:
+
+            ```
+            // before
+            { success: true, data: { kind: 'a', value: 42 } }
+            // after
+            { success: false, error: ZodError: [ { code: 'invalid_union_discriminator', ... } ] }
+            ```
+
+            If anyone here can pull the branch and confirm against their real config schema
+            (not just this minimal repro) that would help a lot before we merge — especially
+            if you were relying on the old (buggy) coercion behavior anywhere, since this is
+            technically a breaking change for you.
+            """
         };
         List<CollectedComment> comments = new ArrayList<>(commentCount);
         Instant start = Instant.parse("2026-01-02T00:00:00Z");
         for (int i = 0; i < commentCount; i++) {
-            String body = templates[i % templates.length] + " (comment #" + i + ")";
+            String body =
+                    templates[i % templates.length].replace("{V}", String.valueOf(i % 5 + 1))
+                            + "\n\n(synthetic comment #"
+                            + i
+                            + ")";
             comments.add(
                     new CollectedComment(
                             String.valueOf(9_100_000_000_000L + i),
@@ -138,7 +227,7 @@ class GmsCommunitySummarizerRealNetworkTest {
                             i % 7 == 0 ? "MEMBER" : "NONE",
                             false,
                             start.plusSeconds(3600L * i),
-                            String.format(body, i % 5 + 1),
+                            body,
                             "synthetic-author-" + (i % 20)));
         }
         return new CollectedIssue(
@@ -158,8 +247,8 @@ class GmsCommunitySummarizerRealNetworkTest {
                 start,
                 "synthetic-reporter-id",
                 "This is a synthetic (fabricated) issue body used only to test how"
-                        + " GmsCommunitySummarizer behaves with a large number of comments. It"
-                        + " is not a real GitHub issue and does not reference any real user or"
-                        + " repository content.");
+                        + " GmsCommunitySummarizer behaves with a large number of long,"
+                        + " code-heavy comments. It is not a real GitHub issue and does not"
+                        + " reference any real user, repository, or package content.");
     }
 }
