@@ -921,8 +921,13 @@ docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO
 docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-ops "$S" >/dev/null && mc admin policy attach l pickage-ops --user pickage-ops >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-ops "$S"'
 ```
 
-나온 값을 `app` 노드의 `deploy/prod/app/.env` 에 `OPS_S3_ACCESS_KEY` · `OPS_S3_SECRET_KEY`
-로 넣고 api 를 다시 만든다.
+나온 값을 `app` 노드의 `deploy/prod/app/.env` 에 `PICKAGE_OPS_S3_ACCESS_KEY` ·
+`PICKAGE_OPS_S3_SECRET_KEY` 로 넣고 api 를 다시 만든다.
+
+⚠ **`PICKAGE_` 를 빼지 말 것.** 백엔드가 읽는 프로퍼티가 `pickage.ops.s3.*` 이고,
+스프링이 **이름만으로** 이어 준다 — `application-prod.yaml` 에 배선이 없다. 이름이
+어긋나면 오류가 아니라 **조용히** 기본값으로 떨어져서, 값을 제대로 넣고도 운영 API 가
+"설정이 없습니다" 로만 답한다 (S15P21A506-347).
 
 **3. 권한이 의도대로인지 확인한다.**
 
