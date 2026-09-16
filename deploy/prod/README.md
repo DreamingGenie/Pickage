@@ -162,6 +162,10 @@ sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 
 | 값 | 어디 | 누가 바꾸나 |
 | --- | --- | --- |
 | `POSTGRES_PASSWORD` | `/srv/pickage/app.env` | **사람이 한 번.** 그다음 안 바꾼다 |
+| `GITHUB_COMMUNITY_TOKEN` | `/srv/pickage/app.env` | **사람이 한 번**(팀 비밀 저장소에도 사본). 선택값 — 없어도 기동은 된다 |
+| `COMMUNITY_ENABLED` | `/srv/pickage/app.env` | 필요할 때 사람이. `true`/`false` 문자열, 비밀 아님 |
+| `GMS_API_KEY` | `/srv/pickage/app.env` | **사람이 한 번**(팀 비밀 저장소에도 사본). 선택값 — 지금은 백엔드가 안 읽는다(C1 미구현, `S15P21A506-363`) |
+| `GMS_BASE_URL` · `GMS_REQUEST_PATH` · `GMS_AUTH_HEADER` · `GMS_AUTH_SCHEME` · `GMS_MODEL` | `/srv/pickage/app.env` | 필요할 때 사람이. 비밀 아님 — C1 구현 시 실제 값 재확인 |
 | `API_TAG` · `WEB_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
 
 **"env 를 바꿀 때마다 손으로 해야 하나" 의 답은 아니다.** 비밀은 한 번 정하고 안 바꾸고,
@@ -495,6 +499,8 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://j15a506.p.ssafy.io/   # 200
 | `API_TAG` · `WEB_TAG` | api · web | ✅ |
 | `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | spark-worker-2 | ✅ |
 | `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | spark-worker-2 | ✅ |
+| `GITHUB_COMMUNITY_TOKEN` · `COMMUNITY_ENABLED` | api | ✅ (선택값이라 비워도 무방 — 그러면 커뮤니티 기능만 비활성 유지) |
+| `GMS_API_KEY` · `GMS_BASE_URL` · `GMS_REQUEST_PATH` · `GMS_AUTH_HEADER` · `GMS_AUTH_SCHEME` · `GMS_MODEL` | api | ✅ (선택값. 지금은 읽는 코드가 없어 값을 넣어도 동작은 안 바뀐다) |
 
 > **예전에는 spark-worker-2 가 `env_file: ./.env` 로 파일을 통째로 받았다.** 그러면 파일의
 > **어느 줄이 바뀌어도** 그 서비스의 설정이 바뀐 것이 되어 worker 가 다시 만들어진다.
