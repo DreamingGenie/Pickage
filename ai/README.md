@@ -3,7 +3,7 @@
 기준 패키지의 `description + keywords` 임베딩으로 **유사/대체 후보 최대 3개**를 사전 계산하는 트랙.
 생성형 AI를 후보 검색·정렬에 쓰지 않는다. 서빙 요청은 PostgreSQL의 사전 계산 결과만 조회한다.
 
-설계 근거: `docs/Pickage_기능별_개발_구상안_0909.md` §3.3~3.5, §4.1, §4.2, §14.
+설계 근거: `docs/Pickage_기능별_개발_구상안_0915.md` §3.3~3.5, §4.1, §4.2, §14.
 
 > **재학습 관련 안내 (2026-09-14)**: 모델 재학습(재파인튜닝)은 최대한 지양하는 방향으로
 > 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 현재 서빙
@@ -79,6 +79,16 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 - deprecated 지목 가산 없음 (`DEC-RANK-20260909-01`).
 - `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬.
 
+**`is_same_family` 보완 이력 (S15P21A506-334)**: 스코프 없는 이름이 상대방의 스코프(조직명) 자체와
+정확히 같은 경우(`parcel`↔`@parcel/graph`)와, `@types/x`↔`x`(DefinitelyTyped 타입 선언) 두 규칙을
+추가했다 — 둘 다 922K 풀 recall 재검증 중 실제로 자기 서브패키지가 "대안"으로 뜬 사례를 보고 반영함.
+
+**앞으로 지켜볼 것(아직 미반영)**: `babel-core`→`@babel/core`처럼 **스코프 없던 이름이 그대로 스코프로
+옮겨간 리네이밍**(이름 전체가 아니라 접두어만 일치) 패턴도 이론상 같은 계열로 잡아야 하지만, 이건 판정을
+느슨하게 만들어 오탐 위험이 커진다(예: `eslint-plugin-react`가 `@eslint/js`와 잘못 묶일 수 있음). 아직
+우리 실패 사례(33개)에서 실제로 발견된 적은 없어 지금은 구현하지 않는다 — 실제 사례가 나오면 그때
+`is_same_family`에 추가할 것.
+
 ## 채점 게이트 설계 메모 (§4.1, S15P21A506-335)
 
 `scoring_gate()`는 **재학습(재파인튜닝) 트리거가 아니다.** "직전 운영값 대비 recall 하락 시 중단"의
@@ -102,7 +112,7 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 
 ## 관련 문서
 
-- `docs/Pickage_기능별_개발_구상안_0909.md` — 시스템 확정안 (0904 는 `docs/history/` 로 이관)
+- `docs/Pickage_기능별_개발_구상안_0915.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
 - `datasets/deprecated_replacement_260831/`, `datasets/migration_pairs_260908/`, `datasets/feature_candidates_260908/` — 학습 데이터
 - `pipeline/collectors/keywords/` — `package_text` (임베딩 입력) 수집
 - `pipeline/postgresql/` — 적재기 패턴 (방식 C 로더 참조)
