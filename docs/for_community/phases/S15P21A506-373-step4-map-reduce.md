@@ -75,21 +75,54 @@ GMS 호출(Reduce) 1회로 최종 `TopicSummary`를 만든다. 그 외 이슈는
 
 수정 후 유닛·통합 테스트 재실행, 전부 통과 확인.
 
+## 실네트워크 실측 (2026-09-16, 오세진 님 GMS_API_KEY·GITHUB_COMMUNITY_TOKEN 제공)
+
+`backend/.env.local`(gitignore됨, 미커밋)에 실제 키를 두고, 커밋하지 않는 1회성 probe
+(`ZZZGmsMapReduceUsageProbe.java`, 측정 후 삭제)로 합성 이슈(75개 댓글, code-heavy)를 실제
+Map-Reduce 경로로 돌렸다. `GmsCommunitySummarizer`의 요청·스키마 구성을 그대로 복제해서
+썼고, GMS 응답에 `usage`(input/output 토큰) 필드가 실제로 존재함을 처음 확인했다.
+
+**1차 실측(수정 전, 85개 댓글·배치 5개)**: Map 5회 전부 `status=READY`였지만
+`CommunitySummaryValidator`가 **5개 전부 거부**했다(`validBatches=0`). 원인: 응답의
+`flow.size`가 5~6개, `messages.size`가 5개로 검증기 상한(각각 4·3)을 넘었다. 확인해 보니
+**4단계가 만든 버그가 아니라 0~2단계부터 있던 공백**이었다 — `GmsCommunitySummarizer`의
+system prompt·json schema 어디에도 이 상한이 없고 오직 `CommunitySummaryValidator`에만
+있었다. 지금까지의 0~2단계 실네트워크 테스트(`GmsCommunitySummarizerRealNetworkTest`)는
+`status==READY`만 확인했지 `CommunitySummaryValidator` 통과 여부는 검증한 적이 없어 드러나지
+않았다. 댓글이 많고 복잡한 이슈(zod #479/#372처럼 4단계가 원래 겨냥한 케이스)일수록 모델이
+자연스럽게 4~5개 이상의 flow/message를 만들어 검증에서 탈락할 위험이 컸다.
+
+**수정**: `GmsCommunitySummarizer.schema()`·`reduceSchema()`에 `maxItems`(flow=4,
+messages=3, summary_support=101, flow_support=404)를 추가하고, 두 system prompt에도
+명시적으로 상한을 지시했다(별도 commit — 4단계 범위를 약간 벗어나지만 0~2단계 코드도 같이
+고쳐야 해서 이 브랜치에서 바로 반영).
+
+**2차 실측(수정 후, 75개 댓글·배치 5개, 비용 절감을 위해 `max_output_tokens` 4096→1536으로
+낮춰 진행)**: Map 5회 전부 `flow.size=4`, `messages.size<=3`로 정확히 제한돼 **5개 전부
+검증 통과**(`validBatches=5`), 이어진 Reduce 호출도 `status=READY`로 성공. 실제 GMS 호출
+총 6회(Map 5 + Reduce 1), 총 input_tokens=21,490, output_tokens=4,607, 합계 26,097 토큰.
+걸린 시간 42초는 이 probe가 배치를 **순차** 호출한 값이라 실제 상한이 아니다 — 프로덕션
+`CommunityMapReduceSummarizer`는 배치를 동시에 디스패치하므로(worker 6개) 실제 벽시계
+시간은 이보다 짧을 것으로 예상되나, 이번엔 비용을 아끼려 실제 동시 경로로는 재측정하지
+않았다 — **TOTAL_BUDGET(30초) 안에 실제로 들어가는지는 여전히 미확인**(아래 "남은 위험").
+
 ## Jira "완료 판단 기준" 대조 (4단계 관련分만 — 정본은 Jira)
 
 - "계획 문서 §5의 0~4단계가 각각 구현·테스트·리뷰를 거쳐 병합된다" — 구현·테스트·`/code-review`
   까지 완료. **병합(MR)은 오세진 님 지시로 이번 라운드에 하지 않는다** — 로컬 커밋까지만.
 - "각 단계에서 `CommunityAcceptanceIntegrationTest`의 R11/R12 계열이 그대로 통과한다" —
-  17/17 통과로 충족.
+  스키마 수정 반영 후 재실행해도 17/17 통과로 충족.
 - "zod #479/#372를 포함한 대용량 댓글 이슈에서 요약 성공률이 실측으로 개선됐음을 확인한다" —
-  **미확인**. 이번 구현은 fake/mock GMS로만 검증했다(Spec §4 "외부 의존성" 결정 그대로).
-  `GMS_API_KEY`가 있을 때 실네트워크로 zod 재수집해 비교하는 절차는 아직 진행하지 않았다.
+  **부분 확인**. 실제 zod #479/#372 재수집은 아직이지만, 같은 규모(75개, code-heavy 합성
+  댓글)의 실네트워크 실측으로 "배치 검증 통과율 0%→100%"를 확인했다 — 이 개선이 수정 전
+  코드로는 아예 성립할 수 없었던 구조적 결함이었음을 실측으로 증명한 것이 이번 성과다.
+  **실제 zod 이슈로 최종 재확인은 아직 남아 있다**(GitHub 원본 수집 필요).
 - "⑤-B는 이번 범위에서 미착수 상태로 남긴다" — 변경 없음, 그대로 미착수.
 
 ## 남은 위험, 다음 Phase에 넘길 것
 
-- **실측 미확인**: 위 항목대로 zod #479/#372 재수집 비교가 아직 없다. `GMS_API_KEY`가 준비되면
-  0단계와 같은 방식으로 실네트워크 확인이 필요하다.
+- **zod #479/#372 실제 재수집 비교는 아직 없다** — 이번엔 합성 fixture로만 확인했다.
+  `GITHUB_COMMUNITY_TOKEN`도 준비돼 있으니 필요하면 실제 이슈로도 재확인 가능하다.
 - **예산 실측 미확인**: Spec §3 "동시성·예산"이 예상한 대로 worker 6개·배치 상한 5로 30초
   예산 안에 N+1 호출이 들어가는지는 fake 테스트로는 확인이 안 된다 — 실네트워크(또는 부하
   유사 테스트)로 확인 전까지는 `TOTAL_BUDGET` 상향 필요 여부를 판단할 수 없다.
