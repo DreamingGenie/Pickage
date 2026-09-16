@@ -130,8 +130,8 @@ class CommunityMapReduceSummarizerTest {
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
         assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(bigIssue()));
         assertThat(attempt.bundle().issue().comments())
-                .as("highlights는 댓글 최대 2개만 골라야 한다")
-                .hasSizeLessThanOrEqualTo(2);
+                .as("highlights는 댓글 최대 3개만 골라야 한다")
+                .hasSizeLessThanOrEqualTo(3);
     }
 
     @Test

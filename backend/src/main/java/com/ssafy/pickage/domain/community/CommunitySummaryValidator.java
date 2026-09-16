@@ -21,50 +21,52 @@ public final class CommunitySummaryValidator {
                 return TopicSummary.failed();
             require(
                     summary.status() == SummaryStatus.READY
-                            || summary.status() == SummaryStatus.PARTIAL);
+                            || summary.status() == SummaryStatus.PARTIAL,
+                    "status");
             String titleKo = stripLinks(summary.titleKo());
             String summaryKo = stripLinks(summary.summaryKo());
-            require(
-                    CommunitySnapshotValidator.plain(titleKo, 200)
-                            && CommunitySnapshotValidator.plain(summaryKo, 500));
-            support(bundle, summary.summarySupport());
+            require(CommunitySnapshotValidator.plain(titleKo, 200), "titleKo not plain/too long");
+            require(CommunitySnapshotValidator.plain(summaryKo, 500), "summaryKo not plain/too long");
+            support(bundle, summary.summarySupport(), "summarySupport");
             require(
                     summary.discussionFlow() != null
                             && !summary.discussionFlow().isEmpty()
-                            && summary.discussionFlow().size() <= 4);
+                            && summary.discussionFlow().size() <= 4,
+                    "discussionFlow size");
             require(
                     summary.flowSupport() != null
-                            && summary.flowSupport().size() == summary.discussionFlow().size());
+                            && summary.flowSupport().size() == summary.discussionFlow().size(),
+                    "flowSupport size mismatch");
             var flow = new ArrayList<DiscussionStepPayload>();
             for (int i = 0; i < summary.discussionFlow().size(); i++) {
                 String stepText = stripLinks(summary.discussionFlow().get(i).text());
-                require(CommunitySnapshotValidator.plain(stepText, 200));
-                support(bundle, summary.flowSupport().get(i));
+                require(CommunitySnapshotValidator.plain(stepText, 200), "flow[" + i + "] not plain/too long");
+                support(bundle, summary.flowSupport().get(i), "flowSupport[" + i + "]");
                 flow.add(new DiscussionStepPayload(stepText));
             }
-            require(summary.messages() != null && summary.messages().size() <= 3);
+            require(summary.messages() != null && summary.messages().size() <= 3, "messages size");
             var messages = new ArrayList<MessagePayload>();
             var seen = new HashSet<String>();
             for (var m : summary.messages()) {
-                String messageText = m == null ? null : stripLinks(m.text());
+                require(m != null, "message null");
+                String messageText = stripLinks(m.text());
+                require(seen.add(m.sourceCommentId()), "duplicate message sourceCommentId");
                 require(
-                        m != null
-                                && seen.add(m.sourceCommentId())
-                                && CommunitySnapshotValidator.plain(messageText, 300));
+                        CommunitySnapshotValidator.plain(messageText, 300),
+                        "message text not plain/too long");
                 require(
-                        m.kind() != null
-                                && Set.of("DISCUSSION", "USER_SOLUTION").contains(m.kind()));
+                        m.kind() != null && Set.of("DISCUSSION", "USER_SOLUTION").contains(m.kind()),
+                        "message kind invalid");
                 require(
                         bundle.sources()
-                                .containsKey(
-                                        new TopicSummary.SourceRef(
-                                                "COMMENT", m.sourceCommentId())));
+                                .containsKey(new TopicSummary.SourceRef("COMMENT", m.sourceCommentId())),
+                        "message sourceCommentId not in bundle");
                 var c =
                         bundle.issue().comments().stream()
                                 .filter(x -> x.sourceCommentId().equals(m.sourceCommentId()))
                                 .findFirst()
                                 .orElseThrow();
-                require(!c.isBot());
+                require(!c.isBot(), "message comment author is bot");
                 boolean author =
                         c.authorId() != null
                                 && bundle.issue().authorId() != null
@@ -92,8 +94,9 @@ public final class CommunitySummaryValidator {
                     List.of());
         } catch (RuntimeException e) {
             log.warn(
-                    "요약 검증 실패: {} — flow={}, flowSupport={}, messages={}, summarySupport={}",
+                    "요약 검증 실패: {} ({}) — flow={}, flowSupport={}, messages={}, summarySupport={}",
                     e.getClass().getSimpleName(),
+                    e.getMessage(),
                     summary == null ? null : summary.discussionFlow().size(),
                     summary == null ? null : summary.flowSupport().size(),
                     summary == null ? null : summary.messages().size(),
@@ -117,16 +120,16 @@ public final class CommunitySummaryValidator {
     }
 
     private static void support(
-            CommunitySummarySourceBundle bundle, List<TopicSummary.SourceRef> refs) {
+            CommunitySummarySourceBundle bundle, List<TopicSummary.SourceRef> refs, String label) {
         require(
-                refs != null
-                        && !refs.isEmpty()
-                        && refs.size() <= 101
-                        && new HashSet<>(refs).size() == refs.size());
-        for (var ref : refs) require(bundle.sources().containsKey(ref));
+                refs != null && !refs.isEmpty() && refs.size() <= 101,
+                label + " empty/too large");
+        require(new HashSet<>(refs).size() == refs.size(), label + " has duplicates");
+        for (var ref : refs)
+            require(bundle.sources().containsKey(ref), label + " ref not in bundle: " + ref);
     }
 
-    private static void require(boolean value) {
-        if (!value) throw new IllegalArgumentException("Invalid summary evidence");
+    private static void require(boolean value, String reason) {
+        if (!value) throw new IllegalArgumentException(reason);
     }
 }

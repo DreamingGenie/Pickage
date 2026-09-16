@@ -185,7 +185,7 @@ class CommunitySummarySourceBundleTest {
                 .containsExactly("oldest", "middle", "newest");
     }
 
-    // --- 2026-09-16: highlights() — 반응 최다 댓글 + 유지관리자 답글만 -----------------------
+    // --- 2026-09-16: highlights() — 반응 최다 댓글 + 유지관리자 답글 + 그 주변 댓글(최대 3개) ---
 
     private static CollectedComment commentWithAssociation(
             String id, String authorId, String association, int reactionCount, Instant createdAt) {
@@ -194,40 +194,54 @@ class CommunitySummarySourceBundleTest {
     }
 
     @Test
-    void highlights는_반응_최다_댓글과_그_이후_첫_유지관리자_답글만_고른다() {
+    void highlights는_반응_최다_댓글_유지관리자_답글_그_주변_댓글까지_최대_3개를_고른다() {
         var topComment = comment("top", "other", 100, BASE.plusSeconds(1));
         var earlyMaintainer =
                 commentWithAssociation("early-maintainer", "maint", "MEMBER", 0, BASE); // top보다 먼저 — 제외돼야 함
         var lateMaintainer =
                 commentWithAssociation("late-maintainer", "maint", "OWNER", 0, BASE.plusSeconds(2));
-        var laterMaintainer =
-                commentWithAssociation("later-maintainer", "maint", "COLLABORATOR", 0, BASE.plusSeconds(3));
-        var noise = comment("noise", "other", 5, BASE.plusSeconds(4));
+        var nearby = comment("nearby", "other", 5, BASE.plusSeconds(3)); // 유지관리자 답글 이후 첫 댓글
+        var farNoise = comment("far-noise", "other", 9, BASE.plusSeconds(4)); // nearby보다 늦음 — 제외돼야 함
 
         var bundle =
                 CommunitySummarySourceBundle.highlights(
                         issue(
                                 "issue-author",
-                                List.of(topComment, earlyMaintainer, lateMaintainer, laterMaintainer, noise)));
+                                List.of(topComment, earlyMaintainer, lateMaintainer, nearby, farNoise)));
 
         assertThat(bundle.issue().comments())
                 .extracting(CollectedComment::sourceCommentId)
-                .containsExactly("top", "late-maintainer"); // top 이후 첫 유지관리자만, 시각순
+                .containsExactly("top", "late-maintainer", "nearby"); // 시각순, 반응 수와 무관
         assertThat(bundle.limited()).isTrue();
     }
 
     @Test
-    void highlights는_유지관리자_답글이_없으면_반응_최다_댓글만_고른다() {
+    void highlights는_유지관리자_답글이_없으면_반응_1_2순위_댓글_2개만_고른다() {
         var topComment = comment("top", "other", 10, BASE);
-        var otherComment = comment("other", "other", 1, BASE.plusSeconds(1));
+        var secondComment = comment("second", "other", 5, BASE.plusSeconds(1));
+        var thirdComment = comment("third", "other", 1, BASE.plusSeconds(2)); // 3순위 — 제외돼야 함
 
         var bundle =
                 CommunitySummarySourceBundle.highlights(
-                        issue("issue-author", List.of(topComment, otherComment)));
+                        issue("issue-author", List.of(topComment, secondComment, thirdComment)));
 
         assertThat(bundle.issue().comments())
                 .extracting(CollectedComment::sourceCommentId)
-                .containsExactly("top");
+                .containsExactly("top", "second");
+    }
+
+    @Test
+    void highlights는_유지관리자_답글에_이어지는_댓글이_없으면_2개만_고른다() {
+        var topComment = comment("top", "other", 100, BASE);
+        var maintainerReply = commentWithAssociation("maintainer", "maint", "OWNER", 0, BASE.plusSeconds(1));
+
+        var bundle =
+                CommunitySummarySourceBundle.highlights(
+                        issue("issue-author", List.of(topComment, maintainerReply)));
+
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("top", "maintainer");
     }
 
     @Test
