@@ -55,11 +55,12 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
     private static final Duration TIMEOUT_MARGIN = Duration.ofMillis(300);
     private static final Duration MIN_CALL_TIMEOUT = Duration.ofSeconds(1);
     /**
-     * 2026-09-16 4096→1536으로 낮춤 — 입력이 이슈 본문 + 하이라이트 댓글 최대 2개로 줄어서
-     * ({@link CommunitySummarySourceBundle#highlights}) 큰 출력 여유가 필요 없다(오세진 님
-     * 결정, 시연 비용·시간 단축).
+     * 2026-09-16 4096→1536으로 낮췄다가 3072로 재조정 — 입력은 하이라이트로 작아졌지만
+     * ({@link CommunitySummarySourceBundle#highlights}), 실측에서 gpt-5-mini가 1536으로는
+     * {@code incomplete_reason=max_output_tokens}로 잘리는 걸 확인했다(추론 토큰 오버헤드로
+     * 보임 — 입력 크기와 무관하게 이 모델 자체가 더 큰 출력 여유를 필요로 한다).
      */
-    private static final int MAX_OUTPUT_TOKENS = 1536;
+    private static final int MAX_OUTPUT_TOKENS = 3072;
 
     /**
      * 2026-09-16 하이라이트 전용으로 다시 씀 — 논의 전체가 아니라 반응 최다 댓글 + 유지관리자

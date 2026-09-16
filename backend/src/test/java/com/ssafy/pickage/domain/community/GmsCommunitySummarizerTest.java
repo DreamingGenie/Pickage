@@ -229,7 +229,7 @@ class GmsCommunitySummarizerTest {
         client().summarize(issue(7), BUDGET);
 
         JsonNode request = readTree(captured.get());
-        assertThat(request.path("max_output_tokens").asInt()).isEqualTo(1536);
+        assertThat(request.path("max_output_tokens").asInt()).isEqualTo(3072);
 
         JsonNode schema = request.path("text").path("format").path("schema");
         JsonNode flowItemSchema = schema.path("properties").path("flow").path("items");
