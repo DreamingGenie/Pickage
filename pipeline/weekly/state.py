@@ -24,8 +24,8 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timezone
 
-from .schedule import (MAX_CONSECUTIVE_FAILURES, STEPS, RunRecord, window_end,
-                       window_start)
+from .schedule import (MAX_CONSECUTIVE_FAILURES, STEPS, RunRecord,
+                       is_manual_pending, window_end, window_start)
 
 BUCKET = "pickage-raw"
 # 최상위 `_ops/`. 이 저장소의 `list_objects_v2` 는 전부 prefix 한정이라(`depsdev/v1/…`,
@@ -41,8 +41,13 @@ def run_key(week_of: date) -> str:
     return f"{PREFIX}/{week_of.isoformat()}/run.json"
 
 
+# 우편함 객체의 이름. `ObjectStore.manual_weeks()` 가 키 목록에서 이 이름으로 회차를
+# 골라내므로 두 곳에 따로 적지 않는다.
+MANUAL_NAME = "manual-request.json"
+
+
 def manual_key(week_of: date) -> str:
-    return f"{PREFIX}/{week_of.isoformat()}/manual-request.json"
+    return f"{PREFIX}/{week_of.isoformat()}/{MANUAL_NAME}"
 
 
 def _stamp(moment: datetime) -> str:
@@ -115,6 +120,36 @@ class ObjectStore:
             token = page.get("NextContinuationToken")
         return sorted(found, reverse=True)
 
+    def manual_weeks(self) -> list[date]:
+        """**우편함 객체가 있는** 회차 날짜. 오래된 것부터.
+
+        `weeks()` 를 쓰고 회차마다 우편함을 GET 하면 1년에 52회다 — 10분마다 그걸 하면
+        "대부분의 발화는 객체 하나를 읽고 끝난다" 가 거짓이 된다. 여기서는 Delimiter 없이
+        키를 직접 훑어 **LIST 한 번**으로 우편함이 있는 주만 걸러 낸다. 우편함은 사람이
+        누를 때만 생기므로 평소에는 빈 목록이고, 뒤따르는 GET 이 0이다.
+        """
+        suffix = "/" + MANUAL_NAME
+        found = []
+        token = None
+        while True:
+            request = {"Bucket": self.bucket, "Prefix": PREFIX + "/"}
+            if token:
+                request["ContinuationToken"] = token
+            page = self.s3.list_objects_v2(**request)
+            for item in page.get("Contents", []):
+                key = item["Key"]
+                if not key.endswith(suffix):
+                    continue
+                name = key[len(PREFIX) + 1:-len(suffix)]
+                try:
+                    found.append(date.fromisoformat(name))
+                except ValueError:
+                    continue   # 회차 날짜가 아닌 것은 건드리지 않는다. weeks() 와 같은 태도다
+            if not page.get("IsTruncated"):
+                break
+            token = page.get("NextContinuationToken")
+        return sorted(found)
+
 
 def _missing(error) -> bool:
     response = getattr(error, "response", None)
@@ -139,6 +174,48 @@ def open_store(bucket: str = BUCKET) -> ObjectStore:
     from pipeline.minio.ingest_raw import client
 
     return ObjectStore(client(), bucket=bucket)
+
+
+class StagedStore:
+    """**드라이런 전용.** 읽기는 진짜 저장소를 보고, 쓰기는 메모리에만 남긴다.
+
+    드라이런이 운영 회차 객체를 건드리면 안 된다. 단계를 하나도 돌리지 않고 `SUCCEEDED`
+    를 적어 버리면 **그 주 수집이 통째로 건너뛰어진다** — `decide()` 가 "이미 끝났다" 로
+    보고 창이 열려도 시작하지 않는다. 운영 README 의 설치 절차가 타이머를 켜기 전에
+    드라이런을 한 번 돌리게 하므로, 그 절차가 곧 사고 경로였다.
+
+    **쓰기를 막기만 하면 안 된다.** 실행기는 마지막에 저장소를 다시 읽어 끝났는지 본다
+    (`run.py` 의 `_execute`). 쓴 것이 안 보이면 드라이런은 늘 "남은 단계가 있다" 로
+    끝나 판정을 흉내 내지 못한다. 그래서 버리지 않고 **메모리에 쌓아 그것을 읽게** 한다 —
+    드라이런은 진짜 실행과 같은 경로를 그대로 탄다.
+    """
+
+    def __init__(self, inner: ObjectStore):
+        self.inner = inner
+        self.bucket = inner.bucket
+        self.staged: dict[str, dict] = {}
+
+    def get(self, key: str) -> dict | None:
+        if key in self.staged:
+            return _copy(self.staged[key])
+        return self.inner.get(key)
+
+    def put(self, key: str, payload: dict) -> None:
+        # 부르는 쪽이 같은 dict 를 계속 고쳐 쓰므로(WeeklyState._document) 사본을 둔다.
+        # 참조를 그대로 두면 "저장된 것" 이 나중 수정에 따라 바뀐다.
+        self.staged[key] = _copy(payload)
+
+    def weeks(self) -> list[date]:
+        return self.inner.weeks()
+
+    def manual_weeks(self) -> list[date]:
+        return self.inner.manual_weeks()
+
+
+def _copy(payload: dict) -> dict:
+    # 상태 객체는 JSON 직렬화가 계약이다. 그 왕복으로 깊은 사본을 만든다 —
+    # 직렬화할 수 없는 값이 섞이면 드라이런에서 먼저 드러난다.
+    return json.loads(json.dumps(payload))
 
 
 def blank(week_of: date) -> dict:
@@ -232,6 +309,35 @@ class WeeklyState:
                 done.append(week)
         return sorted(done, reverse=True)[keep:]
 
+    def pending_manual_weeks(self, exclude: date) -> list[date]:
+        """아직 집어 가지 않은 수동 실행 요청이 걸린 지난 회차. **오래된 것부터.**
+
+        타이머는 이번 주만 본다. 그래서 지난주가 `BLOCKED` 인 채 주가 넘어가면, 그 주에
+        건 수동 요청은 **영원히 읽히지 않는다** — 백엔드는 200 을 주고 `manual_pending`
+        을 계속 참으로 돌려주므로 요청한 사람은 처리되는 줄 안다. `BLOCKED` 를 푸는
+        유일한 수단이 수동 요청이니, 그 경우 회차를 되살릴 방법이 아예 없어진다.
+
+        오래된 것부터 고르는 이유: npm 개별 호출의 구간 상한이 18개월이라 **다시 받을 수
+        있는 한계에 가장 가까운 것이 가장 급하다.**
+
+        회차 객체가 없고 우편함만 있는 주도 센다. 한 번도 돌지 않은 주에 건 요청이 그렇다.
+        """
+        found = []
+        for week in self.store.manual_weeks():
+            if week == exclude:
+                continue
+            manual = self.store.get(manual_key(week)) or {}
+            requested = _moment(manual.get("requested_at"))
+            if requested is None:
+                continue
+            # 손상된 지난 회차 하나가 이번 발화를 통째로 막지 않게, 여기서는 _record()
+            # (CorruptState 를 던진다) 를 태우지 않고 필요한 값만 본다. 고를 뿐이고,
+            # 고른 뒤 load() 가 제대로 읽으면서 손상은 그때 드러난다.
+            document = self.store.get(run_key(week)) or {}
+            if is_manual_pending(requested, _moment(document.get("manual_claimed_at"))):
+                found.append(week)
+        return sorted(found)
+
     # ── 쓰기 ────────────────────────────────────────────────────
 
     def _flush(self) -> None:
@@ -283,6 +389,24 @@ class WeeklyState:
         item["finished_at"] = _stamp(self._clock())
         item["error_message"] = error[:ERROR_LIMIT] if error else None
         item["detail"] = detail or {}
+        self._flush()
+
+    def reset_steps(self, week_of: date, steps: list[str]) -> None:
+        """이 단계들의 기록을 지운다. `--force` 만 부른다.
+
+        지우지 않으면 강제 재실행이 중간에 실패했을 때 **뒤 단계의 옛 `SUCCEEDED` 가
+        그대로 남는다.** 다음 발화는 실패한 단계만 다시 돌리고 뒤를 건너뛰므로, 새로 받은
+        상류 산출물 위에 **이전 회차의 입고 결과가 최신인 척** 남는다.
+
+        ⚠ **`selected` 만 지운다. 전부 지우면 안 된다.** `--force --only bronze_downloads`
+        로 전부 지우면 앞 다섯 단계의 기록이 사라지고 회차가 `PENDING` 으로 내려가,
+        다음 발화가 23시간짜리 수집을 처음부터 다시 돈다.
+        """
+        target = set(steps)
+        keep = [item for item in self._document["steps"] if item["step"] not in target]
+        if len(keep) == len(self._document["steps"]):
+            return   # 지울 것이 없으면 PUT 도 하지 않는다
+        self._document["steps"] = keep
         self._flush()
 
     def succeed(self, week_of: date) -> None:

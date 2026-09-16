@@ -12,11 +12,14 @@ steps.py 가 종료 코드 3을 StepNotReady 로 바꾸는 것은 test_steps 가
 시각을 주입하지 않고 회차 날짜로 유예 전후를 가른다 — 먼 미래 주차는 유예가 남아 있고,
 지난 주차는 유예가 끝나 있다. 실제 snapshot_grace_expired 를 그대로 태우게 된다.
 """
+import json
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from . import run as runner
-from .state import CorruptState, ObjectStore, WeeklyState, run_key
+from .schedule import current_week_of
+from .state import (CorruptState, ObjectStore, WeeklyState, blank, manual_key,
+                    run_key)
 from .steps import StepError, StepNotReady
 from .test_state import FakeS3
 
@@ -125,7 +128,11 @@ class AbandonTest(unittest.TestCase):
             raise RuntimeError("PUT 실패")
 
         self.enterContext(_patch(runner.WeeklyState, "step_finish", explode))
-        code = runner.main(["--force", "--dry-run", "--week-of", FUTURE_WEEK.isoformat()])
+        # --dry-run 을 쓰지 않는다. 이제 그 옵션은 상태 객체에 아무것도 쓰지 않으므로
+        # 여기서 보려는 "버려진 회차가 FAILED 로 내려앉는가" 를 확인할 수 없다.
+        # 단계는 _Harness 가 HANDLERS 를 갈아 끼워 이미 가짜다.
+        code = runner.main(["--force", "--keep-weeks", "-1",
+                            "--week-of", FUTURE_WEEK.isoformat()])
 
         self.assertEqual(code, 1)
         self.assertEqual(calls["n"], 1, "첫 단계 기록에서 터져야 한다")
@@ -139,9 +146,138 @@ class AbandonTest(unittest.TestCase):
         harness = _Harness(self, None)
         self.enterContext(_patch(runner.WeeklyState, "step_start", _raise_corrupt))
         with self.assertRaises(CorruptState):
-            runner.main(["--force", "--dry-run", "--week-of", FUTURE_WEEK.isoformat()])
+            runner.main(["--force", "--keep-weeks", "-1",
+                         "--week-of", FUTURE_WEEK.isoformat()])
         self.assertEqual(harness.document(FUTURE_WEEK)["status"], "RUNNING")
 
 
 def _raise_corrupt(self, *args, **kwargs):
     raise CorruptState("회차 객체에 status 가 없다")
+
+
+class DryRunTest(unittest.TestCase):
+    """드라이런이 운영 회차를 건드리지 않는가. **그리고 판정은 끝까지 흉내 내는가.**
+
+    앞을 놓치면 드라이런 한 번에 그 주 수집이 통째로 건너뛰어진다 — 돌리지도 않은 6단계가
+    SUCCEEDED 로 적히고 decide() 가 "이미 끝났다" 로 본다. 운영 README 의 설치 절차가
+    타이머를 켜기 전에 드라이런을 돌리게 하므로 그 절차가 곧 사고 경로였다.
+
+    뒤를 놓치면 드라이런이 쓸모없어진다. 실행기는 마지막에 저장소를 다시 읽어 회차가
+    끝났는지 보는데, 쓴 것이 안 보이면 늘 "남은 단계가 있다" 로 끝난다.
+    """
+
+    def test_nothing_is_written_but_the_decision_completes(self):
+        harness = _Harness(self, None)
+        staged = {}
+        original = runner.StagedStore
+        self.enterContext(_patch(runner, "StagedStore",
+                                 lambda inner: staged.setdefault("it", original(inner))))
+
+        code = runner.main(["--force", "--dry-run", "--keep-weeks", "-1",
+                            "--week-of", PAST_WEEK.isoformat()])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(harness.s3.objects, {}, "운영 객체에 쓰면 안 된다")
+        document = staged["it"].staged[run_key(PAST_WEEK)]
+        self.assertEqual(document["status"], "SUCCEEDED", "판정은 끝까지 가야 한다")
+
+
+class ManualElsewhereTest(unittest.TestCase):
+    """지난 회차의 수동 실행 요청을 집어 가는가.
+
+    타이머는 이번 주만 본다. 그래서 주가 넘어가면 지난 회차의 요청이 **영원히 읽히지
+    않는다** — BLOCKED 를 푸는 유일한 수단이 그 요청이므로 회차를 되살릴 방법이 없어진다.
+    그동안 백엔드는 200 과 manual_pending=true 를 돌려주므로 요청한 사람은 모른다.
+    """
+
+    def setUp(self):
+        self.now = datetime.now(timezone.utc)
+        self.current = current_week_of(self.now)
+        self.previous = self.current - timedelta(days=7)
+
+    def _ask(self, harness, week):
+        harness.s3.objects[manual_key(week)] = json.dumps(
+            {"requested_at": self.now.isoformat()}).encode("utf-8")
+
+    def test_previous_week_request_is_claimed(self):
+        harness = _Harness(self, None)
+        # 이번 주는 할 일이 없다.
+        done = blank(self.current)
+        done["status"] = "SUCCEEDED"
+        harness.s3.objects[run_key(self.current)] = json.dumps(done).encode("utf-8")
+        self._ask(harness, self.previous)
+
+        self.assertEqual(runner.main(["--keep-weeks", "-1"]), 0)
+
+        document = harness.document(self.previous)
+        self.assertEqual(document["status"], "SUCCEEDED")
+        self.assertIsNotNone(document["manual_claimed_at"], "집어 간 표시가 남아야 한다")
+
+    def test_this_week_comes_first(self):
+        """러너는 한 번에 한 회차만 돈다. 이번 주가 밀리면 안 된다."""
+        harness = _Harness(self, None)
+        self._ask(harness, self.current)
+        self._ask(harness, self.previous)
+
+        self.assertEqual(runner.main(["--keep-weeks", "-1"]), 0)
+
+        self.assertIn(run_key(self.current), harness.s3.objects)
+        self.assertNotIn(run_key(self.previous), harness.s3.objects)
+
+
+class ForceTest(unittest.TestCase):
+    """--force 가 지우는 범위.
+
+    안 지우면: 강제 재실행이 중간에 실패했을 때 뒤 단계의 옛 SUCCEEDED 가 남고, 다음
+    발화가 그것을 건너뛴다 — 새로 받은 상류 산출물 위에 **이전 회차의 입고 결과가
+    최신인 척** 남는다.
+
+    너무 지우면: `--force --only` 가 앞 단계 기록까지 날려 다음 발화가 23시간짜리 수집을
+    처음부터 다시 돈다.
+    """
+
+    def _done(self, harness, week):
+        document = blank(week)
+        document["status"] = "SUCCEEDED"
+        document["steps"] = [{"step": name, "status": "SUCCEEDED", "attempt_count": 1,
+                              "started_at": None, "finished_at": None,
+                              "error_message": None, "detail": {}}
+                             for name in runner.STEPS]
+        harness.s3.objects[run_key(week)] = json.dumps(document).encode("utf-8")
+
+    def _steps(self, harness, week):
+        return {item["step"]: item["status"] for item in harness.document(week)["steps"]}
+
+    def test_failure_does_not_leave_stale_success_downstream(self):
+        harness = _Harness(self, None)
+        self._done(harness, PAST_WEEK)
+        second = runner.STEPS[1]
+        self.enterContext(_patch(
+            runner, "HANDLERS",
+            {name: (_boom if name == second else (lambda ctx: {"ok": True}))
+             for name in runner.STEPS}))
+
+        self.assertEqual(runner.main(["--force", "--keep-weeks", "-1",
+                                      "--week-of", PAST_WEEK.isoformat()]), 1)
+
+        left = self._steps(harness, PAST_WEEK)
+        self.assertEqual(left[runner.STEPS[0]], "SUCCEEDED")
+        self.assertEqual(left[second], "FAILED")
+        for name in runner.STEPS[2:]:
+            self.assertNotIn(name, left, f"{name}: 옛 성공이 남으면 다음 발화가 건너뛴다")
+
+    def test_only_does_not_clear_the_other_steps(self):
+        harness = _Harness(self, None)
+        self._done(harness, PAST_WEEK)
+        last = runner.STEPS[-1]
+
+        self.assertEqual(runner.main(["--force", "--only", last, "--keep-weeks", "-1",
+                                      "--week-of", PAST_WEEK.isoformat()]), 0)
+
+        left = self._steps(harness, PAST_WEEK)
+        self.assertEqual(len(left), len(runner.STEPS), "앞 단계 기록까지 지우면 안 된다")
+        self.assertEqual(harness.document(PAST_WEEK)["status"], "SUCCEEDED")
+
+
+def _boom(ctx):
+    raise StepError("행 수가 맞지 않는다")

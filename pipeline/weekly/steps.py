@@ -4,9 +4,25 @@
 이어받기도 각 CLI 가 이미 한다 — BigQuery 는 GCS 의 _MANIFEST.json, downloads 는
 checkpoint.sqlite, 입고기는 _SUCCESS 와 객체 해시 대조. 그래서 실패한 회차는
 같은 명령을 다시 부르기만 하면 된다.
+
+⚠ **"다시 부르면 된다" 에는 구멍이 둘 있다.** 둘 다 수집기가 **종료 코드 0으로 끝나면서**
+덜 받은 경우라, 종료 코드만 보면 성공으로 보인다.
+
+1. BigQuery 는 누적 예산을 넘기면 `stopped_budget` 으로 남은 테이블을 포기하고 정상
+   종료한다. 그래서 `depsdev_t2` 가 GCS 매니페스트를 T2_TABLES 와 **직접 대조**한다.
+   모자라면 그 단계를 실패로 올려 다음 발화가 수집기를 다시 부르게 한다 — 이미 매니페스트가
+   있는 테이블은 예산을 쓰기 전에 건너뛰므로(collect.py 의 `skipped_manifest_exists`)
+   재시도마다 남은 것에 예산이 온전히 가고, 결국 수렴한다.
+   **대조를 뒤 단계(`gcs_sync`)에 두면 안 된다** — 그러면 `depsdev_t2` 가 SUCCEEDED 로
+   남아 다음 발화가 수집기를 건너뛰고, 같은 실패만 열 번 반복해 BLOCKED 로 간다.
+2. npm 수집기는 요청 실패를 manifest 에 적고 정상 종료하는데, **그 작업은 다시 고르지
+   않는다** — 작업 선택이 `status IN ('pending','retry')` 라 `failed` 는 대상이 아니다.
+   지금은 `downloads_weekly` 가 그 수를 단계 detail 에 실어 **보이게만** 한다.
+   재수집 경로는 수집기의 작업 선택을 바꿔야 해서 별도 이슈다 (S15P21A506-367).
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -29,6 +45,11 @@ TAIL_BYTES = 4000
 # test_steps.py 가 두 값이 어긋나지 않는지 검사한다. 거기서 직접 import 하지 않는 이유는
 # 그 모듈이 google.cloud 를 최상단에서 불러서 단위 시험이 그 의존성을 끌고 오기 때문이다.
 SNAPSHOT_NOT_READY_EXIT = 3
+
+# 한 회차에 GCS 로 올라와 있어야 하는 deps.dev 테이블. collect.py 의 TIERS["t2"] 와 같아야
+# 하며, test_steps.py 가 두 목록이 어긋나지 않는지 검사한다. 위 종료 코드와 같은 이유로
+# import 하지 않는다 — 그 모듈이 최상단에서 google.cloud 를 끌어온다.
+T2_TABLES = ("requirements", "versions_min", "projects")
 
 
 class StepError(RuntimeError):
@@ -130,6 +151,38 @@ def _tail(path: Path) -> str:
         return handle.read().decode("utf-8", errors="replace")
 
 
+def _snapshot_tables(ctx: Context) -> tuple[list[str], list[str]]:
+    """그 회차 스냅샷으로 GCS 에 올라온 테이블. (prefix 목록, 모자란 테이블) 을 준다.
+
+    받을 목록을 코드에 적어 두고 그것만 내려받지는 않는다 — `TIERS['t2']` 가 바뀌면
+    적어 둔 목록이 조용히 어긋난다. **실제로 올라간 것을 물어보고**, 그것을 T2_TABLES 와
+    대조해 모자란 것만 이름으로 돌려준다.
+    """
+    pattern = f"{GCS_RAW}/*/snapshot={ctx.week_of.isoformat()}/_MANIFEST.json"
+    try:
+        listing = ctx.capture(["gcloud", "storage", "ls", pattern])
+    except StepError as error:
+        # 하나도 안 맞으면 gcloud 가 비0으로 끝난다("matched no objects"). 인증 실패도
+        # 비0이라 여기서는 구별할 수 없으므로 **원문을 그대로 달고 올린다** — 빈 목록으로
+        # 눙치면 인증이 끊긴 것이 "테이블이 모자라다" 로 둔갑한다.
+        raise StepError(
+            f"snapshot={ctx.week_of} 산출물을 GCS 에서 확인하지 못했다.\n{error}") from error
+    prefixes = sorted({line.rsplit("/", 1)[0] for line in listing.splitlines() if line.strip()})
+    tables = [p.rsplit("/", 2)[-2] for p in prefixes]
+    return prefixes, [name for name in T2_TABLES if name not in tables]
+
+
+def _incomplete(ctx: Context, missing: list[str]) -> StepError:
+    """T2 가 덜 올라왔다. 무엇이 없는지와, 왜 성공처럼 보였는지를 함께 남긴다."""
+    return StepError(
+        f"snapshot={ctx.week_of} 의 T2 산출물이 모자라다 — 없는 테이블: "
+        + ", ".join(missing) + "\n"
+        "수집기가 누적 예산(collect.py 의 TIERS['t2'])에 걸려 stopped_budget 으로 멈추면 "
+        "이렇게 되고, 그때도 종료 코드는 0이라 앞 단계만 보면 성공으로 보인다.\n"
+        "다음 발화가 이어받는다 — 이미 매니페스트가 있는 테이블은 예산을 쓰기 전에 "
+        "건너뛰므로 남은 것만 받는다.")
+
+
 def depsdev_t2(ctx: Context) -> dict:
     """deps.dev 주간 증분을 BigQuery 에서 GCS 로.
 
@@ -141,10 +194,20 @@ def depsdev_t2(ctx: Context) -> dict:
     바꿔 올린다 — 회차의 연속 실패 횟수를 올리지 않는다. 실패로 세면 공급자가 두 시간
     늦는 것만으로 BLOCKED 가 되어 사람을 부르게 된다.
     """
-    return ctx.run("depsdev_t2", [
+    result = ctx.run("depsdev_t2", [
         ctx.python, "pipeline/collectors/bigquery/collect.py",
         "--tier", "t2", "--snap", ctx.week_of.isoformat(),
     ], not_ready_code=SNAPSHOT_NOT_READY_EXIT)
+    if ctx.dry_run:
+        return result
+    # ⚠ 종료 코드 0이 "다 받았다" 가 아니다. 예산에 걸려 멈춰도 0으로 끝난다.
+    #   **이 대조가 여기 있어야 한다** — 뒤 단계로 미루면 이 단계가 SUCCEEDED 로 남아
+    #   다음 발화가 수집기를 건너뛰고, 같은 실패를 열 번 반복해 BLOCKED 가 된다.
+    prefixes, missing = _snapshot_tables(ctx)
+    if missing:
+        raise _incomplete(ctx, missing)
+    result["tables"] = [p.rsplit("/", 2)[-2] for p in prefixes]
+    return result
 
 
 def gcs_sync(ctx: Context) -> dict:
@@ -154,13 +217,13 @@ def gcs_sync(ctx: Context) -> dict:
     받을 테이블 목록을 여기 적어 두지 않는 이유는 TIERS['t2'] 가 바뀌면 어긋나기 때문이다 —
     그 회차에 실제로 올라간 것을 물어본다.
     """
-    pattern = f"{GCS_RAW}/*/snapshot={ctx.week_of.isoformat()}/_MANIFEST.json"
     if ctx.dry_run:
-        return {"dry_run": True, "pattern": pattern}
-    listing = ctx.capture(["gcloud", "storage", "ls", pattern])
-    prefixes = sorted({line.rsplit("/", 1)[0] for line in listing.splitlines() if line.strip()})
-    if not prefixes:
-        raise StepError(f"GCS 에 snapshot={ctx.week_of} 산출물이 없다: {pattern}")
+        return {"dry_run": True, "snapshot": ctx.week_of.isoformat()}
+    # depsdev_t2 가 이미 대조했지만 여기서도 본다 — `--only gcs_sync` 로 이 단계만 돌릴 수
+    # 있고, 목록은 어차피 받아야 해서 비용이 0이다. 규칙은 한 군데(_snapshot_tables)다.
+    prefixes, missing = _snapshot_tables(ctx)
+    if missing:
+        raise _incomplete(ctx, missing)
     for prefix in prefixes:
         table = prefix.rsplit("/", 2)[-2]
         destination = ctx.data / "raw" / table / f"snapshot={ctx.week_of.isoformat()}"
@@ -188,7 +251,35 @@ def downloads_weekly(ctx: Context) -> dict:
     result.update(window_start=window_start(ctx.week_of).isoformat(),
                   window_end=window_end(ctx.week_of).isoformat(),
                   run=download_run(ctx.week_of))
+    if not ctx.dry_run:
+        result.update(_downloads_tasks(root, download_run(ctx.week_of)))
     return result
+
+
+def _downloads_tasks(root: Path, run: str) -> dict:
+    """수집기 manifest 의 작업 상태 요약을 단계 detail 에 싣는다.
+
+    ⚠ **`failed` 가 0이 아니면 그 작업들은 자동으로 다시 수집되지 않는다.** 수집기의 작업
+    선택이 `status IN ('pending','retry')` 라 `failed` 는 다시 고르지 않고, 그래도 종료
+    코드는 0이다. 지금 할 수 있는 것은 **눈에 보이게 하는 것**뿐이라 회차 객체에 실어
+    둔다 — 운영 API 로 조회하면 그 주에 몇 건이 빠졌는지 보인다.
+    재수집 경로는 수집기를 고쳐야 해서 별도 이슈다 (S15P21A506-367).
+
+    **읽기 실패는 단계를 실패시키지 않는다.** 이건 보고용이고, 수집 자체는 이미 끝났다.
+    여기서 터뜨리면 23시간짜리 잡이 요약 한 줄 때문에 실패로 기록된다.
+    """
+    path = root / "raw" / f"run={run}" / "manifest.json"
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as error:
+        return {"tasks_error": f"{type(error).__name__}: {error}"}
+    counts = document.get("tasks_by_status") or {}
+    summary = {"tasks_by_status": counts,
+               "packages_done": document.get("packages_done"),
+               "packages_not_found": document.get("packages_not_found")}
+    if counts.get("failed"):
+        summary["failed_tasks"] = (document.get("failed_tasks") or [])[:20]
+    return summary
 
 
 def downloads_parquet(ctx: Context) -> dict:

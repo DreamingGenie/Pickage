@@ -134,9 +134,24 @@ class RunRecord:
     @property
     def manual_pending(self) -> bool:
         """백엔드가 넣은 수동 실행 요청 중 아직 집어 가지 않은 것이 있는가."""
-        if self.manual_request_at is None:
-            return False
-        return self.manual_claimed_at is None or self.manual_claimed_at < self.manual_request_at
+        return is_manual_pending(self.manual_request_at, self.manual_claimed_at)
+
+
+def is_manual_pending(requested_at: datetime | None,
+                      claimed_at: datetime | None) -> bool:
+    """우편함에 요청이 있는데 아직 집어 가지 않았는가.
+
+    `RunRecord` 밖에도 필자가 있어서 함수로 뺐다 — 지난 회차의 우편함을 훑는
+    `state.pending_manual_weeks()` 는 회차 객체가 아예 없는 주도 봐야 해서 `RunRecord` 를
+    만들 수 없다. **판정 규칙이 두 군데로 갈리면 "요청했는데 아무 일도 안 일어난다" 가
+    조용히 생긴다.**
+
+    ⚠ 백엔드의 `WeeklyIngestService.pending()` 과 **같은 규칙이어야 한다.** 그쪽이 화면에
+    `manual_pending` 을 그리고, 이쪽이 실제로 집어 간다. 어긋나면 화면과 거동이 갈린다.
+    """
+    if requested_at is None:
+        return False
+    return claimed_at is None or claimed_at < requested_at
 
 
 @dataclass(frozen=True)
@@ -157,7 +172,7 @@ def decide(
 ) -> Decision:
     """이번 발화에서 실행할지 판정한다.
 
-    호출 순서가 곧 비용 순서다 — 여기까지는 PostgreSQL 한 번만 읽었고 BigQuery 는 아직
+    호출 순서가 곧 비용 순서다 — 여기까지는 MinIO 객체를 읽었을 뿐이고 BigQuery 는 아직
     건드리지 않았다. Snapshots 조회는 쿼리당 최소 과금 10 MB라 10분마다 부르면 낭비다.
     """
     manual = record is not None and record.manual_pending

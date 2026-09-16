@@ -23,7 +23,7 @@ from pathlib import Path
 from .schedule import (KEEP_WEEKS, MAX_CONSECUTIVE_FAILURES, SNAPSHOT_GRACE,
                        STALE_RUNNING, STEPS, current_week_of, decide, download_run,
                        snapshot_grace_expired, window_end, window_start)
-from .state import BUCKET, CorruptState, WeeklyState, open_store
+from .state import BUCKET, CorruptState, StagedStore, WeeklyState, open_store
 from .steps import HANDLERS, Context, StepError, StepNotReady, purge_week
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +44,8 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--force", action="store_true",
                         help="수집 창·직전 상태를 무시하고 모든 단계를 다시 실행")
     parser.add_argument("--dry-run", action="store_true",
-                        help="단계를 실제로 돌리지 않고 상태 전이만 기록")
+                        help="단계를 실제로 돌리지 않고 판정만 흉내 낸다. "
+                             "상태 객체에 쓰지 않는다")
     parser.add_argument("--max-failures", type=int, default=MAX_CONSECUTIVE_FAILURES,
                         help="연속 실패가 이 값에 닿으면 BLOCKED 로 멈춘다")
     parser.add_argument("--keep-weeks", type=int, default=KEEP_WEEKS,
@@ -68,11 +69,30 @@ def main(argv: list[str] | None = None) -> int:
         _say(f"회차는 월요일이어야 한다: {week_of} ({week_of:%A})")
         return 2
 
-    state = WeeklyState(open_store(args.bucket), max_failures=args.max_failures)
+    store = open_store(args.bucket)
+    if args.dry_run:
+        # 드라이런은 운영 회차 객체를 건드리지 않는다. 자세한 이유는 StagedStore 참고 —
+        # 요약하면 "돌리지도 않고 SUCCEEDED 를 적으면 그 주 수집이 통째로 건너뛰어진다".
+        store = StagedStore(store)
+        _say("드라이런 — 상태 객체에 쓰지 않는다 (전이는 메모리에서만 흉내 낸다)")
+    state = WeeklyState(store, max_failures=args.max_failures)
 
     now, record, steps = state.load(week_of)
     decision = decide(record, week_of, now, force=args.force, max_failures=args.max_failures)
     _say(f"{week_of} — {decision.reason}")
+
+    if not decision.run and args.week_of is None:
+        # 이번 주에 할 일이 없을 때만 지난 회차의 우편함을 본다. 러너는 한 번에 한 회차만
+        # 돌 수 있으므로(같은 checkpoint·같은 IP) 이번 주가 우선이고, 지난 회차는 그 뒤다.
+        # 사람이 --week-of 로 회차를 찍었으면 그 뜻을 존중해 여기로 새지 않는다.
+        picked = _pending_elsewhere(state, week_of)
+        if picked is not None:
+            week_of = picked
+            now, record, steps = state.load(week_of)
+            decision = decide(record, week_of, now,
+                              force=args.force, max_failures=args.max_failures)
+            _say(f"{week_of} — {decision.reason} (지난 회차의 수동 실행 요청)")
+
     if not decision.run:
         return 0
 
@@ -90,6 +110,26 @@ def main(argv: list[str] | None = None) -> int:
         return _abandon(state, week_of, error)
 
 
+def _pending_elsewhere(state: WeeklyState, current: date) -> date | None:
+    """이번 주 말고 아직 집어 가지 않은 수동 실행 요청이 있는 회차.
+
+    조회가 실패해도 **이번 발화를 실패로 만들지 않는다.** 여기까지 왔다는 것은 이번 주에
+    할 일이 없다는 뜻이고, 그때 목록 조회 한 번 때문에 비0으로 끝나면 멀쩡한 발화가
+    실패로 기록된다. 못 읽었다는 사실만 남기고 다음 발화에 다시 본다.
+    """
+    try:
+        weeks = state.pending_manual_weeks(current)
+    except Exception as error:
+        _say(f"지난 회차의 수동 실행 요청을 조회하지 못했다 ({type(error).__name__}: {error})")
+        return None
+    if not weeks:
+        return None
+    if len(weeks) > 1:
+        _say("수동 실행 요청이 걸린 지난 회차: " + ", ".join(str(w) for w in weeks)
+             + " — 오래된 것부터 한 회차씩 처리한다")
+    return weeks[0]
+
+
 def _execute(state: WeeklyState, args, week_of: date, now: datetime,
              steps: list[dict]) -> int:
     """`begin()` 뒤의 본체. 여기서 터지는 것은 `main()` 이 FAILED 로 내려놓는다."""
@@ -100,11 +140,20 @@ def _execute(state: WeeklyState, args, week_of: date, now: datetime,
 
     finished = {item["step"]: item.get("status") for item in steps}
     selected = [args.only] if args.only else list(STEPS)
+    if args.force:
+        # 강제 재실행은 이 단계들을 다시 돌린다. 옛 기록을 지우는 것이 **이 실행 안에서
+        # 건너뛰지 않게** 하는 동시에, 중간에 실패했을 때 뒤 단계가 옛 SUCCEEDED 로 남아
+        # 다음 발화가 그것을 건너뛰는 것까지 막는다. force 를 반영하는 자리는 여기 하나다 —
+        # 아래 건너뛰기 조건에 force 를 또 넣으면 규칙이 두 군데로 갈린다.
+        state.reset_steps(week_of, selected)
+        for step in selected:
+            finished.pop(step, None)
+
     failure: str | None = None
     deferred: str | None = None
 
     for step in selected:
-        if finished.get(step) == "SUCCEEDED" and not args.force:
+        if finished.get(step) == "SUCCEEDED":
             _say(f"{step}: 이미 끝났다 (건너뜀)")
             continue
         _say(f"{step}: 시작")

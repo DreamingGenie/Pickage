@@ -29,7 +29,7 @@
 # 평소 (systemd timer 가 10분마다 이것을 부른다)
 python -m pipeline.weekly.run
 
-# 단계를 돌리지 않고 판정·상태 전이만
+# 단계를 돌리지 않고 판정만 흉내 낸다. 상태 객체에는 쓰지 않는다
 python -m pipeline.weekly.run --dry-run
 
 # 한 단계만 (진단용)
@@ -38,6 +38,11 @@ python -m pipeline.weekly.run --only gcs_sync
 # 수집 창·직전 상태를 무시하고 전부 다시
 python -m pipeline.weekly.run --force
 ```
+
+⚠ `--force` 는 **다시 돌릴 단계의 기록을 먼저 지운다.** 안 지우면 중간에 실패했을 때 뒤
+단계의 옛 `SUCCEEDED` 가 남고, 다음 발화가 그것을 건너뛴다 — 새로 받은 상류 산출물 위에
+이전 회차의 입고 결과가 최신인 척 남는다. 지우는 범위는 **이번에 돌릴 단계뿐**이라
+`--force --only <step>` 은 다른 단계의 기록을 건드리지 않는다.
 
 종료 코드가 스케줄러가 보는 값이다. **0 = 할 일이 없었거나 끝까지 갔다, 1 = 단계가 실패했다.**
 
@@ -66,6 +71,21 @@ python -m pipeline.weekly.run --force
 | `downloads_parquet` | `collectors/downloads/to_parquet.py` |
 | `bronze_depsdev` | `minio/ingest_raw.py --snapshot <week_of>` |
 | `bronze_downloads` | `python -m pipeline.downloads.load` |
+
+### 종료 코드 0 이 "다 받았다" 는 뜻은 아니다
+
+수집기 둘은 **덜 받고도 0 으로 끝난다.** 종료 코드만 보면 성공으로 보이는 자리다.
+
+| 어디 | 무슨 일 | 지금 |
+| --- | --- | --- |
+| BigQuery | 누적 예산(`TIERS['t2']` 26 GiB)을 넘기면 남은 테이블을 포기하고 정상 종료 (`stopped_budget`) | **`depsdev_t2` 가 막는다** — GCS 매니페스트를 `T2_TABLES` 와 대조해 모자라면 그 단계를 실패로 올린다 |
+| npm downloads | 요청 실패를 manifest 에 적고 정상 종료. 다시 실행해도 `failed` 작업은 **다시 고르지 않는다**(`status IN ('pending','retry')`) | 보이게만 해 뒀다 — 단계 detail 의 `tasks_by_status`·`failed_tasks`. 재수집 경로는 [S15P21A506-367](https://ssafy.atlassian.net/browse/S15P21A506-367) |
+
+**대조를 `depsdev_t2` 안에 두는 것이 핵심이다.** 뒤 단계(`gcs_sync`)로 미루면 `depsdev_t2`
+가 `SUCCEEDED` 로 남아 다음 발화가 수집기를 건너뛰고, 같은 실패만 열 번 반복해 `BLOCKED`
+로 간다. 지금 자리에서는 다음 발화가 수집기를 다시 부르고, 이미 매니페스트가 있는 테이블은
+예산을 쓰기 전에 건너뛰므로(`skipped_manifest_exists`) 남은 것에 예산이 온전히 간다 —
+**재시도가 수렴한다.**
 
 ## 상태는 MinIO 에 있다
 
@@ -152,6 +172,16 @@ pickage-raw/_ops/weekly/<week_of>/manual-request.json  백엔드만 쓴다 (우�
 **회차 객체가 아직 없어도 우편함만으로 회차가 선다.** 한 번도 돌지 않은 주에 건 수동
 요청이 수집 창이 열릴 때까지 묻히면 안 되기 때문이다.
 
+**지난 회차의 요청도 집어 간다.** 실행기는 이번 주를 먼저 보고, 이번 주에 할 일이 없으면
+우편함이 걸린 지난 회차를 훑어 **오래된 것부터** 고른다(`state.pending_manual_weeks()`).
+이게 없으면 주가 넘어간 `BLOCKED` 회차를 되살릴 방법이 아예 없어진다 — 타이머가 이번 주만
+보는 동안 백엔드는 200 과 `manual_pending: true` 를 계속 돌려주므로 **요청한 사람은
+처리되는 줄 안다.** 훑는 비용은 `manual-request.json` 키만 거르는 LIST 한 번이고, 평소에는
+결과가 비어 있어 뒤따르는 GET 이 없다.
+
+이번 주가 우선인 이유는 러너가 한 번에 한 회차만 돌기 때문이다(같은 체크포인트, 같은 IP).
+그래서 화요일 창이 열려 회차가 도는 동안은 지난 회차가 기다린다.
+
 ### "아직" 은 실패가 아니다
 
 **공급자 지연은 실패로 세지 않는다.** deps.dev 가 그 주 스냅샷을 아직 안 올렸으면 수집기가
@@ -208,12 +238,13 @@ MinIO 에 `_SUCCESS` 가 붙은 뒤로 로컬 사본은 사본일 뿐인데, 두
 ## 확인
 
 ```bash
-# 빠른 층 — DB·네트워크 불필요 (실측 71개 0.25초)
+# 빠른 층 — DB·네트워크 불필요 (실측 100개 0.20초)
 python -m unittest discover -s pipeline/weekly -t . -p 'test_*.py'
 
-# 느린 층 — 실제 MinIO 가 필요하다. 지정하지 않으면 skip 이다 (실측 4개 9.2초)
+# 느린 층 — 실제 MinIO 가 필요하다. 지정하지 않으면 skip 이다 (실측 6개 13.3초)
 #   가짜 S3 가 흉내 낼 수 없는 계약만 본다 — 없는 객체 GET 의 예외 모양,
-#   Delimiter 를 준 list_objects_v2 의 CommonPrefixes, 한글 JSON 왕복
+#   Delimiter 를 준 list_objects_v2 의 CommonPrefixes, Delimiter 없는 같은 호출의
+#   Contents(지난 회차 우편함 찾기), 한글 JSON 왕복
 docker compose --profile data up -d minio
 WEEKLY_MINIO_TEST=1 python -m unittest pipeline.weekly.test_integration -v
 ```

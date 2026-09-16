@@ -46,13 +46,19 @@ class FakeS3:
 
     def list_objects_v2(self, Bucket, Prefix, Delimiter=None, ContinuationToken=None):
         prefixes = set()
-        for key in self.objects:
+        contents = []
+        for key in sorted(self.objects):
             if not key.startswith(Prefix):
                 continue
             rest = key[len(Prefix):]
             if Delimiter and Delimiter in rest:
                 prefixes.add(Prefix + rest.split(Delimiter, 1)[0] + Delimiter)
+            else:
+                # Delimiter 를 주면 실제 S3 도 접힌 것은 CommonPrefixes, 바로 아래
+                # 키는 Contents 로 나눠 준다. manual_weeks() 는 Delimiter 없이 부른다.
+                contents.append({"Key": key})
         return {"CommonPrefixes": [{"Prefix": p} for p in sorted(prefixes)],
+                "Contents": contents,
                 "IsTruncated": False}
 
 
@@ -257,3 +263,124 @@ class CorruptDocumentTest(unittest.TestCase):
         with self.assertRaises(CorruptState) as caught:
             state.load(WEEK)
         self.assertIn("week_of", str(caught.exception))
+
+
+class PendingManualWeeksTest(unittest.TestCase):
+    """지난 회차의 우편함을 찾아내는가.
+
+    못 찾으면 **BLOCKED 를 푸는 방법이 아예 없어진다.** 타이머는 이번 주만 보므로, 주가
+    넘어간 뒤에는 그 회차의 수동 요청이 영원히 읽히지 않는다. 백엔드는 그동안 200 과
+    manual_pending=true 를 돌려주므로 요청한 사람은 처리되는 줄 안다.
+    """
+
+    def _ask(self, s3, week, at="2026-09-24T00:00:00+00:00"):
+        s3.objects[manual_key(week)] = json.dumps({"requested_at": at}).encode("utf-8")
+
+    def test_mailbox_only_week_is_found(self):
+        s3, state = build()
+        self._ask(s3, date(2026, 9, 14))
+        self.assertEqual(state.pending_manual_weeks(WEEK), [date(2026, 9, 14)])
+
+    def test_claimed_request_is_not_pending(self):
+        s3, state = build()
+        old = date(2026, 9, 14)
+        self._ask(s3, old, "2026-09-20T00:00:00+00:00")
+        document = blank(old)
+        document["manual_claimed_at"] = "2026-09-21T00:00:00+00:00"
+        s3.objects[run_key(old)] = json.dumps(document).encode("utf-8")
+        self.assertEqual(state.pending_manual_weeks(WEEK), [])
+
+    def test_oldest_first(self):
+        """다시 받을 수 있는 한계(18개월)에 가까운 것이 가장 급하다."""
+        s3, state = build()
+        for week in (date(2026, 9, 14), date(2026, 8, 31)):
+            self._ask(s3, week)
+        self.assertEqual(state.pending_manual_weeks(WEEK),
+                         [date(2026, 8, 31), date(2026, 9, 14)])
+
+    def test_current_week_is_excluded(self):
+        s3, state = build()
+        self._ask(s3, WEEK)
+        self.assertEqual(state.pending_manual_weeks(WEEK), [])
+
+    def test_listing_does_not_read_every_week(self):
+        """우편함 없는 주까지 GET 하면 10분마다 1년치 52회다.
+
+        깨지면 "대부분의 발화는 객체 하나를 읽고 끝난다" 가 거짓이 된다.
+        """
+        s3, state = build()
+        for week in (date(2026, 9, 14), date(2026, 9, 7), date(2026, 8, 31)):
+            s3.objects[run_key(week)] = json.dumps(blank(week)).encode("utf-8")
+        self._ask(s3, date(2026, 9, 7))
+        before = len(s3.objects)
+        self.assertEqual(state.pending_manual_weeks(WEEK), [date(2026, 9, 7)])
+        self.assertEqual(len(s3.objects), before)
+
+
+class ResetStepsTest(unittest.TestCase):
+    """--force 가 지우는 범위.
+
+    너무 적게 지우면 강제 재실행이 중간에 실패했을 때 뒤 단계의 옛 SUCCEEDED 가 남아
+    다음 발화가 그것을 건너뛴다. **너무 많이 지우면 --force --only 가 앞 단계 기록까지
+    날려 23시간짜리 수집을 처음부터 다시 돌게 한다.**
+    """
+
+    def _with_steps(self):
+        s3, state = build()
+        state.load(WEEK)
+        for step in STEPS:
+            state.step_finish(WEEK, step, "SUCCEEDED")
+        return s3, state
+
+    def test_named_steps_are_cleared(self):
+        _, state = self._with_steps()
+        state.reset_steps(WEEK, list(STEPS))
+        self.assertEqual(state._document["steps"], [])
+
+    def test_only_named_steps_are_cleared(self):
+        _, state = self._with_steps()
+        state.reset_steps(WEEK, [STEPS[-1]])
+        left = [item["step"] for item in state._document["steps"]]
+        self.assertEqual(left, list(STEPS[:-1]))
+
+    def test_nothing_to_clear_does_not_write(self):
+        s3, state = build()
+        state.load(WEEK)
+        state.begin(WEEK, claim_manual=False)
+        puts = s3.puts
+        state.reset_steps(WEEK, list(STEPS))
+        self.assertEqual(s3.puts, puts)
+
+
+class StagedStoreTest(unittest.TestCase):
+    """드라이런이 운영 회차 객체를 건드리지 않는가.
+
+    건드리면 단계를 하나도 돌리지 않은 채 SUCCEEDED 가 적히고, decide() 가 "이미 끝났다"
+    로 보아 **그 주 수집이 통째로 건너뛰어진다.** 운영 README 의 설치 절차가 타이머를 켜기
+    전에 드라이런을 돌리게 하므로 그 절차가 곧 사고 경로였다.
+    """
+
+    def test_writes_do_not_reach_the_store(self):
+        from .state import StagedStore
+        s3 = FakeS3()
+        state = WeeklyState(StagedStore(ObjectStore(s3)), clock=lambda: NOW)
+        state.load(WEEK)
+        state.begin(WEEK, claim_manual=False)
+        state.succeed(WEEK)
+        self.assertEqual(s3.objects, {})
+        self.assertEqual(s3.puts, 0)
+
+    def test_reads_see_what_was_staged(self):
+        """쓴 것을 못 읽으면 드라이런이 판정을 흉내 내지 못한다.
+
+        실행기는 마지막에 저장소를 다시 읽어 회차가 끝났는지 본다. 그때 옛 문서가 보이면
+        드라이런은 늘 "남은 단계가 있다" 로 끝난다.
+        """
+        from .state import StagedStore
+        state = WeeklyState(StagedStore(ObjectStore(FakeS3())), clock=lambda: NOW)
+        state.load(WEEK)
+        state.begin(WEEK, claim_manual=False)
+        state.step_finish(WEEK, STEPS[0], "SUCCEEDED")
+        _, record, steps = state.load(WEEK)
+        self.assertEqual(record.status, "RUNNING")
+        self.assertEqual([item["step"] for item in steps], [STEPS[0]])
