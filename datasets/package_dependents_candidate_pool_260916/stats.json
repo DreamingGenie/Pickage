@@ -1,44 +1,44 @@
 {
   "snapshot": "2026-08-31",
-  "built_at": "2026-09-16T09:53:11",
+  "built_at": "2026-09-16T09:51:22",
   "packages_with_release": 4065913,
   "bundled_path_nodes_excluded": 7052193,
-  "targets_list": "datasets/targets/rank_top100k_20260902.csv",
-  "targets": 99996,
-  "targets_outside_top100k": 0,
-  "edges": 13392517,
+  "targets_list": "datasets/targets/candidate_pool_260916.csv",
+  "targets": 29310,
+  "targets_outside_top100k": 11297,
+  "edges": 7860899,
   "regular": {
-    "targets_with_dependents": 81780,
-    "edges": 11465242,
+    "targets_with_dependents": 26884,
+    "edges": 6363644,
     "max": 192736,
     "p50_p90_p99": [
-      5.0,
-      90.0,
-      1696.050000000003
+      9.0,
+      145.0,
+      3444.1299999999937
     ]
   },
   "peer": {
-    "targets_with_dependents": 27636,
-    "edges": 1882181,
+    "targets_with_dependents": 11155,
+    "edges": 1475824,
     "max": 344357,
     "p50_p90_p99": [
       0.0,
-      5.0,
-      123.0
+      14.0,
+      349.0
     ]
   },
   "optional": {
-    "targets_with_dependents": 7946,
-    "edges": 45094,
-    "max": 3399,
+    "targets_with_dependents": 2487,
+    "edges": 21431,
+    "max": 777,
     "p50_p90_p99": [
       0.0,
       0.0,
-      7.0
+      12.0
     ]
   },
-  "targets_no_dependents_any_kind": 15050,
-  "targets_missing_from_npm": 2251,
+  "targets_no_dependents_any_kind": 2036,
+  "targets_missing_from_npm": 151,
   "top20_regular": [
     [
       "react",
@@ -71,11 +71,6 @@
       74942
     ],
     [
-      "tslib",
-      116820,
-      122729
-    ],
-    [
       "zod",
       110324,
       6111
@@ -106,11 +101,6 @@
       42583
     ],
     [
-      "@modelcontextprotocol/sdk",
-      66820,
-      0
-    ],
-    [
       "next",
       60607,
       8463
@@ -126,25 +116,35 @@
       488056
     ],
     [
-      "moment",
-      51317,
-      54055
-    ],
-    [
       "core-js",
       49138,
       68956
     ],
     [
-      "debug",
-      47257,
-      46672
+      "ora",
+      44574,
+      34717
+    ],
+    [
+      "glob",
+      37402,
+      48165
+    ],
+    [
+      "yargs",
+      37138,
+      42638
+    ],
+    [
+      "@types/node",
+      34687,
+      257481
     ]
   ],
   "vs_ecosystems": [
-    65307,
-    0.710077519379845
+    17538,
+    0.8333333333333334
   ],
-  "file_bytes": 104143713,
-  "elapsed_sec": 94
+  "file_bytes": 61553105,
+  "elapsed_sec": 86
 }
