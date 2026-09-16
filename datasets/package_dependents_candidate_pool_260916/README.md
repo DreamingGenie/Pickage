@@ -27,6 +27,19 @@
 
 열 구성은 기본 회차와 **완전히 같다.**
 
+parquet 은 2026-09-16 서버 MinIO 에 올렸다. 접속은 `pipeline/minio/README.md` 의 터널 절차를 따른다.
+
+```text
+pickage-curated/depsdev/v1/package-dependents-candidate-pool/snapshot=2026-08-31/
+  run_id=package-dependents-candidate-pool-20260916-v1/
+    data/package_dependents.parquet    61,553,105 바이트 · 87,930행
+    run_manifest.json                  SHA-256 dcced741… · 행 수
+    _SUCCESS
+```
+
+기본 회차(`depsdev/v1/package-dependents/`)와 **prefix 를 나눴다.** 계산은 같고 대상 모집단만
+다른 회차라, 같은 prefix 에 `run_id` 로만 구분해 두면 받는 쪽이 어느 것이 무엇인지 알 수 없다.
+
 ## 2. 규모
 
 | kind | dependents ≥ 1인 대상 | 엣지 | 최대 | p50 / p90 / p99 |

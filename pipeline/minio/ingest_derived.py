@@ -123,6 +123,41 @@ DATASETS = {
             ' 여기 올리지 않음. 배열은 CSV 셀에 들어가지 않는다(react 한 행이 19만 원소).',
         ],
     },
+    'package-dependents-candidate-pool': {
+        # package-dependents 와 폴더·prefix 를 나눈다. 계산은 같고 **대상 모집단만 다른**
+        # 회차라, 같은 prefix 에 run_id 로만 구분해 두면 받는 쪽이 어느 것이 무엇인지
+        # 알 수 없다. 이 입고기는 root 의 *.parquet 를 통째로 올리기도 한다.
+        'root': 'data/package_dependents_candidate_pool_260916',
+        'prefix': 'depsdev/v1/package-dependents-candidate-pool',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_package_dependents.py'
+                   ' --targets datasets/targets/candidate_pool_260916.csv'
+                   ' --label candidate_pool_260916',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)'
+                  ' + datasets/targets/candidate_pool_260916.csv (AI 파트 제공 후보 풀)',
+        'readme': 'datasets/package_dependents_candidate_pool_260916/README.md',
+        'jira': ['S15P21A506-359', 'S15P21A506-173'],
+        'notes': [
+            'AI 후보 풀 29,310 개를 대상으로 한 dependents 목록. (name, kind) 1행 87,930 ='
+            ' 29,310 × regular/peer/optional. 열 구성은 같은 버킷의'
+            ' depsdev/v1/package-dependents/ 와 **완전히 같고 대상 목록만 다르다.**',
+            '이 회차를 따로 낸 이유는 후보 풀의 11,297 개(38.5%)가 다운로드 상위 10 만 밖이라'
+            ' 기존 회차로는 답할 수 없었기 때문이다. 두 회차에 겹치는 54,039 행은 개수도'
+            ' dependents 배열도 불일치 0 으로 확인했다 — 계산이 같으므로 같아야 하는 값이다.',
+            '상위 10 만 밖 11,297 개는 download_rank·ecosystems_dependent_count 가 NULL 이다.'
+            ' 값을 못 구한 것이 아니라 그 표에 없는 패키지라서이고, NULL 자체가 "순위 밖"이다.'
+            ' 그중 9,655 개에 의존자가 있으나 엣지 합은 96,543 으로 이 회차 786 만의 1.2% 다.',
+            '교집합을 잴 때 분모는 min(|A|,|B|) 로 한다. Jaccard 로 재면 webpack↔webpack-cli 가'
+            ' 0.231 이라 보완재인데 0.3 관문을 통과해 버린다.',
+            'devDependencies 는 원천(NPMRequirements)에 없다. 이 회차에서도 typescript 가'
+            ' 57,189 로 ecosyste.ms 488,056 의 0.12 배다. 개발 도구 판단에 쓰면 안 된다.',
+            '정답지 이동쌍의 8~11% 가 0.3 관문에 걸린다(거짓 탈락). hard filter 가 아니라'
+            ' 감점으로 쓰고, 데이터가 없는 쌍은 탈락이 아니라 통과로 둔다.',
+            '요약 CSV·stats·README 는 git datasets/package_dependents_candidate_pool_260916/ 에'
+            ' 있어 여기 올리지 않는다. 배열은 CSV 셀에 들어가지 않는다(react 한 행이 19만 원소).',
+        ],
+    },
     'package-text': {
         'root': 'data/keywords/package_text',
         'prefix': 'ecosystems-keywords/v1/package-text',
