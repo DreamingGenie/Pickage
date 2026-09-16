@@ -14,4 +14,5 @@ public record CollectedComment(
         boolean isBot,
         Instant createdAt,
         String body,
-        String authorId) {}
+        String authorId,
+        int reactionCount) {}

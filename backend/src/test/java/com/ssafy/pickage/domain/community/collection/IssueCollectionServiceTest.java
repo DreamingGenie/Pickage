@@ -85,7 +85,8 @@ class IssueCollectionServiceTest {
                                 id ->
                                         """
 {"id": %d, "user": {"login": "u", "type": "User"},
- "author_association": "NONE", "created_at": "2026-01-01T00:00:00Z", "body": "c%d"}
+ "author_association": "NONE", "created_at": "2026-01-01T00:00:00Z", "body": "c%d",
+ "reactions": {"total_count": 0}}
 """
                                                 .formatted(id, id))
                         .collect(Collectors.joining(","));

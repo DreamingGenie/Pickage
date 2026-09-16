@@ -12,7 +12,7 @@ class CollectionContractReviewTest {
     static final Duration BUDGET = Duration.ofSeconds(3);
 
     static CollectedComment comment(int id, Instant time) {
-        return new CollectedComment("" + id, "fixture", "NONE", false, time, "fixture", "123");
+        return new CollectedComment("" + id, "fixture", "NONE", false, time, "fixture", "123", 0);
     }
 
     @Test

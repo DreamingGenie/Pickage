@@ -69,7 +69,8 @@ class GmsCommunitySummarizerRealNetworkTest {
                                         Instant.parse("2026-01-02T01:00:00Z"),
                                         "Create an empty config.json before starting the app —"
                                                 + " that fixed it for me.",
-                                        "user-2")),
+                                        "user-2",
+                                        0)),
                         List.of(),
                         "701",
                         Instant.parse("2026-01-01T00:00:00Z"),
@@ -228,7 +229,8 @@ class GmsCommunitySummarizerRealNetworkTest {
                             false,
                             start.plusSeconds(3600L * i),
                             body,
-                            "synthetic-author-" + (i % 20)));
+                            "synthetic-author-" + (i % 20),
+                            0));
         }
         return new CollectedIssue(
                 479,
