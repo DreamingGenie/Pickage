@@ -1,7 +1,8 @@
 """npm registry 버전 이력 수집기 — 수집계획_devDependencies_npmRegistry_260909.md §3 구현.
 
 패키지 1개 = 요청 1회(`registry.npmjs.org/<name>`, 전체 문서). 문서에서 버전마다 dependencies · devDependencies ·
-peerDependencies · optionalDependencies · 발행 시각 · deprecated 만 남겨 jsonl.gz 로 쓴다(원본 문서는 보존하지 않음).
+peerDependencies · optionalDependencies · 발행 시각 · deprecated 와 패키지 형태 6열(unpacked_size · file_count ·
+module_type · main · types · exports)만 남겨 jsonl.gz 로 쓴다(원본 문서는 보존하지 않음).
 단일 프로세스 · 요청 간격 토큰버킷 · 429 지수 백오프 · SQLite 체크포인트(재시작 시 이어감) · manifest.json 기록.
 
 사용:
@@ -61,6 +62,28 @@ def dep_list(d):
     return [{"Name": k, "Requirement": v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)} for k, v in d.items()]
 
 
+def _int(v):
+    """dist.unpackedSize · fileCount 는 정수여야 한다. 문자열·실수로 오는 문서가 있어도 Parquet 의 BIGINT 열이
+    깨지지 않게 여기서 거른다. 정수로 읽을 수 없으면 NULL(모름)."""
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        n = v if isinstance(v, int) else int(float(v))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    # 파일 크기라 음수일 수 없고, BIGINT 를 넘으면 Parquet 변환이 통째로 죽는다.
+    # 4.5시간 수집 뒤 30분짜리 변환이 이상치 한 줄에 실패하는 것보다 그 행만 모름으로 두는 게 낫다.
+    return n if 0 <= n <= 2 ** 63 - 1 else None
+
+
+def _text(v):
+    """type · main · types 처럼 문자열이어야 하는 필드. 문자열이 아니면 JSON 으로 적어 둔다 —
+    조용히 버리면 나중에 '왜 비었나' 를 물을 수 없다. deprecated 를 다루는 방식과 같다."""
+    if v is None or isinstance(v, str):
+        return v
+    return json.dumps(v, ensure_ascii=False)
+
+
 def parse(doc, name, rank, fetched_at, stats=None):
     """전체 문서 → (버전 행 목록, time.modified). 패키지 전체가 unpublish 된 문서(versions 없음 + time.unpublished)는 (None, modified).
     versions 에 없고 time 에만 있는 버전 = unpublish 된 버전: 행은 남기고 의존 네 열은 NULL(모름), unpublished=True.
@@ -100,6 +123,18 @@ def parse(doc, name, rank, fetched_at, stats=None):
             dep = None
         elif dep is not None and not isinstance(dep, str):
             dep = json.dumps(dep, ensure_ascii=False)
+        # 패키지 형태 6열(S15P21A506-366). unpublish 된 버전은 meta 가 비어 있어 전부 NULL(모름)이 된다 —
+        # 의존 네 열과 같은 뜻이다. unpacked_size · file_count 는 top level 이 아니라 dist 안에 있고,
+        # npm 이 2018년부터 계산해서 그 이전 발행 버전에는 아예 없다(결측이 '작다' 가 아니라 '모른다').
+        dist = meta.get("dist")
+        if not isinstance(dist, dict):
+            dist = {}
+        # exports 는 중첩 객체(실측 dict 799 · str 15)라 열에 그대로 못 넣는다. JSON 문자열로 적고 읽는 쪽에서 판다.
+        exports = meta.get("exports")
+        if exports is not None:
+            exports = json.dumps(exports, ensure_ascii=False, separators=(",", ":"))
+            if stats is not None and len(exports) > stats.get("max_exports_bytes", 0):
+                stats["max_exports_bytes"] = len(exports)
         rows.append({
             "Name": name, "Version": v, "published_at": times.get(v), "rank": rank,
             "Dependencies": None if unpublished else dep_list(meta.get("dependencies")),
@@ -107,6 +142,11 @@ def parse(doc, name, rank, fetched_at, stats=None):
             "PeerDependencies": None if unpublished else dep_list(meta.get("peerDependencies")),
             "OptionalDependencies": None if unpublished else dep_list(meta.get("optionalDependencies")),
             "deprecated": dep, "unpublished": unpublished,
+            "unpacked_size": _int(dist.get("unpackedSize")), "file_count": _int(dist.get("fileCount")),
+            "module_type": _text(meta.get("type")), "main": _text(meta.get("main")),
+            # types 가 정본이고 없으면 typings 로 떨어진다. 실측: ajv 는 typings 만 있는 버전이 127개라
+            # types 만 보면 타입 제공 버전을 과소 계상한다.
+            "types": _text(meta.get("types") or meta.get("typings")), "exports": exports,
             "fetched_at": fetched_at, "modified": modified,
         })
     rows.sort(key=lambda r: (r["published_at"] or "", r["Version"]))
@@ -245,7 +285,8 @@ def main():
     S.headers["Accept"] = "application/json"  # 전체 문서. 축약형(vnd.npm.install-v1+json)은 devDependencies 가 없다
     W = Writer(rundir)
     stats = {"ok": 0, "not_found": 0, "unpublished": 0, "failed": 0, "http429": 0, "http5xx": 0, "conn_err": 0,
-             "too_large": 0, "bytes": 0, "max_bytes": 0, "max_bytes_name": None, "versions": 0, "odd_time_keys": 0}
+             "too_large": 0, "bytes": 0, "max_bytes": 0, "max_bytes_name": None, "versions": 0, "odd_time_keys": 0,
+             "max_exports_bytes": 0}
     started = time.time()
     last_start = 0.0
     consec429 = 0
