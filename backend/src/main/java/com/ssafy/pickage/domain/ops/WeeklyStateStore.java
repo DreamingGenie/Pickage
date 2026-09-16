@@ -93,7 +93,7 @@ public class WeeklyStateStore {
 
 	public WeeklyStateStore(
 		@Value("${pickage.ops.s3.bucket:pickage-raw}") String bucket,
-		@Value("${pickage.ops.s3.endpoint:http://localhost:9000}") String endpoint,
+		@Value("${pickage.ops.s3.endpoint:}") String endpoint,
 		@Value("${pickage.ops.s3.access-key:}") String accessKey,
 		@Value("${pickage.ops.s3.secret-key:}") String secretKey
 	) {
@@ -240,9 +240,10 @@ public class WeeklyStateStore {
 	}
 
 	private S3Client build() {
-		// ⚠ 빈 문자열도 "설정 없음" 이다. application-prod.yaml 이 ${OPS_S3_ENDPOINT:} 처럼
-		//   빈 기본값을 두기 때문에 — 값이 없어도 애플리케이션은 떠야 한다는 결정이다 —
-		//   여기서 null 검사만 하면 URI.create("") 로 넘어가 엉뚱한 곳에서 터진다.
+		// ⚠ 빈 문자열도 "설정 없음" 이다. 위 @Value 의 기본값이 빈 문자열이고, compose 도
+		//   ${VAR:-} 로 넘겨서 **값을 안 채우면 빈 문자열이 온다** — 둘 다 "값이 없어도
+		//   애플리케이션은 떠야 한다" 는 같은 결정에서 나왔다. 여기서 null 검사만 하면
+		//   URI.create("") 로 넘어가 엉뚱한 곳에서 터진다.
 		List<String> missing = new ArrayList<>();
 		if (endpoint.isBlank()) {
 			missing.add("endpoint");

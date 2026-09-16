@@ -110,9 +110,15 @@ variables:
 # **입력**이므로 시드만 고친 변경도 backend 잡이 돌아야 한다. 빠져 있는 동안에는 V6 의
 # 파티션 전환과 어긋난 시드가 브랜치·MR 파이프라인을 그냥 통과하고, develop 에 들어간
 # 뒤에야 깨졌다 (2026-09-15, S15P21A506-341).
+#
+# app compose 가 여기 들어 있는 이유: OpsEnvironmentContractTest 가 그 파일의
+# api 서비스 environment 를 읽어 WeeklyStateStore 의 @Value 프로퍼티와 대조한다.
+# 이름이 어긋나면 예외가 아니라 조용한 기본값 폴백이라, compose 만 고친 변경도
+# backend 잡이 돌아야 한다. 위 시드와 같은 이유다.
 .backend-paths: &backend-paths
   - backend/**/*
   - deploy/local/seed/**/*
+  - deploy/prod/app/compose.yaml
   - .gitlab-ci.yml
 
 .rules-frontend:

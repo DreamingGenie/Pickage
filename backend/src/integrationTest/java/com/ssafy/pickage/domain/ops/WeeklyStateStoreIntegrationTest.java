@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  *
  * <pre>
  * docker compose --profile data up -d minio
- * OPS_MINIO_TEST=1 OPS_S3_ACCESS_KEY=... OPS_S3_SECRET_KEY=... ./gradlew integrationTest
+ * OPS_MINIO_TEST=1 PICKAGE_OPS_S3_ACCESS_KEY=... PICKAGE_OPS_S3_SECRET_KEY=... ./gradlew integrationTest
  * </pre>
  *
  * <h2>왜 환경변수로 한 겹 더 가르나</h2>
@@ -81,15 +81,15 @@ class WeeklyStateStoreIntegrationTest {
 		""";
 
 	static String endpoint() {
-		return System.getenv().getOrDefault("OPS_S3_ENDPOINT", "http://localhost:9000");
+		return System.getenv().getOrDefault("PICKAGE_OPS_S3_ENDPOINT", "http://localhost:9000");
 	}
 
 	static String accessKey() {
-		return System.getenv().getOrDefault("OPS_S3_ACCESS_KEY", "pickage-admin");
+		return System.getenv().getOrDefault("PICKAGE_OPS_S3_ACCESS_KEY", "pickage-admin");
 	}
 
 	static String secretKey() {
-		return System.getenv().getOrDefault("OPS_S3_SECRET_KEY", "");
+		return System.getenv().getOrDefault("PICKAGE_OPS_S3_SECRET_KEY", "");
 	}
 
 	private WeeklyStateStore store;

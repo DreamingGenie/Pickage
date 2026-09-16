@@ -48,31 +48,22 @@ logging:
 
 # ── 주간 수집 운영 API (S15P21A506-347) ────────────────────────
 #
-# 수집은 data 노드에서 돌고 상태는 그 노드의 MinIO 객체에 있다. 여기서는 읽기만 하고,
+# 수집은 data 노드에서 돌고 상태는 그 노드의 MinIO 객체에 있다. api 는 읽기만 하고,
 # 수동 실행 요청만 우편함 객체로 쓴다. (WeeklyStateStore 주석)
 #
-# ⚠ **여기만 기본값을 둔다.** 위의 DB_URL 처럼 `${VAR}` 로 두면 값이 없을 때 애플리케이션이
-#   아예 뜨지 않는데, 그건 DB 처럼 없으면 서비스가 성립하지 않는 것에나 맞는 방식이다.
-#   이건 운영자 전용 도구라, 이 값 하나 때문에 사이트 전체가 내려가면 안 된다.
-#   값이 없으면 ops API 만 "자격증명이 없습니다" 로 답하고 나머지는 평소대로 돈다.
+# **여기에 pickage.ops.s3.* 를 적지 않는다.** 기본값이 WeeklyStateStore 의 @Value 에
+# 이미 있는데 여기에 또 두면, 코드 쪽을 고친 사람이 "왜 안 먹지" 를 겪는다 — 이 파일이
+# 프로퍼티를 정의해 버려서 코드의 기본값은 운영에서 영영 쓰이지 않기 때문이다.
 #
-#   그래서 이 셋을 deploy/prod/app/.env 에 넣는 것을 잊어도 배포가 실패하지 않는다.
-#   대신 조용히 안 되므로, 붙인 뒤 /api/v1/ops/weekly/runs 를 한 번 눌러 볼 것.
+# 대신 환경변수 이름을 프로퍼티에 맞춰 두었다. 스프링이 이름만으로 이어 준다:
 #
-# ⚠ **root 키를 쓰지 말 것.** 전용 계정을 따로 발급한다. 같은 .env 에 Spark worker② 용
-#   MINIO_ROOT_* 가 이미 있지만 그것을 재사용하지 않는다 — 권한 폭이 전혀 다르다.
+#   PICKAGE_OPS_S3_ENDPOINT     -> pickage.ops.s3.endpoint
+#   PICKAGE_OPS_S3_ACCESS_KEY   -> pickage.ops.s3.access-key    (하이픈도 _ 로)
+#   PICKAGE_OPS_S3_SECRET_KEY   -> pickage.ops.s3.secret-key
+#   PICKAGE_OPS_S3_BUCKET       -> pickage.ops.s3.bucket        (기본 pickage-raw)
 #
-#   이 계정은 _ops/weekly/ 를 읽고 그 아래 manual-request.json 만 쓴다.
-#   **run.json 에는 못 쓴다** — 그 객체의 필자는 수집 러너 하나뿐이어야 하고, 그래서
-#   러너가 잠금 없이 읽고-고쳐-쓰기를 한다. 규약이 아니라 권한으로 막아 두었으므로
-#   여기 코드가 실수해도 저장소가 거부한다.
+# ⚠ 그래서 **이름이 틀려도 조용하다.** 못 찾으면 예외가 아니라 @Value 의 기본값으로
+#   떨어지고, ops API 만 "설정이 없습니다" 로 답한다. 이름을 두 곳(여기 설명·compose)에
+#   적어 두는 대신 OpsEnvironmentContractTest 가 compose 와 코드를 대조한다.
 #
-#   정책과 발급 절차: pipeline/minio/policies/ops.json 과 deploy/prod/data/README.md 의
-#   "app 노드 api 에 줄 계정" 절. 둘 다 S15P21A506-346 MR 이 추가한다.
-pickage:
-  ops:
-    s3:
-      # data 노드의 사설 IP. app 노드의 Spark worker② 가 s3a 로 쓰는 주소와 같다.
-      endpoint: ${OPS_S3_ENDPOINT:}
-      access-key: ${OPS_S3_ACCESS_KEY:}
-      secret-key: ${OPS_S3_SECRET_KEY:}
+# 값을 넣는 곳은 deploy/prod/app/.env 이고, compose 가 api 컨테이너로 넘긴다.

@@ -144,6 +144,14 @@ tasks.withType(Test).configureEach {
 
 tasks.named('test') {
 	useJUnitPlatform()
+
+	// ⚠ OpsEnvironmentContractTest 가 이 두 파일을 읽는다. 선언하지 않으면 Gradle 이
+	//   입력으로 모르기 때문에, 그 파일만 고친 뒤 돌려도 태스크가 UP-TO-DATE 로 **건너뛰고**
+	//   초록이 뜬다 (실제로 겪었다 — compose 의 키 이름을 망가뜨렸는데 통과했다).
+	//   CI 는 매번 새로 빌드해서 이 함정이 로컬에서만 난다.
+	inputs.file(rootProject.file('../deploy/prod/app/compose.yaml'))
+		.withPropertyName('opsCompose').withPathSensitivity(PathSensitivity.RELATIVE)
+
 	testLogging {
 		// 기본값은 예외의 클래스 이름과 위치만 찍는다. 그래서 기동 실패의 실제 원인이
 		// 콘솔에 안 보이고 HTML 리포트를 열어야 알 수 있다.
