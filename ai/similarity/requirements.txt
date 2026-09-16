@@ -1,9 +1,23 @@
 # similarity_batch_pipeline.py 의존성.
-# EC2 #1(x86_64)에서 onnxruntime CPU 추론 + parquet I/O. 버전은 실측 후 고정 예정.
-
-numpy
-onnxruntime
-pyarrow
-transformers
+# EC2 #1(x86_64)에서 onnxruntime CPU 추론 + parquet I/O.
+#
+# 버전 고정 (2026-09-16, S15P21A506-339 CI/CD 도입 계기로 처음 고정함):
+# 이 조합으로 OnnxEmbedder 전체 경로(토크나이즈 → ONNX 추론 → CLS pooling → L2 정규화)를
+# MODEL_CONTRACT.md 규격(입력 input_ids/attention_mask int64 → 출력 last_hidden_state
+# float32 [batch,seq,384])을 만족하는 더미 ONNX 모델로 실제 실행해 확인함 — 이전까지는
+# 이 코드 경로가 로컬·CI 어디서도 한 번도 실행된 적이 없었다(유닛테스트는 순수 함수만
+# 검사하고 이 무거운 의존성들은 지연 import라 커버 안 됨).
+#
+# ⚠ 검증 환경은 로컬 Windows(x86_64)이고, 실제 배포 대상인 EC2 #1(Linux, x86_64)
+#   컨테이너 안에서 이 버전 조합을 다시 확인한 적은 없음 — Docker 데몬이 없어 직접
+#   빌드 못 함. 다음에 실제로 이미지를 빌드할 수 있을 때 한 번 더 확인할 것.
+# ⚠ 더미 ONNX 그래프는 Cast/Shape/Concat/Expand 같은 기본 연산만 쓴다 — 실제 v7
+#   모델(BERT, opset 18, Attention/LayerNorm 등)의 모든 연산자가 onnxruntime 1.30.0에서
+#   똑같이 도는지까지 검증한 것은 아니다(다만 opset 18의 표준 BERT 연산은 onnxruntime이
+#   오래전부터 지원해 위험은 낮다고 판단).
+numpy==2.5.3
+onnxruntime==1.30.0
+pyarrow==25.0.1
+transformers==5.17.0
 # tokenizer.json(fast) 사용 — sentencepiece 불필요.
 # 채점 게이트(S15P21A506-169)·보완재 감점(의존 그래프) 구현 시 추가 의존성 검토.
