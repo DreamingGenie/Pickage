@@ -11,7 +11,7 @@ class CommentWindowResolverTest {
 
     private static CollectedComment comment(String id) {
         return new CollectedComment(
-                id, "someone", "NONE", false, Instant.parse("2026-01-01T00:00:00Z"), "body", "123");
+                id, "someone", "NONE", false, Instant.parse("2026-01-01T00:00:00Z"), "body", "123", 0);
     }
 
     @Test

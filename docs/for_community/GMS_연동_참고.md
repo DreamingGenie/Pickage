@@ -28,15 +28,27 @@
 
 **2026-09-16 추가 확인 (S15P21A506-365 구현 후 실제 클라이언트로 재검증):**
 `gpt-5.4-mini` 모델명 허용됨, 중첩 배열/객체 스키마(`summary_support`·`flow`·`messages`
-전부 array-of-object, `flow[].support`처럼 2단 중첩까지 포함)에도 strict 모드가 그대로
-동작함 — `GmsCommunitySummarizerRealNetworkTest`로 실제 GitHub 이슈 fixture 하나를 넣어
-`status=READY`, 스키마와 정확히 일치하는 응답을 확인했다(대표 메시지 kind가
-`USER_SOLUTION`으로 올바르게 분류됨).
+전부 array-of-object, 당시엔 `flow[].support`처럼 2단 중첩까지 포함)에도 strict 모드가
+그대로 동작함 — `GmsCommunitySummarizerRealNetworkTest`로 실제 GitHub 이슈 fixture
+하나를 넣어 `status=READY`, 스키마와 정확히 일치하는 응답을 확인했다(대표 메시지
+kind가 `USER_SOLUTION`으로 올바르게 분류됨).
 
-여전히 미확인: `max_output_tokens`(2048) 초과 시 `status`가 `incomplete`로 오는지와 그때의
-`output` 형태 — 실제로 이 상한에 걸리는 대형 이슈로 아직 시험하지 않음. `GmsCommunitySummarizer`는
-`completed`가 아니면 무조건 실패 처리하므로 안전하게 저하되지만(FAILED), 실제로 이 경로를
-타는지는 미확인 상태로 남는다.
+**2026-09-16 S15P21A506-373 0단계 진단**: 댓글 85개 안팎 합성 fixture(경량·중량 두
+버전, 중량은 코드블록·스택트레이스 포함 500~1200자)로 실제 GMS를 호출했는데 둘 다
+`status=READY`로 끝났다 — `max_output_tokens`(당시 2048) 초과로 `status=incomplete`가
+되는 경로가 재현되지 않았다. 요약 태스크 특성상 입력이 커져도 모델이 출력을 압축하는
+경향을 보였다(중량 fixture에서 오히려 `messages` 배열이 더 작아짐). 상세는
+`docs/for_community/specs/S15P21A506-373-step0-diagnostics.md`.
+
+**2026-09-16 S15P21A506-373 1단계 반영**: 위 0단계 진단에도 불구하고 계획대로
+`MAX_OUTPUT_TOKENS`를 2048→4096으로 상향하고(여전히 낮은 위험의 보험성 변경),
+`flow[].support` 2단 중첩을 없애 최상위 `flow_support` 평면 배열
+(`{flow_index, type, id}`)로 옮겼다 — `GmsCommunitySummarizer.schema()`/
+`toTopicSummary()` 참고. `max_output_tokens` 초과 시 실제 `status`/`output` 형태
+자체는 여전히 완전히는 미확인이다(0단계 두 fixture 모두 `completed`로 끝나
+`incomplete` 응답 형태를 직접 관찰하지 못함) — 다만 `GmsCommunitySummarizer`는
+`completed`가 아니면 무조건 실패 처리(`TopicSummary.failed()`)하므로 안전하게
+저하된다.
 
 설정 이름 6종(`GMS_API_KEY`/`GMS_BASE_URL`/`GMS_REQUEST_PATH`/`GMS_AUTH_HEADER`/
 `GMS_AUTH_SCHEME`/`GMS_MODEL`)은 `S15P21A506-363`에서 운영 compose에 이미 선택값으로

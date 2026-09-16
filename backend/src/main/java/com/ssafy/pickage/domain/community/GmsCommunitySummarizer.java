@@ -27,9 +27,10 @@ import java.util.List;
 
 /**
  * C1 — GMS Responses API(OpenAI 호환 프록시) 클라이언트. 2026-09-16 실측(`docs/for_community/GMS_연동_참고.md`)으로
- * 구조화 출력(json_schema strict)·역할 분리 입력·GMS 자체 에러 포맷·rate limit 헤더를 확인한 뒤 작성했다. 중첩
- * 배열/객체 스키마(이 클래스가 실제로 쓰는 형태)는 그 실측에 없었다 — 평면 2-필드 스키마로만 strict 모드를 확인했으므로,
- * 이 클래스가 운영에서 처음 호출될 때 스키마 강제가 그대로 통하는지 재확인이 필요하다.
+ * 구조화 출력(json_schema strict)·역할 분리 입력·GMS 자체 에러 포맷·rate limit 헤더를 확인한 뒤 작성했다.
+ * {@code flow_support}는 S15P21A506-373 1단계에서 최상위 평면 배열({@code flow_index}로 역참조)로 바꿨다 —
+ * 이전엔 {@code flow[].support}로 한 단계 더 중첩돼 있었다({@code GmsCommunitySummarizerRealNetworkTest}로
+ * strict 모드 실호출까지 확인된 뒤의 변경).
  *
  * <p>실패 경로(네트워크 오류·비200·파싱 실패·계약 위반)는 전부 {@link TopicSummary#failed()}로 수렴한다 — {@link
  * CommunitySummarizer}는 topic 하나 실패가 다른 topic에 번지지 않아야 하므로 예외를 던지지 않는다. 필드 값 자체의 길이·개수·source
@@ -45,7 +46,7 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
      * 두는 여유 — 그래야 raw InterruptedException 대신 깔끔한 HttpTimeoutException으로 실패한다. */
     private static final Duration TIMEOUT_MARGIN = Duration.ofMillis(300);
     private static final Duration MIN_CALL_TIMEOUT = Duration.ofSeconds(1);
-    private static final int MAX_OUTPUT_TOKENS = 2048;
+    private static final int MAX_OUTPUT_TOKENS = 4096;
 
     private static final String SYSTEM_PROMPT =
             """
@@ -189,12 +190,25 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         sourceRef.putArray("required").add("type").add("id");
         sourceRef.put("additionalProperties", false);
 
+        ObjectNode flowSupportRef = JSON.createObjectNode();
+        flowSupportRef.put("type", "object");
+        ObjectNode flowSupportProps = flowSupportRef.putObject("properties");
+        flowSupportProps.putObject("flow_index").put("type", "integer");
+        flowSupportProps
+                .putObject("type")
+                .put("type", "string")
+                .putArray("enum")
+                .add("ISSUE_BODY")
+                .add("COMMENT");
+        flowSupportProps.putObject("id").put("type", "string");
+        flowSupportRef.putArray("required").add("flow_index").add("type").add("id");
+        flowSupportRef.put("additionalProperties", false);
+
         ObjectNode flowItem = JSON.createObjectNode();
         flowItem.put("type", "object");
         ObjectNode flowProps = flowItem.putObject("properties");
         flowProps.putObject("text").put("type", "string");
-        flowProps.set("support", arrayOf(sourceRef));
-        flowItem.putArray("required").add("text").add("support");
+        flowItem.putArray("required").add("text");
         flowItem.put("additionalProperties", false);
 
         ObjectNode messageItem = JSON.createObjectNode();
@@ -219,6 +233,7 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         props.putObject("summary_ko").put("type", "string");
         props.set("summary_support", arrayOf(sourceRef));
         props.set("flow", arrayOf(flowItem));
+        props.set("flow_support", arrayOf(flowSupportRef));
         props.set("messages", arrayOf(messageItem));
         root.putArray("required")
                 .add("issue_number")
@@ -226,6 +241,7 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
                 .add("summary_ko")
                 .add("summary_support")
                 .add("flow")
+                .add("flow_support")
                 .add("messages");
         root.put("additionalProperties", false);
         return root;
@@ -291,10 +307,18 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             List<TopicSummary.SourceRef> summarySupport = parseRefs(payload.path("summary_support"));
 
             List<DiscussionStepPayload> flow = new ArrayList<>();
-            List<List<TopicSummary.SourceRef>> flowSupport = new ArrayList<>();
             for (JsonNode step : payload.path("flow")) {
                 flow.add(new DiscussionStepPayload(step.path("text").asText(null)));
-                flowSupport.add(parseRefs(step.path("support")));
+            }
+            List<List<TopicSummary.SourceRef>> flowSupport = new ArrayList<>();
+            for (int i = 0; i < flow.size(); i++) flowSupport.add(new ArrayList<>());
+            for (JsonNode ref : payload.path("flow_support")) {
+                int flowIndex = ref.path("flow_index").asInt(-1);
+                flowSupport
+                        .get(flowIndex)
+                        .add(
+                                new TopicSummary.SourceRef(
+                                        ref.path("type").asText(null), ref.path("id").asText(null)));
             }
 
             List<MessagePayload> messages = new ArrayList<>();

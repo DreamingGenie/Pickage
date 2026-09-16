@@ -53,7 +53,8 @@ class CommunityContractReviewTest {
                         false,
                         original.createdAt(),
                         "verified comment",
-                        "456");
+                        "456",
+                        0);
         var source =
                 new CollectedIssue(
                         1,
@@ -125,7 +126,8 @@ class CommunityContractReviewTest {
                             false,
                             original.createdAt().plusSeconds(i),
                             "😀".repeat(5000),
-                            "456"));
+                            "456",
+                            0));
         var source =
                 new CollectedIssue(
                         1,
