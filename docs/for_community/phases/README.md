@@ -17,7 +17,8 @@
 | 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | [specs/S15P21A506-213.md](../specs/S15P21A506-213.md) | 없음 (Phase 1과 병행 가능) | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
 | 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
-| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 진행 중(구현·재검수 완료, Draft MR·외부 인수/사람 리뷰 대기) |
+| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 완료(2026-09-16 Jira 조회로 확인 — 이 표의 "진행 중" 표기는 병합 전 스냅샷이라 stale했음) |
+| 6 | [S15P21A506-373](https://ssafy.atlassian.net/browse/S15P21A506-373) [BE][구현] GMS 대용량 이슈 요약 실패 개선(0~4단계) | 백엔드 | `api/feat/S15P21A506-373-large-issue-summary-diagnostics` | [373 0단계 Spec](../specs/S15P21A506-373-step0-diagnostics.md)(1~4단계는 진행하며 추가) | Phase 5 | 진행 중(0단계 구현·테스트·리뷰 완료, MR 대기 — [0단계 기록](S15P21A506-373-step0-diagnostics.md)) |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
 GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).
@@ -58,6 +59,12 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
   registry·coordinator → orchestrator·controller·service)으로 진행, `/code-review`에서
   이번 Phase 범위의 결함 4건 발견·즉시 수정. 212의 기존 파일에 있는 별개 결함 2건은
   완료 기록에만 남기고 후속 Jira 이슈로 분리 제안.
+- Phase 5(S15P21A506-315)는 2026-09-16 Jira 조회로 `완료` 상태임을 확인, 이 표의 "진행 중"
+  표기를 바로잡음(WIP=1 판단에 사용).
+- [Phase 6, 0단계 — S15P21A506-373](S15P21A506-373-step0-diagnostics.md) 구현·테스트·리뷰
+  완료(2026-09-16). 진단 로그 추가 + 합성 fixture 2종(경량·중량) 실네트워크 실측 결과,
+  계획 문서가 가정한 "경로 B"(`incomplete`)가 재현되지 않아 1단계 우선순위 재검토 필요.
+  MR은 아직 열지 않음.
 
 ## WIP=1 예외 기록
 
