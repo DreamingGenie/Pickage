@@ -30,7 +30,7 @@ class CommunityRefreshOrchestratorTest {
             FakeCommunitySummarizer_asFunction();
 
     private static CommunitySummarizer FakeCommunitySummarizer_asFunction() {
-        return issue ->
+        return (issue, budget) ->
                 new TopicSummary(
                         null,
                         null,
@@ -300,7 +300,7 @@ class CommunityRefreshOrchestratorTest {
                 new IssueCollectionResult.Success(List.of(issue(1, List.of())), List.of(), 180);
         InMemoryCommunitySnapshotRepository repository = new InMemoryCommunitySnapshotRepository();
         CommunitySummarizer throwingSummarizer =
-                issueArg -> {
+                (issueArg, budget) -> {
                     throw new RuntimeException("GMS 흉내 실패");
                 };
         CommunityRefreshOrchestrator orchestrator =
@@ -319,6 +319,59 @@ class CommunityRefreshOrchestratorTest {
         assertThat(row.result().topics().getFirst().summaryStatus()).isEqualTo("FAILED");
         assertThat(row.result().summaryRetryAt()).isNotNull();
         assertThat(task.snapshot().status()).isEqualTo(RefreshStatus.COMPLETED);
+    }
+
+    @Test
+    void 이슈_두_개의_GMS_호출을_동시에_디스패치한다() {
+        // S15P21A506-368 후속 — 순차 for 루프였을 때 대형 저장소에서 실제로 HttpTimeoutException/
+        // InterruptedException으로 터졌던 문제의 재발 방지 시험. 각 호출을 300ms씩 일부러 늦추고,
+        // 전체 refresh가 두 호출을 합친 시간(600ms)이 아니라 한 호출 시간(300ms) 안팎에 끝나는지,
+        // 그리고 두 호출의 시작 시각이 실제로 거의 겹치는지를 함께 확인한다.
+        var callStartedAtNanos = java.util.Collections.synchronizedList(new java.util.ArrayList<Long>());
+        CommunitySummarizer slowSummarizer =
+                (issueArg, budget) -> {
+                    callStartedAtNanos.add(System.nanoTime());
+                    try {
+                        Thread.sleep(300);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return TopicSummary.failed();
+                };
+        RepositoryVerificationResult verified =
+                new RepositoryVerificationResult.Verified(
+                        "pinojs", "pino", RepositoryScope.PACKAGE_SCOPED, false, false, List.of());
+        IssueCollectionResult success =
+                new IssueCollectionResult.Success(
+                        List.of(issue(1, List.of()), issue(2, List.of())), List.of(), 180);
+        InMemoryCommunitySnapshotRepository repository = new InMemoryCommunitySnapshotRepository();
+        CommunityRefreshOrchestrator orchestrator =
+                com.ssafy.pickage.domain.community.CommunityTestFixtures.orchestrator(
+                        new StubRepositoryVerificationService(verified),
+                        new StubIssueCollectionService(success),
+                        slowSummarizer,
+                        repository);
+        RefreshTask task = newTask();
+
+        long startNanos = System.nanoTime();
+        orchestrator.run(task, "pino", PACKAGE_ID, "https://github.com/pinojs/pino");
+        long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        CommunitySnapshotRow row = repository.findByPackageId(PACKAGE_ID).orElseThrow();
+        assertThat(row.result().topics()).hasSize(2);
+        assertThat(row.result().topics())
+                .extracting(t -> t.issueNumber())
+                .containsExactly(1, 2); // 병렬로 돌아도 결과 순서는 원래 이슈 순서를 유지한다
+
+        assertThat(callStartedAtNanos).hasSize(2);
+        long startGapMs =
+                Math.abs(callStartedAtNanos.get(0) - callStartedAtNanos.get(1)) / 1_000_000;
+        assertThat(startGapMs)
+                .as("두 GMS 호출이 순차였다면 300ms 가까이 벌어졌을 것이다")
+                .isLessThan(150);
+        assertThat(elapsedMs)
+                .as("순차였다면 600ms 이상 걸린다 — 병렬이면 300ms 안팎(+오버헤드)이어야 한다")
+                .isLessThan(550);
     }
 
     @Test

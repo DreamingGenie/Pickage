@@ -26,8 +26,16 @@ public final class CommunityProperties {
     /** 작업 실행기 고정 worker 수. */
     public static final int EXECUTOR_WORKER_COUNT = 2;
 
-    /** 저장소 검증→이슈 검색→댓글 수집→GMS→게시 전체에 허용된 시간. */
-    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(20);
+    /**
+     * 저장소 검증→이슈 검색→댓글 수집→GMS→게시 전체에 허용된 시간. 2026-09-16 운영 실측 —
+     * 이슈 2개를 순차로 GMS 호출하면 대형 저장소(예: react/react, 댓글 500개대)에서 20초를
+     * 넘겨 HttpTimeoutException/InterruptedException으로 매번 실패했다(S15P21A506-368 후속).
+     * 이슈 병렬 호출(S15P21A506-368 후속, {@link CommunityRefreshOrchestrator})로 GMS 몫은
+     * 줄였지만, 그래도 수집(5~6초 안팎) + 병렬 GMS 최악값({@link
+     * GmsCommunitySummarizer}의 상한 15초) + 게시 여유를 더하면 20초는 여전히 빠듯해 30초로
+     * 올린다.
+     */
+    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(30);
 
     /** DB 게시 트랜잭션의 {@code statement_timeout} 예약(314의 실제 값과 별개로, 이 Phase가 기대하는 상한). */
     public static final Duration PUBLISH_BUDGET = Duration.ofSeconds(2);

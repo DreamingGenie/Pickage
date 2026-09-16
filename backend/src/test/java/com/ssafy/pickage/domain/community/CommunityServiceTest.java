@@ -37,7 +37,7 @@ class CommunityServiceTest {
     private static final String NAME = "pino";
 
     private static CommunitySummarizer skippedSummarizer() {
-        return issue ->
+        return (issue, budget) ->
                 new TopicSummary(
                         null,
                         null,

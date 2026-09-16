@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -75,7 +76,7 @@ class GmsCommunitySummarizerRealNetworkTest {
                         "The app throws a NullPointerException and exits immediately if"
                                 + " config.json does not exist in the working directory.");
 
-        TopicSummary summary = client().summarize(issue);
+        TopicSummary summary = client().summarize(issue, Duration.ofSeconds(15));
 
         System.out.println("[실네트워크 GMS 결과] " + summary);
         assertThat(summary.status())
