@@ -130,8 +130,12 @@ public class WeeklyStateStore {
 	 */
 	public void writeManualRequest(LocalDate weekOf, OffsetDateTime requestedAt) {
 		byte[] body = write(new ManualRequest(requestedAt));
+		// ⚠ client() 를 try 밖에서 부른다. 설정이 비었을 때 build() 가 던지는
+		//    "무엇이 없는지" 예외를 아래 catch (RuntimeException) 이 삼켜서
+		//    "저장소에 접근할 수 없습니다" 로 바꿔 버리면 운영자가 원인을 못 찾는다.
+		S3Client s3 = client();
 		try {
-			client().putObject(
+			s3.putObject(
 				PutObjectRequest.builder()
 					.bucket(bucket)
 					.key(manualKey(weekOf))
@@ -147,9 +151,10 @@ public class WeeklyStateStore {
 	public List<LocalDate> weeks() {
 		List<LocalDate> found = new ArrayList<>();
 		String token = null;
+		S3Client s3 = client();   // try 밖에서 — 위 writeManualRequest 의 주석 참고
 		try {
 			do {
-				ListObjectsV2Response page = client().listObjectsV2(
+				ListObjectsV2Response page = s3.listObjectsV2(
 					ListObjectsV2Request.builder()
 						.bucket(bucket)
 						.prefix(PREFIX + "/")
@@ -179,9 +184,10 @@ public class WeeklyStateStore {
 	}
 
 	private <T> Optional<T> readJson(String key, Class<T> type) {
+		S3Client s3 = client();   // try 밖에서 — 위 writeManualRequest 의 주석 참고
 		ResponseBytes<?> bytes;
 		try {
-			bytes = client().getObjectAsBytes(
+			bytes = s3.getObjectAsBytes(
 				GetObjectRequest.builder().bucket(bucket).key(key).build());
 		} catch (NoSuchKeyException absent) {
 			return Optional.empty();

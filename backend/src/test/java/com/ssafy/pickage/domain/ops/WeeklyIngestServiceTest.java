@@ -193,4 +193,21 @@ class WeeklyIngestServiceTest {
 		assertEquals(WeeklyIngestService.MISSING, run.status());
 		assertTrue(run.manualPending());
 	}
+
+	/* ── 손상된 상태 객체 ─────────────────────────────────── */
+
+	@Test
+	void week_of_가_없는_문서도_500_이_되지_않는다() {
+		// mc 로 우편함을 넣다가 경로를 run.json 으로 잘못 치면 이 모양이 된다.
+		// 손상된 객체 하나가 조회 API 를 통째로 막으면 안 된다.
+		var store = new FakeStore();
+		store.run = new WeeklyRunDocument(null, "RUNNING", null,
+			null, null, 0, null, null, null, null);
+
+		var run = service(store).run(THIS_WEEK);
+
+		assertEquals(THIS_WEEK, run.weekOf(), "읽어 온 주가 권위 있다");
+		assertEquals(LocalDate.parse("2026-08-31"), run.coverage().windowStart());
+		assertTrue(run.steps().isEmpty());
+	}
 }

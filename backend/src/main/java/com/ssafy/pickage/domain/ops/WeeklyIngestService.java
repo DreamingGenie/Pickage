@@ -116,15 +116,19 @@ public class WeeklyIngestService {
 		Optional<WeeklyRunDocument> document = store.readRun(week);
 		// 우편함은 회차 객체와 별개다. 한 번도 돌지 않은 주에도 요청이 걸려 있을 수 있다.
 		OffsetDateTime requestedAt = store.readManualRequest(week).orElse(null);
-		return document.map(run -> present(run, requestedAt))
+		return document.map(run -> present(week, run, requestedAt))
 			.orElseGet(() -> missing(week, requestedAt));
 	}
 
-	private WeeklyRunResponse present(WeeklyRunDocument run, OffsetDateTime requestedAt) {
+	private WeeklyRunResponse present(LocalDate week, WeeklyRunDocument run,
+		OffsetDateTime requestedAt) {
+		// ⚠ 저장된 week_of 가 아니라 **읽어 온 주**를 쓴다. 객체의 키가 그 주를 가리키므로
+		//    그쪽이 권위 있고, 문서에 week_of 가 없거나 어긋나도 응답이 흔들리지 않는다.
+		//    (없을 때 run.weekOf() 를 그대로 쓰면 아래 coverage() 에서 NPE 가 난다)
 		return new WeeklyRunResponse(
-			run.weekOf(),
+			week,
 			run.status(),
-			coverage(run),
+			coverage(week, run),
 			run.startedAt(),
 			run.finishedAt(),
 			run.consecutiveFailures(),
@@ -145,19 +149,20 @@ public class WeeklyIngestService {
 			null, List.of());
 	}
 
-	private static WeeklyRunResponse.Coverage coverage(WeeklyRunDocument run) {
+	private static WeeklyRunResponse.Coverage coverage(LocalDate week, WeeklyRunDocument run) {
 		WeeklyRunDocument.Coverage source = run.coverage();
 		if (source == null) {
 			// 이 서비스가 계약을 강제하지 않는다. 값이 없으면 회차 날짜에서 유도한다.
 			return new WeeklyRunResponse.Coverage(
-				null, null, windowStart(run.weekOf()), windowEnd(run.weekOf()));
+				null, null, windowStart(week), windowEnd(week));
 		}
 		List<LocalDate> window = source.downloadsWindow();
+		boolean paired = window != null && window.size() == 2;
 		return new WeeklyRunResponse.Coverage(
 			source.depsdevSnapshot(),
 			source.downloadsThrough(),
-			window != null && window.size() == 2 ? window.get(0) : windowStart(run.weekOf()),
-			window != null && window.size() == 2 ? window.get(1) : windowEnd(run.weekOf()));
+			paired ? window.get(0) : windowStart(week),
+			paired ? window.get(1) : windowEnd(week));
 	}
 
 	private static WeeklyStepResponse step(WeeklyRunDocument.Step source) {
