@@ -20,10 +20,22 @@ ExecStart=/bin/sh run-weekly-ingest.sh
 #   run-weekly-ingest.sh 도 시작할 때 같은 정리를 한다. 두 겹인 이유는 사람이 손으로
 #   실행하다 Ctrl-C 로 끊는 경우에는 systemd 가 개입하지 않기 때문이다.
 #
-# ⚠ 이름이 run-weekly-ingest.sh 의 CONTAINER 와 **같아야 한다.** 한쪽만 바꾸면 여기서
-#   엉뚱한 이름을 지우고 진짜 컨테이너는 살아남는다 — 그래서 스크립트 쪽도 환경변수로
-#   덮어쓸 수 없게 박아 두었다.
-ExecStopPost=-/usr/bin/docker rm -f pickage-weekly-run
+# ⚠⚠ **flock 을 통과해야 한다. 맨 `docker rm -f` 를 두면 남의 회차를 죽인다.**
+#
+#   ExecStopPost 는 ExecStart 가 어떻게 끝났든 **무조건** 돈다. 사람이 SSH 에서
+#   `sh run-weekly-ingest.sh` 로 수동 실행 중이면, 10분 뒤 타이머 발화는 잠금을 못 잡아
+#   곧바로 0 으로 끝나고 — 그 직후 이 줄이 **수동 실행의 컨테이너를 지운다.**
+#   회차는 RUNNING 으로 남아 26시간 회수를 기다린다. 실제 수집이 23시간이므로 타이머가
+#   켜져 있는 한 수동 실행이 끝까지 가지 못한다.
+#
+#   `flock -n <파일> <명령>` 은 **잠금을 잡았을 때만** 명령을 실행한다. 내 실행이 남긴
+#   유령은 정리되고(KillMode 기본값이 control-group 이라 ExecStart 프로세스가 죽으면서
+#   fd 가 닫혀 잠금이 풀린다), 남이 쥐고 있는 잠금은 건드리지 않는다.
+#
+# ⚠ 컨테이너 이름과 잠금 파일 **둘 다** run-weekly-ingest.sh 와 같아야 한다. 한쪽만
+#   바꾸면 여기서 엉뚱한 것을 지우거나 엉뚱한 잠금을 본다 — 그래서 스크립트 쪽도
+#   환경변수로 덮어쓸 수 없게 박아 두었다.
+ExecStopPost=-/usr/bin/flock -n /tmp/pickage-weekly.lock /usr/bin/docker rm -f pickage-weekly-run
 
 # 한 회차가 23시간쯤 걸린다. 기본값(DefaultTimeoutStartSec, 보통 90초)으로 두면
 # downloads 단계 한복판에서 죽는다. oneshot 은 ExecStart 전체에 이 값이 걸린다.

@@ -41,7 +41,10 @@ REPO=$(cd ../../.. && pwd)
 #   타임아웃으로 죽였을 때 systemd 가 엉뚱한 이름을 지우고 **진짜 컨테이너는 살아남는다** —
 #   두 겹 정리가 막으려던 상황이 정확히 그것이다. 이름을 바꾸려면 두 파일을 같이 고칠 것.
 CONTAINER=pickage-weekly-run
-LOCK=${PICKAGE_WEEKLY_LOCK:-/tmp/pickage-weekly.lock}
+# ⚠ 이 경로도 환경변수로 덮어쓸 수 없다. systemd 의 ExecStopPost 가 `flock -n` 으로 같은
+#   파일을 보고 "지금 도는 회차가 있는가" 를 판단한다(systemd/pickage-weekly.service).
+#   여기만 바뀌면 그쪽은 늘 빈 잠금을 잡아 **남의 컨테이너를 지운다.**
+LOCK=/tmp/pickage-weekly.lock
 
 [ -f .env ] || {
   echo "run-weekly-ingest.sh: .env 가 없습니다. .env.example 을 복사해 채우세요." >&2
