@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { windowSeries } from '@/components/charts/geometry'
-import { SeriesLegend } from '@/components/charts/line-chart'
+import { seriesStyle } from '@/components/charts/tokens'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
   EcosystemToolbar,
@@ -125,7 +125,8 @@ export function EcosystemView({
       p.key,
       model.dependentsByMajor[p.key] ?? [],
       versionByName[p.key] ?? ALL_MAJORS,
-      // 카드가 `seriesStyle(index)` 로 그리는 것과 같은 번호다
+      // 선 모양은 자리 번호가 아니라 **비교 순서**를 따른다. 자료가 없어 걸러진 시리즈가
+      // 생겨도 카드·범례·차트가 같은 모양을 가리킨다(`ChartSeries.tone`).
       i,
     ),
   )
@@ -151,16 +152,30 @@ export function EcosystemView({
   })
 
   /**
-   * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.
-   * 접힌 패키지는 차트에서도 물러난다 — 그래서 선택이 아니라 펼침 상태가 강조를 정한다.
+   * 상세를 보는 패키지들. 칩 줄에서 **여러 개를 고를 수 있다** — 셋 중 둘만 나란히 보는
+   * 것이 비교의 실제 모양이라, 하나만 고르게 하면 그 비교를 못 한다.
+   *
+   * **"아무도 고르지 않은" 상태가 기본이다.** 처음부터 하나가 강조돼 있으면 나머지가
+   * 흐려진 채로 화면이 열려 공정한 비교가 안 된다. 고른 게 없으면 강조도 없고(`null`)
+   * 카드도 전부 펼친다 — 오른쪽 열이 통째로 비는 것보다 낫다.
+   *
+   * 비교 조합이 바뀌면 선택을 되돌린다. 없어진 패키지의 key 가 남아 있으면 강조가
+   * 아무 선에도 걸리지 않아 전부 흐려진 화면이 된다.
    */
   const packageKeys = model.packages.map((p) => p.key).join(',')
-  const [collapsed, setCollapsed] = useState<{ key: string; keys: string[] }>({
+  const [picked, setPicked] = useState<{ key: string; names: string[] }>({
     key: packageKeys,
-    keys: [],
+    names: [],
   })
-  const collapsedKeys = collapsed.key === packageKeys ? collapsed.keys : []
-  const expanded = model.packages.map((p) => p.key).filter((k) => !collapsedKeys.includes(k))
+  const selected = picked.key === packageKeys ? picked.names : []
+  const emphasisKeys = selected.length > 0 ? selected : null
+
+  function togglePackage(name: string) {
+    setPicked({
+      key: packageKeys,
+      names: selected.includes(name) ? selected.filter((k) => k !== name) : [...selected, name],
+    })
+  }
 
   const height = compactChart ? 148 : 196
 
@@ -186,11 +201,81 @@ export function EcosystemView({
       <EcosystemToolbar controls={controls} onChange={onControlsChange} snapshots={snapshots} />
 
       {/*
-        두 카드가 같은 선 모양을 쓰므로 범례도 한 번만.
-        Dependents 쪽을 기준으로 삼는다 — 표시 버전을 고르면 라벨에 그 사실이 실려서
-        (`express 4.x`) 어느 선이 무엇인지 범례만 봐도 알 수 있다.
+        칩 줄이 범례이면서 조작이다.
+
+        선 견본과 이름을 이미 달고 있어서 범례가 하던 일을 그대로 한다 — 같은 정보를 두
+        줄로 늘어놓지 않는다. 라벨은 Dependents 선의 것을 그대로 쓴다. 표시 버전을 고르면
+        거기에 실려서(`express 4.x`) 어느 선이 무엇인지 이 줄만 봐도 알 수 있다.
+
+        조작줄 바로 아래, 차트 위에 둔다. 강조는 **두 차트 모두**에 걸리는 조작이라
+        한쪽 차트 옆이나 오른쪽 열에 있으면 무엇에 걸리는 조작인지 읽히지 않는다.
+
+        진짜 tabs(`components/ui/tabs.tsx`)를 쓰지 않는다 — Radix Tabs 는 항상 하나가
+        active 여야 해서 "아무것도 고르지 않은" 상태도, "둘을 동시에 고른" 상태도
+        표현할 수 없다.
+
+        맨 앞 `모두` 는 선택을 비우는 자리다. 선택이 비어 있을 때 눌린 것처럼 보이는
+        유일한 칩이기도 해서, 지금 무엇을 보고 있는지가 줄 하나로 읽힌다.
       */}
-      <SeriesLegend series={dependentsSeries} emphasisKeys={expanded} />
+      {model.packages.length > 0 && (
+        <div
+          role="group"
+          aria-label="강조할 패키지 선택"
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          <button
+            type="button"
+            aria-pressed={selected.length === 0}
+            onClick={() => setPicked({ key: packageKeys, names: [] })}
+            className={cn(
+              'rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
+              selected.length === 0
+                ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
+                : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+            )}
+          >
+            모두
+          </button>
+          {packages.map((p, i) => {
+            const style = seriesStyle(i)
+            const active = selected.includes(p.key)
+            return (
+              <button
+                key={p.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => togglePackage(p.key)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
+                  active
+                    ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
+                    : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                )}
+              >
+                <svg width="16" height="8" aria-hidden className="shrink-0">
+                  <line
+                    x1="0"
+                    y1="4"
+                    x2="16"
+                    y2="4"
+                    stroke={style.color}
+                    strokeWidth="2.4"
+                    strokeDasharray={style.dash}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="truncate font-mono">{dependentsSeries[i]?.label ?? p.key}</span>
+                <span className="sr-only">{style.patternLabel}</span>
+                {i === 0 && (
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+                    기준
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/*
         좌: 차트 둘, 우: 패키지 카드.
@@ -213,9 +298,10 @@ export function EcosystemView({
             window={window}
             observedFrom={model.observedFrom.dependents}
             coverageNote="이 지표의 관측 시작"
-            emphasisKeys={expanded}
+            emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.dependents}
+            allowDelta
           />
           <MetricChart
             title="Downloads"
@@ -225,46 +311,32 @@ export function EcosystemView({
             window={window}
             observedFrom={model.observedFrom.downloads}
             coverageNote="이 지표의 관측 시작"
-            emphasisKeys={expanded}
+            emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.downloads}
           />
         </div>
 
-        <div className="grid min-w-0 items-start gap-4">
+        {/*
+          고른 것은 펼치고 나머지는 접는다. 아무것도 안 골랐으면 전부 펼친다 —
+          그 상태는 "다 접었다" 가 아니라 "아직 좁히지 않았다" 이기 때문이다.
+          접는 조작은 위 칩 줄에만 있다. 카드 자체를 눌러도 접히면 같은 상태를 두 곳에서
+          바꾸게 되어 칩이 가리키는 것과 어긋난다.
+        */}
+        <div className="flex flex-col gap-4">
           {packages.map((p, i) => (
             <PackageCard
               key={p.key}
               model={p}
               index={i}
-              expanded={expanded.includes(p.key)}
+              expanded={selected.length === 0 || selected.includes(p.key)}
               selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
               onVersionChange={(next) => selectVersion(p.key, next)}
               versionShareState={versionShareState}
-              onToggle={() =>
-                setCollapsed({
-                  key: packageKeys,
-                  keys: collapsedKeys.includes(p.key)
-                    ? collapsedKeys.filter((k) => k !== p.key)
-                    : [...collapsedKeys, p.key],
-                })
-              }
             />
           ))}
         </div>
       </div>
-
-      {/*
-        기준 스냅샷 날짜는 지웠다. 구간은 위 조작줄의 시작·끝 드롭다운이 말하고 있고,
-        같은 사실이 화면에 두 번 나오면 읽는 사람이 서로 다른 뜻을 찾는다.
-
-        다만 **자료가 아예 없을 때는 말해야 한다** — 빈 차트만 두면 장애처럼 보인다.
-      */}
-      {!model.snapshotAt && (
-        <p className="text-base text-muted-foreground">
-          아직 첫 집계가 끝나지 않았습니다. 자료를 모으는 중입니다.
-        </p>
-      )}
     </div>
   )
 }

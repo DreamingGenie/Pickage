@@ -12,8 +12,10 @@ import {
   pointSize,
   scaleX,
   scaleY,
+  scaleYLinear,
   shortDate,
   ticksY,
+  ticksYLinear,
   type Box,
   type ChartSeries,
   type Domain,
@@ -33,7 +35,7 @@ export interface LineChartProps {
   observedFrom?: string
   /**
    * 강조할 시리즈 key 들. 전체를 포함하거나 비어 있으면 아무것도 흐려지지 않는다.
-   * 패키지 카드를 접으면 그 선이 차트에서도 물러난다.
+   * 오른쪽 탭에서 고른 패키지들이 여기로 온다 — 둘 이상 고를 수 있다.
    */
   emphasisKeys?: readonly string[] | null
   /**
@@ -43,85 +45,81 @@ export interface LineChartProps {
    * 그대로 두면 "4주" 보기에서 모든 구간이 공백으로 판정돼 선이 사라진다.
    */
   maxGapDays?: number
+  /**
+   * 기본은 로그(311a) — 절대값 그래프에서 자릿수가 다른 시리즈를 겹칠 때 쓴다.
+   * 증감 그래프는 `linear` 를 넘긴다 — 음수가 나오고 로그는 음수를 정의하지 못한다.
+   */
+  yScale?: 'log' | 'linear'
+  /**
+   * y 도메인을 만드는 방법. 기본은 `extentY` — 그리는 구간의 최솟값·최댓값에서 만든다.
+   * 증감 그래프는 `deltaExtentY` 를 넘긴다(0 을 반드시 포함해야 하는 축이라 이 컴포넌트가
+   * 임의로 고르면 안 된다).
+   *
+   * **도메인 자체가 아니라 함수를 받는다.** 강조가 켜지면 강조된 선만으로 도메인을 다시
+   * 만들어야 하는데(아래), 완성된 도메인을 받으면 그 좁히기를 여기서 할 수 없다.
+   */
+  yDomainOf?: (series: ChartSeries[]) => Domain
   className?: string
   ariaLabel: string
 }
 
 const PAD = { t: 8, r: 10, b: 16, l: 34 }
 
-/**
- * 강조가 **실제로 일부만** 가리키는가.
- *
- * <p>강조 목록의 길이를 시리즈 수와 견주면 안 된다. 목록은 패키지 카드가 펼쳐진 것들이고,
- * 여기 들어온 시리즈는 **그릴 수 있는 것만 걸러진 뒤**다(`MetricChart` 가 점이 부족한
- * 시리즈를 뺀다). 둘은 같은 모집단이 아니다.
- *
- * <p>실제로 이렇게 어긋났다 — 세 패키지 중 하나를 접어 강조가 둘인데, 강조된 하나에
- * 자료가 없어 차트에는 둘만 남았다. 그러면 `2 < 2` 가 거짓이라 <b>강조가 통째로 꺼졌고</b>,
- * 남은 하나가 굵어지지 않았다.
- *
- * <p>그래서 **여기 그려지는 시리즈 중 몇이 강조 대상인가**를 센다. 하나도 아니면(전부
- * 접었다) 강조할 것이 없고, 전부면 강조가 아무 뜻이 없다 — 둘 다 평소대로 그린다.
- */
-function partialEmphasis(
-  series: Pick<ChartSeries, 'key'>[],
-  keys: readonly string[] | null,
-): boolean {
-  if (keys == null) return false
-  const on = series.reduce((n, s) => n + (keys.includes(s.key) ? 1 : 0), 0)
-  return on > 0 && on < series.length
-}
-
-/** 도메인이 바뀔 때 움직이는 시간. 눈으로 따라갈 만큼 짧게. */
+/** y 도메인이 바뀔 때 새 축으로 옮겨 가는 시간(ms). */
 const Y_TWEEN_MS = 260
 
 /**
- * y 도메인이 바뀌면 두 끝을 **로그 공간에서** 부드럽게 옮긴다.
+ * 강조가 실제로 갈리는가.
  *
- * CSS 로는 못 한다. 선은 `path` 의 `d` 이고 그건 전이 대상이 아니다. 그림 전체에
- * `transform: scaleY()` 를 걸면 축 변화를 정확히 흉내 낼 수는 있다 — 로그 축이라
- * 도메인 변경이 세로 방향 아핀 변환이기 때문이다. 다만 그러면 **점이 타원으로
- * 찌그러지고 선 굵기가 변한다.** 그래서 도메인 숫자를 프레임마다 옮기고 경로를 다시
- * 그린다. 점·선·눈금·격자가 함께 움직인다.
- *
- * 값이 아니라 **로그 값**을 보간하는 것이 중요하다. 축이 로그라서 선형으로 보간하면
- * 화면에서는 급하게 출발해 느리게 도착하는 것처럼 보인다.
- *
- * `prefers-reduced-motion` 이면 곧바로 바꾼다.
+ * `emphasisKeys.length` 와 `series.length` 를 바로 비교하면 안 된다 — **두 집합의 모집단이
+ * 다르다.** 강조 목록에는 이 카드가 그리지 못한(자료가 아예 없는) 패키지도 들어 있어서,
+ * 그릴 수 있는 시리즈 둘 중 하나만 강조된 상황에서도 `2 < 2` 가 거짓이 되어 강조가 조용히
+ * 꺼졌다. 실제로 그렇게 꺼져 있었다. 세어야 하는 것은 **그려지는 시리즈 중 몇 개가 강조
+ * 대상인가**다.
  */
-function useYDomainTween([lo, hi]: Domain, duration = Y_TWEEN_MS): Domain {
+function partialEmphasis(
+  series: Pick<ChartSeries, 'key'>[],
+  emphasisKeys: readonly string[] | null | undefined,
+): boolean {
+  if (emphasisKeys == null) return false
+  let on = 0
+  for (const s of series) if (emphasisKeys.includes(s.key)) on++
+  return on > 0 && on < series.length
+}
+
+/**
+ * y 도메인을 한 번에 갈아치우지 않고 몇 프레임에 걸쳐 옮긴다.
+ *
+ * 구간을 바꾸거나 강조를 켜면 도메인이 통째로 바뀌는데, 그대로 두면 선이 순간이동해
+ * 어느 선이 어디로 갔는지 눈으로 따라갈 수 없다. CSS 로는 못 한다 — SVG `path` 의 `d` 는
+ * 전이 대상이 아니고, `transform: scaleY()` 로 늘리면 점 크기와 선 굵기까지 같이 찌그러진다.
+ * 그래서 도메인 숫자 자체를 rAF 로 보간한다.
+ *
+ * 움직임을 줄이라는 설정이면 `span = 0` 이라 첫 프레임이 곧 도착점이다 — 효과에서
+ * 동기적으로 setState 하지 않으려고 분기 대신 시간으로 처리한다.
+ */
+function useYDomainTween([lo, hi]: Domain): Domain {
   const [shown, setShown] = useState<Domain>([lo, hi])
-  /* 프레임 콜백이 읽는 "지금 그려진 도메인". 렌더에서는 건드리지 않는다. */
-  const drawn = useRef<Domain>([lo, hi])
+  const fromRef = useRef<Domain>([lo, hi])
+  const rafRef = useRef(0)
 
   useEffect(() => {
-    const [fromLo, fromHi] = drawn.current
-    if (fromLo === lo && fromHi === hi) return
-
-    // 움직임을 줄여 달라고 한 사용자에게는 길이를 0 으로 둔다. 첫 프레임에 도착한다.
-    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const span = still ? 0 : duration
-
-    const a0 = Math.log1p(Math.max(0, fromLo))
-    const a1 = Math.log1p(Math.max(0, fromHi))
-    const b0 = Math.log1p(Math.max(0, lo))
-    const b1 = Math.log1p(Math.max(0, hi))
-    const began = performance.now()
-    let frame = 0
-
+    const from = fromRef.current
+    if (from[0] === lo && from[1] === hi) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    const span = reduce ? 0 : Y_TWEEN_MS
+    const t0 = performance.now()
     const step = (now: number) => {
-      const p = span <= 0 ? 1 : Math.min(1, (now - began) / span)
-      const e = 1 - Math.pow(1 - p, 3) // easeOutCubic — 끝에서 조용히 멈춘다
-      const next: Domain =
-        p < 1 ? [Math.expm1(a0 + (b0 - a0) * e), Math.expm1(a1 + (b1 - a1) * e)] : [lo, hi]
-      drawn.current = next
+      const p = span === 0 ? 1 : Math.min(1, (now - t0) / span)
+      const e = 1 - Math.pow(1 - p, 3)
+      const next: Domain = [from[0] + (lo - from[0]) * e, from[1] + (hi - from[1]) * e]
+      fromRef.current = next
       setShown(next)
-      if (p < 1) frame = requestAnimationFrame(step)
+      if (p < 1) rafRef.current = requestAnimationFrame(step)
     }
-
-    frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
-  }, [lo, hi, duration])
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [lo, hi])
 
   return shown
 }
@@ -145,6 +143,8 @@ export function LineChart({
   observedFrom,
   emphasisKeys = null,
   maxGapDays = MAX_GAP_DAYS,
+  yScale = 'log',
+  yDomainOf = extentY,
   className,
   ariaLabel,
 }: LineChartProps) {
@@ -166,23 +166,28 @@ export function LineChart({
   const pad = bare ? { t: 3, r: 3, b: 3, l: 3 } : PAD
   const box: Box = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b }
 
+  const xd = extentX(series)
+
+  // 전부 강조하는 건 아무것도 강조하지 않는 것과 같다.
   const partial = partialEmphasis(series, emphasisKeys)
   const isOn = (key: string) => !partial || emphasisKeys!.includes(key)
 
   /*
-    y 범위는 **강조된 시리즈만** 보고 정한다.
+    **y 도메인은 강조된 선만 보고 만든다.**
 
-    오른쪽 카드를 접어 하나만 남겼는데 흐려진 시리즈가 축을 끝까지 벌리고 있으면,
-    남긴 시리즈는 여전히 눌려서 평평하게 보인다. 접는 조작이 "무엇을 볼지" 를 고르는
-    일이므로 보이는 범위도 따라와야 한다.
+    강조는 "이것만 보겠다" 는 조작이다. 그런데 도메인을 전체 시리즈로 유지하면, 흐려 놓은
+    선이 축을 계속 붙들고 있어서 정작 보려던 선은 좁은 띠에 눌린 채로 남는다 — 강조를
+    누른 이유가 사라진다. 자릿수가 다른 패키지를 비교할 때 특히 심하다.
 
-    흐려진 시리즈는 그대로 그린다 — 축 밖으로 나가면 잘리고, 그건 "지금 축은 이 시리즈
-    기준" 이라는 뜻이라 오히려 읽힌다.
+    강조 대상이 하나도 그려지지 않았으면(자료가 없어 걸러진 경우) 전체로 물러난다.
+    빈 집합으로 도메인을 만들면 축이 [0,1] 로 무너진다.
   */
   const focus = partial ? series.filter((s) => isOn(s.key)) : series
-  const xd = extentX(series)
-  const yd = useYDomainTween(extentY(focus.length > 0 ? focus : series))
-  const yTicks = bare ? [] : ticksY(yd, 3)
+  const yd = useYDomainTween(yDomainOf(focus.length > 0 ? focus : series))
+
+  const scaleYFn = yScale === 'linear' ? scaleYLinear : scaleY
+  const ticksYFn = yScale === 'linear' ? ticksYLinear : ticksY
+  const yTicks = bare ? [] : ticksYFn(yd, 3)
 
   const cutX = observedFrom ? scaleX(ms(observedFrom), xd, box) : null
   const single = series.length === 1
@@ -277,7 +282,7 @@ export function LineChart({
 
         {/* y 눈금선 */}
         {yTicks.map((v) => {
-          const y = scaleY(v, yd, box)
+          const y = scaleYFn(v, yd, box)
           return (
             <g key={v}>
               <line
@@ -357,13 +362,13 @@ export function LineChart({
               >
                 {(single || focused) && (
                   <path
-                    d={buildArea(s.points, xd, yd, box, maxGapDays)}
+                    d={buildArea(s.points, xd, yd, box, maxGapDays, scaleYFn)}
                     fill={st.color}
                     fillOpacity={0.08}
                   />
                 )}
                 <path
-                  d={buildLine(s.points, xd, yd, box, maxGapDays)}
+                  d={buildLine(s.points, xd, yd, box, maxGapDays, scaleYFn)}
                   fill="none"
                   stroke={st.color}
                   strokeWidth={bare ? 1.6 : focused ? 2.6 : 1.8}
@@ -375,7 +380,7 @@ export function LineChart({
                 {/* 스냅샷 하나에 점 하나. 값이 없는 주는 점도 없다 */}
                 {!bare && (
                   <path
-                    d={buildPoints(s.points, xd, yd, box)}
+                    d={buildPoints(s.points, xd, yd, box, scaleYFn)}
                     fill="none"
                     stroke={st.color}
                     strokeWidth={dot + (focused ? 1 : 0)}
@@ -387,14 +392,14 @@ export function LineChart({
                 {hv !== null && hoverX !== null && (
                   <>
                     <path
-                      d={`M${hoverX} ${scaleY(hv, yd, box)}L${hoverX} ${scaleY(hv, yd, box)}`}
+                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
                       stroke="var(--background)"
                       strokeWidth={dot + 7}
                       strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                     />
                     <path
-                      d={`M${hoverX} ${scaleY(hv, yd, box)}L${hoverX} ${scaleY(hv, yd, box)}`}
+                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
                       stroke={st.color}
                       strokeWidth={dot + 4}
                       strokeLinecap="round"
@@ -481,7 +486,7 @@ export function SeriesLegend({
   emphasisKeys = null,
   className,
 }: {
-  series: Pick<ChartSeries, 'key' | 'label'>[]
+  series: Pick<ChartSeries, 'key' | 'label' | 'tone'>[]
   emphasisKeys?: readonly string[] | null
   className?: string
 }) {

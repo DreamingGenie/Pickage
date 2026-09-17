@@ -1,14 +1,19 @@
+import { useMemo, useState } from 'react'
 import { CircleAlertIcon } from 'lucide-react'
 
-import type { ChartSeries } from '@/components/charts/geometry'
+import { deltaExtentY, deltaSeriesOf, type ChartSeries } from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
+import { SegmentedControl } from '@/components/common/segmented-control'
 import {
   MIN_POINTS_FOR_LINE,
   type MetricState,
   type SnapshotWindow,
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
+
+/** 총합(누적) 이냐 전 스냅샷 대비 증감이냐. `allowDelta` 카드에서만 고를 수 있다. */
+type LevelMode = 'total' | 'delta'
 
 /** 결측을 뺀, 실제로 그릴 수 있는 관측치 수. */
 function validCount(s: ChartSeries): number {
@@ -37,6 +42,7 @@ export function MetricChart({
   height = 192,
   showLegend = false,
   state = { status: 'ready' },
+  allowDelta = false,
   className,
 }: {
   title: string
@@ -53,20 +59,64 @@ export function MetricChart({
   showLegend?: boolean
   /** 이 카드만의 처지. 옆 카드와 섞이지 않는다. */
   state?: MetricState
+  /**
+   * "증감·총합" 토글을 낼지. Dependents(누적 총합)에만 의미가 있다 — Downloads는 이미
+   * 주간 값(흐름)이라 누적/증감으로 다시 나눌 대상이 없다(379).
+   */
+  allowDelta?: boolean
   className?: string
 }) {
   /** 고른 시작이 이 지표의 관측 시작보다 앞서면 여기서 잘린다. */
   const clamped = Boolean(observedFrom && window.start < observedFrom)
 
   /**
+   * 총합이 기본이다. 규모가 비슷한 두 패키지의 성장 차이는 y 도메인이 그리는 구간의
+   * 최솟값·최댓값을 따라가므로(`extentY`) 총합 축에서도 그대로 보인다 — 축을 통째로
+   * 바꿔야만 보이던 것이 아니다. 증감은 "이번 주에 얼마나 늘었나" 라는 **다른 질문**이라
+   * 남긴다.
+   */
+  const [levelMode, setLevelMode] = useState<LevelMode>('total')
+  const showingDelta = allowDelta && levelMode === 'delta'
+
+  /**
+   * 공백 판정 기준을 지금 보고 있는 간격에 맞춘다(아래 LineChart 호출부와 같은 식·같은 이유).
+   * `deltaSeriesOf`도 같은 간격 기준으로 "화면에 보이는 이웃 점"을 판단해야
+   * 차트가 끊는 자리와 증감이 결측으로 남는 자리가 어긋나지 않는다.
+   */
+  const maxGapDays = step * 7 + 1
+
+  /**
+   * 총합은 원본 그대로 로그축에, 증감은 차분을 내어 0 을 포함하는 선형축에 그린다.
+   * 증감 축만 도메인을 넘기는 이유는 0 이 반드시 화면 안에 있어야 하기 때문이다 —
+   * 총합 축은 `extentY` 가 구간의 최솟값·최댓값에서 알아서 만든다.
+   */
+  const displaySeries = useMemo(
+    () => (showingDelta ? deltaSeriesOf(series, maxGapDays) : series),
+    [series, showingDelta, maxGapDays],
+  )
+
+  const yScale: 'log' | 'linear' = showingDelta ? 'linear' : 'log'
+  // 도메인을 여기서 계산하지 않고 만드는 법만 넘긴다 — 강조가 켜지면 차트가 강조된
+  // 선만으로 다시 만들어야 하고, 그건 어느 선이 강조됐는지 아는 쪽에서만 할 수 있다.
+  const yDomainOf = showingDelta ? deltaExtentY : undefined
+
+  const modeLabel = showingDelta ? '증감 · 전 스냅샷 대비' : '로그축'
+  const ariaSuffix = showingDelta
+    ? '증감 — 전 스냅샷 대비 순증감이며, 0 아래는 감소입니다'
+    : '로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요'
+
+  /**
    * **시리즈별로** 선을 그릴지 가른다(311b) — 예전에는 가장 긴 시리즈 하나로 카드 전체를
    * gate 해서, 짧은 시리즈 하나가 다른 시리즈들 옆에 추세인 것처럼 그대로 그려졌다.
    * "관측 행이 있는가"(raw)와 "그릴 값이 있는가"(valid, null 제외)도 구분한다.
+   *
+   * 증감 모드에서는 시리즈의 첫 점이 항상 결측(비교할 이전 값이 없음)이라 총합 모드보다
+   * 유효 점이 하나 적다 — 그래서 이 판정도 `displaySeries`(변환 후)를 보고 다시 한다.
    */
-  const rawMax = Math.max(0, ...series.map((s) => s.points.length))
+  const rawMax = Math.max(0, ...displaySeries.map((s) => s.points.length))
 
-  const lined = series.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
-  const accumulating = series.filter((s) => {
+  const lined = displaySeries.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
+  const accumulating = displaySeries.filter((s) => {
     const c = validCount(s)
     return c > 0 && c < MIN_POINTS_FOR_LINE
   })
@@ -74,14 +124,25 @@ export function MetricChart({
   return (
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
       {/*
-        제목만 남긴다. 단위 설명과 "로그축" 뱃지를 늘 띄워 두면 매번 읽히지 않으면서
-        자리만 차지한다. **뜻을 버리지는 않는다** — 제목에 걸어 두어 올려 보면 나오고,
-        차트의 `aria-label` 에도 그대로 들어간다.
+        머리글은 제목과 토글뿐이다. 단위·축 종류·구간·스냅샷 개수를 늘어놓던 줄은 전부
+        뺐다 — 읽는 사람이 쓰는 정보가 아니라 화면을 만든 쪽의 사정이었다. 대신 제목의
+        `title` 속성에 남겨 두어 필요하면 확인할 수 있게 한다.
       */}
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold" title={`${unit} · 세로축은 로그 간격입니다`}>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
           {title}
         </h3>
+        {allowDelta && (
+          <SegmentedControl
+            label={`${title} 증감·총합 전환`}
+            options={[
+              { key: 'total', label: '총합' },
+              { key: 'delta', label: '증감' },
+            ]}
+            value={levelMode}
+            onChange={(key) => setLevelMode(key as LevelMode)}
+          />
+        )}
       </header>
 
       {showLegend && state.status === 'ready' && (
@@ -93,7 +154,7 @@ export function MetricChart({
       ) : state.status === 'error' ? (
         <MetricError height={height} error={state.error} onRetry={state.onRetry} />
       ) : rawMax === 0 ? (
-        <EmptyState height={height}>이 기간에는 집계된 값이 없습니다.</EmptyState>
+        <EmptyState height={height}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
       ) : lined.length === 0 ? (
         /*
           점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
@@ -106,7 +167,7 @@ export function MetricChart({
               {validCount(s)}주차
             </span>
           ))}
-          <span>추세를 그리려면 주간 집계가 {MIN_POINTS_FOR_LINE}번 이상 쌓여야 합니다.</span>
+          <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
         </EmptyState>
       ) : (
         <>
@@ -135,8 +196,10 @@ export function MetricChart({
               +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
               유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
             */
-            maxGapDays={step * 7 + 1}
-            ariaLabel={`${title} 추이 (로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요)`}
+            maxGapDays={maxGapDays}
+            yScale={yScale}
+            yDomainOf={yDomainOf}
+            ariaLabel={`${title} 추이 (${ariaSuffix})`}
           />
           {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
           {accumulating.length > 0 && <AccumulatingNotes series={accumulating} />}
@@ -230,13 +293,11 @@ function MetricError({
 }
 
 /**
- * 차트 자리가 비었을 때.
+ * 그릴 것이 없을 때 자리를 지키는 판.
  *
- * <p>바탕을 반투명하게 깔고 테두리를 점선으로 둔다. 선이 그려진 카드와 **모양으로**
- * 갈려야 "여기는 아직 없다" 가 색을 못 보는 사람에게도 전달된다. 패키지 카드의
- * `EmptyPanel` 과 같은 약속이라 화면 전체에서 빈 자리가 한 가지로 보인다.
- *
- * <p>글자는 흐리게 하지 않는다. 읽으라고 쓴 문장이다 — 바탕만 죽인다.
+ * 반투명한 바탕과 물음표 아이콘을 둔다 — 테두리만 점선인 빈 칸은 "아직 안 그렸나"
+ * 처럼 보여서, 자료를 못 받았다는 사실이 전달되지 않았다. 축적 중처럼 실패가 아닌
+ * 경우에는 `icon={false}` 로 아이콘만 뺀다.
  */
 function EmptyState({
   height,
@@ -244,65 +305,44 @@ function EmptyState({
   children,
 }: {
   height: number
-  /** 위에 동그란 표시를 둘지. 실패·없음에는 두고, 문장이 여럿인 안내에는 뺀다 */
   icon?: boolean
   children: React.ReactNode
 }) {
   return (
     <div
       style={{ height }}
-      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/40 px-4 text-center text-base leading-relaxed text-muted-foreground"
+      className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed bg-muted/40 px-4 text-center text-base leading-relaxed text-muted-foreground"
     >
-      {icon && <CircleAlertIcon className="size-7 text-muted-foreground/70" aria-hidden />}
+      {icon && <CircleAlertIcon aria-hidden className="size-5 opacity-50" />}
       {children}
     </div>
   )
 }
 
 /**
- * 받는 중.
+ * 불러오는 동안의 차트 자리.
  *
- * <p>회색 덩어리 하나를 두는 것보다 **들어올 그림의 얼개**를 보여 준다 — 가로 눈금선과
- * 물결 하나. 무엇이 올지 미리 알면 기다림이 짧게 느껴지고, 자리가 그대로라 자료가
- * 도착해도 화면이 튀지 않는다.
- *
- * <p>움직임은 `opacity` 하나만 쓴다(`animate-pulse`). 합성 단계에서 끝나므로 옆의
- * 차트가 폭을 실측하는 중에도 레이아웃을 건드리지 않는다. `prefers-reduced-motion`
- * 이면 Tailwind 가 알아서 멈춘다.
+ * 회색 사각형 하나를 두면 다음에 올 것이 무엇인지 알 수 없어 화면이 한 번 덜컥인다.
+ * 눈금선과 선 하나를 미리 같은 자리에 그려 두면 자료가 도착했을 때 바뀌는 것은 선의
+ * 모양뿐이다.
  */
 function ChartLoading({ height }: { height: number }) {
   return (
-    <div
-      style={{ height }}
-      role="status"
-      aria-label="추이를 불러오는 중"
-      className="relative w-full overflow-hidden rounded-xl border bg-muted/30"
-    >
+    <div className="w-full animate-pulse" style={{ height }} aria-hidden>
       <svg
-        className="size-full animate-pulse text-muted-foreground/35"
-        viewBox="0 0 100 40"
+        viewBox="0 0 320 100"
         preserveAspectRatio="none"
-        aria-hidden
+        className="size-full text-muted-foreground/25"
       >
-        {[10, 20, 30].map((y) => (
-          <line
-            key={y}
-            x1="0"
-            x2="100"
-            y1={y}
-            y2={y}
-            stroke="currentColor"
-            strokeWidth="1"
-            vectorEffect="non-scaling-stroke"
-          />
+        {[20, 45, 70, 95].map((y) => (
+          <line key={y} x1="0" x2="320" y1={y} y2={y} stroke="currentColor" strokeWidth="1" />
         ))}
         <path
-          d="M0 30 C 12 26, 20 32, 30 24 S 48 12, 60 18 S 80 8, 100 12"
+          d="M0 82C40 78 60 60 100 56S160 62 200 44S270 26 320 18"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
         />
       </svg>
     </div>

@@ -65,7 +65,7 @@ const Y_PAD = 0.08
 const Y_PAD_CLAMP = 0.15
 
 /**
- * y 도메인. **화면에 그리는 구간의 최솟값·최댓값에서 만든다.**
+ * 절대값 y 도메인. **화면에 그리는 구간의 최솟값·최댓값에서 만든다.**
  *
  * 예전에는 하한을 0 으로 못 박았다("잘린 축은 변화를 과장한다"). 막대처럼 절대량을
  * 읽는 그림에서는 맞는 원칙이지만, 여기는 <b>구간을 골라 추세를 보는 선그래프</b>다.
@@ -73,7 +73,8 @@ const Y_PAD_CLAMP = 0.15
  * 쓰고 <b>일자로 보인다</b> — 실측이다. 구간을 좁히는 조작 자체가 무의미해진다.
  *
  * <p>대신 축 눈금이 0 에서 시작하지 않는다는 사실이 <b>눈금 라벨에 그대로 드러난다.</b>
- * 맨 아래 라벨이 0 이 아닌 것을 읽는 사람이 본다.
+ * 맨 아래 라벨이 0 이 아닌 것을 읽는 사람이 본다. 축을 따로 잘랐다고 표시하지 않는 것은
+ * 그 때문이다 — 숨긴 것이 없다.
  *
  * <p>여백은 로그 공간에서 8% 주되 선형 값 기준 15% 로 자른다. 자르지 않으면 몇 자릿수를
  * 오가는 시리즈에서 위쪽 여백이 폭발한다 — 최대 98만인 자료에 1.7M 눈금이 붙는다.
@@ -105,6 +106,40 @@ export function extentY(series: ChartSeries[]): Domain {
   return [bottom, top]
 }
 
+/** 축 최댓값을 1·2·2.5·5 배수로 올린다. */
+export function niceMax(v: number): number {
+  if (v <= 0) return 1
+  const mag = Math.pow(10, Math.floor(Math.log10(v)))
+  const n = v / mag
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
+  return step * mag
+}
+
+/** `niceMax` 의 부호 있는 버전. 증감 축의 아래쪽(음수) 여유를 같은 규칙으로 올린다. */
+function niceBound(v: number): number {
+  if (v === 0) return 0
+  return v < 0 ? -niceMax(-v) : niceMax(v)
+}
+
+/**
+ * 증감(전 스냅샷 대비 순증감) 그래프의 도메인. **0 은 항상 포함한다** — 여기서 0 은 임의의
+ * 바닥이 아니라 "변화 없음"이라는 실제 기준선이다. 증가와 감소가 같은 그림 안에서 부호로
+ * 갈리려면 0 이 화면 안에 있어야 한다. 위아래 모두 `niceMax` 로 올려 음수 구간도 대칭적으로
+ * 여유를 둔다.
+ */
+export function deltaExtentY(series: ChartSeries[]): Domain {
+  let lo = 0
+  let hi = 0
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  return [niceBound(lo), niceBound(hi)]
+}
+
 /**
  * 눈금 값. 로그 공간에서 고르게 나눈다 — 축이 로그이므로 화면에서도 고르게 놓인다.
  *
@@ -122,6 +157,13 @@ export function ticksY([lo, hi]: Domain, count = 3): number[] {
   return unique.length >= 2 ? unique : out
 }
 
+/** 증감처럼 선형 공간이 맞는 축의 눈금. 로그 변환을 거치지 않는다. */
+export function ticksYLinear([lo, hi]: Domain, count = 3): number[] {
+  const out: number[] = []
+  for (let i = 0; i <= count; i++) out.push(lo + ((hi - lo) * i) / count)
+  return out
+}
+
 /**
  * y 눈금 라벨.
  *
@@ -129,14 +171,21 @@ export function ticksY([lo, hi]: Domain, count = 3): number[] {
  * 1,013,000 이 둘 다 "1.0M" 이 된다. 그때만 단위를 축 전체로 고정하고 소수 자리를
  * 눈금 간격에 맞춘다. 한 자릿수 넘게 벌어진 축은 눈금마다 자릿수가 달라야 읽히므로
  * `compact` 를 그대로 쓴다.
+ *
+ * <p>증감 축은 음수가 나온다 — 부호를 떼고 크기만 재서 자릿수를 고른 뒤 다시 붙인다.
  */
 export function formatTick(v: number, [lo, hi]: Domain, count = 3): string {
-  if (lo <= 0 || hi / lo >= 10) return compact(v)
-  const unit = hi >= 1_000_000 ? 1_000_000 : hi >= 1_000 ? 1_000 : 1
-  const suffix = unit === 1_000_000 ? 'M' : unit === 1_000 ? 'k' : ''
-  const step = (hi - lo) / count / unit
-  const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3
-  return `${(v / unit).toFixed(decimals)}${suffix}`
+  const span = Math.max(Math.abs(lo), Math.abs(hi))
+  const sign = v < 0 ? '-' : ''
+  const a = Math.abs(v)
+  if (lo > 0 && hi / lo < 10) {
+    const unit = hi >= 1_000_000 ? 1_000_000 : hi >= 1_000 ? 1_000 : 1
+    const suffix = unit === 1_000_000 ? 'M' : unit === 1_000 ? 'k' : ''
+    const step = (hi - lo) / count / unit
+    const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3
+    return `${(v / unit).toFixed(decimals)}${suffix}`
+  }
+  return span === 0 ? '0' : `${sign}${compact(a)}`
 }
 
 export const scaleX = (v: number, d: Domain, b: Box) =>
@@ -151,6 +200,13 @@ export const scaleY = (v: number, d: Domain, b: Box) => {
   const lHi = toLog(d[1])
   return lHi === lLo ? b.y + b.h : b.y + b.h - ((toLog(v) - lLo) / (lHi - lLo)) * b.h
 }
+
+/**
+ * 로그 없이 그대로 선형 보간한다. 증감 그래프에 쓴다 — 음수가 나올 수 있고 로그는 음수를
+ * 정의하지 못한다.
+ */
+export const scaleYLinear = (v: number, d: Domain, b: Box) =>
+  d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
 
 /**
  * 관측 공백으로 볼 간격의 기본값(일).
@@ -182,6 +238,7 @@ const broken = (prev: TimePoint | null, cur: TimePoint, maxGapDays: number) =>
  * @param maxGapDays 이 일수를 넘게 벌어진 이웃은 잇지 않는다. 화면이 스냅샷을 솎아 그릴
  *                   때는(`sampleEvery`) 정상 간격 자체가 넓어지므로 호출하는 쪽이 그 간격에
  *                   맞춰 올려 준다. 안 그러면 4주 간격 보기에서 모든 구간이 끊긴다.
+ * @param yScaleFn   기본은 로그(`scaleY`). 지수·증감 그래프는 `scaleYLinear` 를 넘긴다.
  */
 export function buildLine(
   points: TimePoint[],
@@ -189,6 +246,7 @@ export function buildLine(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   let d = ''
   let pen = false
@@ -201,7 +259,7 @@ export function buildLine(
     }
     if (broken(prev, p, maxGapDays)) pen = false
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `${pen ? 'L' : 'M'}${x} ${y}`
     pen = true
     prev = p
@@ -216,6 +274,7 @@ export function buildArea(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   const base = (b.y + b.h).toFixed(2)
   let d = ''
@@ -242,7 +301,7 @@ export function buildArea(
     if (broken(prev, p, maxGapDays)) flush()
     run.push({
       x: scaleX(ms(p.t), xd, b).toFixed(2),
-      y: scaleY(p.v, yd, b).toFixed(2),
+      y: yScaleFn(p.v, yd, b).toFixed(2),
     })
     prev = p
   }
@@ -288,15 +347,56 @@ export function windowSeries(
  * 길이 0 짜리 선분에 `stroke-linecap="round"` + `vector-effect="non-scaling-stroke"`
  * 를 주면 뷰박스 왜곡과 무관하게 화면상 정원이 찍힌다.
  */
-export function buildPoints(points: TimePoint[], xd: Domain, yd: Domain, b: Box): string {
+export function buildPoints(
+  points: TimePoint[],
+  xd: Domain,
+  yd: Domain,
+  b: Box,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
+): string {
   let d = ''
   for (const p of points) {
     if (p.v === null) continue
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `M${x} ${y}L${x} ${y}`
   }
   return d
+}
+
+/**
+ * 화면에 그려진(windowed+sampled) 연속 점끼리의 차이(증감 모드).
+ *
+ * **부르는 쪽은 반드시 화면에 그린 것과 같은 시리즈를 넘겨야 한다** — `deltaOf`(311c)와
+ * 같은 이유다. 표시 간격을 4주로 솎아 보고 있으면 이 함수가 만드는 것도 "4주 간격 증감"이고,
+ * 그게 화면 x축이 실제로 보여주는 간격과 일치한다.
+ *
+ * 결측이거나 이웃과 너무 벌어진(`maxGapDays` 초과) 점은 증감을 셀 수 없다 — 값을 0으로
+ * 채우지 않고 그 점의 증감을 결측으로 남긴다. 창의 첫 점은 비교할 이전 값이 없어 항상
+ * 결측이다.
+ */
+export function deltaSeriesOf(
+  series: ChartSeries[],
+  maxGapDays: number = MAX_GAP_DAYS,
+): ChartSeries[] {
+  return series.map((s) => {
+    const out: TimePoint[] = []
+    let prev: TimePoint | null = null
+    for (const p of s.points) {
+      if (p.v === null) {
+        out.push({ t: p.t, v: null })
+        prev = null
+        continue
+      }
+      if (prev === null || broken(prev, p, maxGapDays)) {
+        out.push({ t: p.t, v: null })
+      } else {
+        out.push({ t: p.t, v: p.v - (prev.v as number) })
+      }
+      prev = p
+    }
+    return { ...s, points: out }
+  })
 }
 
 /**

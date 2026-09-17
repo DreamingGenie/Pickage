@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ExternalLinkIcon } from 'lucide-react'
+import { ExternalLinkIcon } from 'lucide-react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
@@ -16,27 +16,25 @@ import { cn } from '@/lib/utils'
 /**
  * 패키지 카드.
  *
- * 기본은 전부 펼침. 여러 개를 동시에 펼 수 있고, 직접 접기 전까지 닫히지 않는다.
+ * 접힘 여부는 **바깥에서 정한다** — 칩 줄에서 고른 패키지가 펼쳐진다(`EcosystemView`).
+ * 카드 자체에는 토글이 없다. 같은 상태를 두 곳에서 바꾸면 칩이 가리키는 것과 카드가
+ * 어긋나고, 접힌 카드가 button 이면 그 안의 버전 선택기가 button 중첩이 된다.
  *
- * 접힘: 패키지 이름과 최신 버전. 그리고 그 패키지 선이 차트에서 물러난다.
- * 펼침: 뱃지 · Dependents 증감 · Version Share 상세.
- *
- * 접힘 상태에도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
+ * 접힘: 머리글만. 그래도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
  * 알 수 없으면 접힌 목록이 쓸모없어진다.
  */
 export function PackageCard({
   model,
   index,
   expanded,
-  onToggle,
   selectedVersion,
   onVersionChange,
   versionShareState = { status: 'ready' },
 }: {
   model: PackageCardModel
   index: number
+  /** 펼침 여부. 칩 줄에서 이 패키지를 골랐는가(아무것도 안 골랐으면 전부 펼침). */
   expanded: boolean
-  onToggle: () => void
   /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
   selectedVersion: MajorSelection
   onVersionChange: (next: MajorSelection) => void
@@ -47,32 +45,27 @@ export function PackageCard({
   const isBase = index === 0
   const delta = model.dependentsDelta
 
-  const license = model.licenses.length ? model.licenses.join(' · ') : null
-
   /*
-    머리글은 **세 덩어리**다. 접기 버튼이 이름 쪽만 감싸고, 저장소 링크는 그 오른쪽에
-    형제로 선다 — button 안의 a 는 HTML 이 허용하지 않고, 넣더라도 링크를 누를 때 클릭이
-    바깥으로 새어 카드가 같이 접힌다.
-
-    오른쪽 끝의 버전·화살표도 눌러서 접히게 두되 보조기술에는 숨긴다. 같은 일을 하는
-    버튼이 둘로 읽히면 "접기" 가 두 번 들린다.
+    머리글. 이름 아래 줄에 라이선스와 버전을 둔다 — 라이선스는 "이걸 써도 되나" 를
+    가르는 값이라 카드 맨 아래에 있으면 스크롤해야 보였다. 저장소는 주소를 그대로
+    늘어놓지 않고 아이콘 하나로 줄여 이름에서 떨어진 오른쪽 끝에 둔다.
   */
-  const title = (
-    <span className="flex min-w-0 items-start gap-2.5">
-      <svg width="20" height="8" aria-hidden className="mt-2 shrink-0">
-        <line
-          x1="0"
-          y1="4"
-          x2="20"
-          y2="4"
-          stroke={style.color}
-          strokeWidth="2.6"
-          strokeDasharray={style.dash}
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-2.5">
+  const header = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <svg width="20" height="8" aria-hidden className="shrink-0">
+            <line
+              x1="0"
+              y1="4"
+              x2="20"
+              y2="4"
+              stroke={style.color}
+              strokeWidth="2.6"
+              strokeDasharray={style.dash}
+              strokeLinecap="round"
+            />
+          </svg>
           <span className="truncate font-mono text-base font-medium">{model.key}</span>
           {isBase && (
             <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
@@ -84,68 +77,26 @@ export function PackageCard({
               폐기 표시
             </span>
           )}
+        </div>
+        <span className="pl-[30px] font-mono text-xs text-muted-foreground/60">
+          {model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'} · v
+          {model.latestVersion}
         </span>
-        {/* 라이선스. 이름을 읽는 데 방해가 되면 안 되므로 한 단계 더 죽인다 */}
-        {license && (
-          <span className="truncate font-mono text-xs text-muted-foreground/60">{license}</span>
-        )}
-      </span>
-    </span>
-  )
-
-  const header = (
-    <div className="flex items-start gap-3">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex min-w-0 items-start text-left"
-      >
-        {title}
-      </button>
+      </div>
       <RepositoryLink url={model.repoUrl} name={model.key} />
-      <button
-        type="button"
-        onClick={onToggle}
-        tabIndex={-1}
-        aria-hidden
-        className="ml-auto flex shrink-0 items-center gap-2 pt-0.5"
-      >
-        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
-        <ChevronDownIcon
-          aria-hidden
-          className={cn(
-            'size-4 text-muted-foreground transition-transform duration-200',
-            expanded && 'rotate-180',
-          )}
-        />
-      </button>
     </div>
   )
 
   if (!expanded) {
     return (
-      <div className="rounded-2xl border bg-background px-6 py-5 transition-colors duration-200 hover:border-foreground/30 hover:bg-muted/30">
+      <div className="rounded-2xl border bg-background px-6 py-5 transition-colors duration-200">
         {header}
       </div>
     )
   }
 
-  /*
-    펼친 카드는 button 이 아니라 div 다. 안에 표시 버전 선택기가 들어가는데,
-    button 안의 button 은 HTML 이 허용하지 않고 클릭이 바깥으로 새어 카드가 접힌다.
-    접기는 머리글만 담당한다.
-  */
   return (
-    <div
-      /*
-        펼칠 때만 살짝 들어온다. `transform`(translate)과 `opacity` 만 건드려 합성
-        단계에서 끝나므로 재배치가 일어나지 않는다. 높이를 전이하면 매 프레임 레이아웃이
-        다시 계산되고, 옆의 차트가 폭을 실측하고 있어 그때마다 같이 다시 그려진다.
-        `animate-in` 은 dialog·sheet 와 같은 tw-animate-css 유틸이다.
-      */
-      className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
-    >
+    <div className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
       {header}
 
       {model.description && (
@@ -157,45 +108,32 @@ export function PackageCard({
       {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
         {/*
-          값이 없을 때 `—` 만 찍으면 "0 인가" 와 "못 구했나" 가 구분되지 않는다. 위 네 타일이
-          이미 그 구분을 모양으로 하고 있으므로 같은 타일을 쓴다 — 빈 자리 모양이 화면에
-          하나뿐이어야 사용자가 다른 뜻으로 읽지 않는다.
+          값이 없을 때를 위 네 타일과 **같은 모양**으로 그린다. 여기만 "—" 로 두면 같은
+          카드 안에서 빈 자리 모양이 둘이 되어, 사용자가 둘을 다른 뜻으로 읽는다.
+
+          있을 때는 증감 자체가 결론이라 부호와 색을 값에 바로 붙인다 — 늘면 붉게,
+          줄면 푸르게. 날짜 구간은 적지 않는다. 이 카드는 화면에 뜬 구간을 그대로 따라가고,
+          그 구간은 바로 위 조작줄이 이미 보여 주고 있다.
         */}
         {delta === null ? (
-          <MissingTile
-            label="Dependents 증감"
-            title="이 구간에 값이 있는 점이 둘 이상 있어야 증감을 낼 수 있습니다"
-          />
+          <MissingTile label="Dependents 증감" title="증감을 내려면 관측치가 둘 이상 필요합니다" />
         ) : (
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-base text-muted-foreground">Dependents 증감</span>
-            <span className="flex items-baseline gap-2">
-              {/* 뱃지 타일의 변량과 같은 약속 — 오름은 붉게, 내림은 푸르게, 부호를 항상 붙인다 */}
-              <span
-                className={cn(
-                  'font-mono text-lg leading-none font-semibold tabular-nums',
-                  delta > 0
-                    ? 'text-rose-600 dark:text-rose-400'
-                    : delta < 0
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-muted-foreground',
-                )}
-              >
-                {delta > 0 ? '+' : delta < 0 ? '−' : '±'}
-                {Math.abs(delta).toLocaleString()}
-              </span>
-              <span className="text-base text-muted-foreground">화면에 뜬 구간</span>
+            <span
+              className={cn(
+                'font-mono text-lg leading-none font-semibold tabular-nums',
+                delta > 0
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : delta < 0
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {delta > 0 ? '+' : delta < 0 ? '−' : '±'}
+              {Math.abs(delta).toLocaleString()}
             </span>
           </div>
-        )}
-        {/*
-          311c — 표시 간격에 따라 "화면에 뜬 첫 점"이 구간 시작과 정확히 같지 않을 수 있다
-          (`sampleEvery`가 뒤에서부터 솎기 때문). 그래서 실제로 증감을 낸 두 날짜를 그대로 적는다.
-        */}
-        {delta !== null && model.dependentsDeltaFrom && model.dependentsDeltaTo && (
-          <p className="-mt-1.5 font-mono text-base text-muted-foreground">
-            {model.dependentsDeltaFrom} ~ {model.dependentsDeltaTo}
-          </p>
         )}
 
         <VersionPicker
@@ -214,10 +152,9 @@ export function PackageCard({
         ) : versionShareState.status === 'error' ? (
           <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
         ) : model.versionShare.length === 0 ? (
-          /* 도넛이 들어갈 자리라 넓다. 한 줄 문장만 두면 카드에 구멍이 뚫린 것처럼 보인다 */
           <EmptyPanel
-            message="이 시점의 버전 분포 자료가 없습니다"
-            hint="다음 집계에서 채워집니다"
+            message="버전 분포를 불러올 수 없습니다"
+            hint="이 시점에 집계된 자료가 없습니다"
           />
         ) : (
           <>
@@ -261,25 +198,23 @@ export function PackageCard({
 /**
  * 저장소 바로가기.
  *
- * <p>주소를 그대로 적지 않는다. `https://github.com/...` 는 한 줄을 다 먹으면서도
- * 누를 수 없었고, 잘라 쓰면 어디로 가는지 알 수 없다. 아이콘 버튼으로 두고 주소는
- * `title` 로 옮긴다 — 확인하고 싶은 사람은 올려 보면 된다.
+ * 주소를 그대로 적지 않는다 — 카드 폭에서 잘려 읽을 수도 없고, 읽을 필요도 없다.
  *
- * <p><b>http(s) 가 아니면 아예 그리지 않는다.</b> 주소는 수집한 자료라 우리가 쓴 값이
- * 아니다. `javascript:` 같은 스킴이 섞여 들어오면 클릭 한 번이 스크립트 실행이 된다.
+ * `http(s)` 로 시작하는 주소만 링크로 만든다. 수집원이 `git@…` 이나 `git+ssh://` 를
+ * 그대로 주는 경우가 있는데, 그걸 `href` 에 넣으면 눌러도 아무 일이 안 일어난다.
  */
 function RepositoryLink({ url, name }: { url: string | null; name: string }) {
-  if (!url || !/^https?:\/\//i.test(url)) return null
+  if (!url || !/^https?:\/\//.test(url)) return null
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      title={url}
-      aria-label={`${name} 저장소 열기 (새 탭)`}
-      className="ml-auto inline-flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
+      title={`${name} 저장소 열기`}
+      aria-label={`${name} 저장소 열기`}
+      className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
     >
-      <ExternalLinkIcon className="size-4" aria-hidden />
+      <ExternalLinkIcon aria-hidden className="size-4" />
     </a>
   )
 }
