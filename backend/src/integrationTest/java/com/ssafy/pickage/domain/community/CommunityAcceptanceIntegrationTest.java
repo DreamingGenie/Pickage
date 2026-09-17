@@ -170,14 +170,20 @@ class CommunityAcceptanceIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    /**
+     * 이 목록은 {@code deploy/local/seed/*.sql} 의 TRUNCATE 문과 **같아야 한다.** package 를
+     * 참조하는 표를 새로 만들면 여기에도 넣는다 — TRUNCATE 는 참조하는 표가 비어 있어도 같이
+     * 지정하지 않으면 거절한다. community_snapshot 은 V3(S15P21A506-315),
+     * dependent_transition 은 V8(S15P21A506-361)에서 이 이유로 추가됐다.
+     */
     @Test
     void R14_existingSeedTruncateMustRemainExecutable() {
         assertDoesNotThrow(
                 () ->
                         jdbc.execute(
-                                "TRUNCATE community_snapshot, similar_package,"
-                                        + " package_version_snapshot, package_snapshot, version,"
-                                        + " package"));
+                                "TRUNCATE community_snapshot, dependent_transition,"
+                                        + " similar_package, package_version_snapshot,"
+                                        + " package_snapshot, version, package"));
     }
 
     @Test
