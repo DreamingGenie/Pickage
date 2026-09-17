@@ -48,6 +48,44 @@ BUCKET = 'pickage-curated'
 #   object_name  fixed name under data/. Only for a consumer that hardcodes it.
 #   pointer      publish _current.json at the prefix root.
 DATASETS = {
+    'dependent-transitions': {
+        'root': 'data/dependent_transitions',
+        'prefix': 'depsdev/v1/dependent-transitions',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_dependent_transitions.py',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)'
+                  ' + datasets/targets/rank_top100k_20260902.csv (대상 목록)',
+        'readme': 'datasets/dependent_transitions_260917/README.md',
+        'jira': ['S15P21A506-195', 'S15P21A506-196'],
+        'notes': [
+            '"X 를 쓰던 사람들이 이 구간에 어떻게 움직였나". (period, target, kind) 1행'
+            ' 899,964 = 대상 99,996 × regular/peer/optional × 1y/3y/5y. 구간 양 끝의 대표'
+            ' 릴리스에서 선언 집합을 비교해 dependent 를 **이름으로** 가른다.',
+            '범주가 넷인 것이 이 데이터셋의 핵심이다. unobserved(관측 불가)는 양 끝에 선언이'
+            ' 있는데 구간 안에 대표 릴리스가 바뀌지 않은 것 — 변할 기회 자체가 없었다.'
+            ' **유지로 세면 안 된다.** 1년 구간에서 전체의 75.3%가 여기 들어가고, 유지로'
+            ' 세면 유지율이 87.2% 가 아니라 98.8% 로 보인다.',
+            'inflow_new 는 inflow 의 부분집합이다. T1 때 아직 없던 패키지의 유입이라'
+            ' 채택이 아니라 생태계 성장이다. 둘을 합쳐 읽으면 성장이 채택으로 둔갑한다.',
+            'MVP 의 Snapshot 총수 delta 와 다른 지표다. DEC-DEPENDENCY-DELTA-20260910-01 에'
+            ' 따라 delta = 유입 - 이탈 을 전제하지 않는다 — 모집단도 계산도 다르다.',
+            'devDependencies 는 원천(NPMRequirements)에 없다. eslint·jest·prettier 류의'
+            ' 유지·유입·이탈을 이 결과로 읽으면 안 된다. dev 기준은 registry 수집분에서'
+            ' 별도 회차로 낸다(S15P21A506-280·-366).',
+            '대표 릴리스는 published_at <= T 중 **ordinal 최고**다. published_at 은 시점'
+            ' 필터에만 쓴다 — 같은 발행시각에 전환점이 둘 이상인 그룹이 1,001개(699 패키지)'
+            ' 있어 발행시각으로 고르면 무엇이 뽑힐지 정해지지 않는다.',
+            'retained + inflow + unobserved(= T2 선언자 수)가 같은 버킷의'
+            ' depsdev/v1/package-dependents/ 의 n_dependents 와 299,988행 중 136행 어긋난다.'
+            ' 저쪽이 T2 컷오프 없이 전체 ordinal 최대를 대표로 쓰는데, snapshot=2026-08-31'
+            ' 파티션에 2026-09-01 00:00~02:49 발행분 1,213행이 섞여 있어 845 패키지의 대표가'
+            ' 갈린다. **스냅샷 경계를 지키는 쪽은 이 데이터셋이다.**',
+            '상위 5,000 대상만 담은 요약 CSV·stats.json 은 git'
+            ' datasets/dependent_transitions_260917/ 에 있어 여기 올리지 않음.'
+            ' 전량 899,964행은 이 parquet 에만 있다.',
+        ],
+    },
     'deprecated-replacement': {
         'root': 'data/deprecated_replacement',
         'prefix': 'depsdev/v1/deprecated-replacement',
