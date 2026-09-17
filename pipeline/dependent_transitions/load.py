@@ -75,6 +75,9 @@ PARQUET = "data/dependent_transitions.parquet"
 RUN_FILES = (PARQUET, "run_manifest.json")
 
 SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,200}\Z")
+# 구간 끝(t2)의 시각. 빌더의 T2 와 같은 값이어야 한다
+# (pipeline/duckdb/build_dependent_transitions.py 의 T2 = "... 23:59:59").
+SNAPSHOT_END_TIME = "23:59:59"
 SNAPSHOT = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 
 # 이름에서 유도해 다른 데이터셋과 겹치지 않는다. similar_package 는 상수 5150211 을 쓰는데,
@@ -240,8 +243,12 @@ INSERT INTO public.etl_load_execution
 VALUES (:'execution_id', '{DATASET}', 'PREPARING', :'snapshot_at', :'snapshot_timestamp',
         :'curated_run_id', :'run_prefix', :'manifest_sha256', :'contract_sha256',
         :'manifest'::jsonb, :'expected_counts'::jsonb, :'attempt_id')
+-- snapshot_at·snapshot_timestamp 도 함께 갱신한다. 같은 execution_id 면 값이 같으므로
+-- 평소에는 무해하고, 적재기가 시각 계약을 고쳤을 때(2026-09-17 t2 기준으로 정정) 재적재로
+-- 반영된다. 빼 두면 첫 실행의 값이 굳어 코드와 DB 가 조용히 어긋난다.
 ON CONFLICT (execution_id) DO UPDATE
    SET status='PREPARING', active_attempt_id=EXCLUDED.active_attempt_id,
+       snapshot_at=EXCLUDED.snapshot_at, snapshot_timestamp=EXCLUDED.snapshot_timestamp,
        manifest_sha256=EXCLUDED.manifest_sha256, contract_sha256=EXCLUDED.contract_sha256,
        input_metadata=EXCLUDED.input_metadata, expected_counts=EXCLUDED.expected_counts,
        error_message=NULL, updated_at=clock_timestamp();
@@ -251,9 +258,16 @@ INSERT INTO public.etl_load_attempt
 VALUES (:'attempt_id', :'execution_id', 'PREPARING', 'VALIDATE_INPUT', :'contract_sha256');
 
 -- 전량 교체. 한 회차가 표 전체를 대신하므로 부분 갱신이 없다 — 섞이면 구간마다 기준일이
--- 어긋난다. TRUNCATE 는 PostgreSQL 에서 트랜잭션 안전하고 90만 행 DELETE 보다 빠르다.
+-- 어긋난다.
+--
+-- **TRUNCATE 가 아니라 DELETE 다.** TRUNCATE 가 90만 행에서 더 빠르지만 ACCESS EXCLUSIVE
+-- 락을 잡고 트랜잭션 끝까지 유지해, 적재가 도는 내내(실측 15.5초) 이 표의 모든 조회가
+-- 멈춰 선다. DELETE 는 SHARE ROW EXCLUSIVE 에서 끝나 MVCC 로 조회가 그대로 나간다.
+-- advisory lock 은 적재끼리만 막을 뿐 조회는 모른다. 몇 초 느린 것보다 API 가 안 멈추는
+-- 쪽이 낫다 — similar_package/load.py 가 같은 전량 교체를 DELETE 로 하는 이유다.
+-- 남는 dead tuple 은 아래 VACUUM 이 정리한다.
 LOCK TABLE public."{TABLE}", public.etl_dataset_current IN SHARE ROW EXCLUSIVE MODE;
-TRUNCATE public."{TABLE}";
+DELETE FROM public."{TABLE}";
 INSERT INTO public."{TABLE}"
     (package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2)
 SELECT package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2
@@ -374,8 +388,10 @@ def main(argv=None) -> int:
         "-v", f"execution_id={args.execution_id}",
         "-v", f"attempt_id={attempt_id}",
         "-v", f"snapshot_at={args.snapshot}",
-        # 이 데이터셋의 시각 기준은 구간 끝(t2)이고 그것이 곧 스냅샷 날짜다.
-        "-v", f"snapshot_timestamp={args.snapshot}T00:00:00",
+        # 이 데이터셋의 시각 기준은 구간 끝(t2)이고 그것이 곧 스냅샷 날짜다. 표의 t2 와
+        # **같은 값**을 쓴다 — 00:00:00 을 넣으면 그날 자정부터 23:59:59 까지의 발행분이
+        # 들어 있는데도 시점을 하루치 적게 잡아, 다른 데이터셋과 대조할 때 경계가 어긋난다.
+        "-v", f"snapshot_timestamp={args.snapshot}T{SNAPSHOT_END_TIME}",
         "-v", f"curated_run_id={args.run_id}",
         "-v", f"run_prefix={prefix}",
         "-v", f"manifest_sha256={hashlib.sha256(body).hexdigest()}",
