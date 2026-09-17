@@ -18,7 +18,20 @@ import com.ssafy.pickage.global.exception.ExceptionType;
  * 실제로 파서 오류가 났다. 파이프라인·DB·API 가 같은 이름을 쓰도록 여기서도 {@code period} 다.
  *
  * <p>값은 DB 의 {@code CK_DEPENDENT_TRANSITION_PERIOD} 와 같아야 한다. 프리셋을 늘릴 때는
- * <b>세 곳을 함께</b> 고친다 — 이 목록 · 그 제약 · 파이프라인의 {@code PERIOD_YEARS}.
+ * <b>네 곳을 함께</b> 고친다 — 이 목록 · 그 제약 · 파이프라인의 {@code PERIOD_YEARS} ·
+ * 그리고 <b>새 구간의 행이 실제로 적재된 뒤에 배포한다.</b>
+ *
+ * <p>마지막 항목이 순서 문제라 놓치기 쉽다. 프리셋만 먼저 늘리고 파이프라인이 아직 그
+ * 구간을 내지 않은 상태로 배포하면, 조회는 빈 결과가 되는데
+ * {@code PackageQueryRepository#hasAnyTransition()} 은 <b>구간을 보지 않고</b> 표에 뭐라도
+ * 있는지만 확인하므로 참을 돌려준다. 그 결과 계산 대상인 패키지가
+ * {@code NOT_COMPUTED}(준비 중)가 아니라 {@code OUT_OF_SCOPE}(대상 아님)로 나가고,
+ * 화면은 "이 패키지는 분석 대상이 아닙니다" 를 영영 띄운다.
+ *
+ * <p>그 검사를 구간별로 바꾸지 않은 것은 의도다 — PK 가
+ * {@code (package_id, period, kind)} 라 {@code period} 단독 조건은 인덱스를 타지 못하고,
+ * 행이 구간별로 뭉쳐 있어 순차 스캔이 수십만 행을 훑는다. 조회 결과가 빌 때마다 그 비용을
+ * 내는 것보다, 프리셋을 늘리는 드문 일에 순서를 지키는 쪽이 싸다.
  */
 public enum TransitionPeriod {
 

@@ -1,5 +1,6 @@
 package com.ssafy.pickage.domain.packages;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -149,8 +150,14 @@ class TransitionsControllerIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.series[3].name").value("out-of-scope-pkg"))
 			.andExpect(jsonPath("$.data.series[3].data_status").value("OUT_OF_SCOPE"))
-			.andExpect(jsonPath("$.data.series[3].retained").doesNotExist())
-			.andExpect(jsonPath("$.data.series[3].inflow_adopted").doesNotExist());
+			// doesNotExist() 가 아니라 value(nullValue()) 다. 앞엣것은 **값이 null 일 때도
+			// 통과해서** "키는 있고 값이 null" 과 "키가 아예 없다" 를 구분하지 못한다.
+			// 이 계약은 키가 있어야 성립한다 — 받는 쪽이 0 과 "세어 보지 않음" 을 가르려면
+			// 필드가 보여야 한다. TransitionsResponse.Series 의 @JsonInclude(ALWAYS) 가
+			// 그것을 보장하는데, 바깥 레코드의 NON_NULL 옆에 있어 중복처럼 보이고 지워지기
+			// 쉽다. 지워지는 순간 여기서 걸린다.
+			.andExpect(jsonPath("$.data.series[3].retained").value(nullValue()))
+			.andExpect(jsonPath("$.data.series[3].inflow_adopted").value(nullValue()));
 	}
 
 	@Test
@@ -173,7 +180,12 @@ class TransitionsControllerIntegrationTest {
 		mockMvc.perform(get("/api/packages/transitions").param("names", "react").param("period", "1y"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.series[0].data_status").value("NOT_COMPUTED"))
-			.andExpect(jsonPath("$.data.series[0].retained").doesNotExist())
+			// 수는 **키가 있고 값이 null** 이다 (Series 가 @JsonInclude(ALWAYS)).
+			.andExpect(jsonPath("$.data.series[0].retained").value(nullValue()))
+			// t1·t2 는 **키 자체가 없다** (바깥 레코드가 @JsonInclude(NON_NULL)).
+			// 둘이 일부러 다르다 — 수는 "세어 보지 않았다" 를 보여야 하고, 기준일은
+			// 보여 줄 것이 없으면 아예 내보내지 않는다. doesNotExist() 는 두 경우를
+			// 구분하지 못하므로 위아래 단언을 바꿔 쓰면 안 된다.
 			.andExpect(jsonPath("$.data.t1").doesNotExist())
 			.andExpect(jsonPath("$.data.t2").doesNotExist());
 	}

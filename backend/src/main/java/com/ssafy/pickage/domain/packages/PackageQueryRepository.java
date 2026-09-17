@@ -445,6 +445,11 @@ public class PackageQueryRepository {
 	 *
 	 * <p>{@code LIMIT 1} 이라 행 수를 세지 않는다. 조회 결과가 비었을 때만 부르므로
 	 * 정상 경로에는 비용이 없다.
+	 *
+	 * <p><b>구간을 보지 않는다.</b> 그래서 "어떤 구간은 적재됐고 어떤 구간은 아직" 인 상태를
+	 * 가려내지 못한다 — 새 프리셋을 파이프라인보다 먼저 배포하면 그 구간 조회가
+	 * {@code NOT_COMPUTED} 가 아니라 {@code OUT_OF_SCOPE} 로 나간다. 이유와 대신 지킬 순서는
+	 * {@link TransitionPeriod} 의 클래스 주석에 있다.
 	 */
 	private static final String ANY_TRANSITION_SQL =
 		"SELECT EXISTS (SELECT 1 FROM dependent_transition LIMIT 1)";
