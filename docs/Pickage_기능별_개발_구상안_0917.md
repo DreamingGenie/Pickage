@@ -1,7 +1,7 @@
 # Pickage 기능별 개발 구상안 0917
 
-작성 기준일: 2026-09-04 (2026-09-10 코드 재검토 갱신: 후보 API·AI 배치·requirements 해석·Dependents major 표시·프런트 검증·저장소 배포 구성을 반영. 2026-09-15 개발현황 반영·간접·전이 Dependency 범위 제외 갱신: S15P21A506-358. 2026-09-17 개발현황 반영·Version Share 패키지 탭 범위 정정: S15P21A506-380, 상세는 `Pickage_0915_to_0917_기획변경_상세분석.md`)
-문서 상태: Approved (effective_at: 2026-09-10. `DEC-RANK-UI-20260910-01`: 후보는 최대 3개를 노출하되 초기에는 기준 패키지만 선택한다. 이 사용자 결정은 `DEC-RANK-20260910-01`의 상위 2개 기본 선택 조항만 대체한다. 나머지 랭커 계약과 `DEC-IMPLEMENTATION-ALIGN-20260910-01` 계약은 유지한다. `DEC-SCOPE-CUT-20260915-01`: 간접·전이 Dependency(확장-04)를 프로젝트 범위에서 제외한다. 사용자 확인(2026-09-17): Version Share "패키지 탭"은 Dependents·Downloads와 공유하는 카드 전체 선택 탭이다)
+작성 기준일: 2026-09-04 (2026-09-10 코드 재검토 갱신: 후보 API·AI 배치·requirements 해석·Dependents major 표시·프런트 검증·저장소 배포 구성을 반영. 2026-09-15 개발현황 반영·간접·전이 Dependency 범위 제외 갱신: S15P21A506-358. 2026-09-17 개발현황 반영·Version Share 패키지 탭 범위 정정: S15P21A506-380, 상세는 `Pickage_0915_to_0917_기획변경_상세분석.md`. 2026-09-17 기능 비교 캐시 계약 확정: S15P21A506-381)
+문서 상태: Approved (effective_at: 2026-09-10. `DEC-RANK-UI-20260910-01`: 후보는 최대 3개를 노출하되 초기에는 기준 패키지만 선택한다. 이 사용자 결정은 `DEC-RANK-20260910-01`의 상위 2개 기본 선택 조항만 대체한다. 나머지 랭커 계약과 `DEC-IMPLEMENTATION-ALIGN-20260910-01` 계약은 유지한다. `DEC-SCOPE-CUT-20260915-01`: 간접·전이 Dependency(확장-04)를 프로젝트 범위에서 제외한다. 사용자 확인(2026-09-17): Version Share "패키지 탭"은 Dependents·Downloads와 공유하는 카드 전체 선택 탭이다. `DEC-FEATURE-CACHE-20260917-01`: 기능 비교는 근거 데이터만 영속화하고 판정은 요청마다 재계산한다 — §7.1·9·14.5 참고)
 실행 계약 재검수일: 2026-09-11 (개발현황·범위 갱신: 2026-09-15, 2026-09-17)
 연결 문서: `Pickage_요구사항_명세서_0917.md`, `Pickage_메뉴구조_IA_0917.md`, `Pickage_서비스_기획서_0917.md`
 
@@ -28,7 +28,7 @@ Pickage는 한 방식으로 모든 데이터를 실시간 수집하지 않는다
 | Version Share | 최신 DB Snapshot의 version별 dependents를 major로 합산 | 시계열이 아닌 현재 구현의 관측 분포를 제공; requirement 해석 분포는 확장 |
 | 기능 비교 [확장] | Data + AI + RAG 우선, 불가 시 AI + RAG | 고비용 기능 분석을 MVP와 분리 |
 | GitHub 커뮤니티 [확장] | 짧은 TTL 갱신 캐시 | 최신성과 API 제한 균형 |
-| PDF | 완료 생태계 ReportSnapshot과 현재 선택 버전의 완료 기능 비교 결과 재사용 + EC2 #1(data) worker 생성 | 화면과 다른 재계산 방지; PDF 실행 부하는 app 서빙 경로와 분리 |
+| PDF | 완료 생태계 ReportSnapshot 재사용(DB) + 세션이 보유한 현재 선택 버전의 기능 비교 결과를 요청 payload로 실어 생성(서버 재조회 없음, `DEC-FEATURE-CACHE-20260917-01`) + EC2 #1(data) worker 생성 | 생태계는 DB 재사용, 기능 비교는 세션 payload로 화면과 다른 재계산 방지; PDF 실행 부하는 app 서빙 경로와 분리 |
 
 ### 1.2 MVP 버전 상태
 
@@ -554,7 +554,9 @@ GitHub 저장소 연결이 검증된 패키지만 시계열을 제공한다.
 
 ### 7.1 핵심 엔터티
 
-#### FeatureAssessment
+`SourceSnapshot`·`EvidenceRecord`(근거 데이터)는 PostgreSQL에 영속화해 (패키지, 버전) 단위로 재사용한다. `FeatureAssessment`·`AnalysisRun`·`ReanalysisDiff`(판정 결과)는 영속화하지 않고 요청마다 새로 계산한다 — 근거 재사용과 판정 재계산을 분리한 결정이다(`DEC-FEATURE-CACHE-20260917-01`, §9.1·§14.5).
+
+#### FeatureAssessment (비영속 — 요청마다 재계산)
 
 ```text
 assessmentId
@@ -569,7 +571,7 @@ analysisRunId
 analyzedAt
 ```
 
-#### EvidenceRecord
+#### EvidenceRecord (영속)
 
 ```text
 evidenceId
@@ -584,7 +586,7 @@ confirmedContent
 verificationLevel
 ```
 
-#### AssessmentEvidence
+#### AssessmentEvidence (비영속 — FeatureAssessment에 종속)
 
 ```text
 assessmentId
@@ -595,7 +597,7 @@ defaultExpanded
 verdictContribution
 ```
 
-#### SourceSnapshot
+#### SourceSnapshot (영속)
 
 ```text
 snapshotId
@@ -608,7 +610,7 @@ officialTagMatch
 provenanceStatus
 ```
 
-#### AnalysisRun
+#### AnalysisRun (비영속 — 세션 범위)
 
 ```text
 analysisRunId
@@ -622,7 +624,7 @@ completedAt
 previousCompletedRunId
 ```
 
-#### ReanalysisDiff
+#### ReanalysisDiff (비영속 — 세션 범위, §9.5)
 
 ```text
 previousRunId
@@ -633,7 +635,7 @@ removedEvidenceIds
 reasonSummary
 ```
 
-#### ReportSnapshot
+#### ReportSnapshot (영속 — PDF 요청 payload를 고정)
 
 ```text
 reportSnapshotId
@@ -646,6 +648,8 @@ communitySnapshotIds
 dataStatuses
 createdAt
 ```
+
+`completedAnalysisRunIds`는 서버가 들고 있는 완료 run을 가리키지 않는다. `AnalysisRun`을 영속화하지 않으므로(§9.1) PDF 요청이 함께 실어 보낸 세션 보유 결과(§13.1)를 식별하는 용도로만 쓰고, 재조회 키로 사용하지 않는다.
 
 ### 7.2 verdict와 dataStatus 분리 (내부 도메인; HTTP wire는 `data_status`)
 
@@ -742,8 +746,8 @@ Fallback `AI + RAG`에서는 3단계 구조화 데이터 계층을 생략할 수
 - 패키지별 latest dist-tag를 확인하되 사전 배포가 아니면 구체 안정 버전으로 저장
 - latest가 사전 배포를 가리키면 공개 버전 목록에서 가장 최근의 비사전 배포 버전을 선택
 - 비사전 배포 버전이 하나도 없으면 `NO_STABLE_VERSION`으로 반환하고 사전 배포를 자동 선택하지 않음
-- 완료 캐시가 있으면 즉시 결과 표시
-- 없으면 비동기 분석 실행
+- 근거 데이터(`SourceSnapshot`·`EvidenceRecord`)가 이미 수집돼 있으면 재사용하고, 판정(`FeatureAssessment`)은 캐시 없이 항상 새로 계산한다(`DEC-FEATURE-CACHE-20260917-01`)
+- 근거 데이터가 없으면 수집부터 비동기로 실행
 
 ### 9.2 버전 변경
 
@@ -760,8 +764,8 @@ selectedFeatureVersion != completedFeatureVersion
 
 - 동일 요청 중복 실행 방지
 - run idempotency 보장
-- 기존 완료 run을 `previousCompletedRunId`로 연결
-- 성공 시에만 현재 완료 결과 포인터 교체
+- `previousCompletedRunId`는 서버 DB가 아니라 **클라이언트가 세션에 들고 있는 직전 완료 결과**를 가리킨다 — `AnalysisRun`을 영속화하지 않으므로 서버는 이 값을 조회 키로 쓰지 않는다(`DEC-FEATURE-CACHE-20260917-01`)
+- 성공 시에만 화면의 현재 완료 결과를 교체하고, 클라이언트는 교체 전 결과를 다음 재분석의 `previousCompletedRunId`로 들고 있는다
 - 실패하면 기존 완료 결과 유지
 - 부분 완료는 영향받는 assessment만 PARTIAL/UNCONFIRMED 처리
 
@@ -785,14 +789,14 @@ COMPLETED
 
 ### 9.5 재분석 변경점
 
-클라이언트에는 직전 완료 결과와 현재 결과의 변경점만 제공한다.
+클라이언트가 세션에 들고 있는 직전 완료 결과와 현재 결과를 **클라이언트 측에서** 비교해 변경점만 표시한다. 서버는 완료 결과를 영속화하지 않으므로 세션이 끊기거나 직전 결과를 들고 있지 않은 상태(새로고침, 다른 세션에서 재방문 등)에서는 이 비교를 제공하지 않는다 — 세션을 벗어난 재분석 diff는 지원 범위 밖이다(`DEC-FEATURE-CACHE-20260917-01`).
 
 - verdict 변경
 - 새 근거·제한 근거 추가
 - 버전 자료 변경
 - analyzer/ruleset 변경
 
-전체 분석 이력은 내부 감사용으로 유지할 수 있으나 확장 UI의 기본 범위에는 제공하지 않는다.
+전체 분석 이력을 서버에 남기지 않는다.
 
 ## 10. 확장: Evidence Drawer 응답 계약
 
@@ -979,7 +983,7 @@ CommunityResponse는 기존 success/data와 snake_case를 사용하며 내부 so
 
 ### 13.1 ReportSnapshot
 
-PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 보고서와 현재 선택 버전의 완료 기능 비교 결과**를 ReportSnapshot으로 고정한다.
+PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 보고서와 현재 선택 버전의 완료 기능 비교 결과**를 ReportSnapshot으로 고정한다. 기능 비교 결과는 서버 DB가 아니라 요청이 함께 보낸 세션 보유 값에서 가져온다(§9.1·§14.5).
 
 필수 포함:
 
@@ -990,8 +994,8 @@ PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 �
 - 최신 Version Share snapshotAt
 - 후보·생태계 data status summary
 - createdAt
-- featureVersions, completedAnalysisRunIds
-- assessment/evidence references, narrative
+- featureVersions
+- **세션이 보유한 완료 판정 결과(verdict·evidenceId 목록·narrative)를 PDF 요청 payload로 그대로 싣는다** — `FeatureAssessment`/`AnalysisRun`을 서버가 영속화하지 않으므로 재조회하지 않는다(`DEC-FEATURE-CACHE-20260917-01`, §9.1·§14.5). evidenceId는 영속된 `EvidenceRecord`를 가리키므로 그대로 조회할 수 있다.
 
 선택적으로 포함:
 
@@ -1138,7 +1142,9 @@ mlflow-artifacts
 
 ### 14.5 확장 기능 캐시
 
-기능 비교·GitHub 커뮤니티의 별도 캐시 계약은 해당 확장 구현 시 확정한다. 현재 Redis가 배치되어 있다는 사실만으로 모든 확장 캐시를 Redis에 강제하지 않는다.
+**기능 비교 캐시 계약 확정(2026-09-17, `DEC-FEATURE-CACHE-20260917-01`, `S15P21A506-381`)**: 근거 데이터(`SourceSnapshot`·`EvidenceRecord`)만 PostgreSQL에 영속화해 (패키지, 버전) 단위로 재사용하고, 판정(`FeatureAssessment`·`AnalysisRun`·`ReanalysisDiff`)은 영속화하지 않고 요청마다 새로 계산한다. 근거는 입력→후보 선택→분석 시작 단계를 거쳐야만 요청되므로 무분별한 중복 조회 위험이 낮고, 근거 데이터는 판정보다 자연스럽게 (패키지, 버전) 단위로 중복 제거된다. 재방문 시 판정용 AI 호출이 반복되는 비용과 세션을 벗어난 재분석 diff를 제공하지 못하는 제약(§9.5)은 감수한다 — 대회용 프로젝트로 실 서비스 운영을 전제하지 않는다.
+
+GitHub 커뮤니티의 별도 캐시 계약은 해당 확장 구현 시 확정한다. 현재 Redis가 배치되어 있다는 사실만으로 모든 확장 캐시를 Redis에 강제하지 않는다.
 
 ## 15. 운영·비용·호출 제한 대응
 
@@ -1158,7 +1164,7 @@ mlflow-artifacts
 ### 기능 비교 [확장]
 
 - 정확한 버전 최초 요청 분석
-- retrieval/RAG cache 적중 우선
+- 근거 조회(retrieval) 캐시 적중 우선 — 판정(verdict) 자체는 캐시하지 않고 항상 재계산한다(`DEC-FEATURE-CACHE-20260917-01`)
 - Data + AI + RAG 경로에서도 전체 문서를 무제한 AI 입력으로 전달하지 않음
 - AI + RAG fallback에서도 검색된 관련 근거만 전달
 - 동일 run 중복 방지
@@ -1181,6 +1187,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 - **PDF 생성 실행은 #1 data worker에 배치**
 - #2 app은 요청·상태/메타데이터·다운로드 흐름을 담당하고 무거운 문서 생성 실행과 분리
 - #2→#1의 실제 job 전달/queue 방식은 `OPEN-SERVER-01`이며 현재 자료 없이 임의 확정하지 않음
+- 기능 비교 결과는 세션이 보유한 값을 요청 payload로 실어 전달 — 서버가 재조회하지 않는다(§13.1·§14.5)
 - 동일 snapshot의 완료 PDF 재다운로드
 - 다운로드 실패로 재분석하지 않음
 
@@ -1289,10 +1296,10 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 1. 기능-08 유지·유입·이탈 분석이 MVP signed 증감과 별도 계약으로 유지되고, 개발팀 검증 전 retained/inflow/outflow 계산이 구현되지 않는지 확인
 2. 기능 비교 Data + AI + RAG 경로에서 구조화 데이터와 검색 근거의 버전 일치 검증
 3. AI + RAG fallback에서 검색 근거 없이 확정 판정을 생성하지 않는지 확인
-4. 기능 최신 안정 버전 캐시 적중·미적중
+4. 근거 데이터(SourceSnapshot·EvidenceRecord) 캐시 적중·미적중 — 판정(FeatureAssessment)은 캐시 적중 여부와 무관하게 항상 재계산되는지 확인
 5. 정식 버전 없음에서 사전 배포 자동 선택 차단
 6. 기능 버전 변경 후 재분석 필요 상태가 PDF를 차단하고, 이전 결과가 화면에서 유지되는지 확인
-7. 재분석 성공 시 원자적 결과 교체, 실패 시 이전 결과 유지
+7. 재분석 성공 시 화면 결과 교체, 실패 시 이전 결과 유지 — 서버가 이전 결과를 영속화하지 않으므로 클라이언트가 세션에 들고 있는 이전 결과와의 교체인지 확인
 8. 같은 버전 근거 충돌에서 UNCONFIRMED+CONFLICT
 9. Drawer·커뮤니티 응답에 외부 URL·전체 원문이 없는지 확인
 10. GitHub rate limit 시 이전 조회 시점·부분 상태
