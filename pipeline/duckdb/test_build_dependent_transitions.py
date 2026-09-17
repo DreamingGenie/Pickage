@@ -24,11 +24,23 @@ PERIOD = "1y"
 T1 = "2025-08-31 23:59:59"
 
 
-def setup(decl, moved, targets=("x",)):
-    """decl: (dependent, point, target, kind) · moved: (dependent, period)"""
+def setup(decl, moved, targets=("x",), first_rel=None):
+    """decl: (dependent, point, target, kind) · moved: (dependent, period)
+
+    first_rel 을 생략하면 모든 dependent 가 **T1 보다 훨씬 전에 생긴 것**으로 본다.
+    유입 세부를 시험하지 않는 케이스에서 is_new 가 끼어들지 않게 하려는 기본값이다.
+    """
     con = duckdb.connect()
     con.execute("CREATE TABLE periods(period VARCHAR, t1 TIMESTAMP)")
     con.execute("INSERT INTO periods VALUES (?, ?)", [PERIOD, T1])
+    con.execute("CREATE TABLE first_rel(dependent VARCHAR, first_release TIMESTAMP)")
+    if first_rel is None:
+        # dependent 당 한 줄이어야 한다. 중복이 있으면 cls_m 의 조인이 행을 복제해
+        # 모든 범주가 배로 불어난다 (빌더 쪽은 GROUP BY 라 중복이 생기지 않는다).
+        first_rel = [(d, "2000-01-01 00:00:00")
+                     for d in dict.fromkeys(x[0] for x in (decl or []))]
+    if first_rel:
+        con.executemany("INSERT INTO first_rel VALUES (?, ?)", first_rel)
     con.execute("CREATE TABLE tgt(name VARCHAR, download_rank INTEGER)")
     con.executemany("INSERT INTO tgt VALUES (?, NULL)", [(t,) for t in targets])
     con.execute("CREATE TABLE decl(dependent VARCHAR, point VARCHAR, target VARCHAR, kind VARCHAR)")
@@ -147,6 +159,38 @@ class RepresentativeRelease(unittest.TestCase):
             ("a>1.0.0>b", "9.9.9", "2024-03-01 00:00:00", 9, True),  # 번들 경로 노드
         ])
         self.assertEqual(self.at(con, "2026-08-31 23:59:59"), [("p", "1.0.0")])
+
+
+class InflowSplit(unittest.TestCase):
+    """유입은 한 덩어리가 아니다. T1 때 없던 패키지의 유입은 채택이 아니라 생태계 성장이다."""
+
+    def split(self, first_rel):
+        con = setup(decl=[("adopter", "t2", "x", "regular"),
+                          ("newborn", "t2", "x", "regular")],
+                    moved=[("adopter", PERIOD), ("newborn", PERIOD)],
+                    first_rel=first_rel)
+        return con.execute(
+            "SELECT inflow, inflow_new FROM agg WHERE period = ? AND target = 'x'"
+            " AND kind = 'regular'", [PERIOD]).fetchone()
+
+    def test_T1_이후에_생긴_패키지만_inflow_new_로_센다(self):
+        # adopter 는 T1 전에 있었고, newborn 은 T1 뒤에 처음 나왔다
+        self.assertEqual(self.split([("adopter", "2020-01-01 00:00:00"),
+                                     ("newborn", "2026-01-01 00:00:00")]), (2, 1))
+
+    def test_전부_기존_패키지면_inflow_new_는_0_이다(self):
+        self.assertEqual(self.split([("adopter", "2020-01-01 00:00:00"),
+                                     ("newborn", "2020-02-01 00:00:00")]), (2, 0))
+
+    def test_유지_이탈은_inflow_new_에_들어가지_않는다(self):
+        """T1 뒤에 생긴 패키지라도 유입이 아니면 세지 않는다 (실제로는 나올 수 없는 조합이지만
+        필터가 inflow 조건과 함께 걸려 있는지 확인한다)."""
+        con = setup(decl=[("d", PERIOD, "x", "regular"), ("d", "t2", "x", "regular")],
+                    moved=[("d", PERIOD)],
+                    first_rel=[("d", "2026-01-01 00:00:00")])
+        self.assertEqual(con.execute(
+            "SELECT retained, inflow, inflow_new FROM agg WHERE period = ?"
+            " AND target = 'x' AND kind = 'regular'", [PERIOD]).fetchone(), (1, 0, 0))
 
 
 class Verification(unittest.TestCase):

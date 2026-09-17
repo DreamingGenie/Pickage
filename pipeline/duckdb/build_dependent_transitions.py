@@ -12,9 +12,10 @@ MVP 의 Snapshot 총수 `delta` 와 **다른 지표다.** `delta` 는 첫·마�
       datasets/targets/rank_top100k_20260902.csv (대상 목록)
 
 출력  data/dependent_transitions<_label>/dependent_transitions.parquet
-        (period, target, kind) 1행 — 네 범주의 수
+        (period, target, kind) 1행 — 네 범주의 수. **전량은 여기에만 있다**
       datasets/dependent_transitions_<label 또는 260917>/
-        transitions_summary.csv   같은 표 (UTF-8 BOM)
+        transitions_summary.csv   같은 표를 **상위 CSV_TOP_N 개 대상만** 담은 표본
+                                  (UTF-8 BOM). 잘린 수는 stats 의 csv_targets
         stats.json
 
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_dependent_transitions.py
@@ -56,6 +57,27 @@ MVP 의 Snapshot 총수 `delta` 와 **다른 지표다.** `delta` 는 첫·마�
 이유로 **유지로 분류하는 것도 잘못이다.**
 
 받는 쪽은 네 수를 모두 화면에 내야 한다. 관측 불가를 숨기면 나머지 셋의 비율이 거짓이 된다.
+
+## 유입은 한 덩어리로 읽으면 안 된다 — `inflow_new`
+
+범주는 넷이지만 **유입 안에는 성격이 다른 둘이 섞여 있다.**
+
+1. T1 때 이미 있던 패키지가 X 를 새로 채택했다 — 흔히 "유입" 이라고 할 때 뜻하는 것
+2. T1 이후에 **처음 생긴** 패키지가 처음부터 X 를 썼다 — 채택이 아니라 생태계 성장
+
+`inflow_new` 가 2번이고, `inflow - inflow_new` 가 1번이다. 2026-09-17 실측에서 3년 사이
+새로 생긴 패키지가 174.7만(T2 시점 407만의 43%)이라 **2번이 유입의 대부분을 차지한다.**
+나누지 않으면 `react` 의 "유입 112,435 vs 이탈 1,310" 이 "11만 개가 react 로 갈아탔다" 로
+읽힌다. 실제로는 대부분 "새로 만들어진 프로젝트가 react 를 골랐다" 이다.
+
+막대를 다섯 개로 늘리지 않고 보조 열로 둔 것은, 이미 설명이 필요한 막대(관측 불가)가
+하나 있어서다. 화면은 네 막대를 그리고 유입 막대의 세부만 곁들이면 된다.
+
+**"왜 떠났는가" 는 여기서 답하지 않는다.** X 를 빼면서 다른 것을 넣었는지(대체)와 아무것도
+안 넣었는지(그냥 제거)의 구분은 시점 두 개를 비교해서는 알 수 없다 — 그 사이 어느 릴리스에서
+뺐는지, 그때 무엇을 넣었는지를 봐야 하기 때문이다. 그것은 연속한 두 릴리스를 훑는
+`build_migration_pairs.py` 의 몫이고 별도 이슈로 분리했다. 두 결과는 **세는 단위가 달라
+(이쪽은 패키지 수, 저쪽은 전이 건수) 더하거나 나눌 수 없다.**
 
 ## 읽는 사람이 반드시 알아야 할 것
 
@@ -103,6 +125,12 @@ PERIODS = {"1y": "2025-08-31 23:59:59",
            "5y": "2021-08-31 23:59:59"}
 KINDS = ("regular", "peer", "optional")
 
+# git 이 추적하는 CSV 에 담을 대상 수. 전체 89.9만 행은 81 MB 라 datasets/README.md 의
+# "수십 MB 이상, 재생성 가능한 것은 data/ 에 두고 공유한다" 규칙에 걸린다(현재 추적 중인
+# 가장 큰 CSV 가 13.4 MB). 본체는 parquet 이고 이 CSV 는 **눈으로 확인하는 표본**이다 —
+# package_dependents_260915 가 같은 구조다(배열 본체는 parquet, git 에는 요약만).
+CSV_TOP_N = 5000
+
 # 판정 — 위 docstring 의 표 그대로다.
 #
 # 시험이 같은 문장을 합성 입력에 적용할 수 있게 상수로 뺐다. 여기를 고치면 시험이 따라
@@ -110,6 +138,7 @@ KINDS = ("regular", "peer", "optional")
 #
 # 입력 계약  decl(dependent, point, target, kind)  point 는 't2' 또는 구간 이름
 #            moved(dependent, period)              있으면 그 구간에 대표가 바뀐 것
+#            first_rel(dependent, first_release)   그 패키지의 첫 릴리스 발행시각
 #            periods(period, t1) · tgt(name)
 # 출력       cls_m(period, target, kind, dependent, a, b, moved) · agg(period, target, kind, 네 수)
 CLASSIFY_SQL = """
@@ -122,11 +151,19 @@ WHERE d.point IN (w.period, 't2')
 GROUP BY 1, 2, 3, 4;
 
 -- moved 는 있음/없음만 담는다. LEFT JOIN 결과가 NULL 이면 그 구간에 대표가 안 바뀐 것이다.
+--
+-- is_new 는 **유입을 둘로 가르는 열**이다. T1 시점에 그 dependent 가 아직 없었다면 그것은
+-- "다른 것을 쓰다가 갈아탄 것" 이 아니라 "새로 생긴 프로젝트가 처음부터 골랐다" 이다.
+-- 둘을 합쳐 두면 생태계 성장이 채택으로 읽힌다 — 2026-09-17 실측에서 3년 사이 새로 생긴
+-- 패키지가 174.7만(전체 407만의 43%)이라 유입의 대부분이 뒤쪽이다.
 CREATE OR REPLACE TABLE cls_m AS
 SELECT c.period, c.target, c.kind, c.dependent, c.a, c.b,
-       (m.dependent IS NOT NULL) AS moved
+       (m.dependent IS NOT NULL) AS moved,
+       (f.first_release > w.t1)  AS is_new
 FROM cls c
-LEFT JOIN moved m ON m.dependent = c.dependent AND m.period = c.period;
+JOIN periods w ON w.period = c.period
+LEFT JOIN moved m ON m.dependent = c.dependent AND m.period = c.period
+LEFT JOIN first_rel f ON f.dependent = c.dependent;
 
 -- 대상 × kind × 구간을 모두 만들고 없으면 0 을 넣는다. 행을 빼면 받는 쪽에서
 -- "조회 실패" 와 "dependent 가 없음" 을 구분할 수 없다 (build_package_dependents.py 와 같은 규칙).
@@ -134,6 +171,7 @@ CREATE OR REPLACE TABLE agg AS
 SELECT g.period, g.name AS target, g.kind,
        count(c.dependent) FILTER (WHERE c.a AND c.b AND c.moved)      AS retained,
        count(c.dependent) FILTER (WHERE NOT c.a AND c.b)              AS inflow,
+       count(c.dependent) FILTER (WHERE NOT c.a AND c.b AND c.is_new) AS inflow_new,
        count(c.dependent) FILTER (WHERE c.a AND NOT c.b)              AS outflow,
        count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved)  AS unobserved
 FROM (SELECT t.name, k.kind, w.period
@@ -223,7 +261,14 @@ def verify(con):
           ON x.period = a.period AND x.target = a.target AND x.kind = a.kind
         WHERE a.retained + a.outflow <> x.n""").fetchone()[0]
 
-    # 3) 관측 불가 비중 — docstring 이 인용하는 수치의 실측값
+    # 3) 유입 세부는 유입의 부분집합이다. 넘으면 is_new 판정이나 조인이 틀린 것이다.
+    v["inflow_new_exceeds_inflow"] = con.execute(
+        "SELECT count(*) FROM agg WHERE inflow_new > inflow").fetchone()[0]
+    v["inflow_new_share_by_period"] = con.execute("""
+        SELECT period, round(sum(inflow_new)::DOUBLE / nullif(sum(inflow), 0), 4)
+        FROM agg GROUP BY 1 ORDER BY 1""").fetchall()
+
+    # 4) 관측 불가 비중 — docstring 이 인용하는 수치의 실측값
     v["unobserved_share_by_period"] = con.execute("""
         SELECT period,
                round(sum(unobserved)::DOUBLE
@@ -329,12 +374,18 @@ SELECT DISTINCT r.Name AS dependent, w.period
 FROM rep r, periods w
 WHERE r.published_at > w.t1 AND r.published_at <= TIMESTAMP '{T2}'""")
 
+    # 유입을 가르는 재료 — 그 패키지가 세상에 처음 나온 시각. 첫 릴리스는 언제나 전환점이므로
+    # (prev_max 가 NULL 이라 항상 남는다) rep 에서 바로 구할 수 있다.
+    con.execute("""CREATE OR REPLACE TABLE first_rel AS
+SELECT Name AS dependent, min(published_at) AS first_release FROM rep GROUP BY 1""")
+
     # 5) 판정·저장 ------------------------------------------------------------
     log("5/5 판정·저장")
     con.execute(CLASSIFY_SQL, {"kinds": list(KINDS)})
 
     con.execute(f"""CREATE OR REPLACE TABLE out AS
-SELECT a.period, a.target, a.kind, a.retained, a.inflow, a.outflow, a.unobserved,
+SELECT a.period, a.target, a.kind, a.retained, a.inflow, a.inflow_new,
+       a.outflow, a.unobserved,
        w.t1, TIMESTAMP '{T2}' AS t2, t.download_rank,
        (t.download_rank IS NOT NULL) AS in_top100k
 FROM agg a JOIN periods w ON w.period = a.period JOIN tgt t ON t.name = a.target""")
@@ -345,8 +396,14 @@ FROM agg a JOIN periods w ON w.period = a.period JOIN tgt t ON t.name = a.target
     con.execute(f"""COPY (SELECT * FROM out {order})
                     TO '{pq_dir}/dependent_transitions.parquet'
                     (FORMAT PARQUET, COMPRESSION ZSTD)""")
+    # CSV 는 상위 CSV_TOP_N 개 대상만 담는다. 순위 밖(download_rank NULL)이 섞인 목록에서도
+    # 비어 버리지 않게, 순위가 아니라 **정렬 후 상위 N 개 대상**으로 자른다.
     csv = f"{out}/transitions_summary.csv"
-    con.execute(f"COPY (SELECT * FROM out {order}) TO '{csv}' (FORMAT CSV, HEADER)")
+    con.execute(f"""COPY (SELECT * FROM out WHERE target IN (
+                      SELECT name FROM tgt ORDER BY download_rank NULLS LAST, name
+                      LIMIT {CSV_TOP_N}) {order})
+                    TO '{csv}' (FORMAT CSV, HEADER)""")
+    stats["csv_targets"] = min(CSV_TOP_N, stats["targets"])
     # datasets/README.md 규칙 — CSV 는 UTF-8 BOM (엑셀·구글시트가 BOM 없이는 한글을 깬다)
     with open(csv, "rb") as fh:
         body = fh.read()
