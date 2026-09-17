@@ -437,6 +437,23 @@ public class PackageQueryRepository {
 	}
 
 	/**
+	 * 회차가 적재되어 있는가.
+	 *
+	 * <p>조회 결과가 비었다는 것만으로는 <b>"아직 안 만들었다"</b> 와 <b>"이 패키지들이
+	 * 계산 대상이 아니다"</b> 를 가를 수 없다. 요청한 이름이 전부 대상 밖이면 둘 다 빈
+	 * 결과이기 때문이다 — 실측상 대상 10만 중 2,251개가 그런 패키지다.
+	 *
+	 * <p>{@code LIMIT 1} 이라 행 수를 세지 않는다. 조회 결과가 비었을 때만 부르므로
+	 * 정상 경로에는 비용이 없다.
+	 */
+	private static final String ANY_TRANSITION_SQL =
+		"SELECT EXISTS (SELECT 1 FROM dependent_transition LIMIT 1)";
+
+	public boolean hasAnyTransition() {
+		return Boolean.TRUE.equals(jdbcTemplate.queryForObject(ANY_TRANSITION_SQL, Boolean.class));
+	}
+
+	/**
 	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
 	 *
 	 * <p><b>{@link PackageNames} 를 받지 않는 것이 의도다.</b> 그 객체는 비교 화면의 규칙

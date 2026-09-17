@@ -326,11 +326,20 @@ public class PackageService {
 	 * 파이프라인이 구간 정의를 바꿨을 때 조용히 어긋난다. 표가 통째로 비어 있을 때만
 	 * ({@code NOT_COMPUTED}) 구간에서 만들어 채운다.
 	 */
+	@Transactional(readOnly = true)
 	public TransitionsResponse getTransitions(PackageNames names, TransitionPeriod period) {
 		Existing existing = existing(names);
 		List<TransitionRow> rows = existing.names().isEmpty()
 			? List.of()
 			: repository.findTransitions(PackageNames.of(existing.names()), period.code());
+
+		// 조회 결과가 비었다는 것만으로는 "아직 안 만들었다" 와 "이 패키지들이 계산 대상이
+		// 아니다" 를 가를 수 없다. 비교 대상 세 개가 모두 대상 밖일 수 있고(실측 2.3%),
+		// 그때 NOT_COMPUTED 를 주면 화면이 "준비 중" 을 띄워 사용자는 기다리면 나온다고
+		// 믿는다. 영원히 안 나온다.
+		String missing = rows.isEmpty() && !repository.hasAnyTransition()
+			? TransitionsResponse.NOT_COMPUTED
+			: TransitionsResponse.OUT_OF_SCOPE;
 
 		// 요청한 이름 × kind 를 모두 만들고 조회 결과를 얹는다. 행을 빼면 받는 쪽이
 		// "조회 실패" 와 "dependent 가 없음" 을 구분할 수 없다 — 파이프라인과 같은 규칙이다.
@@ -340,22 +349,19 @@ public class PackageService {
 		List<TransitionsResponse.Series> series = existing.names().stream()
 			.flatMap(name -> KINDS.stream().map(kind -> {
 				TransitionRow row = byKey.get(name + KEY_SEPARATOR + kind);
-				// 이름은 있는데 행이 없다 = 계산 대상 밖이거나 회차 미적재. 둘을 가르는 것은
-				// 조회 결과가 통째로 비었는지다.
 				if (row == null) {
-					return TransitionsResponse.Series.unknown(name, kind,
-						rows.isEmpty() ? TransitionsResponse.NOT_COMPUTED
-							: TransitionsResponse.OUT_OF_SCOPE);
+					return TransitionsResponse.Series.unknown(name, kind, missing);
 				}
 				return TransitionsResponse.Series.counted(name, kind, row.retained(),
 					row.inflow(), row.inflowNew(), row.outflow(), row.unobserved());
 			}))
 			.toList();
 
-		LocalDate t2 = rows.stream().map(TransitionRow::t2).findFirst()
-			.orElseGet(repository::findLatestSnapshot);
-		LocalDate t1 = rows.stream().map(TransitionRow::t1).findFirst()
-			.orElseGet(() -> t2 == null ? null : period.startFrom(t2));
+		// 표가 가진 값만 쓴다. 읽을 행이 없으면 **모른다고 한다** — 다른 데이터셋의
+		// 스냅샷(snapshot 표)으로 대신하면 화면이 실제 계산 구간과 다른 기준일을 표시하고,
+		// 사용자는 그 구간의 숫자라고 믿는다. 기능-08-R02 가 요구하는 표시가 거짓이 된다.
+		LocalDate t1 = rows.stream().map(TransitionRow::t1).findFirst().orElse(null);
+		LocalDate t2 = rows.stream().map(TransitionRow::t2).findFirst().orElse(null);
 
 		return TransitionsResponse.of(period.code(), t1, t2, series, existing.notFound());
 	}

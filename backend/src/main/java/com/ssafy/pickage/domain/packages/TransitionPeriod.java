@@ -1,6 +1,6 @@
 package com.ssafy.pickage.domain.packages;
 
-import java.time.LocalDate;
+
 import java.util.List;
 
 import com.ssafy.pickage.global.exception.BusinessException;
@@ -63,18 +63,7 @@ public enum TransitionPeriod {
 		return List.of(ONE_YEAR.code, THREE_YEARS.code, FIVE_YEARS.code);
 	}
 
-	/**
-	 * 구간 시작 날짜.
-	 *
-	 * <p>표에 저장된 {@code t1} 을 읽어 쓰므로 <b>이 계산은 응답에 쓰지 않는다.</b>
-	 * 표가 비어 있을 때({@code NOT_COMPUTED}) 화면에 날짜를 보여 주기 위한 대비값이다.
-	 * 저장값과 어긋나면 표가 정본이다.
-	 */
-	public LocalDate startFrom(LocalDate t2) {
-		return switch (this) {
-			case ONE_YEAR -> t2.minusYears(1);
-			case THREE_YEARS -> t2.minusYears(3);
-			case FIVE_YEARS -> t2.minusYears(5);
-		};
-	}
+	// 구간 시작 날짜를 여기서 계산하지 않는다. 응답의 t1·t2 는 **표가 가진 값만** 쓴다 —
+	// 서버가 따로 계산하면 파이프라인이 구간 정의를 바꿨을 때 조용히 어긋나고, 읽을 행이
+	// 없을 때는 지어낸 날짜를 내보내게 된다. 모르면 null 이다.
 }

@@ -166,14 +166,33 @@ class TransitionsControllerIntegrationTest {
 	}
 
 	@Test
-	void 표가_비어_있으면_NOT_COMPUTED_이고_구간_날짜를_만들어_준다() throws Exception {
+	void 표가_비어_있으면_NOT_COMPUTED_이고_날짜도_모른다() throws Exception {
 		seedPackage(1, "react");
 
-		// 회차를 아직 적재하지 않은 상태. t1·t2 를 읽을 곳이 없으므로 구간에서 계산한다.
+		// 회차를 아직 적재하지 않은 상태. 읽을 행이 없으므로 t1·t2 를 지어내지 않는다.
 		mockMvc.perform(get("/api/packages/transitions").param("names", "react").param("period", "1y"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.series[0].data_status").value("NOT_COMPUTED"))
-			.andExpect(jsonPath("$.data.series[0].retained").doesNotExist());
+			.andExpect(jsonPath("$.data.series[0].retained").doesNotExist())
+			.andExpect(jsonPath("$.data.t1").doesNotExist())
+			.andExpect(jsonPath("$.data.t2").doesNotExist());
+	}
+
+	@Test
+	void 요청한_이름이_전부_대상_밖이어도_OUT_OF_SCOPE_다() throws Exception {
+		seedPackage(1, "in-scope-pkg");
+		seedPackage(2, "out-a");
+		seedPackage(3, "out-b");
+		// 표에는 데이터가 있다. 다만 요청한 두 이름이 계산 대상이 아니다.
+		seedTransition(1, "3y", "regular", 1, 2, 1, 0, 0);
+
+		// 조회 결과만 보고 판정하면 NOT_COMPUTED 가 나가고, 화면은 "준비 중" 을 띄운다.
+		// 사용자는 기다리면 나온다고 믿지만 영원히 안 나온다 — 대상이 아니기 때문이다.
+		mockMvc.perform(get("/api/packages/transitions")
+				.param("names", "out-a", "out-b").param("period", "3y"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.series[0].data_status").value("OUT_OF_SCOPE"))
+			.andExpect(jsonPath("$.data.series[5].data_status").value("OUT_OF_SCOPE"));
 	}
 
 	@Test
