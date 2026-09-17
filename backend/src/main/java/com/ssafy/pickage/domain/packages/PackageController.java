@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 import com.ssafy.pickage.global.response.ApiResponseBody;
@@ -145,6 +146,34 @@ public class PackageController {
 		@RequestParam(name = "limit", required = false) Integer limit
 	) {
 		return ApiResponseUtil.createSuccessResponse(service.getSimilar(SimilarQuery.of(name, limit)));
+	}
+
+	/**
+	 * 기능-08 — 유지·유입·이탈 (구상안 §12.6).
+	 *
+	 * <p><b>MVP 의 signed {@code delta} 와 다른 지표다.</b> {@code /packages/dependents} 의 증감은
+	 * 버전별 합계의 총수 차이이고, 이쪽은 dependent 를 이름으로 식별한 상태 전이다.
+	 * {@code DEC-DEPENDENCY-DELTA-20260910-01} 에 따라 {@code delta = inflow - outflow} 를
+	 * 전제하지 않는다.
+	 *
+	 * <p><b>구간은 프리셋만 받는다.</b> 임의 날짜를 허용하면 요청마다 수천만 행을 집계해야 한다.
+	 * 프리셋 밖의 값은 빈 결과가 아니라 400 이다 — 조용히 기본값으로 떨어뜨리면 화면은
+	 * 3년을 보면서 2년을 요청했다고 믿는다.
+	 *
+	 * <p>응답의 네 범주를 <b>모두</b> 화면에 내야 한다. {@code unobserved} 를 {@code retained} 에
+	 * 합치면 1년 구간 유지율이 87.2% 가 아니라 98.8% 로 보인다.
+	 */
+	@Operation(summary = "유지·유입·이탈",
+		description = "구간 양 끝의 dependent 선언 집합을 비교한다. period 는 1y·3y·5y 중 하나이며 "
+			+ "기본 3y. 한 패키지가 kind(regular·peer·optional)마다 한 줄씩 나온다. "
+			+ "계산 대상 밖이면 0 이 아니라 null 과 data_status=OUT_OF_SCOPE 로 나간다.")
+	@GetMapping("/packages/transitions")
+	public ApiResponseBody<TransitionsResponse> getTransitions(
+		@RequestParam(name = "names", required = false) List<String> names,
+		@RequestParam(name = "period", required = false) String period
+	) {
+		return ApiResponseUtil.createSuccessResponse(
+			service.getTransitions(PackageNames.of(names), TransitionPeriod.of(period)));
 	}
 
 	/**

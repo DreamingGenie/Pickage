@@ -388,6 +388,54 @@ public class PackageQueryRepository {
 	public record SimilarRow(String name, int rank, double score, String modelVer) {
 	}
 
+	/* ------------------------------------------------------------------
+	 * 기능-08 유지·유입·이탈
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 한 구간의 네 범주. <b>키 조회 하나로 끝난다.</b>
+	 *
+	 * <p>{@code PK_DEPENDENT_TRANSITION}({@code package_id}, {@code period}, {@code kind}) 가
+	 * 그대로 조회 경로라 별도 인덱스가 없다. 비교 대상이 최대 3개이므로 {@code IN} 조회다.
+	 *
+	 * <p>{@code t1}·{@code t2} 를 함께 읽는다. 표가 값으로 갖고 있으므로 서버가 다시 계산하지
+	 * 않는다 — 계산으로 만들면 파이프라인이 구간 정의를 바꿨을 때 조용히 어긋난다.
+	 *
+	 * <p><b>이름으로 조회하고 이름으로 돌려준다.</b> {@code package_id} 는 재적재 시 재발번
+	 * 여지가 있어 외부로 내보내지 않는다(V1 설계 원칙).
+	 */
+	private static final String TRANSITIONS_SQL = """
+		SELECT p.name, t.kind, t.retained, t.inflow, t.inflow_new,
+		       t.outflow, t.unobserved, t.t1, t.t2
+		FROM dependent_transition t
+		JOIN package p ON p.package_id = t.package_id
+		WHERE t.period = ? AND p.name = ANY (?)
+		ORDER BY p.name, t.kind
+		""";
+
+	public List<TransitionRow> findTransitions(PackageNames names, String period) {
+		return jdbcTemplate.query(TRANSITIONS_SQL,
+			ps -> {
+				ps.setString(1, period);
+				ps.setArray(2, ps.getConnection()
+					.createArrayOf("text", names.values().toArray()));
+			},
+			(rs, i) -> new TransitionRow(
+				rs.getString("name"),
+				rs.getString("kind"),
+				rs.getInt("retained"),
+				rs.getInt("inflow"),
+				rs.getInt("inflow_new"),
+				rs.getInt("outflow"),
+				rs.getInt("unobserved"),
+				rs.getObject("t1", LocalDateTime.class).toLocalDate(),
+				rs.getObject("t2", LocalDateTime.class).toLocalDate()));
+	}
+
+	public record TransitionRow(String name, String kind, int retained, int inflow,
+		int inflowNew, int outflow, int unobserved, LocalDate t1, LocalDate t2) {
+	}
+
 	/**
 	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
 	 *

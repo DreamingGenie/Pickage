@@ -16,10 +16,12 @@ import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.TransitionRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 
@@ -292,6 +294,70 @@ public class PackageService {
 	public PackageSearchResponse search(String q, Integer limit) {
 		SearchQuery query = SearchQuery.of(q, limit);
 		return new PackageSearchResponse(query.q(), repository.searchNames(query.q(), query.limit()));
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-08 유지·유입·이탈
+	 * ------------------------------------------------------------------ */
+
+	/** 표의 {@code CK_DEPENDENT_TRANSITION_KIND} 와 같은 목록·순서. */
+	private static final List<String> KINDS = List.of("regular", "peer", "optional");
+
+	/**
+	 * 이름과 kind 를 한 키로 잇는 구분자.
+	 *
+	 * <p>탭은 {@link PackageNames} 의 허용 문자에 없어 이름에 섞일 수 없다. 두 값을 그냥
+	 * 이어 붙이면 {@code ("ab", "c")} 와 {@code ("a", "bc")} 가 같은 키가 된다.
+	 */
+	private static final String KEY_SEPARATOR = "\t";
+
+	/**
+	 * 구간 양 끝의 dependent 선언 집합 비교 결과.
+	 *
+	 * <p><b>0 과 "모름" 을 구분해 내보낸다.</b> 세 갈래다.
+	 * <ul>
+	 *   <li>{@code not_found} — {@code package} 에 이름 자체가 없다</li>
+	 *   <li>{@code OUT_OF_SCOPE} — 이름은 있는데 계산 대상(상위 10만) 밖이다. 실측 2.3%</li>
+	 *   <li>{@code NO_DATA} — 대상이고 계산도 됐는데 그 {@code kind} 의 dependent 가 0 이다</li>
+	 * </ul>
+	 * 셋을 뭉뚱그려 0 으로 주면 화면이 "의존자가 없다" 와 "세어 보지 않았다" 를 구분할 수 없다.
+	 *
+	 * <p>{@code t1}·{@code t2} 는 <b>표가 가진 값을 읽는다.</b> 서버가 다시 계산하면
+	 * 파이프라인이 구간 정의를 바꿨을 때 조용히 어긋난다. 표가 통째로 비어 있을 때만
+	 * ({@code NOT_COMPUTED}) 구간에서 만들어 채운다.
+	 */
+	public TransitionsResponse getTransitions(PackageNames names, TransitionPeriod period) {
+		Existing existing = existing(names);
+		List<TransitionRow> rows = existing.names().isEmpty()
+			? List.of()
+			: repository.findTransitions(PackageNames.of(existing.names()), period.code());
+
+		// 요청한 이름 × kind 를 모두 만들고 조회 결과를 얹는다. 행을 빼면 받는 쪽이
+		// "조회 실패" 와 "dependent 가 없음" 을 구분할 수 없다 — 파이프라인과 같은 규칙이다.
+		Map<String, TransitionRow> byKey = rows.stream()
+			.collect(Collectors.toMap(r -> r.name() + KEY_SEPARATOR + r.kind(), Function.identity()));
+
+		List<TransitionsResponse.Series> series = existing.names().stream()
+			.flatMap(name -> KINDS.stream().map(kind -> {
+				TransitionRow row = byKey.get(name + KEY_SEPARATOR + kind);
+				// 이름은 있는데 행이 없다 = 계산 대상 밖이거나 회차 미적재. 둘을 가르는 것은
+				// 조회 결과가 통째로 비었는지다.
+				if (row == null) {
+					return TransitionsResponse.Series.unknown(name, kind,
+						rows.isEmpty() ? TransitionsResponse.NOT_COMPUTED
+							: TransitionsResponse.OUT_OF_SCOPE);
+				}
+				return TransitionsResponse.Series.counted(name, kind, row.retained(),
+					row.inflow(), row.inflowNew(), row.outflow(), row.unobserved());
+			}))
+			.toList();
+
+		LocalDate t2 = rows.stream().map(TransitionRow::t2).findFirst()
+			.orElseGet(repository::findLatestSnapshot);
+		LocalDate t1 = rows.stream().map(TransitionRow::t1).findFirst()
+			.orElseGet(() -> t2 == null ? null : period.startFrom(t2));
+
+		return TransitionsResponse.of(period.code(), t1, t2, series, existing.notFound());
 	}
 
 	/* ------------------------------------------------------------------ *
