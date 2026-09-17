@@ -229,7 +229,7 @@ API endpoint·HTTP 응답 필드명과 오류 코드는 개발팀의 **Notion AP
 - Dependency signed 증감: 서버 별도 summary가 아니라 프론트 adapter가 조회 구간 첫·마지막 유효 point로 계산
 - 게시 데이터 상태와 UI 요청 상태를 분리한다. 현재 후보 API 데이터 상태는 `COMPLETE|NO_DATA`이며 생태계 API는 `not_found`를 사용한다. UI는 `loading|success|empty|error`를 기본으로 하고 출처가 지원할 때 `partial|stale`을 추가한다. PDF의 `READY` 등 lifecycle과는 구분한다.
 - HTTP wire는 snake_case를 따르며 화면용 camelCase 변환은 프론트 adapter 경계에서 처리
-- 서버 배치·사양은 제품 화면 요구와 분리하고, 실제 인프라 기준은 `Pickage_기능별_개발_구상안_0915.md` §3의 `DEC-SERVER-ALIGN-20260910-01`을 따른다. 제품 기획서에서는 서버 인스턴스 타입·자원량을 별도 재정의하지 않는다.
+- 서버 배치·사양은 제품 화면 요구와 분리하고, 실제 인프라 기준은 `Pickage_기능별_개발_구상안_0917.md` §3의 `DEC-SERVER-ALIGN-20260910-01`을 따른다. 제품 기획서에서는 서버 인스턴스 타입·자원량을 별도 재정의하지 않는다.
 
 ## 7. 보고서 1페이지: 생태계 변화
 
