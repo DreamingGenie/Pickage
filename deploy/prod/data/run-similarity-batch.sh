@@ -141,9 +141,11 @@ echo "[6/6] 포인터"
 PREV_JSON=$(mc "mc cat l/$AI_DST_RESULT/_current.json" 2>/dev/null || true)
 PREV_RUN=$(printf '%s' "$PREV_JSON" \
            | sed -n 's/.*"run_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-# 뒤로 되돌리지 않는다. corpus 이름에 수집일이 들어가 문자열 비교가 곧 시간 순서다
-# (S15P21A506-348 의 관례를 산출물 쪽에 그대로 적용한다).
-if [ -n "$PREV_RUN" ] && [ "$PREV_RUN" \> "$OUT_RUN" ]; then
+# 뒤로 되돌리지 않는다. 모델 버전은 숫자로, 코퍼스는 문자열(수집일이 들어가
+# 사전식 비교가 곧 시간 순서 — S15P21A506-348 관례)로 각각 비교한다.
+# 두 값을 이어붙인 문자열 전체를 사전식으로만 비교하면 모델 버전이 v9→v10
+# 처럼 자릿수가 늘 때 오판된다 (S15P21A506-376).
+if [ -n "$PREV_RUN" ] && ! sh lib/pointer-is-newer.sh "$PREV_RUN" "$OUT_RUN"; then
   echo "      포인터가 더 최신이라 그대로 둡니다: $PREV_RUN"
 else
   POINTER=$(printf '{"run_path":"%s","run_id":"%s","published_at":"%s"}' \
