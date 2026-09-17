@@ -1,8 +1,8 @@
 # Pickage 프론트엔드 — 작업 기준
 
-**모든 화면 작업 전에 `../docs/Pickage_메뉴구조_IA_0915.md`를 먼저 읽는다.** 데이터·상태·판정 계약은
-`../docs/Pickage_기능별_개발_구상안_0915.md`가 기준이다. 두 문서가 코드보다 우선한다.
-0910→0915 사이 결정 이력·현재 적용할 계약 요약은 `../docs/Pickage_0910_to_0915_기획변경_상세분석.md`(개발현황 반영, 간접·전이 Dependency 프로젝트 범위 제외).
+**모든 화면 작업 전에 `../docs/Pickage_메뉴구조_IA_0917.md`를 먼저 읽는다.** 데이터·상태·판정 계약은
+`../docs/Pickage_기능별_개발_구상안_0917.md`가 기준이다. 두 문서가 코드보다 우선한다.
+0915→0917 사이 결정 이력·현재 적용할 계약 요약은 `../docs/Pickage_0915_to_0917_기획변경_상세분석.md`(GitHub 커뮤니티·GMS 요약 구현 완료, 유사후보 데이터 기반 마련, 주간 배치 자동화, Dependents·Downloads 그래프 지수·증감·로그축 압축, Version Share 패키지 탭 범위 정정).
 
 Figma: `fuTQIgzDn8cr6BTwdOlDrx` → 프레임 `Pickage_v2_web-service`(`485:241`)
 (구 프레임 `Pickage_v1_web-service`(`220:193`)는 `무덤` Section의 폐기 보관본 — 참고하지 않는다)
@@ -75,10 +75,11 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
 
 ## 현재 스코프
 
-포함: 00 · 01 · 02 · 03A(생태계) · 03B(기능 비교)
+포함: 00 · 01 · 02 · 03A(생태계) · 03B(기능 비교) · 확장-03(GitHub 커뮤니티)
 - PDF(04): 미리보기·다운로드 UI는 구현됨(`S15P21A506-141`). 생성 상태·차단 사유(READY/BLOCKED)
   로직은 미완 — 구상안 §13.2 적격성 계약대로 `S15P21A506-220`에서 마무리한다.
-- GitHub 커뮤니티(확장-03): 미착수. `routes/report/community` 미생성. 구현계획은
+- GitHub 커뮤니티(확장-03): 구현 완료(`S15P21A506-316`, 2026-09-17 확인). `routes/report/community`가
+  `report-page.tsx`의 세 번째 lazy tab(`community`)으로 연결돼 있다. 구현계획은
   `../docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md`(`S15P21A506-323`).
 
 ## 예시 데이터

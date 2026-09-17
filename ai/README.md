@@ -3,7 +3,7 @@
 기준 패키지의 `description + keywords` 임베딩으로 **유사/대체 후보 최대 3개**를 사전 계산하는 트랙.
 생성형 AI를 후보 검색·정렬에 쓰지 않는다. 서빙 요청은 PostgreSQL의 사전 계산 결과만 조회한다.
 
-설계 근거: `docs/Pickage_기능별_개발_구상안_0915.md` §3.3~3.5, §4.1, §4.2, §14.
+설계 근거: `docs/Pickage_기능별_개발_구상안_0917.md` §3.3~3.5, §4.1, §4.2, §14.
 
 > **재학습 관련 안내 (2026-09-14)**: 모델 재학습(재파인튜닝)은 최대한 지양하는 방향으로
 > 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 현재 서빙
@@ -112,7 +112,7 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 
 ## 관련 문서
 
-- `docs/Pickage_기능별_개발_구상안_0915.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
+- `docs/Pickage_기능별_개발_구상안_0917.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
 - `datasets/deprecated_replacement_260831/`, `datasets/migration_pairs_260908/`, `datasets/feature_candidates_260908/` — 학습 데이터
 - `pipeline/collectors/keywords/` — `package_text` (임베딩 입력) 수집
 - `pipeline/postgresql/` — 적재기 패턴 (방식 C 로더 참조)
