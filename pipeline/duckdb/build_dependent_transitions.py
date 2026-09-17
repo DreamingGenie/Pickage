@@ -129,6 +129,10 @@ PERIOD_YEARS = (1, 3, 5)
 _TS_FMT = "%Y-%m-%d %H:%M:%S"
 _t2 = datetime.strptime(T2, _TS_FMT)
 PERIODS = {f"{n}y": _t2.replace(year=_t2.year - n).strftime(_TS_FMT) for n in PERIOD_YEARS}
+# 읽을 파티션도 T2 에서 유도한다. T1 과 **같은 이유다.** 따로 적어 두면 다음 회차에서 T2 만
+# 고쳤을 때 8월 데이터를 읽으면서 11월이라고 이름 붙은 결과가 나오고, 그때 published_after_t2
+# 는 0 이라 조용하며 검산 넷은 내부 정합성만 보므로 전부 통과한다.
+SNAPSHOT = _t2.strftime("%Y-%m-%d")
 KINDS = ("regular", "peer", "optional")
 
 # git 이 추적하는 CSV 에 담을 대상 수. 전체 89.9만 행은 81 MB 라 datasets/README.md 의
@@ -317,14 +321,14 @@ def main(argv=None):
     for d in (pq_dir, out, tmp):
         os.makedirs(d, exist_ok=True)
 
-    v_path = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
+    v_path = f"{ROOT}/data/raw/versions_full/snapshot={SNAPSHOT}/*.parquet"
     r_path = f"{ROOT}/data/raw/requirements/**/*.parquet"
 
     con = duckdb.connect()
     con.execute(f"SET threads={args.threads}; SET memory_limit='{args.memory}'; "
                 f"SET temp_directory='{tmp}'; SET preserve_insertion_order=false")
 
-    stats = {"snapshot": "2026-08-31", "t2": T2, "periods": PERIODS,
+    stats = {"snapshot": SNAPSHOT, "t2": T2, "periods": PERIODS,
              "kinds": list(KINDS), "source": "depsdev",
              "built_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     build_periods(con)
