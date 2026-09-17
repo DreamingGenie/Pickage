@@ -1,12 +1,12 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
   buildArea,
   buildLine,
   buildPoints,
-  compact,
   extentX,
   extentY,
+  formatTick,
   MAX_GAP_DAYS,
   ms,
   pointSize,
@@ -16,6 +16,7 @@ import {
   ticksY,
   type Box,
   type ChartSeries,
+  type Domain,
 } from '@/components/charts/geometry'
 import { seriesStyle } from '@/components/charts/tokens'
 import { cn } from '@/lib/utils'
@@ -47,6 +48,83 @@ export interface LineChartProps {
 }
 
 const PAD = { t: 8, r: 10, b: 16, l: 34 }
+
+/**
+ * 강조가 **실제로 일부만** 가리키는가.
+ *
+ * <p>강조 목록의 길이를 시리즈 수와 견주면 안 된다. 목록은 패키지 카드가 펼쳐진 것들이고,
+ * 여기 들어온 시리즈는 **그릴 수 있는 것만 걸러진 뒤**다(`MetricChart` 가 점이 부족한
+ * 시리즈를 뺀다). 둘은 같은 모집단이 아니다.
+ *
+ * <p>실제로 이렇게 어긋났다 — 세 패키지 중 하나를 접어 강조가 둘인데, 강조된 하나에
+ * 자료가 없어 차트에는 둘만 남았다. 그러면 `2 < 2` 가 거짓이라 <b>강조가 통째로 꺼졌고</b>,
+ * 남은 하나가 굵어지지 않았다.
+ *
+ * <p>그래서 **여기 그려지는 시리즈 중 몇이 강조 대상인가**를 센다. 하나도 아니면(전부
+ * 접었다) 강조할 것이 없고, 전부면 강조가 아무 뜻이 없다 — 둘 다 평소대로 그린다.
+ */
+function partialEmphasis(
+  series: Pick<ChartSeries, 'key'>[],
+  keys: readonly string[] | null,
+): boolean {
+  if (keys == null) return false
+  const on = series.reduce((n, s) => n + (keys.includes(s.key) ? 1 : 0), 0)
+  return on > 0 && on < series.length
+}
+
+/** 도메인이 바뀔 때 움직이는 시간. 눈으로 따라갈 만큼 짧게. */
+const Y_TWEEN_MS = 260
+
+/**
+ * y 도메인이 바뀌면 두 끝을 **로그 공간에서** 부드럽게 옮긴다.
+ *
+ * CSS 로는 못 한다. 선은 `path` 의 `d` 이고 그건 전이 대상이 아니다. 그림 전체에
+ * `transform: scaleY()` 를 걸면 축 변화를 정확히 흉내 낼 수는 있다 — 로그 축이라
+ * 도메인 변경이 세로 방향 아핀 변환이기 때문이다. 다만 그러면 **점이 타원으로
+ * 찌그러지고 선 굵기가 변한다.** 그래서 도메인 숫자를 프레임마다 옮기고 경로를 다시
+ * 그린다. 점·선·눈금·격자가 함께 움직인다.
+ *
+ * 값이 아니라 **로그 값**을 보간하는 것이 중요하다. 축이 로그라서 선형으로 보간하면
+ * 화면에서는 급하게 출발해 느리게 도착하는 것처럼 보인다.
+ *
+ * `prefers-reduced-motion` 이면 곧바로 바꾼다.
+ */
+function useYDomainTween([lo, hi]: Domain, duration = Y_TWEEN_MS): Domain {
+  const [shown, setShown] = useState<Domain>([lo, hi])
+  /* 프레임 콜백이 읽는 "지금 그려진 도메인". 렌더에서는 건드리지 않는다. */
+  const drawn = useRef<Domain>([lo, hi])
+
+  useEffect(() => {
+    const [fromLo, fromHi] = drawn.current
+    if (fromLo === lo && fromHi === hi) return
+
+    // 움직임을 줄여 달라고 한 사용자에게는 길이를 0 으로 둔다. 첫 프레임에 도착한다.
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const span = still ? 0 : duration
+
+    const a0 = Math.log1p(Math.max(0, fromLo))
+    const a1 = Math.log1p(Math.max(0, fromHi))
+    const b0 = Math.log1p(Math.max(0, lo))
+    const b1 = Math.log1p(Math.max(0, hi))
+    const began = performance.now()
+    let frame = 0
+
+    const step = (now: number) => {
+      const p = span <= 0 ? 1 : Math.min(1, (now - began) / span)
+      const e = 1 - Math.pow(1 - p, 3) // easeOutCubic — 끝에서 조용히 멈춘다
+      const next: Domain =
+        p < 1 ? [Math.expm1(a0 + (b0 - a0) * e), Math.expm1(a1 + (b1 - a1) * e)] : [lo, hi]
+      drawn.current = next
+      setShown(next)
+      if (p < 1) frame = requestAnimationFrame(step)
+    }
+
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [lo, hi, duration])
+
+  return shown
+}
 
 /**
  * 여러 패키지의 시계열을 한 카드에 겹쳐 그린다.
@@ -88,18 +166,27 @@ export function LineChart({
   const pad = bare ? { t: 3, r: 3, b: 3, l: 3 } : PAD
   const box: Box = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b }
 
+  const partial = partialEmphasis(series, emphasisKeys)
+  const isOn = (key: string) => !partial || emphasisKeys!.includes(key)
+
+  /*
+    y 범위는 **강조된 시리즈만** 보고 정한다.
+
+    오른쪽 카드를 접어 하나만 남겼는데 흐려진 시리즈가 축을 끝까지 벌리고 있으면,
+    남긴 시리즈는 여전히 눌려서 평평하게 보인다. 접는 조작이 "무엇을 볼지" 를 고르는
+    일이므로 보이는 범위도 따라와야 한다.
+
+    흐려진 시리즈는 그대로 그린다 — 축 밖으로 나가면 잘리고, 그건 "지금 축은 이 시리즈
+    기준" 이라는 뜻이라 오히려 읽힌다.
+  */
+  const focus = partial ? series.filter((s) => isOn(s.key)) : series
   const xd = extentX(series)
-  const yd = extentY(series)
+  const yd = useYDomainTween(extentY(focus.length > 0 ? focus : series))
   const yTicks = bare ? [] : ticksY(yd, 3)
 
   const cutX = observedFrom ? scaleX(ms(observedFrom), xd, box) : null
   const single = series.length === 1
   const dot = pointSize(Math.max(...series.map((s) => s.points.length), 2), box.w)
-
-  // 전부 강조하는 건 아무것도 강조하지 않는 것과 같다.
-  const partial =
-    emphasisKeys != null && emphasisKeys.length > 0 && emphasisKeys.length < series.length
-  const isOn = (key: string) => !partial || emphasisKeys!.includes(key)
 
   /** 스냅샷 시각 목록과 시리즈별 조회표. 커서 위치를 여기에 맞춘다. */
   const { times, lookup } = useMemo(() => {
@@ -210,7 +297,7 @@ export function LineChart({
                 fill="var(--muted-foreground)"
                 style={{ fontVariantNumeric: 'tabular-nums' }}
               >
-                {compact(v)}
+                {formatTick(v, yd)}
               </text>
             </g>
           )
@@ -258,7 +345,7 @@ export function LineChart({
           .sort((a, b) => Number(isOn(series[a].key)) - Number(isOn(series[b].key)))
           .map((i) => {
             const s = series[i]
-            const st = seriesStyle(i)
+            const st = seriesStyle(s.tone ?? i)
             const dimmed = partial && !isOn(s.key)
             const focused = partial && isOn(s.key)
             const hv = hoverT ? (lookup.get(s.key)?.get(hoverT) ?? null) : null
@@ -348,7 +435,7 @@ export function LineChart({
           <span className="font-mono text-base text-muted-foreground">{hoverT}</span>
           <ul className="flex flex-col gap-1">
             {series.map((s, i) => {
-              const st = seriesStyle(i)
+              const st = seriesStyle(s.tone ?? i)
               const v = lookup.get(s.key)?.get(hoverT) ?? null
               return (
                 <li
@@ -398,12 +485,11 @@ export function SeriesLegend({
   emphasisKeys?: readonly string[] | null
   className?: string
 }) {
-  const partial =
-    emphasisKeys != null && emphasisKeys.length > 0 && emphasisKeys.length < series.length
+  const partial = partialEmphasis(series, emphasisKeys)
   return (
     <ul className={cn('flex flex-wrap items-center gap-x-4 gap-y-1', className)}>
       {series.map((s, i) => {
-        const st = seriesStyle(i)
+        const st = seriesStyle(s.tone ?? i)
         const dimmed = partial && !emphasisKeys!.includes(s.key)
         return (
           <li

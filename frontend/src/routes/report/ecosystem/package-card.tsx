@@ -1,10 +1,10 @@
-import { ChevronDownIcon } from 'lucide-react'
+import { ChevronDownIcon, ExternalLinkIcon } from 'lucide-react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ObservationBadges } from '@/routes/report/ecosystem/badges'
+import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
   ALL_MAJORS,
   type MajorSelection,
@@ -47,34 +47,70 @@ export function PackageCard({
   const isBase = index === 0
   const delta = model.dependentsDelta
 
+  const license = model.licenses.length ? model.licenses.join(' · ') : null
+
+  /*
+    머리글은 **세 덩어리**다. 접기 버튼이 이름 쪽만 감싸고, 저장소 링크는 그 오른쪽에
+    형제로 선다 — button 안의 a 는 HTML 이 허용하지 않고, 넣더라도 링크를 누를 때 클릭이
+    바깥으로 새어 카드가 같이 접힌다.
+
+    오른쪽 끝의 버전·화살표도 눌러서 접히게 두되 보조기술에는 숨긴다. 같은 일을 하는
+    버튼이 둘로 읽히면 "접기" 가 두 번 들린다.
+  */
+  const title = (
+    <span className="flex min-w-0 items-start gap-2.5">
+      <svg width="20" height="8" aria-hidden className="mt-2 shrink-0">
+        <line
+          x1="0"
+          y1="4"
+          x2="20"
+          y2="4"
+          stroke={style.color}
+          strokeWidth="2.6"
+          strokeDasharray={style.dash}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="truncate font-mono text-base font-medium">{model.key}</span>
+          {isBase && (
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+              기준
+            </span>
+          )}
+          {model.isDeprecated && (
+            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
+              폐기 표시
+            </span>
+          )}
+        </span>
+        {/* 라이선스. 이름을 읽는 데 방해가 되면 안 되므로 한 단계 더 죽인다 */}
+        {license && (
+          <span className="truncate font-mono text-xs text-muted-foreground/60">{license}</span>
+        )}
+      </span>
+    </span>
+  )
+
   const header = (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <svg width="20" height="8" aria-hidden className="shrink-0">
-          <line
-            x1="0"
-            y1="4"
-            x2="20"
-            y2="4"
-            stroke={style.color}
-            strokeWidth="2.6"
-            strokeDasharray={style.dash}
-            strokeLinecap="round"
-          />
-        </svg>
-        <span className="truncate font-mono text-base font-medium">{model.key}</span>
-        {isBase && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-            기준
-          </span>
-        )}
-        {model.isDeprecated && (
-          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
-            폐기 표시
-          </span>
-        )}
-      </div>
-      <span className="flex shrink-0 items-center gap-2">
+    <div className="flex items-start gap-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex min-w-0 items-start text-left"
+      >
+        {title}
+      </button>
+      <RepositoryLink url={model.repoUrl} name={model.key} />
+      <button
+        type="button"
+        onClick={onToggle}
+        tabIndex={-1}
+        aria-hidden
+        className="ml-auto flex shrink-0 items-center gap-2 pt-0.5"
+      >
         <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
         <ChevronDownIcon
           aria-hidden
@@ -83,20 +119,15 @@ export function PackageCard({
             expanded && 'rotate-180',
           )}
         />
-      </span>
+      </button>
     </div>
   )
 
   if (!expanded) {
     return (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={false}
-        className="rounded-2xl border bg-background px-6 py-5 text-left transition-colors duration-200 hover:border-foreground/30 hover:bg-muted/30"
-      >
+      <div className="rounded-2xl border bg-background px-6 py-5 transition-colors duration-200 hover:border-foreground/30 hover:bg-muted/30">
         {header}
-      </button>
+      </div>
     )
   }
 
@@ -106,10 +137,16 @@ export function PackageCard({
     접기는 머리글만 담당한다.
   */
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]">
-      <button type="button" onClick={onToggle} aria-expanded className="text-left">
-        {header}
-      </button>
+    <div
+      /*
+        펼칠 때만 살짝 들어온다. `transform`(translate)과 `opacity` 만 건드려 합성
+        단계에서 끝나므로 재배치가 일어나지 않는다. 높이를 전이하면 매 프레임 레이아웃이
+        다시 계산되고, 옆의 차트가 폭을 실측하고 있어 그때마다 같이 다시 그려진다.
+        `animate-in` 은 dialog·sheet 와 같은 tw-animate-css 유틸이다.
+      */
+      className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
+    >
+      {header}
 
       {model.description && (
         <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
@@ -119,19 +156,38 @@ export function PackageCard({
 
       {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-base text-muted-foreground">Dependents 증감</span>
-          <span className="flex items-baseline gap-2">
-            <span className="font-mono text-lg leading-none font-semibold tabular-nums">
-              {delta === null
-                ? '—'
-                : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
+        {/*
+          값이 없을 때 `—` 만 찍으면 "0 인가" 와 "못 구했나" 가 구분되지 않는다. 위 네 타일이
+          이미 그 구분을 모양으로 하고 있으므로 같은 타일을 쓴다 — 빈 자리 모양이 화면에
+          하나뿐이어야 사용자가 다른 뜻으로 읽지 않는다.
+        */}
+        {delta === null ? (
+          <MissingTile
+            label="Dependents 증감"
+            title="이 구간에 값이 있는 점이 둘 이상 있어야 증감을 낼 수 있습니다"
+          />
+        ) : (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-base text-muted-foreground">Dependents 증감</span>
+            <span className="flex items-baseline gap-2">
+              {/* 뱃지 타일의 변량과 같은 약속 — 오름은 붉게, 내림은 푸르게, 부호를 항상 붙인다 */}
+              <span
+                className={cn(
+                  'font-mono text-lg leading-none font-semibold tabular-nums',
+                  delta > 0
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : delta < 0
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-muted-foreground',
+                )}
+              >
+                {delta > 0 ? '+' : delta < 0 ? '−' : '±'}
+                {Math.abs(delta).toLocaleString()}
+              </span>
+              <span className="text-base text-muted-foreground">화면에 뜬 구간</span>
             </span>
-            <span className="text-base text-muted-foreground">
-              {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
-            </span>
-          </span>
-        </div>
+          </div>
+        )}
         {/*
           311c — 표시 간격에 따라 "화면에 뜬 첫 점"이 구간 시작과 정확히 같지 않을 수 있다
           (`sampleEvery`가 뒤에서부터 솎기 때문). 그래서 실제로 증감을 낸 두 날짜를 그대로 적는다.
@@ -158,7 +214,11 @@ export function PackageCard({
         ) : versionShareState.status === 'error' ? (
           <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
         ) : model.versionShare.length === 0 ? (
-          <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
+          /* 도넛이 들어갈 자리라 넓다. 한 줄 문장만 두면 카드에 구멍이 뚫린 것처럼 보인다 */
+          <EmptyPanel
+            message="이 시점의 버전 분포 자료가 없습니다"
+            hint="다음 집계에서 채워집니다"
+          />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-5">
@@ -177,12 +237,6 @@ export function PackageCard({
               공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
               프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
             </p>
-            {/* 개요의 snapshotAt(카드 전체 공통 기준일)과 다른 값일 수 있어 따로 적는다 */}
-            {model.versionShareSnapshotAt && (
-              <p className="font-mono text-base text-muted-foreground">
-                기준일 {model.versionShareSnapshotAt}
-              </p>
-            )}
           </>
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
@@ -200,14 +254,33 @@ export function PackageCard({
           </p>
         )}
       </div>
-
-      {/* 라이선스·최신 릴리스는 판단 재료라 카드 맨 아래에 조용히 둔다 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-base text-muted-foreground">
-        <span>{model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'}</span>
-        <span className="font-mono">최신 릴리스 {model.publishedAt.slice(0, 10)}</span>
-        {model.repoUrl && <span className="truncate font-mono">{model.repoUrl}</span>}
-      </div>
     </div>
+  )
+}
+
+/**
+ * 저장소 바로가기.
+ *
+ * <p>주소를 그대로 적지 않는다. `https://github.com/...` 는 한 줄을 다 먹으면서도
+ * 누를 수 없었고, 잘라 쓰면 어디로 가는지 알 수 없다. 아이콘 버튼으로 두고 주소는
+ * `title` 로 옮긴다 — 확인하고 싶은 사람은 올려 보면 된다.
+ *
+ * <p><b>http(s) 가 아니면 아예 그리지 않는다.</b> 주소는 수집한 자료라 우리가 쓴 값이
+ * 아니다. `javascript:` 같은 스킴이 섞여 들어오면 클릭 한 번이 스크립트 실행이 된다.
+ */
+function RepositoryLink({ url, name }: { url: string | null; name: string }) {
+  if (!url || !/^https?:\/\//i.test(url)) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={url}
+      aria-label={`${name} 저장소 열기 (새 탭)`}
+      className="ml-auto inline-flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
+    >
+      <ExternalLinkIcon className="size-4" aria-hidden />
+    </a>
   )
 }
 

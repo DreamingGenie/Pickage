@@ -141,7 +141,7 @@ type BlockReason =
 const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
   COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
   ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
-  SNAPSHOT_CREATION_ERROR: '보고서 스냅샷 생성 중 오류가 발생했습니다.',
+  SNAPSHOT_CREATION_ERROR: '보고서 사본을 만드는 중 오류가 발생했습니다.',
   FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
   VERSION_RESULT_MISMATCH: '기능 비교가 다시 실행되는 중입니다. 완료 후 다시 시도해 주세요.',
 }
@@ -231,11 +231,8 @@ function Ready({
 
       <dl className="flex flex-col divide-y rounded-lg border">
         <Row label="비교 대상" value={packages.join(' · ')} />
-        <Row
-          label="생태계 조회 기간"
-          value={from && to ? `${from} ~ ${to}` : '서버 기본 구간 (최신 스냅샷 기준 26주)'}
-        />
-        <Row label="Version Share 기준일" value={snapshotAt ?? '최신 스냅샷'} />
+        <Row label="생태계 조회 기간" value={from && to ? `${from} ~ ${to}` : '보유한 전 기간'} />
+        <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
         <Row
           label="포함 내용"
           value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 자료 상태"

@@ -16,6 +16,16 @@ export interface ChartSeries {
   key: string
   label: string
   points: TimePoint[]
+  /**
+   * 선 모양·색을 고르는 자리 번호 (`seriesStyle`).
+   *
+   * **배열에서의 위치가 아니라 시리즈에 붙은 값이다.** 위치로 정하면 그릴 수 없는
+   * 시리즈 하나를 걸러낸 순간 뒤의 것들이 한 칸씩 밀려, 카드·범례에 그린 선과 차트의
+   * 선이 어긋난다. 실제로 그렇게 어긋나 있었다.
+   *
+   * 값은 **최종 비교 순서**(IA 11.1)다 — 0 번이 기준 패키지.
+   */
+  tone?: number
 }
 
 export interface Box {
@@ -42,40 +52,91 @@ export function extentX(series: ChartSeries[]): Domain {
   return Number.isFinite(lo) ? [lo, hi] : [0, 1]
 }
 
-export function extentY(series: ChartSeries[]): Domain {
-  let hi = -Infinity
-  for (const s of series) {
-    for (const p of s.points) {
-      if (p.v !== null && p.v > hi) hi = p.v
-    }
-  }
-  // 0 을 항상 포함한다. 잘린 축은 변화를 과장한다.
-  return [0, Number.isFinite(hi) ? niceMax(hi) : 1]
-}
-
-/** 축 최댓값을 1·2·2.5·5 배수로 올린다. */
-export function niceMax(v: number): number {
-  if (v <= 0) return 1
-  const mag = Math.pow(10, Math.floor(Math.log10(v)))
-  const n = v / mag
-  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
-  return step * mag
-}
-
 /**
  * y축은 로그 공간에서 그린다(311a). 의존 수·다운로드 모두 몇 자릿수를 오가서, 선형 축이면
- * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 0을 포함하는
- * 도메인(`extentY`가 항상 0을 하한으로 둔다)에서 `log(0)`이 `-Infinity`가 되는 것을 피하기
- * 위해서다 — `log1p(0) = 0`이라 0이 항상 바닥에 안전하게 찍힌다.
+ * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 하한이 0 일 수
+ * 있어서다 — `log(0)`은 `-Infinity`지만 `log1p(0) = 0`이라 0이 바닥에 안전하게 찍힌다.
  */
 const toLog = (v: number) => Math.log1p(Math.max(0, v))
 
+/** 도메인 양끝에 두는 여백. 선이 축선에 붙지 않을 만큼만 준다. */
+const Y_PAD = 0.08
+/** 여백이 선형 값 기준으로 이만큼을 넘지 않게 한다. */
+const Y_PAD_CLAMP = 0.15
+
+/**
+ * y 도메인. **화면에 그리는 구간의 최솟값·최댓값에서 만든다.**
+ *
+ * 예전에는 하한을 0 으로 못 박았다("잘린 축은 변화를 과장한다"). 막대처럼 절대량을
+ * 읽는 그림에서는 맞는 원칙이지만, 여기는 <b>구간을 골라 추세를 보는 선그래프</b>다.
+ * 의존 수가 98만에서 102만으로 움직여도 도메인이 [0, 1M] 이면 선이 세로폭의 0.3% 만
+ * 쓰고 <b>일자로 보인다</b> — 실측이다. 구간을 좁히는 조작 자체가 무의미해진다.
+ *
+ * <p>대신 축 눈금이 0 에서 시작하지 않는다는 사실이 <b>눈금 라벨에 그대로 드러난다.</b>
+ * 맨 아래 라벨이 0 이 아닌 것을 읽는 사람이 본다.
+ *
+ * <p>여백은 로그 공간에서 8% 주되 선형 값 기준 15% 로 자른다. 자르지 않으면 몇 자릿수를
+ * 오가는 시리즈에서 위쪽 여백이 폭발한다 — 최대 98만인 자료에 1.7M 눈금이 붙는다.
+ */
+export function extentY(series: ChartSeries[]): Domain {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  if (!Number.isFinite(hi) || hi <= 0) return [0, 1]
+
+  // 값이 하나뿐이면 구간이 없다. 평평한 선을 가운데 두고 위아래로 벌린다.
+  if (lo === hi) {
+    const margin = Math.max(1, hi * 0.1)
+    return [Math.max(0, hi - margin), hi + margin]
+  }
+
+  const lLo = toLog(lo)
+  const lHi = toLog(hi)
+  const pad = (lHi - lLo) * Y_PAD
+  const top = Math.min(Math.expm1(lHi + pad), hi * (1 + Y_PAD_CLAMP))
+  // 자료가 0 에 닿으면 하한도 0 이다. log1p(0) = 0 이라 바닥에 안전하게 찍힌다.
+  const bottom = lo <= 0 ? 0 : Math.max(Math.expm1(Math.max(0, lLo - pad)), lo * (1 - Y_PAD_CLAMP))
+  return [bottom, top]
+}
+
+/**
+ * 눈금 값. 로그 공간에서 고르게 나눈다 — 축이 로그이므로 화면에서도 고르게 놓인다.
+ *
+ * <p>값이 1000 미만이면 정수로 반올림하고 중복을 없앤다. 의존 수·다운로드는 정수라
+ * "0.9 · 1.5 · 2.2" 같은 눈금이 뜻을 갖지 않고, 반올림하면 같은 값이 겹치기 때문이다.
+ * 남는 눈금이 둘도 안 되면 반올림을 포기하고 원래 값을 쓴다.
+ */
 export function ticksY([lo, hi]: Domain, count = 3): number[] {
   const lLo = toLog(lo)
   const lHi = toLog(hi)
   const out: number[] = []
   for (let i = 0; i <= count; i++) out.push(Math.expm1(lLo + ((lHi - lLo) * i) / count))
-  return out
+  if (hi >= 1000) return out
+  const unique = [...new Set(out.map(Math.round))]
+  return unique.length >= 2 ? unique : out
+}
+
+/**
+ * y 눈금 라벨.
+ *
+ * <p>도메인이 좁으면 `compact` 로는 눈금이 겹친다 — 98만~102만 구간에서 1,000,000 과
+ * 1,013,000 이 둘 다 "1.0M" 이 된다. 그때만 단위를 축 전체로 고정하고 소수 자리를
+ * 눈금 간격에 맞춘다. 한 자릿수 넘게 벌어진 축은 눈금마다 자릿수가 달라야 읽히므로
+ * `compact` 를 그대로 쓴다.
+ */
+export function formatTick(v: number, [lo, hi]: Domain, count = 3): string {
+  if (lo <= 0 || hi / lo >= 10) return compact(v)
+  const unit = hi >= 1_000_000 ? 1_000_000 : hi >= 1_000 ? 1_000 : 1
+  const suffix = unit === 1_000_000 ? 'M' : unit === 1_000 ? 'k' : ''
+  const step = (hi - lo) / count / unit
+  const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3
+  return `${(v / unit).toFixed(decimals)}${suffix}`
 }
 
 export const scaleX = (v: number, d: Domain, b: Box) =>

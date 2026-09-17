@@ -1,7 +1,8 @@
+import { CircleAlertIcon } from 'lucide-react'
+
 import type { ChartSeries } from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   MIN_POINTS_FOR_LINE,
   type MetricState,
@@ -32,7 +33,6 @@ export function MetricChart({
   window,
   observedFrom,
   coverageNote,
-  maxWeeksNote,
   emphasisKeys = null,
   height = 192,
   showLegend = false,
@@ -48,8 +48,6 @@ export function MetricChart({
   window: SnapshotWindow
   observedFrom?: string
   coverageNote?: string
-  /** Downloads 카드의 "보유한 전 구간 조회" 같은 고정 안내(126). 카드마다 다르면 부르는 쪽이 정한다. */
-  maxWeeksNote?: string
   emphasisKeys?: readonly string[] | null
   height?: number
   showLegend?: boolean
@@ -66,8 +64,6 @@ export function MetricChart({
    * "관측 행이 있는가"(raw)와 "그릴 값이 있는가"(valid, null 제외)도 구분한다.
    */
   const rawMax = Math.max(0, ...series.map((s) => s.points.length))
-  const allDates = [...new Set(series.flatMap((s) => s.points.map((p) => p.t)))].sort()
-  const maxValidPoints = Math.max(0, ...series.map(validCount))
 
   const lined = series.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
   const accumulating = series.filter((s) => {
@@ -77,15 +73,15 @@ export function MetricChart({
 
   return (
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
+      {/*
+        제목만 남긴다. 단위 설명과 "로그축" 뱃지를 늘 띄워 두면 매번 읽히지 않으면서
+        자리만 차지한다. **뜻을 버리지는 않는다** — 제목에 걸어 두어 올려 보면 나오고,
+        차트의 `aria-label` 에도 그대로 들어간다.
+      */}
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="flex items-baseline gap-2">
-          <span className="font-mono text-base text-muted-foreground">{unit}</span>
-          {/* 311 — 눈금은 원래 값 단위지만 간격 자체는 로그다. 그 사실을 알린다. */}
-          <span className="rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-            로그축
-          </span>
-        </span>
+        <h3 className="text-sm font-semibold" title={`${unit} · 세로축은 로그 간격입니다`}>
+          {title}
+        </h3>
       </header>
 
       {showLegend && state.status === 'ready' && (
@@ -93,24 +89,24 @@ export function MetricChart({
       )}
 
       {state.status === 'loading' ? (
-        <Skeleton className="w-full rounded-xl" style={{ height }} />
+        <ChartLoading height={height} />
       ) : state.status === 'error' ? (
         <MetricError height={height} error={state.error} onRetry={state.onRetry} />
       ) : rawMax === 0 ? (
-        <EmptyState height={height}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
+        <EmptyState height={height}>이 기간에는 집계된 값이 없습니다.</EmptyState>
       ) : lined.length === 0 ? (
         /*
           점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
           그릴 선이 하나도 없다 — 관측치는 숨기지 않고 그대로 적되, 선은 그리지 않는다.
         */
-        <EmptyState height={height}>
+        <EmptyState height={height} icon={false}>
           {accumulating.map((s) => (
             <span key={s.key}>
               <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
               {validCount(s)}주차
             </span>
           ))}
-          <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
+          <span>추세를 그리려면 주간 집계가 {MIN_POINTS_FOR_LINE}번 이상 쌓여야 합니다.</span>
         </EmptyState>
       ) : (
         <>
@@ -147,18 +143,6 @@ export function MetricChart({
         </>
       )}
 
-      {/* 구간·개수는 받은 자료를 설명하는 줄이다. 못 받았으면 할 말이 없다 */}
-      {state.status === 'ready' && (
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-base text-muted-foreground">
-          <span className="font-mono">
-            {allDates.length ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : '자료 없음'}
-          </span>
-          <span className="font-mono tabular-nums">
-            스냅샷 {maxValidPoints}개{step > 1 && ` · ${step}주 간격`}
-          </span>
-        </div>
-      )}
-
       {state.status === 'ready' && state.refreshError !== undefined && (
         <RefreshNotice error={state.refreshError} onRetry={state.onRetry} />
       )}
@@ -168,10 +152,6 @@ export function MetricChart({
           {coverageNote ?? '수집된 구간을 넘습니다'} — 이 지표는 {observedFrom} 부터 있어 그 뒤만
           그렸습니다.
         </p>
-      )}
-
-      {state.status === 'ready' && maxWeeksNote && (
-        <p className="-mt-1.5 text-base leading-relaxed text-muted-foreground">{maxWeeksNote}</p>
       )}
     </section>
   )
@@ -249,13 +229,82 @@ function MetricError({
   )
 }
 
-function EmptyState({ height, children }: { height: number; children: React.ReactNode }) {
+/**
+ * 차트 자리가 비었을 때.
+ *
+ * <p>바탕을 반투명하게 깔고 테두리를 점선으로 둔다. 선이 그려진 카드와 **모양으로**
+ * 갈려야 "여기는 아직 없다" 가 색을 못 보는 사람에게도 전달된다. 패키지 카드의
+ * `EmptyPanel` 과 같은 약속이라 화면 전체에서 빈 자리가 한 가지로 보인다.
+ *
+ * <p>글자는 흐리게 하지 않는다. 읽으라고 쓴 문장이다 — 바탕만 죽인다.
+ */
+function EmptyState({
+  height,
+  icon = true,
+  children,
+}: {
+  height: number
+  /** 위에 동그란 표시를 둘지. 실패·없음에는 두고, 문장이 여럿인 안내에는 뺀다 */
+  icon?: boolean
+  children: React.ReactNode
+}) {
   return (
     <div
       style={{ height }}
-      className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-4 text-center text-base leading-relaxed text-muted-foreground"
+      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/40 px-4 text-center text-base leading-relaxed text-muted-foreground"
     >
+      {icon && <CircleAlertIcon className="size-7 text-muted-foreground/70" aria-hidden />}
       {children}
+    </div>
+  )
+}
+
+/**
+ * 받는 중.
+ *
+ * <p>회색 덩어리 하나를 두는 것보다 **들어올 그림의 얼개**를 보여 준다 — 가로 눈금선과
+ * 물결 하나. 무엇이 올지 미리 알면 기다림이 짧게 느껴지고, 자리가 그대로라 자료가
+ * 도착해도 화면이 튀지 않는다.
+ *
+ * <p>움직임은 `opacity` 하나만 쓴다(`animate-pulse`). 합성 단계에서 끝나므로 옆의
+ * 차트가 폭을 실측하는 중에도 레이아웃을 건드리지 않는다. `prefers-reduced-motion`
+ * 이면 Tailwind 가 알아서 멈춘다.
+ */
+function ChartLoading({ height }: { height: number }) {
+  return (
+    <div
+      style={{ height }}
+      role="status"
+      aria-label="추이를 불러오는 중"
+      className="relative w-full overflow-hidden rounded-xl border bg-muted/30"
+    >
+      <svg
+        className="size-full animate-pulse text-muted-foreground/35"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        {[10, 20, 30].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            x2="100"
+            y1={y}
+            y2={y}
+            stroke="currentColor"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        <path
+          d="M0 30 C 12 26, 20 32, 30 24 S 48 12, 60 18 S 80 8, 100 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
     </div>
   )
 }

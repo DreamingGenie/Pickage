@@ -302,8 +302,7 @@ export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
   const id = `mock-${names.join('-')}-${sections.join('-')}`
 
   // 서버와 같은 규칙(구상안 §13.6). 스코프 문자는 파일명에 남기지 않는다.
-  const fileName =
-    `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
+  const fileName = `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
 
   mockPdfHtml.set(id, mockReportHtml(names, sections, not_found))
 
@@ -325,24 +324,22 @@ export function mockPdfPreview(reportId: string): Promise<string> {
 }
 
 /** 서버 렌더러의 모양만 흉내낸다. 값은 지어낸 것이다. */
-function mockReportHtml(
-  names: string[],
-  sections: readonly string[],
-  notFound: string[],
-): string {
+function mockReportHtml(names: string[], sections: readonly string[], notFound: string[]): string {
   const rows = names
     .map((name) => {
       const pkg = BY_NAME.get(name)
-      return `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>`
-        + `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      return (
+        `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>` +
+        `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      )
     })
     .join('')
 
   const pending = sections
     .map(
       (s) =>
-        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>`
-        + `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
+        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>` +
+        `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
     )
     .join('')
 

@@ -11,7 +11,6 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
-  FETCH_RANGE_NOTE,
   stepOf,
   type EcosystemModel,
   type MajorSelection,
@@ -121,11 +120,13 @@ export function EcosystemView({
    * 증감도 여기서 다시 센다 — 4.x 만 보고 있는데 증감이 전 버전 합계면 카드 안의 두 숫자가
    * 서로 다른 것을 가리키게 된다.
    */
-  const dependentsSeries = model.packages.map((p) =>
+  const dependentsSeries = model.packages.map((p, i) =>
     dependentsLineOf(
       p.key,
       model.dependentsByMajor[p.key] ?? [],
       versionByName[p.key] ?? ALL_MAJORS,
+      // 카드가 `seriesStyle(index)` 로 그리는 것과 같은 번호다
+      i,
     ),
   )
 
@@ -227,7 +228,6 @@ export function EcosystemView({
             emphasisKeys={expanded}
             height={height}
             state={metricState.downloads}
-            maxWeeksNote={FETCH_RANGE_NOTE}
           />
         </div>
 
@@ -251,31 +251,20 @@ export function EcosystemView({
               }
             />
           ))}
-
-          {/*
-            카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
-
-            `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
-            두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
-            하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
-            실제로 그렇게 떴다.
-          */}
-          {model.packages.length > 0 && (
-            <p className="text-base leading-relaxed text-muted-foreground">
-              {expanded.length === 0
-                ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
-                : expanded.length < model.packages.length
-                  ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
-                  : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
-            </p>
-          )}
         </div>
       </div>
 
-      <p className="font-mono text-base text-muted-foreground">
-        {/* 기준일이 없다 = 아직 첫 스냅샷을 못 받았다. 장애가 아니라 자료 축적 중이다. */}
-        {model.snapshotAt ? `기준 스냅샷 ${model.snapshotAt}` : '기준 스냅샷 없음 — 데이터 축적 중'}
-      </p>
+      {/*
+        기준 스냅샷 날짜는 지웠다. 구간은 위 조작줄의 시작·끝 드롭다운이 말하고 있고,
+        같은 사실이 화면에 두 번 나오면 읽는 사람이 서로 다른 뜻을 찾는다.
+
+        다만 **자료가 아예 없을 때는 말해야 한다** — 빈 차트만 두면 장애처럼 보인다.
+      */}
+      {!model.snapshotAt && (
+        <p className="text-base text-muted-foreground">
+          아직 첫 집계가 끝나지 않았습니다. 자료를 모으는 중입니다.
+        </p>
+      )}
     </div>
   )
 }

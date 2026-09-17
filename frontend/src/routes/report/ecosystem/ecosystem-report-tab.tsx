@@ -45,8 +45,11 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     버전 분포만 개요를 기다린다. 카드에 찍는 기준일을 개요와 같은 날짜로 맞춰야 하기
     때문이다. 적재 전에는 snapshot_at 이 null 이라 서버 기본값(최신 스냅샷)에 맡긴다.
   */
-  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined,
-    overview.isSuccess)
+  const versionShare = useVersionShare(
+    names,
+    overview.data?.snapshot_at ?? undefined,
+    overview.isSuccess,
+  )
 
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
