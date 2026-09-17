@@ -389,18 +389,28 @@ public class PackageQueryRepository {
 	 *
 	 * <p>{@code DISTINCT ON} 의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
 	 * 문자열로 정렬하면 {@code 4.9.0} 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이
-	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다. {@code idx_version_pkg_ordinal} 을 탄다.
+	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다.
+	 *
+	 * <p><b>{@code target} CTE 로 이름을 먼저 좁히는 것이 구조의 전부다</b>(§3 {@code latest_ver} 와 같은 꼴).
+	 * 이름 조건을 바깥 {@code WHERE} 에 두면 {@code p.name} 이 CTE 의 출력 열이 아니라 안으로 밀려
+	 * 들어가지 못해, <b>1,100만 패키지 전체의 최신 버전을 먼저 구하고 나서 20개를 거른다.</b>
+	 * 실행 계획이 {@code idx_version_pkg_ordinal} 을 버리고 {@code version} 5,400만 행을 순차
+	 * 스캔·정렬해 60초 안에 응답하지 못했다(S15P21A506-383). 후보가 0개인 동안에는 이 경로가
+	 * 실행되지 않아 드러나지 않았다.
 	 */
 	private static final String BRIEF_SQL = """
-		WITH latest AS (
-		  SELECT DISTINCT ON (package_id) package_id, version, description
-		  FROM version
-		  ORDER BY package_id, ordinal DESC
+		WITH target AS (
+		  SELECT package_id, name FROM package WHERE name = ANY(?)
+		),
+		latest AS (
+		  SELECT DISTINCT ON (v.package_id) v.package_id, v.version, v.description
+		  FROM version v
+		  JOIN target t ON t.package_id = v.package_id
+		  ORDER BY v.package_id, v.ordinal DESC
 		)
-		SELECT p.name, l.version AS latest_version, l.description
-		FROM package p
-		JOIN latest l ON l.package_id = p.package_id
-		WHERE p.name = ANY(?)
+		SELECT t.name, l.version AS latest_version, l.description
+		FROM target t
+		JOIN latest l ON l.package_id = t.package_id
 		""";
 
 	public List<BriefRow> findBriefByNames(String[] names) {
