@@ -106,30 +106,23 @@ export function extentY(series: ChartSeries[]): Domain {
   return [bottom, top]
 }
 
-/** 축 최댓값을 1·2·2.5·5 배수로 올린다. */
-export function niceMax(v: number): number {
-  if (v <= 0) return 1
-  const mag = Math.pow(10, Math.floor(Math.log10(v)))
-  const n = v / mag
-  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
-  return step * mag
-}
-
-/** `niceMax` 의 부호 있는 버전. 증감 축의 아래쪽(음수) 여유를 같은 규칙으로 올린다. */
-function niceBound(v: number): number {
-  if (v === 0) return 0
-  return v < 0 ? -niceMax(-v) : niceMax(v)
-}
+/** 변화율 축의 기준선. 구간 첫 관측치가 여기에 놓인다. */
+export const INDEX_BASE = 100
 
 /**
- * 증감(전 스냅샷 대비 순증감) 그래프의 도메인. **0 은 항상 포함한다** — 여기서 0 은 임의의
- * 바닥이 아니라 "변화 없음"이라는 실제 기준선이다. 증가와 감소가 같은 그림 안에서 부호로
- * 갈리려면 0 이 화면 안에 있어야 한다. 위아래 모두 `niceMax` 로 올려 음수 구간도 대칭적으로
- * 여유를 둔다.
+ * 변화율 축의 도메인. **0 이 아니라 100 이 기준선이다**(변화 없음 = 100%).
+ *
+ * <p>그래서 `extentY` 의 "잘린 축은 과장한다" 경고가 여기엔 적용되지 않는다. 100 언저리로
+ * 좁혀 그리는 것이 이 그래프의 정의 자체다.
+ *
+ * <p>100 은 항상 도메인에 넣는다 — 기준선이 화면 밖으로 나가면 "무엇 대비 몇 %"인지 읽을
+ * 수 없다. 데이터가 100 근처에 몰려 있어도 위아래로 최소 여유를 둔다(2%p, 그리고 실제
+ * 편차의 12%) — 값이 전부 정확히 100 인 구간 첫머리에서 도메인이 [100,100] 으로 붕괴해
+ * 선이 찌그러지는 것을 막는다.
  */
-export function deltaExtentY(series: ChartSeries[]): Domain {
-  let lo = 0
-  let hi = 0
+export function indexedExtentY(series: ChartSeries[]): Domain {
+  let lo = Infinity
+  let hi = -Infinity
   for (const s of series) {
     for (const p of s.points) {
       if (p.v === null) continue
@@ -137,7 +130,11 @@ export function deltaExtentY(series: ChartSeries[]): Domain {
       if (p.v > hi) hi = p.v
     }
   }
-  return [niceBound(lo), niceBound(hi)]
+  if (!Number.isFinite(lo)) return [90, 110]
+  lo = Math.min(lo, INDEX_BASE)
+  hi = Math.max(hi, INDEX_BASE)
+  const pad = Math.max((hi - lo) * 0.12, 2)
+  return [lo - pad, hi + pad]
 }
 
 /**
@@ -157,7 +154,7 @@ export function ticksY([lo, hi]: Domain, count = 3): number[] {
   return unique.length >= 2 ? unique : out
 }
 
-/** 증감처럼 선형 공간이 맞는 축의 눈금. 로그 변환을 거치지 않는다. */
+/** 변화율처럼 선형 공간이 맞는 축의 눈금. 로그 변환을 거치지 않는다. */
 export function ticksYLinear([lo, hi]: Domain, count = 3): number[] {
   const out: number[] = []
   for (let i = 0; i <= count; i++) out.push(lo + ((hi - lo) * i) / count)
@@ -172,7 +169,6 @@ export function ticksYLinear([lo, hi]: Domain, count = 3): number[] {
  * 눈금 간격에 맞춘다. 한 자릿수 넘게 벌어진 축은 눈금마다 자릿수가 달라야 읽히므로
  * `compact` 를 그대로 쓴다.
  *
- * <p>증감 축은 음수가 나온다 — 부호를 떼고 크기만 재서 자릿수를 고른 뒤 다시 붙인다.
  */
 export function formatTick(v: number, [lo, hi]: Domain, count = 3): string {
   const span = Math.max(Math.abs(lo), Math.abs(hi))
@@ -202,9 +198,19 @@ export const scaleY = (v: number, d: Domain, b: Box) => {
 }
 
 /**
- * 로그 없이 그대로 선형 보간한다. 증감 그래프에 쓴다 — 음수가 나올 수 있고 로그는 음수를
- * 정의하지 못한다.
+ * 로그 없이 그대로 선형 보간한다. 변화율 그래프에 쓴다 — 기준이 100 하나뿐이라 시리즈 간
+ * 규모차가 애초에 존재하지 않고, 자릿수를 압축할 이유도 없다.
  */
+/**
+ * 변화율 눈금 라벨. 소수 자리는 눈금 간격에 맞춘다 — 95~115 구간에서 "95.00%" 는
+ * 읽을 것이 없고, 99.8~100.4 구간에서 "100%" 만 넷이면 눈금이 아니다.
+ */
+export function formatIndexTick(v: number, [lo, hi]: Domain, count = 3): string {
+  const step = (hi - lo) / count
+  const decimals = step >= 5 ? 0 : step >= 1 ? 1 : 2
+  return `${v.toFixed(decimals)}%`
+}
+
 export const scaleYLinear = (v: number, d: Domain, b: Box) =>
   d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
 
@@ -365,37 +371,32 @@ export function buildPoints(
 }
 
 /**
- * 화면에 그려진(windowed+sampled) 연속 점끼리의 차이(증감 모드).
+ * 구간의 첫 유효 관측치를 100 으로 두고 나머지를 그 대비 비율로 바꾼다(변화율 모드).
  *
- * **부르는 쪽은 반드시 화면에 그린 것과 같은 시리즈를 넘겨야 한다** — `deltaOf`(311c)와
- * 같은 이유다. 표시 간격을 4주로 솎아 보고 있으면 이 함수가 만드는 것도 "4주 간격 증감"이고,
- * 그게 화면 x축이 실제로 보여주는 간격과 일치한다.
+ * <p>전 스냅샷 대비 증감(차분)을 그려 봤지만 규모가 다른 패키지를 같은 축에 올리지 못했다.
+ * 의존 수가 수백인 패키지의 주간 증감은 한 자릿수라, 수만짜리 패키지 옆에서 0 에 눌린
+ * <b>수평선</b>이 되고 그게 기준선처럼 읽혔다. 비율은 규모를 나누어 없애므로 그 문제가
+ * 구조적으로 생기지 않는다 — 둘 다 100 에서 출발한다.
  *
- * 결측이거나 이웃과 너무 벌어진(`maxGapDays` 초과) 점은 증감을 셀 수 없다 — 값을 0으로
- * 채우지 않고 그 점의 증감을 결측으로 남긴다. 창의 첫 점은 비교할 이전 값이 없어 항상
- * 결측이다.
+ * <p>기준값이 없거나(전부 결측) 0 이면 비율을 만들 수 없다. 지어내지 않고 그 시리즈는
+ * 통째로 결측으로 남긴다.
+ *
+ * <p><b>패키지마다 자기 구간의 첫 점을 기준으로 삼는다.</b> 관측 시작이 서로 달라도
+ * "그 시점부터 몇 % 변했나" 는 나란히 놓고 볼 수 있어야 한다.
  */
-export function deltaSeriesOf(
-  series: ChartSeries[],
-  maxGapDays: number = MAX_GAP_DAYS,
-): ChartSeries[] {
+export function indexSeriesTo100(series: ChartSeries[]): ChartSeries[] {
   return series.map((s) => {
-    const out: TimePoint[] = []
-    let prev: TimePoint | null = null
-    for (const p of s.points) {
-      if (p.v === null) {
-        out.push({ t: p.t, v: null })
-        prev = null
-        continue
-      }
-      if (prev === null || broken(prev, p, maxGapDays)) {
-        out.push({ t: p.t, v: null })
-      } else {
-        out.push({ t: p.t, v: p.v - (prev.v as number) })
-      }
-      prev = p
+    const base = s.points.find((p) => p.v !== null)?.v ?? null
+    if (base === null || base === 0) {
+      return { ...s, points: s.points.map((p) => ({ t: p.t, v: null })) }
     }
-    return { ...s, points: out }
+    return {
+      ...s,
+      points: s.points.map((p) => ({
+        t: p.t,
+        v: p.v === null ? null : (p.v / base) * INDEX_BASE,
+      })),
+    }
   })
 }
 

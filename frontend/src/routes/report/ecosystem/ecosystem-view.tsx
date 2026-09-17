@@ -152,30 +152,34 @@ export function EcosystemView({
   })
 
   /**
-   * 상세를 보는 패키지들. 칩 줄에서 **여러 개를 고를 수 있다** — 셋 중 둘만 나란히 보는
-   * 것이 비교의 실제 모양이라, 하나만 고르게 하면 그 비교를 못 한다.
+   * 상세를 보는 패키지. **한 번에 하나만 고른다.**
+   *
+   * 여러 개를 고르게 해 봤지만, 고른 수만큼 카드가 쌓여 오른쪽 열이 차트보다 길어지고
+   * "지금 무엇을 보는 중인가" 가 흐려졌다. 탭은 하나를 고르는 물건이라는 감각이 더 강하다.
    *
    * **"아무도 고르지 않은" 상태가 기본이다.** 처음부터 하나가 강조돼 있으면 나머지가
-   * 흐려진 채로 화면이 열려 공정한 비교가 안 된다. 고른 게 없으면 강조도 없고(`null`)
-   * 카드도 전부 펼친다 — 오른쪽 열이 통째로 비는 것보다 낫다.
+   * 흐려진 채로 화면이 열려 공정한 비교가 안 된다. 그때 차트는 전부 같은 굵기로 그리고,
+   * 카드는 기준 패키지를 보여 준다 — 오른쪽 열이 통째로 비는 것보다 낫고, 기준은 사용자가
+   * 고른 것이 아니라 비교의 출발점이라 "골랐다" 고 말하지 않는다(그래서 그 칩은 눌린
+   * 것처럼 보이지 않는다).
    *
    * 비교 조합이 바뀌면 선택을 되돌린다. 없어진 패키지의 key 가 남아 있으면 강조가
    * 아무 선에도 걸리지 않아 전부 흐려진 화면이 된다.
    */
   const packageKeys = model.packages.map((p) => p.key).join(',')
-  const [picked, setPicked] = useState<{ key: string; names: string[] }>({
+  const [picked, setPicked] = useState<{ key: string; name: string | null }>({
     key: packageKeys,
-    names: [],
+    name: null,
   })
-  const selected = picked.key === packageKeys ? picked.names : []
-  const emphasisKeys = selected.length > 0 ? selected : null
+  const selected = picked.key === packageKeys ? picked.name : null
+  const emphasisKeys = selected ? [selected] : null
 
-  function togglePackage(name: string) {
-    setPicked({
-      key: packageKeys,
-      names: selected.includes(name) ? selected.filter((k) => k !== name) : [...selected, name],
-    })
-  }
+  /** 고른 것이 없으면 기준 패키지. 강조와 달리 카드는 항상 하나가 떠 있어야 한다. */
+  const shownIndex = Math.max(
+    0,
+    packages.findIndex((p) => p.key === selected),
+  )
+  const shown = packages[shownIndex]
 
   const height = compactChart ? 148 : 196
 
@@ -211,11 +215,9 @@ export function EcosystemView({
         한쪽 차트 옆이나 오른쪽 열에 있으면 무엇에 걸리는 조작인지 읽히지 않는다.
 
         진짜 tabs(`components/ui/tabs.tsx`)를 쓰지 않는다 — Radix Tabs 는 항상 하나가
-        active 여야 해서 "아무것도 고르지 않은" 상태도, "둘을 동시에 고른" 상태도
-        표현할 수 없다.
+        active 여야 해서 "아무것도 고르지 않은" 상태를 표현할 수 없다.
 
-        맨 앞 `모두` 는 선택을 비우는 자리다. 선택이 비어 있을 때 눌린 것처럼 보이는
-        유일한 칩이기도 해서, 지금 무엇을 보고 있는지가 줄 하나로 읽힌다.
+        맨 앞 `모두` 는 선택을 비우는 자리다. 누른 칩을 다시 누르는 것으로도 풀린다.
       */}
       {model.packages.length > 0 && (
         <div
@@ -225,11 +227,11 @@ export function EcosystemView({
         >
           <button
             type="button"
-            aria-pressed={selected.length === 0}
-            onClick={() => setPicked({ key: packageKeys, names: [] })}
+            aria-pressed={selected === null}
+            onClick={() => setPicked({ key: packageKeys, name: null })}
             className={cn(
               'rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
-              selected.length === 0
+              selected === null
                 ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
                 : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
             )}
@@ -238,13 +240,13 @@ export function EcosystemView({
           </button>
           {packages.map((p, i) => {
             const style = seriesStyle(i)
-            const active = selected.includes(p.key)
+            const active = selected === p.key
             return (
               <button
                 key={p.key}
                 type="button"
                 aria-pressed={active}
-                onClick={() => togglePackage(p.key)}
+                onClick={() => setPicked({ key: packageKeys, name: active ? null : p.key })}
                 className={cn(
                   'flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
                   active
@@ -301,7 +303,6 @@ export function EcosystemView({
             emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.dependents}
-            allowDelta
           />
           <MetricChart
             title="Downloads"
@@ -314,28 +315,34 @@ export function EcosystemView({
             emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.downloads}
+            /*
+              Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비
+              몇 %" 가 누적 총합만큼 와닿지 않고, 주간 값은 그 자체로 오르내려서 기준으로
+              잡은 첫 주가 어쩌다 높거나 낮으면 이후 전 구간이 그만큼 통째로 밀린다.
+              누적인 Dependents 에는 그 흔들림이 없다.
+            */
+            allowIndex={false}
           />
         </div>
 
         {/*
-          고른 것은 펼치고 나머지는 접는다. 아무것도 안 골랐으면 전부 펼친다 —
-          그 상태는 "다 접었다" 가 아니라 "아직 좁히지 않았다" 이기 때문이다.
-          접는 조작은 위 칩 줄에만 있다. 카드 자체를 눌러도 접히면 같은 상태를 두 곳에서
-          바꾸게 되어 칩이 가리키는 것과 어긋난다.
+          카드는 위 칩이 가리키는 하나뿐이다. 고른 것이 없으면 기준 패키지를 보여 준다 —
+          차트는 그때 전부 같은 굵기로 그려도, 오른쪽 열까지 비워 두면 화면의 절반이
+          이유 없이 빈다.
+
+          `key` 에 패키지 이름을 준다. 탭을 바꿀 때 React 가 같은 노드를 재사용하면
+          펼침 애니메이션도, 안쪽 스크롤 위치도 이전 패키지 것을 물고 온다.
         */}
-        <div className="flex flex-col gap-4">
-          {packages.map((p, i) => (
-            <PackageCard
-              key={p.key}
-              model={p}
-              index={i}
-              expanded={selected.length === 0 || selected.includes(p.key)}
-              selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
-              onVersionChange={(next) => selectVersion(p.key, next)}
-              versionShareState={versionShareState}
-            />
-          ))}
-        </div>
+        {shown && (
+          <PackageCard
+            key={shown.key}
+            model={shown}
+            index={shownIndex}
+            selectedVersion={versionByName[shown.key] ?? ALL_MAJORS}
+            onVersionChange={(next) => selectVersion(shown.key, next)}
+            versionShareState={versionShareState}
+          />
+        )}
       </div>
     </div>
   )

@@ -14,27 +14,21 @@ import {
 import { cn } from '@/lib/utils'
 
 /**
- * 패키지 카드.
+ * 패키지 카드 — 상세 하나 전체.
  *
- * 접힘 여부는 **바깥에서 정한다** — 칩 줄에서 고른 패키지가 펼쳐진다(`EcosystemView`).
- * 카드 자체에는 토글이 없다. 같은 상태를 두 곳에서 바꾸면 칩이 가리키는 것과 카드가
- * 어긋나고, 접힌 카드가 button 이면 그 안의 버전 선택기가 button 중첩이 된다.
- *
- * 접힘: 머리글만. 그래도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
- * 알 수 없으면 접힌 목록이 쓸모없어진다.
+ * 카드를 세로로 쌓고 각자 접었다 펴던 구조를 버렸다. 비교 대상이 셋까지 늘 수 있어
+ * (IA §1-2) 전부 펼치면 오른쪽 열이 차트보다 훨씬 길어졌다. 지금은 위 칩 줄이 고른
+ * 하나만 `EcosystemView` 가 렌더한다 — 그래서 이 컴포넌트 안에 접힘 상태가 없다.
  */
 export function PackageCard({
   model,
   index,
-  expanded,
   selectedVersion,
   onVersionChange,
   versionShareState = { status: 'ready' },
 }: {
   model: PackageCardModel
   index: number
-  /** 펼침 여부. 칩 줄에서 이 패키지를 골랐는가(아무것도 안 골랐으면 전부 펼침). */
-  expanded: boolean
   /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
   selectedVersion: MajorSelection
   onVersionChange: (next: MajorSelection) => void
@@ -86,14 +80,6 @@ export function PackageCard({
       <RepositoryLink url={model.repoUrl} name={model.key} />
     </div>
   )
-
-  if (!expanded) {
-    return (
-      <div className="rounded-2xl border bg-background px-6 py-5 transition-colors duration-200">
-        {header}
-      </div>
-    )
-  }
 
   return (
     <div className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">

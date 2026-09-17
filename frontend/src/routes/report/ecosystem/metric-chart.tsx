@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react'
 import { CircleAlertIcon } from 'lucide-react'
 
-import { deltaExtentY, deltaSeriesOf, type ChartSeries } from '@/components/charts/geometry'
+import {
+  formatIndexTick,
+  INDEX_BASE,
+  indexedExtentY,
+  indexSeriesTo100,
+  type ChartSeries,
+} from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
 import { SegmentedControl } from '@/components/common/segmented-control'
@@ -12,8 +18,13 @@ import {
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
-/** 총합(누적) 이냐 전 스냅샷 대비 증감이냐. `allowDelta` 카드에서만 고를 수 있다. */
-type LevelMode = 'total' | 'delta'
+/** 실제값이냐 구간 시작 대비 변화율이냐. */
+type ScaleMode = 'absolute' | 'index'
+
+/** 툴팁에 찍을 변화율. 소수 한 자리면 "103.4%" 처럼 읽을 것이 남는다. */
+function formatPercent(v: number): string {
+  return `${v.toFixed(1)}%`
+}
 
 /** 결측을 뺀, 실제로 그릴 수 있는 관측치 수. */
 function validCount(s: ChartSeries): number {
@@ -42,7 +53,7 @@ export function MetricChart({
   height = 192,
   showLegend = false,
   state = { status: 'ready' },
-  allowDelta = false,
+  allowIndex = true,
   className,
 }: {
   title: string
@@ -59,50 +70,47 @@ export function MetricChart({
   showLegend?: boolean
   /** 이 카드만의 처지. 옆 카드와 섞이지 않는다. */
   state?: MetricState
-  /**
-   * "증감·총합" 토글을 낼지. Dependents(누적 총합)에만 의미가 있다 — Downloads는 이미
-   * 주간 값(흐름)이라 누적/증감으로 다시 나눌 대상이 없다(379).
-   */
-  allowDelta?: boolean
+  /** "실제값·변화율" 토글을 낼지. 인트로 미리보기처럼 조작이 없는 자리는 끈다. */
+  allowIndex?: boolean
   className?: string
 }) {
   /** 고른 시작이 이 지표의 관측 시작보다 앞서면 여기서 잘린다. */
   const clamped = Boolean(observedFrom && window.start < observedFrom)
 
   /**
-   * 총합이 기본이다. 규모가 비슷한 두 패키지의 성장 차이는 y 도메인이 그리는 구간의
-   * 최솟값·최댓값을 따라가므로(`extentY`) 총합 축에서도 그대로 보인다 — 축을 통째로
-   * 바꿔야만 보이던 것이 아니다. 증감은 "이번 주에 얼마나 늘었나" 라는 **다른 질문**이라
-   * 남긴다.
+   * 실제값이 기본이다. "몇 개인가" 가 먼저 오는 질문이고, 변화율은 그 위에 얹는 관점이다.
+   *
+   * 변화율은 **구간 시작을 100% 로 두고 그 대비 비율**을 그린다. 규모가 다른 패키지를 같은
+   * 축에서 비교하려는 쪽의 답이다 — 의존 수 300 짜리와 3만짜리가 둘 다 100 에서 출발하므로
+   * 성장 속도만 남는다.
    */
-  const [levelMode, setLevelMode] = useState<LevelMode>('total')
-  const showingDelta = allowDelta && levelMode === 'delta'
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('absolute')
+  const showingIndex = allowIndex && scaleMode === 'index'
 
-  /**
-   * 공백 판정 기준을 지금 보고 있는 간격에 맞춘다(아래 LineChart 호출부와 같은 식·같은 이유).
-   * `deltaSeriesOf`도 같은 간격 기준으로 "화면에 보이는 이웃 점"을 판단해야
-   * 차트가 끊는 자리와 증감이 결측으로 남는 자리가 어긋나지 않는다.
-   */
+  /** 공백 판정 기준을 지금 보고 있는 간격에 맞춘다(아래 LineChart 호출부와 같은 식·같은 이유). */
   const maxGapDays = step * 7 + 1
 
   /**
-   * 총합은 원본 그대로 로그축에, 증감은 차분을 내어 0 을 포함하는 선형축에 그린다.
-   * 증감 축만 도메인을 넘기는 이유는 0 이 반드시 화면 안에 있어야 하기 때문이다 —
-   * 총합 축은 `extentY` 가 구간의 최솟값·최댓값에서 알아서 만든다.
+   * 실제값은 원본 그대로 로그축에, 변화율은 100 기준으로 환산해 선형축에 그린다.
+   * 변화율 축만 도메인을 넘기는 이유는 100 이 반드시 화면 안에 있어야 하기 때문이다 —
+   * 실제값 축은 `extentY` 가 구간의 최솟값·최댓값에서 알아서 만든다.
+   *
+   * **환산은 이미 잘린 시리즈를 받아서 한다.** 부르는 쪽(`EcosystemView`)이 구간·간격을
+   * 적용한 것을 넘기므로, 여기서 잡는 기준값은 화면에 실제로 뜬 첫 점이다.
    */
   const displaySeries = useMemo(
-    () => (showingDelta ? deltaSeriesOf(series, maxGapDays) : series),
-    [series, showingDelta, maxGapDays],
+    () => (showingIndex ? indexSeriesTo100(series) : series),
+    [series, showingIndex],
   )
 
-  const yScale: 'log' | 'linear' = showingDelta ? 'linear' : 'log'
+  const yScale: 'log' | 'linear' = showingIndex ? 'linear' : 'log'
   // 도메인을 여기서 계산하지 않고 만드는 법만 넘긴다 — 강조가 켜지면 차트가 강조된
   // 선만으로 다시 만들어야 하고, 그건 어느 선이 강조됐는지 아는 쪽에서만 할 수 있다.
-  const yDomainOf = showingDelta ? deltaExtentY : undefined
+  const yDomainOf = showingIndex ? indexedExtentY : undefined
 
-  const modeLabel = showingDelta ? '증감 · 전 스냅샷 대비' : '로그축'
-  const ariaSuffix = showingDelta
-    ? '증감 — 전 스냅샷 대비 순증감이며, 0 아래는 감소입니다'
+  const modeLabel = showingIndex ? '변화율 · 구간 시작 = 100%' : '로그축'
+  const ariaSuffix = showingIndex
+    ? '변화율 — 표시 구간의 첫 관측치를 100%로 두고 그 대비 비율로 그렸습니다'
     : '로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요'
 
   /**
@@ -110,8 +118,8 @@ export function MetricChart({
    * gate 해서, 짧은 시리즈 하나가 다른 시리즈들 옆에 추세인 것처럼 그대로 그려졌다.
    * "관측 행이 있는가"(raw)와 "그릴 값이 있는가"(valid, null 제외)도 구분한다.
    *
-   * 증감 모드에서는 시리즈의 첫 점이 항상 결측(비교할 이전 값이 없음)이라 총합 모드보다
-   * 유효 점이 하나 적다 — 그래서 이 판정도 `displaySeries`(변환 후)를 보고 다시 한다.
+   * 변화율 모드에서는 기준값이 없거나 0 인 시리즈가 통째로 결측이 된다 — 그래서 이 판정도
+   * `displaySeries`(환산 후)를 보고 다시 한다.
    */
   const rawMax = Math.max(0, ...displaySeries.map((s) => s.points.length))
 
@@ -132,15 +140,15 @@ export function MetricChart({
         <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
           {title}
         </h3>
-        {allowDelta && (
+        {allowIndex && (
           <SegmentedControl
-            label={`${title} 증감·총합 전환`}
+            label={`${title} 실제값·변화율 전환`}
             options={[
-              { key: 'total', label: '총합' },
-              { key: 'delta', label: '증감' },
+              { key: 'absolute', label: '실제값' },
+              { key: 'index', label: '변화율' },
             ]}
-            value={levelMode}
-            onChange={(key) => setLevelMode(key as LevelMode)}
+            value={scaleMode}
+            onChange={(key) => setScaleMode(key as ScaleMode)}
           />
         )}
       </header>
@@ -199,6 +207,10 @@ export function MetricChart({
             maxGapDays={maxGapDays}
             yScale={yScale}
             yDomainOf={yDomainOf}
+            yFormat={showingIndex ? formatIndexTick : undefined}
+            valueFormat={showingIndex ? formatPercent : undefined}
+            baseline={showingIndex ? INDEX_BASE : undefined}
+            baselineLabel={showingIndex ? '구간 시작 100%' : undefined}
             ariaLabel={`${title} 추이 (${ariaSuffix})`}
           />
           {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
