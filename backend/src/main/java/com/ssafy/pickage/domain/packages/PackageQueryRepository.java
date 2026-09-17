@@ -387,7 +387,7 @@ public class PackageQueryRepository {
 	 * <p>그래서 이름 배열을 그대로 받는다. 호출자가 서버 내부 코드라는 전제가 깔려 있으므로
 	 * <b>외부 입력을 이 메서드에 바로 넘기면 안 된다.</b>
 	 *
-	 * <p>{@code DISTINCT ON} 의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
+	 * <p>{@code LATERAL} 안의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
 	 * 문자열로 정렬하면 {@code 4.9.0} 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이
 	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다.
 	 *
@@ -402,7 +402,7 @@ public class PackageQueryRepository {
 	 * <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 — 패키지당 평균 176행, webpack 은 578행이다.
 	 * 개요는 이름이 최대 3개라 묻히지만 여기는 후보가 {@code SimilarPackagesResponse.LIMIT_MAX} =
 	 * 50개까지라 그 비용이 쌓인다. 50개 실측이 콜드 4.96초로 명세의 1초를 넘겼다.
-	 * {@code (package_id, ordinal DESC)} 인덱스에서 <b>패키지당 1행</b>만 꺼내면 171ms 다.
+	 * {@code (package_id, ordinal DESC)} 인덱스에서 <b>패키지당 1행</b>만 꺼내면 145ms 다.
 	 *
 	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
 	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
