@@ -13,7 +13,7 @@ MVP 의 Snapshot 총수 `delta` 와 **다른 지표다.** `delta` 는 첫·마�
 
 출력  data/dependent_transitions<_label>/dependent_transitions.parquet
         (period, target, kind) 1행 — 네 범주의 수
-      datasets/dependent_transitions_<label 또는 260916>/
+      datasets/dependent_transitions_<label 또는 260917>/
         transitions_summary.csv   같은 표 (UTF-8 BOM)
         stats.json
 
@@ -93,7 +93,7 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parents[2].as_posix()
 RANK = f"{ROOT}/datasets/targets/rank_top100k_20260902.csv"
-DEFAULT_LABEL = "260916"
+DEFAULT_LABEL = "260917"
 
 # 스냅샷 경계. T2 를 "오늘" 로 두지 않는 이유는 위 docstring 을 볼 것.
 # 23:59:59 까지 포함해야 스냅샷 당일 발행분이 빠지지 않는다.
@@ -143,6 +143,27 @@ FROM (SELECT t.name, k.kind, w.period
 LEFT JOIN cls_m c ON c.target = g.name AND c.kind = g.kind AND c.period = g.period
 GROUP BY 1, 2, 3;
 """
+
+
+# 대표 릴리스 — 시점 T 의 대표는 `published_at <= T` 중 **ordinal 최고**다.
+#
+# 두 문장을 상수로 뺀 것은 시험이 합성 입력에 같은 문장을 적용할 수 있게 하려는 것이다.
+# 2026-09-17 실측에서 `arg_max(Version, published_at)` 로 골랐다가 150개 패키지가 잘못된
+# 대표를 잡았다 — 같은 발행시각에 전환점이 둘 이상인 그룹이 1,001개(699 패키지) 있어서
+# 그중 무엇이 뽑힐지 정해지지 않았기 때문이다. 대표를 고르는 기준은 published_at 이 아니라
+# ordinal 이고, published_at 은 **시점 필터에만** 쓴다.
+REP_SQL = """CREATE OR REPLACE TABLE rep AS
+SELECT Name, Version, published_at, ordinal FROM (
+  SELECT Name, Version, published_at, ordinal,
+         max(ordinal) OVER (PARTITION BY Name ORDER BY published_at, ordinal
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_max
+  FROM {source}
+  WHERE is_release AND published_at IS NOT NULL AND Name NOT LIKE '%>%')
+WHERE prev_max IS NULL OR ordinal > prev_max"""
+
+REP_AT_SQL = """INSERT INTO rep_pt
+SELECT Name, $point, arg_max(Version, ordinal)
+FROM rep WHERE published_at <= $t GROUP BY Name"""
 
 
 def parse_args(argv=None):
@@ -243,19 +264,12 @@ def main(argv=None):
     #    "릴리스는 냈지만 우리가 보는 선언은 바뀔 수 없었다" 를 유지로 세지 않기 위해서다.
     #    동순위 정렬에 ordinal 을 함께 넣어 같은 published_at 에서도 결정적으로 고른다.
     log("1/5 대표 릴리스 전환점")
-    con.execute(f"""CREATE OR REPLACE TABLE rep AS
-SELECT Name, Version, published_at AS at FROM (
-  SELECT Name, Version, published_at, ordinal,
-         max(ordinal) OVER (PARTITION BY Name ORDER BY published_at, ordinal
-                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_max
-  FROM read_parquet('{v_path}')
-  WHERE is_release AND published_at IS NOT NULL AND Name NOT LIKE '%>%')
-WHERE prev_max IS NULL OR ordinal > prev_max""")
+    con.execute(REP_SQL.format(source=f"read_parquet('{v_path}')"))
     stats["representative_releases"] = con.execute("SELECT count(*) FROM rep").fetchone()[0]
     stats["packages"] = con.execute("SELECT count(DISTINCT Name) FROM rep").fetchone()[0]
     # T2 를 넘는 발행이 있으면 T2 활성 집합이 package_dependents.parquet 과 어긋난다.
     stats["published_after_t2"] = con.execute(
-        f"SELECT count(*) FROM rep WHERE at > TIMESTAMP '{T2}'").fetchone()[0]
+        f"SELECT count(*) FROM rep WHERE published_at > TIMESTAMP '{T2}'").fetchone()[0]
     log("   전환점", f"{stats['representative_releases']:,}",
         "패키지", f"{stats['packages']:,}", "T2 이후", stats["published_after_t2"])
 
@@ -277,9 +291,7 @@ LEFT JOIN (SELECT trim(name) AS name, min(rank) AS download_rank
     log("3/5 시점별 대표 릴리스")
     con.execute("CREATE OR REPLACE TABLE rep_pt(Name VARCHAR, point VARCHAR, Version VARCHAR)")
     for point, t in [("t2", T2)] + list(PERIODS.items()):
-        con.execute(f"""INSERT INTO rep_pt
-SELECT Name, '{point}', arg_max(Version, at)
-FROM rep WHERE at <= TIMESTAMP '{t}' GROUP BY Name""")
+        con.execute(REP_AT_SQL, {"point": point, "t": t})
         n = con.execute("SELECT count(*) FROM rep_pt WHERE point = ?", [point]).fetchone()[0]
         stats[f"packages_at_{point}"] = n
         log(f"   {point} ({t})", f"{n:,}")
@@ -315,7 +327,7 @@ FROM rep_pt p JOIN edges e ON e.Name = p.Name AND e.Version = p.Version""")
     con.execute(f"""CREATE OR REPLACE TABLE moved AS
 SELECT DISTINCT r.Name AS dependent, w.period
 FROM rep r, periods w
-WHERE r.at > w.t1 AND r.at <= TIMESTAMP '{T2}'""")
+WHERE r.published_at > w.t1 AND r.published_at <= TIMESTAMP '{T2}'""")
 
     # 5) 판정·저장 ------------------------------------------------------------
     log("5/5 판정·저장")

@@ -17,7 +17,8 @@ import duckdb
 
 # pipeline/duckdb 는 패키지가 아니라 스크립트 폴더다 (__init__.py 없음).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_dependent_transitions import CLASSIFY_SQL, KINDS  # noqa: E402
+from build_dependent_transitions import (  # noqa: E402
+    CLASSIFY_SQL, KINDS, REP_AT_SQL, REP_SQL)
 
 PERIOD = "1y"
 T1 = "2025-08-31 23:59:59"
@@ -92,6 +93,60 @@ class ClassificationTable(unittest.TestCase):
         self.assertEqual(counts(con, target="y"), (0, 0, 0, 0))
         rows = con.execute("SELECT count(*) FROM agg").fetchone()[0]
         self.assertEqual(rows, 2 * len(KINDS))  # 대상 2 × kind 3 × 구간 1
+
+
+class RepresentativeRelease(unittest.TestCase):
+    """대표는 ordinal 이 정한다. published_at 은 **시점 필터에만** 쓴다.
+
+    2026-09-17 실측 — 대표를 `arg_max(Version, published_at)` 로 고르던 판에서 150개
+    패키지가 잘못된 대표를 잡았다. 같은 발행시각에 전환점이 둘 이상인 그룹이 1,001개
+    (699 패키지) 있어 무엇이 뽑힐지 정해지지 않았기 때문이다. 교차 대조에서 46 엣지가
+    설명되지 않아 드러났다.
+    """
+
+    def rep(self, rows):
+        """rows: (Name, Version, published_at, ordinal, is_release)"""
+        con = duckdb.connect()
+        con.execute("CREATE TABLE v(Name VARCHAR, Version VARCHAR, published_at TIMESTAMP,"
+                    " ordinal BIGINT, is_release BOOLEAN)")
+        con.executemany("INSERT INTO v VALUES (?, ?, ?, ?, ?)", rows)
+        con.execute(REP_SQL.format(source="v"))
+        return con
+
+    def at(self, con, t):
+        con.execute("CREATE OR REPLACE TABLE rep_pt(Name VARCHAR, point VARCHAR, Version VARCHAR)")
+        con.execute(REP_AT_SQL, {"point": "t", "t": t})
+        return con.execute("SELECT Name, Version FROM rep_pt ORDER BY Name").fetchall()
+
+    def test_같은_발행시각이면_ordinal_이_높은_쪽이_대표다(self):
+        """이 시험이 잡는 버그다. 발행시각으로 고르면 둘 중 무엇이 나올지 정해지지 않는다."""
+        con = self.rep([("p", "1.0.0", "2024-01-01 00:00:00", 1, True),
+                        ("p", "2.0.0", "2024-01-01 00:00:00", 2, True)])
+        self.assertEqual(self.at(con, "2026-08-31 23:59:59"), [("p", "2.0.0")])
+
+    def test_유지보수_릴리스는_대표를_바꾸지_않는다(self):
+        """5.0.0 뒤에 나온 4.17.3 이 최신으로 잡히면 안 된다. 전환점에서도 빠진다."""
+        con = self.rep([("p", "4.17.2", "2024-01-01 00:00:00", 10, True),
+                        ("p", "5.0.0", "2024-06-01 00:00:00", 20, True),
+                        ("p", "4.17.3", "2024-09-01 00:00:00", 15, True)])
+        self.assertEqual(self.at(con, "2026-08-31 23:59:59"), [("p", "5.0.0")])
+        # 전환점은 둘뿐이다 — 4.17.3 은 대표를 바꾸지 않았으므로 M 판정에도 기여하지 않는다
+        self.assertEqual(con.execute("SELECT count(*) FROM rep").fetchone()[0], 2)
+
+    def test_시점_필터는_그_시각_이하만_본다(self):
+        con = self.rep([("p", "1.0.0", "2020-01-01 00:00:00", 1, True),
+                        ("p", "2.0.0", "2026-01-01 00:00:00", 2, True)])
+        self.assertEqual(self.at(con, "2021-08-31 23:59:59"), [("p", "1.0.0")])
+        self.assertEqual(self.at(con, "2026-08-31 23:59:59"), [("p", "2.0.0")])
+
+    def test_릴리스가_아니거나_발행일이_없거나_번들_경로면_뺀다(self):
+        con = self.rep([
+            ("p", "1.0.0", "2024-01-01 00:00:00", 1, True),
+            ("p", "2.0.0-beta", "2024-02-01 00:00:00", 2, False),   # 릴리스 아님
+            ("p", "3.0.0", None, 3, True),                          # 발행일 없음
+            ("a>1.0.0>b", "9.9.9", "2024-03-01 00:00:00", 9, True),  # 번들 경로 노드
+        ])
+        self.assertEqual(self.at(con, "2026-08-31 23:59:59"), [("p", "1.0.0")])
 
 
 class Verification(unittest.TestCase):
