@@ -46,17 +46,36 @@ def log(msg: str) -> None:
 
 # ── 입력 ────────────────────────────────────────────────────────────────
 
-def load_package_text(path: str) -> list[dict]:
+def load_package_text(path: str, min_dependents: int) -> list[dict]:
     """package_text parquet 를 행 dict 목록으로 읽는다.
 
     기대 컬럼: name, description, keywords, dependent_packages_count,
     latest_release_published_at, status (일부는 없을 수 있음).
+    단 `dependent_packages_count` 는 아래 예선 필터가 쓰므로 없으면 안 된다.
+
+    **dependents 하한만 읽기 단계에서 거른다** (S15P21A506-382). 전수를 파이썬
+    dict 로 펼치면 92만 행에서 최고점이 2,230 MB 가 되어 컨테이너 상한(2 GiB)을
+    넘고, 첫 로그 한 줄도 못 남긴 채 커널에 죽는다 — 2026-09-17 첫 실운영 실행이
+    그랬다. 실제로 쓰는 것은 자격 필터를 통과한 3% 뿐인데 나머지 97%를 먼저 다
+    올리기 때문이다. 이 조건 하나로 92만 → 12.9만 행, 최고점 306 MB 가 된다.
+
+    **나머지 조건은 qualify() 에 그대로 둔다.** 릴리스 경과·deprecated·spam 까지
+    여기로 끌어오면 자격 판정의 주체가 둘로 갈린다. 여기서 거르는 것은 qualify()
+    의 dependents 규칙과 글자 그대로 같은 하나뿐이고, null 처리도 일치한다 —
+    pyarrow 의 `>=` 는 null 을 통과시키지 않고 qualify 도 `dep is None` 을 버린다.
+    그래서 통과 집합과 그 순서가 수정 전후 동일하다(92만 코퍼스에서 29,164행 확인).
+
+    ⚠ `--batch-size`·`--query-block` 을 줄이는 것은 이 구간에 듣지 않는다. 그 둘은
+    임베딩·검색 단계를 지배하고 최고점은 그보다 앞이다 (compose.yaml 의 OOM 안내
+    주석이 그 둘을 먼저 줄이라고 하는데, 이 적재 구간은 해당하지 않는다).
     """
     import pyarrow.parquet as pq
 
-    table = pq.read_table(path)
+    table = pq.read_table(
+        path, filters=[("dependent_packages_count", ">=", min_dependents)]
+    )
     rows = table.to_pylist()
-    log(f"package_text: {len(rows)} 행  ({path})")
+    log(f"package_text: {len(rows)} 행  ({path}, dependents>={min_dependents} 예선 통과)")
     return rows
 
 
@@ -471,7 +490,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
     t0 = time.time()
 
-    rows = load_package_text(args.package_text)
+    rows = load_package_text(args.package_text, args.min_dependents)
     rows = qualify(rows, args.min_dependents, args.max_age_months)
     if not rows:
         log("자격 통과 패키지 0개 — 중단")
