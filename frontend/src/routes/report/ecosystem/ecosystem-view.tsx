@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { windowSeries } from '@/components/charts/geometry'
 import { SeriesLegend } from '@/components/charts/line-chart'
+import { seriesStyle } from '@/components/charts/tokens'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
   EcosystemToolbar,
@@ -150,16 +151,29 @@ export function EcosystemView({
   })
 
   /**
-   * 펼쳐진 패키지. 기본은 전부 펼침이고 여러 개를 동시에 열어 둘 수 있다.
-   * 접힌 패키지는 차트에서도 물러난다 — 그래서 선택이 아니라 펼침 상태가 강조를 정한다.
+   * 상세를 보는 패키지(379 후속). 예전에는 카드를 전부 세로로 쌓아 두고 각자 접고 펼 수
+   * 있었는데, 비교 대상이 늘수록 스크롤이 길어졌다. 지금은 한 번에 하나만 보인다.
+   *
+   * **"아무도 고르지 않은" 상태가 기본이다.** 처음에 탭 하나가 이미 강조돼 있으면 두
+   * 패키지를 나란히 비교하려 할 때 방해가 된다는 피드백이 있었다(379 후속 2차) —
+   * 그래프는 아무것도 고르지 않았을 때 전부 같은 굵기로 그려야 공정한 비교가 된다.
+   * 그래서 `focused` 는 진짜 tri-state가 아니라 `string | null` 이고, 오른쪽에서 패키지를
+   * 실제로 고를 때만 채워진다. 카드 표시는 이 값과 별개다 — 고른 게 없으면 그냥 기준
+   * 패키지 카드를 보여줄 뿐, 그걸 "골랐다" 고 하지 않는다(그래서 그 칩이 눌린 것처럼
+   * 보이지 않는다).
    */
   const packageKeys = model.packages.map((p) => p.key).join(',')
-  const [collapsed, setCollapsed] = useState<{ key: string; keys: string[] }>({
+  const [focused, setFocused] = useState<{ key: string; name: string | null }>({
     key: packageKeys,
-    keys: [],
+    name: null,
   })
-  const collapsedKeys = collapsed.key === packageKeys ? collapsed.keys : []
-  const expanded = model.packages.map((p) => p.key).filter((k) => !collapsedKeys.includes(k))
+  const focusedName = focused.key === packageKeys ? focused.name : null
+  const emphasisKeys = focusedName ? [focusedName] : null
+  const displayedPackage =
+    packages.find((p) => p.key === focusedName) ?? packages[0] ?? undefined
+  const displayedIndex = displayedPackage
+    ? model.packages.findIndex((p) => p.key === displayedPackage.key)
+    : -1
 
   const height = compactChart ? 148 : 196
 
@@ -188,8 +202,35 @@ export function EcosystemView({
         두 카드가 같은 선 모양을 쓰므로 범례도 한 번만.
         Dependents 쪽을 기준으로 삼는다 — 표시 버전을 고르면 라벨에 그 사실이 실려서
         (`express 4.x`) 어느 선이 무엇인지 범례만 봐도 알 수 있다.
+
+        379 후속 — 축 읽는 법 설명을 카드마다 반복하지 않고 여기 한 번만 둔다. 카드 안
+        토글 줄에 나란히 있던 배지가 캡처 피드백에서 "지저분하다"고 지적된 자리였다.
+        모드는 카드마다 바뀌지만(지수·증감·로그축) 뜻은 매번 같으므로, 지금 무엇이
+        켜졌는지가 아니라 각 표시가 "무슨 뜻인지"를 한 번 알려 두는 것으로 충분하다.
       */}
-      <SeriesLegend series={dependentsSeries} emphasisKeys={expanded} />
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <SeriesLegend series={dependentsSeries} emphasisKeys={emphasisKeys} />
+          {/*
+            379 후속 2차 — 오른쪽에서 패키지를 고르면 차트가 그 선을 강조한다(아래).
+            그 상태를 되돌리는 자리를 범례 바로 옆에 둔다 — 강조가 시작되는 곳(오른쪽 카드)과
+            멀면 "그냥 다시 다 보고 싶을 뿐" 인데 스크롤해서 찾아야 한다.
+          */}
+          <button
+            type="button"
+            onClick={() => setFocused({ key: packageKeys, name: null })}
+            disabled={focusedName === null}
+            className="text-base text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-40 disabled:no-underline"
+          >
+            전체 보기
+          </button>
+        </div>
+        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+          로그축은 세로 간격이 아니라 눈금 값을 보고 읽습니다(지그재그는 0~데이터 사이를
+          압축했다는 표시) · 지수는 표시 구간 시작을 100으로 둔 비율 · 증감은 전 스냅샷 대비
+          순증감입니다.
+        </p>
+      </div>
 
       {/*
         좌: 차트 둘, 우: 패키지 카드.
@@ -212,9 +253,10 @@ export function EcosystemView({
             window={window}
             observedFrom={model.observedFrom.dependents}
             coverageNote="이 지표의 관측 시작"
-            emphasisKeys={expanded}
+            emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.dependents}
+            allowDelta
           />
           <MetricChart
             title="Downloads"
@@ -224,52 +266,86 @@ export function EcosystemView({
             window={window}
             observedFrom={model.observedFrom.downloads}
             coverageNote="이 지표의 관측 시작"
-            emphasisKeys={expanded}
+            emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.downloads}
             maxWeeksNote={`최대 ${FETCH_WEEKS}주 조회`}
+            allowIndex={false}
           />
         </div>
 
-        <div className="grid min-w-0 items-start gap-4">
-          {packages.map((p, i) => (
-            <PackageCard
-              key={p.key}
-              model={p}
-              index={i}
-              expanded={expanded.includes(p.key)}
-              selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
-              onVersionChange={(next) => selectVersion(p.key, next)}
-              versionShareState={versionShareState}
-              onToggle={() =>
-                setCollapsed({
-                  key: packageKeys,
-                  keys: collapsedKeys.includes(p.key)
-                    ? collapsedKeys.filter((k) => k !== p.key)
-                    : [...collapsedKeys, p.key],
-                })
-              }
-            />
-          ))}
+        {/*
+          379 후속 — 패키지 카드를 세로로 쌓지 않고 하나만 보여준다. 비교 대상이 최대
+          3개까지 늘 수 있어(IA §1-2), 예전처럼 전부 펼쳐 두면 오른쪽 열이 차트보다 훨씬
+          길어져 스크롤해야 다음 패키지를 볼 수 있었다.
 
-          {/*
-            카드가 하나도 없으면 접기 안내 자체를 내지 않는다.
+          칩은 진짜 tabs(`components/ui/tabs.tsx`)가 아니라 직접 만든 버튼 줄이다 —
+          Radix Tabs 는 항상 하나가 active 여야 해서 "아무것도 고르지 않은" 상태를
+          표현할 수 없다. 고른 게 없을 때는 어느 칩도 눌린 것처럼 보이면 안 된다
+          (위 `focused` 주석).
+        */}
+        {model.packages.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <div
+              role="group"
+              aria-label="패키지 상세 선택"
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              {packages.map((p, i) => {
+                const style = seriesStyle(i)
+                const active = p.key === focusedName
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setFocused({ key: packageKeys, name: active ? null : p.key })}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
+                      active
+                        ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
+                        : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                    )}
+                  >
+                    <svg width="16" height="8" aria-hidden className="shrink-0">
+                      <line
+                        x1="0"
+                        y1="4"
+                        x2="16"
+                        y2="4"
+                        stroke={style.color}
+                        strokeWidth="2.4"
+                        strokeDasharray={style.dash}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="truncate font-mono">{p.key}</span>
+                    {i === 0 && (
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+                        기준
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
 
-            `expanded.length === 0` 은 **"사용자가 다 접었다" 와 "펼칠 것이 애초에 없다"
-            두 상태를 같은 값으로 만든다.** 뒤쪽에서 "모든 패키지를 접었습니다" 가 뜨면
-            하지도 않은 조작을 했다고 말하게 된다 — 이름이 전부 not_found 인 구간에서
-            실제로 그렇게 떴다.
-          */}
-          {model.packages.length > 0 && (
-            <p className="text-base leading-relaxed text-muted-foreground">
-              {expanded.length === 0
-                ? '모든 패키지를 접었습니다. 카드를 누르면 다시 펼쳐집니다.'
-                : expanded.length < model.packages.length
-                  ? `접힌 패키지는 차트에서도 흐려집니다. 펼침 ${expanded.length} / ${model.packages.length}`
-                  : '카드를 누르면 접히고, 그 패키지 선이 차트에서 물러납니다.'}
-            </p>
-          )}
-        </div>
+            {/*
+              고른 게 없으면 기준 패키지 카드를 그냥 보여준다 — 그게 "선택"은 아니라서
+              위 칩 줄에서는 어느 것도 눌린 상태로 보이지 않는다(displayedPackage 는
+              focusedName 이 없을 때 조용히 packages[0]으로 떨어진다).
+            */}
+            {displayedPackage && (
+              <PackageCard
+                model={displayedPackage}
+                index={displayedIndex}
+                selectedVersion={versionByName[displayedPackage.key] ?? ALL_MAJORS}
+                onVersionChange={(next) => selectVersion(displayedPackage.key, next)}
+                versionShareState={versionShareState}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <p className="font-mono text-base text-muted-foreground">

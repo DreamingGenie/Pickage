@@ -1,6 +1,15 @@
-import type { ChartSeries } from '@/components/charts/geometry'
+import { useMemo, useState } from 'react'
+
+import {
+  deltaExtentY,
+  deltaSeriesOf,
+  indexedExtentY,
+  indexSeriesTo100,
+  type ChartSeries,
+} from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
+import { SegmentedControl } from '@/components/common/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   MIN_POINTS_FOR_LINE,
@@ -8,6 +17,10 @@ import {
   type SnapshotWindow,
 } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
+
+/** 축 비교 모드. 지수는 두 카드 공통, 증감은 `allowDelta` 카드(Dependents)에만 있다. */
+type ScaleMode = 'absolute' | 'index'
+type LevelMode = 'total' | 'delta'
 
 /** 결측을 뺀, 실제로 그릴 수 있는 관측치 수. */
 function validCount(s: ChartSeries): number {
@@ -37,6 +50,8 @@ export function MetricChart({
   height = 192,
   showLegend = false,
   state = { status: 'ready' },
+  allowDelta = false,
+  allowIndex = true,
   className,
 }: {
   title: string
@@ -55,37 +70,119 @@ export function MetricChart({
   showLegend?: boolean
   /** 이 카드만의 처지. 옆 카드와 섞이지 않는다. */
   state?: MetricState
+  /**
+   * "증감·총합" 토글을 낼지. Dependents(누적 총합)에만 의미가 있다 — Downloads는 이미
+   * 주간 값(흐름)이라 누적/증감으로 다시 나눌 대상이 없다(379).
+   */
+  allowDelta?: boolean
+  /**
+   * "절대값·지수" 토글을 낼지. Downloads는 절대값 하나로 고정한다(379 후속) — 다운로드는
+   * 이미 주간 흐름값이라 지수화가 총합 카드만큼 필요하지 않았고, 카드마다 축 설명이
+   * 늘어나는 것보다 하나는 고정해 두는 편이 더 읽기 쉬웠다.
+   */
+  allowIndex?: boolean
   className?: string
 }) {
   /** 고른 시작이 이 지표의 관측 시작보다 앞서면 여기서 잘린다. */
   const clamped = Boolean(observedFrom && window.start < observedFrom)
 
   /**
+   * 축·표시 모드(379). 지수는 `allowIndex` 카드에서, 증감은 `allowDelta` 카드에서 고를 수
+   * 있다. **처음 들어왔을 때부터 지수·총합이 기본이다** — 접속 직후에 규모가 비슷한
+   * 두 패키지의 실제 성장 차이가 바로 보여야 한다는 게 379 논의의 결론이었다. 증감을
+   * 고른 동안은 지수 토글을 숨긴다 — 부호 있는 증감값을 다시 "구간 시작 대비 비율"로
+   * 지수화하는 것은 의미가 없다(기준값이 0 또는 음수일 수 있다).
+   */
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('index')
+  const [levelMode, setLevelMode] = useState<LevelMode>('total')
+  const showingDelta = allowDelta && levelMode === 'delta'
+  /** Downloads(`allowIndex=false`)는 토글이 없으니 상태와 무관하게 항상 절대값이다. */
+  const effectiveScaleMode: ScaleMode = allowIndex ? scaleMode : 'absolute'
+
+  /**
+   * 공백 판정 기준을 지금 보고 있는 간격에 맞춘다(아래 LineChart 호출부와 같은 식·같은 이유).
+   * `deltaSeriesOf`도 같은 간격 기준으로 "화면에 보이는 이웃 점"을 판단해야
+   * 차트가 끊는 자리와 증감이 결측으로 남는 자리가 어긋나지 않는다.
+   */
+  const maxGapDays = step * 7 + 1
+
+  /** 절대값(로그, 0-포함) → 증감(선형, 0-포함) → 지수(선형, 100-기준) 순으로 적용. */
+  const displaySeries = useMemo(() => {
+    const leveled = showingDelta ? deltaSeriesOf(series, maxGapDays) : series
+    return effectiveScaleMode === 'index' && !showingDelta ? indexSeriesTo100(leveled) : leveled
+  }, [series, showingDelta, effectiveScaleMode, maxGapDays])
+
+  const yScale: 'log' | 'linear' =
+    effectiveScaleMode === 'absolute' && !showingDelta ? 'log' : 'linear'
+  const yDomain = showingDelta
+    ? deltaExtentY(displaySeries)
+    : effectiveScaleMode === 'index'
+      ? indexedExtentY(displaySeries)
+      : undefined
+
+  const badgeLabel = showingDelta
+    ? '증감 · 전 스냅샷 대비'
+    : effectiveScaleMode === 'index'
+      ? '지수 · =100 기준'
+      : '로그축'
+  const ariaSuffix = showingDelta
+    ? '증감 — 전 스냅샷 대비 순증감이며, 0 아래는 감소입니다'
+    : effectiveScaleMode === 'index'
+      ? '지수 비교 — 표시 구간 시작을 100으로 두고 그 대비 비율로 그렸습니다'
+      : '로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요. 축 아래 지그재그는 0~데이터 사이를 압축했다는 표시입니다'
+
+  /**
    * **시리즈별로** 선을 그릴지 가른다(311b) — 예전에는 가장 긴 시리즈 하나로 카드 전체를
    * gate 해서, 짧은 시리즈 하나가 다른 시리즈들 옆에 추세인 것처럼 그대로 그려졌다.
    * "관측 행이 있는가"(raw)와 "그릴 값이 있는가"(valid, null 제외)도 구분한다.
+   *
+   * 증감 모드에서는 시리즈의 첫 점이 항상 결측(비교할 이전 값이 없음)이라 총합 모드보다
+   * 유효 점이 하나 적다 — 그래서 이 판정도 `displaySeries`(변환 후)를 보고 다시 한다.
    */
-  const rawMax = Math.max(0, ...series.map((s) => s.points.length))
-  const allDates = [...new Set(series.flatMap((s) => s.points.map((p) => p.t)))].sort()
-  const maxValidPoints = Math.max(0, ...series.map(validCount))
+  const rawMax = Math.max(0, ...displaySeries.map((s) => s.points.length))
+  const allDates = [...new Set(displaySeries.flatMap((s) => s.points.map((p) => p.t)))].sort()
+  const maxValidPoints = Math.max(0, ...displaySeries.map(validCount))
 
-  const lined = series.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
-  const accumulating = series.filter((s) => {
+  const lined = displaySeries.filter((s) => validCount(s) >= MIN_POINTS_FOR_LINE)
+  const accumulating = displaySeries.filter((s) => {
     const c = validCount(s)
     return c > 0 && c < MIN_POINTS_FOR_LINE
   })
 
   return (
     <section className={cn('flex min-w-0 flex-col gap-4 rounded-2xl border p-6', className)}>
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
+      {/*
+        379 후속 — 여기 있던 단위·축 설명 배지를 뺐다. 토글 버튼 옆에 나란히 있으니
+        조작줄이 붐벼 보였다(캡처 피드백). 축이 무엇을 뜻하는지는 카드마다 반복하지 않고
+        `EcosystemView`가 범례 옆에 한 번만 설명한다 — 카드 안에는 지금 보고 있는 단위·모드만
+        아래 footer 줄에 짧게 남긴다.
+      */}
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <span className="flex items-baseline gap-2">
-          <span className="font-mono text-base text-muted-foreground">{unit}</span>
-          {/* 311 — 눈금은 원래 값 단위지만 간격 자체는 로그다. 그 사실을 알린다. */}
-          <span className="rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-            로그축
-          </span>
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {allowDelta && (
+            <SegmentedControl
+              label={`${title} 증감·총합 전환`}
+              options={[
+                { key: 'delta', label: '증감' },
+                { key: 'total', label: '총합' },
+              ]}
+              value={levelMode}
+              onChange={(key) => setLevelMode(key as LevelMode)}
+            />
+          )}
+          {allowIndex && !showingDelta && (
+            <SegmentedControl
+              label={`${title} 절대값·지수 전환`}
+              options={[
+                { key: 'absolute', label: '절대값' },
+                { key: 'index', label: '지수' },
+              ]}
+              value={scaleMode}
+              onChange={(key) => setScaleMode(key as ScaleMode)}
+            />
+          )}
+        </div>
       </header>
 
       {showLegend && state.status === 'ready' && (
@@ -139,8 +236,10 @@ export function MetricChart({
               +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
               유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
             */
-            maxGapDays={step * 7 + 1}
-            ariaLabel={`${title} 추이 (로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요)`}
+            maxGapDays={maxGapDays}
+            yScale={yScale}
+            yDomain={yDomain}
+            ariaLabel={`${title} 추이 (${ariaSuffix})`}
           />
           {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
           {accumulating.length > 0 && <AccumulatingNotes series={accumulating} />}
@@ -149,13 +248,18 @@ export function MetricChart({
 
       {/* 구간·개수는 받은 자료를 설명하는 줄이다. 못 받았으면 할 말이 없다 */}
       {state.status === 'ready' && (
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-base text-muted-foreground">
+        <div className="flex flex-col gap-1 border-t pt-3 text-base text-muted-foreground">
           <span className="font-mono">
-            {allDates.length ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : '자료 없음'}
+            {unit} · {badgeLabel}
           </span>
-          <span className="font-mono tabular-nums">
-            스냅샷 {maxValidPoints}개{step > 1 && ` · ${step}주 간격`}
-          </span>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-mono">
+              {allDates.length ? `${allDates[0]} ~ ${allDates[allDates.length - 1]}` : '자료 없음'}
+            </span>
+            <span className="font-mono tabular-nums">
+              스냅샷 {maxValidPoints}개{step > 1 && ` · ${step}주 간격`}
+            </span>
+          </div>
         </div>
       )}
 

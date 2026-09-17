@@ -1,3 +1,4 @@
+import { SegmentedControl } from '@/components/common/segmented-control'
 import { INTERVALS, type SnapshotWindow } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
@@ -85,42 +86,6 @@ export function EcosystemToolbar({
           onChange={(key) => onChange({ ...controls, intervalKey: key })}
         />
       </div>
-    </div>
-  )
-}
-
-function SegmentedControl({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string
-  options: { key: string; label: string }[]
-  value: string
-  onChange: (key: string) => void
-}) {
-  return (
-    <div className="flex gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label={label}>
-      {options.map((o) => {
-        const active = value === o.key
-        return (
-          <button
-            key={o.key}
-            type="button"
-            onClick={() => onChange(o.key)}
-            aria-pressed={active}
-            className={cn(
-              'rounded-[5px] px-2 py-1 text-base transition-colors',
-              active
-                ? 'bg-background font-medium text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {o.label}
-          </button>
-        )
-      })}
     </div>
   )
 }

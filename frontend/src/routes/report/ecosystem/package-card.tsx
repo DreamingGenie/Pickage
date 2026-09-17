@@ -1,5 +1,3 @@
-import { ChevronDownIcon } from 'lucide-react'
-
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
@@ -14,29 +12,21 @@ import {
 import { cn } from '@/lib/utils'
 
 /**
- * 패키지 카드.
+ * 패키지 카드 — 상세 하나 전체.
  *
- * 기본은 전부 펼침. 여러 개를 동시에 펼 수 있고, 직접 접기 전까지 닫히지 않는다.
- *
- * 접힘: 패키지 이름과 최신 버전. 그리고 그 패키지 선이 차트에서 물러난다.
- * 펼침: 뱃지 · Dependents 증감 · Version Share 상세.
- *
- * 접힘 상태에도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
- * 알 수 없으면 접힌 목록이 쓸모없어진다.
+ * 379 후속: 예전에는 여러 장을 세로로 쌓아 두고 카드마다 접고 펼 수 있었다(스크롤이
+ * 길어지는 문제가 있었다). 지금은 `EcosystemView`가 탭으로 하나만 골라 이 컴포넌트를
+ * 그 패키지 것으로 한 번만 렌더한다 — 그래서 이 컴포넌트 안에는 더 이상 접힘 상태가 없다.
  */
 export function PackageCard({
   model,
   index,
-  expanded,
-  onToggle,
   selectedVersion,
   onVersionChange,
   versionShareState = { status: 'ready' },
 }: {
   model: PackageCardModel
   index: number
-  expanded: boolean
-  onToggle: () => void
   /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
   selectedVersion: MajorSelection
   onVersionChange: (next: MajorSelection) => void
@@ -47,69 +37,36 @@ export function PackageCard({
   const isBase = index === 0
   const delta = model.dependentsDelta
 
-  const header = (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <svg width="20" height="8" aria-hidden className="shrink-0">
-          <line
-            x1="0"
-            y1="4"
-            x2="20"
-            y2="4"
-            stroke={style.color}
-            strokeWidth="2.6"
-            strokeDasharray={style.dash}
-            strokeLinecap="round"
-          />
-        </svg>
-        <span className="truncate font-mono text-base font-medium">{model.key}</span>
-        {isBase && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-            기준
-          </span>
-        )}
-        {model.isDeprecated && (
-          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
-            폐기 표시
-          </span>
-        )}
-      </div>
-      <span className="flex shrink-0 items-center gap-2">
-        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
-        <ChevronDownIcon
-          aria-hidden
-          className={cn(
-            'size-4 text-muted-foreground transition-transform duration-200',
-            expanded && 'rotate-180',
-          )}
-        />
-      </span>
-    </div>
-  )
-
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={false}
-        className="rounded-2xl border bg-background px-6 py-5 text-left transition-colors duration-200 hover:border-foreground/30 hover:bg-muted/30"
-      >
-        {header}
-      </button>
-    )
-  }
-
-  /*
-    펼친 카드는 button 이 아니라 div 다. 안에 표시 버전 선택기가 들어가는데,
-    button 안의 button 은 HTML 이 허용하지 않고 클릭이 바깥으로 새어 카드가 접힌다.
-    접기는 머리글만 담당한다.
-  */
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]">
-      <button type="button" onClick={onToggle} aria-expanded className="text-left">
-        {header}
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <svg width="20" height="8" aria-hidden className="shrink-0">
+            <line
+              x1="0"
+              y1="4"
+              x2="20"
+              y2="4"
+              stroke={style.color}
+              strokeWidth="2.6"
+              strokeDasharray={style.dash}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="truncate font-mono text-base font-medium">{model.key}</span>
+          {isBase && (
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+              기준
+            </span>
+          )}
+          {model.isDeprecated && (
+            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
+              폐기 표시
+            </span>
+          )}
+        </div>
+        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
+      </div>
 
       {model.description && (
         <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
