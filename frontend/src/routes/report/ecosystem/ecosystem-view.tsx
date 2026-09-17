@@ -11,7 +11,7 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
-  FETCH_WEEKS,
+  FETCH_RANGE_NOTE,
   stepOf,
   type EcosystemModel,
   type MajorSelection,
@@ -227,7 +227,7 @@ export function EcosystemView({
             emphasisKeys={expanded}
             height={height}
             state={metricState.downloads}
-            maxWeeksNote={`최대 ${FETCH_WEEKS}주 조회`}
+            maxWeeksNote={FETCH_RANGE_NOTE}
           />
         </div>
 

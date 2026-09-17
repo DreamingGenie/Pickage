@@ -75,7 +75,7 @@ public class PackageController {
 	 * 클라이언트는 x축을 인덱스가 아니라 {@code snapshot_at} 으로 잡아야 한다.
 	 */
 	@Operation(summary = "다운로드 추이",
-		description = "from 생략 시 최신 스냅샷 기준 26주, to 생략 시 최신 스냅샷. 최대 104주.")
+		description = "from 생략 시 최초 스냅샷, to 생략 시 최신 스냅샷. 기간 상한 없음.")
 	@GetMapping("/packages/downloads")
 	public ApiResponseBody<TrendResponse> getDownloadsTrend(
 		@RequestParam(name = "names", required = false) List<String> names,

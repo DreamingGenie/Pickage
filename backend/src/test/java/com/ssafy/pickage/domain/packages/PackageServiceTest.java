@@ -186,6 +186,8 @@ class PackageServiceTest {
 	private static final class FakeRepository extends PackageQueryRepository {
 
 		private final LocalDate latest;
+		/** from 생략 시의 시작. 별도로 주지 않으면 최신과 같게 둬 하루짜리 구간이 된다. */
+		private final LocalDate earliest;
 		private final List<String> existing;
 		private final List<TrendRow> rows;
 
@@ -193,8 +195,14 @@ class PackageServiceTest {
 		private final List<SnapshotWindow> queried = new ArrayList<>();
 
 		private FakeRepository(LocalDate latest, List<String> existing, List<TrendRow> rows) {
+			this(latest, latest, existing, rows);
+		}
+
+		private FakeRepository(LocalDate latest, LocalDate earliest, List<String> existing,
+			List<TrendRow> rows) {
 			super(null);
 			this.latest = latest;
+			this.earliest = earliest;
 			this.existing = existing;
 			this.rows = rows;
 		}
@@ -202,6 +210,11 @@ class PackageServiceTest {
 		@Override
 		public LocalDate findLatestSnapshot() {
 			return latest;
+		}
+
+		@Override
+		public LocalDate findEarliestSnapshot() {
+			return earliest;
 		}
 
 		@Override
@@ -430,22 +443,39 @@ class PackageServiceTest {
 	}
 
 	/**
-	 * §4 — 기본 구간은 <b>오늘이 아니라 최신 스냅샷</b>에서 거꾸로 센다. 오늘을 기준으로 세면
-	 * 아직 만들어지지 않은 주가 구간에 들어가 매번 다른 길이의 시리즈가 나온다.
+	 * §4 — 생략하면 <b>보유한 전부</b>다. 끝은 오늘이 아니라 최신 스냅샷이고, 시작은 최초
+	 * 스냅샷이다. 오늘을 기준으로 세면 아직 만들어지지 않은 주가 구간에 들어간다.
 	 *
-	 * <p>스냅샷이 하나뿐이어도 구간은 성립한다 — 26주를 채울 자료가 없는 것과 구간이 없는 것은
-	 * 다르다. 앞은 점 하나짜리 정상 응답이다.
+	 * <p>예전에는 최신에서 26주를 거꾸로 셌고 상한이 104주였다. 그래서 "전체" 를 볼 방법이
+	 * 아예 없었다 — 더 이른 {@code from} 을 주면 거절당했다(S15P21A506-374).
 	 */
 	@Test
-	@DisplayName("298 — 기본 구간은 최신 스냅샷에서 26주를 거꾸로 센다 (양 끝 포함)")
-	void defaultWindowCountsBackFromLatestSnapshot() {
-		FakeRepository fake = new FakeRepository(SNAPSHOT, List.of("express"), ONE_ROW);
+	@DisplayName("374 — from·to 를 생략하면 최초 스냅샷부터 최신 스냅샷까지 전부다")
+	void omittedWindowCoversEverySnapshot() {
+		LocalDate earliest = SNAPSHOT.minusWeeks(300);
+		FakeRepository fake = new FakeRepository(SNAPSHOT, earliest, List.of("express"), ONE_ROW);
 		PackageService service = new PackageService(fake);
 
 		var res = service.getDownloadsTrend(PackageNames.of(List.of("express")), null, null);
 
-		assertEquals(new SnapshotWindow(SNAPSHOT.minusWeeks(25), SNAPSHOT), fake.queried.getFirst());
+		// 104주를 훌쩍 넘는 구간도 거절되지 않는다. 상한이 사라졌기 때문이다.
+		assertEquals(new SnapshotWindow(earliest, SNAPSHOT), fake.queried.getFirst());
 		assertEquals(1, res.series().getFirst().points().size());
+	}
+
+	/**
+	 * 스냅샷이 하나뿐이면 최초와 최신이 같다. 26주를 채울 자료가 없는 것과 구간이 없는 것은
+	 * 다르다 — 앞은 점 하나짜리 정상 응답이다.
+	 */
+	@Test
+	@DisplayName("374 — 스냅샷이 하나뿐이면 그 하루가 구간이다")
+	void singleSnapshotIsStillAWindow() {
+		FakeRepository fake = new FakeRepository(SNAPSHOT, List.of("express"), ONE_ROW);
+		PackageService service = new PackageService(fake);
+
+		service.getDownloadsTrend(PackageNames.of(List.of("express")), null, null);
+
+		assertEquals(new SnapshotWindow(SNAPSHOT, SNAPSHOT), fake.queried.getFirst());
 	}
 
 	/* ------------------------------------------------------------------ *

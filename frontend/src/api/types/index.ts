@@ -48,11 +48,11 @@ export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure
 /** 0.1 — `names` 배열 상한. UI 의 최대 선택 수와 같은 값이다. 초과 시 V002. */
 export const MAX_NAMES = 3
 
-/** §4 — 추이 조회 기간 상한(주). 배열 상한 3 과 곱해져 응답 크기를 정한다. */
-export const MAX_WEEKS = 104
-
-/** §4 — `from` 생략 시 기본 구간(주). */
-export const DEFAULT_WEEKS = 26
+/*
+  §4 — 추이 조회 기간 상한(MAX_WEEKS 104)과 기본 구간(DEFAULT_WEEKS 26)이 여기 있었다.
+  서버에서 둘 다 없앴다 — `from`·`to` 를 생략하면 보유한 전 구간이 온다(S15P21A506-374).
+  화면이 상한을 알아야 할 이유가 사라져 상수도 함께 지웠다.
+*/
 
 /** §2.4 — `limit` 기본값·상한. */
 export const SEARCH_LIMIT_DEFAULT = 20

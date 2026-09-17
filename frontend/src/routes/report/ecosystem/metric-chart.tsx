@@ -48,7 +48,7 @@ export function MetricChart({
   window: SnapshotWindow
   observedFrom?: string
   coverageNote?: string
-  /** Downloads 카드의 "최대 104주 조회" 같은 고정 안내(126). 카드마다 다르면 부르는 쪽이 정한다. */
+  /** Downloads 카드의 "보유한 전 구간 조회" 같은 고정 안내(126). 카드마다 다르면 부르는 쪽이 정한다. */
   maxWeeksNote?: string
   emphasisKeys?: readonly string[] | null
   height?: number

@@ -7,8 +7,6 @@
  * 난수를 쓰지 않는다. 새로고침마다 그래프가 흔들리면 화면 버그와 구분할 수 없다.
  */
 
-import { MAX_WEEKS } from '@/api/types'
-
 /** 0.5 — 모든 현재값의 기준. 실제로는 `SELECT MAX(snapshot_at) FROM snapshot`. */
 export const LATEST_SNAPSHOT = '2026-08-31'
 
@@ -22,8 +20,13 @@ export function snapshotDates(weeks: number, end = LATEST_SNAPSHOT): string[] {
   )
 }
 
-/** 전체 스냅샷 축. 조회 상한(104주)보다 넉넉히 잡아 구간 자르기가 실제로 동작하게 한다. */
-export const ALL_SNAPSHOTS = snapshotDates(MAX_WEEKS + 26)
+/**
+ * 전체 스냅샷 축.
+ *
+ * 조회 상한이 없어진 뒤에도(S15P21A506-374) 2년 반치를 유지한다 — 구간 자르기와 간격
+ * 솎아내기가 실제로 동작하는지 보려면 축이 화면보다 길어야 한다.
+ */
+export const ALL_SNAPSHOTS = snapshotDates(130)
 
 /** 결정적 흔들림. 두 주기를 겹쳐 규칙적으로 보이지 않게만 한다. */
 const wobble = (seed: number, i: number) =>

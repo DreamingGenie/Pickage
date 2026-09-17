@@ -12,7 +12,7 @@ import { MAX_NAMES } from '@/api/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
-import { FETCH_WEEKS, type MetricKey, type MetricState } from '@/routes/report/ecosystem/model'
+import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
 
 /**
  * 생태계 변화 탭.
@@ -21,44 +21,32 @@ import { FETCH_WEEKS, type MetricKey, type MetricState } from '@/routes/report/e
  * **네 요청을 각자 기다린다.** 개요가 오면 카드가 먼저 뜨고, 느린 차트 하나 때문에
  * 카드 전체가 붙잡히지 않으며, 버전 분포가 실패해도 나머지는 그려진다.
  *
- * 조회 기간만 이 층이 들고 있다. 그것만 `from` 을 바꿔 추이를 다시 받게 하기 때문이고,
- * 개요는 그때 재조회되지 않는다.
+ * 조회 기간은 더 이상 이 층이 정하지 않는다. 서버가 보유한 전 구간을 주고, 좁히는 일은
+ * 화면 안에서 끝난다(S15P21A506-374).
  */
 export function EcosystemReportTab({ packages }: { packages: string[] }) {
   /** 상한을 넘겨 보내면 서버가 V002 로 거절한다. 넘기기 전에 자른다. */
   const names = useMemo(() => [...new Set(packages)].slice(0, MAX_NAMES), [packages])
 
-  /**
-   * **상한만큼 한 번에 받는다.** 구간을 좁히고 넓히는 일은 전부 화면 안에서 끝나므로
-   * 이 조회는 패키지 조합이 바뀔 때만 다시 나간다.
-   *
-   * <p>`from` 은 오늘이 아니라 **최신 스냅샷**을 기준으로 세어야 하는데, 그 날짜는 개요
-   * 응답이 알려준다. 그래서 **개요가 올 때까지 추이를 아예 보내지 않는다.**
-   *
-   * <p>예전에는 개요를 기다리지 않고 `from` 없이 먼저 한 번 보내 서버 기본값(26주)에
-   * 맡겼다. "카드가 먼저 뜨게 하려고" 였는데 <b>실제로는 그런 적이 없다</b> — 아래 렌더
-   * 게이트가 개요·다운로드·의존 세 응답을 모두 기다리므로, 먼저 온 26주 응답은 화면에
-   * 뜨지 못한 채 개요 도착과 함께 질의 키가 바뀌며 버려졌다. 2026-09-10 실측에서 보고서
-   * 한 번 여는 데 추이 3종이 두 번씩, 즉 요청 7개가 나갔다(필요한 것은 4개).
-   */
   const overview = usePackagesOverview(names)
-  const from = useMemo(() => {
-    const latest = overview.data?.snapshot_at
-    if (!latest) return undefined
-    return new Date(Date.parse(latest) - (FETCH_WEEKS - 1) * 7 * 864e5).toISOString().slice(0, 10)
-  }, [overview.data?.snapshot_at])
 
   /**
-   * 적재 전에는 개요가 성공해도 `snapshot_at` 이 null 이라 `from` 이 계속 비어 있다.
-   * 그래서 `from` 이 아니라 **개요가 왔는지**로 문을 연다 — 그러지 않으면 자료가 없을 때
-   * 추이가 영원히 안 나가고 화면이 로딩에서 멈춘다.
+   * **보유한 전 구간을 한 번에 받는다.** `from`·`to` 를 생략하면 서버가 최초 스냅샷부터
+   * 최신 스냅샷까지 준다(S15P21A506-374). 구간을 좁히고 넓히는 일은 전부 화면 안에서
+   * 끝나므로, 이 조회는 패키지 조합이 바뀔 때만 다시 나간다.
+   *
+   * <p>예전에는 상한이 104주라 `from` 을 최신 스냅샷에서 거꾸로 세어 만들었고, 그 날짜를
+   * 개요가 알려주기 때문에 **개요가 올 때까지 추이를 보내지 못했다.** 이제 보낼 값이
+   * 없으므로 기다릴 이유도 없다 — 세 조회가 동시에 나간다.
    */
-  const ready = overview.isSuccess
-
-  const downloads = useDownloadsTrend(names, from, undefined, ready)
-  const dependents = useDependentsTrend(names, from, undefined, ready)
-  // 적재 전에는 snapshot_at 이 null 이다. 서버 기본값(최신 스냅샷)에 맡긴다.
-  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined, ready)
+  const downloads = useDownloadsTrend(names, undefined, undefined)
+  const dependents = useDependentsTrend(names, undefined, undefined)
+  /*
+    버전 분포만 개요를 기다린다. 카드에 찍는 기준일을 개요와 같은 날짜로 맞춰야 하기
+    때문이다. 적재 전에는 snapshot_at 이 null 이라 서버 기본값(최신 스냅샷)에 맡긴다.
+  */
+  const versionShare = useVersionShare(names, overview.data?.snapshot_at ?? undefined,
+    overview.isSuccess)
 
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
