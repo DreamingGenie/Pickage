@@ -482,6 +482,75 @@ class ApplyGates(unittest.TestCase):
         self.assertNotIn("repo_archived", drops)
 
 
+class LoadPackageText(QuietMixin, unittest.TestCase):
+    """읽기 단계 예선 필터가 qualify() 의 dependents 규칙과 어긋나지 않는지 (S15P21A506-382).
+
+    이 시험이 깨지면 **코퍼스가 조용히 줄었다**는 뜻이다. 예선 필터는 오류를 내지
+    않고 행을 덜 읽을 뿐이라, 어긋나도 배치는 정상 종료하고 후보만 적어진다.
+    걸릴 만한 자리는 둘이다 — 나중에 누가 예선 필터에 조건을 더 얹는 것, 그리고
+    pyarrow 갱신으로 `>=` 의 null 취급이 달라지는 것.
+    """
+
+    ROWS = {
+        # dep, 최신 릴리스, status, is_spam — qualify 가 보는 네 열
+        "keep_high": (10, "2026-09-01", None, False),
+        "keep_exact": (5, "2026-09-01", None, False),        # 경계: 하한과 같으면 통과
+        "keep_null_date": (7, None, None, False),            # 날짜 null 은 qualify 가 남긴다
+        "drop_low": (4, "2026-09-01", None, False),          # 경계: 하한 미만
+        "drop_null_dep": (None, "2026-09-01", None, False),  # dep null 은 양쪽 다 버린다
+        "drop_old": (9, "2000-01-01", None, False),          # qualify 가 버린다
+        "drop_deprecated": (9, "2026-09-01", "deprecated", False),
+        "drop_spam": (9, "2026-09-01", None, True),
+    }
+
+    def _write(self, path):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        names = list(self.ROWS)
+        pq.write_table(
+            pa.table({
+                "name": names,
+                "description": [f"desc of {n}" for n in names],
+                "keywords": [["kw"] for _ in names],
+                "dependent_packages_count": [self.ROWS[n][0] for n in names],
+                "latest_release_published_at": [self.ROWS[n][1] for n in names],
+                "status": [self.ROWS[n][2] for n in names],
+                "is_spam": [self.ROWS[n][3] for n in names],
+            }),
+            path,
+        )
+
+    def test_prefilter_drops_below_threshold_and_null_dependents(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write(path)
+            got = {r["name"] for r in sbp.load_package_text(path, 5)}
+        self.assertNotIn("drop_low", got)
+        self.assertNotIn("drop_null_dep", got)
+        self.assertIn("keep_exact", got)   # 하한과 같은 값은 통과한다
+        # 예선 필터는 dependents 만 본다 — 나머지 판정은 qualify 몫이라 여기서는 살아 있다
+        self.assertIn("drop_old", got)
+        self.assertIn("drop_deprecated", got)
+
+    def test_prefilter_then_qualify_equals_full_load_then_qualify(self):
+        """예선 필터를 거친 뒤 qualify 한 결과가, 전수를 읽고 qualify 한 것과 같아야 한다."""
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write(path)
+            prefiltered = sbp.qualify(sbp.load_package_text(path, 5), 5, 12)
+            full = sbp.qualify(pq.read_table(path).to_pylist(), 5, 12)
+
+        # 순서까지 같아야 한다. top_k 가 행 순서를 색인으로 쓴다
+        self.assertEqual([r["name"] for r in prefiltered], [r["name"] for r in full])
+        self.assertEqual(
+            [r["name"] for r in prefiltered],
+            ["keep_high", "keep_exact", "keep_null_date"],
+        )
+
+
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
 
