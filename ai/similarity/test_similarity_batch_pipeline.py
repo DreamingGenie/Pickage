@@ -550,6 +550,40 @@ class LoadPackageText(QuietMixin, unittest.TestCase):
             ["keep_high", "keep_exact", "keep_null_date"],
         )
 
+    def test_order_preserved_across_row_groups(self):
+        """row group 이 여럿일 때도 읽은 순서가 파일 순서와 같아야 한다.
+
+        위 시험의 파일은 8행 단일 row group 이라 이 성질을 건드리지 못한다. 실제
+        코퍼스는 `build_package_text.py` 가 100,000행마다 끊어 쓰므로 92만 행이면
+        열 개 안팎이 된다. 읽기 필터가 row group 을 병렬로 읽고 순서를 섞으면
+        여기서 걸린다.
+        """
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        n = 50
+        names = [f"p{i:03d}" for i in range(n)]
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": names,
+                    "description": ["d" for _ in names],
+                    "keywords": [["kw"] for _ in names],
+                    # 짝수만 통과시켜, 섞였을 때 눈에 띄게 한다
+                    "dependent_packages_count": [10 if i % 2 == 0 else 1 for i in range(n)],
+                    "latest_release_published_at": ["2026-09-01" for _ in names],
+                    "status": [None for _ in names],
+                    "is_spam": [False for _ in names],
+                }),
+                path,
+                row_group_size=7,   # 50행 / 7 = row group 8개
+            )
+            self.assertGreater(pq.read_metadata(path).num_row_groups, 1)
+            got = [r["name"] for r in sbp.load_package_text(path, 5)]
+
+        self.assertEqual(got, [f"p{i:03d}" for i in range(n) if i % 2 == 0])
+
 
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]

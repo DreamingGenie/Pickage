@@ -71,11 +71,16 @@ def load_package_text(path: str, min_dependents: int) -> list[dict]:
     """
     import pyarrow.parquet as pq
 
+    # 전체 행수는 footer 만 읽어 온다(본문을 읽지 않으므로 비용이 없다). 이 수를 여기서
+    # 안 남기면 예선에서 걸린 행수가 **어느 로그에도 안 남는다** — qualify() 의 로그는
+    # 여기를 통과한 것만 세기 때문에 `dependents<N 0` 으로 찍혀, 읽는 사람이 그 규칙이
+    # 동작하지 않는다고 오해한다.
+    total = pq.read_metadata(path).num_rows
     table = pq.read_table(
         path, filters=[("dependent_packages_count", ">=", min_dependents)]
     )
     rows = table.to_pylist()
-    log(f"package_text: {len(rows)} 행  ({path}, dependents>={min_dependents} 예선 통과)")
+    log(f"package_text: {total} 행 중 dependents>={min_dependents} 인 {len(rows)} 행만 읽음  ({path})")
     return rows
 
 
