@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import duckdb
 
-from pipeline.curated.storage import json_bytes
+from pipeline.preprocessing.curated.storage import json_bytes
 from .local_bundle import LocalMetadataStore, MAX_FILE_BYTES, relative_file
 from .native_fixture import create_demo
 from .native_input import inspect_bundle, main

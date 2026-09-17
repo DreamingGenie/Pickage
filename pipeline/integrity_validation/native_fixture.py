@@ -8,8 +8,8 @@ from pathlib import Path
 
 import duckdb
 
-from pipeline.package_snapshot.quality_schema import LEGACY_OBSERVED_SCHEMA
-from pipeline.curated.storage import json_bytes
+from pipeline.preprocessing.package_snapshot.quality_schema import LEGACY_OBSERVED_SCHEMA
+from pipeline.preprocessing.curated.storage import json_bytes
 
 SNAPSHOT = "2026-08-31"
 RUN_ID = "tiny-native-demo"

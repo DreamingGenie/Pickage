@@ -46,9 +46,9 @@ class RealSourcesTest(unittest.TestCase):
     def tearDown(self): self.tmp.cleanup()
 
     def _bind(self):
-        policy = types.ModuleType("pipeline.package_snapshot.policy"); policy.canonical_bytes = canonical
-        reload_mod = types.ModuleType("pipeline.version_dependents.historical_db_reload"); reload_mod.validate_generation = lambda value: None; reload_mod.contract = lambda: self.plan["generation"]
-        with patch.dict(sys.modules, {"pipeline.package_snapshot.policy": policy, "pipeline.version_dependents.historical_db_reload": reload_mod}):
+        policy = types.ModuleType("pipeline.preprocessing.package_snapshot.policy"); policy.canonical_bytes = canonical
+        reload_mod = types.ModuleType("pipeline.postgresql.version_dependents.historical_db_reload"); reload_mod.validate_generation = lambda value: None; reload_mod.contract = lambda: self.plan["generation"]
+        with patch.dict(sys.modules, {"pipeline.preprocessing.package_snapshot.policy": policy, "pipeline.postgresql.version_dependents.historical_db_reload": reload_mod}):
             return bind_sources(self.root, self.metadata, self.plan)
 
     def test_all_bindings_pass_and_return_two_results(self):

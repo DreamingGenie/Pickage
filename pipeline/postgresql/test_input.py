@@ -7,7 +7,7 @@ import unittest
 import duckdb
 from botocore.exceptions import ClientError
 
-from pipeline.curated.storage import json_bytes
+from pipeline.preprocessing.curated.storage import json_bytes
 from pipeline.postgresql import input as loader_input
 
 

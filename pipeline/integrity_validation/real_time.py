@@ -1,7 +1,7 @@
 """Pure UTC and [P,S) metadata checks without timestamp precision loss."""
 from datetime import date
 
-from pipeline.snapshot.policy import parse_timestamp
+from pipeline.preprocessing.snapshot.policy import parse_timestamp
 
 
 def assess_time(metadata):

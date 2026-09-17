@@ -80,8 +80,8 @@ def _status(name: str, status: str, reason: str | None = None, **extra):
 
 def bind_sources(original_root: Path, metadata: dict, plan: dict) -> dict:
     """Bind explicit local artifacts using each producer's own hash contract."""
-    from pipeline.package_snapshot.policy import canonical_bytes
-    from pipeline.version_dependents.historical_db_reload import contract, validate_generation
+    from pipeline.preprocessing.package_snapshot.policy import canonical_bytes
+    from pipeline.postgresql.version_dependents.historical_db_reload import contract, validate_generation
 
     root = Path(original_root).absolute()
     checked, checks, deferred = [], [], []

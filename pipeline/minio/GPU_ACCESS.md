@@ -78,7 +78,7 @@ Spark 라면 `fs.s3a.path.style.access=true` 와 `fs.s3a.endpoint=http://localho
 | `pickage-mlflow-artifacts` | **여기에만 쓴다.** 학습 산출물(ONNX·tokenizer·manifest) |
 
 버킷별 역할은 [README.md](README.md), curated 의 컬럼 스키마는
-[../curated/README.md](../curated/README.md) 에 있다.
+[../curated/README.md](../preprocessing/curated/README.md) 에 있다.
 
 경로 규칙은 데이터를 넣는 쪽이 정하므로, 실제 키는 목록으로 확인하는 게 빠르다.
 

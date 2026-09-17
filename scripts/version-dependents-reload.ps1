@@ -27,7 +27,7 @@ function Quote-WindowsArgument([string]$Value) {
 $sitePackages = Join-Path $repoRoot '.venv-bq\Lib\site-packages'
 $pythonPath = @($repoRoot, $sitePackages) -join ';'
 $env:PYTHONPATH = if ($env:PYTHONPATH) { "$pythonPath;$env:PYTHONPATH" } else { $pythonPath }
-$arguments = @('-u', '-m', 'pipeline.version_dependents.historical_db_reload', '--config', $configPath)
+$arguments = @('-u', '-m', 'pipeline.postgresql.version_dependents.historical_db_reload', '--config', $configPath)
 switch ($Action) {
     'Start'  { $arguments += '--publish' }
     'Resume' { $arguments += @('--publish', '--resume') }

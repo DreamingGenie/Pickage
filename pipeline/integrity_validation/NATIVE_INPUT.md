@@ -9,7 +9,7 @@
 | 요청 dataset | 재사용하는 기존 선택 함수 | 읽는 메타데이터 |
 | --- | --- | --- |
 | `package-version` | `pipeline.postgresql.input.select_run` | 원문 run_manifest.json, JSON _SUCCESS |
-| `package-snapshot-observed` | `pipeline.package_snapshot.load.select_run` | 원문 run_manifest.json, 텍스트 _SUCCESS, JSON _INPUT.json |
+| `package-snapshot-observed` | `pipeline.postgresql.package_snapshot.load.select_run` | 원문 run_manifest.json, 텍스트 _SUCCESS, JSON _INPUT.json |
 
 run·snapshot의 정확한 UTC 시각·manifest SHA·기대 건수를 요청 파일에 별도로 지정한다.
 native 완료 표식과 내부 계약을 검사한 뒤 이 요청 값과 대조한다. JSON 중복 키도 거부한다.

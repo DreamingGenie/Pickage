@@ -4,7 +4,7 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
+| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
 | **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · **mlflow** · Spark master·worker① · **ai-similarity**(유사도 배치, 1회성) (이후 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
@@ -241,7 +241,7 @@ docker run --rm -m 100m --memory-swap 100m alpine cat /sys/fs/cgroup/memory.swap
 
 > **`mem_limit`·`memswap_limit`, `--memory`·`--memory-swap` 은 짝으로 쓴다.**
 > 한쪽만 쓰면 그것만 상한이 조용히 2배가 되고, 아무 경고도 없다.
-> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/repository_metrics/` 가 그렇다.
+> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/preprocessing/repository_metrics/` 가 그렇다.
 > 짝이 빠진 곳을 찾는 명령:
 >
 > ```bash

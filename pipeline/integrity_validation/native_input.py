@@ -18,8 +18,8 @@ def _validator_hash() -> str:
     root = Path(__file__).resolve().parents[1]
     paths = ["integrity_validation/" + name + ".py" for name in
              ("native_input", "native_selection", "native_samples", "local_bundle", "runner")]
-    paths += ["postgresql/input.py", "package_snapshot/load.py", "package_snapshot/quality_schema.py",
-              "curated/storage.py", "snapshot/policy.py"]
+    paths += ["postgresql/input.py", 'postgresql/package_snapshot/load.py', 'preprocessing/package_snapshot/quality_schema.py',
+              'preprocessing/curated/storage.py', 'preprocessing/snapshot/policy.py']
     digest = hashlib.sha256()
     for path in paths:
         digest.update(path.encode() + b"\0" + (root / path).read_bytes() + b"\0")

@@ -44,7 +44,7 @@ def assess_sample_binding(sample, metadata):
 
 
 def assess_prior_attempts(metadata, prior):
-    from pipeline.snapshot.policy import parse_timestamp
+    from pipeline.preprocessing.snapshot.policy import parse_timestamp
     failed = [a for a in metadata["attempts"] if a["status"] == "FAILED"]
     missing, proven = [], []
     for active in failed:
@@ -98,9 +98,9 @@ def assemble(original_root, plan_path, evidence_dir, samples_path=None):
                             "full_dataset_failure_recovery_reexecution", "representative_performance_benchmark"],
               "source_checked_files": source["checked_files"], "input_evidence": [], "validator_files": []}
     repo = Path(__file__).resolve().parents[2]
-    code_files = [*sorted(Path(__file__).parent.glob("real_*.py")), repo / "pipeline/snapshot/policy.py",
-                  repo / "pipeline/package_snapshot/policy.py", repo / "pipeline/requirements_resolution/policy.py",
-                  repo / "pipeline/version_dependents/historical_db_reload.py"]
+    code_files = [*sorted(Path(__file__).parent.glob("real_*.py")), repo / "pipeline/preprocessing/snapshot/policy.py",
+                  repo / "pipeline/preprocessing/package_snapshot/policy.py", repo / "pipeline/preprocessing/requirements_resolution/policy.py",
+                  repo / "pipeline/postgresql/version_dependents/historical_db_reload.py"]
     for path in code_files:
         report["validator_files"].append({"path": path.relative_to(repo).as_posix(), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
     paths = [Path(plan_path), *sorted((folder / "metadata").glob("*.json")), *sorted((folder / "metadata-after").glob("*.json")),

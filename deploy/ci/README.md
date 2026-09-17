@@ -670,7 +670,7 @@ docker builder prune -f --filter "until=168h"
 
 | | 왜 아직 없나 |
 | --- | --- |
-| **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m unittest discover -s pipeline/curated`, `python -m unittest pipeline.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
+| **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m pipeline.preprocessing.tests`, `python -m unittest pipeline.preprocessing.tests.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
 | **`data` 노드 배포** | `deploy-app` 은 `app` 노드만 띄운다. `data` 는 다른 호스트라 SSH 키나 그쪽 러너가 필요하고, `--wait` 를 쓸 수 없는 일회성 컨테이너(`minio-init`)도 같이 풀어야 한다 (S15P21A506-223 후속) |
 | **무중단 배포** | api 인스턴스가 하나라 블루/그린이 필요하다. 배포마다 수십 초 끊긴다 ([`prod/README.md`](../prod/README.md)) |
 | **Gradle 캐시를 호스트 볼륨으로** | 지금은 GitLab 캐시(압축·해제)를 쓴다. `[runners.docker] volumes` 에 호스트 디렉터리를 물리면 더 빠르지만, 러너 설정과 파이프라인이 묶인다 |

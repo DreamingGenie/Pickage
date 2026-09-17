@@ -15,9 +15,8 @@ def _schema(dataset, role, manifest):
     if dataset == "package-version":
         from pipeline.postgresql.input import _SCHEMAS
         return _SCHEMAS[role]
-    from pipeline.package_snapshot.load import SCHEMAS
-    from pipeline.package_snapshot.quality_schema import (QUALITY_SCHEMA, QUALITY_SCHEMA_ID,
-                                                         LEGACY_OBSERVED_SCHEMA)
+    from pipeline.postgresql.package_snapshot.load import SCHEMAS
+    from pipeline.preprocessing.package_snapshot.quality_schema import QUALITY_SCHEMA, QUALITY_SCHEMA_ID, LEGACY_OBSERVED_SCHEMA
     if role != "quality":
         return SCHEMAS[role]
     marker = manifest.get("quality_schema")

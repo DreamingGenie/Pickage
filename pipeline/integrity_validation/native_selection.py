@@ -5,9 +5,9 @@ from datetime import date, datetime
 from pathlib import PurePosixPath
 import re
 
-from pipeline.package_snapshot.load import select_run as select_snapshot_run
+from pipeline.postgresql.package_snapshot.load import select_run as select_snapshot_run
 from pipeline.postgresql.input import select_run as select_package_version_run
-from pipeline.snapshot.policy import parse_timestamp
+from pipeline.preprocessing.snapshot.policy import parse_timestamp
 
 
 BUCKET = "pickage-curated"
@@ -120,7 +120,7 @@ def select_metadata(document: dict, store) -> dict:
             selector_name = "pipeline.postgresql.input.select_run"
         else:
             native = select_snapshot_run(store, snapshot, run_id, manifest_sha)
-            selector_name = "pipeline.package_snapshot.load.select_run"
+            selector_name = "pipeline.postgresql.package_snapshot.load.select_run"
     except (KeyError, TypeError, AttributeError) as error:
         raise _error("manifest", error) from error
     if native["manifest_sha256"] != manifest_sha:

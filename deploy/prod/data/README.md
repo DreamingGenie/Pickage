@@ -455,7 +455,7 @@ pickage-vectors/model=v7/corpus=package-text-20260908-v1/
 
 포인터를 따라가면서도 **"이 결과가 어느 모델·어느 코퍼스에서 나왔나" 가 경로에 남는다.**
 `_current.json` 은 다음 실행에 바뀌므로, 재현하려면 이 경로를 봐야 한다
-(`pipeline/curated/README.md` 의 같은 원칙).
+(`pipeline/preprocessing/curated/README.md` 의 같은 원칙).
 
 ##### `_current.json` 이 싣는 값 (S15P21A506-348)
 

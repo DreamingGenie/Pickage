@@ -79,7 +79,7 @@ Flyway V2~V6 적용 후 `validate_structure.sql`로 부모/자식 컬럼·기본
 Docker, Java 17 이상, Python 표준 라이브러리와 기존 애플리케이션의 Flyway/JDBC 런타임 JAR를 사용한다. 패키지 설치나 서버 접속은 하지 않는다.
 
 ```powershell
-python -m unittest tests.test_service_data_migration -v
+python -m unittest tests.service_data_migration.test_service_data_migration -v
 ./scripts/service-data-migration/run-local-pilot.ps1 -Python python
 ```
 

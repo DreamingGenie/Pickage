@@ -1,1 +1,1 @@
-"""Explicit MinIO raw snapshot to Curated bundle orchestration; no DB loading."""
+"""Compatibility entry point; use pipeline.preprocessing.orchestration."""

@@ -9,7 +9,7 @@ import re
 
 import duckdb
 
-from pipeline.snapshot.policy import parse_timestamp
+from pipeline.preprocessing.snapshot.policy import parse_timestamp
 from .schema import SERVICE_TABLES, TABLES
 
 

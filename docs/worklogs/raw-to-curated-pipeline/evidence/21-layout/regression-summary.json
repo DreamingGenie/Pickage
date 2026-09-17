@@ -1,0 +1,180 @@
+{
+  "baseline_head": "d71ed81",
+  "scope": "local isolated synthetic regression",
+  "tests_run": 527,
+  "passed": 487,
+  "errors": [],
+  "failures": [],
+  "skipped": [
+    [
+      "pipeline.preprocessing.tests.downloads_interval.test_end_to_end.MinioInputToPublishTests.test_real_input_aggregate_publish_and_reverify",
+      "set DOWNLOADS_INTERVAL_MINIO_TEST=1 for local MinIO full-chain test"
+    ],
+    [
+      "pipeline.preprocessing.tests.downloads_interval.test_load.MinioPublicationTests.test_real_failure_resume_and_immutable_input_binding",
+      "set DOWNLOADS_INTERVAL_MINIO_TEST=1 for isolated local MinIO publication"
+    ],
+    [
+      "pipeline.preprocessing.tests.downloads_interval.test_load.MinioPublicationTests.test_real_roundtrip_preserves_completed_objects",
+      "set DOWNLOADS_INTERVAL_MINIO_TEST=1 for isolated local MinIO publication"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_base_snapshot_or_later_is_rejected",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_exact_snapshot_reference_timestamp_is_required",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_failure_rolls_back_historical_rows_and_records_failed_attempt",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_historical_load_succeeds_and_preserves_latest_pointers",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_policy_and_population_mutations_are_rejected",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_post_commit_proof_failure_preserves_published_rows_and_retry_reverifies",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_history_postgres.HistorySnapshotPostgresTests.test_same_input_retry_is_reverified_without_duplicate_rows",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_advisory_lock_rejects_writer",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_before_commit_callback_failure_rolls_back",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_changed_validator_rejects_incompatible_service_schema",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_execution_identity_and_same_snapshot_input_conflicts_are_rejected",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_existing_same_date_without_provenance_is_rejected",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_failed_execution_rejects_changed_contract",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_failed_execution_retries_successfully",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_failpoints_rollback_rows_but_record_failed_attempt",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_invalid_staging_rows_are_rejected",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_missing_lineage_is_rejected_without_service_rows",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_other_snapshot_rows_are_preserved",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_publishes_partial_zero_and_independent_nulls",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_reference_writer_can_insert_snapshot_while_loader_waits_for_reference_lock",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_retry_rejects_service_value_mutation",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_same_input_retry_accepts_changed_contract_and_preserves_publication_contract",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.postgresql.package_snapshot.tests.test_postgres.PackageSnapshotPostgresTests.test_same_input_retry_compares_rows_and_preserves_first_counts",
+      "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_corrupt_published_child_fails_without_silent_repair",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_dedicated_advisory_lock_rejects_concurrent_loader",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_different_id_same_input_creates_its_own_membership",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_failed_execution_can_retry_same_id",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_failpoints_rollback_and_record_failed",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_preserves_existing_dates_service_rows_and_current",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_publishes_exact_timestamp_previous_and_membership",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_reference_table_write_lock_blocks_external_writer_race",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_reverification_records_new_contract_without_rewriting_original",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_same_date_different_instant_is_rejected",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_same_id_different_input_is_rejected",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_same_id_rerun_is_reverified_and_keeps_original_counts",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "pipeline.preprocessing.tests.snapshot.test_history.SnapshotHistoryTests.test_v3_constraints_enforce_reference_only_shape_and_previous_fk",
+      "PICKAGE_SNAPSHOT_TEST_CONTAINER is required"
+    ],
+    [
+      "tests.service_data_migration.test_atomic_migration_json.AtomicMigrationJsonTests.test_windows_reader_without_delete_share_is_reported",
+      "Windows sharing-lock check"
+    ]
+  ],
+  "additional_spark_tests_passed": 21,
+  "final_history_boundary_and_layout_tests_passed": 19,
+  "server_run": false,
+  "baseline_full_suite_completed": false,
+  "baseline_limitation": "existing lifecycle test leaked watchdog and terminated process with exit 70; final lifecycle test mocks Thread",
+  "runtime_missing_optional": [
+    "numpy",
+    "torch",
+    "requests"
+  ]
+}

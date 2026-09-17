@@ -10,8 +10,8 @@ import json
 from collections import Counter, defaultdict
 from typing import Any
 
-from pipeline.snapshot.policy import parse_timestamp
-from pipeline.requirements_resolution.policy import sha256 as canonical_sha256
+from pipeline.preprocessing.snapshot.policy import parse_timestamp
+from pipeline.preprocessing.requirements_resolution.policy import sha256 as canonical_sha256
 
 
 def _digest(value: Any) -> str:

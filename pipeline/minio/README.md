@@ -29,7 +29,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 | 버킷 | 역할 | 저장 대상 | 현재 상태 |
 | --- | --- | --- | --- |
 | `pickage-raw` | Bronze 원본 보관 | 수집된 Parquet 원본, 원본·검증 manifest, 완료 표시 | deps.dev 데이터 입고 완료 |
-| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과, 빌더가 만든 파생 데이터셋 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고 |
+| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과, 빌더가 만든 파생 데이터셋 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../preprocessing/curated/README.md) 참고 |
 | `pickage-vectors` | 벡터 산출물 보관 | 향후 패키지 임베딩과 패키지·모델 버전 연결 정보 | 버킷 생성만 완료; 벡터 생성·검색 연동 미구현 |
 | `pickage-mlflow-artifacts` | 학습·실험 산출물 보관 | 향후 MLflow의 모델 파일, 평가 보고서 등 | 버킷 생성만 완료; MLflow 연동 미구현 |
 | `pickage-quarantine` | 검증 실패 데이터 격리 | 향후 오류 레코드와 실패 사유 등 조사 대상 | 버킷 생성만 완료; 자동 격리 미구현 |
@@ -82,7 +82,7 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 Curated 전처리는 위 Bronze 중 `2026-08-31` 스냅샷의 `versions_full`과
 `requirements`를 입력으로 사용한다. 릴리스·배포일 필터, 패키지 ID 유지,
 대표 저장소 선정, 표시용 의존성 JSON 변환을 수행한다.
-실행 명령과 실제 검증 결과는 [Curated README](../curated/README.md)에 별도로 정리한다.
+실행 명령과 실제 검증 결과는 [Curated README](../preprocessing/curated/README.md)에 별도로 정리한다.
 품질 사유 파일은 해당 Curated 실행의 `quality/`에 기록하며,
 Bronze 원본을 변경하거나 `pickage-quarantine`으로 이동하지 않는다.
 `curated-20260907-v2`에서 package 11,080,940행과 version 54,188,349행을 생성했고,
@@ -238,7 +238,7 @@ $env:PICKAGE_MINIO_ENV=".env.server"
 export PICKAGE_MINIO_ENV=.env.server
 ```
 
-이제 이 문서의 입고·적재 명령이 그대로 서버를 향한다. `pipeline/curated/build.py`와
+이제 이 문서의 입고·적재 명령이 그대로 서버를 향한다. `pipeline/preprocessing/curated/build.py`와
 `pipeline/postgresql/load.py`도 같은 `client()` 를 쓰므로 함께 바뀐다.
 
 실행할 때마다 첫 줄에 붙은 곳이 찍힌다. **로그에서 이 줄을 먼저 볼 것.**
@@ -411,7 +411,7 @@ ecosystems-keywords/v1/package-text/
 디렉터리 깊이가 달라진다.
 
 > **`_SUCCESS` 본문이 두 가지다.** 이 폴더의 입고기(`ingest_*.py`)는 빈 본문을 쓰고,
-> `pipeline/curated/build.py` 는 `{"manifest_sha256": …}` 를 쓴다. 한 버킷에 둘이 있으므로
+> `pipeline/preprocessing/curated/build.py` 는 `{"manifest_sha256": …}` 를 쓴다. 한 버킷에 둘이 있으므로
 > 읽는 쪽은 한 형태를 가정하면 안 된다. 입고기 쪽을 맞추지 않는 이유는 이미 올라간 객체와의
 > 바이트 호환이다 — 본문이 달라지면 기존 실행이 재검증으로 통과하지 못한다.
 
@@ -428,7 +428,7 @@ npm-registry/v1/collected_date={date}/run_id={run}/
 
 수집기의 체크포인트 DB(`checkpoint.sqlite`)와 로그는 올리지 않는다. 수집기가 도는 동안
 계속 바뀌는 작업 상태이지 원본이 아니다. `npm-downloads/v1/` 은 별도 입고 경로가 맡는다
-([pipeline/downloads](../downloads/)).
+([pipeline/downloads](../downloads)).
 
 Projects는 여러 provider의 데이터이므로 `system=npm` prefix를 사용하지 않는다.
 모든 업로드 객체는 GET으로 읽어 로컬 SHA-256과 비교한다.

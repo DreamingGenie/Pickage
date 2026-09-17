@@ -6,7 +6,7 @@
 
 스냅샷 구간 합계·Curated 게시도 같은 티켓(S15P21A506-278)에서 초도 실행까지 완료했다.
 [구간 집계 계약](../../docs/worklogs/S15P21A506-278/06-interval-contract.md)을 따르며 구현은
-별도 [구간 집계 모듈](../downloads_interval/README.md)에 둔다. 구간 집계 CLI와 결과는 해당 모듈 README와 작업 기록에 남긴다.
+별도 [구간 집계 모듈](../preprocessing/downloads_interval/README.md)에 둔다. 구간 집계 CLI와 결과는 해당 모듈 README와 작업 기록에 남긴다.
 
 ## 입력과 의미
 
@@ -106,7 +106,7 @@ pickage-raw/npm-downloads/v1/run_id=<run-id>/
 
 후속 집계는 `_SUCCESS`의 manifest 해시를 확인하고 manifest에 명시된 일별·상태 파일만 읽는다.
 다른 실행이나 시험·실패 파일을 한꺼번에 읽지 않는다. 구간 계산에는
-[스냅샷 시간 정책 — S15P21A506-269](../snapshot/README.md)의 `[P,S)`를 적용한다.
+[스냅샷 시간 정책 — S15P21A506-269](../preprocessing/snapshot/README.md)의 `[P,S)`를 적용한다.
 
 ## 검증
 

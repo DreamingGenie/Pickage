@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipeline.curated.storage import json_bytes
+from pipeline.preprocessing.curated.storage import json_bytes
 from pipeline.integrity_validation.native_fixture import create_demo
 from pipeline.integrity_validation.native_selection import select_metadata
 
@@ -64,7 +64,7 @@ class NativeSelectionTests(unittest.TestCase):
         create_demo(root, "package-snapshot-observed")
         request = json.loads((root / "request.json").read_bytes())
         result = select_metadata(request, _Store(root, request))
-        self.assertEqual(result["native_selector"], "pipeline.package_snapshot.load.select_run")
+        self.assertEqual(result["native_selector"], "pipeline.postgresql.package_snapshot.load.select_run")
         self.assertEqual([row["role"] for row in result["records"]], ["package_snapshot", "package_identity", "quality"])
         self.assertEqual({sample["key"].split("/")[-1] for sample in request["samples"]}, {"package_snapshot.parquet", "package_identity.parquet"})
 

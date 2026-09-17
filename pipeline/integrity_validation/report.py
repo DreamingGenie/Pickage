@@ -87,8 +87,8 @@ def validator_hash() -> str:
                  "schema_catalog.sql", "query_plans.sql"):
         digest.update(name.encode("utf-8") + b"\0")
         digest.update((root / name).read_bytes())
-    policy = root.parent / "snapshot" / "policy.py"
-    digest.update(b"snapshot/policy.py\0" + policy.read_bytes())
+    policy = root.parent / "preprocessing" / "snapshot" / "policy.py"
+    digest.update(b"preprocessing/snapshot/policy.py\0" + policy.read_bytes())
     return digest.hexdigest()
 
 

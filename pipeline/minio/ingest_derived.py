@@ -29,7 +29,7 @@ import duckdb
 # 포인터 게시에 필요한 조건부 PUT 은 Curated 쪽에 이미 있다 (put_once 는 ETag 를 돌려주지
 # 않아 CAS 를 못 한다). 기반 계층이 상위 패키지를 부르는 모양이라 리뷰에서 볼 것 — 다만
 # storage.py 는 pipeline.minio 를 import 하지 않으므로 순환은 아니다.
-from pipeline.curated.storage import compare_and_swap_json, json_bytes, read_optional
+from pipeline.preprocessing.curated.storage import compare_and_swap_json, json_bytes, read_optional
 from pipeline.minio.ingest_raw import ROOT, client, digest, exists, put_once
 
 
