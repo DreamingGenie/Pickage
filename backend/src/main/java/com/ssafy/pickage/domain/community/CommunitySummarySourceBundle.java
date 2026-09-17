@@ -62,6 +62,129 @@ public record CommunitySummarySourceBundle(
         return new CommunitySummarySourceBundle(issue, Map.copyOf(refs), limited);
     }
 
+    /** 하이라이트 댓글 하나당 clip 상한(2026-09-16 4,000→2,000으로 낮춤 — 댓글 3개를 보여줘도
+     * 이슈당 최악 입력을 작게 묶어 두기 위해서다. 하이라이트는 원래 짧은 글이 대부분이라
+     * 실질적 손실은 거의 없다). */
+    private static final int HIGHLIGHT_COMMENT_CLIP = 2000;
+
+    /**
+     * "논의 전체 재구성" 대신 반응이 가장 많은 댓글 + 그에 대한 유지관리자
+     * (OWNER/MEMBER/COLLABORATOR) 답글 + (있으면) 그 답글 주변 댓글 1개까지, 최대 3개만 골라
+     * GMS에 보낸다(2026-09-16 오세진 님 결정 — Map-Reduce로도 시연에 필요한 시간·비용을 못
+     * 맞춰 방향을 바꿨다). 유지관리자 답글이 없으면 반응 2순위 댓글로 대신 채워 2개만
+     * 보여준다. 입력이 이슈 본문 + 댓글 최대 3개로 항상 작아 {@link #batches}가 사실상
+     * 필요 없어진다.
+     */
+    public static CommunitySummarySourceBundle highlights(CollectedIssue source) {
+        var refs = new LinkedHashMap<TopicSummary.SourceRef, String>();
+        String title = clip(source.title(), 4000), body = clip(source.body(), 4000);
+        if (!body.isBlank())
+            refs.put(new TopicSummary.SourceRef("ISSUE_BODY", source.sourceIssueId()), body);
+
+        var comments = source.comments();
+        var topComment =
+                comments.stream()
+                        .filter(c -> c.body() != null && !c.body().isBlank())
+                        .max(
+                                Comparator.comparingInt(CollectedComment::reactionCount)
+                                        .thenComparing(CollectedComment::createdAt))
+                        .orElse(null);
+
+        var selected = new ArrayList<CollectedComment>();
+        boolean limited = false;
+        if (topComment != null) {
+            limited |= addHighlight(refs, selected, topComment);
+
+            var maintainerReply =
+                    comments.stream()
+                            .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
+                            .filter(c -> c.body() != null && !c.body().isBlank())
+                            .filter(c -> c.createdAt().isAfter(topComment.createdAt()))
+                            .filter(c -> isMaintainer(c.authorAssociation()))
+                            .min(Comparator.comparing(CollectedComment::createdAt))
+                            .orElse(null);
+
+            if (maintainerReply != null) {
+                limited |= addHighlight(refs, selected, maintainerReply);
+
+                // 유지관리자 답변 주변(그 이후 처음 나오는) 댓글 하나 — 사람들이 그 답변에
+                // 어떻게 반응했는지 보여주기 위해 최대 3번째로 담는다.
+                var nearby =
+                        comments.stream()
+                                .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
+                                .filter(
+                                        c ->
+                                                !c.sourceCommentId()
+                                                        .equals(maintainerReply.sourceCommentId()))
+                                .filter(c -> c.body() != null && !c.body().isBlank())
+                                .filter(c -> c.createdAt().isAfter(maintainerReply.createdAt()))
+                                .min(Comparator.comparing(CollectedComment::createdAt))
+                                .orElse(null);
+                if (nearby != null) limited |= addHighlight(refs, selected, nearby);
+            } else {
+                // 유지관리자 답글이 없으면 반응 2순위 댓글로 2개만 채운다.
+                var secondComment =
+                        comments.stream()
+                                .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
+                                .filter(c -> c.body() != null && !c.body().isBlank())
+                                .max(
+                                        Comparator.comparingInt(CollectedComment::reactionCount)
+                                                .thenComparing(CollectedComment::createdAt))
+                                .orElse(null);
+                if (secondComment != null) limited |= addHighlight(refs, selected, secondComment);
+            }
+        }
+        limited |= comments.size() > selected.size();
+        selected.sort(Comparator.comparing(CollectedComment::createdAt));
+        var issue =
+                new CollectedIssue(
+                        source.issueNumber(),
+                        title,
+                        source.state(),
+                        source.updatedAt(),
+                        source.authorLogin(),
+                        source.totalCommentCount(),
+                        source.reactionCount(),
+                        source.collectionStatus(),
+                        List.copyOf(selected),
+                        source.limitations(),
+                        source.sourceIssueId(),
+                        source.createdAt(),
+                        source.authorId(),
+                        body);
+        return new CommunitySummarySourceBundle(issue, Map.copyOf(refs), limited);
+    }
+
+    private static boolean isMaintainer(String authorAssociation) {
+        return authorAssociation != null
+                && Set.of("OWNER", "MEMBER", "COLLABORATOR").contains(authorAssociation);
+    }
+
+    /** 댓글 하나를 {@link #HIGHLIGHT_COMMENT_CLIP}로 잘라 refs·selected에 담는다. 잘렸으면 true. */
+    private static boolean addHighlight(
+            Map<TopicSummary.SourceRef, String> refs,
+            List<CollectedComment> selected,
+            CollectedComment comment) {
+        String text = clip(comment.body(), HIGHLIGHT_COMMENT_CLIP);
+        boolean clipped = !text.equals(comment.body());
+        refs.put(new TopicSummary.SourceRef("COMMENT", comment.sourceCommentId()), text);
+        selected.add(withBody(comment, text));
+        return clipped;
+    }
+
+    private static CollectedComment withBody(CollectedComment c, String body) {
+        return new CollectedComment(
+                c.sourceCommentId(),
+                c.authorLogin(),
+                c.authorAssociation(),
+                c.isBot(),
+                c.createdAt(),
+                body,
+                c.authorId(),
+                c.reactionCount());
+    }
+
+
     /**
      * 이슈 작성자의 최초 댓글(있으면)을 0순위로, 나머지는 반응 수 내림차순(동률은 최신 우선)으로 정렬한 순서를
      * 만든다. 작성자의 나머지 댓글은 이 특례를 받지 않는다 — 전부 우선하면 반응 수 높은 다른 사용자 댓글을

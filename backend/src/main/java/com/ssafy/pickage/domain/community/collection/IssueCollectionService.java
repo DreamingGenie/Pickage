@@ -4,6 +4,8 @@ import com.ssafy.pickage.domain.community.verification.*;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /** 선택한 topic 집합의 사실 수치와 수집 한계를 끝까지 함께 전달한다. */
 public class IssueCollectionService {
@@ -45,8 +47,20 @@ public class IssueCollectionService {
                 return new IssueCollectionResult.NoDiscussionData(lookback, limitations);
             }
             commentsStage.run();
-            var topics = new ArrayList<CollectedIssue>();
-            for (var item : selected) topics.add(collectIssue(owner, repo, item, deadline));
+            // 이슈별 댓글 수집을 동시에 디스패치한다(S15P21A506-373 4단계 후속 — GMS 호출을
+            // 병렬화한 것과 같은 이유. 순차로 돌면 이슈1이 예산을 다 쓰고 이슈2는 시작하자마자
+            // 시간 확인에서 걸리는 문제가 GMS 쪽에서 실제로 재현됐던 것과 같은 종류다).
+            // collectIssue는 UpstreamFetchException은 내부에서 흡수하지만
+            // GitHubRateLimitException은 그대로 던진다 — join()이 이걸 CompletionException으로
+            // 감싸므로 joinUnwrapping이 원래 타입으로 풀어서 아래 catch가 그대로 잡게 한다.
+            var futures =
+                    selected.stream()
+                            .map(
+                                    item ->
+                                            CompletableFuture.supplyAsync(
+                                                    () -> collectIssue(owner, repo, item, deadline)))
+                            .toList();
+            var topics = futures.stream().map(IssueCollectionService::joinUnwrapping).toList();
             return new IssueCollectionResult.Success(topics, limitations, lookback);
         } catch (GitHubRateLimitException e) {
             return new IssueCollectionResult.FetchLimited("GitHub rate limit", e.retryAt());
@@ -136,6 +150,18 @@ public class IssueCollectionService {
                 item.createdAt(),
                 item.authorId(),
                 item.body());
+    }
+
+    /** future.join()이 CompletionException으로 감싸는 원래 예외를 풀어서 그대로 다시 던진다. */
+    private static <T> T joinUnwrapping(CompletableFuture<T> future) {
+        try {
+            return future.join();
+        } catch (CompletionException e) {
+            switch (e.getCause()) {
+                case RuntimeException re -> throw re;
+                case null, default -> throw e;
+            }
+        }
     }
 
     private static void checkTime(Instant deadline) {

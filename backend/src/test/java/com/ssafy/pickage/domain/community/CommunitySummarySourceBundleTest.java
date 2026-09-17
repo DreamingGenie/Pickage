@@ -108,6 +108,7 @@ class CommunitySummarySourceBundleTest {
                 .doesNotContainKey(new TopicSummary.SourceRef("COMMENT", "second-author"));
     }
 
+
     @Test
     void 선택된_댓글은_반응_수_우선순위와_무관하게_항상_시각순으로_전달된다() {
         var newest = comment("newest", "other", 100, BASE.plusSeconds(300));
@@ -120,5 +121,75 @@ class CommunitySummarySourceBundleTest {
         assertThat(bundle.issue().comments())
                 .extracting(CollectedComment::sourceCommentId)
                 .containsExactly("oldest", "middle", "newest");
+    }
+
+    // --- 2026-09-16: highlights() — 반응 최다 댓글 + 유지관리자 답글 + 그 주변 댓글(최대 3개) ---
+
+    private static CollectedComment commentWithAssociation(
+            String id, String authorId, String association, int reactionCount, Instant createdAt) {
+        return new CollectedComment(
+                id, "user-" + authorId, association, false, createdAt, FULL_COMMENT, authorId, reactionCount);
+    }
+
+    @Test
+    void highlights는_반응_최다_댓글_유지관리자_답글_그_주변_댓글까지_최대_3개를_고른다() {
+        var topComment = comment("top", "other", 100, BASE.plusSeconds(1));
+        var earlyMaintainer =
+                commentWithAssociation("early-maintainer", "maint", "MEMBER", 0, BASE); // top보다 먼저 — 제외돼야 함
+        var lateMaintainer =
+                commentWithAssociation("late-maintainer", "maint", "OWNER", 0, BASE.plusSeconds(2));
+        var nearby = comment("nearby", "other", 5, BASE.plusSeconds(3)); // 유지관리자 답글 이후 첫 댓글
+        var farNoise = comment("far-noise", "other", 9, BASE.plusSeconds(4)); // nearby보다 늦음 — 제외돼야 함
+
+        var bundle =
+                CommunitySummarySourceBundle.highlights(
+                        issue(
+                                "issue-author",
+                                List.of(topComment, earlyMaintainer, lateMaintainer, nearby, farNoise)));
+
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("top", "late-maintainer", "nearby"); // 시각순, 반응 수와 무관
+        assertThat(bundle.limited()).isTrue();
+    }
+
+    @Test
+    void highlights는_유지관리자_답글이_없으면_반응_1_2순위_댓글_2개만_고른다() {
+        var topComment = comment("top", "other", 10, BASE);
+        var secondComment = comment("second", "other", 5, BASE.plusSeconds(1));
+        var thirdComment = comment("third", "other", 1, BASE.plusSeconds(2)); // 3순위 — 제외돼야 함
+
+        var bundle =
+                CommunitySummarySourceBundle.highlights(
+                        issue("issue-author", List.of(topComment, secondComment, thirdComment)));
+
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("top", "second");
+    }
+
+    @Test
+    void highlights는_유지관리자_답글에_이어지는_댓글이_없으면_2개만_고른다() {
+        var topComment = comment("top", "other", 100, BASE);
+        var maintainerReply = commentWithAssociation("maintainer", "maint", "OWNER", 0, BASE.plusSeconds(1));
+
+        var bundle =
+                CommunitySummarySourceBundle.highlights(
+                        issue("issue-author", List.of(topComment, maintainerReply)));
+
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("top", "maintainer");
+    }
+
+    @Test
+    void highlights는_댓글이_하나도_없으면_담을_댓글이_없고_limited는_false다() {
+        // 공용 issue() fixture는 본문이 비어 있다(다른 시험들이 본문 내용에 의존하지 않아서) —
+        // 그래서 이 경우 sources는 비고, limited도 false여야 한다(잃어버린 정보가 없으므로).
+        var bundle = CommunitySummarySourceBundle.highlights(issue("issue-author", List.of()));
+
+        assertThat(bundle.issue().comments()).isEmpty();
+        assertThat(bundle.sources()).isEmpty();
+        assertThat(bundle.limited()).isFalse();
     }
 }
