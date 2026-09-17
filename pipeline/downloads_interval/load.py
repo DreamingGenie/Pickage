@@ -53,7 +53,8 @@ def run(*, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: str,
         curated_run_id: str, curated_manifest_sha256: str, candidate_path: Path,
         candidate_sha256: str, run_id: str, work_dir: Path, s3=None,
         verify_only: bool = False, workers: int = 4, memory_limit: str = "2GB",
-        threads: int = 4, failpoint: str | None = None) -> dict:
+        threads: int = 4, failpoint: str | None = None,
+        additional_bronze_refs: list[dict] | None = None) -> dict:
     if not isinstance(run_id, str) or not SAFE_ID.fullmatch(run_id):
         raise ValueError("invalid interval run ID")
     if date.fromisoformat(snapshot).isoformat() != snapshot:
@@ -89,7 +90,8 @@ def run(*, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: str,
         inputs = prepare(s3, snapshot=snapshot, bronze_run_id=bronze_run_id,
                          bronze_manifest_sha256=bronze_manifest_sha256, curated_run_id=curated_run_id,
                          curated_manifest_sha256=curated_manifest_sha256, candidate_path=candidate_path,
-                         candidate_sha256=candidate_sha256, cache_dir=attempt_dir / "inputs", workers=workers)
+                         candidate_sha256=candidate_sha256, cache_dir=attempt_dir / "inputs", workers=workers,
+                         additional_bronze_refs=additional_bronze_refs)
         inputs["lineage"]["aggregation_policy_sha256"] = policy_sha256()
         input_body = encoded(inputs["input_manifest"])
         if hashlib.sha256(input_body).hexdigest() != inputs["input_manifest_sha256"]:

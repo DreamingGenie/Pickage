@@ -1,4 +1,27 @@
-# raw 인수 및 Curated 소비 계약 v1
+# raw 인수 및 Curated 소비 계약 v1 / 주간 v2
+
+## 주간 v2 확장
+
+기존 v1 명시적 full 요청을 유지한다. v2는 `raw_refs.versions_full` 대신
+`raw_refs.versions_min`을 요구하고 다음 필드를 추가한다.
+
+| 필드 | 계약 |
+| --- | --- |
+| `parent_bundle` | 직전 **전체 완료** bundle의 run_prefix / manifest_sha256 / snapshot |
+| `download_history_refs` | 선택 사항. 추가 downloads run_id / bucket / key / sha256 목록; 순서가 우선순위 |
+| `targets.dependents` | raw 또는 `pickage-curated/depsdev/v1/preprocessing-targets/`의 고정 Parquet |
+
+v2 부모는 현재 날짜보다 이전이어야 한다. package/version parent는 해당 bundle 안의
+package_version stage와 일치해야 하며, 부모 달력 전체를 수정 없이 이어받는다.
+`curated-bundle/_current.json`은 `_SUCCESS` 게시 뒤 ETag 조건부 쓰기로 갱신한다.
+중간 단계만 완료된 package-version pointer를 다음 부모로 채택하지 않는다.
+
+weekly CLI는 target CSV 원본 해시와 행 수를 검증한 뒤 이름 중복을 제거한다.
+versions_min 필수 컬럼은 full에서 Description / Licenses / source_repo를 제외한 컬럼이다.
+메타데이터 보존·상속과 master/changes 산출물 규칙은 README의 주간 절을 따른다.
+파생 weekly_versions는 Curated 명세에 등록하며 원천 versions_min의 SHA를 계보로 유지한다.
+
+이하 v1 기본 계약은 v2에서 명시적으로 변경한 필드를 제외하고 공통 적용한다.
 
 ## 요청 고정
 

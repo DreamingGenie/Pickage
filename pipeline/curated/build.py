@@ -19,6 +19,8 @@ from pipeline.curated.storage import (
     read_optional, upload_outputs, verify_files, writer_lock,
 )
 from pipeline.curated.transform import ValidationError, transform
+from pipeline.weekly_metadata import prepare_versions
+from pipeline.orchestration.changes import build_changes
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'depsdev/v1/package-version'
@@ -108,6 +110,10 @@ def _code_hash():
         h.update(filename.encode())
         # Line endings do not change the transformation contract across OSes.
         h.update((Path(__file__).parent / filename).read_text(encoding='utf-8').encode())
+    adapter = Path(__file__).parents[1] / 'weekly_metadata.py'
+    h.update(adapter.read_text(encoding='utf-8').encode())
+    changes = Path(__file__).parents[1] / 'orchestration' / 'changes.py'
+    h.update(changes.read_text(encoding='utf-8').encode())
     return h.hexdigest()
 
 
@@ -127,6 +133,29 @@ def _check_initial_registry(s3, own_prefix):
         token = page['NextContinuationToken']
 
 
+def _parquet_files(directory):
+    files = sorted(Path(directory).glob('*.parquet'))
+    if not files:
+        raise ValidationError('No Parquet output: ' + str(directory))
+    return files
+
+
+def _write_master(con, current_files, previous_files, output_dir, kind):
+    """Write a cumulative registry, with current rows winning by identity."""
+    target = Path(output_dir) / f'master_{kind}' / 'data'
+    target.mkdir(parents=True, exist_ok=True)
+    current = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in current_files)
+    if previous_files:
+        previous = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in previous_files)
+        key = 'package_id' if kind == 'package' else 'package_id, version'
+        query = f"SELECT * FROM read_parquet([{current}]) UNION ALL SELECT p.* FROM read_parquet([{previous}]) p ANTI JOIN read_parquet([{current}]) c USING ({key})"
+    else:
+        query = f"SELECT * FROM read_parquet([{current}])"
+    path = target / 'part-000000.parquet'
+    con.execute(f"COPY ({query}) TO ? (FORMAT PARQUET, COMPRESSION ZSTD)", [str(path)])
+    return [path]
+
+
 def _publish_pointer(s3, prefix, manifest_body, request, old_pointer):
     new = {'run_prefix': prefix, 'manifest_sha256': _hash(manifest_body),
            'snapshot': request['snapshot']}
@@ -141,7 +170,7 @@ def _publish_pointer(s3, prefix, manifest_body, request, old_pointer):
 
 
 def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, memory='4GB',
-        *, expected_parent=_UNPINNED_PARENT):
+        *, expected_parent=_UNPINNED_PARENT, versions_table='versions_full'):
     """One writer, immutable attempts, last-step pointer publication; no raw writes."""
     for value in (bronze_run_id, run_id):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', value):
@@ -154,9 +183,11 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
     root.mkdir(parents=True, exist_ok=True)
     prefix = f'{PREFIX}/snapshot={snapshot}/run_id={run_id}'
     print(f'Curated run: {run_id}; snapshot: {snapshot}', flush=True)
+    if versions_table not in ('versions_full', 'versions_min'):
+        raise ValueError('versions_table must be versions_full or versions_min')
     with writer_lock(s3, CURATED_BUCKET, LOCK, uuid.uuid4().hex):
         sources, fingerprints = {}, {}
-        for table in ('versions_full', 'requirements'):
+        for table in (versions_table, 'requirements'):
             sources[table], fingerprints[table] = load_bronze(s3, table, snapshot, bronze_run_id)
         old_pointer = read_optional(s3, CURATED_BUCKET, CURRENT)
         parent = json.loads(old_pointer[0]) if old_pointer else None
@@ -171,7 +202,8 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
         existing_request = read_optional(s3, CURATED_BUCKET, prefix + '/request.json')
         request = {'contract_version': 1, 'snapshot': snapshot, 'bronze_run_id': bronze_run_id,
                    'run_id': run_id, 'sources': fingerprints, 'code_sha256': _code_hash(),
-                   'duckdb_version': duckdb.__version__, 'parent': parent}
+                   'duckdb_version': duckdb.__version__, 'parent': parent,
+                   'versions_table': versions_table}
         if existing_request:
             stored = json.loads(existing_request[0])
             # Retry uses its original parent even if this run is now current.
@@ -208,7 +240,7 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
             _publish_pointer(s3, prefix, prepared[0], request, old_pointer)
             return manifest
         cache = root / 'cache'
-        previous_ids = None
+        previous_ids = previous_packages = previous_versions = None
         if parent:
             parent_prefix = parent.get('run_prefix', '')
             if not parent_prefix.startswith(PREFIX + '/snapshot='):
@@ -216,8 +248,14 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
             previous = completed_run(s3, parent_prefix)
             if previous is None or _hash(previous[1]) != parent.get('manifest_sha256'):
                 raise ValidationError('Previous ID mapping is not from a verified completed run')
-            records = [r for r in previous[0]['files'] if '/package_ids/data/' in r['key']]
-            previous_ids = download_files(s3, CURATED_BUCKET, records, cache, workers=workers)
+            def parent_files(fragment, fallback=None):
+                selected = [r for r in previous[0]['files'] if fragment in r['key']]
+                if not selected and fallback:
+                    selected = [r for r in previous[0]['files'] if fallback in r['key']]
+                return download_files(s3, CURATED_BUCKET, selected, cache, workers=workers) if selected else None
+            previous_ids = parent_files('/master_package_ids/data/', '/package_ids/data/')
+            previous_packages = parent_files('/master_package/data/', '/package/data/')
+            previous_versions = parent_files('/master_version/data/', '/version/data/')
         inputs = {}
         for table, source in sources.items():
             print(f'Input: verifying {table} ({source["file_count"]} files)', flush=True)
@@ -231,8 +269,48 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
                                 [[str(p) for p in files]]).fetchone()[0]
                 if n != sources[table]['row_count']:
                     raise ValidationError('Parquet row count differs from manifest: ' + table)
-            report = transform(con, inputs['versions_full'], inputs['requirements'],
-                               previous_ids, snapshot, output)
+            versions = inputs[versions_table]
+            provenance = None
+            if versions_table == 'versions_min':
+                # Keep the adapter's temporary views isolated from transform's
+                # old_ids/old_packages relation names.
+                with duckdb.connect(str(local / 'weekly-metadata.duckdb'),
+                                    config={'threads': threads, 'memory_limit': memory}) as metadata_con:
+                    prepared = prepare_versions(metadata_con, versions, previous_packages, previous_versions,
+                                                 previous_ids, local / 'weekly-metadata',
+                                                 parent or {})
+                versions = [prepared['versions']]
+                provenance = prepared['provenance']
+            report = transform(con, versions, inputs['requirements'],
+                               previous_ids, snapshot, output, previous_packages if versions_table == 'versions_min' else None)
+            if versions_table == 'versions_min':
+                published_versions = output / 'weekly_versions/data'
+                published_versions.mkdir(parents=True, exist_ok=True)
+                published_file = published_versions / 'part-000000.parquet'
+                source_sql = str(versions[0]).replace("'", "''")
+                target_sql = str(published_file).replace("'", "''")
+                con.execute(f"COPY (SELECT * FROM read_parquet('{source_sql}')) TO '{target_sql}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+            if provenance:
+                quality = output / 'quality/metadata_provenance'
+                quality.mkdir(parents=True, exist_ok=True)
+                provenance_sql = str(provenance).replace("'", "''")
+                quality_sql = str(quality / 'part-000000.parquet').replace("'", "''")
+                con.execute(f"COPY (SELECT * FROM read_json_auto('{provenance_sql}', format='newline_delimited')) TO '{quality_sql}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+            current_packages = _parquet_files(output / 'package/data')
+            current_versions = _parquet_files(output / 'version/data')
+            master_packages = _write_master(con, current_packages, previous_packages,
+                                            output, 'package')
+            master_versions = _write_master(con, current_versions, previous_versions,
+                                            output, 'version')
+            if previous_packages and previous_versions:
+                changes_dir = output / 'changes'
+                change_report = build_changes(previous_packages, previous_versions,
+                                              current_packages, current_versions,
+                                              changes_dir, threads=threads,
+                                              memory_limit=memory)
+                report['changes'] = change_report
+            else:
+                report['changes'] = None
         print('Publishing: uploading and GET-verifying Curated files', flush=True)
         records = upload_outputs(s3, CURATED_BUCKET, prefix + '/attempts/' + attempt,
                                  output, workers=workers)
@@ -257,9 +335,10 @@ def main():
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--threads', type=int, default=4)
     parser.add_argument('--memory-limit', default='4GB')
+    parser.add_argument('--versions-table', choices=('versions_full', 'versions_min'), default='versions_full')
     args = parser.parse_args()
     run(client(), args.snapshot, args.bronze_run_id, args.run_id, args.work_dir,
-        args.workers, args.threads, args.memory_limit)
+        args.workers, args.threads, args.memory_limit, versions_table=args.versions_table)
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pipeline.curated.storage import json_bytes, put_immutable, read_optional
 from .contracts import STAGES, code_contract, validate_request
+from .weekly_parent import publish_current
 from .storage import (BUCKET, PREFIX, WaitingInput, StageClient, atomic_json, host_lock, required,
                       save_event, save_state, sha, utc_now, verify_descriptor)
 
@@ -120,6 +121,7 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
                     verify_descriptor(s3, descriptor, workers=workers)
                 # A newer ID registry does not prevent read-only verification of
                 # an older completed bundle; never move its current pointer back.
+                publish_current(s3, request, body, replay=True)
                 state.update(status="COMPLETE", phase="COMPLETE", finished_at=utc_now(),
                              bundle_manifest_key=prefix + "/run_manifest.json", bundle_manifest_sha256=sha(body))
                 save_state(s3, prefix, local, state)
@@ -180,6 +182,7 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
             put_immutable(s3, BUCKET, prefix + "/_SUCCESS", json_bytes({"manifest_sha256": sha(body)}))
             if failpoint:
                 failpoint("after_bundle_marker")
+            publish_current(s3, request, body)
             state.update(status="COMPLETE", phase="COMPLETE", finished_at=utc_now(),
                          bundle_manifest_key=prefix + "/run_manifest.json", bundle_manifest_sha256=sha(body))
             save_state(s3, prefix, local, state)

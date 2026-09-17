@@ -73,6 +73,12 @@ def _file_digest(path: Path) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
+def _parquet_rows(path: Path) -> int:
+    with duckdb.connect() as con:
+        value = con.execute("SELECT sum(num_rows) FROM parquet_file_metadata(?)", [str(path)]).fetchone()[0]
+    return int(value or 0)
+
+
 def _fetch(s3, bucket: str, key: str, record: dict, target: Path) -> Path:
     target = Path(target)
     if target.is_symlink() or (target.exists() and not target.is_file()):
@@ -172,7 +178,8 @@ def _selected_daily(files: list[dict], interval: dict) -> list[dict]:
 
 def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: str,
             curated_run_id: str, curated_manifest_sha256: str, candidate_path: Path,
-            candidate_sha256: str, cache_dir: Path, workers: int = 4) -> dict:
+            candidate_sha256: str, cache_dir: Path, workers: int = 4,
+            additional_bronze_refs: list[dict] | None = None) -> dict:
     if not isinstance(snapshot, str): raise ValueError("snapshot must be a date")
     if date.fromisoformat(snapshot).isoformat() != snapshot: raise ValueError("snapshot must be an ISO date")
     if type(workers) is not int or not 1 <= workers <= 16:
@@ -192,6 +199,11 @@ def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: st
     actual_ts = parse_timestamp(curated["snapshot_timestamp"], allow_naive_utc=True)
     if actual_ts != expected_ts: raise ValueError("Curated snapshot timestamp mismatch")
     bronze, raw_prefix = _bronze(s3, bronze_run_id, bronze_manifest_sha256)
+    history = []
+    for ref in additional_bronze_refs or []:
+        if not isinstance(ref, dict):
+            raise ValueError("additional Bronze reference must be an object")
+        history.append(_bronze(s3, ref.get("run_id"), ref.get("manifest_sha256")))
     records = bronze["files"]
     by_role = {}
     for row in records:
@@ -202,8 +214,23 @@ def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: st
         return values[0]
     target, status = one("target_csv"), one("status_parquet")
     daily = _selected_daily(records, interval)
+    daily = [row | {"_source_priority": index} for index, row in enumerate(daily)]
+    history_selected = []
+    history_conflicts = []
+    unconsumed_history_target_csv_rows = 0
+    for extra, extra_prefix in history:
+        unconsumed_history_target_csv_rows += sum(row.get("row_count", 0) for row in extra["files"] if row.get("role") == "target_csv")
+        for row in _selected_daily(extra["files"], interval):
+            selected = row | {"_source_prefix": extra_prefix, "_source_run_id": extra["run_id"],
+                              "_source_priority": len(daily) + len(history_selected)}
+            daily.append(selected)
+            history_selected.append(selected)
+    daily = sorted(daily, key=lambda row: row["path"])
     all_daily = [row for row in records if row.get("role") == "daily_parquet"]
-    available = [m.group(1) for row in all_daily for m in [_DATE_PART.search(row["path"])] if m]
+    # Availability includes approved history receipts selected for this
+    # interval; otherwise a primary receipt with a gap would hide its fallback.
+    available = sorted({m.group(1) for row in [*all_daily, *daily]
+                        for m in [_DATE_PART.search(row["path"])] if m})
     if not all_daily:
         raise ValueError("Bronze manifest has no daily files")
     if all_daily and not available: raise ValueError("Bronze daily records have no dates")
@@ -213,9 +240,80 @@ def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: st
     root = root.resolve(); root.mkdir(parents=True, exist_ok=True)
     target_path = _fetch(s3, RAW_BUCKET, f"{raw_prefix}/data/{target['path']}", target, root / "bronze" / target["path"])
     status_path = _fetch(s3, RAW_BUCKET, f"{raw_prefix}/data/{status['path']}", status, root / "bronze" / status["path"])
+    def fetch_daily(row):
+        prefix = row.get("_source_prefix", raw_prefix)
+        relative = row["path"] if prefix == raw_prefix else f"history/{row['_source_run_id']}/{row['path']}"
+        return _fetch(s3, RAW_BUCKET, f"{prefix}/data/{row['path']}", row, root / "bronze" / relative)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        daily_paths = list(pool.map(lambda row: _fetch(s3, RAW_BUCKET, f"{raw_prefix}/data/{row['path']}",
-                                                     row, root / "bronze" / row["path"]), daily))
+        daily_paths = list(pool.map(fetch_daily, daily))
+    consumed_daily_records = list(daily)
+    with duckdb.connect(config={"threads": 2, "memory_limit": "512MB"}) as con:
+        for path, row in zip(daily_paths, daily):
+            day = _DATE_PART.search(row["path"]).group(1)
+            columns = {r[0]: r[1].upper() for r in con.execute(
+                "DESCRIBE SELECT * FROM read_parquet(?, hive_partitioning=false)", [str(path)]).fetchall()}
+            expected = {"name": "VARCHAR", "downloads": "BIGINT", "imputed_gap": "BOOLEAN"}
+            if any(columns.get(key) != value for key, value in expected.items()):
+                raise ValueError("daily schema mismatch")
+            count = con.execute("SELECT count(*) FROM read_parquet(?, hive_partitioning=false)", [str(path)]).fetchone()[0]
+            if count != row["row_count"]:
+                raise ValueError("Bronze Parquet footer row count mismatch")
+            if "date" in columns:
+                if columns["date"] != "DATE" or con.execute(
+                    "SELECT count(*) FROM read_parquet(?, hive_partitioning=false) WHERE date IS NULL OR date<>CAST(? AS DATE)",
+                    [str(path), day]).fetchone()[0]:
+                    raise ValueError(f"daily physical date differs from partition: {path}")
+            if con.execute("SELECT count(*) FROM read_parquet(?, hive_partitioning=false) WHERE name IS NULL OR name='' OR downloads<0 OR imputed_gap IS NULL", [str(path)]).fetchone()[0]:
+                raise ValueError("invalid daily rows")
+            if con.execute("SELECT count(*) FROM (SELECT name FROM read_parquet(?, hive_partitioning=false) GROUP BY name HAVING count(*)>1)", [str(path)]).fetchone()[0]:
+                raise ValueError("duplicate daily name/date within source")
+        source_keys = []
+        for path, row in zip(daily_paths, daily):
+            day = _DATE_PART.search(row["path"]).group(1)
+            source_id = row.get("_source_run_id", bronze_run_id)
+            escaped = str(path).replace("'", "''")
+            source_keys.append(f"SELECT name,DATE '{day}' AS date,'{source_id}' AS source_id FROM read_parquet('{escaped}',hive_partitioning=false)")
+        if source_keys:
+            con.execute("CREATE VIEW source_keys AS " + " UNION ALL ".join(source_keys))
+            if con.execute("SELECT count(*) FROM (SELECT source_id,name,date FROM source_keys GROUP BY source_id,name,date HAVING count(*)>1)").fetchone()[0]:
+                raise ValueError("duplicate daily name/date within source")
+    duplicate_rows, duplicate_total, excluded_history_daily_rows = [], 0, 0
+    derived_daily_records = []
+    # Without additional receipts preserve native duplicate/date validation.
+    # With history, repack each day only after validating every source row.
+    if history and daily_paths:
+        with duckdb.connect(str(root / "history-merge.duckdb"),
+                            config={"threads": 2, "memory_limit": "512MB"}) as con:
+            sources = []
+            for path, row in zip(daily_paths, daily):
+                day = _DATE_PART.search(row["path"]).group(1)
+                source_id = row.get("_source_run_id", bronze_run_id)
+                escaped = str(path).replace("'", "''")
+                sources.append(f"SELECT name,downloads,imputed_gap,DATE '{day}' AS date, {row['_source_priority']} AS source_priority, '{source_id}' AS source_id FROM read_parquet('{escaped}', hive_partitioning=false)")
+            con.execute("CREATE OR REPLACE VIEW source_daily AS " + " UNION ALL ".join(sources))
+            if con.execute("SELECT count(*) FROM (SELECT source_id,name,date FROM source_daily GROUP BY source_id,name,date HAVING count(*)>1)").fetchone()[0]:
+                raise ValueError("duplicate daily name/date within source")
+            con.read_csv(str(target_path), header=True, all_varchar=True).create_view("current_targets")
+            con.read_parquet(str(status_path), hive_partitioning=False).create_view("current_status")
+            predicate = "EXISTS(SELECT 1 FROM current_targets t JOIN current_status s USING(name) WHERE t.name=d.name AND s.status='READY')"
+            excluded_history_daily_rows = con.execute(f"SELECT count(*) FROM source_daily d WHERE source_id<>? AND NOT {predicate}", [bronze_run_id]).fetchone()[0]
+            con.execute(f"CREATE OR REPLACE VIEW all_daily AS SELECT * FROM source_daily d WHERE source_id='{bronze_run_id}' OR {predicate}")
+            duplicate_total = con.execute("SELECT count(*) FROM (SELECT name,date FROM all_daily GROUP BY name,date HAVING count(*)>1)").fetchone()[0]
+            duplicate_rows = [dict(name=r[0], date=str(r[1]), occurrences=r[2], distinct_values=r[3], values=r[4], chosen_source_priority=r[5], highest_source_priority=r[6]) for r in con.execute(
+                "SELECT name,date,count(*),count(DISTINCT struct_pack(downloads:=downloads,imputed_gap:=imputed_gap)),string_agg(CAST(struct_pack(downloads:=downloads,imputed_gap:=imputed_gap) AS VARCHAR),' | ' ORDER BY source_priority),min(source_priority),max(source_priority) FROM all_daily GROUP BY name,date HAVING count(*)>1 ORDER BY name,date LIMIT 100").fetchall()]
+            history_conflicts = [row | {"reason": "VALUE_CONFLICT" if row["distinct_values"]>1 else "DUPLICATE"} for row in duplicate_rows]
+            merged_paths, merged_records = [], []
+            for day in sorted({_DATE_PART.search(row["path"]).group(1) for row in daily}):
+                relative = f"derived/parquet/downloads/date={day}/merged.parquet"
+                path = root / "bronze" / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                con.execute(f"COPY (SELECT name,downloads,imputed_gap,date FROM all_daily WHERE date=DATE '{day}' QUALIFY row_number() OVER(PARTITION BY name,date ORDER BY source_priority)=1) TO ? (FORMAT PARQUET)", [str(path)])
+                size, digest = _file_digest(path)
+                record = {"path": relative, "bytes": size, "sha256": digest,
+                          "row_count": _parquet_rows(path), "role": "daily_parquet", "min_date": day, "max_date": day}
+                merged_paths.append(path); merged_records.append(record)
+            daily_paths, daily = merged_paths, merged_records
+            derived_daily_records = list(merged_records)
     package_records = curated["_service_records"]["package"]
     def fetch_package(row):
         rel = _safe_relative(row["key"][len(curated["run_prefix"] + "/attempts/"):], "Curated cache path")
@@ -249,6 +347,11 @@ def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: st
                           "package_files": len(package_records), "expected_package_rows": curated["counts"]["package"]},
                "selected": {"target": target, "status": status, "daily": daily,
                             "package": [{"key": r["key"], "bytes": r["bytes"], "sha256": r["sha256"]} for r in package_records]},
+               "history": {"references": [{"run_id": ref.get("run_id"), "manifest_sha256": ref.get("manifest_sha256")} for ref in (additional_bronze_refs or [])],
+                           "selected_daily": history_selected, "conflicts": history_conflicts,
+                           "duplicate_rows": duplicate_rows, "duplicate_row_count": duplicate_total,
+                           "unconsumed_history_target_csv_rows": unconsumed_history_target_csv_rows,
+                           "excluded_history_daily_rows": excluded_history_daily_rows},
                "candidate": {"sha256": candidate_sha256, "inventory_sha256": candidate.get("inventory_sha256"),
                              "policy_version": candidate["candidate"]["policy_version"] if "candidate" in candidate else "snapshot-time-v1",
                              "policy_sha256": candidate["candidate"]["policy_sha256"] if "candidate" in candidate else policy_sha256()},
@@ -262,17 +365,20 @@ def prepare(s3, *, snapshot: str, bronze_run_id: str, bronze_manifest_sha256: st
                                 "unconsumed_curated_files": "APPROVED_MANIFEST_ONLY_NO_BYTE_RESCAN",
                                 "candidate_source": "FROZEN_CANDIDATE_SHA_AND_PROJECTS_FOOTER_INVENTORY"}}
     manifest_sha = _sha(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode())
-    consumed = [target, status, *daily]
-    return {"package_files": [str(p) for p in package_paths], "target_file": str(target_path), "status_file": str(status_path),
+    consumed = [target, status, *consumed_daily_records]
+    result = {"package_files": [str(p) for p in package_paths], "target_file": str(target_path), "status_file": str(status_path),
             "daily_files": [str(p) for p in daily_paths], "interval": interval,
             "available_start": min(available), "available_end": max(available),
             "expected_package_rows": curated["counts"]["package"], "input_manifest": payload,
             "input_manifest_sha256": manifest_sha, "lineage": {"input_manifest_sha256": manifest_sha, "policy_sha256": policy_sha256()},
             "_bronze_records": records, "_bronze_consumed_records": consumed, "_bronze_prefix": raw_prefix,
             "_bronze_run_id": bronze_run_id, "_bronze_manifest_sha256": bronze_manifest_sha256,
+            "_additional_bronze_refs": additional_bronze_refs or [],
             "_curated": curated, "_curated_manifest_sha256": curated_manifest_sha256,
             "_candidate_path": str(candidate_path), "_candidate_sha256": candidate_sha256,
             "_cache_dir": str(root), "_package_records": package_records}
+    result["_derived_daily_records"] = derived_daily_records
+    return result
 
 
 def revalidate(s3, prepared: dict) -> None:
@@ -280,16 +386,33 @@ def revalidate(s3, prepared: dict) -> None:
     candidate = read_candidate(Path(prepared["_candidate_path"]))
     if candidate["candidate_sha256"] != prepared["_candidate_sha256"]: raise ValueError("candidate changed")
     bronze, prefix = _bronze(s3, prepared["_bronze_run_id"], prepared["_bronze_manifest_sha256"])
-    expected = {row["path"]: row for row in prepared["_bronze_consumed_records"]}
-    actual = {row["path"]: row for row in bronze["files"]}
-    if any(actual.get(key) != row for key, row in expected.items()):
+    for ref in prepared.get("_additional_bronze_refs", []):
+        _bronze(s3, ref.get("run_id"), ref.get("manifest_sha256"))
+    expected = {((row.get("_source_run_id") or prepared["_bronze_run_id"]), row["path"]): row
+                for row in prepared["_bronze_consumed_records"]}
+    manifests = {prepared["_bronze_run_id"]: bronze}
+    for ref in prepared.get("_additional_bronze_refs", []):
+        manifests[ref["run_id"]] = _bronze(s3, ref.get("run_id"), ref.get("manifest_sha256"))[0]
+    actual = {(run_id, row["path"]): row for run_id, manifest in manifests.items() for row in manifest["files"]}
+    fields = ("path", "role", "bytes", "sha256", "row_count", "min_date", "max_date")
+    if any(not actual.get(key) or any(actual[key].get(field) != row.get(field) for field in fields)
+           for key, row in expected.items()):
         raise ValueError("consumed Bronze manifest records changed")
     for row in prepared["_bronze_consumed_records"]:
-        local = Path(prepared["_cache_dir"]) / "bronze" / row["path"]
+        local_rel = (Path("history") / row["_source_run_id"] / row["path"]
+                     if row.get("_source_run_id") else Path(row["path"]))
+        local = Path(prepared["_cache_dir"]) / "bronze" / local_rel
         if any(p.is_symlink() for p in (local, *local.parents)) or not local.is_file() or _file_digest(local) != (row["bytes"], row["sha256"]):
             raise ValueError(f"local consumed Bronze file changed: {row['path']}")
     for row in prepared["_bronze_consumed_records"]:
-        _verify_remote(s3, RAW_BUCKET, f"{prefix}/data/{row['path']}", row)
+        source_prefix = (next((ref["run_id"] for ref in prepared.get("_additional_bronze_refs", [])
+                               if ref["run_id"] == row.get("_source_run_id")), None))
+        remote_prefix = (RAW_PREFIX.format(source_prefix) if source_prefix else prefix)
+        _verify_remote(s3, RAW_BUCKET, f"{remote_prefix}/data/{row['path']}", row)
+    for row in prepared.get("_derived_daily_records", []):
+        local = Path(prepared["_cache_dir"]) / "bronze" / row["path"]
+        if (not local.is_file() or _file_digest(local) != (row["bytes"], row["sha256"])):
+            raise ValueError(f"local derived daily file changed: {row['path']}")
     curated = select_run(s3, prepared["interval"]["snapshot_at"], prepared["_curated"]["curated_run_id"])
     if curated["manifest_sha256"] != prepared["_curated_manifest_sha256"]: raise ValueError("Curated manifest changed")
     for row in curated["_service_records"]["package"]:

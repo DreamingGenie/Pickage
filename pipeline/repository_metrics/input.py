@@ -217,7 +217,7 @@ def _validate_curated_files(curated_outputs: Path, metadata: dict, con: Any) -> 
     return paths, file_records
 
 
-def _validate_versions(versions_dir: Path, snapshot: str, snapshot_timestamp: str, bronze_manifest: dict, con: Any) -> tuple[list[str], list[dict], str]:
+def _validate_versions(versions_dir: Path, snapshot: str, snapshot_timestamp: str, bronze_manifest: dict, con: Any, *, table="versions_full") -> tuple[list[str], list[dict], str]:
     marker, marker_raw, local = _local_manifest(versions_dir, snapshot)
     expected_source_sha = bronze_manifest.get("source_manifest_sha256")
     if not isinstance(expected_source_sha, str) or _sha_bytes(marker_raw) != expected_source_sha:
@@ -264,6 +264,52 @@ def _validate_versions(versions_dir: Path, snapshot: str, snapshot_timestamp: st
     return paths, records, _sha_bytes(marker_raw)
 
 
+def _validate_derived_versions(curated_outputs: Path, metadata: dict, versions_dir: Path,
+                               snapshot: str, snapshot_timestamp: str, bronze_manifest: dict,
+                               bronze_ref: dict, con: Any) -> tuple[list[str], list[dict], str]:
+    """Validate the full-shaped weekly version file published by Curated.
+
+    ``versions_min`` has no full metadata of its own.  The weekly Curated
+    stage publishes an enriched Parquet file and records it in the approved
+    Curated manifest; that record, rather than a fabricated raw marker, is the
+    authority for this repository input.
+    """
+    prefix = metadata["run_prefix"] + "/attempts/"
+    records = []
+    for item in metadata["manifest"].get("files", []):
+        key = item.get("key", "")
+        if not key.startswith(prefix):
+            continue
+        relative = key[len(prefix):].split("/", 1)[-1]
+        if relative.startswith("weekly_versions/data/") and relative.endswith(".parquet"):
+            records.append((relative[len("weekly_versions/data/"):], item))
+    if not records:
+        raise ValueError("Curated manifest has no weekly_versions/data files")
+    root = Path(versions_dir).resolve()
+    actual = {p.name: p for p in root.glob("*.parquet")}
+    expected = {name for name, _ in records}
+    if set(actual) != expected:
+        raise ValueError("weekly_versions Parquet files differ from Curated manifest")
+    # The derived file must retain the raw min lineage, even though its shape
+    # is expanded for the repository transform.
+    raw_sha = bronze_manifest.get("source_manifest_sha256")
+    if not isinstance(raw_sha, str) or not _SHA.fullmatch(raw_sha):
+        raise ValueError("versions_min Bronze source fingerprint is missing")
+    paths, output = [], []
+    for name, remote in records:
+        path = actual[name]
+        observed = _file_record(path, root, con, snapshot_timestamp=snapshot_timestamp)
+        if observed["bytes"] != remote.get("bytes") or observed["sha256"] != remote.get("sha256"):
+            raise ValueError(f"weekly_versions checksum mismatch: {name}")
+        if remote.get("rows") is not None and observed["rows"] != remote["rows"]:
+            raise ValueError(f"weekly_versions rows mismatch: {name}")
+        observed.update({"table": "versions_full", "bronze_key": bronze_ref.get("key", name),
+                         "source_table": "versions_min", "source_manifest_sha256": raw_sha})
+        paths.append(str(path.resolve()))
+        output.append(observed)
+    return paths, output, raw_sha
+
+
 def _validate_projects(projects_dir: Path, prepared_candidate: dict, snapshot: str, snapshot_timestamp: str, con: Any) -> tuple[list[str], list[dict]]:
     inventory = prepared_candidate["inventory"]
     selected = next((row for row in inventory["snapshots"] if row["snapshot"] == snapshot), None)
@@ -300,9 +346,10 @@ def prepare_inputs(s3, *, snapshot: str, curated_run_id: str, curated_outputs: P
     if request.get("bronze_run_id") is None or not isinstance(request.get("sources"), dict):
         raise ValueError("Curated request lacks Bronze lineage")
     bronze_run_id = request["bronze_run_id"]
-    bronze_manifest, bronze_ref = load_bronze(s3, "versions_full", snapshot, bronze_run_id)
-    if request["sources"].get("versions_full") != bronze_ref:
-        raise ValueError("Curated versions_full fingerprint does not match Bronze manifest")
+    version_source = "versions_min" if request["sources"].get("versions_min") is not None else "versions_full"
+    bronze_manifest, bronze_ref = load_bronze(s3, version_source, snapshot, bronze_run_id)
+    if request["sources"].get(version_source) != bronze_ref:
+        raise ValueError(f"Curated {version_source} fingerprint does not match Bronze manifest")
     snapshot_timestamp = _naive_utc(curated["snapshot_timestamp"])
     candidate = read_candidate(candidate_path)
     source_root = Path(candidate["candidate"]["source"]["root"]).resolve()
@@ -320,7 +367,13 @@ def prepare_inputs(s3, *, snapshot: str, curated_run_id: str, curated_outputs: P
         raise ValueError(f"input manifest already exists: {output}")
     with duckdb.connect(config={"threads": 1, "memory_limit": "512MB"}) as con:
         curated_paths, curated_records = _validate_curated_files(Path(curated_outputs), curated, con)
-        version_paths, version_records, local_versions_manifest_sha = _validate_versions(Path(versions_dir), snapshot, snapshot_timestamp, bronze_manifest, con)
+        if version_source == "versions_min":
+            version_paths, version_records, local_versions_manifest_sha = _validate_derived_versions(
+                Path(curated_outputs), curated, Path(versions_dir), snapshot, snapshot_timestamp,
+                bronze_manifest, bronze_ref, con)
+        else:
+            version_paths, version_records, local_versions_manifest_sha = _validate_versions(
+                Path(versions_dir), snapshot, snapshot_timestamp, bronze_manifest, con)
         project_paths, project_records = _validate_projects(Path(projects_dir), candidate, snapshot, snapshot_timestamp, con)
     files = {"package": curated_paths["package"], "version": curated_paths["version"], "versions_full": version_paths, "projects": project_paths}
     records = curated_records + version_records + project_records
@@ -337,10 +390,11 @@ def prepare_inputs(s3, *, snapshot: str, curated_run_id: str, curated_outputs: P
         "file_records": records,
         "sources": {"curated_request": request, "bronze_manifest": bronze_manifest,
                     "candidate_path": str(Path(candidate_path).resolve()),
-                    "versions_manifest_path": str(_local_manifest(Path(versions_dir), snapshot)[0].resolve()),
+                    "versions_manifest_path": str(_local_manifest(Path(versions_dir), snapshot)[0].resolve()) if version_source == "versions_full" else None,
                     "projects_dir": str(Path(projects_dir).resolve()),
                     "curated_outputs": str(Path(curated_outputs).resolve()),
-                    "versions_dir": str(Path(versions_dir).resolve())},
+                    "versions_dir": str(Path(versions_dir).resolve()),
+                    "versions_source": version_source},
     }
     output.write_bytes(_json_bytes(prepared))
     prepared["input_sha256"] = _sha_bytes(output.read_bytes())
@@ -355,15 +409,17 @@ def reverify_inputs(prepared: dict, s3=None) -> None:
         path = Path(item["path"])
         if not path.is_file() or path.stat().st_size != item["bytes"] or _sha_file(path) != item["sha256"]:
             raise ValueError(f"input file changed: {path}")
-    for path_text in (prepared.get("sources", {}).get("candidate_path"), prepared.get("sources", {}).get("versions_manifest_path")):
+    for path_text in (prepared.get("sources", {}).get("candidate_path"),):
         if not path_text or not Path(path_text).is_file():
             raise ValueError("input metadata file missing")
     candidate_path = Path(prepared["sources"]["candidate_path"])
     if _sha_file(candidate_path) != prepared.get("candidate_sha256"):
         raise ValueError("snapshot candidate changed")
-    versions_manifest = Path(prepared["sources"]["versions_manifest_path"])
-    if _sha_file(versions_manifest) != prepared.get("local_versions_manifest_sha256"):
-        raise ValueError("versions_full manifest changed")
+    versions_manifest_text = prepared.get("sources", {}).get("versions_manifest_path")
+    if versions_manifest_text:
+        versions_manifest = Path(versions_manifest_text)
+        if not versions_manifest.is_file() or _sha_file(versions_manifest) != prepared.get("local_versions_manifest_sha256"):
+            raise ValueError("versions_full manifest changed")
     current_candidate = read_candidate(candidate_path)
     if current_candidate["inventory_sha256"] != prepared.get("candidate_inventory_sha256"):
         raise ValueError("Projects inventory changed")
@@ -374,7 +430,7 @@ def reverify_inputs(prepared: dict, s3=None) -> None:
         if root_key == "curated_outputs":
             actual = {p.resolve() for p in root.rglob("*") if p.is_file()}
         elif root_key == "versions_dir":
-            actual = {p.resolve() for p in versions_manifest.parent.glob("*.parquet")}
+            actual = {p.resolve() for p in root.glob("*.parquet")}
         else:
             actual = {p.resolve() for p in (root / f"snapshot={prepared['snapshot']}").glob("*.parquet")}
         if actual != expected:
@@ -383,7 +439,8 @@ def reverify_inputs(prepared: dict, s3=None) -> None:
         curated = select_run(s3, prepared["snapshot"], prepared["curated_run_id"])
         if curated["manifest_sha256"] != prepared["curated_manifest_sha256"]:
             raise ValueError("Curated manifest changed")
-        bronze, ref = load_bronze(s3, "versions_full", prepared["snapshot"], prepared["bronze_run_id"])
+        version_source = prepared.get("sources", {}).get("versions_source", "versions_full")
+        bronze, ref = load_bronze(s3, version_source, prepared["snapshot"], prepared["bronze_run_id"])
         if ref["sha256"] != prepared["bronze_run_manifest_sha256"] or bronze["source_manifest_sha256"] != prepared["bronze_source_manifest_sha256"]:
             raise ValueError("Bronze metadata changed")
 

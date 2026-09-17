@@ -1,0 +1,263 @@
+{"status": "FAILED", "error": "Saved weekly Bronze run differs"}
+{
+  "status": "COMPLETE",
+  "run_id": "weekly",
+  "prefix": "depsdev/v1/curated-bundle/snapshot=2026-08-31/run_id=weekly",
+  "request": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe2g9kv3n\\requests\\weekly.json",
+  "db_loaded": false
+}
+{
+  "status": "COMPLETE",
+  "run_id": "weekly",
+  "prefix": "depsdev/v1/curated-bundle/snapshot=2026-08-31/run_id=weekly",
+  "request": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe2g9kv3n\\requests\\weekly.json",
+  "db_loaded": false
+}
+Curated run: curated-full; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-full", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-min; snapshot: 2026-09-07
+Input: verifying versions_min (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-09-07/run_id=curated-min", "report": {"input_versions": 3, "release_versions": 3, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-09-07T21:01:10", "versions": 3, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 2, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 2, "packages_without_repo": 1, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 2, "version/data": 3, "package_ids/data": 2, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpl4485ki3\\curated-min\\curated-min-4w71ff0b\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpl4485ki3\\curated-min\\curated-min-4w71ff0b\\outputs\\changes\\package_upserts.parquet", "sha256": "08c86a8dd7abaad2d53a5b0ce6f7a12feace397d662b93e922c5e75dfdbfd034", "bytes": 558, "rows": 1}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpl4485ki3\\curated-min\\curated-min-4w71ff0b\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpl4485ki3\\curated-min\\curated-min-4w71ff0b\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpl4485ki3\\curated-min\\curated-min-4w71ff0b\\outputs\\changes\\version_upserts.parquet", "sha256": "edf7cb2948b8e7fe7313920d36dd03bef6355e350c8cce49eb28b64341a1d9ec", "bytes": 1722, "rows": 3}}, "threads": 1, "memory_limit": "1GB"}}}
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpe7nl6e6w\fixture\bronze-work\orchestration-fixture-downloads\d8162579290a41339caab6bf65194615\execution_report.json
+Curated run: orchestration-fixture-prior; snapshot: 2026-08-28
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-28/run_id=orchestration-fixture-prior", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-28T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: first; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=first", "report": {"input_versions": 3, "release_versions": 3, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 3, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 2, "registry_packages": 3, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 3, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 3, "version/data": 3, "package_ids/data": 3, "quality/repository_selection": 3, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\first-mo3ioa0c\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\first-mo3ioa0c\\outputs\\changes\\package_upserts.parquet", "sha256": "94f58337d9b53eb8280e2391c9371f3be74f2527a600934a24b66095b79f3190", "bytes": 768, "rows": 2}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\first-mo3ioa0c\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\first-mo3ioa0c\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\first-mo3ioa0c\\outputs\\changes\\version_upserts.parquet", "sha256": "ba5f8f7ee7221ab62ee3b36354b9f9f2703bef4507121f20b711299a910af38c", "bytes": 1668, "rows": 3}}, "threads": 1, "memory_limit": "512MB"}}}
+Curated run: second; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=second", "report": {"input_versions": 3, "release_versions": 3, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 3, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 0, "registry_packages": 3, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 3, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 3, "version/data": 3, "package_ids/data": 3, "quality/repository_selection": 3, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\second-ty8hh60d\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\second-ty8hh60d\\outputs\\changes\\package_upserts.parquet", "sha256": "4e16c19baa809694ff44f27a5b1ce998fe98152fb90367bf8c07517cf07fcdee", "bytes": 166, "rows": 0}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\second-ty8hh60d\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\second-ty8hh60d\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpe7nl6e6w\\run\\second-ty8hh60d\\outputs\\changes\\version_upserts.parquet", "sha256": "b9c398a678429bc482bcb730c33ced47372597f9b378d32efd8eda59519ab661", "bytes": 296, "rows": 0}}, "threads": 1, "memory_limit": "512MB"}}}
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpt19sfhuw\fixture\bronze-work\orchestration-fixture-downloads\c3c486c2a56043c4952d2cc4bedabbe8\execution_report.json
+Curated run: orchestration-fixture-prior; snapshot: 2026-08-28
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-28/run_id=orchestration-fixture-prior", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-28T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: current-test; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=current-test", "report": {"input_versions": 3, "release_versions": 3, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 3, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 2, "registry_packages": 3, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 3, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 3, "version/data": 3, "package_ids/data": 3, "quality/repository_selection": 3, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpt19sfhuw\\run\\current-test-z5pp9jo3\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpt19sfhuw\\run\\current-test-z5pp9jo3\\outputs\\changes\\package_upserts.parquet", "sha256": "94f58337d9b53eb8280e2391c9371f3be74f2527a600934a24b66095b79f3190", "bytes": 768, "rows": 2}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpt19sfhuw\\run\\current-test-z5pp9jo3\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpt19sfhuw\\run\\current-test-z5pp9jo3\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpt19sfhuw\\run\\current-test-z5pp9jo3\\outputs\\changes\\version_upserts.parquet", "sha256": "ba5f8f7ee7221ab62ee3b36354b9f9f2703bef4507121f20b711299a910af38c", "bytes": 1668, "rows": 3}}, "threads": 1, "memory_limit": "512MB"}}}
+Curated run: current-test; snapshot: 2026-08-31
+Completed run: verifying all existing output objects
+Completed run verified; no data regenerated
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpskri2kaq\fixture\bronze-work\orchestration-fixture-downloads\5dab25d3bba54a4599408279844192fc\execution_report.json
+Curated run: orchestration-fixture-prior; snapshot: 2026-08-28
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-28/run_id=orchestration-fixture-prior", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-28T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: current-test; snapshot: 2026-08-31
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmp1t20np83\fixture\bronze-work\orchestration-fixture-downloads\67deec1867dd4ba2804b53ae9447ebc9\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpqho57j25\fixture\bronze-work\orchestration-fixture-downloads\97e0fe9c52d44f23bfa7e5894003acb6\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpu3gipnoc\fixture\bronze-work\orchestration-fixture-downloads\ae6e651e62fa4830ab2c499ba550c793\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpt991nat3\fixture\bronze-work\orchestration-fixture-downloads\a61e9122eb9c47ca84ae016b450a277a\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmp8t6jmfn_\fixture\bronze-work\orchestration-fixture-downloads\4ee40d87ece34db1972bdff1df813c54\execution_report.json
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-1; snapshot: 2026-08-31
+Completed run: verifying all existing output objects
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+Curated run: curated-1; snapshot: 2026-08-31
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-2; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Curated run: curated-1; snapshot: 2026-08-31
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-2; snapshot: 2026-08-31
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-2; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-2", "report": {"input_versions": 2, "release_versions": 2, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 2, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 2, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 2, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 2, "version/data": 2, "package_ids/data": 2, "quality/repository_selection": 2, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmp0hp_kztc\\curated-2\\curated-2-i1lqzpet\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmp0hp_kztc\\curated-2\\curated-2-i1lqzpet\\outputs\\changes\\package_upserts.parquet", "sha256": "157835f45bac51510a98f63ac1feb6e8795ebb46eb3e18209bb2218038181655", "bytes": 698, "rows": 1}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmp0hp_kztc\\curated-2\\curated-2-i1lqzpet\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmp0hp_kztc\\curated-2\\curated-2-i1lqzpet\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmp0hp_kztc\\curated-2\\curated-2-i1lqzpet\\outputs\\changes\\version_upserts.parquet", "sha256": "b6b3df526ceadb5c0beb648dee80eae533b2ae43a36fd217b3ebb1cf1621b2d3", "bytes": 1716, "rows": 2}}, "threads": 1, "memory_limit": "4GB"}}}
+Curated run: curated-1; snapshot: 2026-08-31
+Completed run: verifying all existing output objects
+Completed run verified; no data regenerated
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-1; snapshot: 2026-08-31
+Completed run: verifying all existing output objects
+Completed run verified; no data regenerated
+Curated run: curated-1; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-1", "report": {"input_versions": 1, "release_versions": 1, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 1, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1, "version/data": 1, "package_ids/data": 1, "quality/repository_selection": 1, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+Curated run: curated-2; snapshot: 2026-08-31
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-2", "report": {"input_versions": 2, "release_versions": 2, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 2, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 1, "registry_packages": 2, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 2, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 2, "version/data": 2, "package_ids/data": 2, "quality/repository_selection": 2, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmps2t1befu\\curated-2\\curated-2-n2bl_ja4\\outputs\\changes", "files": {"package_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmps2t1befu\\curated-2\\curated-2-n2bl_ja4\\outputs\\changes\\package_upserts.parquet", "sha256": "157835f45bac51510a98f63ac1feb6e8795ebb46eb3e18209bb2218038181655", "bytes": 698, "rows": 1}, "missing_previous": {"package": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmps2t1befu\\curated-2\\curated-2-n2bl_ja4\\outputs\\changes\\missing_previous_package.parquet", "sha256": "9ab11c98af8832c364261b4e4320c81953936a25627562d05e59f16de80bd4a5", "bytes": 169, "rows": 0}, "version": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmps2t1befu\\curated-2\\curated-2-n2bl_ja4\\outputs\\changes\\missing_previous_version.parquet", "sha256": "b2f7f794a884a035e89704f6aa5becd4830a3e36a541783918bcd12afe1ac0ec", "bytes": 299, "rows": 0}}, "version_upserts": {"path": "C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmps2t1befu\\curated-2\\curated-2-n2bl_ja4\\outputs\\changes\\version_upserts.parquet", "sha256": "b6b3df526ceadb5c0beb648dee80eae533b2ae43a36fd217b3ebb1cf1621b2d3", "bytes": 1716, "rows": 2}}, "threads": 1, "memory_limit": "4GB"}}}
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: filtering versions
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Transform: filtering versions
+Transform: filtering versions
+Transform: filtering versions
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpjj1yj5u0\work\fixture-run\1708568cda7a4b47b46ee72b14bfb15a\execution_report.json
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpjj1yj5u0\work\fixture-run\7f3d7581a37e48d4877b72bb5fff4bd2\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmpiehg580v\work\fixture-run\a9fa1d8dc72c4e4db0b1386131b1950f\execution_report.json
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmpiehg580v\work\fixture-run\de28b8c362ad4806bfe93e943665be0e\execution_report.json
+FAILED: C:\Users\SSAFY\AppData\Local\Temp\tmp38yu9r31\work\fixture-run\68e7f87d7fa04790b59df8f4c17f3f1e\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmp38yu9r31\work\fixture-run\6d8c203b91964bdd93b8433f10cae1cd\execution_report.json
+PUBLISHED: C:\Users\SSAFY\AppData\Local\Temp\tmp3_rh5acp\work\fixture-run\ea0ca961d1bb4d4daf63d6526c0d184c\execution_report.json
+REVERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmp3_rh5acp\work\fixture-run\b438eced2883466d87e6cb8197e109c1\execution_report.json
+VERIFIED: C:\Users\SSAFY\AppData\Local\Temp\tmphejx6evw\work\fixture-run\8bb2caa55dc64d55af1fb2ff211f3ac8\execution_report.json
+----------------------------------------------------------------------
+Ran 149 tests in 26.234s
+
+OK (skipped=2)

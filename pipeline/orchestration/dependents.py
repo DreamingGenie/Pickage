@@ -130,7 +130,8 @@ def execute_stage(request, completed, s3, work_dir):
     else:
         files = {}
         for table in ("requirements", "versions_full"):
-            ref = request["raw_refs"][table]
+            from .contracts import version_table
+            ref = request["raw_refs"][version_table(request) if table == "versions_full" else table]
             raw = json.loads(pinned(s3, ref))
             files[table] = download_files(s3, ref["bucket"], raw["files"], root / "cache", workers=workers)
         population = completed["package_version"]

@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 from typing import Any, Mapping
 
-from .contracts import validate_request
+from .contracts import validate_request, version_table
 
 def _body(s3, bucket, key):
     stream = s3.get_object(Bucket=bucket, Key=key)["Body"]
@@ -78,7 +78,7 @@ def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: st
     from pipeline.curated.build import load_bronze
     prefix = ref["key"].rsplit("/", 1)[0]; manifest_body = _check_ref(s3, ref, waiting=True)
     _check_marker(s3, ref)
-    if table in {"versions_full", "requirements", "projects"}:
+    if table in {"versions_full", "versions_min", "requirements", "projects"}:
         manifest, _ = load_bronze(s3, table, snapshot, run_id)
     else: raise ValueError("Unsupported raw table: " + table)
     rows = manifest.get("files")
@@ -155,17 +155,24 @@ def preflight(s3, request: dict, work_dir: Path) -> dict:
             raise ValueError("Current package-version pointer does not match request.parent")
     elif request.get("parent") is not None:
         raise ValueError("Request parent pointer does not exist")
+    if request["format_version"] == 2:
+        from .weekly_parent import validate_parent
+        validate_parent(s3, request)
+    versions = version_table(request)
     manifests = {}
-    for table in ("versions_full", "requirements"):
+    for table in (versions, "requirements"):
         manifests[table] = hydrate_bronze(s3, request["raw_refs"][table], work / "inputs" / table,
                                           table=table, snapshot=request["snapshot"], run_id=request["bronze_run_id"])
     projects = work / "inputs" / "projects"
     for ref in request["calendar_refs"]:
         hydrate_bronze(s3, ref, projects, table="projects", snapshot=ref["snapshot"], run_id=ref["run_id"])
-    _check_timestamp(Path(work) / "inputs" / "versions_full", request["snapshot_timestamp"])
+    _check_timestamp(Path(work) / "inputs" / versions, request["snapshot_timestamp"])
     _check_timestamp(Path(work) / "inputs" / "requirements", request["snapshot_timestamp"])
     _check_timestamp(projects / ("snapshot=" + request["snapshot"]), request["snapshot_timestamp"])
-    _check_schema(Path(work) / "inputs" / "versions_full", {"Name": "VARCHAR", "Version": "VARCHAR", "published_at": "TIMESTAMP", "is_release": "BOOLEAN", "ordinal": "BIGINT", "Description": "VARCHAR", "Licenses": "VARCHAR[]", "Deprecated": "VARCHAR", "source_repo": "VARCHAR", "SnapshotAt": "TIMESTAMP"})
+    schema = {"Name": "VARCHAR", "Version": "VARCHAR", "published_at": "TIMESTAMP", "is_release": "BOOLEAN", "ordinal": "BIGINT", "Deprecated": "VARCHAR", "SnapshotAt": "TIMESTAMP"}
+    if versions == "versions_full":
+        schema.update(Description="VARCHAR", Licenses="VARCHAR[]", source_repo="VARCHAR")
+    _check_schema(Path(work) / "inputs" / versions, schema)
     _check_schema(Path(work) / "inputs" / "requirements", {"Name": "VARCHAR", "Version": "VARCHAR", "Dependencies": "STRUCT(\"Name\" VARCHAR, \"Requirement\" VARCHAR)[]", "PeerDependencies": "STRUCT(\"Name\" VARCHAR, \"Requirement\" VARCHAR)[]", "OptionalDependencies": "STRUCT(\"Name\" VARCHAR, \"Requirement\" VARCHAR)[]", "SnapshotAt": "TIMESTAMP"})
     _check_schema(projects / ("snapshot=" + request["snapshot"]), {"Type": "VARCHAR", "project_name": "VARCHAR", "StarsCount": "BIGINT", "OpenIssuesCount": "BIGINT", "SnapshotAt": "TIMESTAMP"})
     from pipeline.downloads_interval.input import _bronze
@@ -184,6 +191,10 @@ def preflight(s3, request: dict, work_dir: Path) -> dict:
             raise
         if int(head.get("ContentLength", -1)) != row.get("bytes"):
             raise ValueError("Download Bronze file size mismatch: " + key)
+    for ref in request.get("download_history_refs", []):
+        _check_ref(s3, ref, waiting=True)
+        _check_marker(s3, ref)
+        _bronze(s3, ref["run_id"], ref["sha256"])
     target = request["targets"]["dependents"]
     if not target["key"].endswith(".parquet"):
         raise ValueError("Dependents target must be a direct Parquet reference")
@@ -198,6 +209,6 @@ def preflight(s3, request: dict, work_dir: Path) -> dict:
             "SELECT count(*),count(*) FILTER (WHERE name IS NULL OR trim(name)='' OR name<>trim(name) OR contains(name,chr(0))), "
             "count(*) - count(DISTINCT name) FROM read_parquet(?, hive_partitioning=false)", [str(target_path)]).fetchone()
     if not total or invalid or duplicate: raise ValueError("Dependents target names must be nonempty and unique")
-    return {"status": "INPUT_READY", "projects_root": str(projects), "versions_root": str(work / "inputs" / "versions_full"),
+    return {"status": "INPUT_READY", "projects_root": str(projects), "versions_root": str(work / "inputs" / versions),
             "requirements_root": str(work / "inputs" / "requirements"), "downloads": downloads,
             "target_path": str(target_path), "manifests": manifests}

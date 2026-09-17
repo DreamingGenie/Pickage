@@ -19,6 +19,9 @@ def discover_runtime(node=None, semver_module=None, package_arg_module=None):
     if not executable:
         raise ValueError("Node executable is unavailable; pass --node")
     npm_modules = Path(executable).resolve().parent / "node_modules" / "npm" / "node_modules"
+    if not npm_modules.is_dir():
+        # Unix npm installs live under prefix/lib, Windows beside node.exe.
+        npm_modules = Path(executable).resolve().parent.parent / "lib" / "node_modules" / "npm" / "node_modules"
     semver = Path(semver_module).resolve() if semver_module else npm_modules / "semver"
     package_arg = Path(package_arg_module).resolve() if package_arg_module else npm_modules / "npm-package-arg"
     if any(not (root / "package.json").is_file() for root in (semver, package_arg)):

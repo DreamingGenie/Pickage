@@ -15,14 +15,14 @@ RUN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 SHA = re.compile(r"[0-9a-f]{64}")
 
 
-def object_ref(value, label):
+def object_ref(value, label, *, curated_target=False):
     if not isinstance(value, dict):
         raise ValueError(label + " must be an object reference")
     for field in ("bucket", "key", "sha256"):
         if not isinstance(value.get(field), str) or not value[field]:
             raise ValueError(label + "." + field + " is required")
     key = value["key"]
-    if (value["bucket"] != "pickage-raw" or "\\" in key or "\x00" in key
+    if ((value["bucket"] != "pickage-raw" and not (curated_target and value["bucket"] == "pickage-curated" and key.startswith("depsdev/v1/preprocessing-targets/"))) or "\\" in key or "\x00" in key
             or any(part in ("", ".", "..") for part in key.split("/"))
             or not SHA.fullmatch(value["sha256"])):
         raise ValueError(label + " has an invalid bucket/key/SHA")
@@ -40,10 +40,12 @@ def validate_request(value):
         raise ValueError("Request must be a JSON object")
     allowed = {"format_version", "run_id", "snapshot", "snapshot_timestamp", "bronze_run_id",
                "raw_refs", "calendar_refs", "parent", "targets", "options"}
-    missing = allowed - {"options"} - value.keys()
+    if value.get("format_version") == 2:
+        allowed.update({"parent_bundle", "download_history_refs"})
+    missing = allowed - {"options", "download_history_refs"} - value.keys()
     if missing or value.keys() - allowed:
         raise ValueError("Request has missing or unknown fields: " + ", ".join(sorted(missing | (value.keys() - allowed))))
-    if type(value["format_version"]) is not int or value["format_version"] != 1:
+    if type(value["format_version"]) is not int or value["format_version"] not in (1, 2):
         raise ValueError("Unsupported request format_version")
     for field in ("run_id", "bronze_run_id"):
         if not isinstance(value[field], str) or not RUN.fullmatch(value[field]):
@@ -53,8 +55,9 @@ def validate_request(value):
     if not isinstance(stamp, str) or not stamp.endswith("Z") or parse_timestamp(stamp).date().isoformat() != snapshot:
         raise ValueError("snapshot_timestamp must be UTC Z on the snapshot date")
     raw = value["raw_refs"]
-    if not isinstance(raw, dict) or set(raw) != {"versions_full", "requirements", "projects", "downloads"}:
-        raise ValueError("raw_refs requires versions_full, requirements, projects, downloads")
+    version_table = "versions_min" if value["format_version"] == 2 else "versions_full"
+    if not isinstance(raw, dict) or set(raw) != {version_table, "requirements", "projects", "downloads"}:
+        raise ValueError("raw_refs must match the versioned versions table, requirements, projects, downloads")
     for table, ref in raw.items():
         object_ref(ref, "raw_refs." + table)
         if table == "downloads":
@@ -66,6 +69,17 @@ def validate_request(value):
             expected = f"depsdev/v1/{table}/snapshot={snapshot}/run_id={value['bronze_run_id']}/run_manifest.json"
         if ref["key"] != expected:
             raise ValueError("Raw ref key does not match pinned identity: " + table)
+    history = value.get("download_history_refs", [])
+    if not isinstance(history, list):
+        raise ValueError("download_history_refs must be a list")
+    seen_downloads = {raw["downloads"]["run_id"]}
+    for ref in history:
+        object_ref(ref, "download_history_refs")
+        rid = ref.get("run_id")
+        if (not isinstance(rid, str) or not RUN.fullmatch(rid) or rid in seen_downloads
+                or ref["key"] != f"npm-downloads/v1/run_id={rid}/run_manifest.json"):
+            raise ValueError("Invalid or duplicate download history run")
+        seen_downloads.add(rid)
     calendar = value["calendar_refs"]
     if not isinstance(calendar, list) or not calendar:
         raise ValueError("calendar_refs must contain Projects manifest references")
@@ -86,7 +100,7 @@ def validate_request(value):
     targets = value["targets"]
     if not isinstance(targets, dict) or set(targets) != {"dependents"}:
         raise ValueError("targets.dependents is required; download targets belong to the download manifest")
-    object_ref(targets["dependents"], "targets.dependents")
+    object_ref(targets["dependents"], "targets.dependents", curated_target=value["format_version"] == 2)
     parent = value["parent"]
     if parent is not None:
         if (not isinstance(parent, dict) or set(parent) != {"run_prefix", "manifest_sha256", "snapshot"}
@@ -100,6 +114,17 @@ def validate_request(value):
             raise ValueError("Invalid parent run prefix")
         if parent["snapshot"] not in days:
             raise ValueError("Calendar must include the parent snapshot and all available intervening dates")
+    if value["format_version"] == 2:
+        bundle = value["parent_bundle"]
+        if (not isinstance(bundle, dict) or set(bundle) != {"run_prefix", "manifest_sha256", "snapshot"}
+                or not isinstance(bundle["manifest_sha256"], str) or not SHA.fullmatch(bundle["manifest_sha256"])
+                or not re.fullmatch(r"depsdev/v1/curated-bundle/snapshot=\d{4}-\d{2}-\d{2}/run_id=[A-Za-z0-9_-]+", bundle["run_prefix"])):
+            raise ValueError("Weekly input requires a pinned completed parent bundle")
+        if parent is None or bundle["snapshot"] != parent["snapshot"] or bundle["snapshot"] >= snapshot:
+            raise ValueError("Weekly parent must be an earlier completed snapshot")
+        iso_day(bundle["snapshot"])
+        if not bundle["run_prefix"].startswith("depsdev/v1/curated-bundle/snapshot=" + bundle["snapshot"] + "/"):
+            raise ValueError("Parent bundle prefix date differs")
     options = value.get("options", {})
     if not isinstance(options, dict) or set(options) - {"workers", "threads", "memory_limit", "repository_engine"}:
         raise ValueError("Unknown execution option")
@@ -129,6 +154,8 @@ def code_contract():
                 # Ignore OS line-ending differences, preserve all other code bytes.
                 files[path.relative_to(root).as_posix()] = hashlib.sha256(
                     path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    helper = root / "pipeline" / "weekly_metadata.py"
+    files[helper.relative_to(root).as_posix()] = hashlib.sha256(helper.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     runtime = {}
     for package in ("duckdb", "boto3", "botocore", "numpy"):
         try:
@@ -145,3 +172,7 @@ def code_contract():
         runtime[name] = {path.relative_to(directory).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                          for path in sorted(directory.rglob("*")) if path.is_file() and path.suffix in (".js", ".json")}
     return {"files": files, "runtime": runtime}
+
+
+def version_table(request):
+    return "versions_min" if request["format_version"] == 2 else "versions_full"

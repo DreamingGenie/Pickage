@@ -38,7 +38,8 @@ def _export(con, directory, name, query):
     return sorted(target.glob('*.parquet'))
 
 
-def transform(con, versions, requirements, previous_ids, snapshot, output):
+def transform(con, versions, requirements, previous_ids, snapshot, output,
+              previous_packages=None):
     """Write validated ERD projections and full ID registry to a fresh directory.
 
     Callers provide exact manifest-listed, checksum-verified files. Each call
@@ -95,6 +96,17 @@ def transform(con, versions, requirements, previous_ids, snapshot, output):
         con.execute('CREATE TABLE old_ids AS SELECT package_id::INTEGER AS package_id,name::VARCHAR AS name FROM old_ids_source')
     else:
         con.execute('CREATE TABLE old_ids(package_id INTEGER, name VARCHAR)')
+    if previous_packages:
+        _source(con, 'old_packages_source', previous_packages)
+        old_package_columns = [r[0] for r in con.execute('DESCRIBE old_packages_source').fetchall()]
+        if 'package_id' not in old_package_columns or 'name' not in old_package_columns:
+            raise ValidationError('Invalid existing package mapping')
+        if 'repo_url' in old_package_columns:
+            con.execute('CREATE TABLE old_packages AS SELECT * FROM old_packages_source')
+        else:
+            con.execute('CREATE TABLE old_packages AS SELECT *, NULL::VARCHAR AS repo_url FROM old_packages_source')
+    else:
+        con.execute('CREATE TABLE old_packages(package_id INTEGER, name VARCHAR, repo_url VARCHAR)')
     maximum = con.execute('SELECT coalesce(max(package_id),0) FROM old_ids').fetchone()[0]
     con.execute('CREATE TABLE new_names AS SELECT name FROM names ANTI JOIN old_ids USING(name)')
     report['new_packages'] = con.execute('SELECT count(*) FROM new_names').fetchone()[0]
@@ -128,8 +140,9 @@ def transform(con, versions, requirements, previous_ids, snapshot, output):
         QUALIFY row_number() OVER(PARTITION BY e.Name ORDER BY e.ordinal DESC,
             e.published_at DESC NULLS LAST,e.Version ASC)=1""")
     con.execute("""CREATE TABLE packages AS
-        SELECT i.package_id,n.name,r.repo_url FROM names n
-        JOIN package_ids i USING(name) LEFT JOIN chosen_repos r USING(name)""")
+        SELECT i.package_id,n.name,CASE WHEN old.package_id IS NOT NULL THEN old.repo_url ELSE r.repo_url END AS repo_url FROM names n
+        JOIN package_ids i USING(name) LEFT JOIN chosen_repos r USING(name)
+        LEFT JOIN old_packages old USING(package_id)""")
     report['packages'], report['packages_without_repo'] = con.execute(
         'SELECT count(*),count(*) FILTER(WHERE repo_url IS NULL) FROM packages').fetchone()
 

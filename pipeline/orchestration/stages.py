@@ -4,6 +4,7 @@ from pathlib import Path
 import uuid
 
 from pipeline.curated.storage import download_files, json_bytes, put_immutable, read_optional, verify_files
+from .contracts import version_table
 from .storage import BUCKET, atomic_json, required, sha
 
 PREFIXES = {"snapshot": "depsdev/v1/snapshot-reference", "package_version": "depsdev/v1/package-version",
@@ -116,7 +117,7 @@ def execute_stage(name, request, completed, s3, work_dir):
     if name == "package_version":
         from pipeline.curated.build import run
         run(s3, snapshot, request["bronze_run_id"], run_id, work / "package-version",
-            workers=workers, threads=threads, memory=memory, expected_parent=request["parent"])
+            workers=workers, threads=threads, memory=memory, expected_parent=request["parent"], versions_table=version_table(request))
         return describe(name, request, s3)
     candidate_info = completed["snapshot"]["metadata"]
     candidate = Path(candidate_info["candidate_path"])
@@ -128,16 +129,21 @@ def execute_stage(name, request, completed, s3, work_dir):
         from pipeline.downloads_interval.load import run
         raw = request["raw_refs"]["downloads"]
         run(**common, bronze_run_id=raw["run_id"], bronze_manifest_sha256=raw["sha256"],
-            curated_run_id=run_id, curated_manifest_sha256=population["manifest_sha256"], work_dir=work / "downloads")
+            curated_run_id=run_id, curated_manifest_sha256=population["manifest_sha256"], work_dir=work / "downloads",
+            additional_bronze_refs=[{"run_id": r["run_id"], "manifest_sha256": r["sha256"]}
+                                    for r in request.get("download_history_refs", [])])
     elif name == "repository":
         from .intake import hydrate_bronze
         from pipeline.repository_metrics.build import run
         local_curated = work / "inputs" / "curated"
         _restore_files(s3, population["files"], local_curated,
                        lambda r: r["key"].split("/attempts/", 1)[1].split("/", 1)[1], workers)
-        versions = work / "inputs" / "versions_full"
-        hydrate_bronze(s3, request["raw_refs"]["versions_full"], versions,
-                       table="versions_full", snapshot=snapshot, run_id=request["bronze_run_id"])
+        if request["format_version"] == 2:
+            versions = local_curated / "weekly_versions" / "data"
+        else:
+            versions = work / "inputs" / "versions_full"
+            hydrate_bronze(s3, request["raw_refs"]["versions_full"], versions,
+                           table="versions_full", snapshot=snapshot, run_id=request["bronze_run_id"])
         local_lock = work / "repository" / run_id / ".writer.lock"
         if local_lock.exists():
             raise ValueError("Repository local writer lock is held")
