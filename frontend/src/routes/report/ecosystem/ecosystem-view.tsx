@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 
 import { windowSeries } from '@/components/charts/geometry'
-import { SeriesLegend } from '@/components/charts/line-chart'
 import { seriesStyle } from '@/components/charts/tokens'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import {
@@ -12,7 +11,6 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
-  FETCH_WEEKS,
   stepOf,
   type EcosystemModel,
   type MajorSelection,
@@ -122,11 +120,14 @@ export function EcosystemView({
    * 증감도 여기서 다시 센다 — 4.x 만 보고 있는데 증감이 전 버전 합계면 카드 안의 두 숫자가
    * 서로 다른 것을 가리키게 된다.
    */
-  const dependentsSeries = model.packages.map((p) =>
+  const dependentsSeries = model.packages.map((p, i) =>
     dependentsLineOf(
       p.key,
       model.dependentsByMajor[p.key] ?? [],
       versionByName[p.key] ?? ALL_MAJORS,
+      // 선 모양은 자리 번호가 아니라 **비교 순서**를 따른다. 자료가 없어 걸러진 시리즈가
+      // 생겨도 카드·범례·차트가 같은 모양을 가리킨다(`ChartSeries.tone`).
+      i,
     ),
   )
 
@@ -151,29 +152,34 @@ export function EcosystemView({
   })
 
   /**
-   * 상세를 보는 패키지(379 후속). 예전에는 카드를 전부 세로로 쌓아 두고 각자 접고 펼 수
-   * 있었는데, 비교 대상이 늘수록 스크롤이 길어졌다. 지금은 한 번에 하나만 보인다.
+   * 상세를 보는 패키지. **한 번에 하나만 고른다.**
    *
-   * **"아무도 고르지 않은" 상태가 기본이다.** 처음에 탭 하나가 이미 강조돼 있으면 두
-   * 패키지를 나란히 비교하려 할 때 방해가 된다는 피드백이 있었다(379 후속 2차) —
-   * 그래프는 아무것도 고르지 않았을 때 전부 같은 굵기로 그려야 공정한 비교가 된다.
-   * 그래서 `focused` 는 진짜 tri-state가 아니라 `string | null` 이고, 오른쪽에서 패키지를
-   * 실제로 고를 때만 채워진다. 카드 표시는 이 값과 별개다 — 고른 게 없으면 그냥 기준
-   * 패키지 카드를 보여줄 뿐, 그걸 "골랐다" 고 하지 않는다(그래서 그 칩이 눌린 것처럼
-   * 보이지 않는다).
+   * 여러 개를 고르게 해 봤지만, 고른 수만큼 카드가 쌓여 오른쪽 열이 차트보다 길어지고
+   * "지금 무엇을 보는 중인가" 가 흐려졌다. 탭은 하나를 고르는 물건이라는 감각이 더 강하다.
+   *
+   * **"아무도 고르지 않은" 상태가 기본이다.** 처음부터 하나가 강조돼 있으면 나머지가
+   * 흐려진 채로 화면이 열려 공정한 비교가 안 된다. 그때 차트는 전부 같은 굵기로 그리고,
+   * 카드는 기준 패키지를 보여 준다 — 오른쪽 열이 통째로 비는 것보다 낫고, 기준은 사용자가
+   * 고른 것이 아니라 비교의 출발점이라 "골랐다" 고 말하지 않는다(그래서 그 칩은 눌린
+   * 것처럼 보이지 않는다).
+   *
+   * 비교 조합이 바뀌면 선택을 되돌린다. 없어진 패키지의 key 가 남아 있으면 강조가
+   * 아무 선에도 걸리지 않아 전부 흐려진 화면이 된다.
    */
   const packageKeys = model.packages.map((p) => p.key).join(',')
-  const [focused, setFocused] = useState<{ key: string; name: string | null }>({
+  const [picked, setPicked] = useState<{ key: string; name: string | null }>({
     key: packageKeys,
     name: null,
   })
-  const focusedName = focused.key === packageKeys ? focused.name : null
-  const emphasisKeys = focusedName ? [focusedName] : null
-  const displayedPackage =
-    packages.find((p) => p.key === focusedName) ?? packages[0] ?? undefined
-  const displayedIndex = displayedPackage
-    ? model.packages.findIndex((p) => p.key === displayedPackage.key)
-    : -1
+  const selected = picked.key === packageKeys ? picked.name : null
+  const emphasisKeys = selected ? [selected] : null
+
+  /** 고른 것이 없으면 기준 패키지. 강조와 달리 카드는 항상 하나가 떠 있어야 한다. */
+  const shownIndex = Math.max(
+    0,
+    packages.findIndex((p) => p.key === selected),
+  )
+  const shown = packages[shownIndex]
 
   const height = compactChart ? 148 : 196
 
@@ -199,38 +205,79 @@ export function EcosystemView({
       <EcosystemToolbar controls={controls} onChange={onControlsChange} snapshots={snapshots} />
 
       {/*
-        두 카드가 같은 선 모양을 쓰므로 범례도 한 번만.
-        Dependents 쪽을 기준으로 삼는다 — 표시 버전을 고르면 라벨에 그 사실이 실려서
-        (`express 4.x`) 어느 선이 무엇인지 범례만 봐도 알 수 있다.
+        칩 줄이 범례이면서 조작이다.
 
-        379 후속 — 축 읽는 법 설명을 카드마다 반복하지 않고 여기 한 번만 둔다. 카드 안
-        토글 줄에 나란히 있던 배지가 캡처 피드백에서 "지저분하다"고 지적된 자리였다.
-        모드는 카드마다 바뀌지만(지수·증감·로그축) 뜻은 매번 같으므로, 지금 무엇이
-        켜졌는지가 아니라 각 표시가 "무슨 뜻인지"를 한 번 알려 두는 것으로 충분하다.
+        선 견본과 이름을 이미 달고 있어서 범례가 하던 일을 그대로 한다 — 같은 정보를 두
+        줄로 늘어놓지 않는다. 라벨은 Dependents 선의 것을 그대로 쓴다. 표시 버전을 고르면
+        거기에 실려서(`express 4.x`) 어느 선이 무엇인지 이 줄만 봐도 알 수 있다.
+
+        조작줄 바로 아래, 차트 위에 둔다. 강조는 **두 차트 모두**에 걸리는 조작이라
+        한쪽 차트 옆이나 오른쪽 열에 있으면 무엇에 걸리는 조작인지 읽히지 않는다.
+
+        진짜 tabs(`components/ui/tabs.tsx`)를 쓰지 않는다 — Radix Tabs 는 항상 하나가
+        active 여야 해서 "아무것도 고르지 않은" 상태를 표현할 수 없다.
+
+        맨 앞 `모두` 는 선택을 비우는 자리다. 누른 칩을 다시 누르는 것으로도 풀린다.
       */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <SeriesLegend series={dependentsSeries} emphasisKeys={emphasisKeys} />
-          {/*
-            379 후속 2차 — 오른쪽에서 패키지를 고르면 차트가 그 선을 강조한다(아래).
-            그 상태를 되돌리는 자리를 범례 바로 옆에 둔다 — 강조가 시작되는 곳(오른쪽 카드)과
-            멀면 "그냥 다시 다 보고 싶을 뿐" 인데 스크롤해서 찾아야 한다.
-          */}
+      {model.packages.length > 0 && (
+        <div
+          role="group"
+          aria-label="강조할 패키지 선택"
+          className="flex flex-wrap items-center gap-1.5"
+        >
           <button
             type="button"
-            onClick={() => setFocused({ key: packageKeys, name: null })}
-            disabled={focusedName === null}
-            className="text-base text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-40 disabled:no-underline"
+            aria-pressed={selected === null}
+            onClick={() => setPicked({ key: packageKeys, name: null })}
+            className={cn(
+              'rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
+              selected === null
+                ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
+                : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+            )}
           >
-            전체 보기
+            모두
           </button>
+          {packages.map((p, i) => {
+            const style = seriesStyle(i)
+            const active = selected === p.key
+            return (
+              <button
+                key={p.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPicked({ key: packageKeys, name: active ? null : p.key })}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
+                  active
+                    ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
+                    : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                )}
+              >
+                <svg width="16" height="8" aria-hidden className="shrink-0">
+                  <line
+                    x1="0"
+                    y1="4"
+                    x2="16"
+                    y2="4"
+                    stroke={style.color}
+                    strokeWidth="2.4"
+                    strokeDasharray={style.dash}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="truncate font-mono">{dependentsSeries[i]?.label ?? p.key}</span>
+                <span className="sr-only">{style.patternLabel}</span>
+                {i === 0 && (
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+                    기준
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-          로그축은 세로 간격이 아니라 눈금 값을 보고 읽습니다(지그재그는 0~데이터 사이를
-          압축했다는 표시) · 지수는 표시 구간 시작을 100으로 둔 비율 · 증감은 전 스냅샷 대비
-          순증감입니다.
-        </p>
-      </div>
+      )}
 
       {/*
         좌: 차트 둘, 우: 패키지 카드.
@@ -256,7 +303,6 @@ export function EcosystemView({
             emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.dependents}
-            allowDelta
           />
           <MetricChart
             title="Downloads"
@@ -269,89 +315,35 @@ export function EcosystemView({
             emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.downloads}
-            maxWeeksNote={`최대 ${FETCH_WEEKS}주 조회`}
+            /*
+              Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비
+              몇 %" 가 누적 총합만큼 와닿지 않고, 주간 값은 그 자체로 오르내려서 기준으로
+              잡은 첫 주가 어쩌다 높거나 낮으면 이후 전 구간이 그만큼 통째로 밀린다.
+              누적인 Dependents 에는 그 흔들림이 없다.
+            */
             allowIndex={false}
           />
         </div>
 
         {/*
-          379 후속 — 패키지 카드를 세로로 쌓지 않고 하나만 보여준다. 비교 대상이 최대
-          3개까지 늘 수 있어(IA §1-2), 예전처럼 전부 펼쳐 두면 오른쪽 열이 차트보다 훨씬
-          길어져 스크롤해야 다음 패키지를 볼 수 있었다.
+          카드는 위 칩이 가리키는 하나뿐이다. 고른 것이 없으면 기준 패키지를 보여 준다 —
+          차트는 그때 전부 같은 굵기로 그려도, 오른쪽 열까지 비워 두면 화면의 절반이
+          이유 없이 빈다.
 
-          칩은 진짜 tabs(`components/ui/tabs.tsx`)가 아니라 직접 만든 버튼 줄이다 —
-          Radix Tabs 는 항상 하나가 active 여야 해서 "아무것도 고르지 않은" 상태를
-          표현할 수 없다. 고른 게 없을 때는 어느 칩도 눌린 것처럼 보이면 안 된다
-          (위 `focused` 주석).
+          `key` 에 패키지 이름을 준다. 탭을 바꿀 때 React 가 같은 노드를 재사용하면
+          펼침 애니메이션도, 안쪽 스크롤 위치도 이전 패키지 것을 물고 온다.
         */}
-        {model.packages.length > 0 && (
-          <div className="flex flex-col gap-4">
-            <div
-              role="group"
-              aria-label="패키지 상세 선택"
-              className="flex flex-wrap items-center gap-1.5"
-            >
-              {packages.map((p, i) => {
-                const style = seriesStyle(i)
-                const active = p.key === focusedName
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setFocused({ key: packageKeys, name: active ? null : p.key })}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 text-base transition-colors duration-150',
-                      active
-                        ? 'border-foreground/40 bg-foreground/[0.05] font-medium text-foreground'
-                        : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
-                    )}
-                  >
-                    <svg width="16" height="8" aria-hidden className="shrink-0">
-                      <line
-                        x1="0"
-                        y1="4"
-                        x2="16"
-                        y2="4"
-                        stroke={style.color}
-                        strokeWidth="2.4"
-                        strokeDasharray={style.dash}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="truncate font-mono">{p.key}</span>
-                    {i === 0 && (
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-                        기준
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/*
-              고른 게 없으면 기준 패키지 카드를 그냥 보여준다 — 그게 "선택"은 아니라서
-              위 칩 줄에서는 어느 것도 눌린 상태로 보이지 않는다(displayedPackage 는
-              focusedName 이 없을 때 조용히 packages[0]으로 떨어진다).
-            */}
-            {displayedPackage && (
-              <PackageCard
-                model={displayedPackage}
-                index={displayedIndex}
-                selectedVersion={versionByName[displayedPackage.key] ?? ALL_MAJORS}
-                onVersionChange={(next) => selectVersion(displayedPackage.key, next)}
-                versionShareState={versionShareState}
-              />
-            )}
-          </div>
+        {shown && (
+          <PackageCard
+            key={shown.key}
+            model={shown}
+            index={shownIndex}
+            selectedVersion={versionByName[shown.key] ?? ALL_MAJORS}
+            onVersionChange={(next) => selectVersion(shown.key, next)}
+            versionShareState={versionShareState}
+          />
         )}
       </div>
-
-      <p className="font-mono text-base text-muted-foreground">
-        {/* 기준일이 없다 = 아직 첫 스냅샷을 못 받았다. 장애가 아니라 자료 축적 중이다. */}
-        {model.snapshotAt ? `기준 스냅샷 ${model.snapshotAt}` : '기준 스냅샷 없음 — 데이터 축적 중'}
-      </p>
     </div>
   )
 }

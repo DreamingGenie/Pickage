@@ -181,8 +181,14 @@
   --animate-oss-pop: oss-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-oss-wipe: oss-wipe 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
   --animate-oss-rise: oss-rise 380ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-  /* 절차 카드가 앞 단계 아래로 떨어져 붙는 동작 */
-  --animate-oss-stack: oss-stack 420ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  /* 절차 카드가 앞 단계 아래로 떨어져 붙는 동작.
+     ⚠ 채움을 `both` 가 아니라 `backwards` 로 둔다. `both` 면 애니메이션이 끝난
+     뒤에도 채움이 유효해서, opacity·transform 을 다루는 이 애니메이션 때문에
+     카드가 **영구 스태킹 컨텍스트**가 된다. 그러면 카드 안의 검색 드롭다운
+     (z-30)이 카드 안에 갇히고, 카드 밖 하단 고정 바(z-20)가 그 위에 그려진다.
+     `to` 가 기본값(opacity 1 / transform none)과 같아서 뒤쪽 채움은 어차피
+     화면에 아무것도 더하지 않는다 (S15P21A506-374). */
+  --animate-oss-stack: oss-stack 420ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 }
 
 @keyframes oss-stack {

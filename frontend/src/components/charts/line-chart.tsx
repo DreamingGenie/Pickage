@@ -1,22 +1,21 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  breakMarkY,
   buildArea,
   buildLine,
   buildPoints,
-  compact,
   extentX,
   extentY,
+  formatTick,
   MAX_GAP_DAYS,
   ms,
   pointSize,
   scaleX,
+  scaleY,
   scaleYLinear,
-  scaleYLogBreak,
   shortDate,
+  ticksY,
   ticksYLinear,
-  ticksYLogBreak,
   type Box,
   type ChartSeries,
   type Domain,
@@ -36,7 +35,7 @@ export interface LineChartProps {
   observedFrom?: string
   /**
    * 강조할 시리즈 key 들. 전체를 포함하거나 비어 있으면 아무것도 흐려지지 않는다.
-   * 패키지 카드를 접으면 그 선이 차트에서도 물러난다.
+   * 오른쪽 탭에서 고른 패키지들이 여기로 온다 — 둘 이상 고를 수 있다.
    */
   emphasisKeys?: readonly string[] | null
   /**
@@ -47,22 +46,94 @@ export interface LineChartProps {
    */
   maxGapDays?: number
   /**
-   * 기본은 로그(311a) — 절대값 그래프에서 자릿수가 다른 시리즈를 겹칠 때 쓴다.
-   * 지수·증감 그래프는 `linear` 를 넘긴다 — 둘 다 음수가 나올 수 있고(증감), 로그는
-   * 음수를 정의하지 못한다.
+   * 기본은 로그(311a) — 실제값 그래프에서 자릿수가 다른 시리즈를 겹칠 때 쓴다.
+   * 변화율 그래프는 `linear` 를 넘긴다 — 기준이 100 하나뿐이라 압축할 자릿수가 없다.
    */
   yScale?: 'log' | 'linear'
   /**
-   * 도메인을 직접 지정한다. 없으면 `extentY(series)`(로그·0-포함)를 쓴다.
-   * 지수(`indexedExtentY`)·증감(`deltaExtentY`) 그래프는 반드시 넘겨야 한다 — 그 둘은
-   * 절대값 축과 "0 포함 여부"의 의미 자체가 달라, 이 컴포넌트가 임의로 고르면 안 된다.
+   * y 도메인을 만드는 방법. 기본은 `extentY` — 그리는 구간의 최솟값·최댓값에서 만든다.
+   * 변화율 그래프는 `indexedExtentY` 를 넘긴다(100 을 반드시 포함해야 하는 축이라 이
+   * 컴포넌트가 임의로 고르면 안 된다).
+   *
+   * **도메인 자체가 아니라 함수를 받는다.** 강조가 켜지면 강조된 선만으로 도메인을 다시
+   * 만들어야 하는데(아래), 완성된 도메인을 받으면 그 좁히기를 여기서 할 수 없다.
    */
-  yDomain?: Domain
+  yDomainOf?: (series: ChartSeries[]) => Domain
+  /** y 눈금 라벨. 기본은 `formatTick`(실제값). 변화율은 `formatIndexTick` 을 넘긴다. */
+  yFormat?: (v: number, d: Domain) => string
+  /** 툴팁 값 표기. 기본은 천 단위 구분. 변화율은 `%` 를 붙인다. */
+  valueFormat?: (v: number) => string
+  /**
+   * 뜻이 있는 가로 기준선. 변화율 그래프의 100% 처럼 **눈금과 무관하게 반드시 보여야 하는**
+   * 값에 쓴다. 눈금은 도메인을 균등 분할한 것이라 100 위에 떨어진다는 보장이 없다.
+   */
+  baseline?: number
+  /** 기준선에 붙일 짧은 말. 없으면 선만 긋는다. */
+  baselineLabel?: string
   className?: string
   ariaLabel: string
 }
 
 const PAD = { t: 8, r: 10, b: 16, l: 34 }
+
+/** y 도메인이 바뀔 때 새 축으로 옮겨 가는 시간(ms). */
+const Y_TWEEN_MS = 260
+
+/**
+ * 강조가 실제로 갈리는가.
+ *
+ * `emphasisKeys.length` 와 `series.length` 를 바로 비교하면 안 된다 — **두 집합의 모집단이
+ * 다르다.** 강조 목록에는 이 카드가 그리지 못한(자료가 아예 없는) 패키지도 들어 있어서,
+ * 그릴 수 있는 시리즈 둘 중 하나만 강조된 상황에서도 `2 < 2` 가 거짓이 되어 강조가 조용히
+ * 꺼졌다. 실제로 그렇게 꺼져 있었다. 세어야 하는 것은 **그려지는 시리즈 중 몇 개가 강조
+ * 대상인가**다.
+ */
+function partialEmphasis(
+  series: Pick<ChartSeries, 'key'>[],
+  emphasisKeys: readonly string[] | null | undefined,
+): boolean {
+  if (emphasisKeys == null) return false
+  let on = 0
+  for (const s of series) if (emphasisKeys.includes(s.key)) on++
+  return on > 0 && on < series.length
+}
+
+/**
+ * y 도메인을 한 번에 갈아치우지 않고 몇 프레임에 걸쳐 옮긴다.
+ *
+ * 구간을 바꾸거나 강조를 켜면 도메인이 통째로 바뀌는데, 그대로 두면 선이 순간이동해
+ * 어느 선이 어디로 갔는지 눈으로 따라갈 수 없다. CSS 로는 못 한다 — SVG `path` 의 `d` 는
+ * 전이 대상이 아니고, `transform: scaleY()` 로 늘리면 점 크기와 선 굵기까지 같이 찌그러진다.
+ * 그래서 도메인 숫자 자체를 rAF 로 보간한다.
+ *
+ * 움직임을 줄이라는 설정이면 `span = 0` 이라 첫 프레임이 곧 도착점이다 — 효과에서
+ * 동기적으로 setState 하지 않으려고 분기 대신 시간으로 처리한다.
+ */
+function useYDomainTween([lo, hi]: Domain): Domain {
+  const [shown, setShown] = useState<Domain>([lo, hi])
+  const fromRef = useRef<Domain>([lo, hi])
+  const rafRef = useRef(0)
+
+  useEffect(() => {
+    const from = fromRef.current
+    if (from[0] === lo && from[1] === hi) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    const span = reduce ? 0 : Y_TWEEN_MS
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const p = span === 0 ? 1 : Math.min(1, (now - t0) / span)
+      const e = 1 - Math.pow(1 - p, 3)
+      const next: Domain = [from[0] + (lo - from[0]) * e, from[1] + (hi - from[1]) * e]
+      fromRef.current = next
+      setShown(next)
+      if (p < 1) rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [lo, hi])
+
+  return shown
+}
 
 /**
  * 여러 패키지의 시계열을 한 카드에 겹쳐 그린다.
@@ -84,7 +155,11 @@ export function LineChart({
   emphasisKeys = null,
   maxGapDays = MAX_GAP_DAYS,
   yScale = 'log',
-  yDomain,
+  yDomainOf = extentY,
+  yFormat = formatTick,
+  valueFormat = (v: number) => v.toLocaleString(),
+  baseline,
+  baselineLabel,
   className,
   ariaLabel,
 }: LineChartProps) {
@@ -107,26 +182,38 @@ export function LineChart({
   const box: Box = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b }
 
   const xd = extentX(series)
-  const yd = yDomain ?? extentY(series)
-  /*
-   * 절대값(log) 모드는 `scaleYLogBreak` 를 쓴다 — 0-포함 로그축이 실제 데이터가 한 번도
-   * 닿지 않는 낮은 자릿수에 화면 높이 대부분을 낭비하는 문제를 줄이려고, [0, floor] 를
-   * 압축해 그리고 그 경계를 `breakY` 지그재그로 드러낸다(379 후속). 지수·증감(linear)은
-   * 애초에 이 문제가 없어 그대로 둔다.
-   */
-  const scaleYFn = yScale === 'linear' ? scaleYLinear : scaleYLogBreak
-  const ticksYFn = yScale === 'linear' ? ticksYLinear : ticksYLogBreak
-  const yTicks = bare ? [] : ticksYFn(yd, 3)
-  const breakY = !bare && yScale === 'log' ? breakMarkY(box) : null
-
-  const cutX = observedFrom ? scaleX(ms(observedFrom), xd, box) : null
-  const single = series.length === 1
-  const dot = pointSize(Math.max(...series.map((s) => s.points.length), 2), box.w)
 
   // 전부 강조하는 건 아무것도 강조하지 않는 것과 같다.
-  const partial =
-    emphasisKeys != null && emphasisKeys.length > 0 && emphasisKeys.length < series.length
+  const partial = partialEmphasis(series, emphasisKeys)
   const isOn = (key: string) => !partial || emphasisKeys!.includes(key)
+
+  /*
+    **강조를 켜면 나머지는 흐려지는 것이 아니라 아예 빠진다.**
+
+    흐리기(0.22)로는 부족했다. 증감 그래프에서 자릿수가 작은 패키지의 선은 0 근처에 거의
+    수평으로 눕는데, 그게 흐릿한 가로줄이 되어 **기준선처럼 읽힌다** — 실제로 그 오해가
+    보고됐다. 눈금선도 0 축도 이미 가로줄이라, 뜻이 다른 가로줄이 하나 더 생기는 셈이다.
+
+    빼는 편이 도메인과도 앞뒤가 맞는다. 도메인을 강조된 선만으로 다시 잡으므로(아래),
+    빠진 선들은 어차피 축 밖으로 밀려나 위아래 벽에 눌러 붙은 채 그려진다. 그건 값이
+    아니라 잘린 자리에 생긴 그림일 뿐이다.
+
+    무엇이 빠졌는지는 위 칩 줄이 그대로 들고 있다 — 선이 사라져도 목록에서 사라지지 않는다.
+
+    강조 대상이 하나도 그려지지 않았으면(자료가 없어 걸러진 경우) 전체로 물러난다.
+    빈 집합이면 축이 [0,1] 로 무너지고 화면이 통째로 빈다.
+  */
+  const picked = partial ? series.filter((s) => isOn(s.key)) : series
+  const drawn = picked.length > 0 ? picked : series
+  const yd = useYDomainTween(yDomainOf(drawn))
+
+  const scaleYFn = yScale === 'linear' ? scaleYLinear : scaleY
+  const ticksYFn = yScale === 'linear' ? ticksYLinear : ticksY
+  const yTicks = bare ? [] : ticksYFn(yd, 3)
+
+  const cutX = observedFrom ? scaleX(ms(observedFrom), xd, box) : null
+  const single = drawn.length === 1
+  const dot = pointSize(Math.max(...drawn.map((s) => s.points.length), 2), box.w)
 
   /** 스냅샷 시각 목록과 시리즈별 조회표. 커서 위치를 여기에 맞춘다. */
   const { times, lookup } = useMemo(() => {
@@ -237,24 +324,52 @@ export function LineChart({
                 fill="var(--muted-foreground)"
                 style={{ fontVariantNumeric: 'tabular-nums' }}
               >
-                {compact(v)}
+                {yFormat(v, yd)}
               </text>
             </g>
           )
         })}
 
         {/*
-          압축 표시(379 후속). [0, floor] 를 눌러 그렸다는 사실을 숨기지 않는다 — y축
-          위에 짧은 지그재그 두 줄을 그어 "이 아래는 축척이 다르다" 를 그대로 드러낸다.
+          뜻이 있는 기준선(변화율 100%).
+
+          눈금선보다 **진하게** 긋는다. 눈금선과 같은 세기면 가로줄 넷 중 하나로 묻혀서,
+          "어디가 출발점인가" 를 세어 가며 찾아야 한다. 색도 `--border` 가 아니라
+          `--foreground` 를 쓴다 — 점선 하나만으로는 구분이 약했다.
+
+          라벨은 선 위에 얹되 왼쪽 눈금 라벨을 피해 오른쪽 끝에 둔다. 바탕색 테두리를
+          둘러 선이 글자를 관통해도 읽힌다.
         */}
-        {breakY !== null && (
-          <g
-            stroke="var(--muted-foreground)"
-            strokeWidth="1.3"
-            vectorEffect="non-scaling-stroke"
-          >
-            <line x1={box.x - 5} y1={breakY + 5} x2={box.x + 5} y2={breakY - 3} />
-            <line x1={box.x - 5} y1={breakY + 9} x2={box.x + 5} y2={breakY + 1} />
+        {baseline !== undefined && !bare && baseline >= yd[0] && baseline <= yd[1] && (
+          <g>
+            <line
+              x1={box.x}
+              x2={box.x + box.w}
+              y1={scaleYFn(baseline, yd, box)}
+              y2={scaleYFn(baseline, yd, box)}
+              stroke="var(--foreground)"
+              strokeWidth="1.5"
+              strokeDasharray="5 3"
+              strokeOpacity="0.45"
+              vectorEffect="non-scaling-stroke"
+            />
+            {baselineLabel && (
+              <text
+                x={box.x + box.w - 2}
+                y={scaleYFn(baseline, yd, box) - 4}
+                textAnchor="end"
+                fontSize="9"
+                fontWeight="600"
+                fill="var(--foreground)"
+                fillOpacity="0.6"
+                stroke="var(--background)"
+                strokeWidth="3"
+                paintOrder="stroke"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {baselineLabel}
+              </text>
+            )}
           </g>
         )}
 
@@ -295,71 +410,63 @@ export function LineChart({
           />
         )}
 
-        {/* 강조 대상을 나중에 그려 위로 올린다 */}
-        {[...series.keys()]
-          .sort((a, b) => Number(isOn(series[a].key)) - Number(isOn(series[b].key)))
-          .map((i) => {
-            const s = series[i]
-            const st = seriesStyle(i)
-            const dimmed = partial && !isOn(s.key)
-            const focused = partial && isOn(s.key)
-            const hv = hoverT ? (lookup.get(s.key)?.get(hoverT) ?? null) : null
-            return (
-              <g
-                key={s.key}
-                opacity={dimmed ? 0.22 : 1}
-                style={{ transition: 'opacity 200ms ease' }}
-              >
-                {(single || focused) && (
-                  <path
-                    d={buildArea(s.points, xd, yd, box, maxGapDays, scaleYFn)}
-                    fill={st.color}
-                    fillOpacity={0.08}
-                  />
-                )}
+        {/* 그리는 것은 고른 선뿐이다. 자리 번호가 아니라 `tone` 으로 모양을 고른다 */}
+        {drawn.map((s, i) => {
+          const st = seriesStyle(s.tone ?? i)
+          const focused = partial && drawn.length < series.length
+          const hv = hoverT ? (lookup.get(s.key)?.get(hoverT) ?? null) : null
+          return (
+            <g key={s.key} style={{ transition: 'opacity 200ms ease' }}>
+              {(single || focused) && (
                 <path
-                  d={buildLine(s.points, xd, yd, box, maxGapDays, scaleYFn)}
+                  d={buildArea(s.points, xd, yd, box, maxGapDays, scaleYFn)}
+                  fill={st.color}
+                  fillOpacity={0.08}
+                />
+              )}
+              <path
+                d={buildLine(s.points, xd, yd, box, maxGapDays, scaleYFn)}
+                fill="none"
+                stroke={st.color}
+                strokeWidth={bare ? 1.6 : focused ? 2.6 : 1.8}
+                strokeDasharray={st.dash}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+              {/* 스냅샷 하나에 점 하나. 값이 없는 주는 점도 없다 */}
+              {!bare && (
+                <path
+                  d={buildPoints(s.points, xd, yd, box, scaleYFn)}
                   fill="none"
                   stroke={st.color}
-                  strokeWidth={bare ? 1.6 : focused ? 2.6 : 1.8}
-                  strokeDasharray={st.dash}
+                  strokeWidth={dot + (focused ? 1 : 0)}
                   strokeLinecap="round"
-                  strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
                 />
-                {/* 스냅샷 하나에 점 하나. 값이 없는 주는 점도 없다 */}
-                {!bare && (
+              )}
+              {/* 커서가 짚은 점만 키운다 */}
+              {hv !== null && hoverX !== null && (
+                <>
                   <path
-                    d={buildPoints(s.points, xd, yd, box, scaleYFn)}
-                    fill="none"
-                    stroke={st.color}
-                    strokeWidth={dot + (focused ? 1 : 0)}
+                    d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
+                    stroke="var(--background)"
+                    strokeWidth={dot + 7}
                     strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
                   />
-                )}
-                {/* 커서가 짚은 점만 키운다 */}
-                {hv !== null && hoverX !== null && (
-                  <>
-                    <path
-                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
-                      stroke="var(--background)"
-                      strokeWidth={dot + 7}
-                      strokeLinecap="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    <path
-                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
-                      stroke={st.color}
-                      strokeWidth={dot + 4}
-                      strokeLinecap="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  </>
-                )}
-              </g>
-            )
-          })}
+                  <path
+                    d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
+                    stroke={st.color}
+                    strokeWidth={dot + 4}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </>
+              )}
+            </g>
+          )
+        })}
 
         {!bare && (
           <>
@@ -389,17 +496,11 @@ export function LineChart({
         >
           <span className="font-mono text-base text-muted-foreground">{hoverT}</span>
           <ul className="flex flex-col gap-1">
-            {series.map((s, i) => {
-              const st = seriesStyle(i)
+            {drawn.map((s, i) => {
+              const st = seriesStyle(s.tone ?? i)
               const v = lookup.get(s.key)?.get(hoverT) ?? null
               return (
-                <li
-                  key={s.key}
-                  className={cn(
-                    'flex items-baseline justify-between gap-4 text-base',
-                    partial && !isOn(s.key) && 'opacity-40',
-                  )}
-                >
+                <li key={s.key} className="flex items-baseline justify-between gap-4 text-base">
                   <span className="flex items-center gap-1.5">
                     <svg width="14" height="8" aria-hidden className="shrink-0">
                       <line
@@ -418,7 +519,7 @@ export function LineChart({
                   <span
                     className={cn('font-mono tabular-nums', v === null && 'text-muted-foreground')}
                   >
-                    {v === null ? '자료 없음' : v.toLocaleString()}
+                    {v === null ? '자료 없음' : valueFormat(v)}
                   </span>
                 </li>
               )
@@ -436,16 +537,15 @@ export function SeriesLegend({
   emphasisKeys = null,
   className,
 }: {
-  series: Pick<ChartSeries, 'key' | 'label'>[]
+  series: Pick<ChartSeries, 'key' | 'label' | 'tone'>[]
   emphasisKeys?: readonly string[] | null
   className?: string
 }) {
-  const partial =
-    emphasisKeys != null && emphasisKeys.length > 0 && emphasisKeys.length < series.length
+  const partial = partialEmphasis(series, emphasisKeys)
   return (
     <ul className={cn('flex flex-wrap items-center gap-x-4 gap-y-1', className)}>
       {series.map((s, i) => {
-        const st = seriesStyle(i)
+        const st = seriesStyle(s.tone ?? i)
         const dimmed = partial && !emphasisKeys!.includes(s.key)
         return (
           <li

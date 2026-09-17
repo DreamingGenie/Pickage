@@ -145,7 +145,12 @@ public class PackageService {
 	/**
 	 * 구간을 정하고 조회한다.
 	 *
-	 * <p>§4 — 기본 구간의 기준은 오늘이 아니라 <b>최신 스냅샷</b>이다.
+	 * <p>§4 — 끝의 기준은 오늘이 아니라 <b>최신 스냅샷</b>이다.
+	 *
+	 * <p><b>{@code from} 을 생략하면 최초 스냅샷부터다</b> — 조회 기간 상한(104주)과 기본
+	 * 26주를 없애고 "생략 = 보유한 전부" 로 바꿨다(S15P21A506-374). 현장에서 전체 구간을
+	 * 보고 싶다는 요구가 반복됐는데, 상한 때문에 이른 {@code from} 을 주면 거절당해
+	 * 전체를 볼 방법이 아예 없었다.
 	 *
 	 * <p><b>스냅샷이 하나도 없으면 구간 자체가 없다</b>({@link SnapshotWindow#of}). 그때는 DB 에
 	 * 묻지 않고 빈 행 집합을 돌려준다 — 존재하는 이름은 {@link #toSeries} 를 지나며 빈 시리즈가
@@ -154,7 +159,8 @@ public class PackageService {
 	 */
 	private List<TrendRow> trendRows(LocalDate from, LocalDate to,
 		Function<SnapshotWindow, List<TrendRow>> query) {
-		return SnapshotWindow.of(from, to, repository.findLatestSnapshot())
+		return SnapshotWindow
+			.of(from, to, repository.findEarliestSnapshot(), repository.findLatestSnapshot())
 			.map(query)
 			.orElseGet(List::of);
 	}

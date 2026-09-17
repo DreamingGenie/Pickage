@@ -21,9 +21,7 @@ import {
   type MockPackage,
 } from '@/api/mock/dataset'
 import {
-  DEFAULT_WEEKS,
   MAX_NAMES,
-  MAX_WEEKS,
   NPM_NAME_RE,
   SEARCH_LIMIT_DEFAULT,
   SEARCH_LIMIT_MAX,
@@ -188,26 +186,23 @@ export function mockPackagesOverview(
  * 4·5. 추이
  * ------------------------------------------------------------------ */
 
-/** `from`·`to` 를 실제 스냅샷 축 위의 구간으로 바꾼다. 기간 상한도 여기서 본다. */
+/**
+ * `from`·`to` 를 실제 스냅샷 축 위의 구간으로 바꾼다.
+ *
+ * **생략하면 보유한 전부다** — `from` 은 최초 스냅샷, `to` 는 최신 스냅샷이다. 기간 상한은
+ * 없다(S15P21A506-374). 서버의 `SnapshotWindow.of` 와 같은 규칙이어야 mock 으로 본 화면이
+ * 실서버에서 달라지지 않는다.
+ */
 function resolveWindow(from?: string, to?: string): { from: string; to: string } {
   const checkedFrom = checkDate(from, '시작 날짜')
   const checkedTo = checkDate(to, '끝 날짜')
 
-  const end = checkedTo ?? LATEST_SNAPSHOT
-  const endIndex = ALL_SNAPSHOTS.indexOf(end)
   // 스냅샷 축에 없는 날짜도 형식만 맞으면 받는다. 잘라내기는 문자열 비교로 처리된다.
-  const fallbackStart =
-    ALL_SNAPSHOTS[
-      Math.max(0, (endIndex < 0 ? ALL_SNAPSHOTS.length - 1 : endIndex) - (DEFAULT_WEEKS - 1))
-    ]
-  const start = checkedFrom ?? fallbackStart
+  const end = checkedTo ?? LATEST_SNAPSHOT
+  const start = checkedFrom ?? ALL_SNAPSHOTS[0]
 
   if (start > end) fail('V002', '시작 날짜가 끝 날짜보다 뒤입니다.')
 
-  const weeks = Math.round((Date.parse(end) - Date.parse(start)) / (7 * 864e5)) + 1
-  if (weeks > MAX_WEEKS) {
-    fail('V002', `한 번에 최대 ${MAX_NAMES}개, 최대 ${MAX_WEEKS}주까지 조회할 수 있습니다.`)
-  }
   return { from: start, to: end }
 }
 
@@ -307,8 +302,7 @@ export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
   const id = `mock-${names.join('-')}-${sections.join('-')}`
 
   // 서버와 같은 규칙(구상안 §13.6). 스코프 문자는 파일명에 남기지 않는다.
-  const fileName =
-    `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
+  const fileName = `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
 
   mockPdfHtml.set(id, mockReportHtml(names, sections, not_found))
 
@@ -330,24 +324,22 @@ export function mockPdfPreview(reportId: string): Promise<string> {
 }
 
 /** 서버 렌더러의 모양만 흉내낸다. 값은 지어낸 것이다. */
-function mockReportHtml(
-  names: string[],
-  sections: readonly string[],
-  notFound: string[],
-): string {
+function mockReportHtml(names: string[], sections: readonly string[], notFound: string[]): string {
   const rows = names
     .map((name) => {
       const pkg = BY_NAME.get(name)
-      return `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>`
-        + `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      return (
+        `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>` +
+        `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      )
     })
     .join('')
 
   const pending = sections
     .map(
       (s) =>
-        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>`
-        + `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
+        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>` +
+        `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
     )
     .join('')
 

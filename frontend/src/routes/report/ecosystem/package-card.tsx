@@ -1,8 +1,10 @@
+import { ExternalLinkIcon } from 'lucide-react'
+
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ObservationBadges } from '@/routes/report/ecosystem/badges'
+import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
   ALL_MAJORS,
   type MajorSelection,
@@ -14,9 +16,9 @@ import { cn } from '@/lib/utils'
 /**
  * 패키지 카드 — 상세 하나 전체.
  *
- * 379 후속: 예전에는 여러 장을 세로로 쌓아 두고 카드마다 접고 펼 수 있었다(스크롤이
- * 길어지는 문제가 있었다). 지금은 `EcosystemView`가 탭으로 하나만 골라 이 컴포넌트를
- * 그 패키지 것으로 한 번만 렌더한다 — 그래서 이 컴포넌트 안에는 더 이상 접힘 상태가 없다.
+ * 카드를 세로로 쌓고 각자 접었다 펴던 구조를 버렸다. 비교 대상이 셋까지 늘 수 있어
+ * (IA §1-2) 전부 펼치면 오른쪽 열이 차트보다 훨씬 길어졌다. 지금은 위 칩 줄이 고른
+ * 하나만 `EcosystemView` 가 렌더한다 — 그래서 이 컴포넌트 안에 접힘 상태가 없다.
  */
 export function PackageCard({
   model,
@@ -37,9 +39,14 @@ export function PackageCard({
   const isBase = index === 0
   const delta = model.dependentsDelta
 
-  return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]">
-      <div className="flex items-center justify-between gap-3">
+  /*
+    머리글. 이름 아래 줄에 라이선스와 버전을 둔다 — 라이선스는 "이걸 써도 되나" 를
+    가르는 값이라 카드 맨 아래에 있으면 스크롤해야 보였다. 저장소는 주소를 그대로
+    늘어놓지 않고 아이콘 하나로 줄여 이름에서 떨어진 오른쪽 끝에 둔다.
+  */
+  const header = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
         <div className="flex min-w-0 items-center gap-2.5">
           <svg width="20" height="8" aria-hidden className="shrink-0">
             <line
@@ -65,8 +72,18 @@ export function PackageCard({
             </span>
           )}
         </div>
-        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
+        <span className="pl-[30px] font-mono text-xs text-muted-foreground/60">
+          {model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'} · v
+          {model.latestVersion}
+        </span>
       </div>
+      <RepositoryLink url={model.repoUrl} name={model.key} />
+    </div>
+  )
+
+  return (
+    <div className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
+      {header}
 
       {model.description && (
         <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
@@ -76,27 +93,33 @@ export function PackageCard({
 
       {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-base text-muted-foreground">Dependents 증감</span>
-          <span className="flex items-baseline gap-2">
-            <span className="font-mono text-lg leading-none font-semibold tabular-nums">
-              {delta === null
-                ? '—'
-                : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
-            </span>
-            <span className="text-base text-muted-foreground">
-              {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
-            </span>
-          </span>
-        </div>
         {/*
-          311c — 표시 간격에 따라 "화면에 뜬 첫 점"이 구간 시작과 정확히 같지 않을 수 있다
-          (`sampleEvery`가 뒤에서부터 솎기 때문). 그래서 실제로 증감을 낸 두 날짜를 그대로 적는다.
+          값이 없을 때를 위 네 타일과 **같은 모양**으로 그린다. 여기만 "—" 로 두면 같은
+          카드 안에서 빈 자리 모양이 둘이 되어, 사용자가 둘을 다른 뜻으로 읽는다.
+
+          있을 때는 증감 자체가 결론이라 부호와 색을 값에 바로 붙인다 — 늘면 붉게,
+          줄면 푸르게. 날짜 구간은 적지 않는다. 이 카드는 화면에 뜬 구간을 그대로 따라가고,
+          그 구간은 바로 위 조작줄이 이미 보여 주고 있다.
         */}
-        {delta !== null && model.dependentsDeltaFrom && model.dependentsDeltaTo && (
-          <p className="-mt-1.5 font-mono text-base text-muted-foreground">
-            {model.dependentsDeltaFrom} ~ {model.dependentsDeltaTo}
-          </p>
+        {delta === null ? (
+          <MissingTile label="Dependents 증감" title="증감을 내려면 관측치가 둘 이상 필요합니다" />
+        ) : (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-base text-muted-foreground">Dependents 증감</span>
+            <span
+              className={cn(
+                'font-mono text-lg leading-none font-semibold tabular-nums',
+                delta > 0
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : delta < 0
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {delta > 0 ? '+' : delta < 0 ? '−' : '±'}
+              {Math.abs(delta).toLocaleString()}
+            </span>
+          </div>
         )}
 
         <VersionPicker
@@ -115,7 +138,10 @@ export function PackageCard({
         ) : versionShareState.status === 'error' ? (
           <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
         ) : model.versionShare.length === 0 ? (
-          <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
+          <EmptyPanel
+            message="버전 분포를 불러올 수 없습니다"
+            hint="이 시점에 집계된 자료가 없습니다"
+          />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-5">
@@ -134,12 +160,6 @@ export function PackageCard({
               공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
               프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
             </p>
-            {/* 개요의 snapshotAt(카드 전체 공통 기준일)과 다른 값일 수 있어 따로 적는다 */}
-            {model.versionShareSnapshotAt && (
-              <p className="font-mono text-base text-muted-foreground">
-                기준일 {model.versionShareSnapshotAt}
-              </p>
-            )}
           </>
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
@@ -157,14 +177,31 @@ export function PackageCard({
           </p>
         )}
       </div>
-
-      {/* 라이선스·최신 릴리스는 판단 재료라 카드 맨 아래에 조용히 둔다 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-base text-muted-foreground">
-        <span>{model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'}</span>
-        <span className="font-mono">최신 릴리스 {model.publishedAt.slice(0, 10)}</span>
-        {model.repoUrl && <span className="truncate font-mono">{model.repoUrl}</span>}
-      </div>
     </div>
+  )
+}
+
+/**
+ * 저장소 바로가기.
+ *
+ * 주소를 그대로 적지 않는다 — 카드 폭에서 잘려 읽을 수도 없고, 읽을 필요도 없다.
+ *
+ * `http(s)` 로 시작하는 주소만 링크로 만든다. 수집원이 `git@…` 이나 `git+ssh://` 를
+ * 그대로 주는 경우가 있는데, 그걸 `href` 에 넣으면 눌러도 아무 일이 안 일어난다.
+ */
+function RepositoryLink({ url, name }: { url: string | null; name: string }) {
+  if (!url || !/^https?:\/\//.test(url)) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`${name} 저장소 열기`}
+      aria-label={`${name} 저장소 열기`}
+      className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+    >
+      <ExternalLinkIcon aria-hidden className="size-4" />
+    </a>
   )
 }
 

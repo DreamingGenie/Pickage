@@ -12,7 +12,7 @@ export interface EcosystemControls {
 /**
  * 차트 위 공통 조작줄.
  *
- * <p><b>여기의 어떤 조작도 서버를 다시 부르지 않는다.</b> 추이는 상한(104주)만큼 한 번에
+ * <p><b>여기의 어떤 조작도 서버를 다시 부르지 않는다.</b> 추이는 쌓아 둔 전 구간을 한 번에
  * 받아 두었고, 시작·끝을 고르는 일과 간격을 솎는 일은 그 위에서 끝난다.
  *
  * <p>처음에는 "26주 / 52주 / 104주" 버튼이 서버 조회 범위를 바꾸고, 그와 별개로 아래 드롭다운이
@@ -21,8 +21,11 @@ export interface EcosystemControls {
  * "전체" 를 눌러도 26주가 끝이고, 넓히려면 버튼·좁히려면 드롭다운이라 어디를 만질지 헷갈렸다.
  * 지금은 조작이 하나뿐이라 그 구분 자체가 없다.
  *
- * <p>구간은 상대 기간("최근 1년")이 아니라 <b>실제 스냅샷 날짜</b>로 고른다. 목록에 없는
- * 날짜는 고를 수 없으므로, 화면에 뜬 시작·끝은 언제나 서버가 준 스냅샷을 가리킨다.
+ * <p>구간은 상대 기간("최근 1년")이 아니라 <b>실제 집계 날짜</b>로 고른다. 목록에 없는
+ * 날짜는 고를 수 없으므로, 화면에 뜬 시작·끝은 언제나 서버가 준 집계를 가리킨다.
+ *
+ * <p>"스냅샷" 이라는 말은 화면에 쓰지 않는다. 우리 쪽 수집 단위의 이름이지 읽는 사람이
+ * 아는 말이 아니다.
  */
 export function EcosystemToolbar({
   controls,
@@ -39,7 +42,6 @@ export function EcosystemToolbar({
   const { start, end } = controls.window
   const si = snapshots.indexOf(start)
   const ei = snapshots.indexOf(end)
-  const count = si >= 0 && ei >= si ? ei - si + 1 : 0
 
   function setStart(v: string) {
     // 끝을 넘어서면 끝도 같이 민다. 뒤집힌 구간을 만들지 않는다.
@@ -54,33 +56,16 @@ export function EcosystemToolbar({
   return (
     <div className={cn('flex flex-wrap items-center gap-x-5 gap-y-3', className)}>
       <div className="flex items-center gap-2">
-        <span className="text-base whitespace-nowrap text-muted-foreground">스냅샷 구간</span>
-        <DateSelect value={start} options={snapshots} onChange={setStart} label="시작 스냅샷" />
+        <span className="text-base whitespace-nowrap text-muted-foreground">조회 기간</span>
+        <DateSelect value={start} options={snapshots} onChange={setStart} label="시작일" />
         <span className="text-base text-muted-foreground">~</span>
-        <DateSelect value={end} options={snapshots} onChange={setEnd} label="끝 스냅샷" />
-        <span className="font-mono text-base text-muted-foreground tabular-nums">{count}주</span>
-        {/*
-          이제 "전체" 가 실제로 전체다. 받아 둔 것이 곧 상한이라 더 넓힐 것이 없다.
-          예전에는 26주만 받아 둔 상태에서도 이 버튼이 있어 이름과 동작이 어긋났다.
-        */}
-        <button
-          type="button"
-          onClick={() =>
-            onChange({
-              ...controls,
-              window: { start: snapshots[0], end: snapshots[snapshots.length - 1] },
-            })
-          }
-          className="text-base text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          전체
-        </button>
+        <DateSelect value={end} options={snapshots} onChange={setEnd} label="종료일" />
       </div>
 
       <div className="ml-auto flex items-center gap-2">
         <span className="text-base whitespace-nowrap text-muted-foreground">표시 간격</span>
         <SegmentedControl
-          label="스냅샷 표시 간격"
+          label="표시 간격"
           options={INTERVALS.map((i) => ({ key: i.key, label: i.label }))}
           value={controls.intervalKey}
           onChange={(key) => onChange({ ...controls, intervalKey: key })}

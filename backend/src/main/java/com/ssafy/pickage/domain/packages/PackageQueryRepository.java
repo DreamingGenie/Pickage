@@ -36,6 +36,7 @@ public class PackageQueryRepository {
 
 	/** 0.5 — 모든 현재값의 기준. */
 	private static final String LATEST_SNAPSHOT_SQL = "SELECT MAX(snapshot_at) FROM snapshot";
+	private static final String EARLIEST_SNAPSHOT_SQL = "SELECT MIN(snapshot_at) FROM snapshot";
 
 	/**
 	 * 이름이 {@code package} 에 있는지만 본다.
@@ -48,6 +49,17 @@ public class PackageQueryRepository {
 
 	public LocalDate findLatestSnapshot() {
 		return jdbcTemplate.queryForObject(LATEST_SNAPSHOT_SQL, LocalDate.class);
+	}
+
+	/**
+	 * {@code from} 을 생략했을 때의 시작. 추이 조회가 "보유한 전부" 를 뜻하게 하는 값이다
+	 * (S15P21A506-374).
+	 *
+	 * <p>스냅샷이 하나도 없으면 {@code null} 이다 — {@code MIN} 은 빈 표에서도 행 하나를
+	 * 돌려주므로 {@code EmptyResultDataAccessException} 이 아니라 {@code null} 로 온다.
+	 */
+	public LocalDate findEarliestSnapshot() {
+		return jdbcTemplate.queryForObject(EARLIEST_SNAPSHOT_SQL, LocalDate.class);
 	}
 
 	public List<String> findExistingNames(PackageNames names) {
