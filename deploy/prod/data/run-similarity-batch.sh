@@ -148,10 +148,21 @@ PREV_RUN=$(printf '%s' "$PREV_JSON" \
 if [ -n "$PREV_RUN" ] && ! sh lib/pointer-is-newer.sh "$PREV_RUN" "$OUT_RUN"; then
   echo "      포인터가 더 최신이라 그대로 둡니다: $PREV_RUN"
 else
-  POINTER=$(printf '{"run_path":"%s","run_id":"%s","published_at":"%s"}' \
-            "$OUT_RUN" "$CORPUS_RUN" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+  echo "      manifest_sha256 계산"
+  # watch.py 의 needs_publish() 가 이 값으로 재발행 여부를 가른다. load.py 가
+  # 나중에 같은 파일을 받아 계산하는 값과 바이트 단위로 같아야 하므로,
+  # ingest-weekly 의 boto3 클라이언트로 원본 바이트를 그대로 받아 해시한다
+  # (S15P21A506-376). mc cat 을 셸 변수에 담아 해시하면 후행 개행이 잘려나갈
+  # 수 있어 load.py 가 나중에 계산하는 값과 어긋날 위험이 있다 — 그래서 쓰지 않는다.
+  MANIFEST_SHA256=$(docker compose run --rm --entrypoint python ingest-weekly \
+    -m pipeline.minio.manifest_hash \
+    --bucket "$AI_DST_RESULT" --key "$OUT_RUN/run_manifest.json" | tail -n1)
+  [ -n "$MANIFEST_SHA256" ] || { echo "  manifest_sha256 을 계산하지 못했습니다." >&2; exit 1; }
+
+  POINTER=$(printf '{"run_path":"%s","run_id":"%s","published_at":"%s","manifest_sha256":"%s"}' \
+            "$OUT_RUN" "$CORPUS_RUN" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MANIFEST_SHA256")
   mc "printf '%s' '$POINTER' | mc pipe l/$AI_DST_RESULT/_current.json"
-  echo "      $OUT_RUN"
+  echo "      $OUT_RUN  sha256=$MANIFEST_SHA256"
 fi
 
 echo "완료: $AI_DST_RESULT/$OUT_RUN"
