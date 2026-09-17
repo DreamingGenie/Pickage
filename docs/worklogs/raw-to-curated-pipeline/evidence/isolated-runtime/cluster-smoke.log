@@ -1,0 +1,20 @@
+ Container pickage-runtime-local-20260915-master-1 Running 
+ Container pickage-runtime-local-20260915-worker1-1 Running 
+ Container pickage-runtime-local-20260915-worker2-1 Running 
+ Container pickage-runtime-local-20260915-master-1 Waiting 
+ Container pickage-runtime-local-20260915-master-1 Waiting 
+ Container pickage-runtime-local-20260915-master-1 Healthy 
+ Container pickage-runtime-local-20260915-master-1 Healthy 
+ Container pickage-runtime-local-20260915-master-1 Waiting 
+ Container pickage-runtime-local-20260915-master-1 Healthy 
+ Container pickage-runtime-local-20260915-driver-run-2af66534088d Creating 
+ Container pickage-runtime-local-20260915-driver-run-2af66534088d Created 
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/09/15 08:36:55 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+26/09/15 08:36:57 WARN DAGScheduler: Barrier stage in job 0 requires 2 slots, but only 0 are available. Will retry up to 40 more times
+
+[Stage 0:>                                                          (0 + 2) / 2]
+
+                                                                                
+{"distinct_workers_observed": 2, "expected_workers": 2, "master": "spark://master:7077", "node_semver_passed": true, "partitions": 2, "runtime_versions": [{"hostname": "da6bf65fc056", "java_version": "17.0.20.1", "node_version": "v24.21.0", "python_version": "3.11.16"}, {"hostname": "453bdc564f73", "java_version": "17.0.20.1", "node_version": "v24.21.0", "python_version": "3.11.16"}], "task_results": [{"hostname": "da6bf65fc056", "items": 1, "java_version": "17.0.20.1", "node_semver_1_2_3": true, "node_version": "v24.21.0", "python_version": "3.11.16"}, {"hostname": "453bdc564f73", "items": 1, "java_version": "17.0.20.1", "node_semver_1_2_3": true, "node_version": "v24.21.0", "python_version": "3.11.16"}], "worker_hostnames": ["453bdc564f73", "da6bf65fc056"]}

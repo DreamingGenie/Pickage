@@ -1,5 +1,16 @@
 # MinIO raw → Curated 통합 실행기 작업 기록
 
+## 최신 실험 요약과 결정 (2026-09-17)
+
+[전처리 성능 실험 정리와 DuckDB 채택 결정](20-experiment-summary-and-engine-decision.md)을 먼저 읽는다.
+repository도 DuckDB를 사용하는 방향으로 결정했다. 실험 구현과 실제 표본 비교는 완료했으며,
+일반 실행기 연결은 후속 작업이다. 아래 본문 및 번호별 기록은 당시의 계획·진행·결과 이력이다.
+
+- [1천 repository 상세 계측](16-repository-profile-results.md)
+- [두 EC2에 2core씩 분산한 결과](17-repository-two-node-four-core.md)
+- [1천 Spark/DuckDB 비교](18-repository-duckdb-experiment.md)
+- [1만 전체 단계 비교와 원인 진단](19-repository-10k-full-stage-profile.md)
+
 ## 변경 범위와 계획 (2026-09-14)
 
 사용자가 승인한 계획을 구현한다. MinIO raw의 명시적 단일 스냅샷 입력을 받아 기존 전처리를

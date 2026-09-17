@@ -1,0 +1,44 @@
+{
+  "status": "RAW_FROZEN_AND_TELEMETRY_VERIFIED",
+  "raw_objects": 1960,
+  "raw_bytes": 13767054117,
+  "snapshot": "2026-08-31",
+  "input_identity": "9ccbbae874773a165b678e13dee3b1103549deb3fc8bf00672d59c2aaa952970",
+  "elapsed_seconds": 875.4193822930101,
+  "raw_local_root": "/home/ubuntu/pickage-experiments/raw-freeze-20260915-b1/payload/frozen",
+  "shared_prefix": "s3a://pickage-curated/experiments/raw-freeze-20260915-b1/inputs",
+  "app_shared_read": "VERIFIED",
+  "service_containers": {
+    "app": {
+      "count": 5,
+      "containers_unchanged": true
+    },
+    "data": {
+      "count": 4,
+      "containers_unchanged": true
+    }
+  },
+  "guard_samples": 469,
+  "guard_issues": 0,
+  "cleanup": {
+    "copy_exit_code": 0,
+    "guard": {
+      "reason": "FINISHED",
+      "run": "raw-freeze-20260915-b1"
+    },
+    "remaining_experiment_containers": []
+  },
+  "targeted_tests_passed": 32,
+  "fixture_result_groups_equal": 22,
+  "real_preprocessing_executed": false,
+  "all_five_stage_inputs_ready": false,
+  "two_ec2_performance_benchmark_executed": false,
+  "ready_for_load": false,
+  "ready_for_publication": false,
+  "task_09_complete": false,
+  "current_code_sha256": "ea240f1c44e72c72387f7056f6ad14cef4fe87a0d1520b927e34c5afc93513cd",
+  "raw_manifest_sha256": "f5408949993f6e2f2c53edab74e8c30848aa98db1a1843ff6b89f1868a0b0de7",
+  "minimum_data_host_available_memory_bytes": 14181695488,
+  "maximum_minio_health_seconds": 0.03826200612820685,
+  "maximum_app_health_seconds": 0.04273887304589152
+}

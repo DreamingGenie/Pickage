@@ -1,0 +1,84 @@
+{
+  "configured_caps": {
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpusetCpus": "",
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "container": "raw-freeze-20260915-b1-copy",
+  "container_id": "82aa44b04209b978d4c31ce1924958c2ecf27a6c48823582772debbe4fa1a842",
+  "delta": {
+    "counter_resets": {
+      "cpu": {
+        "system_usec": false,
+        "usage_usec": false,
+        "user_usec": false
+      },
+      "io": {
+        "rbytes": false,
+        "rios": false,
+        "wbytes": false,
+        "wios": false
+      },
+      "memory.events": {
+        "high": false,
+        "low": false,
+        "max": false,
+        "oom": false,
+        "oom_group_kill": false,
+        "oom_kill": false
+      },
+      "network": {
+        "rx_bytes": false,
+        "tx_bytes": false
+      }
+    },
+    "cpu": {
+      "system_usec": 252337,
+      "usage_usec": 1335315,
+      "user_usec": 1082979
+    },
+    "elapsed_seconds": 15.38967776298523,
+    "io": {
+      "rbytes": 0,
+      "rios": 0,
+      "wbytes": 262189056,
+      "wios": 1012
+    },
+    "memory": {
+      "current": 2146500608,
+      "events": {
+        "high": 0,
+        "low": 0,
+        "max": 1400,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "peak": 2148986880,
+      "stat": {
+        "anon": 53116928,
+        "file": 2032988160,
+        "kernel": 58277888,
+        "sock": 1462272
+      }
+    },
+    "network": {
+      "rx_bytes": 485081383,
+      "tx_bytes": 434482
+    }
+  },
+  "duration_seconds": 15.415767051978037,
+  "limitations": {
+    "memory_peak": "cgroup-lifetime high-water mark; may predate this sampling run",
+    "network": "read from /proc/<host-pid>/net/dev; with host networking this describes the host network namespace and is not container-isolated",
+    "scope": "read-only local Docker cgroup-v2 sampling; counters may be null when unavailable"
+  },
+  "max_observed_memory_peak_bytes": 2148986880,
+  "max_sampled_memory_current_bytes": 2147475456,
+  "run_id": "raw-freeze-20260915-b1",
+  "sample_count": 16,
+  "stop_reason": "DURATION_LIMIT"
+}

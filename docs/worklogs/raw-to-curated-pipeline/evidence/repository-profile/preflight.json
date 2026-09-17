@@ -1,0 +1,46 @@
+{
+  "status": "WAITING",
+  "competing_containers": [
+    "pickage-weekly-run"
+  ],
+  "free_disk_bytes": 107138334720,
+  "manifest_sha256": "47a2cea179b368577891005102785ca801ee413b3df6e9abf9118c4bd45c11f6",
+  "input_identity": "99a4ed92c0976834b6178d9979fea4fc7a83cc0bec4786fe1d235aaf02e4648e",
+  "sample": {
+    "package_rows": 1000,
+    "seed": "pickage-real-sample-v1",
+    "sampling": "half_target_union_then_hash_order_fill",
+    "selection_sha256": "e88d24fc80dc747510f7d3d47620928b23bd39d2f6c5915964f8650fae4469fb",
+    "target_union_packages": 500,
+    "row_counts": {
+      "package.parquet": 1000,
+      "package_ids.parquet": 1000,
+      "versions_full.parquet": 106393,
+      "requirements.parquet": 106393,
+      "version.parquet": 40417,
+      "dependents_targets.parquet": 500,
+      "downloads_status.parquet": 500,
+      "daily/date=2026-08-24/part-0000.parquet": 499,
+      "daily/date=2026-08-25/part-0001.parquet": 499,
+      "daily/date=2026-08-26/part-0002.parquet": 499,
+      "daily/date=2026-08-27/part-0003.parquet": 499,
+      "daily/date=2026-08-28/part-0004.parquet": 499,
+      "daily/date=2026-08-29/part-0005.parquet": 499,
+      "daily/date=2026-08-30/part-0006.parquet": 499,
+      "projects.parquet": 672,
+      "snapshot/download_files.parquet": 1000,
+      "snapshot/repository_files.parquet": 1000,
+      "snapshot/selection_files.parquet": 1000
+    },
+    "all_versions_of_selected_packages": true,
+    "graph_scope": "sampled_importers_only; not global dependents",
+    "detail_quality_scope": "no unrelated full-population download detail files",
+    "production_performance_claim": false
+  },
+  "container_cpu_limit": 3,
+  "container_memory_mib": 7680,
+  "spark_master": "local[2]",
+  "jvm_heap": "4g",
+  "db_loaded": false,
+  "production_publication": false
+}

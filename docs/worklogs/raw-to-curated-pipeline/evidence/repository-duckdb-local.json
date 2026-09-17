@@ -1,0 +1,741 @@
+{
+  "status": "VERIFIED",
+  "scope": "LOCAL_CORRECTNESS_ONLY_NOT_SERVER_PERFORMANCE",
+  "input_identity": "99a4ed92c0976834b6178d9979fea4fc7a83cc0bec4786fe1d235aaf02e4648e",
+  "original_manifest_sha256": "47a2cea179b368577891005102785ca801ee413b3df6e9abf9118c4bd45c11f6",
+  "candidate_code_sha256": "42e82343e59cf7f0cb2acb1551b84986a0f71752792675027c988e56e07a9fe3",
+  "reference_code_sha256": "e138f2e78b4263f3486107bc97497668fa868db52faa1cbfef2c1cbef298c7f9",
+  "input_hashes_verified": {
+    "package": "d0a9035471e2271a6ad42a703510b570d268be586659f45e191989d69b31b221",
+    "version": "7fe967b59c192865af65947766fe09099519f0bcaa82e5c928793b649845be82",
+    "versions_full": "9ef9ac785d589f4529b3e0d241c0a40421f1cd2befa7e81a0492aff4aedc5493",
+    "projects": "50bcd72426ec083e7ec81cc097939cad118802136229e46c8757be93adb199ad"
+  },
+  "reference_parquet_hashes_verified": {
+    "repository/metric/data/part-00009-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "868aad85da51dd72c98875641d5ad11eb276f2c690c13c927257b20cd4c63e99",
+    "repository/metric/data/part-00007-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "010da330df1890271f12d3ef7333b6bfa27fb4479ee555b5dbbc72c9cdd76595",
+    "repository/metric/data/part-00015-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "e225c464ad82cf1aeb8e7bb4ca89d8b4e0f725bf47dfb928d14e641f87130d9c",
+    "repository/metric/data/part-00002-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "133658e205fa6fcb3b9027c80f06abe5d9d7ab17b561aa291bcd218b559d411a",
+    "repository/metric/data/part-00014-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "bd66e445316414374c051a01962e7c90ef1708a720646d302622ef0c347eda55",
+    "repository/metric/data/part-00000-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "ece5de0332dfb9586a4543b9633573d3129f3160af6ac6fe7b0765c6c2890061",
+    "repository/metric/data/part-00013-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "046b90de0bcbf21688c6cd88c26954c48670af61723b9ea746e6178301518037",
+    "repository/metric/data/part-00012-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "3807a3bc1e1f9b17a69ba8a38af00c86fd51e81c92c62138f63b0cedc92d518a",
+    "repository/metric/data/part-00001-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "1de8f15842fbdecdb20b7c009c055e8d2bd090e32d386a127d4859e1cc769e5c",
+    "repository/metric/data/part-00011-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "0135f8a4fd049c31d3019d60112a4708630ebad28b9410b47f0da580d8444ee5",
+    "repository/metric/data/part-00008-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "5c5aa12c89dd025c5fd5bb51323bb401116489dbfc90a9bcc4403a5ea7399fdd",
+    "repository/metric/data/part-00005-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "4e18546febb8e9ccd56689c9b3c97a412fc18045f931a1a718a45213dd040cb3",
+    "repository/metric/data/part-00003-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "065786c15940d75d1d13c5796499f056dcf3ae3a9c09532235d5c96deea0453b",
+    "repository/metric/data/part-00010-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "a3df44fbcd153174ddfe0b83c3d3e5cd42bc8801a25f2212688725138abdfeda",
+    "repository/metric/data/part-00006-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "236e8c4c0f5e15196ea5d99de8451a2712d7573d003185495ce0428238f964b3",
+    "repository/metric/data/part-00004-77d920fe-4cf5-40a9-901d-511365f40651-c000.snappy.parquet": "80d8ccacae6223e48026ab61335146405e8b059fda87b07e130146b5b32c317c",
+    "repository/quality/candidates/part-00000-ca81bd38-a8fe-43d2-994f-9f7a11385ff8-c000.snappy.parquet": "f44b8e3e968f7d085f100bf1ea334201492eb007044bf51f5df7ea9d62be3999",
+    "repository/quality/project_conflicts/part-00000-2d41e942-ee98-4c04-891b-80ebc23fd87e-c000.snappy.parquet": "9d4612116f51b948d4722051375168f5e324cc5ab7aa855723ae11b98539bc69",
+    "repository/quality/unmapped_projects/part-00000-274e8532-93e9-4438-ac10-243bafb3bf13-c000.snappy.parquet": "9a5ab61d0d7756feb323303295ac06d0d8953918b78df8f7a67bef43e95c8227",
+    "repository/quality/selection/part-00006-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "c2fe856069f9457f792fc477b40c52cf14a8035b57fb55a78a01a0ed4d5a4011",
+    "repository/quality/selection/part-00008-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "41288a5ec93058083696cd45910e140d6000015ad853e7f0381a4f3a34781a5f",
+    "repository/quality/selection/part-00009-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "25c5cf2743039714c7d227182a9b7b9b4adba503151e3c0981339ba2e0199568",
+    "repository/quality/selection/part-00004-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "eec9d712077a4e64e1a282a2eb5dce7eea232b84c3be06b5ca69e50c34eb9078",
+    "repository/quality/selection/part-00010-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "54e490c6486351fbf8911884f239ff8f15f1284235eb32398c0c193e7cf601be",
+    "repository/quality/selection/part-00003-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "24614719b8b93ff35bbd1abe897be4eb6c1a327c1be20cf176c44bce5765d3ed",
+    "repository/quality/selection/part-00014-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "a8c94d38787eb4fbb19ebe81bb6b844b673b1baf470e834a9f5bd903ada867c5",
+    "repository/quality/selection/part-00002-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "9de2615eb7dafa8e52c4edbb92fd5fbd81f4ce54f5d76b490e36d106daf67df9",
+    "repository/quality/selection/part-00005-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "57bdb0ff75a6ed83cd28316853e973eed262637eed952c5b8c9893ae86f17124",
+    "repository/quality/selection/part-00013-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "29f4ba14b803567422874d99f3f748d2f0b7a8805cbabc1df6873d99ee225578",
+    "repository/quality/selection/part-00001-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "d78450f696986f7f729d26e28d04981a8d126cadb7371f51a390180c1c9369cd",
+    "repository/quality/selection/part-00007-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "456bf3202391f237f916fca391154eecdd334feb299ea1ec70d118d33e5d4d84",
+    "repository/quality/selection/part-00000-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "fc06ea655c8c59f99adc688c58fa1bf34528ccb7c9e6db5d425fcb67d51975f8",
+    "repository/quality/selection/part-00012-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "f942fa86c63c6d4aac8128164981a7599e35b029a0d9c8cb4cb00713d602bc2c",
+    "repository/quality/selection/part-00011-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "e3955d05cf47fb93e5f5bf0fd2ef97b52fe0c9f5d35830bd4be63a36aee2293b",
+    "repository/quality/selection/part-00015-bcd6f64a-164a-433b-9b3c-da81f4474270-c000.snappy.parquet": "c45467d85df6526268d7f32f88defc37abfce5f956dd38bd0009e7f4f2087967",
+    "repository/quality/project_observations/part-00000-e2bb13dd-48ca-4cd7-83e3-f6effe6db9e2-c000.snappy.parquet": "0bd6395f91b1076c5ac663db38d8501fcbd3341b9503e58ac196a4e1e2126b10"
+  },
+  "groups": {
+    "metric/data": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 1000,
+          "schema": [
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "snapshot_at",
+              "DATE"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 1000,
+          "schema": [
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "snapshot_at",
+              "DATE"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/selection": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 1000,
+          "schema": [
+            [
+              "comparison_project_path",
+              "VARCHAR"
+            ],
+            [
+              "mapping_status",
+              "VARCHAR"
+            ],
+            [
+              "observed_project_path",
+              "VARCHAR"
+            ],
+            [
+              "observed_timestamp",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 1000,
+          "schema": [
+            [
+              "comparison_project_path",
+              "VARCHAR"
+            ],
+            [
+              "mapping_status",
+              "VARCHAR"
+            ],
+            [
+              "observed_project_path",
+              "VARCHAR"
+            ],
+            [
+              "observed_timestamp",
+              "TIMESTAMP"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/candidates": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 40417,
+          "schema": [
+            [
+              "eligible",
+              "BOOLEAN"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "published_at",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "selected",
+              "BOOLEAN"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "source_repo",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 40417,
+          "schema": [
+            [
+              "eligible",
+              "BOOLEAN"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "published_at",
+              "TIMESTAMP"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "selected",
+              "BOOLEAN"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "source_repo",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/project_observations": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 672,
+          "schema": [
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "distinct_metric_pairs",
+              "BIGINT"
+            ],
+            [
+              "invalid",
+              "INTEGER"
+            ],
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 672,
+          "schema": [
+            [
+              "SnapshotAt",
+              "TIMESTAMP"
+            ],
+            [
+              "distinct_metric_pairs",
+              "BIGINT"
+            ],
+            [
+              "invalid",
+              "INTEGER"
+            ],
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/project_conflicts": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 0,
+          "schema": [
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "invalid_metric",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 0,
+          "schema": [
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "invalid_metric",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/unmapped_projects": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 0,
+          "schema": [
+            [
+              "ForksCount",
+              "BIGINT"
+            ],
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "Type",
+              "VARCHAR"
+            ],
+            [
+              "invalid_metric",
+              "BOOLEAN"
+            ],
+            [
+              "project_name",
+              "VARCHAR"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 0,
+          "schema": [
+            [
+              "ForksCount",
+              "BIGINT"
+            ],
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "Type",
+              "VARCHAR"
+            ],
+            [
+              "invalid_metric",
+              "BOOLEAN"
+            ],
+            [
+              "project_name",
+              "VARCHAR"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "report_equal": true,
+  "candidate_report": {
+    "output_counts": {
+      "metric/data": 1000,
+      "quality/selection": 1000,
+      "quality/candidates": 40417,
+      "quality/project_observations": 672,
+      "quality/project_conflicts": 0,
+      "quality/unmapped_projects": 0
+    },
+    "mapping": {
+      "packages": 1000,
+      "selected": 834,
+      "null": 285
+    },
+    "selection_reasons": {
+      "SELECTED": 715,
+      "NO_EXACT_OBSERVATION": 119,
+      "NO_VALID_REPOSITORY": 166
+    },
+    "null_reasons": {
+      "NO_EXACT_OBSERVATION": 119,
+      "NO_VALID_REPOSITORY": 166
+    },
+    "candidate_reasons": {
+      "INVALID_OR_UNSUPPORTED_REPOSITORY_URL": 886,
+      "NO_REPOSITORY_URL": 8746,
+      "VALID_REPOSITORY_CANDIDATE": 30785
+    },
+    "conflicts": 0,
+    "unsupported_project_rows": 0,
+    "validation": "PASSED",
+    "lineage": {
+      "snapshot": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+      "counts": {
+        "package": 1000,
+        "version": 40417,
+        "versions_full": 106393,
+        "projects": 672
+      }
+    }
+  },
+  "reference_report": {
+    "candidate_reasons": {
+      "INVALID_OR_UNSUPPORTED_REPOSITORY_URL": 886,
+      "NO_REPOSITORY_URL": 8746,
+      "VALID_REPOSITORY_CANDIDATE": 30785
+    },
+    "conflicts": 0,
+    "lineage": {
+      "counts": {
+        "package": 1000,
+        "projects": 672,
+        "version": 40417,
+        "versions_full": 106393
+      },
+      "snapshot": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z"
+    },
+    "mapping": {
+      "null": 285,
+      "packages": 1000,
+      "selected": 834
+    },
+    "null_reasons": {
+      "NO_EXACT_OBSERVATION": 119,
+      "NO_VALID_REPOSITORY": 166
+    },
+    "output_counts": {
+      "metric/data": 1000,
+      "quality/candidates": 40417,
+      "quality/project_conflicts": 0,
+      "quality/project_observations": 672,
+      "quality/selection": 1000,
+      "quality/unmapped_projects": 0
+    },
+    "selection_reasons": {
+      "NO_EXACT_OBSERVATION": 119,
+      "NO_VALID_REPOSITORY": 166,
+      "SELECTED": 715
+    },
+    "unsupported_project_rows": 0,
+    "validation": "PASSED"
+  },
+  "duckdb_version": "1.5.5",
+  "source_paths_remapped_only": true
+}

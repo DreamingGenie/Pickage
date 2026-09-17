@@ -1,5 +1,10 @@
 # 기존 전처리와 Spark 전처리 비교
 
+2026-09-17 결정: **repository도 DuckDB를 사용하는 구성을 채택한다.** 실제 1천·1만 표본의
+비교 결과와 제한, 실패 이력은 [실험 종합 정리](../../docs/worklogs/raw-to-curated-pipeline/20-experiment-summary-and-engine-decision.md)에 있다.
+DuckDB repository는 이 디렉터리의 실험 구현이며 일반 실행기에 연결하는 작업은 아직 남아 있다.
+아래 baseline/spark 표는 기존 실험의 비교 대상을 설명한다.
+
 일반 실행은 계속 `python -m pipeline.orchestration`을 사용한다. 이 모듈은 별도 실험용이다.
 기존 계산 코드는 보존되어 있고, Spark 구현은 이 디렉터리에만 추가한다.
 

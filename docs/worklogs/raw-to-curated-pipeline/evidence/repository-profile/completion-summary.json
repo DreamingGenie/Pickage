@@ -1,0 +1,284 @@
+{
+  "run_id": "repository-profile1000-20260917-a1",
+  "result": {
+    "status": "COMPLETE",
+    "run_id": "repository-profile1000-20260917-a1",
+    "started_at": 1789618015.1136868,
+    "production_publication": false,
+    "db_loaded": false,
+    "phases": {
+      "baseline": {
+        "seconds": 60.971168994903564,
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-09-17T04:06:56.361453433Z",
+          "FinishedAt": "2026-09-17T04:07:54.637122468Z"
+        }
+      }
+    },
+    "resource_policy": {
+      "status": "READY",
+      "weekly": {
+        "time": 1789618015.0872128,
+        "monotonic": 1484247.950643507,
+        "container_id": "eba3dcef83eff40e96c2fc8bf7d94791f13e6841680c4e151548f66e6685bdf3",
+        "restarts": 0,
+        "phase": [
+          "downloads_weekly",
+          "\uc2dc\uc791"
+        ],
+        "checkpoint_age_seconds": 15.914381504058838,
+        "weekly_cpu_usage_usec": 185464528,
+        "weekly_anon_bytes": 137486336,
+        "available_memory_bytes": 14183452672,
+        "io_pressure_avg10": 0.0,
+        "memory_pressure_avg10": 0.0
+      },
+      "weekly_issue": null,
+      "competing_containers": [],
+      "free_disk_bytes": 107127377920,
+      "manifest_sha256": "47a2cea179b368577891005102785ca801ee413b3df6e9abf9118c4bd45c11f6",
+      "input_identity": "99a4ed92c0976834b6178d9979fea4fc7a83cc0bec4786fe1d235aaf02e4648e",
+      "sample": {
+        "package_rows": 1000,
+        "seed": "pickage-real-sample-v1",
+        "sampling": "half_target_union_then_hash_order_fill",
+        "selection_sha256": "e88d24fc80dc747510f7d3d47620928b23bd39d2f6c5915964f8650fae4469fb",
+        "target_union_packages": 500,
+        "row_counts": {
+          "package.parquet": 1000,
+          "package_ids.parquet": 1000,
+          "versions_full.parquet": 106393,
+          "requirements.parquet": 106393,
+          "version.parquet": 40417,
+          "dependents_targets.parquet": 500,
+          "downloads_status.parquet": 500,
+          "daily/date=2026-08-24/part-0000.parquet": 499,
+          "daily/date=2026-08-25/part-0001.parquet": 499,
+          "daily/date=2026-08-26/part-0002.parquet": 499,
+          "daily/date=2026-08-27/part-0003.parquet": 499,
+          "daily/date=2026-08-28/part-0004.parquet": 499,
+          "daily/date=2026-08-29/part-0005.parquet": 499,
+          "daily/date=2026-08-30/part-0006.parquet": 499,
+          "projects.parquet": 672,
+          "snapshot/download_files.parquet": 1000,
+          "snapshot/repository_files.parquet": 1000,
+          "snapshot/selection_files.parquet": 1000
+        },
+        "all_versions_of_selected_packages": true,
+        "graph_scope": "sampled_importers_only; not global dependents",
+        "detail_quality_scope": "no unrelated full-population download detail files",
+        "production_performance_claim": false
+      },
+      "container_cpu_limit": 2,
+      "cpu_shares": 128,
+      "nice": 10,
+      "disk_read_write_limit_mib_s_each": 32,
+      "container_memory_mib": 7680,
+      "spark_master": "local[2]",
+      "jvm_heap": "4g",
+      "db_loaded": false,
+      "production_publication": false
+    },
+    "phase": "baseline",
+    "finished_at": 1789618079.2206807,
+    "cleanup_errors": []
+  },
+  "slowest_actions": [
+    {
+      "group_id": "repository-profile:0019:_write:metric/data:parquet",
+      "label": "_write:metric/data:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "metric/data"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618046.6460528,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 10.578499842202291
+    },
+    {
+      "group_id": "repository-profile:0001:spark.startup",
+      "label": "spark.startup",
+      "callsite": [],
+      "time": 1789618021.1612508,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 5.538952443981543
+    },
+    {
+      "group_id": "repository-profile:0002:_read:package:count",
+      "label": "_read:package:count",
+      "callsite": [
+        {
+          "function": "_read",
+          "line": 30,
+          "source": "if frame.count() != expected:",
+          "dataset": "package"
+        },
+        {
+          "function": "transform",
+          "line": 76,
+          "source": "package, version = _read(spark, inputs, \"package\"), _read(spark, inputs, \"version\")",
+          "dataset": null
+        }
+      ],
+      "time": 1789618030.2110155,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 2.1336233830079436
+    },
+    {
+      "group_id": "repository-profile:0021:_write:quality/selection:parquet",
+      "label": "_write:quality/selection:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/selection"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618057.5824971,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 2.0666662969160825
+    },
+    {
+      "group_id": "repository-profile:0015:transform:121:count",
+      "label": "transform:121:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 121,
+          "source": "if matched.where(F.col(\"r.Name\").isNull()).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618040.6550066,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.807043557986617
+    },
+    {
+      "group_id": "repository-profile:0023:_write:quality/candidates:parquet",
+      "label": "_write:quality/candidates:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/candidates"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618059.9671078,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.2835954139009118
+    },
+    {
+      "group_id": "repository-profile:0014:transform:115:count",
+      "label": "transform:115:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 115,
+          "source": "if approved.count() != inputs[\"counts\"][\"version\"]:",
+          "dataset": null
+        }
+      ],
+      "time": 1789618039.28601,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.2556814779527485
+    },
+    {
+      "group_id": "repository-profile:0008:transform:101:count",
+      "label": "transform:101:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 101,
+          "source": "if package.groupBy(\"package_id\").count().where(\"count > 1\").limit(1).count() or package.groupBy(\"name\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618035.2436023,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.0018248478882015
+    }
+  ],
+  "metric_totals": {
+    "executor_run_time_ms": 21969,
+    "executor_cpu_time_ns": 10093569136,
+    "executor_deserialize_time_ms": 5498,
+    "result_serialization_time_ms": 452,
+    "jvm_gc_time_ms": 530,
+    "memory_spill_bytes": 0,
+    "disk_spill_bytes": 0,
+    "input_bytes": 20221882,
+    "output_bytes": 997159,
+    "shuffle_local_read_bytes": 1584742,
+    "shuffle_remote_read_bytes": 0,
+    "shuffle_fetch_wait_time_ms": 0,
+    "shuffle_write_bytes": 1584742
+  },
+  "failed_tasks": 0,
+  "weekly_guard_samples": 22,
+  "weekly_issues": [],
+  "service_guard_issues": [],
+  "min_available_memory_bytes": 12166971392,
+  "max_io_pressure_avg10": 3.63,
+  "weekly_still_running": true,
+  "weekly_restarts": 0,
+  "weekly_same_id": true,
+  "last_weekly_sample": {
+    "time": 1789618077.021858,
+    "monotonic": 1484309.885288903,
+    "container_id": "eba3dcef83eff40e96c2fc8bf7d94791f13e6841680c4e151548f66e6685bdf3",
+    "restarts": 0,
+    "phase": [
+      "downloads_weekly",
+      "\uc2dc\uc791"
+    ],
+    "checkpoint_age_seconds": 12.745417356491089,
+    "weekly_cpu_usage_usec": 185584010,
+    "weekly_anon_bytes": 137486336,
+    "available_memory_bytes": 14109528064,
+    "io_pressure_avg10": 3.63,
+    "memory_pressure_avg10": 0.0,
+    "issue": null
+  },
+  "comparison": "EQUAL"
+}

@@ -1,0 +1,59 @@
+{
+  "app": {
+    "original_containers_unchanged": true,
+    "original_container_count": 5,
+    "guard_samples": 142,
+    "min_available_gib": 13.381935119628906,
+    "max_service_health_seconds": 0.056144929956644773,
+    "guard_issues": 0
+  },
+  "data": {
+    "original_containers_unchanged": true,
+    "original_container_count": 4,
+    "guard_samples": 142,
+    "min_available_gib": 12.676128387451172,
+    "max_service_health_seconds": 0.047759816981852055,
+    "guard_issues": 0
+  },
+  "spark": {
+    "task_count": 14,
+    "executor_hosts": [
+      "172.26.6.235",
+      "172.26.8.249"
+    ],
+    "remote_shuffle_bytes_read": 1548,
+    "shuffle_bytes_written": 3104,
+    "executor_cpu_seconds": 1.223993963,
+    "result": {
+      "status": "VERIFIED",
+      "scope": "TWO_EC2_RUNTIME_AND_SHUFFLE_ONLY",
+      "app_id": "app-20260915085525-0001",
+      "workers": [
+        {
+          "hostname": "ec2-runtime-20260915-a1-worker-data",
+          "private_ip": "172.26.8.249",
+          "python": "3.11.16",
+          "spark": "3.5.3",
+          "node": "v24.21.0",
+          "semver_ok": true,
+          "items": 1
+        },
+        {
+          "hostname": "ec2-runtime-20260915-a1-worker-app",
+          "private_ip": "172.26.6.235",
+          "python": "3.11.16",
+          "spark": "3.5.3",
+          "node": "v24.21.0",
+          "semver_ok": true,
+          "items": 1
+        }
+      ],
+      "input_rows": 10000,
+      "shuffle_groups": 16,
+      "elapsed_seconds": 10.776071778964251,
+      "real_raw_performance_measured": false,
+      "minio_written": false,
+      "db_loaded": false
+    }
+  }
+}
