@@ -62,11 +62,71 @@ export function niceMax(v: number): number {
   return step * mag
 }
 
+/** `niceMax` 의 부호 있는 버전. 증감 축의 아래쪽(음수) 여유를 같은 규칙으로 올린다. */
+function niceBound(v: number): number {
+  if (v === 0) return 0
+  return v < 0 ? -niceMax(-v) : niceMax(v)
+}
+
+/**
+ * 지수(=100 기준) 비교 축의 도메인. **0 을 강제하지 않는다** — 이 축의 기준선은 100 이지
+ * 0 이 아니다(변화 없음 = 100). 그래서 `extentY` 의 "잘린 축은 과장한다" 경고가 여기엔
+ * 적용되지 않는다: 100 언저리로 좁혀 그리는 것이 이 그래프의 정의 자체다.
+ *
+ * 100 은 항상 도메인에 포함한다 — 기준선이 화면 밖으로 나가면 "무엇 대비 몇 %"인지
+ * 읽을 수 없다. 데이터가 100 근처에 몰려 있어도 위아래로 최소 여유를 둔다(2p, 그리고
+ * 실제 편차의 12%) — 값이 전부 정확히 100(첫 관측치 자기 자신)인 첫 스냅샷 부근에서
+ * 도메인이 [100,100] 으로 붕괴해 선이 찌그러지는 것을 막는다.
+ */
+export function indexedExtentY(series: ChartSeries[]): Domain {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  if (!Number.isFinite(lo)) return [90, 110]
+  lo = Math.min(lo, 100)
+  hi = Math.max(hi, 100)
+  const pad = Math.max((hi - lo) * 0.12, 2)
+  return [lo - pad, hi + pad]
+}
+
+/**
+ * 증감(전 스냅샷 대비 순증감) 그래프의 도메인. **0 은 항상 포함한다** — 여기서 0 은 절대값
+ * 축과 달리 임의의 바닥이 아니라 "변화 없음"이라는 실제 기준선이라, 포함해도 `extentY` 의
+ * 과장 문제가 생기지 않는다. 위아래 모두 `niceMax` 로 올려 음수 구간도 대칭적으로 여유를
+ * 둔다.
+ */
+export function deltaExtentY(series: ChartSeries[]): Domain {
+  let lo = 0
+  let hi = 0
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  return [niceBound(lo), niceBound(hi)]
+}
+
 /**
  * y축은 로그 공간에서 그린다(311a). 의존 수·다운로드 모두 몇 자릿수를 오가서, 선형 축이면
  * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 0을 포함하는
  * 도메인(`extentY`가 항상 0을 하한으로 둔다)에서 `log(0)`이 `-Infinity`가 되는 것을 피하기
  * 위해서다 — `log1p(0) = 0`이라 0이 항상 바닥에 안전하게 찍힌다.
+ *
+ * **이 로그축은 "자릿수가 다른 시리즈"를 위한 것이지 "자릿수는 같은데 몇 % 차이"를 위한
+ * 것이 아니다.** 후자는 0~최댓값의 로그 구간 전체 중 실제 데이터가 사는 곳이 맨 위 얇은
+ * 띠 하나뿐이라 로그를 써도 안 써도 똑같이 붙어 보인다. 그 경우를 위한 것이 아래
+ * `indexedExtentY`/`scaleYLinear`(지수 비교)와 `deltaExtentY`(증감)다 — **축을 0 밖에서
+ * 임의로 잘라 확대하는 방식은 쓰지 않는다.** 잘린 절대값 축은 실제로는 작은 차이를 크게
+ * 보이게 과장하고, 지수·증감은 "0을 뺀 것"이 아니라 애초에 기준이 다른(100·변화없음)
+ * 정직한 지표다.
  */
 const toLog = (v: number) => Math.log1p(Math.max(0, v))
 
@@ -75,6 +135,13 @@ export function ticksY([lo, hi]: Domain, count = 3): number[] {
   const lHi = toLog(hi)
   const out: number[] = []
   for (let i = 0; i <= count; i++) out.push(Math.expm1(lLo + ((lHi - lLo) * i) / count))
+  return out
+}
+
+/** 지수·증감처럼 선형 공간이 맞는 축의 눈금. 로그 변환을 거치지 않는다. */
+export function ticksYLinear([lo, hi]: Domain, count = 3): number[] {
+  const out: number[] = []
+  for (let i = 0; i <= count; i++) out.push(lo + ((hi - lo) * i) / count)
   return out
 }
 
@@ -89,6 +156,66 @@ export const scaleY = (v: number, d: Domain, b: Box) => {
   const lLo = toLog(d[0])
   const lHi = toLog(d[1])
   return lHi === lLo ? b.y + b.h : b.y + b.h - ((toLog(v) - lLo) / (lHi - lLo)) * b.h
+}
+
+/**
+ * 로그 없이 그대로 선형 보간한다. 지수(=100 기준) 비교·증감 그래프에 쓴다 — 둘 다 음수가
+ * 나올 수 있고(증감) 로그는 음수를 정의하지 못하며, 지수는 애초에 자릿수 차이를 다룰
+ * 이유가 없다(기준이 100 하나뿐이라 시리즈 간 규모차가 존재하지 않는다).
+ */
+export const scaleYLinear = (v: number, d: Domain, b: Box) =>
+  d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
+
+/**
+ * 절대값(0-포함) 로그축의 "낭비 구간" 을 줄인다(379 후속).
+ *
+ * 원인: 실제로 비교하는 패키지들은 거의 항상 수십만~수천만대인데, 0-포함 로그축은
+ * 1~10~100~... 전 자릿수에 똑같은 화면 높이를 나눠 준다. 그 자릿수들에는 데이터가 한 번도
+ * 안 닿으니 차트 대부분이 빈 공간이 된다.
+ *
+ * **그래도 0 을 빼거나 값을 왜곡하지 않는다** — `extentY` 의 "잘린 축은 과장한다" 원칙은
+ * 그대로다. 대신 [0, floor] 구간에는 화면 높이의 일부(`BREAK_BAND_FRAC`)만 선형으로 눌러
+ * 배정하고, 실제 데이터가 사는 [floor, 최댓값] 구간에 나머지 높이를 로그로 배정한다.
+ *
+ * **floor 는 비교 중인 두 시리즈의 최솟값이 아니라 도메인 자체의 최댓값에서 고정 비율로
+ * 정한다.** 어느 두 패키지를 비교하든 같은 규칙이 적용되므로, 특정 쌍의 격차를 크게
+ * 보이려고 그때그때 고른 값이 아니다 — 그 점이 "공정함"의 조건이다. 압축한 자리는
+ * `line-chart.tsx` 가 지그재그 표시로 그대로 드러낸다(`breakMarkY`) — 잘랐다는 사실을
+ * 숨기지 않는다.
+ */
+export const BREAK_BAND_FRAC = 0.07
+
+function logBreakFloor(hi: number): number {
+  return hi > 0 ? hi / 500 : 1
+}
+
+export const scaleYLogBreak = (v: number, d: Domain, b: Box) => {
+  const hi = d[1]
+  const floor = logBreakFloor(hi)
+  const bandH = b.h * BREAK_BAND_FRAC
+  const base = b.y + b.h
+  if (v <= floor) {
+    return base - (Math.max(v, 0) / floor) * bandH
+  }
+  const lLo = toLog(floor)
+  const lHi = toLog(hi)
+  const bodyH = b.h - bandH
+  return lHi === lLo ? base - bandH : base - bandH - ((toLog(v) - lLo) / (lHi - lLo)) * bodyH
+}
+
+/** `scaleYLogBreak` 과 짝을 이루는 눈금. 0 은 항상 찍고, 나머지는 floor~최댓값을 로그로 나눈다. */
+export function ticksYLogBreak([, hi]: Domain, count = 3): number[] {
+  const floor = logBreakFloor(hi)
+  const lLo = toLog(floor)
+  const lHi = toLog(hi)
+  const out = [0]
+  for (let i = 1; i <= count; i++) out.push(Math.expm1(lLo + ((lHi - lLo) * i) / count))
+  return out
+}
+
+/** 압축 표시(지그재그)를 그릴 y 좌표 — 선형 0~floor 밴드의 위쪽 경계. */
+export function breakMarkY(b: Box): number {
+  return b.y + b.h - b.h * BREAK_BAND_FRAC
 }
 
 /**
@@ -121,6 +248,7 @@ const broken = (prev: TimePoint | null, cur: TimePoint, maxGapDays: number) =>
  * @param maxGapDays 이 일수를 넘게 벌어진 이웃은 잇지 않는다. 화면이 스냅샷을 솎아 그릴
  *                   때는(`sampleEvery`) 정상 간격 자체가 넓어지므로 호출하는 쪽이 그 간격에
  *                   맞춰 올려 준다. 안 그러면 4주 간격 보기에서 모든 구간이 끊긴다.
+ * @param yScaleFn   기본은 로그(`scaleY`). 지수·증감 그래프는 `scaleYLinear` 를 넘긴다.
  */
 export function buildLine(
   points: TimePoint[],
@@ -128,6 +256,7 @@ export function buildLine(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   let d = ''
   let pen = false
@@ -140,7 +269,7 @@ export function buildLine(
     }
     if (broken(prev, p, maxGapDays)) pen = false
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `${pen ? 'L' : 'M'}${x} ${y}`
     pen = true
     prev = p
@@ -155,6 +284,7 @@ export function buildArea(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   const base = (b.y + b.h).toFixed(2)
   let d = ''
@@ -181,7 +311,7 @@ export function buildArea(
     if (broken(prev, p, maxGapDays)) flush()
     run.push({
       x: scaleX(ms(p.t), xd, b).toFixed(2),
-      y: scaleY(p.v, yd, b).toFixed(2),
+      y: yScaleFn(p.v, yd, b).toFixed(2),
     })
     prev = p
   }
@@ -227,15 +357,77 @@ export function windowSeries(
  * 길이 0 짜리 선분에 `stroke-linecap="round"` + `vector-effect="non-scaling-stroke"`
  * 를 주면 뷰박스 왜곡과 무관하게 화면상 정원이 찍힌다.
  */
-export function buildPoints(points: TimePoint[], xd: Domain, yd: Domain, b: Box): string {
+export function buildPoints(
+  points: TimePoint[],
+  xd: Domain,
+  yd: Domain,
+  b: Box,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
+): string {
   let d = ''
   for (const p of points) {
     if (p.v === null) continue
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `M${x} ${y}L${x} ${y}`
   }
   return d
+}
+
+/**
+ * 창의 첫 유효 관측치를 100으로 두고 나머지를 그 대비 비율로 바꾼다(지수 비교 모드).
+ *
+ * 기준값이 없거나(전부 결측) 0이면 비율을 만들 수 없다 — 지어내지 않고 그 시리즈는
+ * 통째로 결측으로 남긴다. **패키지마다 자기 창의 첫 점을 기준으로 삼는다** — 절대
+ * 시작일이 달라도(observedFrom 이 갈리는 시리즈) "그 시점부터 몇 % 변했나"는 비교할 수
+ * 있어야 한다.
+ */
+export function indexSeriesTo100(series: ChartSeries[]): ChartSeries[] {
+  return series.map((s) => {
+    const base = s.points.find((p) => p.v !== null)?.v ?? null
+    if (base === null || base === 0) {
+      return { ...s, points: s.points.map((p) => ({ t: p.t, v: null })) }
+    }
+    return {
+      ...s,
+      points: s.points.map((p) => ({ t: p.t, v: p.v === null ? null : (p.v / base) * 100 })),
+    }
+  })
+}
+
+/**
+ * 화면에 그려진(windowed+sampled) 연속 점끼리의 차이(증감 모드).
+ *
+ * **부르는 쪽은 반드시 화면에 그린 것과 같은 시리즈를 넘겨야 한다** — `deltaOf`(311c)와
+ * 같은 이유다. 표시 간격을 4주로 솎아 보고 있으면 이 함수가 만드는 것도 "4주 간격 증감"이고,
+ * 그게 화면 x축이 실제로 보여주는 간격과 일치한다.
+ *
+ * 결측이거나 이웃과 너무 벌어진(`maxGapDays` 초과) 점은 증감을 셀 수 없다 — 값을 0으로
+ * 채우지 않고 그 점의 증감을 결측으로 남긴다. 창의 첫 점은 비교할 이전 값이 없어 항상
+ * 결측이다.
+ */
+export function deltaSeriesOf(
+  series: ChartSeries[],
+  maxGapDays: number = MAX_GAP_DAYS,
+): ChartSeries[] {
+  return series.map((s) => {
+    const out: TimePoint[] = []
+    let prev: TimePoint | null = null
+    for (const p of s.points) {
+      if (p.v === null) {
+        out.push({ t: p.t, v: null })
+        prev = null
+        continue
+      }
+      if (prev === null || broken(prev, p, maxGapDays)) {
+        out.push({ t: p.t, v: null })
+      } else {
+        out.push({ t: p.t, v: p.v - (prev.v as number) })
+      }
+      prev = p
+    }
+    return { ...s, points: out }
+  })
 }
 
 /**
