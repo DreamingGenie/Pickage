@@ -243,6 +243,26 @@ def build_periods(con):
         con.execute("INSERT INTO periods VALUES (?, ?)", [w, t1])
 
 
+# 0 이 아니면 계산이 틀린 것이다. 나머지 검산 항목(비중 따위)은 판정이 아니라 관측값이라
+# 여기 넣지 않는다.
+FAIL_IF_NONZERO = ("impossible_change_without_move", "conservation_t2_mismatch",
+                   "conservation_t1_mismatch", "inflow_new_exceeds_inflow")
+
+
+def require_clean(checks):
+    """검산이 하나라도 어긋나면 **산출물을 쓰기 전에** 멈춘다.
+
+    기록만 하고 넘어가면 실패가 마지막 로그 줄의 긴 JSON 한가운데에만 남고, exit 0 이라
+    자동화도 성공으로 본다. 그 상태로 ingest_derived 를 돌리면 검산을 통과하지 못한
+    parquet 이 `_SUCCESS` 와 함께 Curated 로 올라가고 PostgreSQL·API·화면까지 간다.
+    `pipeline/version_dependents/` 가 "집계 실패 시 결과를 만들거나 덮어쓰지 않는다" 는
+    같은 원칙을 쓴다.
+    """
+    bad = {k: checks[k] for k in FAIL_IF_NONZERO if checks.get(k)}
+    if bad:
+        raise SystemExit(f"검산 실패 — 산출물을 쓰지 않는다: {bad}")
+
+
 def verify(con):
     """완료 조건의 검산. 값을 stats 에 남겨 README 가 인용한다."""
     v = {}
@@ -389,6 +409,11 @@ SELECT Name AS dependent, min(published_at) AS first_release FROM rep GROUP BY 1
     log("5/5 판정·저장")
     con.execute(CLASSIFY_SQL, {"kinds": list(KINDS)})
 
+    # 검산을 **저장 전에** 한다. 어긋나면 여기서 멈추므로 잘못된 parquet 이 남지 않는다.
+    checks = verify(con)
+    require_clean(checks)
+    stats.update(checks)
+
     con.execute(f"""CREATE OR REPLACE TABLE out AS
 SELECT a.period, a.target, a.kind, a.retained, a.inflow, a.inflow_new,
        a.outflow, a.unobserved,
@@ -417,7 +442,6 @@ FROM agg a JOIN periods w ON w.period = a.period JOIN tgt t ON t.name = a.target
         with open(csv, "wb") as fh:
             fh.write(b"\xef\xbb\xbf" + body)
 
-    stats.update(verify(con))
     stats["rows"] = con.execute("SELECT count(*) FROM out").fetchone()[0]
     stats["file_bytes"] = os.path.getsize(f"{pq_dir}/dependent_transitions.parquet")
     stats["elapsed_sec"] = round(time.time() - t0)

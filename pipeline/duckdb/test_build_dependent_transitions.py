@@ -18,7 +18,7 @@ import duckdb
 # pipeline/duckdb 는 패키지가 아니라 스크립트 폴더다 (__init__.py 없음).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_dependent_transitions import (  # noqa: E402
-    CLASSIFY_SQL, KINDS, REP_AT_SQL, REP_SQL)
+    CLASSIFY_SQL, FAIL_IF_NONZERO, KINDS, REP_AT_SQL, REP_SQL, require_clean)
 
 PERIOD = "1y"
 T1 = "2025-08-31 23:59:59"
@@ -217,6 +217,31 @@ class Verification(unittest.TestCase):
         v = verify(con)
         self.assertEqual(v["conservation_t2_mismatch"], 0)
         self.assertEqual(v["conservation_t1_mismatch"], 0)
+
+
+class RequireClean(unittest.TestCase):
+    """검산이 어긋나면 **산출물을 쓰기 전에** 멈춰야 한다.
+
+    기록만 하고 넘어가면 실패가 마지막 로그 줄의 긴 JSON 한가운데에만 남고 exit 0 이라,
+    그 parquet 이 ingest_derived 를 타고 Curated·PostgreSQL·화면까지 간다.
+    """
+
+    def test_전부_0_이면_통과한다(self):
+        require_clean({k: 0 for k in FAIL_IF_NONZERO})  # 예외가 없으면 통과
+
+    def test_하나라도_0_이_아니면_멈춘다(self):
+        for key in FAIL_IF_NONZERO:
+            checks = {k: 0 for k in FAIL_IF_NONZERO}
+            checks[key] = 3
+            with self.assertRaises(SystemExit) as cm:
+                require_clean(checks)
+            self.assertIn(key, str(cm.exception))
+
+    def test_판정이_아닌_관측값은_멈춤_사유가_아니다(self):
+        """unobserved_share_by_period 같은 값은 0 이 아니어도 정상이다."""
+        checks = {k: 0 for k in FAIL_IF_NONZERO}
+        checks["unobserved_share_by_period"] = [("1y", 0.7527)]
+        require_clean(checks)
 
 
 if __name__ == "__main__":
