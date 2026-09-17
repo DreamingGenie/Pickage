@@ -97,6 +97,7 @@ Optional 셋뿐이다. 개발 도구(eslint·jest·prettier 류)의 유지·유�
 받는 쪽에서 `OUT_OF_SCOPE` 로 구분한다.
 """
 import argparse
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -120,9 +121,14 @@ DEFAULT_LABEL = "260917"
 # 스냅샷 경계. T2 를 "오늘" 로 두지 않는 이유는 위 docstring 을 볼 것.
 # 23:59:59 까지 포함해야 스냅샷 당일 발행분이 빠지지 않는다.
 T2 = "2026-08-31 23:59:59"
-PERIODS = {"1y": "2025-08-31 23:59:59",
-           "3y": "2023-08-31 23:59:59",
-           "5y": "2021-08-31 23:59:59"}
+# T1 은 T2 에서 **유도한다.** 둘을 따로 적어 두면 다음 스냅샷에서 T2 만 고쳤을 때 '1y' 라벨이
+# 붙은 결과가 실제로는 1년 몇 개월 구간이 되고, 검산 네 가지는 내부 정합성만 보므로 전부
+# 통과해 잘못된 라벨이 parquet·API·화면까지 그대로 간다.
+# (T2 가 2월 29일이면 replace 가 거부한다. 스냅샷 날짜를 그날로 잡지 않는다.)
+PERIOD_YEARS = (1, 3, 5)
+_TS_FMT = "%Y-%m-%d %H:%M:%S"
+_t2 = datetime.strptime(T2, _TS_FMT)
+PERIODS = {f"{n}y": _t2.replace(year=_t2.year - n).strftime(_TS_FMT) for n in PERIOD_YEARS}
 KINDS = ("regular", "peer", "optional")
 
 # git 이 추적하는 CSV 에 담을 대상 수. 전체 89.9만 행은 81 MB 라 datasets/README.md 의

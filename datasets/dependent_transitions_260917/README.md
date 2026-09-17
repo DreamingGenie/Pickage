@@ -189,7 +189,9 @@ dev 는 npm registry 수집분(S15P21A506-280·-366)에서 별도 회차로 낸�
 .venv-bq/Scripts/python.exe pipeline/duckdb/build_dependent_transitions.py
 ```
 
-153초. 대상 목록을 바꿀 때는 `--targets` 와 `--label` 을 함께 준다 — `--label` 없이 `--targets` 만
+**8스레드·40GB 로 153초.** 기본값이 `--memory 40GB` 라 RAM 이 그보다 적은 PC 에서는
+`--memory` 를 실제 메모리의 60~70% 로 낮춰 준다 — 그대로 두면 DuckDB 가 디스크로 흘리지 않고
+계속 할당하다 4단계(선언 전개, 3,700만 행)에서 OOM 으로 죽는다. 대상 목록을 바꿀 때는 `--targets` 와 `--label` 을 함께 준다 — `--label` 없이 `--targets` 만
 주면 빌더가 거부한다(기본 회차 산출물을 조용히 덮어쓰는 사고를 막는다).
 
 `ORDER BY` 에 `target` 이 들어 있다. 순위 밖 대상이 섞인 목록에서는 `download_rank` 가 전부
