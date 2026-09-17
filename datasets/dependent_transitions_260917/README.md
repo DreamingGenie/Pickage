@@ -21,14 +21,21 @@
 > **CSV 로 합계를 내면 전체가 아니다.** 나머지 94,996개 대상은 parquet 에만 있다.
 > 잘린 수는 `stats.json` 의 `csv_targets` 가 말한다.
 
-parquet 은 `pipeline/minio/ingest_derived.py --dataset dependent-transitions` 로 서버 MinIO 에 올린다.
-접속은 `pipeline/minio/README.md` 의 터널 절차를 따른다.
+parquet 은 2026-09-17 서버 MinIO 에 올렸다. 접속은 `pipeline/minio/README.md` 의 터널 절차를 따른다.
 
 ```text
-pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/run_id=<실행>/
-  data/dependent_transitions.parquet
-  run_manifest.json
-  _SUCCESS
+pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/
+  run_id=dependent-transitions-20260917-v1/
+    data/dependent_transitions.parquet   5,740,220 바이트 · 899,964행
+    run_manifest.json                    SHA-256 25e234ed… · 행 수
+    _SUCCESS
+```
+
+다시 올리려면 `PICKAGE_MINIO_ENV=.env.server` 를 주고 아래를 실행한다.
+
+```bash
+python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
+  --run-id dependent-transitions-20260917-v1
 ```
 
 ## 2. 열
@@ -152,12 +159,20 @@ dev 는 npm registry 수집분(S15P21A506-280·-366)에서 별도 회차로 낸�
 **6-5. `package_dependents_260915` 의 `n_dependents` 와 136행 어긋난다.**
 
 `retained + inflow + unobserved` 는 T2 에 그 대상을 선언한 dependent 수이므로 저쪽 `n_dependents`
-와 같아야 한다. 299,988행 중 **136행이 다르고, 최대 차는 10이며, 전부 이쪽이 작다.**
+와 같아야 한다. 299,988행 중 **136행이 다르고 최대 차는 10이다. 126행은 이쪽이 작고, 10행은
+이쪽이 크다** — 차이가 한 방향이 아니다.
 
 원인을 실측했다. `versions_full` 의 `snapshot=2026-08-31` 파티션에 **2026-09-01 00:00:11 ~
 02:49:45 에 발행된 릴리스 1,213행(939 패키지)** 이 섞여 있다. BigQuery 추출이 UTC 자정을 세 시간
 넘겨 돈 것이다. `build_package_dependents.py` 는 컷오프 없이 전체 ordinal 최대를 대표로 쓰고,
 이 빌더는 `published_at <= T2` 를 건다. 그래서 **845개 패키지의 대표 릴리스가 서로 다르다.**
+
+방향이 갈리는 것은 그 릴리스가 무엇을 했느냐에 달렸다. 의존을 **넣었으면** 저쪽만 그 선언을
+갖게 되어 이쪽이 작고(126행), **뺐으면** 저쪽이 잃고 이쪽은 아직 갖고 있어 이쪽이 크다(10행).
+뒤쪽은 `react-dom`·`astro`·`web-vitals`·`xlsx` 처럼 전부 정확히 1 씩이다.
+
+`stats.json` 의 `published_after_t2` 가 1,208 인 것은 **대표 릴리스 전환점만** 세기 때문이다.
+여기 1,213 은 전체 릴리스 기준이고, 차이 5 는 대표를 바꾸지 않은 릴리스다.
 
 **스냅샷 경계를 지키는 쪽은 이 데이터셋이다.** 두 수를 대조할 때 이 차이(0.045%)는 오류가 아니다.
 `react` 가 그 예다.
