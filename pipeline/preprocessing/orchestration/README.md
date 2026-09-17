@@ -6,7 +6,7 @@
 ## 실행
 
 저장소 루트에서 기존 Python 환경(DuckDB/boto3), Node/npm의 semver 및 npm-package-arg,
-기존 repository-metrics용 Spark 실행 환경을 사용한다. 새 라이브러리를 추가하지 않았다.
+환경을 사용한다. 기본 repository 엔진은 DuckDB이며 Java·Spark가 필요하지 않다.
 MinIO 설정은 기존 `pipeline/minio/README.md`의 `.env` 설정을 그대로 사용한다.
 `PICKAGE_MINIO_ENV`가 설정되어 있으면 기존 client가 해당 설정 파일을 선택한다.
 
@@ -37,10 +37,10 @@ Docker가 만든 긴 파일 경로를 Windows에서 읽지 못하는 경우가 �
 적재된 예전 결과로 주간 처리를 시작하지 않는다. 서버 연결과 스케줄 등록은 별도 작업이다.
 
 ```powershell
-python -m pipeline.preprocessing.orchestration weekly --snapshot 2026-09-07 --run-id weekly-20260907 --work-dir C:/pickage-work --repository-engine docker
+python -m pipeline.preprocessing.orchestration weekly --snapshot 2026-09-07 --run-id weekly-20260907 --work-dir C:/pickage-work --repository-engine duckdb
 ```
 
-Linux에서 Python·Java·Spark·Node가 함께 설치된 실행 환경이면 `--repository-engine native`를
+Spark 비교가 필요하고 Python·Java·Spark·Node가 함께 설치된 환경이면 `--repository-engine native`를
 사용한다. 기본 raw run ID는 `bronze-weekly-YYYYMMDD`, 다운로드 run ID는
 `downloads-weekly-YYYYMMDD`다. 실제 수집기가 다른 ID를 사용했다면 `--bronze-run-id`,
 `--download-run-id`로 지정한다. 정확한 관측 시각은 승인된 Projects Parquet에서 읽는다.
@@ -108,9 +108,10 @@ Spark를 포함한 기존 `pickage-spark-experiment:runtime-3.5.3` 환경을 사
 6. 8번의 자격 판정·npm semver resolver·SQL 집계를 재사용하여 이번 날짜의 version dependents를 만든다.
 7. 모든 필수 산출물을 검증한 뒤 bundle manifest, `_SUCCESS` 순서로 게시한다.
 
-각 단계의 계산 엔진과 기존 manifest 형식은 유지한다. 저장소 지표는
-`options.repository_engine=native`이면 기존 로컬 Spark, `docker`이면 저장소에 고정된 Spark 컨테이너를
-쓴다. Docker Spark는 읽기 전용 입력 마운트와 `--network none`을 사용한다.
+저장소 지표의 기본값은 `options.repository_engine=duckdb`다. 생략해도 DuckDB를 사용한다.
+`native`는 기존 로컬 Spark, `docker`는 기존 Spark 컨테이너를 명시적으로 선택한다.
+DuckDB는 threads/memory_limit을 적용하고 attempt별 scratch의 spill 상한은 10GB다.
+엔진·자원 설정과 코드가 달라지면 새 run ID를 사용한다. 기존 요청에 명시된 native/docker는 유지된다. Docker Spark는 읽기 전용 입력 마운트와 `--network none`을 사용한다.
 `memory_limit`은 DuckDB 및 Spark driver 설정이며 전체 프로세스·컨테이너 메모리 합계의 상한이 아니다.
 기존 Docker Spark 컨테이너 메모리 제한은 6 GiB다.
 

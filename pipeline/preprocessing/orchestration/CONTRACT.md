@@ -35,7 +35,7 @@ versions_min 필수 컬럼은 full에서 Description / Licenses / source_repo를
 | calendar_refs | 날짜순 Projects raw 명세 목록. 이번 날짜로 끝나며 실제 직전 스냅샷을 포함한다 |
 | parent | 현재 완료 package-version `_current.json`의 run_prefix/manifest_sha256/snapshot. 최초 실행만 null |
 | targets.dependents | 별도 target 이름 Parquet 객체의 bucket/key/SHA-256 |
-| options | workers, threads, memory_limit 및 repository_engine(native/docker) |
+| options | workers, threads, memory_limit 및 repository_engine(duckdb 기본/native/docker) |
 
 달력의 완전성은 생산자 인수 범위에 속한다. 목록 밖의 BigQuery 날짜를 이 실행기가 조회하지 않는다.
 직전 날짜를 임의로 7일 전이나 DB의 마지막 적재일로 정하지 않는다. ID 부모가 요청 날짜보다 미래이면 거부한다.

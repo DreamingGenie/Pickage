@@ -43,7 +43,7 @@ class WeeklyIntegrationTests(unittest.TestCase):
             baseline = runner.run(first, s3, root / "work")
             request = build_request(s3, SNAPSHOT, "weekly-test", root / "work",
                 bronze_run_id=BRONZE_RUN, download_run_id=DOWNLOAD_RUN,
-                options={"workers": 1, "threads": 2, "memory_limit": "1GB", "repository_engine": "native"})
+                options={"workers": 1, "threads": 2, "memory_limit": "1GB", "repository_engine": "duckdb"})
             self.assertEqual(request["snapshot_timestamp"], "2026-08-31T21:01:10Z")
             current_key = PREFIX + "/_current.json"
             before = s3.get_object(Bucket=BUCKET, Key=current_key)["Body"].read()

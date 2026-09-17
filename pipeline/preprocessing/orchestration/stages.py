@@ -152,7 +152,7 @@ def execute_stage(name, request, completed, s3, work_dir):
             versions_dir=versions, projects_dir=Path(candidate_info["projects_dir"]),
             candidate_path=candidate, run_id=run_id, work_dir=work / "repository",
             threads=threads, driver_memory=memory.lower().replace("gb", "g").replace("mb", "m"),
-            publish=True, engine=options.get("repository_engine", "native"))
+            memory_limit=memory, publish=True, engine=options.get("repository_engine", "duckdb"))
     else:
         from pipeline.preprocessing.package_snapshot.build import run
         run(**common, population_run_id=run_id, population_manifest_sha256=population["manifest_sha256"],

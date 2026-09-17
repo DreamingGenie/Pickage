@@ -48,6 +48,6 @@
     "workers": 2,
     "threads": 2,
     "memory_limit": "2GB",
-    "repository_engine": "docker"
+    "repository_engine": "duckdb"
   }
 }

@@ -135,8 +135,8 @@ def validate_request(value):
             raise ValueError("Invalid option: " + field)
     if not re.fullmatch(r"[1-9][0-9]*(?:MB|GB)", options.get("memory_limit", "2GB")):
         raise ValueError("memory_limit must be an explicit MB or GB value")
-    if options.get("repository_engine", "native") not in ("native", "docker"):
-        raise ValueError("repository_engine must be native or docker")
+    if options.get("repository_engine", "duckdb") not in ("duckdb", "native", "docker"):
+        raise ValueError("repository_engine must be duckdb, native or docker")
     # Return a detached, JSON-only request without inserting mutable defaults.
     return json.loads(json.dumps(value, allow_nan=False))
 

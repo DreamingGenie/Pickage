@@ -37,4 +37,4 @@ PySpark/Java/Node가 필요하며, GPU·DB·MinIO 통합 시험은 별도 환경
 
 파일 위치 이동은 생성 코드 계약 해시를 바꾼다. 이전 결과·manifest의 해시를 덮어써서
 재사용하지 않는다. 과거 실험 기록과 실행 당시 경로는 `docs/worklogs`에 보존한다.
-이번 정리는 계산 방식이나 일반 실행기의 엔진 선택을 바꾸지 않는다.
+현재 일반 실행기의 repository 단계는 DuckDB가 기본이며, native/docker Spark는 명시적 비교 경로로 유지한다.

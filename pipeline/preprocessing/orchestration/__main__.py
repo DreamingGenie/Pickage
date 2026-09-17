@@ -22,7 +22,7 @@ def main(argv=None):
                         help="Additional approved download run; repeat in descending priority order")
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--memory-limit", default="2GB")
-    parser.add_argument("--repository-engine", choices=("native", "docker"), default="native")
+    parser.add_argument("--repository-engine", choices=("duckdb", "native", "docker"), default="duckdb")
     args = parser.parse_args(argv)
     if args.command == "weekly" and (not args.snapshot or not args.run_id or args.request):
         parser.error("weekly requires --snapshot and --run-id and generates its own request")

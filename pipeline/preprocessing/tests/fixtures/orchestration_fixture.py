@@ -316,7 +316,7 @@ def make_fixture(root: Path) -> OrchestrationFixture:
         "calendar_refs": project_refs,
         "targets": {"dependents": target_ref},
         "options": {"workers": 1, "threads": 1, "memory_limit": "512MB",
-                     "repository_engine": "docker"},
+                     "repository_engine": "duckdb"},
     }
     return OrchestrationFixture(root, s3, request)
 

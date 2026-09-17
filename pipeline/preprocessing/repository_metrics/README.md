@@ -25,9 +25,18 @@ Curated service 파일은 package/version schema·row count·size·full SHA를 �
 
 입력 manifest에는 snapshot timestamp, policy version/hash, candidate SHA, Curated/Bronze manifest SHA, source paths, table별 파일 목록·row count·size·SHA가 들어간다. `reverify_inputs(prepared, s3=None)`는 재실행 직전에 로컬 파일과 source metadata를 다시 확인하며, `s3`를 주면 Curated/Bronze 원격 lineage도 재확인한다.
 
-## Spark 실행과 Docker 경계
+## 기본 DuckDB 실행
 
-대량 transform은 Spark 3.5.7을 사용한다. Docker runtime의 공식 image는 `apache/spark@sha256:936ff39fd63e2bb5ed064f0fbe1518198473f1cdbfa2f863d087a9a8e58116ba`로 고정했고 실행 manifest에 기록한다. Windows에서는 Docker Desktop이 필요하다. host Python에는 `python -m pip install -r pipeline/preprocessing/repository_metrics/requirements.txt`로 전용 환경의 의존성을 설치한다.
+`build.py`와 일반/weekly 실행기의 기본 엔진은 DuckDB다. 같은 입력 검증, 6종 결과,
+Parquet 재검증, 불변 manifest와 MinIO 게시를 사용한다. 기본 threads=2, memory_limit=2GB,
+spill 상한10GB이며 attempt별 working.duckdb/scratch에 임시 상태를 둔다.
+아래 Spark 실행 예제에서 `--engine duckdb --memory-limit 2GB`로 바꾸면 DuckDB를 실행한다.
+PySpark·Java는 기본 실행에 필요하지 않다. 엔진·자원 설정이 다른 실행은 새 run ID를 쓴다.
+실험 원본은 `../experiments/spark/repository_duckdb.py`에 비교용으로 보존한다.
+
+## 명시적 Spark 실행과 Docker 경계
+
+`--engine native` 또는 `--engine docker`를 명시하면 기존 Spark transform을 사용한다. Docker runtime의 공식 image는 `apache/spark@sha256:936ff39fd63e2bb5ed064f0fbe1518198473f1cdbfa2f863d087a9a8e58116ba`로 고정했고 실행 manifest에 기록한다. Windows에서는 Docker Desktop이 필요하다. host Python에는 `python -m pip install -r pipeline/preprocessing/repository_metrics/requirements-spark.txt`로 전용 환경의 의존성을 설치한다.
 
 `build.py`는 host Python에서 실행하며 `--engine docker`일 때만 transform subprocess를 Docker로 격리한다. Docker CLI에 `--engine` 옵션을 전달하지 않는다. 현재 입력 위치는 다음과 같다.
 

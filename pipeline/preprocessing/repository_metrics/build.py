@@ -158,10 +158,21 @@ def publish_run(s3, run_dir):
 
 def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects_dir,
         candidate_path, run_id, work_dir, threads=2, driver_memory="4g", publish=False,
-        spark=None, engine="native"):
+        spark=None, engine="duckdb", memory_limit="2GB"):
     from pipeline.preprocessing.repository_metrics.input import prepare_inputs, reverify_inputs
-    from pipeline.preprocessing.repository_metrics.runtime import create_spark
-    from pipeline.preprocessing.repository_metrics.transform import transform
+    if engine not in ("duckdb", "native", "docker"):
+        raise ValueError("Unsupported execution engine")
+    if spark is not None and engine != "native":
+        raise ValueError("An injected Spark session requires engine=native")
+    if type(threads) is not int or not 1 <= threads <= 8:
+        raise ValueError("threads must be between 1 and 8")
+    if not isinstance(memory_limit, str) or not re.fullmatch(r"[1-9][0-9]*(?:MB|GB)", memory_limit):
+        raise ValueError("memory_limit must be an explicit MB or GB value")
+    execution = {"engine": engine, "threads": threads}
+    if engine == "duckdb":
+        execution.update(memory_limit=memory_limit, duckdb=duckdb.__version__, max_temp_directory_size="10GB")
+    else:
+        execution["driver_memory"] = driver_memory
     if not RUN_ID.fullmatch(run_id):
         raise ValueError("Invalid run ID")
     work_dir = Path(work_dir).resolve()
@@ -185,7 +196,7 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
                                 projects_dir=Path(projects_dir), candidate_path=Path(candidate_path),
                                 output=attempt_dir / "input-manifest.json")
         identity = {"input_sha256": hashlib.sha256(canonical_bytes(inputs)).hexdigest(),
-                    "code_sha256": code_sha256(), "policy_sha256": policy_sha256()}
+                    "code_sha256": code_sha256(), "policy_sha256": policy_sha256(), "execution": execution}
         request_path = run_dir / "request.json"
         if request_path.exists():
             if json.loads(request_path.read_bytes()) != identity:
@@ -203,12 +214,23 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
             report.update(status="REVERIFIED", action="REVERIFIED", manifest=str(run_dir / "run_manifest.json"))
         else:
             report["phase"] = "TRANSFORM"
-            if engine == "docker" and spark is None:
+            if engine == "duckdb":
+                from pipeline.preprocessing.repository_metrics.duckdb_transform import transform
+                with duckdb.connect(str(attempt_dir / "working.duckdb"),
+                                    config={"threads": threads, "memory_limit": memory_limit}) as con:
+                    con.execute("SET temp_directory=?", [str(attempt_dir / "scratch")])
+                    con.execute("SET max_temp_directory_size='10GB'")
+                    con.execute("SET preserve_insertion_order=false")
+                    result = transform(con, inputs, attempt_dir / "outputs")
+                runtime_info = {**execution, "python": sys.version.split()[0]}
+            elif engine == "docker":
                 from pipeline.preprocessing.repository_metrics.docker_runtime import transform_docker
                 result = transform_docker(inputs, attempt_dir / "outputs", threads=threads,
                                           driver_memory=driver_memory)
                 runtime_info = result.pop("runtime")
-            elif engine == "native" or spark is not None:
+            elif engine == "native":
+                from pipeline.preprocessing.repository_metrics.runtime import create_spark
+                from pipeline.preprocessing.repository_metrics.transform import transform
                 if spark is None:
                     spark = create_spark(attempt_dir / "runtime", threads=threads, driver_memory=driver_memory)
                     owned_spark = True
@@ -282,7 +304,8 @@ def main():
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--driver-memory", default="4g")
     parser.add_argument("--publish", action="store_true")
-    parser.add_argument("--engine", choices=("native", "docker"), default="native")
+    parser.add_argument("--engine", choices=("duckdb", "native", "docker"), default="duckdb")
+    parser.add_argument("--memory-limit", default="2GB", help="DuckDB memory limit; spill is capped at 10GB")
     args = vars(parser.parse_args())
     s3 = client_from_env(args.pop("minio_env"), args.pop("minio_endpoint"))
     print(json.dumps(run(s3, **args), ensure_ascii=False, indent=2))

@@ -47,7 +47,7 @@ class BuildTests(unittest.TestCase):
         self.kwargs = dict(snapshot="2026-08-31", curated_run_id="curated-v2",
                            curated_outputs=self.root / "source/curated", versions_dir=self.root / "source/versions",
                            projects_dir=self.root / "source/projects", candidate_path=self.root / "source/calendar/candidate.json",
-                           run_id="run-one", work_dir=self.root / "runs", spark=SimpleNamespace(version="fixture"))
+                           run_id="run-one", work_dir=self.root / "runs", spark=SimpleNamespace(version="fixture"), engine="native")
 
     def tearDown(self):
         self.temp.cleanup()

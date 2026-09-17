@@ -137,7 +137,7 @@ def build_request(s3, snapshot, run_id, work_dir, *, bronze_run_id=None,
                             "projects": projects, "downloads": downloads},
                "calendar_refs": calendar, "targets": {"dependents": target},
                "options": options or {"workers": 1, "threads": 1, "memory_limit": "1GB",
-                                       "repository_engine": "native"}}
+                                       "repository_engine": "duckdb"}}
     if download_history_run_ids:
         history = []
         for history_id in download_history_run_ids:

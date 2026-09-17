@@ -52,6 +52,6 @@ def make_weekly_fixture(root, population=3):
         con.execute("COPY r TO ? (FORMAT PARQUET)", [str(requirements)])
     publish_parquet(fixture.s3, path, "versions_min", SNAPSHOT, BRONZE_RUN)
     publish_parquet(fixture.s3, requirements, "requirements", SNAPSHOT, BRONZE_RUN)
-    first["options"]["repository_engine"] = "native"
+    first["options"]["repository_engine"] = "duckdb"
     first["options"]["memory_limit"] = "1GB"
     return fixture, first
