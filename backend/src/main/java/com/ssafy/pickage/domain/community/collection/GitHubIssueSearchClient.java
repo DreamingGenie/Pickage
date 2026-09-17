@@ -150,8 +150,7 @@ public class GitHubIssueSearchClient {
                     || item.path("number").asInt() <= 0
                     || !item.path("comments").canConvertToInt()
                     || item.path("comments").asInt() < 0
-                    || !item.path("reactions").path("total_count").canConvertToInt()
-                    || item.path("reactions").path("total_count").asInt() < 0
+                    || !GitHubReactionCounts.isValidTotalCount(item)
                     || !java.util.Set.of("open", "closed").contains(item.path("state").asText())
                     || item.path("title").asText().isBlank())
                 throw new UpstreamFetchException("Invalid search item");

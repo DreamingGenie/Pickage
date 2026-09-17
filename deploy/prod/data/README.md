@@ -426,6 +426,45 @@ ONNX 로 임베딩하고 유사 후보를 뽑는다. **PostgreSQL 은 건드리�
 
 **상주 서비스가 아니다.** 한 번 돌고 끝난다 — `profiles` 에 있어서 `up -d` 로는 뜨지 않는다.
 
+### 이미지는 이제 손으로 굽지 않는다 (S15P21A506-339)
+
+`develop`·`main` 에 머지되면 **`deploy-ai` 잡이 이 노드에서 굽고 `.env` 의 `AI_TAG` 를
+커밋 SHA 로 갈아 끼운다.** 그래서 아래 절차에서 빠진 것이 둘이다.
+
+| 전에 손으로 하던 것 | 지금 |
+| --- | --- |
+| `docker compose --profile batch build ai-similarity` | `deploy-ai` 가 한다 |
+| `.env` 의 `AI_TAG` 수정 | `deploy-ai` 가 한다 |
+| `sh run-similarity-batch.sh` | **그대로 사람이 친다** |
+
+**돌리는 절차는 아무것도 안 바뀌었다.** 다음 회차가 어느 이미지로 도는지만 확인하면 된다.
+
+```bash
+grep ^AI_TAG= /srv/pickage/data.env
+```
+
+```bash
+docker images pickage-ai-similarity --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | head -3
+```
+
+**위에서 나온 태그가 아래 목록에 있으면 준비된 것이다.** 없으면 `deploy-ai` 가 아직 안
+돌았거나 실패한 것이다 — GitLab 의 Build → Pipelines 에서 그 잡을 보고 **Retry** 하면 된다
+([`../../ci/README.md`](../../ci/README.md) 의 "유사도 배치 이미지").
+
+> ⚠ **`deploy-ai` 는 배치가 도는 중인지 보지 않는다.** `deploy-app` 과 같은 모양이라
+> 머지되면 그냥 굽는다. 겹치는 것을 막는 것은 아래 "Spark 배치와 시간을 겹치지 말 것" 과
+> 같은 규칙 하나뿐이다 — **배치 시각에는 머지하지 않는다.**
+
+> ⚠ **`.env` 는 `/srv/pickage/data.env` 하나뿐이고, 이 디렉터리의 것은 그것을 가리키는
+> 심볼릭 링크다.** 두 벌이 되면 잡이 고친 태그와 여기서 읽는 태그가 갈라진다.
+>
+> ```bash
+> readlink -f .env      # /srv/pickage/data.env
+> ```
+
+> `deploy-ai` 는 **이미지만 굽는다.** minio·mlflow·Spark 는 여전히 사람이 이 디렉터리에서
+> 올린다 — 그 잡은 `up` 도 `down` 도 치지 않는다.
+
 ### 사람이 인자를 주지 않는다 — 포인터 둘이 정한다
 
 `run-similarity-batch.sh` 는 **인자를 받지 않는다.** 무엇을 돌릴지는 두 포인터가 정하고,
@@ -627,13 +666,26 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 
 ```bash
 sudo mkdir -p /srv/pickage/ingest-work /srv/pickage/secrets
-# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔다
-sudo chown -R 1000:1000 /srv/pickage
+sudo chown -R 1000:1000 /srv/pickage/ingest-work /srv/pickage/secrets
+# GCP 서비스 계정 키를 /srv/pickage/secrets/gcp-service-account.json 으로 둔 뒤
+sudo chown 1000:1000 /srv/pickage/secrets/gcp-service-account.json
+sudo chmod 600 /srv/pickage/secrets/gcp-service-account.json
 ```
 
 ⚠ **소유권을 넘기지 않으면 쓰기가 막힌다.** 컨테이너가 uid 1000 으로 돌고, 없는 바인드
 디렉터리는 Docker 가 root 소유로 만든다. root 로 쓰게 두지 않는 이유는 그렇게 쌓인
 산출물을 `ubuntu` 계정이 못 지워서 **지난 회차 정리가 거기서 막히기** 때문이다.
+키 파일도 같은 이유로 uid 1000 소유여야 한다 — `600` 이면서 root 소유면 못 읽는다.
+
+⚠⚠ **부모 `/srv/pickage` 를 통째로 `chown` 하지 말 것.** 그 디렉터리는 이 노드에서
+이미 쓰이고 있다 — 배포 러너가 `gitlab-runner` 소유로 만들고 그 아래 `data.env`
+(MinIO 루트 자격증명)를 둔다([`deploy/ci/README.md`](../../ci/README.md) 의 "데이터 노드
+배포 러너"). 통째로 넘기면 `deploy-ai` 잡이 `AI_TAG` 를 고치지 못해 **유사도 배치 이미지
+배포가 실패한다.** 증상이 주간 수집과 연결되지 않아 원인을 찾기 어렵다.
+
+부모 디렉터리 권한은 컨테이너와 무관하다. 바인드 경로는 Docker 데몬(root)이 해석해서
+마운트하므로, 컨테이너 안의 uid 1000 은 호스트의 부모 경로를 거치지 않는다. **마운트되는
+두 디렉터리의 소유권만 맞으면 된다.**
 
 자격증명은 환경변수가 아니라 **파일**이다(`pipeline/minio/ingest_raw.py` 의 `client()`).
 

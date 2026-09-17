@@ -55,8 +55,9 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] 파생 데이터셋 입고 경로 (`ingest_derived.py`) — 폐기→대체 데이터셋 서버 입고 (`deprecated-replacement-20260914-v1`)
 - [x] `package_text` 서버 입고 (`package-text-20260908-v1`)와 `_current.json` 포인터 게시 —
       유사도 배치의 코퍼스 트리거 (2026-09-14)
-- [ ] npm registry 원본 입고 — **수집이 아직 진행 중이다.** 입고 경로는 준비되어 있고,
-      `manifest.json` 의 `pending` 이 0 이 되면 실행한다
+- [x] npm registry 원본 입고 — 두 회차 모두 완료 (2026-09-16). `collected_date=2026-09-09`
+      (`registry-20260909-v1`, 4,291 파일 · 765 MB) 와 `collected_date=2026-09-16`
+      (`registry-20260916-v1`, 4,315 파일 · 988 MB, 샤드 4개). SHA-256 대조 실패 0건
 - [ ] PostgreSQL 적재
 - [ ] Spark·벡터 생성·MLflow 연동
 - [ ] 권한 분리(서비스 계정), 백업 및 자동 스케줄링
@@ -425,6 +426,31 @@ npm-registry/v1/collected_date={date}/run_id={run}/
   run_manifest.json     # 파일별 크기·SHA-256 및 입고 검증 결과
   _SUCCESS              # 해당 수집일·실행의 검증 완료 표시
 ```
+
+**분할 수집(샤드)은 경로가 한 단계 깊다.** registry 는 2026-09-16 회차부터 대상을 넷으로 나눠
+`run=<date>-s1 … -s4` 네 폴더로 받는다(S15P21A506-366). 그것은 **한 수집**이므로 `collected_date`
+하나 아래에 넣되, 샤드를 경로에 남긴다.
+
+```text
+npm-registry/v1/collected_date=2026-09-16/run_id=registry-20260916-v1/
+  data/shard=s1/part-*.jsonl.gz   # 샤드마다 part-00000 부터 다시 센다
+  data/shard=s2/part-*.jsonl.gz
+  data/shard=s3/part-*.jsonl.gz
+  data/shard=s4/part-*.jsonl.gz
+  source_manifest/shard=s1.json   # 수집기 manifest 를 샤드별로 원본 그대로
+  …
+  run_manifest.json               # shards 수와 샤드별 source_manifest_sha256 포함
+  _SUCCESS
+```
+
+**파일명을 합치면 안 된다.** 샤드는 각자 `part-00000.jsonl.gz` 부터 번호를 매기므로 이름이 겹친다 —
+2026-09-16 회차는 4,315 파일 중 1,078개 이름이 네 샤드에 중복되고 내용은 전부 다르다. 한 `data/` 에
+합쳐 올리면 3,231개가 조용히 덮어써진 뒤 그 위에 `_SUCCESS` 가 찍힌다. 읽는 쪽은 `data/**/part-*` 로
+훑으면 단일 run 과 샤드 run 을 함께 다룰 수 있다.
+
+입고기는 샤드가 하나라도 빠지면 거부한다. 개수는 폴더 수가 아니라 수집기 manifest 의 `targets`
+파일명(`…-s1of4.csv`)에서 읽는다 — 폴더를 세면 s3 를 빠뜨린 채 올려도 통과해서 원본의 1/4 이
+없는 데이터에 완료 표시가 찍힌다.
 
 수집기의 체크포인트 DB(`checkpoint.sqlite`)와 로그는 올리지 않는다. 수집기가 도는 동안
 계속 바뀌는 작업 상태이지 원본이 아니다. `npm-downloads/v1/` 은 별도 입고 경로가 맡는다

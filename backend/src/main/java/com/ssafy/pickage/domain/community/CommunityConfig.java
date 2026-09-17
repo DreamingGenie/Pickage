@@ -134,6 +134,12 @@ public class CommunityConfig {
         return new BoundedCommunitySummarizer(summarizer);
     }
 
+    @Bean
+    public CommunityHighlightSummarizer communityHighlightSummarizer(
+            BoundedCommunitySummarizer bounded) {
+        return new CommunityHighlightSummarizer(bounded);
+    }
+
     @Bean(destroyMethod = "close")
     public CommunitySnapshotPublisher communitySnapshotPublisher(
             CommunitySnapshotRepository repository) {
@@ -163,7 +169,7 @@ public class CommunityConfig {
     public CommunityRefreshOrchestrator communityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
-            BoundedCommunitySummarizer summarizer,
+            CommunityHighlightSummarizer summarizer,
             CommunitySnapshotPublisher publisher) {
         return new CommunityRefreshOrchestrator(verification, collection, summarizer, publisher);
     }

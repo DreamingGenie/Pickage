@@ -29,6 +29,11 @@ public final class FakeHttpServer implements AutoCloseable {
     public static FakeHttpServer start() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            // 기본 executor는 단일 스레드라 클라이언트가 동시에 여러 요청을 보내도 서버가
+            // 하나씩 순서대로만 처리한다 — 이슈 병렬 수집(S15P21A506-373 4단계 후속) 같은
+            // 동시성 시험이 실제로는 순차 응답을 받아 거짓으로 통과/실패할 수 있어 가상
+            // 스레드 executor로 바꾼다.
+            server.setExecutor(java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
             server.start();
             return new FakeHttpServer(server);
         } catch (IOException e) {

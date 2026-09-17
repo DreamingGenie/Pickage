@@ -32,10 +32,13 @@ public final class CommunityProperties {
      * 넘겨 HttpTimeoutException/InterruptedException으로 매번 실패했다(S15P21A506-368 후속).
      * 이슈 병렬 호출(S15P21A506-368 후속, {@link CommunityRefreshOrchestrator})로 GMS 몫은
      * 줄였지만, 그래도 수집(5~6초 안팎) + 병렬 GMS 최악값({@link
-     * GmsCommunitySummarizer}의 상한 15초) + 게시 여유를 더하면 20초는 여전히 빠듯해 30초로
-     * 올린다.
+     * GmsCommunitySummarizer}의 상한) + 게시 여유를 더하면 빠듯해 30초로 올렸다.
+     *
+     * <p>2026-09-16 30초→35초로 재조정(오세진 님 결정) — 모델 교체(gpt-5-mini) 실측 중 GMS
+     * 호출 상한({@link GmsCommunitySummarizer}의 {@code MAX_CALL_TIMEOUT}=30초)을 함께
+     * 올리면서 시연 안정성을 위해 여유를 더 뒀다.
      */
-    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(30);
+    public static final Duration TOTAL_BUDGET = Duration.ofSeconds(35);
 
     /** DB 게시 트랜잭션의 {@code statement_timeout} 예약(314의 실제 값과 별개로, 이 Phase가 기대하는 상한). */
     public static final Duration PUBLISH_BUDGET = Duration.ofSeconds(2);
@@ -67,4 +70,17 @@ public final class CommunityProperties {
      * CommentWindowResolver.TARGET_COMMENT_COUNT}와 별개로 둔다.
      */
     public static final int MAX_COMMENTS_PER_ISSUE = 100;
+
+    /**
+     * {@link BoundedCommunitySummarizer}의 GMS 호출 worker 수. {@link
+     * com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinator}가 쓰는 {@link
+     * #EXECUTOR_WORKER_COUNT}(refresh task 자체의 동시 실행 풀)와는 다른 별개의 풀이다.
+     * 이슈 최대 2개({@code IssueSelectionPolicy.MAX_SELECTED_ISSUES})가 항상 동시에 디스패치
+     * 되므로(S15P21A506-368 후속) 최소 2는 필요하고, 재시도·다음 refresh와 겹치는 여유를 더해
+     * 4로 둔다.
+     */
+    public static final int SUMMARIZER_WORKER_COUNT = 4;
+
+    /** {@link #SUMMARIZER_WORKER_COUNT} 워커가 꽉 찼을 때 대기할 수 있는 큐 용량. */
+    public static final int SUMMARIZER_QUEUE_CAPACITY = 8;
 }

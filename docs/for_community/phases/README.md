@@ -17,7 +17,8 @@
 | 2 | [S15P21A506-213](https://ssafy.atlassian.net/browse/S15P21A506-213) [BE][구현] 커뮤니티 저장소 검증·범위·호출 실패 정책 | 백엔드 | `api/feat/S15P21A506-213-repo-verification-policy` | [specs/S15P21A506-213.md](../specs/S15P21A506-213.md) | 없음 (Phase 1과 병행 가능) | 완료, MR [!111](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/111) 리뷰 중 |
 | 3 | [S15P21A506-212](https://ssafy.atlassian.net/browse/S15P21A506-212) [BE][수집] 커뮤니티 Issue·최신 댓글 제한 수집 | 백엔드 | `api/feat/S15P21A506-212-issue-comment-collection` | [specs/S15P21A506-212.md](../specs/S15P21A506-212.md) | Phase 2 (213 검증 결과 필요) | 완료(구현+테스트+리뷰, MR 대기) |
 | 4 | [S15P21A506-317](https://ssafy.atlassian.net/browse/S15P21A506-317) [BE][구현] 커뮤니티 API 계약·제한 갱신·결과 게시 | 백엔드 | `api/feat/S15P21A506-317-community-api-coordinator` | [specs/S15P21A506-317.md](../specs/S15P21A506-317.md) | Phase 1·2·3 산출물 | 완료(구현+테스트+리뷰, MR 대기) |
-| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 진행 중(구현·재검수 완료, Draft MR·외부 인수/사람 리뷰 대기) |
+| 5 | [S15P21A506-315](https://ssafy.atlassian.net/browse/S15P21A506-315) [공통][검증] 커뮤니티 경계·실패·재시작 통합 인수 | 검수 | `api/fix/S15P21A506-315-community-integration-acceptance` | [315 Spec](../specs/S15P21A506-315-community-integration-acceptance.md) | Phase 4 | 완료(2026-09-16 Jira 조회로 확인 — 이 표의 "진행 중" 표기는 병합 전 스냅샷이라 stale했음) |
+| 6 | [S15P21A506-373](https://ssafy.atlassian.net/browse/S15P21A506-373) [BE][구현] GMS 대용량 이슈 요약 실패 개선(0~4단계, 실사용 평가로 5단계 추가) | 백엔드 | 0단계 `api/feat/S15P21A506-373-large-issue-summary-diagnostics`(병합됨, MR [!162](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/162)) → 1·2단계 `api/feat/S15P21A506-373-max-output-tokens-and-schema-flatten`(병합됨, MR [!165](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/165)) → 4·5단계 `api/feat/S15P21A506-373-map-reduce-summary`(push·MR 준비 중) | [0단계 Spec](../specs/S15P21A506-373-step0-diagnostics.md)·[1단계 Spec](../specs/S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 Spec](../specs/S15P21A506-373-step2-reaction-based-selection.md)·[3단계 Spec(폐기)](../specs/S15P21A506-373-step3-background-polling.md)·[4단계 Spec(구현 후 폐기)](../specs/S15P21A506-373-step4-map-reduce.md) | Phase 5 | 완료(0·1·2단계 병합 완료, 3단계는 실측으로 폐기, 4단계 Map-Reduce는 구현·병합까지 갔으나 실사용 평가로 되돌리고 5단계 하이라이트 방식으로 교체 — [1단계 기록](S15P21A506-373-step1-max-tokens-and-schema-flatten.md)·[2단계 기록](S15P21A506-373-step2-reaction-based-selection.md)·[3단계 폐기 기록](S15P21A506-373-step3-background-polling-abandoned.md)·[4단계 기록](S15P21A506-373-step4-map-reduce.md)·[5단계 기록](S15P21A506-373-step5-highlight-summary.md)) |
 
 범위 밖(다른 담당): [S15P21A506-316](https://ssafy.atlassian.net/browse/S15P21A506-316) FE 탭 연동(rysud0125),
 GMS 실연동·인프라 secret 배선(별도 승인 필요 외부 의존성, 어느 Phase에서도 새로 만들지 않는다).
@@ -58,6 +59,47 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
   registry·coordinator → orchestrator·controller·service)으로 진행, `/code-review`에서
   이번 Phase 범위의 결함 4건 발견·즉시 수정. 212의 기존 파일에 있는 별개 결함 2건은
   완료 기록에만 남기고 후속 Jira 이슈로 분리 제안.
+- Phase 5(S15P21A506-315)는 2026-09-16 Jira 조회로 `완료` 상태임을 확인, 이 표의 "진행 중"
+  표기를 바로잡음(WIP=1 판단에 사용).
+- [Phase 6, 0단계 — S15P21A506-373](S15P21A506-373-step0-diagnostics.md) 구현·테스트·리뷰
+  완료(2026-09-16). 진단 로그 추가 + 합성 fixture 2종(경량·중량) 실네트워크 실측 결과,
+  계획 문서가 가정한 "경로 B"(`incomplete`)가 재현되지 않아 1단계 우선순위 재검토 필요.
+  MR [!162](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/162)
+  병합 완료.
+- [Phase 6, 1단계 — S15P21A506-373](S15P21A506-373-step1-max-tokens-and-schema-flatten.md)
+  구현·테스트·리뷰 완료(2026-09-16). 0단계의 "경로 B 미재현" 발견에도 불구하고 오세진
+  님이 원래 계획대로 진행 지시 — `MAX_OUTPUT_TOKENS` 4096 상향 + `flow[].support`
+  평탄화. 이번부터 **오세진 님 지시로 push·MR 생성을 보류하고 로컬 커밋까지만
+  진행** — 다음 지시가 있을 때까지 이 브랜치는 origin에 없다.
+- [Phase 6, 2단계 — S15P21A506-373](S15P21A506-373-step2-reaction-based-selection.md)
+  구현·테스트·리뷰 완료(2026-09-16), 1단계와 같은 브랜치에 이어서 커밋. 댓글 선택을
+  반응 수 기반(동률은 최신, 이슈 작성자 최초 댓글은 특례)으로 교체 — PRD §4.1이 위임한
+  선택 정책 세부 설계를 Spec에서 확정. 여전히 push·MR 보류.
+- [Phase 6, 3단계 — S15P21A506-373 (폐기)](S15P21A506-373-step3-background-polling-abandoned.md)
+  구현·테스트·리뷰(2026-09-16)까지 전부 통과했으나, 실네트워크 확인 결과 GMS 프록시가
+  `GET /v1/responses/{id}` 폴링을 지원하지 않아(매번 HTTP 500) **폐기하고
+  되돌렸다** — 이대로 배포하면 요약이 100% 실패하게 되는 상황이라 오세진 님이 명시적으로
+  중단 지시. 코드는 커밋된 적이 없어 `git restore`로만 복원. 4단계로 직행한다.
+- 1·2단계 MR [!165](https://lab.ssafy.com/s15-bigdata-dist-sub1/S15P21A506/-/merge_requests/165)
+  병합 완료(2026-09-16). develop 최신화 확인 후 4단계 Spec 작성·승인.
+- [Phase 6, 4단계 — S15P21A506-373](S15P21A506-373-step4-map-reduce.md) 구현·테스트·
+  `/code-review` 완료(2026-09-16). 이슈 요약이 48,000자 단일 예산을 넘는 경우만 배치로
+  나눠 배치별 GMS 호출(Map)+배치별 검증 → 검증된 부분 결과 합성 GMS 호출(Reduce) 1회로
+  최종 결과를 만든다. `/code-review`에서 빈 배치 리스트로 인한 크래시 위험(높음)과 배치
+  동시 디스패치를 고려하지 않은 예산 분배(중간) 2건 발견·즉시 수정. 유닛 테스트 전체 통과,
+  `CommunityAcceptanceIntegrationTest` 17/17(R11/R12 포함) 통과. zod #479/#372 실측 재확인과
+  GMS quota 확인은 아직 진행하지 않음(상세: 4단계 기록의 "남은 위험"). **오세진 님 지시로
+  이번 라운드는 push·MR 생성 보류** — 로컬 커밋까지만 진행.
+- [Phase 6, 5단계 — S15P21A506-373](S15P21A506-373-step5-highlight-summary.md) —
+  4단계(Map-Reduce) 병합 후 실사용(로컬 웹앱으로 axios·vite·express·rollup 등 반복
+  확인) 평가에서 시간·비용이 시연에 안 맞아 오세진 님이 방향 전환을 지시, 실시간
+  튜닝으로 진행(정식 Spec 선승인 절차는 생략 — 문서에 사유 기록). 논의 전체를 배치로
+  재구성하는 대신 반응 최다 댓글+유지관리자 답글+주변 댓글(최대 3개)만 요약하도록
+  바꿨고, Map-Reduce 코드(배치 분해·Reduce 호출)는 전부 삭제했다. 모델
+  `gpt-5.4-mini` 고정, 텍스트 검증 완화(URL만 제거), 검증 실패 진단 로그 추가, 댓글
+  수집 병렬화까지 같이 진행. 실측: express·rollup 기준 6~9초, 검증 실패 0건까지 도달
+  (이전 Map-Reduce는 30초 안팎, 검증 실패 빈번). 유닛·통합 테스트(R11/R12 포함) 전부
+  통과 재확인.
 
 ## WIP=1 예외 기록
 

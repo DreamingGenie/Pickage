@@ -728,7 +728,7 @@ IP(172.19.x.x)를 광고하고 상대 호스트는 그 주소로 라우팅할 �
 | --- | --- |
 | CI 자동 배포 | 위 "배포 (손으로)" 를 사람이 실행한다. 붙으면 `main` push 로 자동이 된다. **여기 말하는 것은 배포(CD, S15P21A506-223)다** — MR 에서 도는 검증 파이프라인은 붙었고, 안내는 [`deploy/ci/README.md`](../ci/README.md) |
 | `data` 노드의 수집 cron | 없다. MLflow 는 올라갔다 ([data/README.md](data/README.md) 의 "MLflow") |
-| 유사도 결과 로더 | 없다. 아래 "유사도 결과 로더는 어디서 도나" 에서 **`app` 노드로 정했고**, 코드는 아직 없다 |
+| 유사도 결과 로더 | **붙었다** (S15P21A506-371). `app` 노드의 `similarity-loader` 가 상주하며 MinIO 완료 포인터를 보고 스스로 게시한다. 아래 "유사도 결과 로더는 어디서 도나" |
 | `batch_run_stats` 테이블 | 없다. 분산 증빙은 지금은 스모크 잡의 `EXECUTOR_HOSTS` 출력으로 한다 |
 
 ## 유사도 결과 로더는 어디서 도나 — `app` 노드
@@ -756,6 +756,61 @@ DB 에 쓰는 것은 로더뿐이고, **로더는 `app` 노드에서 돈다.**
 | 보안그룹 `app` 인바운드 5432 | **없음** |
 | `data/.env` 에 운영 DB 비밀번호 사본 | **없음** — 비밀이 한 군데에만 있다 |
 | `--psql` + TCP 경로 (덜 검증됨) | **없음** — 실측한 `--docker-container` 를 그대로 쓴다 |
+
+### 언제 부르나 — 완료 포인터 하나를 본다 (S15P21A506-371)
+
+배치가 끝난 것을 로더가 알아차릴 방법이 없었다. 그래서 산출물 쪽에도 코퍼스와
+같은 관례를 둔다 — `run-similarity-batch.sh` 의 `[6/6]` 이 회수까지 마친 뒤
+`pickage-vectors/_current.json` 을 찍는다.
+
+```
+data 노드   … → ai-collect(업로드 + _SUCCESS) → _current.json
+app  노드   similarity-loader 가 60초마다 그 객체 하나 GET
+              DB 에 게시된 것과 다르면 → load.py --run <run_path>
+```
+
+`ai-collect` 가 성공한 **뒤에만** 찍으므로, 포인터가 있다는 것은 그 회차가
+온전하다는 뜻이다. 버킷을 훑어 최신을 추측하지 않는다.
+
+**왜 push 가 아니라 폴링인가.** `data` 가 `app` 을 깨우려면 어떤 방식이든
+(SSH·HTTP·MinIO webhook) `app` 인바운드가 필요하다. 인터넷에 노출된 유일한
+노드에 실행 트리거를 여는 것은 5432 를 열지 않은 이유와 같은 것을 다른 포트로
+잃는 일이다. 새 것이 없을 때 폴링 비용은 객체 하나 GET 이라, 지연 60초를 0 으로
+만들자고 낼 값이 아니다.
+
+**중복 게시는 세 겹으로 막힌다.**
+
+| | |
+| --- | --- |
+| 포인터 대조 | `etl_dataset_current` 의 것과 같으면 아무것도 하지 않는다 |
+| `pg_advisory_xact_lock` | 동시에 두 개가 떠도 직렬화된다 |
+| `etl_load_execution` UNIQUE | `(dataset, execution_id, snapshot_at, manifest_sha256)` |
+
+`--execution-id` 를 포인터 값에서 결정적으로 만들기 때문에, 같은 산출물을 몇 번
+돌려도 같은 행에 수렴한다.
+
+**`--docker-container` 가 아니라 `--psql` 로 붙는다.** 로더가 컨테이너 안에서
+`docker exec` 를 하려면 이 노드의 `docker.sock` 을 넘겨야 하는데, 그 권한이
+5432 를 안 열어 아낀 것보다 크다. 같은 compose 네트워크 안이라 `postgres:5432`
+가 그대로 보인다 — 호스트에 포트를 여는 것이 아니라 형제 컨테이너가 네트워크로
+붙는 것이고, 위 표의 이득은 그대로 남는다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/app
+
+# 무엇이 올라와 있고 DB 에 무엇이 게시돼 있는지만 본다
+docker compose run --rm similarity-loader --once --dry-run
+
+# 한 번만 실제로 게시
+docker compose run --rm similarity-loader --once
+
+# 상주 감시
+docker compose up -d similarity-loader
+docker compose logs -f similarity-loader
+```
+
+첫 기동 전에 `pipeline/minio/.env.loader` 를 만든다
+(`.env.loader.example` 참고 — `pickage-vectors` **읽기 전용** 서비스 계정).
 
 ### 그 대신 로더가 MinIO 를 건너서 읽는다
 

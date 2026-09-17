@@ -44,7 +44,8 @@ class GitHubIssueCommentsClientTest {
 			if (i > 0) sb.append(',');
 			sb.append("""
 				{"id": %d, "user": {"login": "u", "type": "User"},
-				 "author_association": "NONE", "created_at": "2026-01-01T00:00:00Z", "body": "hi"}
+				 "author_association": "NONE", "created_at": "2026-01-01T00:00:00Z", "body": "hi",
+				 "reactions": {"total_count": 0}}
 				""".formatted(ids[i]));
 		}
 		return sb.append(']').toString();
@@ -73,11 +74,35 @@ class GitHubIssueCommentsClientTest {
 	void id를_십진_문자열로_보존한다() {
 		server.respond("/repos/o/r/issues/1/comments", 200,
 			"[{\"id\": 9223372036854775807, \"user\": {\"login\": \"u\", \"type\": \"User\"}, "
-				+ "\"author_association\": \"NONE\", \"created_at\": \"2026-01-01T00:00:00Z\", \"body\": \"hi\"}]",
+				+ "\"author_association\": \"NONE\", \"created_at\": \"2026-01-01T00:00:00Z\", \"body\": \"hi\", "
+				+ "\"reactions\": {\"total_count\": 0}}]",
 			Map.of());
 
 		assertThat(client().fetchPage("o", "r", 1, 1, BUDGET).comments().getFirst().sourceCommentId())
 			.isEqualTo("9223372036854775807");
+	}
+
+	@Test
+	void reactions_total_count를_읽어_reactionCount로_보존한다() {
+		server.respond("/repos/o/r/issues/1/comments", 200,
+			"[{\"id\": 1, \"user\": {\"login\": \"u\", \"type\": \"User\"}, "
+				+ "\"author_association\": \"NONE\", \"created_at\": \"2026-01-01T00:00:00Z\", \"body\": \"hi\", "
+				+ "\"reactions\": {\"total_count\": 7}}]",
+			Map.of());
+
+		assertThat(client().fetchPage("o", "r", 1, 1, BUDGET).comments().getFirst().reactionCount())
+			.isEqualTo(7);
+	}
+
+	@Test
+	void reactions_필드가_없으면_UpstreamFetchException이다() {
+		server.respond("/repos/o/r/issues/1/comments", 200,
+			"[{\"id\": 1, \"user\": {\"login\": \"u\", \"type\": \"User\"}, "
+				+ "\"author_association\": \"NONE\", \"created_at\": \"2026-01-01T00:00:00Z\", \"body\": \"hi\"}]",
+			Map.of());
+
+		assertThatThrownBy(() -> client().fetchPage("o", "r", 1, 1, BUDGET))
+			.isInstanceOf(UpstreamFetchException.class);
 	}
 
 	@Test

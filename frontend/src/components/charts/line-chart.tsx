@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  breakMarkY,
   buildArea,
   buildLine,
   buildPoints,
@@ -11,11 +12,14 @@ import {
   ms,
   pointSize,
   scaleX,
-  scaleY,
+  scaleYLinear,
+  scaleYLogBreak,
   shortDate,
-  ticksY,
+  ticksYLinear,
+  ticksYLogBreak,
   type Box,
   type ChartSeries,
+  type Domain,
 } from '@/components/charts/geometry'
 import { seriesStyle } from '@/components/charts/tokens'
 import { cn } from '@/lib/utils'
@@ -42,6 +46,18 @@ export interface LineChartProps {
    * 그대로 두면 "4주" 보기에서 모든 구간이 공백으로 판정돼 선이 사라진다.
    */
   maxGapDays?: number
+  /**
+   * 기본은 로그(311a) — 절대값 그래프에서 자릿수가 다른 시리즈를 겹칠 때 쓴다.
+   * 지수·증감 그래프는 `linear` 를 넘긴다 — 둘 다 음수가 나올 수 있고(증감), 로그는
+   * 음수를 정의하지 못한다.
+   */
+  yScale?: 'log' | 'linear'
+  /**
+   * 도메인을 직접 지정한다. 없으면 `extentY(series)`(로그·0-포함)를 쓴다.
+   * 지수(`indexedExtentY`)·증감(`deltaExtentY`) 그래프는 반드시 넘겨야 한다 — 그 둘은
+   * 절대값 축과 "0 포함 여부"의 의미 자체가 달라, 이 컴포넌트가 임의로 고르면 안 된다.
+   */
+  yDomain?: Domain
   className?: string
   ariaLabel: string
 }
@@ -67,6 +83,8 @@ export function LineChart({
   observedFrom,
   emphasisKeys = null,
   maxGapDays = MAX_GAP_DAYS,
+  yScale = 'log',
+  yDomain,
   className,
   ariaLabel,
 }: LineChartProps) {
@@ -89,8 +107,17 @@ export function LineChart({
   const box: Box = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b }
 
   const xd = extentX(series)
-  const yd = extentY(series)
-  const yTicks = bare ? [] : ticksY(yd, 3)
+  const yd = yDomain ?? extentY(series)
+  /*
+   * 절대값(log) 모드는 `scaleYLogBreak` 를 쓴다 — 0-포함 로그축이 실제 데이터가 한 번도
+   * 닿지 않는 낮은 자릿수에 화면 높이 대부분을 낭비하는 문제를 줄이려고, [0, floor] 를
+   * 압축해 그리고 그 경계를 `breakY` 지그재그로 드러낸다(379 후속). 지수·증감(linear)은
+   * 애초에 이 문제가 없어 그대로 둔다.
+   */
+  const scaleYFn = yScale === 'linear' ? scaleYLinear : scaleYLogBreak
+  const ticksYFn = yScale === 'linear' ? ticksYLinear : ticksYLogBreak
+  const yTicks = bare ? [] : ticksYFn(yd, 3)
+  const breakY = !bare && yScale === 'log' ? breakMarkY(box) : null
 
   const cutX = observedFrom ? scaleX(ms(observedFrom), xd, box) : null
   const single = series.length === 1
@@ -190,7 +217,7 @@ export function LineChart({
 
         {/* y 눈금선 */}
         {yTicks.map((v) => {
-          const y = scaleY(v, yd, box)
+          const y = scaleYFn(v, yd, box)
           return (
             <g key={v}>
               <line
@@ -215,6 +242,21 @@ export function LineChart({
             </g>
           )
         })}
+
+        {/*
+          압축 표시(379 후속). [0, floor] 를 눌러 그렸다는 사실을 숨기지 않는다 — y축
+          위에 짧은 지그재그 두 줄을 그어 "이 아래는 축척이 다르다" 를 그대로 드러낸다.
+        */}
+        {breakY !== null && (
+          <g
+            stroke="var(--muted-foreground)"
+            strokeWidth="1.3"
+            vectorEffect="non-scaling-stroke"
+          >
+            <line x1={box.x - 5} y1={breakY + 5} x2={box.x + 5} y2={breakY - 3} />
+            <line x1={box.x - 5} y1={breakY + 9} x2={box.x + 5} y2={breakY + 1} />
+          </g>
+        )}
 
         {/* 관측 시작 이전 — 값이 0 이라는 뜻이 아니라 자료가 없다는 뜻 */}
         {cutX !== null && cutX > box.x + 1 && (
@@ -270,13 +312,13 @@ export function LineChart({
               >
                 {(single || focused) && (
                   <path
-                    d={buildArea(s.points, xd, yd, box, maxGapDays)}
+                    d={buildArea(s.points, xd, yd, box, maxGapDays, scaleYFn)}
                     fill={st.color}
                     fillOpacity={0.08}
                   />
                 )}
                 <path
-                  d={buildLine(s.points, xd, yd, box, maxGapDays)}
+                  d={buildLine(s.points, xd, yd, box, maxGapDays, scaleYFn)}
                   fill="none"
                   stroke={st.color}
                   strokeWidth={bare ? 1.6 : focused ? 2.6 : 1.8}
@@ -288,7 +330,7 @@ export function LineChart({
                 {/* 스냅샷 하나에 점 하나. 값이 없는 주는 점도 없다 */}
                 {!bare && (
                   <path
-                    d={buildPoints(s.points, xd, yd, box)}
+                    d={buildPoints(s.points, xd, yd, box, scaleYFn)}
                     fill="none"
                     stroke={st.color}
                     strokeWidth={dot + (focused ? 1 : 0)}
@@ -300,14 +342,14 @@ export function LineChart({
                 {hv !== null && hoverX !== null && (
                   <>
                     <path
-                      d={`M${hoverX} ${scaleY(hv, yd, box)}L${hoverX} ${scaleY(hv, yd, box)}`}
+                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
                       stroke="var(--background)"
                       strokeWidth={dot + 7}
                       strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                     />
                     <path
-                      d={`M${hoverX} ${scaleY(hv, yd, box)}L${hoverX} ${scaleY(hv, yd, box)}`}
+                      d={`M${hoverX} ${scaleYFn(hv, yd, box)}L${hoverX} ${scaleYFn(hv, yd, box)}`}
                       stroke={st.color}
                       strokeWidth={dot + 4}
                       strokeLinecap="round"

@@ -163,7 +163,8 @@ public class GitHubIssueCommentsClient {
                             "Bot".equals(node.path("user").path("type").asText("")),
                             parseInstant(node.path("created_at").asText(), "comment created_at"),
                             node.path("body").asText(""),
-                            node.path("user").path("id").asText(null)));
+                            node.path("user").path("id").asText(null),
+                            parseReactionCount(node)));
         }
         return comments;
     }
@@ -183,6 +184,12 @@ public class GitHubIssueCommentsClient {
             throw new UpstreamFetchException("GitHub comments 응답의 id 형식 오류");
         }
         return id;
+    }
+
+    private static int parseReactionCount(JsonNode node) {
+        if (!GitHubReactionCounts.isValidTotalCount(node))
+            throw new UpstreamFetchException("GitHub comments 응답의 reactions.total_count 형식 오류");
+        return node.path("reactions").path("total_count").asInt();
     }
 
     /** {@link GitHubIssueSearchClient#parseInstant}와 같은 이유(리뷰에서 발견). */

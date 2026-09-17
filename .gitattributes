@@ -32,3 +32,13 @@ pipeline/repository_metrics/*.py text eol=lf
 # git hook 은 확장자가 없어 위 *.sh 규칙에 걸리지 않는다.
 # CRLF 로 체크아웃되면 sh 가 줄 끝 \r 을 명령의 일부로 읽어 훅이 통째로 죽는다.
 .githooks/*  text eol=lf
+
+# CI 정의는 확장자가 .yml 이지만 **내용의 절반이 셸 스크립트**다 (`script:` 블록).
+# 러너가 그것을 그대로 sh 에 먹이므로 위 *.sh 와 사정이 같다 — 줄 끝에 \r 이 붙으면
+# `cd deploy/prod/data\r` 처럼 읽혀 "그런 디렉터리 없음" 으로 죽는다.
+#
+# 지금은 `core.autocrlf=true` 가 커밋할 때 CR 을 벗겨 줘서 문제가 안 난다. 다만 그건
+# **각자의 로컬 설정**이고 저장소에 남지 않는다 — 이 파일에 적어 두면 설정과 무관해진다.
+# (이 규칙을 넣으면 Windows 작업 사본이 다음 체크아웃에서 CRLF → LF 로 바뀐다.
+#  저장소에 들어 있는 바이트는 원래부터 LF 라 diff 는 생기지 않는다.)
+.gitlab-ci.yml  text eol=lf

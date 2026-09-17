@@ -53,7 +53,8 @@ class CommunityContractReviewTest {
                         false,
                         original.createdAt(),
                         "verified comment",
-                        "456");
+                        "456",
+                        0);
         var source =
                 new CollectedIssue(
                         1,
@@ -125,7 +126,8 @@ class CommunityContractReviewTest {
                             false,
                             original.createdAt().plusSeconds(i),
                             "😀".repeat(5000),
-                            "456"));
+                            "456",
+                            0));
         var source =
                 new CollectedIssue(
                         1,
@@ -197,6 +199,48 @@ class CommunityContractReviewTest {
                         "[link](https://example.com)",
                         "https://example.com"))
             assertFalse(CommunitySnapshotValidator.plain(text, 500));
+    }
+
+    @Test
+    void R05_요약에_포함된_URL은_지워지고_나머지_내용은_그대로_통과한다() {
+        // 2026-09-16 오세진 님 결정 — <,>(XSS 방어)는 그대로 거부하되, URL/마크다운 링크는
+        // "(링크 생략)"으로 지우고 나머지 텍스트는 살려서 요약 전체가 FAILED로 떨어지지
+        // 않게 한다.
+        var bundle = CommunitySummarySourceBundle.from(issue(1));
+        var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
+        var summary =
+                new TopicSummary(
+                        "제목",
+                        "자세한 내용은 https://example.com/advisory 를 참고하세요.",
+                        List.of(new DiscussionStepPayload("[공지](https://example.com)에서 확인됨")),
+                        List.of(),
+                        SummaryStatus.READY,
+                        support,
+                        List.of(support));
+
+        var result = CommunitySummaryValidator.validate(bundle, summary);
+
+        assertEquals(SummaryStatus.READY, result.status());
+        assertEquals("자세한 내용은 (링크 생략) 를 참고하세요.", result.summaryKo());
+        assertEquals("(링크 생략)에서 확인됨", result.discussionFlow().getFirst().text());
+        assertFalse(result.summaryKo().contains("https://"));
+    }
+
+    @Test
+    void R05_HTML_태그는_링크_완화와_무관하게_여전히_거부된다() {
+        var bundle = CommunitySummarySourceBundle.from(issue(1));
+        var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
+        var summary =
+                new TopicSummary(
+                        "제목",
+                        "<script>alert(1)</script>",
+                        List.of(new DiscussionStepPayload("흐름")),
+                        List.of(),
+                        SummaryStatus.READY,
+                        support,
+                        List.of(support));
+
+        assertEquals(SummaryStatus.FAILED, CommunitySummaryValidator.validate(bundle, summary).status());
     }
 
     final InMemoryCommunitySnapshotRepository store = new InMemoryCommunitySnapshotRepository();
