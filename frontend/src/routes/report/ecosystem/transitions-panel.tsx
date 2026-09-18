@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import type { MetricState } from '@/routes/report/ecosystem/model'
 import {
+  populationLabel,
   TRANSITION_KIND_INFO,
   TRANSITION_KINDS,
   TRANSITION_PERIODS,
@@ -100,7 +101,9 @@ export function TransitionsPanel({
       </div>
 
       <p className="text-base leading-relaxed text-muted-foreground">
-        Dependents 그래프의 증감과는 다른 기준입니다 — 모집단·계산 방식이 다릅니다.
+        Dependents 그래프의 증감과는 다른 기준입니다 — 그쪽은 버전별 합계이고, 이 수치는{' '}
+        {model.population ? populationLabel(model.population) : '집계 대상'} 중 프로젝트를 이름으로
+        센 결과라 계산 방식 자체가 다릅니다.
       </p>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

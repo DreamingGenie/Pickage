@@ -40,6 +40,8 @@ export function toTransitionsModel(
     period: res.period,
     t1: res.t1 ?? null,
     t2: res.t2 ?? null,
+    // 행마다 실려 오지만 지금은 전부 같은 값이다 — 첫 행에서 대표로 하나만 뽑는다.
+    population: res.series[0]?.population ?? null,
     packages,
     notFound: res.not_found,
   }

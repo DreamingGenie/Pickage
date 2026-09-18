@@ -78,11 +78,27 @@ export interface PackageTransitions {
   rows: TransitionRow[]
 }
 
+/**
+ * `population`은 행(name×kind)마다 실려 오는 필드라 이론상 행마다 다를 수 있지만,
+ * 지금은 항상 `npm_all` 하나뿐이다(백엔드 문서: "지금은 전부 npm_all"). 응답을 대표하는
+ * 값 하나로 뽑아 캡션에 쓴다 — 나중에 `top100k` 같은 값이 섞여 나오기 시작하면 그때
+ * 행별로 다시 쪼개야 하지만, 지금 그 대비를 미리 하는 것은 없는 문제를 만드는 일이다.
+ */
+export const POPULATION_LABELS: Record<string, string> = {
+  npm_all: 'npm 전체 패키지',
+}
+
+/** 모르는 population 코드가 오면 원래 값을 그대로 보여준다 — 화면이 죽는 것보다 낫다. */
+export const populationLabel = (population: string): string =>
+  POPULATION_LABELS[population] ?? population
+
 export interface TransitionsModel {
   period: TransitionPeriod
   /** 응답 전체가 NOT_COMPUTED 뿐이면 서버가 키 자체를 생략한다 — 그때 둘 다 null. */
   t1: string | null
   t2: string | null
+  /** 계산에 쓰인 모집단(현재는 항상 `npm_all`). 응답에 행이 하나도 없으면(빈 비교) null. */
+  population: string | null
   packages: PackageTransitions[]
   /** ecosystem-view.tsx의 `model.notFound`와 합치지 않는다 — 독립 쿼리라 타이밍이 다르다. */
   notFound: string[]
@@ -92,6 +108,7 @@ export const EMPTY_TRANSITIONS_MODEL: TransitionsModel = {
   period: DEFAULT_TRANSITION_PERIOD,
   t1: null,
   t2: null,
+  population: null,
   packages: [],
   notFound: [],
 }
