@@ -1,0 +1,18 @@
+# 빌드 컨텍스트는 ai/rag/ 다.
+# Dockerfile이 실제 모듈 파일만 명시적으로 COPY하지만(test_*.py 제외), 나중에
+# COPY 범위를 넓히게 될 때를 대비해 둔다 (ai/similarity/.dockerignore와 같은 이유).
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+test_*.py
+
+.env
+.env.*
+
+*.md

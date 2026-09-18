@@ -138,6 +138,37 @@ services:
     memswap_limit: 1.6g   # 스왑 0. 위 postgres 의 주석 참고
     # ↑ 로컬 compose.yaml 의 api 와 같은 값. 로컬에서 미리 걸리라고 맞춰 둔 것이다.
 
+  rag-api:
+    # 130(백엔드)이 호출할 기능 비교 RAG 서버 (S15P21A506-178). ai-similarity와 달리
+    # 일회성 배치가 아니라 상시 HTTP 서버로 뜬다 (2026-09-18 결정). GMS(LLM) 호출은
+    # api 서비스와 같은 GMS_* 값을 이 노드의 .env에서 그대로 재사용한다 — 팀이 이미
+    # 보유한 키라 새로 발급받지 않는다.
+    #
+    # ⚠ 175(청킹)~180(검증) 전체가 아직 실구현 전이다 — 지금 떠도 /compare 호출은
+    #   NotImplementedError로 501/500이 난다(도커 이미지 빌드·기동 자체는 확인함).
+    image: pickage-rag-api:${RAG_TAG:?.env 에 RAG_TAG 를 채울 것 — api·web 과 같은 규칙(커밋 SHA), 지금은 CI 미연결이라 수동}
+    build:
+      context: ../../../ai/rag
+    restart: unless-stopped
+    environment:
+      GMS_API_KEY: ${GMS_API_KEY:-}
+      GMS_BASE_URL: ${GMS_BASE_URL:-}
+      GMS_REQUEST_PATH: ${GMS_REQUEST_PATH:-}
+      GMS_AUTH_HEADER: ${GMS_AUTH_HEADER:-}
+      GMS_AUTH_SCHEME: ${GMS_AUTH_SCHEME:-}
+      GMS_MODEL: ${GMS_MODEL:-}
+      # 176(2026-09-18 결정, DB 캐시 없이 그때그때 청킹) — 데이터팀이 이 노드에 이미
+      # 올려둔 README 인계 파일 경로. 컨테이너 안에서도 같은 절대경로로 보이게
+      # 아래 volumes에서 그대로 마운트한다(경로 자체를 바꾸지 않음).
+      README_SOURCE_ROOT: /srv/pickage/docs
+    volumes:
+      # 데이터팀이 채워둔 README 인계 파일 — 컨테이너는 읽기만 한다(:ro).
+      - /srv/pickage/docs:/srv/pickage/docs:ro
+    # 호스트에 포트를 열지 않는다 — postgres와 같은 이유. api가 같은 compose 네트워크
+    # 안에서 rag-api:8000 으로 붙으면 되고, 밖에 노출할 이유가 없다.
+    mem_limit: 512m
+    memswap_limit: 512m   # 스왑 0. 위 postgres 의 주석 참고
+
   web:
     # 이 서비스가 nginx 다. 프런트 정적 파일을 담은 이미지 위에 nginx 가 올라가 있다
     # (frontend/Dockerfile 2단계). 호스트 nginx 는 꺼 둔다 — 아래 README 참고.
