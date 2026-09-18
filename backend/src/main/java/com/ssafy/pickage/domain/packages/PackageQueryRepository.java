@@ -469,20 +469,40 @@ public class PackageQueryRepository {
 	 * <p>그래서 이름 배열을 그대로 받는다. 호출자가 서버 내부 코드라는 전제가 깔려 있으므로
 	 * <b>외부 입력을 이 메서드에 바로 넘기면 안 된다.</b>
 	 *
-	 * <p>{@code DISTINCT ON} 의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
+	 * <p>{@code LATERAL} 안의 정렬 기준이 {@code ordinal DESC} 인 것이 핵심이다(명세 0.6).
 	 * 문자열로 정렬하면 {@code 4.9.0} 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이
-	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다. {@code idx_version_pkg_ordinal} 을 탄다.
+	 * 화면에 "최신 버전 4.9.0" 으로만 나타난다.
+	 *
+	 * <p><b>{@code target} CTE 로 이름을 먼저 좁힌다.</b> 이름 조건을 바깥 {@code WHERE} 에 두면
+	 * 조건이 CTE 안으로 밀려 들어가지 못해 <b>1,100만 패키지 전체의 최신 버전을 먼저 구하고 나서
+	 * 후보를 거른다.</b> 실행 계획이 {@code idx_version_pkg_ordinal} 을 버리고 {@code version}
+	 * 5,400만 행을 순차 스캔·정렬해 60초 안에 응답하지 못했다(S15P21A506-383). 후보가 0개인
+	 * 동안에는 이 경로가 실행되지 않아 드러나지 않았다.
+	 *
+	 * <p><b>{@code DISTINCT ON} 이 아니라 {@code LATERAL … LIMIT 1} 인 것도 이유가 있다.</b>
+	 * §3 개요 SQL 의 {@code latest_ver} 는 {@code DISTINCT ON} 인데, 그 형태는 대상 패키지의
+	 * <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 — 패키지당 평균 176행, webpack 은 578행이다.
+	 * 개요는 이름이 최대 3개라 묻히지만 여기는 후보가 {@code SimilarPackagesResponse.LIMIT_MAX} =
+	 * 50개까지라 그 비용이 쌓인다. 50개 실측이 콜드 4.96초로 명세의 1초를 넘겼다.
+	 * {@code (package_id, ordinal DESC)} 인덱스에서 <b>패키지당 1행</b>만 꺼내면 145ms 다.
+	 *
+	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
+	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
+	 * 원래 동작은 그 패키지를 아예 빼는 것이고, 빠진 이름은 서비스가 {@code null} 로 채운다.
 	 */
 	private static final String BRIEF_SQL = """
-		WITH latest AS (
-		  SELECT DISTINCT ON (package_id) package_id, version, description
-		  FROM version
-		  ORDER BY package_id, ordinal DESC
+		WITH target AS (
+		  SELECT package_id, name FROM package WHERE name = ANY(?)
 		)
-		SELECT p.name, l.version AS latest_version, l.description
-		FROM package p
-		JOIN latest l ON l.package_id = p.package_id
-		WHERE p.name = ANY(?)
+		SELECT t.name, l.version AS latest_version, l.description
+		FROM target t
+		CROSS JOIN LATERAL (
+		  SELECT v.version, v.description
+		  FROM version v
+		  WHERE v.package_id = t.package_id
+		  ORDER BY v.ordinal DESC
+		  LIMIT 1
+		) l
 		""";
 
 	public List<BriefRow> findBriefByNames(String[] names) {
