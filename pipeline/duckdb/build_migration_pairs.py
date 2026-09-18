@@ -7,11 +7,10 @@
         migration_pairs_recommended.csv  권고 하한(lift≥5, votes≥8, publisher_months≥5, share≥10%) 통과 쌍
         removal_stats.csv            X별 이탈 요약(제거 총수·대체 없이 제거·대체 동반 제거·dependents). removals_total≥3 만
         removal_by_year.csv          X × 연도 이탈 추이. 같은 X 기준
-        removal_by_period.csv        X × 구간(1y·3y·5y) 이탈 사유. 같은 X 기준
         stats.json                   규모 통계(패키지 수·전이 수·이벤트 수·파일 크기)
       data/migration_pairs/migration_events.parquet   제거 이벤트 원시 전부(모델 최소 단위)
-      data/migration_pairs/removal_stats.parquet, removal_by_year.parquet, removal_by_period.parquet
-                                                      위 세 표 필터 없이 전부
+      data/migration_pairs/removal_stats.parquet, removal_by_year.parquet   위 두 표 필터 없이 전부
+      data/migration_pairs/removal_by_period.parquet, removal_by_period.csv   X × 구간(1y·3y·5y) 이탈 사유(전량)
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_migration_pairs.py   (중간 결과 data/migration_pairs.duckdb)
 
 원천·의존 종류 (S15P21A506-349, 2026-09-14 추가)
@@ -317,14 +316,16 @@ con.execute(f"""COPY (SELECT y.removed_pkg, y.year, y.removals, y.removals_no_re
                       FROM removal_by_year y JOIN removal_stats s USING (removed_pkg)
                       WHERE s.removals_total >= {REMOVAL_MIN} ORDER BY y.removed_pkg, y.year)
                 TO '{OUT}/removal_by_year.csv' (HEADER, DELIMITER ',')""")
-con.execute(f"""COPY (SELECT p.period, p.removed_pkg, p.removals, p.removals_no_replacement,
-                             p.removals_with_replacement,
-                             round(p.removals_no_replacement*100.0/p.removals, 1) AS no_replacement_pct,
-                             p.dependents
-                      FROM removal_by_period p JOIN removal_stats s USING (removed_pkg)
-                      WHERE s.removals_total >= {REMOVAL_MIN}
-                      ORDER BY p.period, p.removals DESC, p.removed_pkg)
-                TO '{OUT}/removal_by_period.csv' (HEADER, DELIMITER ',')""")
+# 구간별 표는 git 에 두지 않는다. 구간이 겹쳐 연도별보다 행이 빠르게 늘고(전량 27만),
+# 프리셋을 늘리면 그만큼 커진다. parquet 과 나란히 data/ 에 두는 것은 migration_events 와
+# 같은 관례다 — 그쪽도 CSV·parquet 이 같은 내용으로 EV_DIR 에 있다.
+con.execute(f"""COPY (SELECT period, removed_pkg, removals, removals_no_replacement,
+                             removals_with_replacement,
+                             round(removals_no_replacement*100.0/removals, 1) AS no_replacement_pct,
+                             dependents
+                      FROM removal_by_period
+                      ORDER BY period, removals DESC, removed_pkg)
+                TO '{EV_DIR}/removal_by_period.csv' (HEADER, DELIMITER ',')""")
 con.execute(f"COPY (SELECT * FROM removal_stats ORDER BY removals_total DESC) TO '{EV_DIR}/removal_stats.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 con.execute(f"COPY (SELECT * FROM removal_by_year ORDER BY removed_pkg, year) TO '{EV_DIR}/removal_by_year.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 con.execute(f"COPY (SELECT * FROM removal_by_period ORDER BY period, removed_pkg) TO '{EV_DIR}/removal_by_period.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
@@ -343,7 +344,7 @@ con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_versio
 
 # UTF-8 BOM (팀 공유 CSV 관례)
 for f in ("migration_pairs_strict.csv", "migration_pairs_all.csv", "migration_pairs_recommended.csv",
-          "removal_stats.csv", "removal_by_year.csv", "removal_by_period.csv"):
+          "removal_stats.csv", "removal_by_year.csv"):
     p = f"{OUT}/{f}"
     with open(p, "rb") as fh:
         data = fh.read()
@@ -360,7 +361,7 @@ stats["file_bytes"] = {
     "migration_pairs_recommended.csv": sz(f"{OUT}/migration_pairs_recommended.csv"),
     "removal_stats.csv": sz(f"{OUT}/removal_stats.csv"),
     "removal_by_year.csv": sz(f"{OUT}/removal_by_year.csv"),
-    "removal_by_period.csv": sz(f"{OUT}/removal_by_period.csv"),
+    "removal_by_period.csv": sz(f"{EV_DIR}/removal_by_period.csv"),
     "removal_stats.parquet": sz(f"{EV_DIR}/removal_stats.parquet"),
     "removal_by_year.parquet": sz(f"{EV_DIR}/removal_by_year.parquet"),
     "removal_by_period.parquet": sz(f"{EV_DIR}/removal_by_period.parquet"),

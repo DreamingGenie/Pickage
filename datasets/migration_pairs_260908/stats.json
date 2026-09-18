@@ -55,7 +55,7 @@
     "migration_pairs_recommended.csv": 122005,
     "removal_stats.csv": 2680918,
     "removal_by_year.csv": 5134320,
-    "removal_by_period.csv": 3057139,
+    "removal_by_period.csv": 9973493,
     "removal_stats.parquet": 4500010,
     "removal_by_year.parquet": 2315229,
     "removal_by_period.parquet": 2528362,

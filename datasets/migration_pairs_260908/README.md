@@ -21,11 +21,11 @@
 | `migration_pairs_recommended.csv` | **권고 하한**(§6) `lift≥5 AND votes≥8 AND publisher_months≥5 AND share≥10%` 통과 쌍. 전처리 없이 바로 라벨로 쓰는 파일 | 1,167 | 122 KB |
 | `removal_stats.csv` | **X별 이탈 요약**(§7). X를 뺀 전이 총수와 그중 "대체 없이 제거"·"대체 동반 제거" 건수. `removals_total≥3`인 X만 | 47,250 | 2.6 MB |
 | `removal_by_year.csv` | X × 연도 이탈 추이(§7). 같은 X 기준 | 183,403 | 4.9 MB |
-| `removal_by_period.csv` | **X × 구간 이탈 사유**(§8). 화면이 쓰는 `1y`·`3y`·`5y` 기준. 같은 X 기준 | 87,045 | 3.1 MB |
 | `stats.json` | 아래 2·3절 숫자의 원본 | | |
 | `data/migration_pairs/migration_events.parquet` (git 미추적) | 제거 이벤트 원시 전부. 모델이 소비하는 최소 단위 | 657,023 | 21 MB |
 | `data/migration_pairs/migration_events.csv` (git 미추적) | 같은 내용 CSV | 657,023 | 119 MB |
-| `data/migration_pairs/removal_stats.parquet`, `removal_by_year.parquet`, `removal_by_period.parquet` (git 미추적) | 위 세 CSV의 필터 없는 전체 | 203,336 / 351,972 / 273,610 | 4.5 MB / 2.3 MB / 2.5 MB |
+| `data/migration_pairs/removal_stats.parquet`, `removal_by_year.parquet` (git 미추적) | 위 두 CSV의 필터 없는 전체 | 203,336 / 351,972 | 4.5 / 2.3 MB |
+| `data/migration_pairs/removal_by_period.parquet`, `removal_by_period.csv` (git 미추적) | **X × 구간 이탈 사유**(§8). 화면이 쓰는 `1y`·`3y`·`5y` 기준. 필터 없는 전량 | 273,610 | 2.5 / 10.0 MB |
 | `data/migration_pairs.duckdb` (git 미추적) | 중간 테이블(`events`, `pairs`, `pairs_out`, `base`, `removal_stats`, `removal_by_year`). 다른 필터로 다시 뽑을 때 재계산 없이 여기서 쿼리 | | 11.2 GB |
 
 CSV는 UTF-8 BOM. 배열은 `|`로 이어 붙였다.
@@ -296,7 +296,7 @@ CSV의 `share_pct`는 재현 가능하도록 **lift≥5 쌍 전체**(`migration_
 | `5y` | 1,285,648 | 891,664 (**69.4%**) | 393,984 | 132,686 |
 | 전 기간(§7) | 2,058,773 | 1,401,798 (68.1%) | 656,975 | 203,336 |
 
-CSV 는 §7 과 같이 `removals_total ≥ 3` 인 X 만 담는다(87,045행). 필터 없는 전체는 parquet 에 있다(273,610행).
+이 표는 **git 에 두지 않는다.** 구간이 겹쳐 연도별보다 행이 빠르게 늘고(전량 273,610행), 프리셋을 늘리면 그만큼 커진다. `data/migration_pairs/` 에 parquet·CSV 로 나란히 둔다 — `migration_events` 와 같은 관례이고, 둘 다 필터 없는 전량이다.
 
 **대체 없이 제거되는 비율이 구간과 거의 무관하다** — 67.8% · 70.1% · 69.4% 이고 전 기간 68.1% 와도 같다. 최근 들어 대체 없이 버려지는 경향이 강해졌다거나 약해졌다고 말할 근거가 없다는 뜻이다. 시기를 타는 현상이 아니라 npm 의 구조적 성질로 보인다.
 
