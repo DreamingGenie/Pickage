@@ -1,8 +1,11 @@
 """근거ID·판정값 검증 (S15P21A506-179/180).
 
-179(근거ID·패키지·버전·판정 연결 검증)는 BE(정보경) 담당이고, 180(5종 기능 판정·근거
-충족 조건 검증)은 AI(정민지) 담당이다. verify_evidence_ids()는 로컬에서 전체 흐름을
-끝까지 테스트하기 위한 스텁일 뿐, 실제 구현은 BE와 별도 합의가 필요하다.
+2026-09-18 재배정: 179(근거ID·패키지·버전 연결 검증)·180(5종 기능 판정·근거 충족
+조건 검증) 둘 다 AI(정민지)가 설계·구현한다 — BE는 구현만 맡을 것으로 예상돼
+직접 설계함(148/203은 이번 스코프에서 제외, 148 공통 계약 없이 180과 같은
+`list[str]` 반환 타입으로 통일). 148 원문의 "source snapshot 연결"은 176이 DB
+없이 그때그때 청킹하는 방식으로 바뀌면서 더 이상 해당 없음 — 대신 `FeatureResult`에
+`version`을 직접 실어(2026-09-18 추가) 셀 하나만 보고 검증 가능하게 함.
 """
 
 from __future__ import annotations
@@ -22,17 +25,32 @@ _ALLOWED_GROUNDED_IN = {"EVIDENCE", "GENERAL_KNOWLEDGE"}
 def verify_evidence_ids(
     result: ComparisonResult, evidence_pool: list[EvidenceChunk]
 ) -> list[str]:
-    """179(BE 담당 — 로컬 테스트용 스텁).
+    """179: 인용된 근거ID가 177이 178에 실제로 넘긴 evidence_pool 안에 있고, 그 근거가
+    인용한 셀과 같은 package/version 소속인지 검사한다.
 
-    검사 항목(179 완료조건 참고):
-        - 근거 ID 존재와 package/version/source snapshot 연결
-        - 공개 근거 ID가 해당 셀의 기능·판정·원문 위치를 정확히 가리키는지
-        - 식별자 오염·없는 ID·다른 package/version의 ID를 구조화 실패로 반환
+    evidence_pool은 pipeline.py의 compare_packages()에서 `retrieved`(177 출력,
+    178이 실제로 본 것)를 넘겨받는다 — get_or_build_evidence()의 전체 풀이 아니다.
+    178이 못 본 근거를 인용했으면 여기서 이미 "존재하지 않는 ID"로 잡힌다.
 
     Returns:
         위반 사유 문자열 목록 (빈 리스트면 통과).
     """
-    raise NotImplementedError
+    by_id = {chunk.evidence_id: chunk for chunk in evidence_pool}
+
+    violations: list[str] = []
+    for row in result.features:
+        for r in row.results:
+            label = f"{row.feature_label}/{r.package}@{r.version}"
+            for evidence_id in r.evidence_ids:
+                chunk = by_id.get(evidence_id)
+                if chunk is None:
+                    violations.append(f"{label}: 존재하지 않는 evidenceId {evidence_id!r}")
+                elif chunk.package != r.package or chunk.version != r.version:
+                    violations.append(
+                        f"{label}: evidenceId {evidence_id!r}는 "
+                        f"{chunk.package}@{chunk.version} 소속이라 이 셀에 쓸 수 없음"
+                    )
+    return violations
 
 
 def verify_verdicts(result: ComparisonResult) -> list[str]:
