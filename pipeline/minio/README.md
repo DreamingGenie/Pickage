@@ -227,6 +227,23 @@ ssh -i ~/.ssh/J15A506T.pem ubuntu@j15a506a.p.ssafy.io   'docker inspect pickage-
 **로컬 `.env` 에 서버 값을 넣지 말 것** — 그 파일은 루트 compose 가 로컬 컨테이너를
 띄울 때 함께 읽는다.
 
+#### 키 이름 — `PICKAGE_S3_*` 가 쓸 이름이다
+
+`client()` 는 자격증명을 두 이름으로 받는다. **새로 만드는 파일에는 `PICKAGE_S3_*` 를
+쓴다.**
+
+| 이름 | 쓰는 곳 |
+| --- | --- |
+| `PICKAGE_S3_ACCESS_KEY` · `PICKAGE_S3_SECRET_KEY` | 새 파일. 예: `.env.similarity-loader` |
+| `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | 옛 이름. `.env` · `.env.server` · `.env.data` 가 아직 이것이다 |
+
+옛 이름을 한 번에 걷어 내지 않는 이유는 **같은 파일을 다른 모듈도 읽기** 때문이다 —
+`pipeline/repository_metrics/build.py` 와 `pipeline/requirements_resolution/build.py` 가
+`MINIO_ROOT_*` 로 직접 파싱한다. 여기만 바꾸면 그 둘이 조용히 죽는다.
+
+**권한을 좁힌 계정을 `MINIO_ROOT_*` 라는 이름에 넣지 말 것.** 이름이 ROOT 면 루트 키를
+넣어도 어색해 보이지 않고, 그게 계정을 따로 만든 이유를 지운다 (S15P21A506-385).
+
 ### 3. 대상을 지정해 실행한다
 
 환경변수로 자격증명 파일을 고른다. 지정하지 않으면 로컬이다.

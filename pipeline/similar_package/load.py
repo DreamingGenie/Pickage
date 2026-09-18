@@ -13,6 +13,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -27,6 +28,17 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parents[2]
+# 받은 산출물과 게시 기록(psql.log·execution_report.json)을 둘 곳. --work-dir 를 주면 그게 이긴다.
+#
+# ⚠ **기본값이 저장소 안이라 배포에서는 환경변수로 밖을 가리켜야 한다.** app 노드는
+#   CI 러너의 작업 디렉터리를 마운트하고 그 소유자는 gitlab-runner 다 — uid 1000 인
+#   컨테이너가 mkdir 에서 Permission denied 로 죽는다 (S15P21A506-385).
+#
+# ⚠ compose 의 `command:` 가 아니라 `environment:` 로 주는 이유:
+#   `docker compose run --rm similarity-loader --once` 는 command 를 **통째로** 덮어써서
+#   거기 넣은 인자가 사라진다. 그러면 상주는 멀쩡한데 손으로 한 번 돌릴 때만 깨진다.
+DEFAULT_WORK_DIR = Path(os.environ.get("PICKAGE_SIMILAR_PACKAGE_WORK_DIR")
+                        or ROOT / "data/similar_package")
 SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,200}\Z")
 DATASET = "similar-package"
 # .env 의 AI_DST_RESULT 와 같은 값. ai-collect 가 여기에 올린다
@@ -307,7 +319,7 @@ def main(argv=None) -> int:
     source.add_argument("--list", action="store_true", help="적재할 수 있는 실행을 나열하고 끝낸다")
     parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다. "
                                                "--run 이면 생략 시 실행 경로에서 만든다")
-    parser.add_argument("--work-dir", type=Path, default=ROOT / "data/similar_package")
+    parser.add_argument("--work-dir", type=Path, default=DEFAULT_WORK_DIR)
     parser.add_argument("--allow-gate-skip", action="store_true",
                         help="채점 게이트가 SKIPPED 여도 게시한다 (게이트 미구현 기간용)")
     parser.add_argument("--verify-only", action="store_true",
