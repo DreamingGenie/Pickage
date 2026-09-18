@@ -285,7 +285,9 @@ CSV의 `share_pct`는 재현 가능하도록 **lift≥5 쌍 전체**(`migration_
 
 **구간은 겹친다.** `1y ⊂ 3y ⊂ 5y` 이고 셋 다 같은 날 끝난다. 연도별 집계처럼 서로 배타적이지 않으므로 **같은 제거 한 건이 세 구간에 모두 들어간다. 구간끼리 더하지 말 것.**
 
-`t2` 를 넘는 전이는 뺀다. 원천의 `snapshot=2026-08-31` 파티션에는 09-01 발행분이 섞여 있어(BigQuery 추출이 UTC 자정을 지나 돌았다), 거르지 않으면 유지·유입·이탈과 기준이 갈린다. 걸러진 전이 수는 `stats.json` 의 `transitions_after_t2` 에 남는다.
+`t2` 를 넘는 전이는 뺀다. 이 회차(depsdev)에서 걸러진 것은 **721건**이고, 원인은 원천의 `snapshot=2026-08-31` 파티션에 09-01 발행분이 섞인 것이다(BigQuery 추출이 UTC 자정을 세 시간 넘겨 돌았다). 거르지 않으면 유지·유입·이탈과 기준이 갈린다. 걸러진 전이 수는 `stats.json` 의 `transitions_after_t2` 에 남는다.
+
+**`--source registry` 로 돌리면 이 수가 10만 단위로 나온다.** 버그가 아니다 — 레지스트리 수집은 `2026-09-16` 까지 돌아 `t2` 보다 16일 더 있고, 그만큼이 구간 밖으로 밀린다. 두 회차를 비교하려면 경계가 같아야 하므로 registry 도 depsdev 의 `t2` 를 쓴다. **`t2` 를 원천마다 다르게 잡으면 유지·유입·이탈과의 비교가 깨진다.** 실측은 개발용 회차 README 를 볼 것.
 
 ### 8-2. 수치
 
@@ -344,8 +346,14 @@ CSV의 `share_pct`는 재현 가능하도록 **lift≥5 쌍 전체**(`migration_
 
 | 파일 | 두 실행이 같은가 |
 |---|---|
-| `removal_stats.csv` · `removal_by_year.csv` · `removal_by_period.csv` | **같다** (SHA-256 일치) |
+| `removal_stats.csv` · `removal_by_year.csv` | **같다** (SHA-256 일치) |
 | `migration_pairs_all.csv` · `_strict.csv` · `_recommended.csv` | **다르다** |
+
+`removal_by_period.csv` 는 이 대조 당시 `datasets/` 에 있던 필터본(87,045행)으로 확인했고,
+지금은 필터 없는 전량(273,610행)이 `data/` 에 있다. **확인한 파일과 지금 파일이 다르다.**
+결론은 그대로다 — `removal_by_period` 는 집계 결과이고 `COPY` 의
+`ORDER BY period, removals DESC, removed_pkg` 가 전순서라, 같은 표에서 나온 어떤 CSV 든
+바이트까지 같다. 다만 **해시를 실제로 대조한 것은 필터본이다.**
 
 **이동쌍 쪽에는 원인이 따로 있고, 이 회차에서 고치지 않았다.** `votes` 가
 `sum(1.0/len(added))` 라 **부동소수점 덧셈 순서에 따라 마지막 자리가 흔들리고**, `votes ≥ 3`

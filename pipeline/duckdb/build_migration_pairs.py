@@ -239,8 +239,12 @@ stats["removal_by_period"] = {
         SELECT period, sum(removals), sum(removals_no_replacement),
                sum(removals_with_replacement), count(*)
         FROM removal_by_period GROUP BY 1 ORDER BY 1""").fetchall()}
-# 구간 밖으로 밀려난 전이가 얼마나 되는지 남긴다. T2 는 스냅샷 경계인데 원천에는 그 뒤에
-# 발행된 행이 섞여 있다(versions_full 의 2026-08-31 파티션에 09-01 발행분이 들어 있다).
+# 구간 밖으로 밀려난 전이가 얼마나 되는지 남긴다. **원천마다 원인도 규모도 다르다.**
+#   depsdev  — 721건. BigQuery 추출이 UTC 자정을 세 시간 넘겨 돌아 versions_full 의
+#              2026-08-31 파티션에 09-01 발행분 1,213행이 섞인 것이다. 사고에 가깝다
+#   registry — 117,077건. 수집이 2026-09-16 까지 돌아 T2 보다 16일 더 있다. 정상이다
+# 두 회차를 비교하려면 구간 경계가 같아야 하므로 registry 도 depsdev 의 T2 를 쓴다.
+# 그 대가로 registry 의 최근 16일치를 버린다 — 이 수가 그만큼이다.
 stats["transitions_after_t2"] = one(
     f"SELECT count(*) FROM trans WHERE to_ts > TIMESTAMP '{T2}'")
 require_monotonic(con)
