@@ -129,6 +129,46 @@ DATASETS = {
             ' git datasets/migration_pairs_dev_260914/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'package-env': {
+        'root': 'data/package_env',
+        # deps.dev 가 아니라 npm registry 수집분에서 나온 것이라 npm-registry/v1 아래에 둔다
+        # (원본 수집분은 ingest_collector_raw.py 가 같은 접두사에 넣는다).
+        'prefix': 'npm-registry/v1/package-env',
+        # 원천이 registry 수집 실행 날짜이므로 collected_date 다. 같은 원천인 migration-pairs-dev 가
+        # snapshot= 으로 들어가 있는데 그건 이미 입고된 경로라 못 고치는 것이고, 새로 만드는
+        # 이쪽은 처음부터 맞춘다.
+        'partition': 'collected_date',
+        'date': '2026-09-16',
+        'builder': 'pipeline/duckdb/build_package_env.py',
+        'source': 'pickage-raw npm-registry/v1 collected_date=2026-09-16'
+                  ' (형태 6열 + Dependencies·PeerDependencies)',
+        'readme': 'datasets/package_env_260916/README.md',
+        'jira': ['S15P21A506-366'],
+        'notes': [
+            '기능-11-R01 의 첫 결과 카드가 읽는 값이다. 한 행 = 패키지 × 버전.'
+            ' 모듈 방식·타입·의존 조건 넷만 담는다 — 기능-11-R01 이 적은 항목 중'
+            ' 수집에 있는 것이 그것뿐이다.',
+            '실행 조건(engines)은 없다. 항목에는 있지만 수집에 포함되지 않았고 원본 문서를'
+            ' 보존하지 않아 재수집 외에 방법이 없다. 그 행은 화면에 내지 않는다 —'
+            ' 완료 판단이 "확인된 정보만 표시" 다.',
+            'module_type 이 NULL 인 것은 모름이 아니라 commonjs 기본값이다(전수 74.1%).'
+            ' 모름으로 읽으면 대부분이 UNKNOWN 이 되어 표가 아무 말도 못 한다.',
+            '타입 전용(@types/*)은 별도 값을 두지 않았다. 6열만으로는 못 가른다 — main 이'
+            ' 없으면 npm 이 index.js 를 기본값으로 쓰므로 "main 없음" 이 "JS 없음" 이 아니다.'
+            ' 09-16 shard 5,000행에서 그 규칙으로 잡으면 1,963행 중 22행이 chalk·supports-color'
+            ' 처럼 런타임이 있는 패키지였다.',
+            '의존 개수 두 열의 NULL 은 0 이 아니라 모름이다. unpublish 된 버전은 의존 배열이'
+            ' 통째로 NULL 이라, 0 으로 적으면 "의존 없음" 이 되어 거짓이 된다.',
+            'direct 와 peer 를 합치지 않는다. dependencies 는 깔면 따라오고 peerDependencies 는'
+            ' 사용자가 이미 갖고 있어야 하는 조건이다. 합치면 둘 다 못 읽는다.',
+            '설치 크기(unpacked_size)·파일 수는 수집돼 있지만 담지 않는다. 기능-11-R01 의'
+            ' 항목이 아니고, 그 값은 패키지 자신의 tarball 만 푼 크기라 의존성이 빠져'
+            ' "설치 크기" 로 부르면 정반대를 말하게 된다.',
+            'exports 원문은 담지 않는다. 판정에만 쓴다 — 전수 중앙값 179 B 인데 최대 2.69 MB'
+            '(@dnb/eufemia 10.94.0) 라 그대로 싣고 다닐 수 없다. 규칙을 고쳐 다시 판정해야 하면'
+            ' raw 가 MinIO 에 그대로 있으므로 빌더부터 다시 돌린다.',
+        ],
+    },
     'package-dependents': {
         'root': 'data/package_dependents',
         'prefix': 'depsdev/v1/package-dependents',
