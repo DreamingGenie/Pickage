@@ -37,8 +37,18 @@ def alive(script="collect.py"):
 
 def report(run, out):
     rundir = os.path.join(out, f"run={run}")
-    db = sqlite3.connect(f"file:{os.path.join(rundir, 'checkpoint.sqlite')}?mode=ro", uri=True)
-    total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    cp = os.path.join(rundir, "checkpoint.sqlite")
+    try:
+        db = sqlite3.connect(f"file:{cp}?mode=ro", uri=True)
+        total = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    except sqlite3.OperationalError:   # 파일 없음 / tasks 테이블 아직 없음 — 첫 실행 초기화 중이거나 아직 안 떴다
+        print(f"[{datetime.now().strftime('%m-%d %H:%M:%S')}] downloads run={run}  체크포인트를 읽을 수 없다: {cp}")
+        print("  --run 과 --out 이 수집기에 준 값과 같은지 확인할 것. 수집기가 첫 작업 INSERT 를 commit 하기 전에도 여기로 온다")
+        return False
+    if total == 0:                     # 대상 INSERT 가 commit 되기 전(약 0.3초)
+        db.close()
+        print(f"[{datetime.now().strftime('%m-%d %H:%M:%S')}] downloads run={run}  작업 목록이 아직 비어 있다 (수집기 초기화 중)")
+        return False
     by = dict(db.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status").fetchall())
     done = by.get("done", 0) + by.get("not_found", 0)
     pend = by.get("pending", 0) + by.get("retry", 0)
@@ -46,6 +56,7 @@ def report(run, out):
     last_ts = db.execute("SELECT MAX(ts) FROM events").fetchone()[0]
     r10 = db.execute("SELECT COUNT(*), COALESCE(SUM(http=429),0) FROM events WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-10 minutes')").fetchone()
     r60 = db.execute("SELECT COUNT(*), COALESCE(SUM(http=429),0), COUNT(DISTINCT task_id) FROM events WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-60 minutes')").fetchone()
+    first_in_window = db.execute("SELECT MIN(ts) FROM events WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S','now','-60 minutes')").fetchone()[0]
     rank = db.execute("SELECT MAX(rank_min) FROM tasks WHERE kind='single' AND status IN ('done','not_found')").fetchone()[0]
     db.close()
 
@@ -53,7 +64,15 @@ def report(run, out):
     if last_ts:
         age = (datetime.now(timezone.utc) - datetime.fromisoformat(last_ts)).total_seconds()
     procs = alive()
-    tasks_per_h = r60[2]
+    # 시간당 처리량: 최근 1시간 창. 가동(또는 재시작) 1시간 미만이면 창 안의 첫 호출부터 지금까지로 나눠
+    # 과대 ETA 를 막는다. 안 나누면 재시작 1분 뒤에는 1분치 처리량을 1시간치로 읽어 ETA 가 최대 60배 부푼다.
+    window_h = 1.0
+    if first_in_window:
+        t0 = datetime.fromisoformat(first_in_window)
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=timezone.utc)
+        window_h = max(1 / 60, min(1.0, (datetime.now(timezone.utc) - t0).total_seconds() / 3600))
+    tasks_per_h = round(r60[2] / window_h)
     eta_h = pend / tasks_per_h if tasks_per_h else None
     size = sum(os.path.getsize(os.path.join(rundir, f)) for f in os.listdir(rundir) if f.startswith("part-")) / 1e6
 
@@ -84,12 +103,17 @@ def main():
     ap.add_argument("--watch", action="store_true")
     ap.add_argument("--interval", type=int, default=60)
     ap.add_argument("--refresh-parquet", action="store_true", help="to_parquet.py를 실행해 data/downloads/parquet 갱신")
+    ap.add_argument("--refresh-min-interval", type=int, default=3600,
+                    help="--refresh-parquet 재실행 최소 간격(초). 변환은 상위 10만 패키지 18개월 규모에서 수 분 이상이라 "
+                         "--watch 주기(60초)마다 돌리면 수집기와 CPU·디스크를 다툰다")
     a = ap.parse_args()
+    last_refresh = 0.0
     while True:
         finished = report(a.run, a.out)
-        if a.refresh_parquet:
+        if a.refresh_parquet and (finished or time.time() - last_refresh >= a.refresh_min_interval):
             subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", os.path.join(a.out, f"run={a.run}"),
                             "--out", os.path.join(ROOT, "data", "downloads", "parquet")], check=False)
+            last_refresh = time.time()
         if not a.watch or finished:
             break
         time.sleep(a.interval)
