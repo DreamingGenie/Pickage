@@ -11,7 +11,34 @@
 
 from __future__ import annotations
 
+import re
+
 from ai.rag.types import DataTeamEnvelope, EvidenceChunk
+
+_ATX_HEADING_LINE_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*\n?$")
+_FENCE_LINE_RE = re.compile(r"^(```+|~~~+)")
+
+
+def _find_headings(text: str) -> list[tuple[int, int, str]]:
+    """코드펜스(``` / ~~~) 안의 `#` 줄은 헤딩으로 인식하지 않는다.
+
+    Returns:
+        (heading_line_start, heading_line_end, heading_text) 튜플 목록.
+        heading_line_end는 그 헤딩 줄 바로 다음 오프셋 — 본문 시작점으로 쓴다.
+    """
+    headings: list[tuple[int, int, str]] = []
+    in_fence = False
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if _FENCE_LINE_RE.match(stripped):
+            in_fence = not in_fence
+        elif not in_fence:
+            m = _ATX_HEADING_LINE_RE.match(line)
+            if m:
+                headings.append((offset, offset + len(line), m.group(2).strip()))
+        offset += len(line)
+    return headings
 
 # 잡음 필터링 deny-list — 시작점일 뿐, 127 실제 수집물로 튜닝 필요 (계획 문서 참고)
 _NOISE_HEADINGS = {
@@ -86,4 +113,34 @@ def chunk_readme(
         section/excerpt/verificationLevel이 채워진 EvidenceChunk 리스트.
         sourceType은 항상 "TARBALL_README".
     """
-    raise NotImplementedError
+    chunks: list[EvidenceChunk] = []
+
+    def _add(section: str, body: str) -> None:
+        if not body:
+            return
+        verification_level = (
+            "SUPPLEMENTARY" if section.strip().lower() in _NOISE_HEADINGS else "DISTRIBUTED_ARTIFACT"
+        )
+        chunks.append(
+            EvidenceChunk(
+                evidence_id=f"{package}@{version}#{len(chunks)}",
+                snapshot_id=snapshot_id,
+                package=package,
+                version=version,
+                section=section,
+                excerpt=body,
+                confirmed_content=body,
+                verification_level=verification_level,
+            )
+        )
+
+    headings = _find_headings(readme_text)
+
+    intro_end = headings[0][0] if headings else len(readme_text)
+    _add("(intro)", readme_text[:intro_end].strip())
+
+    for i, (_, body_start, section) in enumerate(headings):
+        body_end = headings[i + 1][0] if i + 1 < len(headings) else len(readme_text)
+        _add(section, readme_text[body_start:body_end].strip())
+
+    return chunks
