@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import unittest
 
-from ai.rag.readme_chunker import chunk_readme
+from ai.rag.readme_chunker import (
+    EnvelopeParseError,
+    chunk_readme,
+    parse_data_team_envelope,
+)
 
 
 class ChunkReadmeNoHeadingsTests(unittest.TestCase):
@@ -101,6 +105,44 @@ class ChunkReadmeNoiseHeadingTests(unittest.TestCase):
 
         by_section = {c.section: c for c in chunks}
         self.assertEqual(by_section["LICENSE"].verification_level, "SUPPLEMENTARY")
+
+
+class ParseDataTeamEnvelopeTests(unittest.TestCase):
+    def test_extracts_package_version_and_readme_body(self):
+        doc_text = (
+            "# debug@4.4.3\n"
+            "Debug utility.\n\n"
+            "## README 전문\n\n"
+            "Hello world\n\n"
+            "---\n"
+            "근거: S1 README 상태 OK\n"
+        )
+
+        envelope = parse_data_team_envelope(doc_text)
+
+        self.assertEqual(envelope.package, "debug")
+        self.assertEqual(envelope.version, "4.4.3")
+        self.assertEqual(envelope.readme_body, "Hello world")
+        self.assertEqual(envelope.source_footer, "근거: S1 README 상태 OK")
+
+    def test_scoped_package_name_keeps_its_own_at_sign(self):
+        doc_text = (
+            "# @scope/pkg@1.0.0\n"
+            "Scoped package.\n\n"
+            "## README 전문\n\n"
+            "Body text\n"
+        )
+
+        envelope = parse_data_team_envelope(doc_text)
+
+        self.assertEqual(envelope.package, "@scope/pkg")
+        self.assertEqual(envelope.version, "1.0.0")
+
+    def test_missing_readme_anchor_raises_envelope_parse_error(self):
+        doc_text = "# debug@4.4.3\nNo README section here.\n"
+
+        with self.assertRaises(EnvelopeParseError):
+            parse_data_team_envelope(doc_text)
 
 
 if __name__ == "__main__":

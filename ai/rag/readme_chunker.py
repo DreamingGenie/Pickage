@@ -81,7 +81,37 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
     Raises:
         EnvelopeParseError: `## README 전문` 헤딩을 찾을 수 없을 때.
     """
-    raise NotImplementedError
+    anchor = "## README 전문"
+    anchor_idx = doc_text.find(anchor)
+    if anchor_idx == -1:
+        raise EnvelopeParseError(f"'{anchor}' 헤딩을 찾을 수 없습니다.")
+
+    header_region = doc_text[:anchor_idx]
+    after_anchor = doc_text[anchor_idx + len(anchor):]
+
+    title_match = re.search(r"^#[ \t]+(.+?)[ \t]*$", header_region, re.MULTILINE)
+    if not title_match:
+        raise EnvelopeParseError("제목 줄('# {package}@{version}')을 찾을 수 없습니다.")
+
+    package, sep, version = title_match.group(1).rpartition("@")
+    if not sep:
+        raise EnvelopeParseError(f"제목 줄 형식이 올바르지 않습니다: {title_match.group(1)!r}")
+
+    footer_match = re.search(r"^---[ \t]*$", after_anchor, re.MULTILINE)
+    if footer_match:
+        readme_body = after_anchor[: footer_match.start()].strip()
+        source_footer = after_anchor[footer_match.end():].strip()
+    else:
+        readme_body = after_anchor.strip()
+        source_footer = ""
+
+    return DataTeamEnvelope(
+        package=package,
+        version=version,
+        structured_facts={},
+        readme_body=readme_body,
+        source_footer=source_footer,
+    )
 
 
 def chunk_readme(
