@@ -406,6 +406,20 @@ sudo usermod -aG docker gitlab-runner
 sudo -u gitlab-runner docker ps >/dev/null && echo "러너가 docker 를 쓸 수 있다"
 ```
 
+**`app.env` 가 이 노드에 미리 둬야 하는 파일의 전부가 아니다.** `similarity-loader` 의
+MinIO 자격증명도 `/srv/pickage/secrets/minio-similarity-loader.env` 에 있어야 하고, 잡이
+`test -f` 로 그것을 먼저 확인한다 (S15P21A506-385). 발급·배치 절차는
+[`../prod/data/README.md`](../prod/data/README.md) 의
+"app 노드 similarity-loader 에 줄 계정".
+
+```bash
+sudo -u gitlab-runner test -f /srv/pickage/secrets/minio-similarity-loader.env && echo "잡이 통과한다"
+```
+
+⚠ **이 파일은 러너가 읽지 못해도 된다.** `600`·uid 1000 소유이고 읽는 것은 컨테이너다.
+잡은 존재만 본다 — `test -f` 는 디렉터리를 지나갈 수만 있으면 되므로 `app.env` 처럼
+`640` 으로 풀 이유가 없다.
+
 ### 2. `develop`·`main` 을 보호 브랜치로 만든다
 
 **3번의 Protected 러너가 성립하려면 이게 먼저다.** Settings → Repository →

@@ -531,6 +531,14 @@ deploy-app:
     # 없으면 여기서 멈춘다 — compose 의 `:?` 에러보다 먼저, 이유가 분명한 자리에서.
     - test -f /srv/pickage/app.env
     - ln -sfn /srv/pickage/app.env .env
+    # similarity-loader 의 MinIO 자격증명. compose 가 읽기 전용으로 넣는 **파일**이라,
+    # 없으면 도커가 그 자리에 빈 디렉터리를 만들어 붙이고 로더만 조용히 재시작을
+    # 반복한다 — 2026-09-16 배포가 그랬다 (S15P21A506-385). 여기서 먼저 멈춘다.
+    #
+    # ⚠ 저장소 안에 만들어 두는 것으로는 안 된다. 아래 GIT_CLEAN_FLAGS 가 지운다.
+    #   두는 절차는 deploy/prod/data/README.md 의
+    #   "app 노드 similarity-loader 에 줄 계정".
+    - test -f /srv/pickage/secrets/minio-similarity-loader.env
     # 사람이 찾아올 고정 경로. 러너의 작업 디렉터리는 토큰이 섞인 이름이라 외울 수 없는데,
     # **운영 web 컨테이너가 물고 있는 nginx 설정이 그 디렉터리 안의 파일이다.**
     # 손으로 만질 때도 여기서 해야 같은 파일을 고치게 된다.
@@ -636,6 +644,45 @@ deploy-app:
       }
       check health --resolve j15a506.p.ssafy.io:443:127.0.0.1 https://j15a506.p.ssafy.io/actuator/health
       check index -o /dev/null -w 'HTTP %{http_code}' --resolve j15a506.p.ssafy.io:443:127.0.0.1 https://j15a506.p.ssafy.io/
+    # ── 죽고 있는 컨테이너를 걸러낸다 ──────────────────────────────
+    #
+    # **`--wait` 는 이걸 못 본다.** healthcheck 가 없는 서비스(spark-worker-2 ·
+    # similarity-loader)는 "한 번 running 이 됐다" 로 통과하는데, 죽고 다시 뜨는
+    # 컨테이너는 그 순간을 **반드시** 지나간다. 그래서 크래시 루프가 초록으로 끝난다 —
+    # **2026-09-16 배포가 그랬고 similarity-loader 는 그 뒤로 하루 넘게 재시작을
+    # 반복했다. 아무도 몰랐다** (S15P21A506-385).
+    #
+    # 절대값(RestartCount)이 아니라 **30초 사이의 증가**로 본다. 몇 주 전 재시작
+    # 이력으로 빨간불이 되면 그 빨간불은 다음에도 아무도 안 믿게 된다. 30초는 갓 뜬
+    # 컨테이너가 죽을 때의 도커 재시작 간격(0.1초에서 두 배씩, 최대 60초)보다 넉넉하다.
+    #
+    # ⚠ `-a` 로 훑되 **exited 를 문제로 세지 않는다.** `docker compose run` 이 남긴
+    #   1회성 컨테이너가 걸려서 매 배포가 빨간불이 된다. 여기서 보는 것은
+    #   `restart: unless-stopped` 가 붙은 상주 컨테이너의 재시작이다.
+    - |
+      snapshot() {
+        for id in $(docker compose ps -aq); do
+          docker inspect -f '{{.Name}} {{.State.Status}} {{.RestartCount}}' "$id"
+        done | sort
+      }
+      before=$(snapshot)
+      sleep 30
+      after=$(snapshot)
+      looping=$(echo "$after" | while read -r name state count; do
+        was=$(echo "$before"   | awk -v n="$name" '$1==n {print $3}')
+        prev=$(echo "$before"  | awk -v n="$name" '$1==n {print $2}')
+        if [ "$state" = "restarting" ] || [ "$prev" = "restarting" ] \
+           || { [ -n "$was" ] && [ "$count" != "$was" ]; }; then
+          echo "  $name  상태 $state  재시작 ${was:-?}→$count"
+        fi
+      done)
+      if [ -n "$looping" ]; then
+        echo "[재시작] 죽고 있는 컨테이너가 있다:"
+        echo "$looping"
+        echo "[재시작] 배포 자체는 적용된 상태다. 로그를 볼 것 — docker compose logs --tail 50 <서비스>"
+        exit 1
+      fi
+      echo "[재시작] 30초 동안 다시 뜬 컨테이너가 없다"
     # 무엇이 떴는지 로그에 남긴다. 나중에 "그때 뭐가 돌고 있었나" 를 여기서 본다.
     - docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
   # ── 정리 ───────────────────────────────────────────────────────
