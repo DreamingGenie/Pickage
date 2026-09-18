@@ -127,14 +127,21 @@ else:
     #  - is_release 조인이 필요 없다. 조인 적중 2,039만 행에서 is_release 와 "버전에 '-' 가 없다" 가
     #    불일치 0건으로 동치임을 확인했다(09-14). 조인을 하나 줄여 실행이 빠르다
     #  - source_repo 는 패키지 단위로 붙인다. 버전 단위로 조인하면 08-31 스냅샷 이후 발행된
-    #    20.1만 행(2만 패키지)이 비어 publisher 가 이름으로 떨어진다. 저장소는 버전마다 바뀌지 않으므로
-    #    any_value 로 패키지에 한 번 붙인다 (91,582 / 97,733 패키지 적중)
+    #    20.1만 행(2만 패키지)이 비어 publisher 가 이름으로 떨어진다. 저장소는 버전마다 거의
+    #    바뀌지 않으므로 패키지에 한 번 붙인다 (91,582 / 97,733 패키지 적중)
+    #  - **any_value 가 아니라 min 이다** (S15P21A506-378, 2026-09-18). 한 패키지에 서로 다른
+    #    source_repo 가 여럿인 경우가 317,206개(3.29%, 최대 1,394종) 있는데, any_value 는 그중
+    #    아무거나 고른다. 그러면 publisher 가 실행마다 바뀌고 publisher_months 와
+    #    publisher_months>=N 필터가 따라 흔들린다 — 같은 입력으로 두 번 돌려 removal_stats.csv
+    #    해시가 갈리는 것을 실측했다. 어느 저장소가 맞는지는 알 수 없으므로 **고르는 규칙이
+    #    정확할 필요는 없고 정해져 있기만 하면 된다.** publisher 는 "서로 다른 주체가 따로
+    #    움직였나" 를 세는 묶음 키일 뿐이다.
     #  - unpublished 행은 의존을 모른다(NULL). 넣으면 "의존 전부 제거"로 잡힌다 — 수집계획 §5-3
     SELECT_REL = f"""SELECT r.Name, r.Version, r.published_at, v.source_repo,
        list_sort(list_transform(r.{KIND_COL}, x -> x.Name)) AS deps,
        {_NONREG} AS nonreg
 FROM read_parquet('{RG}') r
-LEFT JOIN (SELECT Name, any_value(source_repo) AS source_repo FROM read_parquet('{V}')
+LEFT JOIN (SELECT Name, min(source_repo) AS source_repo FROM read_parquet('{V}')
            WHERE source_repo IS NOT NULL GROUP BY Name) v ON v.Name = r.Name
 WHERE NOT r.unpublished AND r.published_at IS NOT NULL
   AND regexp_matches(r.Version,'^\\d+\\.\\d+') AND NOT contains(r.Version,'-')"""
