@@ -105,6 +105,21 @@ services:
       PICKAGE_OPS_S3_ENDPOINT: ${PICKAGE_OPS_S3_ENDPOINT:-}
       PICKAGE_OPS_S3_ACCESS_KEY: ${PICKAGE_OPS_S3_ACCESS_KEY:-}
       PICKAGE_OPS_S3_SECRET_KEY: ${PICKAGE_OPS_S3_SECRET_KEY:-}
+      # ── 백엔드 로더용 curated 읽기 계정 (pickage-api-loader) ──
+      #
+      # ⚠ **지금 이 셋을 읽는 코드가 없다.** curated → PostgreSQL 로더가 아직
+      #   없어서(deploy/ci/README.md 의 "아직 없는 것") 사전 배선일 뿐이다. 위의 GMS_* 와
+      #   같은 성격이고, 값이 비어도 `:-` 라 기동을 막지 않는다.
+      #
+      #   미리 배선해 두는 이유는 **코드가 생기는 날 서버를 다시 만지지 않게** 하려는
+      #   것이다. 키는 이미 `/srv/pickage/app.env` 에 들어 있다.
+      #
+      # ⚠ **이름을 소비자 코드에서 바꾸지 말 것.** 스프링이 이름만으로
+      #   pickage.curated.s3.* 에 잇는다 — 어긋나면 예외가 아니라 조용히 기본값으로
+      #   떨어진다. PICKAGE_OPS_S3_* 가 같은 함정을 이미 겪었다 (S15P21A506-347).
+      PICKAGE_CURATED_S3_ENDPOINT: ${PICKAGE_CURATED_S3_ENDPOINT:-}
+      PICKAGE_CURATED_S3_ACCESS_KEY: ${PICKAGE_CURATED_S3_ACCESS_KEY:-}
+      PICKAGE_CURATED_S3_SECRET_KEY: ${PICKAGE_CURATED_S3_SECRET_KEY:-}
     ports:
       # 루프백에만 연다. 밖에서 오는 요청은 전부 nginx(443)를 지난다.
       # 이 줄을 "8080:8080" 으로 쓰면 TLS 도 인증도 없는 문이 하나 열린다.
