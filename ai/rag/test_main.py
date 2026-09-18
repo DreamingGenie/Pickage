@@ -28,6 +28,7 @@ def _fake_compare_ok(packages, variant="A"):
                 results=[
                     FeatureResult(
                         package=packages[0].name,
+                        version=packages[0].version,
                         verdict="SUPPORTED",
                         evidence_ids=["foo@1.0.0#0"],
                         grounded_in="EVIDENCE",

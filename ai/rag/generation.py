@@ -40,6 +40,8 @@ PROMPT_A = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "
      "못 찾았다"는 이유로 이 값을 쓰지 마십시오.
 4. 모든 판정에는 실제로 제공된 근거 목록에 있는 evidenceId를 하나 이상 반환하십시오.
    존재하지 않는 ID를 지어내지 마십시오.
+4-1. 각 결과 항목의 version에는 입력의 comparedPackages에 있는 그 패키지의 버전을
+   그대로 반환하십시오. 지어내거나 다른 버전을 쓰지 마십시오.
 5. verificationLevel이 SUPPLEMENTARY인 근거만으로는 SUPPORTED/UNSUPPORTED 같은 확정
    판정을 내리지 마십시오(참고 용도로만 인용 가능).
 6. 같은 패키지·버전에 대해 서로 반대되는 근거가 있으면 임의로 한쪽을 채택하지 말고
@@ -95,6 +97,8 @@ PROMPT_B = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "
      해당 기능이 없다고 알려진 경우만. 단순히 "확인 못 했다"는 이유로 쓰지 마십시오.
 4. groundedIn이 EVIDENCE인 판정에는 실제로 제공된 근거 목록에 있는 evidenceId를
    하나 이상 반환하십시오. 존재하지 않는 ID를 지어내지 마십시오.
+4-1. 각 결과 항목의 version에는 입력의 comparedPackages에 있는 그 패키지의 버전을
+   그대로 반환하십시오. 지어내거나 다른 버전을 쓰지 마십시오.
 5. verificationLevel이 SUPPLEMENTARY인 근거만으로는 EVIDENCE 기반의 SUPPORTED/
    UNSUPPORTED 확정 판정을 내리지 마십시오(참고 용도로만 인용 가능).
 6. 같은 패키지·버전에 대해 서로 반대되는 근거가 있으면 임의로 한쪽을 채택하지 말고
@@ -177,6 +181,7 @@ _RESPONSE_JSON_SCHEMA = {
                             "type": "object",
                             "properties": {
                                 "package": {"type": "string"},
+                                "version": {"type": "string"},
                                 "verdict": {
                                     "type": "string",
                                     "enum": [
@@ -194,7 +199,7 @@ _RESPONSE_JSON_SCHEMA = {
                                 },
                                 "note": {"type": "string"},
                             },
-                            "required": ["package", "verdict", "evidenceIds", "groundedIn", "note"],
+                            "required": ["package", "version", "verdict", "evidenceIds", "groundedIn", "note"],
                             "additionalProperties": False,
                         },
                     },
@@ -305,6 +310,7 @@ def _parse_comparison_result(data: dict) -> ComparisonResult:
                 results=[
                     FeatureResult(
                         package=r["package"],
+                        version=r["version"],
                         verdict=r["verdict"],
                         evidence_ids=r["evidenceIds"],
                         grounded_in=r["groundedIn"],

@@ -32,6 +32,7 @@ class VerifyVerdictsWhitelistTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="YES",
                     evidence_ids=["e1"],
                     grounded_in="EVIDENCE",
@@ -52,6 +53,7 @@ class VerifyVerdictsEvidenceRequiredTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="SUPPORTED",
                     evidence_ids=[],
                     grounded_in="EVIDENCE",
@@ -70,6 +72,7 @@ class VerifyVerdictsEvidenceRequiredTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="UNCONFIRMED",
                     evidence_ids=[],
                     grounded_in="EVIDENCE",
@@ -88,6 +91,7 @@ class VerifyVerdictsEvidenceRequiredTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="SUPPORTED",
                     evidence_ids=["e1"],
                     grounded_in="EVIDENCE",
@@ -108,6 +112,7 @@ class VerifyVerdictsGeneralKnowledgeTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="SUPPORTED",
                     evidence_ids=["e1"],
                     grounded_in="GENERAL_KNOWLEDGE",
@@ -126,6 +131,7 @@ class VerifyVerdictsGeneralKnowledgeTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="SUPPORTED",
                     evidence_ids=[],
                     grounded_in="GENERAL_KNOWLEDGE",
@@ -146,6 +152,7 @@ class VerifyVerdictsGroundedInWhitelistTests(unittest.TestCase):
             results=[
                 FeatureResult(
                     package="foo",
+                    version="1.0.0",
                     verdict="SUPPORTED",
                     evidence_ids=["e1"],
                     grounded_in="MADE_UP",

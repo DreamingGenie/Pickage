@@ -35,6 +35,7 @@ def _serialize(result: ComparisonResult) -> dict:
                 "results": [
                     {
                         "package": r.package,
+                        "version": r.version,
                         "verdict": r.verdict,
                         "evidenceIds": r.evidence_ids,
                         "groundedIn": r.grounded_in,
