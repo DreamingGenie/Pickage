@@ -44,11 +44,11 @@ def report(run, out):
     except sqlite3.OperationalError:   # 파일 없음 / tasks 테이블 아직 없음 — 첫 실행 초기화 중이거나 아직 안 떴다
         print(f"[{datetime.now().strftime('%m-%d %H:%M:%S')}] downloads run={run}  체크포인트를 읽을 수 없다: {cp}")
         print("  --run 과 --out 이 수집기에 준 값과 같은지 확인할 것. 수집기가 첫 작업 INSERT 를 commit 하기 전에도 여기로 온다")
-        return False
+        return None                    # 미완료(False)와 구분한다 — 읽을 게 없으면 Parquet 재변환도 무의미하다
     if total == 0:                     # 대상 INSERT 가 commit 되기 전(약 0.3초)
         db.close()
         print(f"[{datetime.now().strftime('%m-%d %H:%M:%S')}] downloads run={run}  작업 목록이 아직 비어 있다 (수집기 초기화 중)")
-        return False
+        return None
     by = dict(db.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status").fetchall())
     done = by.get("done", 0) + by.get("not_found", 0)
     pend = by.get("pending", 0) + by.get("retry", 0)
@@ -110,7 +110,7 @@ def main():
     last_refresh = 0.0
     while True:
         finished = report(a.run, a.out)
-        if a.refresh_parquet and (finished or time.time() - last_refresh >= a.refresh_min_interval):
+        if a.refresh_parquet and finished is not None and (finished or time.time() - last_refresh >= a.refresh_min_interval):
             subprocess.run([sys.executable, os.path.join(HERE, "to_parquet.py"), "--raw", os.path.join(a.out, f"run={a.run}"),
                             "--out", os.path.join(ROOT, "data", "downloads", "parquet")], check=False)
             last_refresh = time.time()
