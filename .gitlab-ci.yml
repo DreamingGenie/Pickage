@@ -6,8 +6,10 @@
 #   backend-test              gradlew test            (DB 가 필요 없는 단위 시험)
 #   backend-integration-test  gradlew integrationTest (postgres 서비스를 붙여 돌린다)
 #   ai-test                   pip install(고정 핀) → 4개 의존성 동시 import → --help → pytest
+#   rag-test                  같은 모양. ai/rag/ (기능 비교 RAG 서버) 쪽 (S15P21A506-398)
 #   pipeline-ok               맨 앞에서 2초. 환경 확인 겸, 돌 잡이 없을 때 대신 서 있는 잡
 #   deploy-app                develop·main 에 머지되면 app 노드에 배포한다 (S15P21A506-223)
+#                             api·web·rag-api 세 이미지를 굽고 띄운다 (S15P21A506-398)
 #   deploy-ai                 같은 때에 data 노드에서 유사도 배치 이미지를 굽는다 (S15P21A506-339)
 #
 # **여기 없는 것**
@@ -128,9 +130,20 @@ variables:
 
 # `ai/training/` 은 일부러 뺐다. jupyter05(GPU)에서 손으로 돌리는 참조용 사본이고
 # (`ai/README.md` 의 폴더 표), CI 에서 검증할 대상도 배포될 대상도 아니다.
-# 배포되는 것은 `ai/similarity/` 로 굽는 이미지 하나뿐이다.
+#
+# ⚠ **`ai/rag/` 도 여기 넣지 않는다.** 아래 `.rag-paths` 로 따로 뒀다. 한 묶음으로 두면
+#   rag 만 고친 MR 이 `ai-test` 를 깨운다 — 그 잡은 onnxruntime·transformers 를 받느라
+#   몇 분이 걸리고, 그동안 러너 하나를 쥔다. 두 폴더는 의존성도 배포 대상도 겹치지 않는다.
 .ai-paths: &ai-paths
   - ai/similarity/**/*
+  - .gitlab-ci.yml
+
+# rag-api 는 app 노드의 상주 서비스라 **compose 도 여기 들어간다.** `.backend-paths` 가
+# 같은 이유로 app compose 를 넣은 것과 같다 — 서비스 정의만 고친 변경도 이미지가
+# 실제로 서는지 보고 넘어가야 한다.
+.rag-paths: &rag-paths
+  - ai/rag/**/*
+  - deploy/prod/app/compose.yaml
   - .gitlab-ci.yml
 
 .rules-frontend:
@@ -167,6 +180,18 @@ variables:
     - if: $CI_COMMIT_BRANCH
       changes:
         paths: *ai-paths
+        compare_to: develop
+
+.rules-rag:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        paths: *rag-paths
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths: *rag-paths
         compare_to: develop
 
 # ── 프런트 ──────────────────────────────────────────────────────
@@ -439,6 +464,65 @@ ai-test:
       # 백엔드 잡과 같다 — MR 화면의 "Test summary" 에 실패한 시험 이름이 뜬다.
       junit: ai-test-results.xml
 
+# ── AI (기능 비교 RAG 서버) ─────────────────────────────────────
+#
+# `ai-test` 와 **같은 두 가지**를 본다. 잡을 나눈 이유는 검증 내용이 달라서가 아니라
+# 의존성이 전혀 겹치지 않아서다 — 이쪽은 fastapi·uvicorn 둘뿐이라 30초면 끝나는데,
+# 한 잡에 합치면 rag 만 고친 MR 도 onnxruntime·transformers 를 받게 된다.
+#
+#   1. 순수 로직 — `ai/rag/test_*.py`. 전부 표준 unittest 다.
+#   2. **requirements.txt 의 핀이 Python 3.11 에 깔리고 import 되는가.**
+#
+# ⚠ 2번을 빼면 안 되는 이유는 `ai-test` 의 그것과 똑같다. 그 잡은 numpy 를 3.14 기준으로
+#   박았다가 3.11 에 설치조차 안 되는 핀을 통과시킬 뻔했다. 유닛테스트는 전부 초록이었다.
+#   그래서 여기서도 **이미지를 `ai/rag/Dockerfile` 의 FROM 과 같은 것으로 맞춘다.**
+#
+# ⚠ **`ai/rag/` 는 저장소 루트에서 `ai.rag.X` 로 import 된다.** 파일들이 서로
+#   `from ai.rag.pipeline import ...` 로 부르고 Dockerfile 도 그 구조로 COPY 한다.
+#   그래서 아래 명령은 전부 **루트에서** 돈다 — `cd ai/rag` 를 하면 수집 단계에서
+#   ModuleNotFoundError 다. `ai-test` 의 `python -m pytest` 주석과 같은 사정이다.
+#
+# ⚠ **`docker build` 는 여기서 하지 않는다.** docker executor 러너에 소켓도 dind 도 없다.
+#   이미지를 실제로 굽는 것은 `deploy-app` 이고, 그건 app 노드의 shell 러너에서 돈다.
+rag-test:
+  stage: test
+  extends:
+    - .rules-rag
+  image: python:3.11-slim-bookworm
+  timeout: 10m
+  variables:
+    # ai-test 와 같은 사정 — 기본 캐시 경로($HOME/.cache/pip)는 컨테이너와 함께 사라진다.
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  cache:
+    key:
+      files:
+        - ai/rag/requirements.txt
+    paths:
+      - .pip/
+  script:
+    # 이미지가 실제로 쓰는 것과 **같은 파일**이다. 여기서 따로 목록을 쓰지 않는다.
+    - pip install -r ai/rag/requirements.txt
+    # ⚠ **httpx 는 `requirements.txt` 에 없다. 여기서만 깐다.**
+    #   FastAPI 의 TestClient 가 httpx 위에 올라가 있어서 `test_main.py` 가 그것을
+    #   요구하는데, 서버 자신은 쓰지 않는다. 넣으면 배포 이미지가 쓰지도 않을 것을 싣는다
+    #   (`ai/rag/requirements.txt` 의 ⚠ 가 그렇게 정해 뒀다).
+    #   pytest 와 같이 산출물에 실리지 않으므로 정확한 핀을 박지 않고 major 만 묶는다.
+    - pip install "pytest<9" "httpx<1"
+    # 서버가 import 단계를 지나 **앱 객체까지 만들어지는지** 본다. 라우트 데코레이터·
+    # 응답 모델이 여기서 평가되므로, 유닛테스트가 create_app() 만 부르고 지나치는
+    # 모듈 최상단 `app = create_app()` 의 실패를 이 줄이 잡는다.
+    - python -c "import fastapi, uvicorn; from ai.rag.main import app; print('fastapi', fastapi.__version__, '| uvicorn', uvicorn.__version__, '| routes', len(app.routes))"
+    # ⚠ `pytest ai/rag` 가 아니라 **`python -m pytest`** 다. 앞엣것은 sys.path 에 저장소
+    #   루트를 넣지 않아 `import ai.rag.X` 가 수집 단계에서 깨진다 — ai-test 와 같다.
+    - python -m pytest ai/rag -v --junitxml=rag-test-results.xml
+    - *mem-report
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: rag-test-results.xml
+
 # ── 맨 앞에서 2초 ───────────────────────────────────────────────
 #
 # 이 잡은 두 가지를 한다.
@@ -539,6 +623,17 @@ deploy-app:
     #   두는 절차는 deploy/prod/data/README.md 의
     #   "app 노드 similarity-loader 에 줄 계정".
     - test -f /srv/pickage/secrets/minio-similarity-loader.env
+    # rag-api 가 읽는 README 인계 디렉터리. **여기서 멈추지는 않는다** — 위 두 줄과
+    # 성격이 다르다. 없어도 컨테이너는 정상으로 뜨고, 드러나는 것은 `/compare` 요청
+    # 하나가 "README 를 찾지 못했다" 로 답하는 것뿐이다. 사이트 전체를 내릴 일이 아니다.
+    #
+    # 그래도 찍어는 둔다. 없으면 도커가 그 자리에 **root 소유 빈 디렉터리**를 만들어
+    # 붙이므로, 나중에 데이터팀이 파일을 넣으려 할 때 권한에서 한 번 막힌다.
+    # 채우는 쪽은 데이터팀이다 (compose 의 README_SOURCE_ROOT 주석).
+    - |
+      if [ ! -d /srv/pickage/docs ]; then
+        echo "[경고] /srv/pickage/docs 가 없다. rag-api 는 뜨지만 /compare 는 README 를 못 찾는다"
+      fi
     # 사람이 찾아올 고정 경로. 러너의 작업 디렉터리는 토큰이 섞인 이름이라 외울 수 없는데,
     # **운영 web 컨테이너가 물고 있는 nginx 설정이 그 디렉터리 안의 파일이다.**
     # 손으로 만질 때도 여기서 해야 같은 파일을 고치게 된다.
@@ -549,12 +644,59 @@ deploy-app:
       # 비교가 영영 어긋나서 **매번 두 컨테이너를 다시 띄우게 된다.**
       prev_api=$(sed -n 's/^API_TAG=//p' /srv/pickage/app.env | tr -d '[:space:]')
       prev_web=$(sed -n 's/^WEB_TAG=//p' /srv/pickage/app.env | tr -d '[:space:]')
-      echo "지금 떠 있는 것: api=$prev_api web=$prev_web"
+      prev_rag=$(sed -n 's/^RAG_TAG=//p' /srv/pickage/app.env | tr -d '[:space:]')
+      echo "지금 떠 있는 것: api=$prev_api web=$prev_web rag=$prev_rag"
+    # ── `.env` 에 없는 태그 줄을 만들어 둔다 ──────────────────────
+    #
+    # 아래 sed 는 **줄이 있을 때만** 값을 갈아 끼운다. 없으면 조용히 아무것도 하지 않고,
+    # 그다음 compose 가 `${RAG_TAG:?}` 에서 "required variable RAG_TAG is missing a
+    # value" 로 죽는다 — 빌드도 시작하기 전이다. rag-api 를 compose 에 넣은 2026-09-18
+    # 에 실제로 그랬고(S15P21A506-397), 그때는 사람이 서버 파일에 줄을 넣어 풀었다.
+    #
+    # 그 손질을 여기로 옮긴다. 노드를 새로 세우거나 `.env` 를 다시 만들 때 **같은 자리에서
+    # 다시 막히지 않게** 하려는 것이다 — 서비스가 하나 늘 때마다 서버를 먼저 만져야 한다면
+    # 그건 자동 배포가 아니다.
+    #
+    # 값은 **비워서** 넣는다. 바로 아래 sed 가 어차피 이번 SHA 로 채우고, 위에서 읽은
+    # `prev_*` 는 이미 빈 문자열이라 `keep_if_same` 의 `[ -n "$old" ]` 가 "비교할 이전
+    # 이미지가 없다" 로 걸러 준다. 첫 배포는 그래서 "새 이미지" 로 판정된다 — 맞는 말이다.
+    #
+    # ⚠ **줄 끝 개행을 먼저 확인한다.** 사람이 편집기로 고친 `.env` 는 마지막 줄에 개행이
+    #   없는 경우가 있고, 그대로 `>>` 하면 `...SECRET=xyzRAG_TAG=` 처럼 **앞 줄에 들러붙어
+    #   변수 두 개가 동시에 망가진다.** 그 앞 줄이 비밀번호면 컨테이너가 안 뜨는데, 원인은
+    #   `.env` 를 눈으로 봐야만 보인다.
+    - |
+      if [ -n "$(tail -c1 /srv/pickage/app.env)" ]; then
+        echo "[.env] 마지막 줄에 개행이 없다 — 붙여 둔다"
+        printf '\n' >> /srv/pickage/app.env
+      fi
+      for v in API WEB RAG; do
+        if ! grep -q "^${v}_TAG=" /srv/pickage/app.env; then
+          echo "[.env] ${v}_TAG 줄이 없다 — 추가한다"
+          printf '%s_TAG=\n' "$v" >> /srv/pickage/app.env
+        fi
+      done
     # 태그는 원본에 쓴다. 워크스페이스의 `.env` 는 그 파일을 가리키는 링크일 뿐이다.
     # 롤백은 이 값을 이전 SHA 로 되돌리고 다시 up 하는 것 — README 의 "롤백".
-    - sed -i "s/^API_TAG=.*/API_TAG=$CI_COMMIT_SHORT_SHA/; s/^WEB_TAG=.*/WEB_TAG=$CI_COMMIT_SHORT_SHA/" /srv/pickage/app.env
-    # 둘 다 굽는다. 바뀐 것이 없으면 레이어가 전부 캐시라 몇 초에 끝난다.
+    - sed -i "s/^API_TAG=.*/API_TAG=$CI_COMMIT_SHORT_SHA/; s/^WEB_TAG=.*/WEB_TAG=$CI_COMMIT_SHORT_SHA/; s/^RAG_TAG=.*/RAG_TAG=$CI_COMMIT_SHORT_SHA/" /srv/pickage/app.env
+    # 셋 다 굽는다. 바뀐 것이 없으면 레이어가 전부 캐시라 몇 초에 끝난다.
     - docker compose build
+    # ── 구운 rag-api 가 실제로 서는지 ───────────────────────────
+    #
+    # 이 컨테이너에는 **healthcheck 가 없다.** 그래서 아래 `up --wait` 는 "프로세스가
+    # 떴다" 까지만 보고 통과시킨다. uvicorn 이 import 단계에서 죽는 종류의 실패는 그
+    # 뒤의 재시작 감시(30초)가 잡아 주지만, 그때는 이미 배포가 적용된 뒤다.
+    #
+    # 그 전에 여기서 한 번 본다. `deploy-ai` 가 구운 이미지를 `--help` 로 돌려 보는 것과
+    # 같은 자리이고, 같은 것을 막는다 — CI 이미지에서 통과한 핀이 **배포될 이미지에서만**
+    # 깨지는 경우(COPY 범위를 잘못 잡아 모듈이 빠졌다거나).
+    #
+    # ⚠ `docker compose run` 이 아니라 `docker run` 이다. compose 로 부르면 `/srv/pickage/docs`
+    #   바인드가 같이 붙는데, 이 검사는 그 디렉터리를 읽지 않는다. 안 붙이면 그 경로가
+    #   비었을 때 이 잡이 괜히 걸리는 일도 없다 (`deploy-ai` 의 `aiwork` 볼륨과 같은 이유).
+    # ⚠ Dockerfile 에 ENTRYPOINT 가 없어서, 뒤에 붙인 인자가 CMD 를 통째로 대신한다.
+    #   uvicorn 이 뜨지 않으므로 포트도 물지 않는다.
+    - docker run --rm "pickage-rag-api:$CI_COMMIT_SHORT_SHA" python -c "from ai.rag.main import app; print('rag-api OK — routes', len(app.routes))"
     # ── 안 바뀐 것은 다시 띄우지 않는다 ────────────────────────────
     #
     # 구운 결과가 전과 **같은 이미지**면 태그를 되돌린다. compose 는 `image:` 값이 그대로면
@@ -578,7 +720,7 @@ deploy-app:
       #   (`--provenance=false` 로 attestation 을 끄는 방법도 있는데, compose 에서 그것을
       #    넘기는 방식이 버전마다 달라 비교하는 쪽을 고쳤다)
       FP='{{.RootFS.Layers}}|{{.Config.Entrypoint}}|{{.Config.Cmd}}|{{.Config.Env}}|{{.Config.WorkingDir}}|{{.Config.User}}'
-      keep_if_same() {   # $1=API|WEB  $2=api|web  $3=이전 태그
+      keep_if_same() {   # $1=API|WEB|RAG  $2=api|web|rag-api  $3=이전 태그
         new=$(docker image inspect -f "$FP" "pickage-$2:$CI_COMMIT_SHORT_SHA")
         old=$(docker image inspect -f "$FP" "pickage-$2:$3" 2>/dev/null || true)
         if [ -n "$old" ] && [ "$old" = "$new" ]; then
@@ -597,6 +739,9 @@ deploy-app:
       }
       keep_if_same API api "$prev_api"
       keep_if_same WEB web "$prev_web"
+      # ⚠ 서비스 이름은 `rag-api` 지만 환경변수는 `RAG_TAG` 다 — 둘이 어긋나는 유일한
+      #   서비스라, 이미지 이름(`pickage-rag-api`)과 변수 이름을 따로 넘긴다.
+      keep_if_same RAG rag-api "$prev_rag"
     # `--wait` 는 모든 컨테이너가 healthy 가 될 때까지 기다리고, 안 되면 0 이 아닌 코드로
     # 끝난다. 없으면 앱이 30초 뒤에 죽어도 이 잡은 초록이다.
     - docker compose up -d --wait --wait-timeout 300
@@ -701,7 +846,7 @@ deploy-app:
       df -h / | tail -1
       # 최근 5개만 남긴다. 수동 정리 지침과 같은 범위다.
       # 지금 떠 있는 태그는 늘 맨 위에 있다 — 내용이 바뀔 때만 새 태그가 생기므로.
-      for svc in api web; do
+      for svc in api web rag-api; do
         docker images "pickage-$svc" --format '{{.CreatedAt}}|{{.Tag}}' \
           | sort -r | tail -n +6 | cut -d'|' -f2 \
           | while read -r t; do

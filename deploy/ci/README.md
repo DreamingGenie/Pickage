@@ -19,12 +19,19 @@ MR 을 열면 무엇이 돌고, `develop`·`main` 에 머지되면 무엇이 뜨
 | `backend-test` | `eclipse-temurin:21-jdk` | `gradlew test` — DB 가 필요 없는 단위 시험 |
 | `backend-integration-test` | `eclipse-temurin:21-jdk` + `postgres:16` 서비스 | `gradlew integrationTest` — 진짜 Postgres 에 Flyway 전체를 적용하고 도는 시험 |
 | `ai-test` | `python:3.11-slim-bookworm` | `pip install -r ai/similarity/requirements.txt` → 네 의존성 동시 import → `--help` → `pytest` |
+| `rag-test` | `python:3.11-slim-bookworm` | `pip install -r ai/rag/requirements.txt` → `ai.rag.main:app` import → `pytest` |
 | `pipeline-ok` | `alpine:3.21` | 코드는 검증하지 않는다. **맨 앞에서 2초** — 아래 "맨 앞에서 2초" |
 | `deploy-app` | (컨테이너 아님 — shell 러너) | 검증하지 않는다. **`develop`·`main` 에 머지된 것을 app 노드에 띄운다** — 아래 "배포" |
 | `deploy-ai` | (컨테이너 아님 — shell 러너, **data 노드**) | 검증하지 않는다. **유사도 배치 이미지를 굽고 `AI_TAG` 를 갈아 끼운다.** 아무것도 띄우지 않는다 — 아래 "유사도 배치 이미지" |
 
-이미지는 `frontend/Dockerfile`·`backend/Dockerfile`·`ai/similarity/Dockerfile` 의 빌드
-단계와 같은 것을 쓴다. CI 에서 통과한 것이 배포 이미지 빌드에서 처음 깨지면 CI 를 둔 의미가 없다.
+이미지는 `frontend/Dockerfile`·`backend/Dockerfile`·`ai/similarity/Dockerfile`·
+`ai/rag/Dockerfile` 의 빌드 단계와 같은 것을 쓴다. CI 에서 통과한 것이 배포 이미지
+빌드에서 처음 깨지면 CI 를 둔 의미가 없다.
+
+> **`ai-test` 와 `rag-test` 를 한 잡으로 합치지 않은 이유**는 검증 내용이 달라서가 아니라
+> **의존성이 하나도 겹치지 않아서**다. `ai/rag/` 는 fastapi·uvicorn 둘뿐이라 30초면 끝나는데,
+> 합쳐 두면 rag 만 고친 MR 이 onnxruntime·transformers 를 받느라 몇 분 동안 러너를 쥔다.
+> 그래서 경로 규칙도 `.ai-paths`·`.rag-paths` 로 갈라 뒀다.
 
 ### `ai-test` 가 유닛테스트보다 먼저 보는 것
 
@@ -102,6 +109,8 @@ python -m pytest ai/similarity/test_similarity_batch_pipeline.py -q
 | `frontend/` 아래 | `frontend` |
 | `backend/` 아래 | `backend-test`, `backend-integration-test` |
 | `ai/similarity/` 아래 | `ai-test` |
+| `ai/rag/` 아래 | `rag-test` |
+| `deploy/prod/app/compose.yaml` | `backend-test`, `backend-integration-test`, `rag-test` |
 | `.gitlab-ci.yml` | **전부** (CI 를 고친 MR 이 CI 를 안 돌리고 통과하면 안 된다) |
 | 문서·`pipeline/`·`ai/training/` 등 그 외 | `pipeline-ok` 만 |
 | `develop`·`main` 브랜치, `main` 으로 가는 MR | **전부** (머지 뒤 한 번은 전체가 도는 안전망) |
@@ -160,15 +169,15 @@ python -m pytest ai/similarity/test_similarity_batch_pipeline.py -q
 
 | | |
 | --- | --- |
-| 대상 | `app` 노드의 `api`·`web` 두 컨테이너 |
+| 대상 | `app` 노드의 `api`·`web`·`rag-api` 세 컨테이너 |
 | 태그 | `$CI_COMMIT_SHORT_SHA` (8자리). 손 배포의 `git rev-parse --short`(7자리)와 자릿수만 다르다 |
 | 자격증명 | `/srv/pickage/app.env` — 서버에 있는 파일이다. CI 변수에도 저장소에도 없다 |
-| 걸리는 시간 | **1분 45초** (2026-09-15 리허설. 두 이미지를 실제로 다시 구운 경우이고, 의존성 레이어는 캐시가 들었다) |
+| 걸리는 시간 | **1분 45초** (2026-09-15 리허설. api·web 두 이미지를 실제로 다시 구운 경우이고, 의존성 레이어는 캐시가 들었다. rag-api 가 붙은 뒤로는 그 빌드가 더해진다 — 의존성이 fastapi·uvicorn 둘뿐이라 캐시가 들면 몇 초다) |
 | 끊김 | **바뀐 쪽만** 다시 뜬다 — 아래 "안 바뀐 것은 다시 띄우지 않는다" |
 
 ### 안 바뀐 것은 다시 띄우지 않는다
 
-잡은 매번 두 이미지를 굽는다. 그다음 **구운 결과가 전과 같은 이미지면 태그를 되돌려서**
+잡은 매번 세 이미지를 굽는다. 그다음 **구운 결과가 전과 같은 이미지면 태그를 되돌려서**
 compose 가 그 컨테이너를 건드리지 않게 한다.
 
 | 무엇이 바뀐 머지인가 | 다시 뜨는 것 | 끊김 |
@@ -176,6 +185,7 @@ compose 가 그 컨테이너를 건드리지 않게 한다.
 | 프런트만 | `web` | 수 초 |
 | 백엔드만 | `api` (그리고 의존 관계로 `web` 도 같이) | **1분 가까이** — 기동 + Flyway |
 | 둘 다 | `api` · `web` | 1분 가까이 |
+| `ai/rag/` 만 | `rag-api` | 수 초. `web` 도 `api` 도 건드리지 않는다 |
 | 문서·`pipeline/` 만 | 없다. 굽기만 하고 끝난다 | 없음 |
 | `compose.yaml`·`nginx/app.conf` | 이미지와 무관하게 compose 가 알아서 다시 만든다 | 바뀐 서비스만 |
 
@@ -242,6 +252,44 @@ docker image inspect -f '{{.RootFS.Layers}}|{{.Config.Entrypoint}}|{{.Config.Cmd
 > 스왑이 0 이라 즉시 OOM Kill 이다. 자동이 된 뒤로는 **머지 시각으로** 피하는 수밖에 없다.
 > **`data` 노드도 같다** — `deploy-ai` 도 스스로 막지 않는다 (아래 "겹치는 것을 잡이
 > 막지 않는다"). 이 규칙 하나가 두 노드를 다 덮는다.
+
+### `rag-api` 는 다른 둘과 두 군데가 다르다
+
+기능 비교 RAG 서버(`ai/rag/`)도 `api`·`web` 과 같은 규칙으로 뜬다 — 태그가 `RAG_TAG` 고,
+이미지는 `pickage-rag-api` 다. 다른 점은 둘뿐이고 **둘 다 이유가 있다.**
+
+**1. `.env` 에 태그 줄이 없으면 잡이 만들어 준다.**
+
+태그를 갈아 끼우는 `sed` 는 줄이 있을 때만 값을 바꾼다. 없으면 조용히 아무것도 하지 않고,
+그다음 compose 가 여기서 죽는다 — **빌드를 시작하기도 전이다.**
+
+```
+error while interpolating services.rag-api.image: required variable RAG_TAG is missing a value
+```
+
+rag-api 를 compose 에 넣은 2026-09-18 에 실제로 그랬다(S15P21A506-397). 그때는 사람이
+서버 파일에 줄을 넣어 풀었고, 그 손질을 잡으로 옮긴 것이 이 안전망이다. 노드를 새로
+세우거나 `.env` 를 다시 만들 때 같은 자리에서 다시 막히지 않게 하려는 것이다.
+
+> ⚠ **그래도 `.env.example` 에서 줄을 빼지 말 것.** 안전망이지 "없어도 되는 값" 이라는
+> 뜻이 아니다. 없으면 첫 배포가 그 서비스를 **이전 태그 없이** 띄우게 된다.
+
+**2. 구운 이미지를 굽자마자 한 번 돌려 본다.**
+
+```bash
+docker run --rm "pickage-rag-api:$CI_COMMIT_SHORT_SHA" python -c "from ai.rag.main import app; ..."
+```
+
+`deploy-ai` 가 유사도 배치 이미지를 `--help` 로 돌려 보는 것과 같은 자리다. **이 컨테이너에는
+healthcheck 가 없어서** 뒤의 `up -d --wait` 가 "프로세스가 떴다" 까지만 보고 통과시키기
+때문이다. uvicorn 이 import 단계에서 죽는 종류의 실패는 그다음 재시작 감시(30초)가 잡지만,
+그때는 이미 배포가 적용된 뒤다. 굽는 자리에서 먼저 걸리는 편이 낫다.
+
+> **healthcheck 를 안 붙인 이유**: 이미지가 `python:3.11-slim` 이라 `curl` 도 `wget` 도 없다.
+> 붙이려면 `python -c "import urllib.request; ..."` 로 `/openapi.json` 을 치는 형태가 되는데,
+> 그건 위 검사가 보는 것(앱 객체가 만들어지는가)과 사실상 같은 것을 컨테이너 안에서 반복하는
+> 셈이다. `/compare` 가 실제 답을 내기 시작하면(175~180 실구현) 그때 전용 health 경로를
+> 두고 여기에 붙이는 것이 맞다.
 
 ### 사람이 찾아갈 경로
 
@@ -870,7 +918,7 @@ Gradle 이 끝난 직후 실측값을 찍는다.
 CI 가 돌수록 이미지·빌드 캐시·죽은 컨테이너가 쌓이고, **배포가 자동이 된 뒤로는 머지마다
 이미지가 하나씩 는다.** 배포 잡이 `after_script` 에서 아래 두 가지를 스스로 한다.
 
-- `pickage-api`·`pickage-web` 의 **최근 5개 태그만 남기고** 그보다 오래된 태그를 뗀다
+- `pickage-api`·`pickage-web`·`pickage-rag-api` 의 **최근 5개 태그만 남기고** 그보다 오래된 태그를 뗀다
   (수동 정리 지침과 같은 범위다 — [`prod/README.md`](../prod/README.md) 의 "정리")
 - 일주일 지난 빌드 캐시와 dangling 이미지를 지운다
 
@@ -895,6 +943,12 @@ docker system df -v | head -30
 **한 번에 약 525MB** 다. 양쪽이 다 바뀐 경우이고, 한쪽만 바뀌면 그쪽만 는다.
 태그를 5개로 제한하니 이미지가 차지하는 양의 상한은 **대략 2.6GB** 다. 여기에 빌드
 캐시가 따로 붙는다.
+
+`pickage-rag-api` 는 그 뒤에 붙었다. **전체 236MB**(2026-09-18, 로컬 빌드 실측)이고 그중
+대부분은 `python:3.11-slim` 기반 레이어라 태그끼리 공유한다. 새로 쌓이는 것은 코드 몇 개와
+fastapi·uvicorn 레이어뿐이라 배포당 증가분은 위 둘보다 훨씬 작다. **위 표의 수치는 서버에서
+`docker system df -v` 로 잰 것이고 이 236MB 는 로컬 `docker images` 값이라, 같은 자로 잰
+숫자가 아니다** — 서버에서 한 번 재면 위 표에 같이 넣을 것.
 
 `Images`·`Build Cache` 합계가 10G 를 넘으면 아래를 손으로 한 번 친다 — 배포 잡의 정리는
 일주일 지난 캐시만 건드리므로, 그 안쪽에 몰려 쌓인 것은 남아 있다.

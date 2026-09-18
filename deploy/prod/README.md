@@ -4,7 +4,7 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
+| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · **rag-api**(기능 비교) · similarity-loader · Spark worker② |
 | **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · **mlflow** · Spark master·worker① · **ai-similarity**(유사도 배치, 1회성) (이후 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
@@ -75,7 +75,7 @@ openssl dhparam -out $LE/ssl-dhparams.pem 2048        # ⚠ 2048. 1024 로 만�
 
 ```bash
 cd deploy/prod/app
-printf 'POSTGRES_DB=pickage\nPOSTGRES_USER=pickage\nPOSTGRES_PASSWORD=rehearsal\nAPI_TAG=rehearsal\nWEB_TAG=rehearsal\n' > /tmp/rehearsal.env
+printf 'POSTGRES_DB=pickage\nPOSTGRES_USER=pickage\nPOSTGRES_PASSWORD=rehearsal\nAPI_TAG=rehearsal\nWEB_TAG=rehearsal\nRAG_TAG=rehearsal\n' > /tmp/rehearsal.env
 cat > /tmp/rehearsal.override.yaml <<'YAML'
 services:
   api:
@@ -83,6 +83,8 @@ services:
   web:
     volumes:
       - /tmp/le:/etc/letsencrypt:ro
+  rag-api:
+    volumes: !reset []        # /srv/pickage/docs 는 서버에만 있다. 없으면 도커가 빈 디렉터리를 만들어 붙인다
 YAML
 docker compose --env-file /tmp/rehearsal.env -f compose.yaml -f /tmp/rehearsal.override.yaml up -d --wait --wait-timeout 200
 ```
@@ -106,7 +108,7 @@ curl.exe -sk -o /dev/null -w '%{http_code}\n' -H "$H" https://127.0.0.1/swagger-
 
 ```bash
 docker compose --env-file /tmp/rehearsal.env -f compose.yaml -f /tmp/rehearsal.override.yaml down -v
-docker rmi pickage-api:rehearsal pickage-web:rehearsal
+docker rmi pickage-api:rehearsal pickage-web:rehearsal pickage-rag-api:rehearsal
 ```
 
 ---
@@ -151,7 +153,7 @@ sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 
 스프링은 그 말을 안 해 주기 때문에(빈 값을 문자열 그대로 넘긴다) 검사를 compose 로 앞당겼다.
 
 `.env` 는 커밋되지 않는다. **서버에 한 번 두고 계속 쓴다.** CI 는 이 파일을 만들지 않고
-`API_TAG` · `WEB_TAG` 두 줄만 갈아 끼운다.
+`API_TAG` · `WEB_TAG` · `RAG_TAG` 세 줄만 갈아 끼운다.
 
 > ⚠ **두 벌을 만들지 말 것.** 예전 체크아웃(`~/S15P21A506/deploy/prod/app/.env`)에 파일이
 > 남아 있으면, 거기서 손으로 `up` 한 날 CI 가 아는 태그와 실제로 뜬 태그가 갈린다.
@@ -166,7 +168,7 @@ sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 
 | `COMMUNITY_ENABLED` | `/srv/pickage/app.env` | 필요할 때 사람이. `true`/`false` 문자열, 비밀 아님 |
 | `GMS_API_KEY` | `/srv/pickage/app.env` | **사람이 한 번**(팀 비밀 저장소에도 사본). 선택값 — 지금은 백엔드가 안 읽는다(C1 미구현, `S15P21A506-363`) |
 | `GMS_BASE_URL` · `GMS_REQUEST_PATH` · `GMS_AUTH_HEADER` · `GMS_AUTH_SCHEME` · `GMS_MODEL` | `/srv/pickage/app.env` | 필요할 때 사람이. 비밀 아님 — C1 구현 시 실제 값 재확인 |
-| `API_TAG` · `WEB_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
+| `API_TAG` · `WEB_TAG` · `RAG_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
 
 **"env 를 바꿀 때마다 손으로 해야 하나" 의 답은 아니다.** 비밀은 한 번 정하고 안 바꾸고,
 매번 바뀌는 건 이미지 태그뿐인데 그건 배포가 알아서 한다.
@@ -462,7 +464,7 @@ git fetch origin && git checkout -f origin/main    # develop 을 띄우려면 or
 cd deploy/prod/app
 
 TAG=$(git rev-parse --short HEAD)
-sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/" /srv/pickage/app.env
+sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/; s/^RAG_TAG=.*/RAG_TAG=$TAG/" /srv/pickage/app.env
 
 docker compose build
 docker compose up -d --wait --wait-timeout 300
@@ -520,7 +522,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://j15a506.p.ssafy.io/   # 200
 | 값 | 쓰는 서비스 | 고치면 다시 뜨나 |
 | --- | --- | --- |
 | `POSTGRES_*` | postgres · api | ✅ |
-| `API_TAG` · `WEB_TAG` | api · web | ✅ |
+| `API_TAG` · `WEB_TAG` · `RAG_TAG` | api · web · rag-api | ✅ |
 | `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | spark-worker-2 | ✅ |
 | `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | spark-worker-2 | ✅ |
 | `GITHUB_COMMUNITY_TOKEN` · `COMMUNITY_ENABLED` | api | ✅ (선택값이라 비워도 무방 — 그러면 커뮤니티 기능만 비활성 유지) |
@@ -593,6 +595,7 @@ docker compose logs --since 5m api | head -50
 cd /srv/pickage/repo/deploy/prod/app
 docker images pickage-api --format '{{.Tag}}\t{{.CreatedSince}}'   # 되돌아갈 곳 고르기
 docker images pickage-web --format '{{.Tag}}\t{{.CreatedSince}}'
+docker images pickage-rag-api --format '{{.Tag}}\t{{.CreatedSince}}'
 
 sed -i "s/^API_TAG=.*/API_TAG=<이전 SHA>/" /srv/pickage/app.env    # 프런트만 되돌릴 거면 WEB_TAG 만
 docker compose up -d --no-build --wait
@@ -602,8 +605,8 @@ docker compose up -d --no-build --wait
 > 그 커밋으로 다시 덮어쓴다. 되돌린 이유가 남아 있다면 **되돌리는 커밋을 MR 로 올려서**
 > 통합 브랜치 자체를 고쳐야 한다. 그 전까지는 팀에 알려 머지를 멈춘다.
 
-태그를 둘로 나눠 둔 이유가 이것이다. **API 는 멀쩡한데 화면만 깨진 배포**가 실제로 생기고,
-그때 프런트만 되돌릴 수 있다.
+태그를 셋으로 나눠 둔 이유가 이것이다. **API 는 멀쩡한데 화면만 깨진 배포**가 실제로 생기고,
+그때 프런트만 되돌릴 수 있다. rag-api 도 같다 — 기능 비교만 깨졌으면 그 줄만 되돌린다.
 
 `--no-build` 를 붙이는 이유: 이건 **이미 있는 이미지로 돌아가는 동작**이다. 빼면 compose 가
 지금 체크아웃된 소스로 그 태그를 다시 구워서, 이름만 옛날이고 내용은 새것인 이미지가 된다.
@@ -654,7 +657,7 @@ docker system prune -a         # ❌ 절대 금지
 `-a` 는 **지금 컨테이너가 안 쓰는 이미지를 전부** 지운다. 이전 SHA 태그가 여기 해당해서,
 한 번 치면 **되돌아갈 곳이 하나도 안 남는다.** 그리고 그 사실은 롤백이 필요한 순간에 알게 된다.
 
-**배포 잡이 이 정리를 대신 한다.** 매 배포 끝에 `pickage-api`·`pickage-web` 의 최근 5개
+**배포 잡이 이 정리를 대신 한다.** 매 배포 끝에 `pickage-api`·`pickage-web`·`pickage-rag-api` 의 최근 5개
 태그만 남기고 그보다 오래된 태그를 떼고, 일주일 지난 빌드 캐시와 dangling 이미지를 지운다.
 컨테이너가 쓰고 있는 이미지는 docker 가 거부하므로 **떠 있는 것은 지워지지 않는다**
 (강제하지 않는다). 무엇을 뗐는지는 잡 로그의 `[정리]` 줄에 남는다.
