@@ -1,8 +1,15 @@
-import { ExternalLinkIcon } from 'lucide-react'
+import { ExternalLinkIcon, InfoIcon } from 'lucide-react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
@@ -132,7 +139,34 @@ export function PackageCard({
 
       {/* Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다 */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <span className="text-base text-muted-foreground">Version Share</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base text-muted-foreground">Version Share</span>
+          {/*
+            안내 문단을 인라인에 상시 노출하면 카드가 길어져 옆 차트 열과 하단이
+            어긋난다. 문구 자체(조각 합계가 실제 사용처 수보다 크다는 것)는 매번
+            읽어야 하는 경고가 아니라 궁금할 때 찾아보는 설명이라 모달로 옮긴다.
+          */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                aria-label="Version Share 안내"
+                className="rounded-full p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
+              >
+                <InfoIcon aria-hidden className="size-3.5" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Version Share</DialogTitle>
+              </DialogHeader>
+              <p className="text-base leading-relaxed text-muted-foreground">
+                공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
+                프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
+              </p>
+            </DialogContent>
+          </Dialog>
+        </div>
         {versionShareState.status === 'loading' ? (
           <Skeleton className="h-28 w-full rounded-xl" />
         ) : versionShareState.status === 'error' ? (
@@ -152,14 +186,8 @@ export function PackageCard({
               />
               <ShareBars groups={model.versionShare} />
             </div>
-            {/*
-              명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
-              그래서 비율만 적고 총계를 쓰지 않는다.
-            */}
-            <p className="text-base leading-relaxed text-muted-foreground">
-              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
-              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
-            </p>
+            {/* 명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
+                그 설명은 위 정보 버튼 모달로 옮겼다(비율만 적고 총계를 쓰지 않는 이유). */}
           </>
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
