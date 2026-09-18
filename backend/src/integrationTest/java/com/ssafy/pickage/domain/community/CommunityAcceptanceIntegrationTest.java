@@ -174,16 +174,23 @@ class CommunityAcceptanceIntegrationTest {
      * 이 목록은 {@code deploy/local/seed/*.sql} 의 TRUNCATE 문과 **같아야 한다.** package 를
      * 참조하는 표를 새로 만들면 여기에도 넣는다 — TRUNCATE 는 참조하는 표가 비어 있어도 같이
      * 지정하지 않으면 거절한다. community_snapshot 은 V3(S15P21A506-315),
-     * dependent_transition 은 V8(S15P21A506-361)에서 이 이유로 추가됐다.
+     * dependent_transition 은 V8(S15P21A506-361), dependent_removal_reason 은
+     * V9(S15P21A506-396)에서 이 이유로 추가됐다.
+     *
+     * <p>이 문자열은 시드 파일을 읽지 않고 손으로 베낀 것이라 **드리프트가 난다.** 실제로
+     * V8 을 넣을 때 시드만 고치고 여기를 빠뜨려 MR !173 이 머지 블록에 걸렸다. 옆의
+     * {@code R14_allSharedSeedScriptsExecuteWithCommunityForeignKey} 가 파일을 직접 읽어
+     * 돌리므로 그쪽이 본 검사이고, 이 시험은 목록 자체가 실행 가능한지만 본다.
      */
     @Test
     void R14_existingSeedTruncateMustRemainExecutable() {
         assertDoesNotThrow(
                 () ->
                         jdbc.execute(
-                                "TRUNCATE community_snapshot, dependent_transition,"
-                                        + " similar_package, package_version_snapshot,"
-                                        + " package_snapshot, version, package"));
+                                "TRUNCATE community_snapshot, dependent_removal_reason,"
+                                        + " dependent_transition, similar_package,"
+                                        + " package_version_snapshot, package_snapshot,"
+                                        + " version, package"));
     }
 
     @Test
