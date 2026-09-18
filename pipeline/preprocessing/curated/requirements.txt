@@ -1,2 +1,2 @@
--r ../minio/requirements.txt
+-r ../../minio/requirements.txt
 duckdb==1.5.5

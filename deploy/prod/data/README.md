@@ -647,8 +647,8 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 ### `up -d --profile batch` 로 띄우지 말 것
 
 이 잡은 정상적으로 끝나는데 compose 는 그걸 컨테이너가 죽은 것으로 본다 —
-`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드에 그런 컨테이너가 셋이다
-(`minio-init`, `ai-*`, `ingest-weekly`).
+`minio-init` 과 같은 사정이다 (위 `--wait` 절). 이 노드의 일회성 컨테이너들
+(`minio-init`, `ai-*`, `ingest-weekly`, `curated-dispatch`).
 
 ## 주간 수집
 
@@ -656,11 +656,29 @@ Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
 **systemd 타이머가 10분마다 깨우고, 할 일이 없으면 아무것도 하지 않고 끝난다.**
 
 ```
-[timer 10분] → run-weekly-ingest.sh → docker compose run --rm ingest-weekly
-                (잠금·정리만)          (판정도 실행도 컨테이너 안에서)
+[timer 10분] → run-weekly-ingest.sh → ingest-weekly → curated-dispatch
+                (하나의 잠금)          (순차 실행, 각각 상태·재시도)
 ```
 
 실행기 자체의 설명(단계·날짜 규약·유예·정리)은 [`pipeline/weekly/README.md`](../../../pipeline/weekly/README.md).
+
+수집 컨테이너가 종료되면 스크립트는 종료 코드와 관계없이 `curated-dispatch`를 이어서
+호출한다. 따라서 수집이 이번 발화에서 실패해도 이미 raw 입력이 완료된 이전 회차의
+Curated 재시도는 진행된다. 두 작업은 같은 `flock` 안에서 순차 실행되어 서로의 상태
+파일과 MinIO 쓰기를 동시에 건드리지 않는다. `--dry-run`, `--only` 같은
+진단 인자가 있는 호출에서는 ingest 컨테이너만 실행하며 dispatcher는 호출하지 않는다.
+
+Curated dispatcher의 기본 작업 디렉터리는 컨테이너의 `/opt/work/data/orchestration`이며
+호스트 `/srv/pickage/ingest-work/orchestration`에 보존된다. `status.json`, request,
+재개용 캐시와 실패 기록을 이 디렉터리에서 확인할 수 있다. `--retry-snapshot YYYY-MM-DD`
+는 차단된 회차를 수동으로 다시 선택할 때 사용한다.
+
+수집을 건너뛰고 차단된 Curated 회차만 재시도할 때는 같은 잠금을 사용하는 별도 명령을
+쓴다. 주간 timer와 겹치면 안전하게 종료한다.
+
+```bash
+sh run-curated-retry.sh --retry-snapshot 2026-09-14
+```
 
 ### 0. 처음 한 번 — 디렉터리와 자격증명
 
@@ -705,9 +723,16 @@ docker inspect pickage-data-minio-1 --format '{{range .Config.Env}}{{println .}}
 
 ```bash
 cd ~/S15P21A506/deploy/prod/data
-docker compose build ingest-weekly
+docker compose build ingest-weekly curated-dispatch
 docker compose run --rm ingest-weekly --help      # 인자 목록이 나오면 성공
+docker compose run --rm curated-dispatch --help  # dispatcher 인자 목록이 나오면 성공
 ```
+
+`curated-dispatch`는 `pipeline/preprocessing/Dockerfile`로 만든 별도 런타임이다.
+Python 3.12, Node 24와 npm resolver 모듈, 기존 DuckDB/boto3 의존성을 포함한다.
+기존 수집 이미지에는 변경이 없다. 전처리는 CPU 2개·메모리 4GiB·컨테이너 swap 0으로 제한한다.
+최초 완료 Curated baseline이 필요하며, 서버에서 사용 전 디스크 여유와 baseline pointer를 확인한다.
+전체 스냅샷의 처리 시간·디스크 사용량과 운영 MinIO 호환성은 별도 검증 대상이다.
 
 **이미지에는 코드가 없다.** `pipeline/` 은 마운트된다 — 코드를 고쳤을 때 다시 빌드할 필요가
 없고, 되돌리는 방법도 태그 교체가 아니라 `git checkout` 이다. 다시 빌드할 일은 의존성이

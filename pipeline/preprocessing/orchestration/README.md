@@ -131,6 +131,46 @@ DuckDB는 threads/memory_limit을 적용하고 attempt별 scratch의 spill 상�
 - MinIO 업로드 실패 중에도 로컬 상태 기록을 먼저 남긴다. 완료 marker가 게시된 뒤 상태 기록만 실패했다면
   marker가 완료 사실의 기준이며 재개로 상태 기록을 정리할 수 있다.
 
+## 주간 timer 연결
+
+`deploy/prod/data/run-weekly-ingest.sh`의 인자 없는 실행은 기존 수집을 실행한 뒤
+`python -m pipeline.preprocessing.orchestration.dispatcher`를 호출한다.
+두 작업은 같은 호스트 flock 아래 순차 실행하며 timer는 기존 하나를 유지한다.
+수집 종료 코드 0만으로 입고 완료를 판단하지 않는다. `--dry-run`, `--only` 등 기존 진단 인자를
+주면 수집만 실행하고 전처리는 호출하지 않는다.
+
+dispatcher는 MinIO `pickage-raw/_ops/weekly/<날짜>/run.json`을 페이지 단위로 조회한다.
+검증된 최초 Curated baseline 이후 회차를 날짜순으로 확인하고, 한 호출에서 최대 한 회차를 실행한다.
+이전 회차의 수집 미완료·전처리 실패·차단은 다음 회차를 대기시킨다.
+최초 baseline bundle과 `_current.json`이 없으면 `WAITING_INPUT`으로 종료한다.
+기존 baseline 날짜까지의 raw 회차는 자동 backfill하지 않는다. 이미 진행한 이력 사이에 뒤늦게 발견한
+미처리 회차는 `BLOCKED`로 남기며 명시적인 backfill 설계가 필요하다.
+
+완료 여부는 `_current.json`에서 부모 bundle들을 따라가며 manifest SHA와 `_SUCCESS`로 확인한다.
+완료된 주간 회차도 고정된 raw manifest SHA와 마커를 대조한다. 같은 날짜의 원천이 바뀌면
+자동으로 덮어쓰지 않고 차단한다. 요청은 `pickage-curated/_ops/preprocessing/<날짜>/request.json`에
+불변 저장하며 동일한 run ID(`curated-weekly-YYYYMMDD`)와 작업 디렉터리로 재개한다.
+
+| 상태 | 다음 호출 동작 |
+| --- | --- |
+| `WAITING_INPUT` | 10분 뒤 다시 확인, 실패 횟수에 포함하지 않음 |
+| `FAILED` | 10·20·40·60분 간격(이후 60분)으로 재시도, 연속 10회면 차단 |
+| `RUNNING`만 남음 | 이전 프로세스 종료 후 잠금을 얻었으면 중단 횟수를 반영하고 재개 |
+| `BLOCKED` | 자동 재시도 중단. 입력·코드 계약 오류는 즉시 차단 |
+| `COMPLETE` | 완료 bundle과 raw 참조를 확인한 뒤 건너뜀 |
+
+실패 횟수·시도 횟수·예외·다음 재시도 시각은 위 운영 prefix의 `status.json`, `events/*.json`과
+로컬 `<work-dir>/dispatch/<날짜>/`에 기록한다. 실제 단계 로그는 기존 `<work-dir>/<run-id>/`에 남는다.
+MinIO 기록 실패 때도 로컬 상태를 우선 보존하며 콘솔에 traceback을 출력한다.
+스냅샷 선택 전 연결·baseline 오류는 `<work-dir>/dispatch/_dispatcher/status.json`과 journal에서 확인한다.
+가능하면 MinIO `_ops/preprocessing/_dispatcher/`에도 기록한다. 정상적으로 판정을 마친 호출은
+`TICK_FINISHED`와 종료 코드를 남겨 이전 연결 오류가 현재 상태로 남지 않게 한다.
+
+수동 재개는 **동일 실행의 원인이 해결됐을 때만** dispatcher의 `--retry-snapshot YYYY-MM-DD`를 사용한다.
+이 옵션은 실패 횟수와 대기 시간을 초기화할 뿐 입력·코드 계약을 바꾸거나 결과를 덮어쓰지 않는다.
+직접 컨테이너를 실행하여 수집과 겹치게 하지 말고 배포 문서의 공통 잠금 경로를 사용한다.
+코드·입력·실행 경로 변경은 기존 실행을 그대로 재인증할 수 없으며 별도 명시적 실행으로 처리한다.
+
 ## 인수 및 검증 경계
 
 수집 담당자는 [입력·출력 계약](CONTRACT.md)에 맞는 raw와 완료된 producer manifest를 제공한다.

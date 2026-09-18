@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# run-weekly-ingest.sh — 주간 수집 한 회차. **사람이 인자를 주지 않는다.**
+# run-weekly-ingest.sh — 주간 수집과 Curated 전처리 한 회차.
 #
 # 무엇을 할지는 두 가지가 정한다. 스케줄러는 "새 것이 있나" 를 판단하지 않는다.
 #
@@ -25,9 +25,9 @@
 #   sh run-weekly-ingest.sh --dry-run
 #   sh run-weekly-ingest.sh --only gcs_sync
 #
-# 종료 코드를 그대로 올린다. 스케줄러는 이 값만 보면 된다.
-#   0 = 할 일이 없었거나 끝까지 갔다
-#   1 = 단계가 실패했다 (다음 발화가 이어받는다. 연속 10회면 BLOCKED)
+# 진단 인자가 있으면 수집만 실행한다. Curated dispatcher 는 인자 없는 발화에서만 실행한다.
+# 수집이 실패해도 dispatcher 를 호출한다 — 이전에 완료된 raw 회차의 전처리
+# 재시도를 놓치지 않기 위해서다. 두 작업 모두 끝난 뒤 실패 코드를 반환한다.
 
 set -eu
 
@@ -41,6 +41,7 @@ REPO=$(cd ../../.. && pwd)
 #   타임아웃으로 죽였을 때 systemd 가 엉뚱한 이름을 지우고 **진짜 컨테이너는 살아남는다** —
 #   두 겹 정리가 막으려던 상황이 정확히 그것이다. 이름을 바꾸려면 두 파일을 같이 고칠 것.
 CONTAINER=pickage-weekly-run
+CURATED_CONTAINER=pickage-curated-dispatch
 # ⚠ 이 경로도 환경변수로 덮어쓸 수 없다. systemd 의 ExecStopPost 가 `flock -n` 으로 같은
 #   파일을 보고 "지금 도는 회차가 있는가" 를 판단한다(systemd/pickage-weekly.service).
 #   여기만 바뀌면 그쪽은 늘 빈 잠금을 잡아 **남의 컨테이너를 지운다.**
@@ -83,7 +84,28 @@ fi
 if docker rm -f "$CONTAINER" >/dev/null 2>&1; then
   echo "[weekly] 지난 발화의 컨테이너가 남아 있어 치웠습니다 ($CONTAINER)."
 fi
+if docker rm -f "$CURATED_CONTAINER" >/dev/null 2>&1; then
+  echo "[weekly] 지난 발화의 Curated 컨테이너가 남아 있어 치웠습니다 ($CURATED_CONTAINER)."
+fi
 
-# exec 로 넘긴다 — 셸이 교체되지만 fd 9 는 물려받으므로 잠금은 끝까지 유지된다.
+# 진단 호출은 전처리 게시를 일으키지 않는다. fd 9 잠금은 exec 뒤에도 유지된다.
+if [ "$#" -gt 0 ]; then
+  exec docker compose run --rm --name "$CONTAINER" ingest-weekly "$@"
+fi
+
 # `run` 은 서비스 이름을 직접 대면 profiles 를 알아서 켠다.
-exec docker compose run --rm --name "$CONTAINER" ingest-weekly "$@"
+# 두 컨테이너를 같은 호스트 잠금 안에서 순차 실행한다. 첫 명령이 실패해도
+# set -e 를 잠시 끄고 Curated 를 반드시 호출한다.
+set +e
+docker compose run --rm --name "$CONTAINER" ingest-weekly "$@"
+ingest_status=$?
+echo "[weekly] ingest 종료 코드: $ingest_status"
+docker compose run --rm --name "$CURATED_CONTAINER" curated-dispatch
+curated_status=$?
+echo "[weekly] curated 종료 코드: $curated_status"
+set -e
+
+if [ "$ingest_status" -ne 0 ]; then
+  exit "$ingest_status"
+fi
+exit "$curated_status"

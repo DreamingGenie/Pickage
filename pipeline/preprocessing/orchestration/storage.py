@@ -19,6 +19,10 @@ class WaitingInput(ValueError):
     """An explicit required object or producer completion marker has not arrived."""
 
 
+class PipelineBusy(WaitingInput):
+    """Retryable contention; no input or code contract has been violated."""
+
+
 def sha(body):
     return hashlib.sha256(body).hexdigest()
 
@@ -64,7 +68,7 @@ def atomic_json(path, value):
 
 
 @contextmanager
-def host_lock(s3):
+def host_lock(s3, *, namespace="pipeline"):
     """OS-released lock for the documented one-host writer (including restarts).
 
     All work directories and run IDs share a lock. Do not delete the lock file:
@@ -73,7 +77,8 @@ def host_lock(s3):
     endpoint = getattr(getattr(s3, "meta", None), "endpoint_url", "local-test")
     directory = Path(tempfile.gettempdir()) / "pickage-orchestration-locks"
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / (sha(str(endpoint).encode()) + ".lock")
+    identity = str(endpoint) if namespace == "pipeline" else str(endpoint) + "/" + namespace
+    path = directory / (sha(identity.encode()) + ".lock")
     with path.open("a+b") as stream:
         if path.stat().st_size == 0:
             stream.write(b"0")
@@ -87,7 +92,7 @@ def host_lock(s3):
                 import fcntl
                 fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
-            raise ValueError("Another Curated pipeline is active on this host") from error
+            raise PipelineBusy("Another Curated pipeline is active on this host") from error
         try:
             yield
         finally:
