@@ -9,8 +9,16 @@ B안은 §1.4("근거 없는 기능 생성·추천을 허용하지 않는다")·
 from __future__ import annotations
 
 import json
+from typing import Callable
 
-from ai.rag.types import ComparisonResult, EvidenceChunk, PackageRef
+from ai.rag.types import (
+    ComparisonResult,
+    EvidenceChunk,
+    FeatureResult,
+    FeatureRow,
+    NarrativeSection,
+    PackageRef,
+)
 
 PROMPT_A = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "근거 목록"에 있는 내용만 사용해서
 비교 대상 패키지들의 기능을 비교합니다.
@@ -135,10 +143,58 @@ def build_user_message(packages: list[PackageRef], evidence: list[EvidenceChunk]
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def _call_gpt(system_prompt: str, user_message: str) -> str:
+    """실제 GPT-5.1 호출(2026-09-18 결정). 지연 import — 테스트는 llm_call 주입으로 우회."""
+    import openai  # noqa: PLC0415
+
+    client = openai.OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-5.1",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        response_format={"type": "json_object"},
+    )
+    return response.choices[0].message.content
+
+
+def _parse_comparison_result(data: dict) -> ComparisonResult:
+    return ComparisonResult(
+        data_status=data["dataStatus"],
+        packages=[PackageRef(name=p["package"], version=p["version"]) for p in data["packages"]],
+        features=[
+            FeatureRow(
+                feature_label=row["featureLabel"],
+                results=[
+                    FeatureResult(
+                        package=r["package"],
+                        verdict=r["verdict"],
+                        evidence_ids=r["evidenceIds"],
+                        grounded_in=r["groundedIn"],
+                        note=r["note"],
+                    )
+                    for r in row["results"]
+                ],
+            )
+            for row in data["features"]
+        ],
+        narrative=[
+            NarrativeSection(
+                heading=n["heading"],
+                body=n["body"],
+                evidence_ids=n["evidenceIds"],
+            )
+            for n in data.get("narrative", [])
+        ],
+    )
+
+
 def generate(
     packages: list[PackageRef],
     evidence: list[EvidenceChunk],
     variant: str = "A",
+    llm_call: Callable[[str, str], str] | None = None,
 ) -> ComparisonResult:
     """177이 추린 근거로 비교 축·판정·해설을 한 번의 LLM 호출로 생성한다.
 
@@ -148,14 +204,17 @@ def generate(
 
     Args:
         variant: "A"(근거 전용, 기본) 또는 "B"(근거 우선 + 일반지식 보완, 실험용).
+        llm_call: (system_prompt, user_message) -> 원시 JSON 문자열. 테스트에서
+            실제 GPT 호출 없이 주입하기 위한 자리 — 생략하면 실제 GPT-5.1을 호출한다.
 
     Returns:
         ComparisonResult. narrative 생성만 실패해도 features(판정표)는 채워서
-        반환하고 narrative_error에 실패 사유를 담는다(제한사항 9번).
+        반환하고 narrative_error에 실패 사유를 담는다(제한사항 9번) — TODO: 아직
+        narrative 파싱 실패를 분리 처리하지 않음, 지금은 전체가 함께 실패한다.
     """
     system_prompt = _PROMPTS[variant]
     user_message = build_user_message(packages, evidence)
-    # TODO(178): 실제 LLM 호출. system_prompt + user_message를 그대로 시스템/유저
-    # 메시지로 사용하고, 응답을 출력 JSON 스키마(계획 문서 참고)로 파싱해 ComparisonResult로 변환.
-    del system_prompt, user_message
-    raise NotImplementedError
+    call = llm_call or _call_gpt
+    raw_response = call(system_prompt, user_message)
+    data = json.loads(raw_response)
+    return _parse_comparison_result(data)
