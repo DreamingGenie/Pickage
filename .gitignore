@@ -46,3 +46,12 @@ docs/history/journey_reliability_docs_v2/baseline/phase0/data/samples/*
 # 재현: 위 두 명령 + compare_reclassify_effect.py (각 3~6분)
 /datasets/migration_pairs_regular_260914/
 /datasets/migration_pairs_regular_legacy_260914/
+
+# Netdata 스트리밍 API 키가 담기는 파일 — *.example 만 추적한다.
+# .env 류가 아니라 위의 전역 규칙에 안 걸린다. 두 노드가 같은 키를 공유하므로
+# 한 번 커밋되면 두 노드를 다 다시 짝지어야 한다.
+deploy/prod/monitoring/*/stream.conf
+
+# 로컬 리허설에서 sed 로 만들어 쓰는 사본 — 저장소의 netdata.conf 와 갈리면 안 되므로
+# 커밋하지 않고 매번 만든다. 만드는 법은 deploy/prod/monitoring/README.md 의 "로컬 리허설".
+deploy/prod/monitoring/*/netdata.rehearsal.conf

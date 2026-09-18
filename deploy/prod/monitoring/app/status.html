@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<!--
+  Pickage 서버 상태 — "지금 어때?" 한 장.
+
+  netdata 의 웹 루트(/usr/share/netdata/web)에 마운트해서 같은 포트로 서빙한다.
+  그래서 팀원은 터널을 열고 http://127.0.0.1:19999/status.html 하나만 열면 된다.
+
+  ⚠ 이 페이지는 **netdata 대시보드를 대신하지 않는다.**
+    여기는 "지금 괜찮은가" 와 "무엇이 얼마나 쓰고 있나" 까지만 답한다.
+    "그때 무슨 일이 있었나" 는 대시보드로 간다.
+
+  고친 뒤 확인:  curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:19999/status.html
+                 (브라우저는 캐시를 쥐고 있으므로 ?v=숫자 를 붙여 다시 연다)
+
+  ── 화면을 이렇게 짠 이유 ────────────────────────────────────────────
+  이 페이지를 여는 사람은 **한 가지만 알고 싶어 한다 — 지금 괜찮은가.**
+  그래서 판정 한 줄이 페이지에서 제일 크고, 나머지는 그 근거로 아래에 깔린다.
+  칸을 똑같은 크기로 늘어놓으면 무엇을 먼저 볼지 알 수 없게 된다.
+
+  - 문제가 될 수 있는 값(디스크·메모리)만 막대를 준다. CPU 는 순간값이라 막대가 없다.
+  - 색은 **이상할 때만** 쓴다. 평소에 초록이 칠해져 있으면 빨강이 눈에 안 띈다.
+  - 숫자는 tabular-nums 로 자리를 고정한다. 10초마다 바뀌는데 자릿수가 흔들리면
+    옆에서 볼 때 값이 튀는 것처럼 보인다.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pickage 서버 상태</title>
+<style>
+  :root {
+    --bg:#f7f7f8; --panel:#fff; --line:#e4e4e7; --hair:#efeff1;
+    --fg:#18181b; --dim:#71717a; --faint:#a1a1aa;
+    --ok:#15803d; --warn:#b45309; --bad:#b91c1c; --track:#e7e7ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1115; --panel:#16181d; --line:#262a31; --hair:#1f232a;
+      --fg:#e7e7ea; --dim:#8b8f98; --faint:#6b7079;
+      --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --track:#23272e;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:28px 20px 56px; background:var(--bg); color:var(--fg);
+         font:15px/1.5 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:940px; margin:0 auto; }
+
+  /* 머리글 */
+  .top { display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+         padding-bottom:14px; border-bottom:1px solid var(--line); }
+  .top h1 { font-size:16px; font-weight:600; margin:0; letter-spacing:-.01em; }
+  .top .when { font-size:12px; color:var(--faint); font-variant-numeric:tabular-nums;
+               display:flex; align-items:center; gap:10px; }
+  .top button { font:inherit; font-size:12px; color:var(--dim); background:var(--panel);
+                border:1px solid var(--line); border-radius:6px; padding:4px 10px; cursor:pointer; }
+  .top button:hover:enabled { color:var(--fg); border-color:var(--faint); }
+  .top button:disabled { cursor:default; opacity:.6; }
+
+  /* 판정 — 이 페이지에서 제일 큰 것 */
+  .verdict { display:flex; gap:14px; align-items:flex-start; padding:26px 2px 28px; }
+  .verdict .dot { width:13px; height:13px; border-radius:50%; margin-top:11px; flex:none;
+                  background:var(--faint); }
+  .verdict .t { font-size:29px; font-weight:650; letter-spacing:-.025em; line-height:1.15; }
+  .verdict .d { font-size:14px; color:var(--dim); margin-top:5px; max-width:56ch; }
+  .is-ok   .dot { background:var(--ok); }   .is-ok   .t { color:var(--ok); }
+  .is-warn .dot { background:var(--warn); } .is-warn .t { color:var(--warn); }
+  .is-bad  .dot { background:var(--bad); }  .is-bad  .t { color:var(--bad); }
+
+  /* 노드 */
+  .node { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:18px 20px 6px; margin-bottom:16px; }
+  .node > header { display:flex; align-items:baseline; gap:10px; margin-bottom:18px; }
+  .node > header b { font-size:14px; font-weight:600; letter-spacing:-.01em; }
+  .node > header span { font-size:11px; color:var(--faint); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:24px 20px; }
+  @media (max-width:640px) { .metrics { grid-template-columns:repeat(2,1fr); } }
+  .m .k { font-size:11.5px; font-weight:600; color:var(--dim); letter-spacing:.01em; }
+  .m .v { font-size:27px; font-weight:600; letter-spacing:-.03em; line-height:1.3;
+          font-variant-numeric:tabular-nums; }
+  .m .v u { font-size:14px; font-weight:500; text-decoration:none; color:var(--dim);
+            letter-spacing:0; margin-left:2px; }
+  .m .n { font-size:11.5px; color:var(--faint); font-variant-numeric:tabular-nums; }
+  /* 막대는 "찰 수 있는 것" 에만 — 디스크·메모리 */
+  .m .bar { height:3px; background:var(--track); border-radius:2px; margin:7px 0 6px; overflow:hidden; }
+  .m .bar i { display:block; height:100%; background:var(--faint); }
+  .m.warn .v { color:var(--warn); } .m.warn .bar i { background:var(--warn); }
+  .m.bad  .v { color:var(--bad);  } .m.bad  .bar i { background:var(--bad); }
+
+  /* 컨테이너 */
+  table.c { width:100%; border-collapse:collapse; margin-top:22px; font-size:13px; }
+  table.c th { text-align:left; font-weight:600; font-size:11.5px; color:var(--dim);
+               padding:0 0 7px; border-bottom:1px solid var(--line); }
+  table.c td { padding:7px 0; border-bottom:1px solid var(--hair); }
+  table.c th.r, table.c td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  table.c td.name { font-weight:500; }
+  table.c .st { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); }
+  table.c .st::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--faint); }
+  table.c tr.sick td { color:var(--bad); }
+  table.c tr.sick .st { color:var(--bad); font-weight:600; }
+  table.c tr.sick .st::before { background:var(--bad); }
+  table.c tr.rest td { color:var(--faint); font-size:12px; border-bottom:0; padding-top:9px; }
+  table.c tr:last-child td { border-bottom:0; }
+
+  /* 알람 */
+  .alerts { margin-top:22px; }
+  .alerts h3 { font-size:11.5px; font-weight:600; color:var(--dim); margin:0 0 8px; }
+  .alerts div { font-size:13px; padding:7px 0 7px 12px; border-left:2px solid var(--warn);
+                margin-bottom:6px; }
+  .alerts div.crit { border-left-color:var(--bad); }
+  .alerts b { font-weight:600; font-size:11.5px; letter-spacing:.02em; color:var(--warn); }
+  .alerts div.crit b { color:var(--bad); }
+  .alerts em { font-style:normal; color:var(--dim); }
+
+  footer { margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+           font-size:12.5px; color:var(--faint); line-height:1.7; }
+  footer a { color:var(--dim); }
+  footer code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Pickage 서버 상태</h1>
+    <div class="when">
+      <span id="updated">불러오는 중…</span>
+      <button id="now" type="button">지금 확인</button>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="dot"></div>
+    <div><div class="t">확인 중</div><div class="d"></div></div>
+  </div>
+
+  <div id="nodes"></div>
+
+  <footer>
+    10초마다 저절로 새로고침됩니다. 이 페이지는 <b>지금 괜찮은지</b>만 답합니다.<br>
+    언제 무슨 일이 있었는지 보려면 → <a href="/">netdata 대시보드</a>
+    — 첫 화면의 로그인 권유는 아래 <code>Skip and use the dashboard anonymously</code> 를 누르세요.
+  </footer>
+</div>
+
+<script>
+// ── netdata API 한 번 호출 ────────────────────────────────────────────
+// group_by 에 따라 labels 가 노드 GUID 이거나 인스턴스 이름이다.
+//
+// ⚠ 조회 구간(after)을 길게 잡지 말 것. **netdata 가 가진 이력보다 길면 빈 응답이 온다.**
+//   재시작·첫 기동 직후마다 전 항목이 "—" 가 된다 (2026-09-17 리허설에서 -120 이 그랬다.
+//   같은 시각 -60 은 값이 나왔다). 여기는 "지금" 만 보므로 짧을수록 맞다.
+async function q(params) {
+  const base = 'api/v3/data?format=json2&points=1&after=-20&options=jsonwrap|minify&';
+  const r = await fetch(base + params, { cache: 'no-store' });
+  if (!r.ok) throw new Error('API ' + r.status);
+  const j = await r.json();
+  const out = {};
+  const labels = (j.result && j.result.labels) || [];
+  const row = (j.result && j.result.data && j.result.data[0]) || [];
+  for (let i = 1; i < labels.length; i++) {
+    const cell = row[i];
+    out[labels[i]] = Array.isArray(cell) ? cell[0] : cell;   // [value, anomaly, flags]
+  }
+  return out;
+}
+const byNode = (ctx, dims, agg) => q(`scope_contexts=${ctx}` + (dims ? `&dimensions=${dims}` : '')
+                 + `&group_by[0]=node&aggregation[0]=${agg || 'sum'}`);
+const byInst = (ctx, dims, agg) => q(`scope_contexts=${ctx}` + (dims ? `&dimensions=${dims}` : '')
+                 + `&group_by[0]=instance&aggregation[0]=${agg || 'sum'}`);
+// systemd 유닛은 인스턴스 id 가 job 이름에 따라 달라진다. `unit_name` **라벨**로 묶는 쪽이
+// 예측 가능하다 — 라벨 그룹핑이 되는 것은 disk.space/mount_point 로 확인했다.
+// time_group=max 를 쓰는 이유: oneshot 유닛은 잠깐만 active 라서 평균으로 뭉개면 사라진다.
+const byUnit = (ctx, dims) => q(`scope_contexts=${ctx}&dimensions=${dims}`
+                 + `&group_by[0]=label&group_by_label[0]=unit_name&aggregation[0]=max&time_group=max`);
+
+// 라벨에서 {이름, 노드GUID} 를 뽑는다. 형식은 리허설에서 실제로 확인한 것이다.
+//   docker_local.container_<이름>_state@<guid>   /   cgroup_<이름>.mem_usage@<guid>
+function parseInst(map, re) {
+  const out = {};
+  for (const [label, v] of Object.entries(map)) {
+    const m = label.match(re);
+    if (m) (out[m[2]] = out[m[2]] || {})[m[1]] = v;
+  }
+  return out;                       // { guid: { 이름: 값 } }
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const gib = v => v == null ? '—' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' GiB';
+const mib = v => v == null ? null : (v >= 1024 ? { n:(v/1024).toFixed(1), u:'GiB' } : { n:Math.round(v), u:'MiB' });
+
+// 임계값. 근거는 이 저장소의 deploy/prod/README.md 와 monitoring/README.md 8.2 표.
+function level(kind, v) {
+  if (v == null || isNaN(v)) return '';
+  if (kind === 'diskFree')  return v < 10 ? 'bad' : v < 20 ? 'warn' : '';
+  if (kind === 'mem')       return v > 95 ? 'bad' : v > 85 ? 'warn' : '';
+  if (kind === 'cpu')       return v > 95 ? 'warn' : '';
+  // 스왑은 0 이 아니면 그 자체로 신호다 — 상한 밖에서 RAM 을 넘겼다는 뜻이다
+  if (kind === 'swap')      return v > 0 ? 'warn' : '';
+  if (kind === 'unhealthy') return v > 0 ? 'bad' : '';
+  return '';
+}
+
+// big: {n, u} 또는 문자열. bar 는 찰 수 있는 값(디스크·메모리)에만 준다.
+function tile(lv, label, big, note, bar) {
+  const v = typeof big === 'object' && big
+    ? `${big.n}<u>${big.u}</u>` : (big == null ? '—' : big);
+  return `<div class="m ${lv}"><div class="k">${label}</div><div class="v">${v}</div>`
+       + (bar == null ? '' : `<div class="bar"><i style="width:${Math.max(0, Math.min(100, bar))}%"></i></div>`)
+       + `<div class="n">${note || ''}</div></div>`;
+}
+
+function setVerdict(cls, title, desc) {
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + cls;
+  v.querySelector('.t').textContent = title;
+  v.querySelector('.d').textContent = desc;
+}
+
+async function refreshOnce() {
+  try {
+    const nodesRes = await fetch('api/v3/nodes', { cache: 'no-store' });
+    if (!nodesRes.ok) throw new Error('nodes ' + nodesRes.status);
+    const nodes = ((await nodesRes.json()).nodes || []).map(n => ({ id: n.mg, name: n.nm }));
+
+    const [idle, ramUsed, ramTotal, swapUsed, dAvail, dTotal,
+           cState, cHealth, cgMem, cgCpu, alarmsRes,
+           svcActive, svcFailed, timerActive] = await Promise.all([
+      byNode('system.cpu', 'idle', 'avg'),
+      byNode('system.ram', 'used'),
+      byNode('system.ram', 'used|free|cached|buffers'),
+      byNode('mem.swap', 'used'),
+      byInst('disk.space', 'avail'),
+      byInst('disk.space', 'avail|used|reserved_for_root'),
+      byInst('docker.container_state', 'running'),
+      byInst('docker.container_health_status', 'unhealthy'),
+      byInst('cgroup.mem_usage'),
+      byInst('cgroup.cpu'),
+      fetch('api/v1/alarms?active', { cache: 'no-store' }).then(r => r.ok ? r.json() : { alarms: {} }),
+      byUnit('systemd.service_unit_state', 'active'),
+      byUnit('systemd.service_unit_state', 'failed'),
+      byUnit('systemd.timer_unit_state', 'active'),
+    ]);
+
+    // 디스크는 루트 파티션 하나만 본다 (운영 두 노드 모두 /dev/root 하나뿐이다).
+    // ⚠ 총량은 avail+used+reserved 를 **더한** 값이다. aggregation 을 avg 로 두면
+    //   셋의 평균이 나와서 남은 비율이 3배로 찍힌다 (2026-09-16 리허설에서 300% 였다).
+    const rootAvail = {}, rootTotal = {};
+    const pick = (src, dst) => {
+      for (const [label, v] of Object.entries(src)) {
+        const m = label.match(/^disk_space\.\/@(.+)$/);
+        if (m) dst[m[1]] = v;                       // GiB
+      }
+    };
+    pick(dAvail, rootAvail); pick(dTotal, rootTotal);
+
+    const state  = parseInst(cState,  /^docker_[^.]*\.container_(.+)_state@(.+)$/);
+    const health = parseInst(cHealth, /^docker_[^.]*\.container_(.+)_health_status@(.+)$/);
+    const cmem   = parseInst(cgMem,   /^cgroup_(.+)\.mem_usage@(.+)$/);
+    const ccpu   = parseInst(cgCpu,   /^cgroup_(.+)\.cpu@(.+)$/);
+
+    let worst = 'ok';
+    const bump = l => { if (l === 'bad') worst = 'bad'; else if (l === 'warn' && worst !== 'bad') worst = 'warn'; };
+
+    // ⚠ **모르는 것을 "정상" 이라고 말하지 않는다.**
+    //   값이 하나도 안 왔는데 초록불을 켜면 "서버가 죽어도 초록불" 이 된다.
+    let known = 0;
+
+    const html = nodes.map(n => {
+      const cpu    = idle[n.id] == null ? null : 100 - idle[n.id];
+      const memU   = ramUsed[n.id], memT = ramTotal[n.id];
+      const memPct = (memU != null && memT) ? (memU / memT) * 100 : null;
+      const swapM  = swapUsed[n.id];
+      const dA = rootAvail[n.id], dT = rootTotal[n.id];
+      const dFree = (dA != null && dT) ? (dA / dT) * 100 : null;
+
+      // 컨테이너는 Docker API 가 아는 목록을 기준으로 삼는다 — cgroup 만 보면
+      // Docker Desktop 내부 cgroup(docker_buildx 등)까지 섞이고, 멈춘 컨테이너는 빠진다.
+      const rows = Object.keys(state[n.id] || {}).sort().map(name => ({
+        name,
+        up:   (state[n.id] || {})[name] > 0,
+        sick: ((health[n.id] || {})[name] || 0) > 0,
+        mem:  (cmem[n.id] || {})[name],
+        cpu:  (ccpu[n.id] || {})[name],
+      }));
+      const up = rows.filter(r => r.up), down = rows.filter(r => !r.up);
+      const sick = rows.filter(r => r.sick).length;
+
+      if (dFree != null || memPct != null) known++;
+      bump(level('diskFree', dFree)); bump(level('mem', memPct));
+      bump(level('swap', swapM));     bump(level('unhealthy', sick));
+
+      // 많이 쓰는 것부터 — 문제를 찾을 때 보는 순서가 그렇다
+      up.sort((a, b) => (b.mem || 0) - (a.mem || 0));
+      const body = up.map(r => `<tr class="${r.sick ? 'sick' : ''}">
+          <td class="name">${esc(r.name)}</td>
+          <td><span class="st">${r.sick ? '비정상' : '실행 중'}</span></td>
+          <td class="r">${r.mem == null ? '—' : (m => m.n + ' ' + m.u)(mib(r.mem))}</td>
+          <td class="r">${r.cpu == null ? '—' : r.cpu.toFixed(1) + '%'}</td>
+        </tr>`).join('');
+      const rest = down.length
+        ? `<tr class="rest"><td colspan="4">멈춘 컨테이너 ${down.length}개 —
+             ${down.map(r => esc(r.name)).join(', ')}</td></tr>` : '';
+
+      const sw = mib(swapM);
+      return `<section class="node">
+        <header><b>${esc(n.name)}</b><span>${esc(n.id.slice(0, 8))}</span></header>
+        <div class="metrics">
+          ${tile(level('diskFree', dFree), '디스크 남음',
+                 dFree == null ? null : { n: Math.round(dFree), u: '%' },
+                 (dA != null && dT) ? `${gib(dT - dA)} 사용 · 전체 ${gib(dT)}` : '루트 파티션',
+                 dFree == null ? null : 100 - dFree)}
+          ${tile(level('mem', memPct), '메모리',
+                 memPct == null ? null : { n: Math.round(memPct), u: '%' },
+                 (memU != null && memT) ? `${gib(memU / 1024)} · 전체 ${gib(memT / 1024)}` : '',
+                 memPct)}
+          ${tile(level('cpu', cpu), 'CPU',
+                 cpu == null ? null : { n: Math.round(cpu), u: '%' }, '')}
+          ${tile(level('swap', swapM), '스왑',
+                 sw == null ? null : { n: sw.n, u: sw.u }, swapM ? '0 이 정상입니다' : '')}
+        </div>
+        ${rows.length ? `<table class="c">
+          <thead><tr><th>컨테이너 ${up.length} / ${rows.length} 실행 중</th><th>상태</th>
+                     <th class="r">메모리</th><th class="r">CPU</th></tr></thead>
+          <tbody>${body}${rest}</tbody></table>` : ''}
+      </section>`;
+    }).join('');
+
+    document.getElementById('nodes').innerHTML = html ||
+      '<section class="node">노드가 하나도 안 보입니다. netdata 가 막 뜬 직후일 수 있습니다.</section>';
+
+    // ── 배치 (systemd timer) ───────────────────────────────────────────
+    // 유닛은 data 노드에 설치된다 (deploy/prod/data/systemd/). child 가 스트리밍하므로
+    // parent 의 이 화면에서 같이 보인다.
+    //
+    // ⚠ 상태만 믿을 것. **"마지막으로 언제 돌았나" 는 여기서 알 수 없다** —
+    //   pickage-weekly.service 는 oneshot 이고 보통 1초쯤 뜨다 지는데, 수집 주기가
+    //   그보다 길어서 그 순간을 놓칠 수 있다. 실행 이력은 journalctl 이 답한다.
+    const units = {};
+    const addUnit = (map, key) => {
+      for (const [name, v] of Object.entries(map || {})) {
+        if (!/^pickage/.test(name)) continue;          // 우리 유닛만
+        (units[name] = units[name] || {})[key] = v;
+      }
+    };
+    addUnit(svcActive, 'active'); addUnit(svcFailed, 'failed'); addUnit(timerActive, 'timerActive');
+
+    const unitNames = Object.keys(units).sort();
+    let batchHtml;
+    if (!unitNames.length) {
+      // 조용히 비워 두지 않는다. 안 보이는 이유와 확인 명령을 적는다.
+      batchHtml = `<section class="node"><header><b>배치</b></header>
+        <table class="c"><tbody><tr class="rest"><td>
+          systemd 유닛 정보가 안 옵니다. 타이머를 아직 설치하지 않았거나
+          netdata 가 dbus 에 못 붙은 것입니다 — 서버에서 확인하세요:<br>
+          <code>systemctl list-timers 'pickage-*'</code> ·
+          <code>journalctl -u pickage-weekly.service -n 50</code>
+        </td></tr></tbody></table></section>`;
+    } else {
+      const rows = unitNames.map(name => {
+        const u = units[name];
+        const isTimer = /\.timer$/.test(name);
+        const failed = u.failed > 0;
+        const active = (isTimer ? u.timerActive : u.active) > 0;
+        // 타이머가 꺼져 있으면 배치가 아예 안 돈다 — 아무도 모르게 안 도는 것이 최악이다.
+        // 서비스 실패는 10분 뒤 타이머가 다시 시도하므로 주의로 둔다.
+        let lv = '', txt;
+        if (failed) {
+          lv = 'sick'; txt = '실패'; bump('warn');
+        } else if (isTimer && !active) {
+          lv = 'sick'; txt = '꺼져 있음'; bump('bad');
+        } else if (isTimer) {
+          txt = '켜져 있음';
+        } else {
+          txt = active ? '실행 중' : '대기';
+        }
+        return `<tr class="${lv}"><td class="name">${esc(name)}</td>
+                <td><span class="st">${txt}</span></td></tr>`;
+      }).join('');
+      batchHtml = `<section class="node"><header><b>배치</b>
+          <span>systemd · 실행 이력은 journalctl</span></header>
+        <table class="c"><tbody>${rows}
+          <tr class="rest"><td colspan="2">마지막 실행과 로그는
+            <code>journalctl -u pickage-weekly.service -n 50</code> ·
+            다음 발화는 <code>systemctl list-timers 'pickage-*'</code></td></tr>
+        </tbody></table></section>`;
+    }
+    document.getElementById('nodes').insertAdjacentHTML('beforeend', batchHtml);
+
+    const alarms = Object.values((alarmsRes && alarmsRes.alarms) || {});
+    if (alarms.length) {
+      const items = alarms.map(a => {
+        const crit = (a.status || '').toUpperCase() === 'CRITICAL';
+        bump(crit ? 'bad' : 'warn');
+        return `<div class="${crit ? 'crit' : ''}"><b>${esc(a.status)}</b> ${esc(a.name)}
+                ${a.info ? '<em>— ' + esc(a.info) + '</em>' : ''}</div>`;
+      }).join('');
+      document.querySelector('#nodes').insertAdjacentHTML('beforeend',
+        `<section class="node alerts"><h3>발동 중인 알람 ${alarms.length}건</h3>${items}</section>`);
+    }
+
+    document.getElementById('updated').textContent =
+      new Date().toLocaleTimeString('ko-KR') + ' 기준 · 10초마다 갱신';
+
+    if (known === 0) {
+      setVerdict('', '아직 읽는 중',
+        'netdata 에 붙었는데 값이 안 옵니다. 방금 뜬 뒤라면 20~30초 안에 채워집니다. '
+        + '1분 넘게 이대로면 백엔드 담당에게 알려 주세요.');
+      return;
+    }
+    if (worst === 'ok')       setVerdict('is-ok',   '정상', '디스크·메모리·스왑·컨테이너 모두 정상 범위입니다.');
+    else if (worst === 'warn') setVerdict('is-warn', '주의', '아래 표시된 항목을 보세요. 당장 장애는 아니지만 두면 커집니다.');
+    else                       setVerdict('is-bad',  '문제', '아래 빨간 항목부터 보세요. 백엔드 담당에게 알려 주세요.');
+  } catch (e) {
+    setVerdict('is-bad', '상태를 읽지 못했습니다',
+      e.message + ' — netdata 가 내려갔거나 SSH 터널이 끊겼을 수 있습니다. 터널을 다시 여세요.');
+    document.getElementById('updated').textContent = '갱신 실패 · ' + new Date().toLocaleTimeString('ko-KR');
+  }
+}
+
+// ── 갱신 ──────────────────────────────────────────────────────────────
+// 10초 주기로 돌지만, 급할 때 10초를 기다리게 하지 않는다 — "지금 확인" 버튼이 있다.
+//
+// ⚠ 겹쳐 돌지 않게 막는다. 버튼을 연타하면 쿼리 11개 × N 이 동시에 나가고,
+//   응답이 뒤섞여 **오래된 값이 나중에 도착해 화면을 덮을 수 있다.**
+let busy = false, timer = null;
+async function refresh() {
+  if (busy) return;
+  busy = true;
+  try { await refreshOnce(); } finally { busy = false; }
+}
+// 버튼을 누른 직후 주기 발화가 겹치지 않게 타이머를 다시 깐다.
+function rearm() { clearInterval(timer); timer = setInterval(refresh, 10000); }
+
+const nowBtn = document.getElementById('now');
+nowBtn.addEventListener('click', async () => {
+  nowBtn.disabled = true;
+  const label = nowBtn.textContent;
+  nowBtn.textContent = '확인 중…';
+  await refresh();
+  nowBtn.textContent = label;
+  nowBtn.disabled = false;
+  rearm();
+});
+
+refresh();
+rearm();
+</script>

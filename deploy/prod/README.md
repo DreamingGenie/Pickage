@@ -754,6 +754,7 @@ IP(172.19.x.x)를 광고하고 상대 호스트는 그 주소로 라우팅할 �
 | `data` 노드의 수집 cron | 없다. MLflow 는 올라갔다 ([data/README.md](data/README.md) 의 "MLflow") |
 | 유사도 결과 로더 | **붙었다** (S15P21A506-371). `app` 노드의 `similarity-loader` 가 상주하며 MinIO 완료 포인터를 보고 스스로 게시한다. 아래 "유사도 결과 로더는 어디서 도나" |
 | `batch_run_stats` 테이블 | 없다. 분산 증빙은 지금은 스모크 잡의 `EXECUTOR_HOSTS` 출력으로 한다 |
+| 모니터링 (자원·컨테이너·배치 상태) | 없다. 지금은 서버에 붙어 `docker compose ps` · `free -h` · `df -h` 를 친다. 계획은 [`monitoring/README.md`](monitoring/README.md) (S15P21A506-362) |
 
 ## 유사도 결과 로더는 어디서 도나 — `app` 노드
 
