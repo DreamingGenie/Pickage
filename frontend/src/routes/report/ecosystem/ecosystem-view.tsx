@@ -74,7 +74,11 @@ export function EcosystemView({
   /** 유지·유입·이탈 조회 결과(S15P21A506-391). 개요·추이와 독립된 다섯 번째 쿼리다. */
   transitionsModel?: TransitionsModel
   transitionsState?: MetricState
-  /** 서버 왕복을 부르므로 `EcosystemReportTab`이 정본으로 들고 있다(39행 규칙의 반대쪽). */
+  /**
+   * 값 자체의 정본은 `ReportPage`다(S15P21A506-394) — PDF 내보내기 다이얼로그가 "화면이
+   * 지금 보는 기간"을 읽어야 해서 이 탭보다 위로 올렸다. 다만 그 값이 바뀔 때 서버
+   * 왕복이 있는 새 요청을 쏘는 자리는 여전히 `EcosystemReportTab`이다(39행 규칙의 반대쪽).
+   */
   transitionPeriod?: TransitionPeriod
   onTransitionPeriodChange?: (next: TransitionPeriod) => void
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */

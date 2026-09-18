@@ -209,6 +209,13 @@ export interface PdfGenerateRequest {
   from?: string
   to?: string
   snapshot_at?: string
+  /**
+   * 유지·유입·이탈 조회 구간. 생략하면 서버 기본값(3y) — `from`·`to`(생태계 조회 구간)와는
+   * 다른 축이라 그 값으로 대신할 수 없다. 화면이 지금 보여주고 있는 기간과 다르면 PDF가
+   * 화면과 다른 숫자를 담게 되므로, 호출부는 항상 현재 선택된 `TransitionPeriod`를 넘겨야
+   * 한다(S15P21A506-394).
+   */
+  period?: TransitionPeriodParam
   sections?: ReportSection[]
 }
 
