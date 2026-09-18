@@ -159,7 +159,21 @@ con.execute("DROP TABLE rel")
 log("seq done")
 
 # 3) 연속 릴리스 전이 (removed / added / 재분류)
-con.execute("""CREATE OR REPLACE TABLE trans AS
+#
+# **정렬에 동순위 처리가 있어야 한다** (S15P21A506-378, 2026-09-18).
+# published_at 만으로 줄을 세우면 같은 시각에 발행된 릴리스 사이에서 lag() 가 무엇을 앞
+# 버전으로 잡을지 정해지지 않고, 그러면 "무엇이 빠졌나" 가 실행마다 달라진다. 같은 입력을
+# 두 번 돌려 removals_total 이 2,058,952 / 2,058,928 로 갈린 것을 실측했다.
+# 동순위 그룹 1,142개 · 703 패키지 · 한 그룹 최대 38개.
+#
+# 원천 둘에 같은 규칙을 쓰려고 ordinal 이 아니라 버전 숫자로 깬다 — registry 경로는
+# versions_full 을 버전 단위로 조인하지 않아 ordinal 이 없다. is_release / '-' 없음 조건에
+# prerelease 가 이미 걸러져 있어 (major, minor, patch) 로 충분하고, 마지막 Version 이
+# 순서를 완전하게 만든다.
+#
+# 자리마다 따로 뽑는 것이 중요하다. '^(\d+)\.(\d+)\.(\d+)' 한 번으로 뽑으면 두 자리
+# 버전(1.3)에 아예 안 맞아 전부 0 이 되고, 1.3 이 1.2.3 보다 앞에 선다.
+con.execute(r"""CREATE OR REPLACE TABLE trans AS
 SELECT Name, publisher, line, from_version, to_version, to_ts,
   list_filter(removed_raw, x -> NOT list_contains(nonreg, x)) AS removed,
   list_filter(removed_raw, x -> list_contains(nonreg, x)) AS reclassified,
@@ -168,7 +182,9 @@ FROM (
   SELECT Name, publisher, line, lag(Version) OVER w AS from_version, Version AS to_version, published_at AS to_ts, nonreg,
     list_filter(lag(deps) OVER w, x -> NOT list_contains(deps, x)) AS removed_raw,
     list_filter(deps, x -> NOT list_contains(lag(deps) OVER w, x)) AS added
-  FROM seq WINDOW w AS (PARTITION BY Name, line ORDER BY published_at) QUALIFY from_version IS NOT NULL
+  FROM seq
+  WINDOW w AS (PARTITION BY Name, line ORDER BY published_at, coalesce(try_cast(regexp_extract(Version,'^(\d+)',1) AS INT),0), coalesce(try_cast(regexp_extract(Version,'^\d+\.(\d+)',1) AS INT),0), coalesce(try_cast(regexp_extract(Version,'^\d+\.\d+\.(\d+)',1) AS INT),0), Version)
+  QUALIFY from_version IS NOT NULL
 )""")
 con.execute("DROP TABLE seq")
 n_trans = one("SELECT count(*) FROM trans")

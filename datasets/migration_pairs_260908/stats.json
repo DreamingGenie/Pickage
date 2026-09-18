@@ -3,46 +3,91 @@
   "packages_total": 4065912,
   "transitions": 39579244,
   "packages_with_transition": 2494351,
-  "transitions_with_dep_change": 1843567,
-  "transitions_removed_and_added": 266905,
-  "reclassified_to_peer_or_optional": 202554,
-  "removal_events": 657023,
-  "removed_pkgs_distinct": 110130,
-  "dependents_with_event": 174879,
-  "removed_pkgs_any": 203347,
-  "removals_total": 2058952,
-  "removals_no_replacement_total": 1401929,
-  "candidate_pairs_all": 1900453,
+  "transitions_with_dep_change": 1843402,
+  "transitions_removed_and_added": 266876,
+  "reclassified_to_other_kinds": 202554,
+  "removal_events": 656975,
+  "removed_pkgs_distinct": 110126,
+  "dependents_with_event": 174877,
+  "removal_by_period": {
+    "1y": {
+      "removals": 272893,
+      "no_replacement": 185046,
+      "with_replacement": 87847,
+      "pkgs": 46229
+    },
+    "3y": {
+      "removals": 774410,
+      "no_replacement": 542635,
+      "with_replacement": 231775,
+      "pkgs": 94695
+    },
+    "5y": {
+      "removals": 1285648,
+      "no_replacement": 891664,
+      "with_replacement": 393984,
+      "pkgs": 132686
+    }
+  },
+  "transitions_after_t2": 721,
+  "removed_pkgs_any": 203336,
+  "removals_total": 2058773,
+  "removals_no_replacement_total": 1401798,
+  "candidate_pairs_all": 1900420,
   "strict_pairs": 1195,
   "strict_from_pkgs": 782,
   "strict_to_pkgs": 554,
   "strict_adopters_of_from_pkgs": 3565925,
-  "loose_pairs": 16835,
-  "loose_from_pkgs": 7142,
-  "loose_to_pkgs": 5924,
-  "loose_adopters_of_from_pkgs": 5182592,
-  "count_votes5_pm3_pairs": 5921,
-  "count_votes5_pm3_from_pkgs": 2450,
-  "count_votes12_pairs": 2490,
-  "count_votes12_from_pkgs": 1171,
-  "removal_stats_rows_csv": 47250,
+  "loose_pairs": 16832,
+  "loose_from_pkgs": 7139,
+  "loose_to_pkgs": 5923,
+  "loose_adopters_of_from_pkgs": 5182588,
+  "count_votes5_pm3_pairs": 5919,
+  "count_votes5_pm3_from_pkgs": 2449,
+  "count_votes12_pairs": 2491,
+  "count_votes12_from_pkgs": 1172,
+  "removal_stats_rows_csv": 47240,
   "recommended_pairs": 1167,
   "recommended_from_pkgs": 1022,
   "file_bytes": {
-    "migration_pairs_strict.csv": 121285,
-    "migration_pairs_all.csv": 1706873,
-    "migration_pairs_recommended.csv": 122006,
-    "removal_stats.csv": 2681392,
-    "removal_by_year.csv": 5135059,
-    "removal_stats.parquet": 4511961,
-    "removal_by_year.parquet": 2313335,
-    "migration_events.parquet": 21876857,
-    "migration_events.csv": 119003657,
-    "migration_pairs.duckdb": 11197231104
+    "migration_pairs_strict.csv": 121283,
+    "migration_pairs_all.csv": 1706577,
+    "migration_pairs_recommended.csv": 122005,
+    "removal_stats.csv": 2680918,
+    "removal_by_year.csv": 5134320,
+    "removal_by_period.csv": 3057139,
+    "removal_stats.parquet": 4500010,
+    "removal_by_year.parquet": 2315229,
+    "removal_by_period.parquet": 2528362,
+    "migration_events.parquet": 21879706,
+    "migration_events.csv": 118998380,
+    "migration_pairs.duckdb": 11429490688
   },
   "input_bytes": {
-    "requirements_parquet": 7187018745,
-    "versions_full_parquet": 4743980087
+    "versions_full_parquet": 4743980087,
+    "requirements_parquet": 7187018745
   },
-  "elapsed_sec": 1834
+  "periods": {
+    "1y": {
+      "t1": "2025-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    },
+    "3y": {
+      "t1": "2023-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    },
+    "5y": {
+      "t1": "2021-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    }
+  },
+  "source": "depsdev",
+  "kind": "regular",
+  "dep_column": "Dependencies",
+  "reclassify_columns": [
+    "PeerDependencies",
+    "OptionalDependencies"
+  ],
+  "reclassify_legacy": false,
+  "elapsed_sec": 2545
 }
