@@ -9,6 +9,15 @@ from __future__ import annotations
 
 from ai.rag.types import ComparisonResult, EvidenceChunk
 
+_ALLOWED_VERDICTS = {
+    "SUPPORTED",
+    "CONDITIONALLY_SUPPORTED",
+    "LIMITED_SUPPORT",
+    "UNCONFIRMED",
+    "UNSUPPORTED",
+}
+_ALLOWED_GROUNDED_IN = {"EVIDENCE", "GENERAL_KNOWLEDGE"}
+
 
 def verify_evidence_ids(
     result: ComparisonResult, evidence_pool: list[EvidenceChunk]
@@ -41,4 +50,27 @@ def verify_verdicts(result: ComparisonResult) -> list[str]:
     Returns:
         위반 사유 문자열 목록 (빈 리스트면 통과).
     """
-    raise NotImplementedError
+    violations: list[str] = []
+    for row in result.features:
+        for r in row.results:
+            label = f"{row.feature_label}/{r.package}"
+            if r.verdict not in _ALLOWED_VERDICTS:
+                violations.append(f"{label}: 허용되지 않은 verdict {r.verdict!r}")
+                continue
+            if r.grounded_in not in _ALLOWED_GROUNDED_IN:
+                violations.append(f"{label}: 허용되지 않은 groundedIn {r.grounded_in!r}")
+                continue
+
+            if r.grounded_in == "GENERAL_KNOWLEDGE" and r.evidence_ids:
+                violations.append(
+                    f"{label}: groundedIn=GENERAL_KNOWLEDGE인데 evidenceIds가 비어있지 않음"
+                )
+            elif (
+                r.grounded_in == "EVIDENCE"
+                and r.verdict != "UNCONFIRMED"
+                and not r.evidence_ids
+            ):
+                violations.append(
+                    f"{label}: verdict={r.verdict!r}인데 근거(evidenceIds)가 없음"
+                )
+    return violations
