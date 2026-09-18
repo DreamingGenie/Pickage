@@ -50,7 +50,13 @@ class DataTeamEnvelope:
 
 @dataclass
 class EvidenceChunk:
-    """175(chunk_readme)의 출력 단위. EvidenceRecord(§7.1, 영속)와 1:1 대응한다."""
+    """175(chunk_readme)의 출력 단위.
+
+    2026-09-18 결정으로 DB 영속화는 폐기됨(요청마다 그때그때 청킹) —
+    [[rag-176-no-db-cache]] 참고. snapshot_id는 이제 DB row가 아니라 원문 파일의
+    sha256 해시(앞 16자)다 — 내용이 같으면 항상 같은 값이 나온다(pipeline.py의
+    get_or_build_evidence 참고).
+    """
 
     evidence_id: str
     snapshot_id: str

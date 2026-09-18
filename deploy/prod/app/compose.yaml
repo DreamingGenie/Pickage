@@ -142,6 +142,13 @@ services:
       GMS_AUTH_HEADER: ${GMS_AUTH_HEADER:-}
       GMS_AUTH_SCHEME: ${GMS_AUTH_SCHEME:-}
       GMS_MODEL: ${GMS_MODEL:-}
+      # 176(2026-09-18 결정, DB 캐시 없이 그때그때 청킹) — 데이터팀이 이 노드에 이미
+      # 올려둔 README 인계 파일 경로. 컨테이너 안에서도 같은 절대경로로 보이게
+      # 아래 volumes에서 그대로 마운트한다(경로 자체를 바꾸지 않음).
+      README_SOURCE_ROOT: /srv/pickage/docs
+    volumes:
+      # 데이터팀이 채워둔 README 인계 파일 — 컨테이너는 읽기만 한다(:ro).
+      - /srv/pickage/docs:/srv/pickage/docs:ro
     # 호스트에 포트를 열지 않는다 — postgres와 같은 이유. api가 같은 compose 네트워크
     # 안에서 rag-api:8000 으로 붙으면 되고, 밖에 노출할 이유가 없다.
     mem_limit: 512m

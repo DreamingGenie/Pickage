@@ -1,10 +1,10 @@
-"""전체 흐름 오케스트레이션: 175 캐시 조회 → 177 검색 → 178 생성 → 179/180 검증.
+"""전체 흐름 오케스트레이션: 175 청킹 → 177 검색 → 178 생성 → 179/180 검증.
 
-DEC-FEATURE-CACHE-20260917-01 (docs/Pickage_기능별_개발_구상안_0917.md §7.1·§14.5):
-    - SourceSnapshot·EvidenceChunk(EvidenceRecord)는 (package, version) 단위로
-      PostgreSQL에 영속화해 재사용한다.
-    - ComparisonResult(FeatureAssessment 등 판정 결과)는 영속화하지 않고 매 요청
-      새로 계산한다.
+2026-09-18 결정으로 DEC-FEATURE-CACHE-20260917-01(PostgreSQL 영속화)은 폐기됐다 —
+SourceSnapshot·EvidenceChunk를 DB에 저장해 재사용하지 않고, 비교 요청이 올 때마다
+README를 그때그때 읽어서 청킹한다([[rag-176-no-db-cache]] 메모 참고). 176 담당도
+정민지로 이관됨. ComparisonResult(판정 결과)를 영속화하지 않고 매 요청 새로
+계산한다는 부분은 그대로다.
 
 순수 순차 파이프라인이다 — 루프/조건부 재시도 없음(readme-valiant-feather 계획 문서
 "구현은 LangGraph 없이 순수 Python 함수로" 결정 참고). 179/180이 실패해도 자동
@@ -13,8 +13,13 @@ DEC-FEATURE-CACHE-20260917-01 (docs/Pickage_기능별_개발_구상안_0917.md �
 
 from __future__ import annotations
 
+import hashlib
+import os
+from pathlib import Path
+
 from ai.rag.generation import generate
-from ai.rag.readme_chunker import chunk_readme
+from ai.rag.readme_chunker import chunk_readme, parse_data_team_envelope
+from ai.rag.readme_source import ReadmeSourceNotFoundError, resolve_readme_path
 from ai.rag.retrieval import retrieve
 from ai.rag.types import ComparisonResult, EvidenceChunk, PackageRef
 from ai.rag.verification import verify_evidence_ids, verify_verdicts
@@ -28,22 +33,33 @@ class VerificationFailedError(Exception):
         self.violations = violations
 
 
-def get_or_build_evidence(package: str, version: str) -> list[EvidenceChunk]:
-    """(package, version)의 EvidenceChunk를 조회하고, 없으면 새로 만든다.
+def get_or_build_evidence(
+    package: str, version: str, root: str | Path | None = None
+) -> list[EvidenceChunk]:
+    """(package, version)의 README 인계 파일을 읽어 즉시 청킹한다 (176).
 
-    흐름(계획 문서 "공식 결정" 절 참고):
-        1. PostgreSQL에서 이 (package, version)의 EvidenceChunk가 이미 있는지 조회
-           — 176(정보경) 스키마/영속화 계층. 있으면 그대로 반환 (175 재실행 없음).
-        2. 없으면 `app` 노드 로컬 파일(README 원본, 데이터팀 LRU 캐시)을 읽는다.
-           파일이 evict돼서 없으면 청킹 실패와 구분되는 "재수집 필요" 상태를
-           호출자에게 알려야 한다(아직 TODO).
-        3. chunk_readme()로 청킹하고, 결과를 PostgreSQL에 저장한 뒤 반환한다
-           (저장은 176 책임 — 여기서는 자리만 잡아둔다).
+    2026-09-18 결정: DB 캐시 없음 — 매 요청 파일을 읽고 chunk_readme()를 그대로
+    돌린다([[rag-176-no-db-cache]]). snapshot_id는 파일 원문의 sha256 앞 16자로
+    잡는다 — 내용이 같으면 항상 같은 id가 나와서(순수 함수 성질 유지), DB 없이도
+    "이 근거가 어느 원문 스냅샷에서 나왔는지"를 재현 가능하게 식별할 수 있다.
 
-    TODO(176 연동 전): 지금은 DB 조회/저장이 없어 매번 2~3단계로 간다. 176 스키마가
-    정해지면 이 함수 안에 캐시 조회 로직을 채운다.
+    Args:
+        root: README 인계 파일 루트. 생략하면 `README_SOURCE_ROOT` 환경변수를 쓴다
+            (app 노드 실 경로: `/srv/pickage/docs`, 2026-09-18 데이터팀 전달).
+
+    Raises:
+        ReadmeSourceNotFoundError: 이 (package, version) 파일이 없을 때.
     """
-    raise NotImplementedError
+    root = root if root is not None else os.environ["README_SOURCE_ROOT"]
+    path = resolve_readme_path(package, version, root)
+    try:
+        doc_text = path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ReadmeSourceNotFoundError(str(path)) from exc
+
+    envelope = parse_data_team_envelope(doc_text)
+    snapshot_id = hashlib.sha256(doc_text.encode("utf-8")).hexdigest()[:16]
+    return chunk_readme(envelope.readme_body, package, version, snapshot_id=snapshot_id)
 
 
 def compare_packages(
