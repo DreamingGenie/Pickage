@@ -382,12 +382,36 @@ git -C /srv/pickage/repo log -1 --oneline   # 지금 서버에 뜬 커밋
 ```
 
 ```bash
-docker compose ps                        # 셋 다 Up (healthy) 여야 한다
+docker compose ps                        # 다섯 다 Up. healthcheck 가 있는 셋은 (healthy)
 docker compose logs -f api               # 따라가며 보기
 docker compose logs --since 10m web      # 최근 것만
 docker compose restart api               # 앱만 다시
 docker compose down                      # 내린다. 데이터는 남는다
 ```
+
+### 죽고 있는 컨테이너가 있는지 — 이 한 줄로 본다
+
+`docker compose ps` 의 `STATUS` 는 훑다가 놓친다. `restart: unless-stopped` 가 붙은
+컨테이너는 계속 죽어도 목록에 계속 보이고, healthcheck 가 없는 것(spark-worker-2 ·
+similarity-loader)은 `(healthy)` 도 안 붙어서 정상과 구별이 안 된다.
+**2026-09-16 ~ 09-17 `similarity-loader` 가 그 상태로 하루 넘게 재시작을 반복했고 아무도 몰랐다**
+(S15P21A506-385).
+
+```bash
+docker inspect -f '{{.Name}} {{.State.Status}} 재시작 {{.RestartCount}}회' $(docker compose ps -aq)
+```
+
+**상태가 전부 `running` 이면 정상이다.** `restarting` 이 하나라도 있으면 그것이
+지금 죽고 있는 것이다 — `docker compose logs --tail 50 <서비스>` 로 이유를 본다.
+
+재시작 횟수는 **누적이라 0 이 아니어도 그 자체로는 문제가 아니다** (호스트 재부팅·
+지난 배포도 센다). 지금 죽고 있는지는 **늘어나는지**로 판단한다 — 30초 뒤 같은 명령을
+다시 쳐서 숫자가 같으면 괜찮다.
+
+> 배포 잡도 같은 것을 본다 — `up -d --wait` 뒤에 30초를 두고 재시작 횟수가 **늘었는지**
+> 확인해서 늘었으면 빨간불이다 (`.gitlab-ci.yml` 의 `deploy-app`). `--wait` 만으로는
+> 안 걸린다: healthcheck 가 없는 서비스는 "한 번 running 이 됐다" 로 통과하고,
+> 죽고 다시 뜨는 컨테이너는 그 순간을 반드시 지나간다.
 
 nginx 설정만 고쳤을 때는 **다시 빌드하지 않는다.** 설정은 마운트라 reload 로 끝난다.
 
