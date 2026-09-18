@@ -12,36 +12,30 @@ v6 대비 학습 데이터·평가 방식이 바뀌었다 (v6의 "계승형/공�
 리네임이라 near-duplicate 만 학습된 것으로 판명됨.
 
 > ⚠️ **지금 실제로 `@production`이 가리키는 모델은 아래 v7이 아니라 `v7-v5clean`이다**
-> (MLflow `pickage-similarity` 버전 2, 2026-09-15 등록). 이 문서의 "모델"·"검증 기록" 절은
-> 아직 v7만 설명한다 — v7-v5clean 스펙은 바로 아래 "## 모델 — v7-v5clean (현재 운영)" 절을 볼 것
-> (S15P21A506-387).
+> (MLflow `pickage-similarity` 버전 2, 2026-09-15 등록). 아래 v7 관련 절(모델·ONNX·Export·
+> 추론 인터페이스·후처리·실행 환경)은 base 모델·ONNX 규격·추론 방식이 공통이라 v7-v5clean에도
+> 그대로 적용된다. **학습 조건·recall 성적만 갈리므로** v7-v5clean 전용 정보는 바로 아래
+> "## 모델 — v7-v5clean (현재 운영)" 절에 모아뒀다 (S15P21A506-387, 2026-09-18 조사 완료).
 
-## 모델 — v7-v5clean (현재 운영, 계약 미완성)
+## 모델 — v7-v5clean (현재 운영)
 
-**2026-09-17 첫 실운영 배치에서 확인됨.** 아래 v7(§"모델") 대신 **이 모델이 실제로 서빙 중**인데,
-학습 조건·성적이 이 문서에 없었다. MLflow가 경로를 알려주므로 배치 실행 자체는 문제없이
-됐지만, 후보 품질을 판단할 근거도 다음 모델과 비교할 기준도 지금은 없다.
+**2026-09-17 첫 실운영 배치에서 이 모델이 실제로 서빙 중인 것이 확인됐다.** 학습 조건·성적이
+이 문서에 없었던 문제는 2026-09-18 jupyter05·MinIO 직접 조사로 해소했다(아래).
 
 | | 값 |
 |---|---|
 | MLflow 등록 | `pickage-similarity` 버전 2, 2026-09-15 03:52 등록, 별칭 `@production` |
 | MLflow source | `s3://pickage-mlflow-artifacts/v7-v5clean` |
 | model_version 문자열 | `bge-small-v7-v5clean-batch32-step500` |
-| base | `BAAI/bge-small-en-v1.5` — v7과 동일 추정 (**미확인, 아래 TODO**) |
-| 어댑터 | LoRA, **batch32 / step500** (v7은 batch32/10epoch/**step1310** — 왜 1310이 아니라 500에서 멈췄는지 **미확인**) |
-| 학습 데이터 | `v5clean` — **무엇을 정제(clean)했는지, v7 학습셋과 관계가 무엇인지 미확인** |
-| 학습 스크립트 | **미확인** — `ai/training/finetune_bge_small_lora_v7.py`를 옵션만 바꿔 썼는지, 별도 스크립트였는지. 레포에 없다면 **왜 커밋 안 됐는지도 같이 남길 것**(커밋 안 된 실험은 재현 불가) |
-| 병합 방식 | **미확인** — v7과 같은 `BaseTunerLayer.merge()`인지 |
+| base | `BAAI/bge-small-en-v1.5` — v7과 동일 (jupyter05 `v7-v5clean/run_manifest.json` 확인) |
+| 어댑터 | LoRA r=16, alpha=32, dropout=0.05, target_modules=all-linear — v7과 동일. `batch32 / step500` (v7은 batch32/10epoch/**step1310**) |
+| **step500인 이유** | 끝까지(1310) 학습한 v7과 달리, `sweep_checkpoints.py`로 여러 체크포인트를 스윕해 `test_alternatives_full_v2.jsonl`(315쌍) recall@3 기준으로 **중간 체크포인트를 직접 선택**했다. step1310까지 학습은 했으나 500이 검증 recall이 가장 좋아 그 시점 가중치를 채택 |
+| 학습 데이터 | `train_v7_hiconf_v5.jsonl`, **4,699쌍**. lineage: v2(4,456) → v3(4,278, migration 필터 +337) → **v5(4,699, hard-negative 마이닝 flip +84)** — v7 학습셋(`train_v7_hiconf.jsonl`, 5,684쌍 중 positive 4,162)과는 별개 계열이며, v5clean은 그 이후 세대(v2clean→v3clean→v5clean)의 최종 정제판 |
+| 하이퍼파라미터 | epochs 10, batch_size 32, learning_rate 5e-5, warmup_ratio 0.1, loss `MultipleNegativesRankingLoss` — v7과 동일 |
+| 학습 스크립트 | `ai/training/finetune_bge_small_lora_v7.py` — v7과 같은 스크립트, `run_name="v5clean"`으로 재실행(옵션만 다름). 레포에 커밋돼 있어 재현 가능 |
+| 병합 방식 | v7과 같은 레이어 단위 병합(`BaseTunerLayer.merge()`, `get_peft_model` 미사용) |
 
-**TODO (S15P21A506-387 — 담당 오세진)**: 위 굵게 표시한 항목은 MLflow run의 params/tags를
-먼저 확인하고(아래 명령), 없으면 jupyter05 학습 로그에서 가져온다.
-
-```bash
-curl -fsS "http://127.0.0.1:5000/api/2.0/mlflow/registered-models/get-version?name=pickage-similarity&version=2" \
-  | tr ',' '\n' | grep -E '"key"|"value"|source|run_id'
-# run_id 를 알아내면:
-# mlflow.get_run(<run_id>) 로 params(하이퍼파라미터)·metrics(recall 등)·tags 를 한 번에 확인
-```
+**출처**: `pickage-mlflow-artifacts/v7-v5clean/run_manifest.json` (jupyter05에서 학습 시 같이 기록됨 — MinIO에 이미 있었는데 이 문서에 반영이 안 돼 있었다). MLflow run params/metrics 별도 조회는 불필요했다.
 
 ### 실행 환경·처리량 — EC2 #1 실측 (2026-09-17, 첫 실운영 배치)
 
@@ -53,19 +47,38 @@ v7 절의 "실행 환경"과 하드웨어는 동일(EC2 #1, 4 vCPU/15 GiB, x86_6
 | 코퍼스 → 임베딩 → top-30 검색 → 구조적 관문까지 | **1,884.8초** (29,164개 임베딩) |
 | 메모리 최고점 | **5.236 GiB** (55초간 소수점 셋째 자리까지 고정 — 추론 엔진이 작업 공간을 한 번 크게 잡고 재사용) |
 | 컨테이너 `mem_limit` | 2 GiB로는 OOM, 4 GiB도 임베딩 시작 15초 뒤 OOM, **8 GiB에서 완주** (S15P21A506-384에서 상한 조정 진행 중) |
-| held-out recall@3 / @10 | **미확인** — v7은 recall@3 0.153 / recall@10 0.306(기능적 대안 183쌍/47,530 코퍼스). 같은 held-out 셋으로 이 모델 수치를 채울 것 (TODO) |
 | 관문 통과 통계 | 검색 874,920쌍 → plugin_adapter 81,867 · same_family 180,273 · repo_archived 3,807 제거 → **608,973쌍** |
 
-### 저장 위치 — 실제 경로 (v7의 "계약 경로"와 다름)
+### held-out recall — 2026-09-18 jupyter05 GPU에서 직접 재측정
 
-v7과 같은 문제다: 계약 문서가 말하는 경로(`pickage-mlflow-artifacts/models/similar-packages/vN/`)와
-**실제 업로드 경로가 다르다.**
+`eval_recall.py --model ./merged_bge_v7_v5clean_best --pool candidate_pool_full_922k.jsonl --test test_alternatives_full_v2.jsonl --apply-gates --dependents candidate_pool_package_dependents.parquet`
 
-- **실제 경로**: `pickage-mlflow-artifacts/v7-v5clean/` (평평한 구조, MinIO 웹 콘솔로 수동 업로드)
-- 배치 실행 기록: `pickage-vectors/model=v2/corpus=package-text-20260908-v1/run_manifest.json`
-- 배치/로더가 계약 경로(`models/similar-packages/v2/`)를 기대한다면 못 찾는다 — v7과 **같은 미해결
-  사안**이라 v7 절의 "저장 위치·보관 정책"에서 한 번에 정리하거나, 두 모델 다 계약 경로로
-  재배치할지 결정이 필요하다.
+| 검증 | 결과 |
+|---|---|
+| 코퍼스 | 29,376개 (원본 29,310 + 평가쌍 누락분 보충 66) — **운영 배치 실제 코퍼스(29,164개)와 거의 동일 크기** |
+| 평가쌍 | 315개, 17개 도메인 (`test_alternatives_full_v2.jsonl`) |
+| recall@3 | **0.238** |
+| recall@10 | **0.511** |
+| recall@30 | **0.740** |
+| 관문 | ON (plugin/adapter · same-family · dependents 보완재, `similarity_batch_pipeline.py`와 동일 로직) |
+
+**v7의 recall@3 0.153 / recall@10 0.306과 직접 비교하지 말 것.** 조건이 셋 다 다르다 —
+① eval셋 크기(183쌍 vs 315쌍, 315쌍은 183쌍에서 확장된 상위집합), ② 코퍼스 크기(47,530 vs
+29,376), ③ 관문 적용 여부(v7 쪽 `run_manifest.json`에 gate 기록이 없어 순수 코사인 recall로
+추정됨, v5clean은 gate=ON). 다음 모델과 비교할 때는 **반드시 이 문서의 조건(코퍼스
+`candidate_pool_full_922k.jsonl`, gate=ON, eval셋 `test_alternatives_full_v2.jsonl`)을
+그대로 맞춰서 재측정할 것.**
+
+이전에도 같은 모델·eval셋으로 3차례 더 평가한 기록이 jupyter05에 있는데(코퍼스 크기·게이트
+버그 수정 시점이 각기 달라 recall@3 0.225~0.257 사이로 갈렸다), 위 표는 그중 **가장 최신
+게이트 코드(S15P21A506-334 반영)로, 가장 운영과 가까운 코퍼스 크기로 다시 돌린 값**이라 이
+문서의 대표값으로 삼는다.
+
+### 저장 위치
+
+실제 경로는 `pickage-mlflow-artifacts/v7-v5clean/` — v7과 같은 "계약 경로와 실제 경로가 다르다"
+문제라 v7 것과 합쳐서 "## 저장 위치·보관 정책" 절에 정리했다. 배치 실행(적재) 기록은
+`pickage-vectors/model=v2/corpus=package-text-20260908-v1/run_manifest.json`.
 
 ## 모델
 
@@ -172,7 +185,7 @@ emb = emb / np.linalg.norm(emb, axis=1, keepdims=True) # 2. L2 정규화
 ## 저장 위치·보관 정책
 
 - 모델(계약): MinIO `pickage-mlflow-artifacts/models/similar-packages/vN/` — `model.onnx`(+ v6는 `model.onnx.data`) + tokenizer + `run_manifest.json` (+ `ref_emb.npy`). 버전당 ~265 MiB.
-- **모델(v7 실제 업로드, 계약과 경로 다름 — 미해결)**: `pickage-mlflow-artifacts/onnx_bge_v7/`(평평한 구조, 위 계약 경로가 아님) — MinIO 웹 콘솔로 수동 업로드하며 컨벤션을 안 맞춘 것. `model.onnx` + tokenizer 2종 + `run_manifest.json` + `_SUCCESS`, 5개 파일. **배치/로더가 계약 경로(`models/similar-packages/v7/`)를 기대한다면 못 찾는다 — 재배치하거나 계약을 이 경로로 갱신할지 정해야 함.**
+- **모델(v7·v7-v5clean 실제 업로드 경로, 계약과 다름 — 2026-09-18 MinIO 직접 확인)**: `pickage-mlflow-artifacts/v7/`, `pickage-mlflow-artifacts/v7-v5clean/`(둘 다 평평한 구조, 위 계약 경로가 아님) — MinIO 웹 콘솔로 수동 업로드하며 컨벤션을 안 맞춘 것. 각각 `model.onnx` + tokenizer 2종 + `run_manifest.json` + `_SUCCESS`, 5개 파일. **배치/로더가 계약 경로(`models/similar-packages/vN/`)를 기대한다면 못 찾는다 — 재배치하거나 계약을 이 경로로 갱신할지 정해야 함.** (참고: 이전 버전 문서는 v7 경로를 `onnx_bge_v7/`로 적었는데, 이는 jupyter05 **로컬** ONNX 산출 디렉터리 이름(§"모델"의 `산출` 행)과 MinIO 업로드 경로를 혼동한 것 — 실제 MinIO 경로는 `v7/`이다.)
 - 벡터: MinIO `pickage-vectors/vN/` — 10만 임베딩, 버전당 ~146 MiB.
 - 학습 데이터: MinIO `pickage-curated/` — `train_combined_vN.jsonl`, `held_out_eval_bundle_vN.json`.
 - MLflow 미배포(S15P21A506-236)라 당분간 수동 업로드.
