@@ -7,9 +7,11 @@
         migration_pairs_recommended.csv  권고 하한(lift≥5, votes≥8, publisher_months≥5, share≥10%) 통과 쌍
         removal_stats.csv            X별 이탈 요약(제거 총수·대체 없이 제거·대체 동반 제거·dependents). removals_total≥3 만
         removal_by_year.csv          X × 연도 이탈 추이. 같은 X 기준
+        removal_by_period.csv        X × 구간(1y·3y·5y) 이탈 사유. 같은 X 기준
         stats.json                   규모 통계(패키지 수·전이 수·이벤트 수·파일 크기)
       data/migration_pairs/migration_events.parquet   제거 이벤트 원시 전부(모델 최소 단위)
-      data/migration_pairs/removal_stats.parquet, removal_by_year.parquet   위 두 표 필터 없이 전부
+      data/migration_pairs/removal_stats.parquet, removal_by_year.parquet, removal_by_period.parquet
+                                                      위 세 표 필터 없이 전부
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_migration_pairs.py   (중간 결과 data/migration_pairs.duckdb)
 
 원천·의존 종류 (S15P21A506-349, 2026-09-14 추가)
@@ -24,6 +26,13 @@
   depsdev 원천에는 Dev 칸 자체가 없어 Peer/Optional 만 본다(그래서 regular→dev 강등이 제거로 남는다. 이게 대조군이 필요한 이유)
 - 7단계(S15P21A506-281): trans 를 지우기 전에 "대체 없이 제거"(X 를 뺐지만 같은 전이에서 아무것도 안 넣음) 와
   연도별 이탈 수를 removal_stats / removal_by_year 로 집계. 점유율은 votes 기준 share 와 함께 (배포주체, 월) 기준 share_pm 도 낸다
+- 구간별 집계(S15P21A506-378): 화면이 쓰는 1y·3y·5y 로 같은 것을 다시 센다(removal_by_period).
+  구간은 겹치고(1y ⊂ 3y ⊂ 5y) 경계는 유지·유입·이탈에서 가져온다 — pipeline/duckdb/removal_periods.py
+
+**이 결과와 유지·유입·이탈(build_dependent_transitions.py)은 세는 단위가 다르다.** 저쪽은 시점 두 개의
+선언 집합을 비교한 **패키지 수**이고 이쪽은 연속한 두 릴리스를 훑은 **전이 건수**다. 한 패키지가 넣었다
+뺐다를 반복하면 이쪽에서는 여러 건이 된다. 그래서 "이탈 = 대체 동반 + 대체 없음" 이라는 덧셈이 저쪽의
+이탈과는 성립하지 않는다. 같은 화면에 놓더라도 더하거나 나누지 말 것.
 
 주의: lift 의 분모 B 는 그 실행의 모집단 전이 수다. depsdev(전수 3,958만)와 registry(상위 10만 726만)는
 모집단이 달라 lift 절댓값을 직접 비교할 수 없다. 쌍을 합치거나 votes 를 더하지 말 것.
@@ -59,6 +68,13 @@ if args.source == "depsdev" and args.kind != "regular":
     ap.error("depsdev 원천에는 개발용 의존이 없습니다. --source registry 와 함께 쓰세요.")
 
 ROOT = Path(__file__).resolve().parents[2].as_posix()  # 리포 루트
+
+# 구간별 이탈 사유(S15P21A506-378)의 판정 문장과 검산. 구간 경계가 왜 여기 있지 않고
+# 유지·유입·이탈에서 오는지는 그 모듈의 docstring 에 있다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from removal_periods import (  # noqa: E402
+    PERIODS, REMOVAL_BY_PERIOD_SQL, T2, build_periods, require_monotonic)
+
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
 RG = f"{ROOT}/data/registry/parquet/registry_versions/*.parquet"
@@ -196,6 +212,25 @@ SELECT x AS removed_pkg, year(to_ts) AS year,
        count(*) FILTER (WHERE coalesce(len(added), 0) = 0)     AS removals_no_replacement,
        count(DISTINCT Name)                                    AS dependents
 FROM trans, unnest(removed) AS u(x) GROUP BY 1, 2""")
+
+# 5-3) 구간별 이탈 사유 (S15P21A506-378) — 화면이 쓰는 1y·3y·5y 에 맞춰 다시 센다.
+#      연도별 집계로는 대신할 수 없다. 구간은 2026-08-31 에 끝나는데 연도는 12-31 에 끝나서
+#      한 해를 잘라 쓸 수 없고, dependents 는 COUNT(DISTINCT) 라 연도끼리 더해지지 않는다.
+build_periods(con)
+con.execute(REMOVAL_BY_PERIOD_SQL)
+stats["removal_by_period"] = {
+    p: {"removals": r, "no_replacement": n, "with_replacement": w, "pkgs": k}
+    for p, r, n, w, k in con.execute("""
+        SELECT period, sum(removals), sum(removals_no_replacement),
+               sum(removals_with_replacement), count(*)
+        FROM removal_by_period GROUP BY 1 ORDER BY 1""").fetchall()}
+# 구간 밖으로 밀려난 전이가 얼마나 되는지 남긴다. T2 는 스냅샷 경계인데 원천에는 그 뒤에
+# 발행된 행이 섞여 있다(versions_full 의 2026-08-31 파티션에 09-01 발행분이 들어 있다).
+stats["transitions_after_t2"] = one(
+    f"SELECT count(*) FROM trans WHERE to_ts > TIMESTAMP '{T2}'")
+require_monotonic(con)
+log("removal_by_period", json.dumps(stats["removal_by_period"], ensure_ascii=False),
+    "T2 이후 전이", stats["transitions_after_t2"])
 stats["removed_pkgs_any"] = one("SELECT count(*) FROM removal_stats")
 stats["removals_total"] = one("SELECT sum(removals_total) FROM removal_stats")
 stats["removals_no_replacement_total"] = one("SELECT sum(removals_no_replacement) FROM removal_stats")
@@ -266,8 +301,17 @@ con.execute(f"""COPY (SELECT y.removed_pkg, y.year, y.removals, y.removals_no_re
                       FROM removal_by_year y JOIN removal_stats s USING (removed_pkg)
                       WHERE s.removals_total >= {REMOVAL_MIN} ORDER BY y.removed_pkg, y.year)
                 TO '{OUT}/removal_by_year.csv' (HEADER, DELIMITER ',')""")
+con.execute(f"""COPY (SELECT p.period, p.removed_pkg, p.removals, p.removals_no_replacement,
+                             p.removals_with_replacement,
+                             round(p.removals_no_replacement*100.0/p.removals, 1) AS no_replacement_pct,
+                             p.dependents
+                      FROM removal_by_period p JOIN removal_stats s USING (removed_pkg)
+                      WHERE s.removals_total >= {REMOVAL_MIN}
+                      ORDER BY p.period, p.removals DESC, p.removed_pkg)
+                TO '{OUT}/removal_by_period.csv' (HEADER, DELIMITER ',')""")
 con.execute(f"COPY (SELECT * FROM removal_stats ORDER BY removals_total DESC) TO '{EV_DIR}/removal_stats.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 con.execute(f"COPY (SELECT * FROM removal_by_year ORDER BY removed_pkg, year) TO '{EV_DIR}/removal_by_year.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
+con.execute(f"COPY (SELECT * FROM removal_by_period ORDER BY period, removed_pkg) TO '{EV_DIR}/removal_by_period.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 stats["removal_stats_rows_csv"] = one(f"SELECT count(*) FROM removal_stats WHERE removals_total >= {REMOVAL_MIN}")
 stats["recommended_pairs"] = one(f"SELECT count(*) FROM pairs_out WHERE {RECOMMENDED}")
 stats["recommended_from_pkgs"] = one(f"SELECT count(DISTINCT from_pkg) FROM pairs_out WHERE {RECOMMENDED}")
@@ -283,7 +327,7 @@ con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_versio
 
 # UTF-8 BOM (팀 공유 CSV 관례)
 for f in ("migration_pairs_strict.csv", "migration_pairs_all.csv", "migration_pairs_recommended.csv",
-          "removal_stats.csv", "removal_by_year.csv"):
+          "removal_stats.csv", "removal_by_year.csv", "removal_by_period.csv"):
     p = f"{OUT}/{f}"
     with open(p, "rb") as fh:
         data = fh.read()
@@ -300,8 +344,10 @@ stats["file_bytes"] = {
     "migration_pairs_recommended.csv": sz(f"{OUT}/migration_pairs_recommended.csv"),
     "removal_stats.csv": sz(f"{OUT}/removal_stats.csv"),
     "removal_by_year.csv": sz(f"{OUT}/removal_by_year.csv"),
+    "removal_by_period.csv": sz(f"{OUT}/removal_by_period.csv"),
     "removal_stats.parquet": sz(f"{EV_DIR}/removal_stats.parquet"),
     "removal_by_year.parquet": sz(f"{EV_DIR}/removal_by_year.parquet"),
+    "removal_by_period.parquet": sz(f"{EV_DIR}/removal_by_period.parquet"),
     "migration_events.parquet": sz(f"{EV_DIR}/migration_events.parquet"),
     "migration_events.csv": sz(f"{EV_DIR}/migration_events.csv"),
     "migration_pairs.duckdb": sz(DB),
@@ -315,6 +361,7 @@ if args.source == "depsdev":
     stats["input_bytes"]["requirements_parquet"] = dir_bytes(f"{ROOT}/data/raw/requirements")
 else:
     stats["input_bytes"]["registry_versions_parquet"] = dir_bytes(f"{ROOT}/data/registry/parquet/registry_versions")
+stats["periods"] = {k: {"t1": v, "t2": T2} for k, v in PERIODS.items()}
 stats["source"] = args.source
 stats["kind"] = args.kind
 stats["dep_column"] = KIND_COL
