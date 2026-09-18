@@ -1,7 +1,7 @@
 # 서버 모니터링 — 구축 계획 (S15P21A506-362)
 
 **`app` 노드는 떠 있다** (2026-09-18, Phase 1 완료). `data` 노드(Phase 4)는 아직이다 —
-보안그룹 한 줄과 스트리밍 설정이 남았다. 실측값은 7절의 "Phase 0·1 결과" 에 있다.
+호스트 방화벽 한 줄(`ufw`)과 스트리밍 설정이 남았다. 실측값은 7절의 "Phase 0·1 결과" 에 있다.
 
 대상은 두 노드 다다 — `app (j15a506)` · `data (j15a506a)`.
 노드 구성과 지금 도는 것들은 [`../README.md`](../README.md) · [`../data/README.md`](../data/README.md).
@@ -190,7 +190,7 @@ ssh -N -L 19999:127.0.0.1:19999 <계정>@j15a506.p.ssafy.io
 > (네트워크 인터페이스 메트릭 때문에 host 모드가 권장된다.)
 > 그때는 `netdata.conf` 의 `[web] bind to` 로 주소를 직접 묶는다 —
 > `app` 노드의 `spark-worker-2` 가 같은 이유로 host 모드이고, 거기서는
-> **막는 것이 보안그룹뿐**이라는 경고가 이미 붙어 있다 ([`../README.md`](../README.md)).
+> **막는 것이 방화벽뿐**이라는 경고가 이미 붙어 있다 ([`../README.md`](../README.md)).
 
 ---
 
@@ -453,11 +453,38 @@ Spark 웹 UI 를 다루는 기존 방식([`../data/README.md`](../data/README.md
 
 #### 방화벽 한 줄
 
-**`app` 노드 인바운드 19999, 출처 `172.26.8.249`(`data`)** 만. Spark 포트를 같은 방식으로
-이미 열어 둔 선례가 있다 ([`../data/README.md`](../data/README.md) "먼저 방화벽").
+**`app` 노드 인바운드 19999, 출처 `172.26.8.249`(`data`)** 만.
 **child 가 parent 로 접속하므로 방향이 이쪽이다** — 반대로 열면 아무 일도 일어나지 않는다.
 
+> ⚠ **여는 곳은 AWS 보안그룹이 아니라 호스트 방화벽(`ufw`)이다.**
+> **이 팀에는 AWS 콘솔 권한이 있는 사람이 없다.** EC2 접속 키만 받아서 쓰고 있고,
+> 노드 간 통신은 보안그룹이 이미 허용하고 있어서 **호스트 방화벽만 열면 통한다** —
+> Spark 포트(7077·9000·40001·40002·40010-40014·40020)도 그렇게 열려 있다.
+> "보안그룹에서 연다" 고 적힌 문서를 보고 콘솔을 찾지 말 것.
+
+`app` 노드에서:
+
+```bash
+sudo ufw status numbered      # active 인지, 규칙이 이미 있는지 먼저 본다
+```
+
+```bash
+sudo ufw allow from 172.26.8.249 to any port 19999 proto tcp \
+  comment 'netdata child->parent (S15P21A506-362)'
+```
+
+`data` 노드에서 확인한다 (**`app` 이 사설 IP 에 바인딩된 뒤에** 해야 의미가 있다):
+
+```bash
+timeout 3 bash -c 'cat </dev/null >/dev/tcp/172.26.6.235/19999' && echo 열림 || echo 막힘
+```
+
 인터넷에서 닿는 문은 **여전히 80·443·22 뿐이다.** 5절 결정과 어긋나지 않는다.
+
+> **막혀 있고 방화벽으로도 못 열면** SSH 터널로 넘길 수 있다 — 이미 열려 있는 22 번에
+> 스트리밍을 태우고 child 의 `destination` 을 `127.0.0.1:19999` 로 둔다.
+> 터널이 죽으면 스트리밍이 끊기므로 `Restart=always` 인 systemd 유닛으로 감싼다.
+> 무인 접속이 되는지 먼저 본다: `ssh -o BatchMode=yes 172.26.6.235 true`
 
 #### 순서
 
@@ -470,7 +497,7 @@ Spark 웹 UI 를 다루는 기존 방식([`../data/README.md`](../data/README.md
 uuidgen        # 한 번만. 양 노드가 이 같은 값을 쓴다 — 팀 비밀 저장소에도 남길 것
 ```
 
-0. 보안그룹에 위 한 줄을 넣는다 (없으면 child 가 **거부가 아니라 타임아웃**으로 끝난다)
+0. `app` 에서 위 `ufw` 규칙을 넣는다 (없으면 child 가 **거부가 아니라 타임아웃**으로 끝난다)
 1. **`app`**: `git pull` → `app/stream.conf` 의 대괄호 안을 그 키로 바꾼다 → `docker compose up -d`
 2. **`app`**: 아래 `ss` 로 사설 IP 바인딩을 확인한다
 3. **`data`**: `git pull` → `.env`(`DOCKER_GID`)·`stream.conf`(**같은 키**) → `docker compose up -d`
@@ -480,7 +507,7 @@ uuidgen        # 한 번만. 양 노드가 이 같은 값을 쓴다 — 팀 비�
 #### ⚠ 이 단계에서 제일 틀리기 쉬운 곳
 
 parent 는 사설 IP 에도 바인딩해야 한다 — `bind to = 127.0.0.1:19999 172.26.6.235:19999`.
-**`*` 나 `0.0.0.0` 으로 적으면 5절 결정이 조용히 무효가 된다.** 보안그룹만 남고,
+**`*` 나 `0.0.0.0` 으로 적으면 5절 결정이 조용히 무효가 된다.** 호스트 방화벽만 남고,
 `app` 은 인터넷에 노출된 유일한 노드다.
 
 ```bash
@@ -756,7 +783,7 @@ netdata 는 **있는 것만 차트를 만든다.** ZFS·btrfs·InfiniBand·무�
 cd ~/S15P21A506/deploy/prod/monitoring/<노드> && docker compose down -v   # 모니터링 데이터뿐이다
 ```
 
-보안그룹 규칙(Phase 4)과 systemd unit(Phase 5)은 따로 걷는다.
+`ufw` 규칙(Phase 4)과 systemd unit(Phase 5)은 따로 걷는다 — `sudo ufw status numbered` 로 번호를 보고 `sudo ufw delete <번호>`.
 **nginx 는 건드릴 게 없다** — Phase 2 를 보류했으므로 `app.conf` 에 들어간 줄이 없다.
 
 > `down -v` 를 여기서는 붙여도 된다. **별도 compose 프로젝트로 띄우는 이득이 이것이다** —
