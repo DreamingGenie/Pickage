@@ -56,6 +56,7 @@ class GenerateHappyPathTests(unittest.TestCase):
                     "results": [
                         {
                             "package": "foo",
+                            "version": "1.0.0",
                             "verdict": "SUPPORTED",
                             "evidenceIds": ["foo@1.0.0#0"],
                             "groundedIn": "EVIDENCE",
@@ -63,6 +64,7 @@ class GenerateHappyPathTests(unittest.TestCase):
                         },
                         {
                             "package": "bar",
+                            "version": "2.0.0",
                             "verdict": "UNCONFIRMED",
                             "evidenceIds": [],
                             "groundedIn": "EVIDENCE",
@@ -93,6 +95,7 @@ class GenerateHappyPathTests(unittest.TestCase):
         self.assertEqual(row.feature_label, "구조화 JSON")
         self.assertEqual(len(row.results), 2)
         self.assertEqual(row.results[0].package, "foo")
+        self.assertEqual(row.results[0].version, "1.0.0")
         self.assertEqual(row.results[0].verdict, "SUPPORTED")
         self.assertEqual(row.results[0].evidence_ids, ["foo@1.0.0#0"])
         self.assertEqual(row.results[1].verdict, "UNCONFIRMED")

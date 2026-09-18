@@ -72,9 +72,15 @@ class EvidenceChunk:
 
 @dataclass
 class FeatureResult:
-    """features[].results[] 한 셀 — 패키지 하나에 대한 판정."""
+    """features[].results[] 한 셀 — 패키지 하나에 대한 판정.
+
+    version(2026-09-18 추가): 176이 DB 없이 그때그때 청킹하는 방식으로 바뀌면서,
+    179(근거ID·패키지·버전 검증)가 다른 곳(ComparisonResult.packages)을 다시 조회하지
+    않고 셀 하나만 보고 검증할 수 있도록 셀 안에 버전을 직접 싣는다.
+    """
 
     package: str
+    version: str
     verdict: Verdict
     evidence_ids: list[str] = field(default_factory=list)
     grounded_in: GroundedIn = "EVIDENCE"
