@@ -316,6 +316,52 @@ export interface VersionShareResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * GET /packages/transitions — 유지·유입·이탈 (S15P21A506-361, S15P21A506-391)
+ *
+ * 근거: `backend/.../domain/packages/dto/TransitionsResponse.java`. 추이(Downloads·
+ * Dependents)와 다른 서버 개념이다 — 저건 임의 구간·주간 시계열(SnapshotWindow),
+ * 이건 프리셋 3개짜리 단일 스냅샷 비교(TransitionPeriod). 기간 선택기를 공유하지 않는다.
+ * ------------------------------------------------------------------ */
+
+export type TransitionPeriodParam = '1y' | '3y' | '5y'
+export type TransitionKindWire = 'regular' | 'peer' | 'optional'
+export type TransitionDataStatusWire = 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface TransitionSeriesItem {
+  name: string
+  /** 요청한 이름마다 항상 이 순서로 3줄(regular·peer·optional) — 요청 안 해도 전부 온다. */
+  kind: TransitionKindWire
+  population: 'npm_all'
+  /**
+   * `data_status`가 행 전체를 지배한다 — COMPLETE·NO_DATA 면 여섯 숫자 필드가 실수치,
+   * OUT_OF_SCOPE·NOT_COMPUTED 면 전부 `null`이다(키는 남는다, `ALWAYS` 직렬화). 0 으로
+   * 바꾸지 않는다 — null 은 "몰라서 못 셌다", 0 은 "세어 보니 없었다"로 뜻이 다르다.
+   */
+  retained: number | null
+  /** 원시 유입. 93.8~97.5%가 신생 프로젝트라 그대로 "채택"으로 읽으면 안 된다. */
+  inflow: number | null
+  /** inflow 의 부분집합 — T1 시점엔 아직 존재하지도 않던 패키지. */
+  inflow_new: number | null
+  /** = inflow - inflow_new, 서버 계산값. 실제 채택 수 — 메인 지표로 쓸 값. */
+  inflow_adopted: number | null
+  outflow: number | null
+  /** 판정 불가(대표 릴리스가 구간 안에서 안 바뀜) — retained 에 합치면 안 된다. */
+  unobserved: number | null
+  data_status: TransitionDataStatusWire
+}
+
+export interface TransitionsResponse {
+  metric: 'dependent_transitions'
+  /** 요청이 생략했으면 서버가 적용한 기본값(3y)을 그대로 돌려준다. */
+  period: TransitionPeriodParam
+  /** NOT_COMPUTED 가 응답 전체(모든 행)에 해당하면 t1·t2 는 키 자체가 없다. */
+  t1?: string
+  t2?: string
+  series: TransitionSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
  * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +

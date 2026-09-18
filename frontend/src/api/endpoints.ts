@@ -20,6 +20,7 @@ import {
   mockPdfPreview,
   mockSearch,
   mockSimilarPackages,
+  mockTransitions,
   mockVersionShare,
 } from '@/api/mock/handlers'
 import type {
@@ -34,6 +35,8 @@ import type {
   PdfGenerateRequest,
   PdfJob,
   SimilarPackagesResponse,
+  TransitionPeriodParam,
+  TransitionsResponse,
   TrendQuery,
   VersionShareResponse,
 } from '@/api/types'
@@ -176,6 +179,23 @@ export function fetchVersionShare(
   return USE_MOCK
     ? mockVersionShare(names, snapshotAt)
     : get<VersionShareResponse>('/packages/version', { names, snapshot_at: snapshotAt })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. 유지·유입·이탈
+ *
+ * 추이(4·5)와 별도 섹션인 이유: `names`·`from`·`to` 로 임의 구간을 잘라 주는 추이와
+ * 달리, 여기는 `period` 프리셋(1y·3y·5y) 세 개짜리 서버 계산이다. `TrendQuery`를
+ * 재사용하지 않는다 — 모양이 우연히 비슷해도 서버가 받는 계약이 다르다.
+ * ------------------------------------------------------------------ */
+
+export function fetchTransitions(
+  names: readonly string[],
+  period?: TransitionPeriodParam,
+): Promise<TransitionsResponse> {
+  return USE_MOCK
+    ? mockTransitions(names, period)
+    : get<TransitionsResponse>('/packages/transitions', { names, period })
 }
 
 /* ------------------------------------------------------------------ *

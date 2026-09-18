@@ -17,6 +17,13 @@ import {
   type MetricKey,
   type MetricState,
 } from '@/routes/report/ecosystem/model'
+import { TransitionsPanel } from '@/routes/report/ecosystem/transitions-panel'
+import {
+  DEFAULT_TRANSITION_PERIOD,
+  EMPTY_TRANSITIONS_MODEL,
+  type TransitionPeriod,
+  type TransitionsModel,
+} from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
 /** 지어낸 값을 그리는 자리(인트로 미리보기)의 기본값. 로딩도 실패도 없다. */
@@ -39,10 +46,17 @@ const READY_STATE: MetricState = { status: 'ready' }
  * 조회 기간은 **부모가 들고 있다.** 그것만 서버 왕복을 부르기 때문이다.
  * 구간·간격은 받은 점을 다루는 일이라 여기 안에서 끝난다.
  */
+/** 서버 왕복이 없는 no-op — 인트로 미리보기처럼 조작이 필요 없는 자리의 기본값. */
+const NOOP_PERIOD_CHANGE = () => {}
+
 export function EcosystemView({
   model,
   metricState = READY,
   versionShareState = READY_STATE,
+  transitionsModel = EMPTY_TRANSITIONS_MODEL,
+  transitionsState = READY_STATE,
+  transitionPeriod = DEFAULT_TRANSITION_PERIOD,
+  onTransitionPeriodChange = NOOP_PERIOD_CHANGE,
   compactChart = false,
   className,
 }: {
@@ -57,6 +71,12 @@ export function EcosystemView({
    * 있다(126) — 패키지마다 갈리지 않는다(응답 하나가 전체 패키지를 담는다).
    */
   versionShareState?: MetricState
+  /** 유지·유입·이탈 조회 결과(S15P21A506-391). 개요·추이와 독립된 다섯 번째 쿼리다. */
+  transitionsModel?: TransitionsModel
+  transitionsState?: MetricState
+  /** 서버 왕복을 부르므로 `EcosystemReportTab`이 정본으로 들고 있다(39행 규칙의 반대쪽). */
+  transitionPeriod?: TransitionPeriod
+  onTransitionPeriodChange?: (next: TransitionPeriod) => void
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */
   compactChart?: boolean
   className?: string
@@ -344,6 +364,21 @@ export function EcosystemView({
           />
         )}
       </div>
+
+      {/*
+        그리드 아래 전체 폭 섹션이다. 위 두 칼럼과 달리 이 패널은 자체 날짜축을 가진
+        구조적으로 독립된 데이터라 sticky 칼럼의 "칩 강조가 두 차트에 동시에 걸리는"
+        관계에 안 낀다 — 강조(`emphasisKeys`)만 그대로 물려받아 패키지 식별은 일관되게 유지한다.
+      */}
+      {model.packages.length > 0 && (
+        <TransitionsPanel
+          model={transitionsModel}
+          state={transitionsState}
+          period={transitionPeriod}
+          onPeriodChange={onTransitionPeriodChange}
+          emphasisKeys={emphasisKeys}
+        />
+      )}
     </div>
   )
 }

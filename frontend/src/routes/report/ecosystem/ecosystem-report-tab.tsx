@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { USE_MOCK } from '@/api/endpoints'
@@ -6,6 +6,7 @@ import {
   useDependentsTrend,
   useDownloadsTrend,
   usePackagesOverview,
+  useTransitions,
   useVersionShare,
 } from '@/api/queries'
 import { MAX_NAMES } from '@/api/types'
@@ -13,6 +14,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
 import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
+import { toTransitionsModel } from '@/routes/report/ecosystem/transitions-adapter'
+import {
+  DEFAULT_TRANSITION_PERIOD,
+  type TransitionPeriod,
+} from '@/routes/report/ecosystem/transitions-model'
 
 /**
  * 생태계 변화 탭.
@@ -51,6 +57,19 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     overview.isSuccess,
   )
 
+  /**
+   * 유지·유입·이탈. **개요를 기다리지 않는다** — 기준일이 필요 없고, `period`는
+   * 이미 서버가 정한 세 값 중 하나라 다른 조회 결과에 기댈 것이 없다(versionShare가
+   * `overview.data?.snapshot_at`을 기다리는 것과 다른 이유).
+   *
+   * `period`를 여기서 들고 있는 이유는 `ecosystem-view.tsx` 39행과 같은 규칙의
+   * 반대쪽이다 — 그쪽 `window`/`intervalKey`는 서버 왕복이 없어 화면 안에 두지만,
+   * 이 프리셋은 바뀔 때마다 새 요청이 나가므로 그 요청을 쏘는 이 층이 정본이어야 한다.
+   */
+  const [transitionPeriod, setTransitionPeriod] =
+    useState<TransitionPeriod>(DEFAULT_TRANSITION_PERIOD)
+  const transitions = useTransitions(names, transitionPeriod)
+
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
   }
@@ -78,6 +97,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     dependents: stateOf(dependents),
   }
   const versionShareState = stateOf(versionShare)
+  const transitionsState = stateOf(transitions)
 
   const model = toEcosystemModel({
     overview: overview.data,
@@ -86,6 +106,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
     dependents: dependents.data,
     versionShare: versionShare.data,
   })
+  const transitionsModel = toTransitionsModel(transitions.data, names)
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,6 +124,10 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
         model={model}
         metricState={metricState}
         versionShareState={versionShareState}
+        transitionsModel={transitionsModel}
+        transitionsState={transitionsState}
+        transitionPeriod={transitionPeriod}
+        onTransitionPeriodChange={setTransitionPeriod}
       />
     </div>
   )
