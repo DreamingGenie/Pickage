@@ -22,10 +22,34 @@ export const DEFAULT_TRANSITION_PERIOD: TransitionPeriod = '3y'
 
 export type TransitionKind = 'regular' | 'peer' | 'optional'
 
+/**
+ * package.json 필드 이름(dependencies·peerDependencies·optionalDependencies)을 그대로
+ * 쓰면 무엇을 고르는지 짐작하기 어렵다 — 쉬운 한글 두 글자로 줄이고, 정확한 뜻은
+ * `KindInfoDialog`(정보 버튼 모달)로 옮긴다. Version Share 안내와 같은 패턴이다.
+ */
 export const TRANSITION_KINDS: { key: TransitionKind; label: string }[] = [
-  { key: 'regular', label: 'Dependencies' },
-  { key: 'peer', label: 'Peer' },
-  { key: 'optional', label: 'Optional' },
+  { key: 'regular', label: '일반' },
+  { key: 'peer', label: '동반' },
+  { key: 'optional', label: '선택' },
+]
+
+export const TRANSITION_KIND_INFO: { key: TransitionKind; label: string; description: string }[] = [
+  {
+    key: 'regular',
+    label: '일반 (dependencies)',
+    description: '이 패키지가 없으면 바로 동작하지 않는, 가장 흔한 의존성입니다.',
+  },
+  {
+    key: 'peer',
+    label: '동반 (peerDependencies)',
+    description:
+      '이 패키지를 쓰는 프로젝트가 직접 같이 설치해서 버전을 맞춰야 하는 의존성입니다. 주로 플러그인·어댑터가 이런 식으로 선언합니다.',
+  },
+  {
+    key: 'optional',
+    label: '선택 (optionalDependencies)',
+    description: '없어도 동작하지만, 있으면 추가 기능이 켜지는 선택적 의존성입니다.',
+  },
 ]
 
 export type TransitionDataStatus = 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'

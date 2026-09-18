@@ -1,12 +1,21 @@
+import { InfoIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { TransitionBars } from '@/components/charts/transition-bars'
 import { seriesStyle } from '@/components/charts/tokens'
 import { SegmentedControl } from '@/components/common/segmented-control'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { MetricState } from '@/routes/report/ecosystem/model'
 import {
+  TRANSITION_KIND_INFO,
   TRANSITION_KINDS,
   TRANSITION_PERIODS,
   type TransitionKind,
@@ -101,12 +110,40 @@ export function TransitionsPanel({
           onChange={(k) => onPeriodChange(k as TransitionPeriod)}
           options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
         />
-        <SegmentedControl
-          label="의존 종류"
-          value={kind}
-          onChange={(k) => setKind(k as TransitionKind)}
-          options={TRANSITION_KINDS.map((k) => ({ key: k.key, label: k.label }))}
-        />
+        <div className="flex items-center gap-1.5">
+          <SegmentedControl
+            label="의존 종류"
+            value={kind}
+            onChange={(k) => setKind(k as TransitionKind)}
+            options={TRANSITION_KINDS.map((k) => ({ key: k.key, label: k.label }))}
+          />
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                aria-label="의존 종류 안내"
+                className="rounded-full p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
+              >
+                <InfoIcon aria-hidden className="size-3.5" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>의존 종류</DialogTitle>
+              </DialogHeader>
+              <dl className="flex flex-col gap-3">
+                {TRANSITION_KIND_INFO.map((info) => (
+                  <div key={info.key}>
+                    <dt className="text-base font-medium">{info.label}</dt>
+                    <dd className="text-base leading-relaxed text-muted-foreground">
+                      {info.description}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {state.status === 'loading' ? (
