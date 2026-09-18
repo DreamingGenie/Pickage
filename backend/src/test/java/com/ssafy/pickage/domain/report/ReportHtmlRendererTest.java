@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 
@@ -51,8 +52,12 @@ class ReportHtmlRendererTest {
 				List.of(new VersionShareResponse.Slice("5", 900L, new BigDecimal("100.0"))))),
 			List.of());
 
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5)),
+			List.of());
+
 		return new ReportHtmlRenderer.Sources(List.of("express"), DAY.minusWeeks(4), DAY,
-			overview, downloads, dependents, share, Set.of());
+			overview, downloads, dependents, share, transitions, Set.of());
 	}
 
 	/** XML 로 파싱되면 변환기도 읽을 수 있다. */
@@ -98,7 +103,7 @@ class ReportHtmlRendererTest {
 		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
 		var withSections = new ReportHtmlRenderer.Sources(
 			base.names(), base.from(), base.to(), base.overview(),
-			base.downloads(), base.dependents(), base.versionShare(),
+			base.downloads(), base.dependents(), base.versionShare(), base.transitions(),
 			Set.of(ReportSection.COMMUNITY, ReportSection.FEATURES));
 
 		String html = new ReportHtmlRenderer().render(withSections);
@@ -124,14 +129,69 @@ class ReportHtmlRendererTest {
 			List.of(new TrendResponse.Series("consola", null, List.of())), List.of());
 		var emptyShare = VersionShareResponse.of(null,
 			List.of(new VersionShareResponse.Item("consola", List.of())), List.of());
+		var unknownTransitions = TransitionsResponse.of("3y", null, null,
+			List.of(TransitionsResponse.Series.unknown("consola", "regular",
+				TransitionsResponse.NOT_COMPUTED)),
+			List.of("nope-pkg"));
 
 		String html = new ReportHtmlRenderer().render(new ReportHtmlRenderer.Sources(
-			List.of("consola"), null, null, overview, emptyTrend, emptyTrend, emptyShare, Set.of()));
+			List.of("consola"), null, null, overview, emptyTrend, emptyTrend, emptyShare,
+			unknownTransitions, Set.of()));
 
 		assertWellFormed(html);
 		assertTrue(html.contains("집계 대기"), "null 지표를 0 처럼 비워 두었다");
 		assertTrue(html.contains("자료 없음"));
 		assertTrue(html.contains("nope-pkg"), "못 찾은 이름이 문서에 없다");
+		assertTrue(html.contains("준비 중"), "NOT_COMPUTED 를 0 처럼 비워 두었다");
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 유지·유입·이탈 (S15P21A506-394)
+	 * ------------------------------------------------------------------ */
+
+	@Test
+	@DisplayName("유입은 원시 inflow 가 아니라 inflow_adopted 를 메인으로 쓴다")
+	void transitionsUseAdoptedInflow() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		// inflow=150, inflowNew=120 → inflowAdopted=30. 표에는 150 이 아니라 30 이 메인으로 보여야 한다.
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5)),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(),
+			base.downloads(), base.dependents(), base.versionShare(), transitions, Set.of());
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("유지 · 유입 · 이탈"));
+		assertTrue(html.contains(">30<"), "메인 유입 칸에 inflow_adopted(30) 이 없다");
+		assertTrue(html.contains("원시 유입 150"), "원시 유입을 보조 설명으로 적지 않았다");
+	}
+
+	/**
+	 * {@code OUT_OF_SCOPE} 를 0 으로 그리면 "아무도 안 쓴다" 는 거짓말이 된다 — 화면과 같은
+	 * 규칙으로 {@code —} 와 사유 문구가 함께 있어야 한다.
+	 */
+	@Test
+	@DisplayName("OUT_OF_SCOPE 는 0 이 아니라 대시와 사유로 적힌다")
+	void transitionsMarkOutOfScope() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.unknown("express", "regular",
+				TransitionsResponse.OUT_OF_SCOPE)),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(),
+			base.downloads(), base.dependents(), base.versionShare(), transitions, Set.of());
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("분석 대상 아님"));
+		// 네 범주(유지·유입·이탈·미관측) 전부 "—" 여야 한다 — 0 으로 그리면 거짓말이 된다.
+		assertEquals(4, html.split("<td class=\"n\">—</td>", -1).length - 1,
+			"OUT_OF_SCOPE 인 네 칸이 전부 — 로 그려지지 않았다");
 	}
 
 	@Test

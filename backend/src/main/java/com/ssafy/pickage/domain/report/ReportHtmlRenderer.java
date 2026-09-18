@@ -10,6 +10,7 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 
@@ -21,7 +22,7 @@ import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
  *
  * <h2>⚠ 레이아웃은 임시다</h2>
  *
- * 구상안 §13.4 의 여덟 구역과 분할 규칙은 아직 반영하지 않았다. 기능 비교가 없고
+ * 구상안 §13.4 의 아홉 구역과 분할 규칙은 아직 반영하지 않았다. 기능 비교가 없고
  * {@code ReportSnapshot} 도 확정 전이라 지금 맞춰 그려도 다시 그리게 된다.
  * <b>그래서 이 한 파일에 가둔다</b> — 갈아끼울 때 다른 곳을 건드리지 않도록.
  *
@@ -53,6 +54,7 @@ public class ReportHtmlRenderer {
 		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads());
 		trend(b, "Dependents", "의존 수 · 버전별 합계", s.dependents());
 		versionShare(b, s.versionShare());
+		transitions(b, s.transitions());
 
 		// 고른 구역은 아직 채울 내용이 없어도 자리를 그린다. 빼버리면 체크한 것이
 		// 문서에서 사라져 사용자가 실패로 읽는다.
@@ -162,6 +164,108 @@ public class ReportHtmlRenderer {
 			}
 		}
 		b.append("</tbody></table>");
+	}
+
+	/**
+	 * 유지·유입·이탈 (기능-08 · S15P21A506-361·391·394).
+	 *
+	 * <p>화면(`transitions-panel.tsx`)이 지킨 세 원칙을 문서에도 그대로 적용한다.
+	 *
+	 * <ul>
+	 *   <li><b>네 범주를 모두 표에 낸다.</b> {@code unobserved} 를 빼거나 {@code retained} 에
+	 *       합치면 유지율이 거짓으로 높게 보인다(1년 구간 기준 최대 75%p 차이).</li>
+	 *   <li><b>유입은 {@code inflowAdopted} 를 쓴다.</b> 원시 {@code inflow} 를 그대로 적으면
+	 *       신생 프로젝트(실측 93.8~97.5%)까지 "채택" 으로 읽혀 모든 패키지가 잘나가는
+	 *       지표가 된다. 둘이 다를 때만 원시 값을 보조로 적는다.</li>
+	 *   <li><b>{@code data_status} 로 0 과 "모름" 을 가른다.</b> {@code OUT_OF_SCOPE}·
+	 *       {@code NOT_COMPUTED} 는 수를 {@code —} 로 적고 그 밑에 사유를 쓴다 — 0 으로 적으면
+	 *       "아무도 안 쓴다" 는 거짓말이 된다.</li>
+	 * </ul>
+	 */
+	private void transitions(StringBuilder b, TransitionsResponse t) {
+		heading(b, "유지 · 유입 · 이탈");
+		b.append("<p class=\"unit\">").append(esc(transitionsCaption(t))).append("</p>");
+
+		b.append("<table><thead><tr><th>패키지</th><th>종류</th>")
+			.append("<th class=\"n\">유지</th><th class=\"n\">유입</th>")
+			.append("<th class=\"n\">이탈</th><th class=\"n\">미관측</th>")
+			.append("</tr></thead><tbody>");
+
+		if (t.series().isEmpty()) {
+			b.append("<tr><td class=\"muted\" colspan=\"6\">자료 없음</td></tr>");
+		}
+		for (var series : t.series()) {
+			b.append("<tr><td class=\"mono\">").append(esc(series.name())).append("</td>")
+				.append("<td class=\"mono\">").append(esc(transitionKindLabel(series.kind())))
+				.append("</td>");
+			transitionCount(b, series.retained());
+			transitionCount(b, series.inflowAdopted());
+			transitionCount(b, series.outflow());
+			transitionCount(b, series.unobserved());
+			b.append("</tr>");
+
+			String rowNote = transitionRowNote(series);
+			if (rowNote != null) {
+				b.append("<tr><td></td><td class=\"note\" colspan=\"5\">")
+					.append(esc(rowNote)).append("</td></tr>");
+			}
+		}
+		b.append("</tbody></table>");
+
+		if (!t.notFound().isEmpty()) {
+			note(b, "전환 자료를 찾지 못한 이름: " + String.join(", ", t.notFound()));
+		}
+		note(b, "devDependencies 는 포함하지 않습니다.");
+	}
+
+	private static String transitionsCaption(TransitionsResponse t) {
+		String range = (t.t1() == null || t.t2() == null)
+			? "적재 전 — 아직 이 구간이 계산되지 않았습니다"
+			: t.t1() + " ~ " + t.t2();
+		String population = t.series().isEmpty() ? null : t.series().getFirst().population();
+		String caption = transitionPeriodLabel(t.period()) + " · " + range;
+		return population == null ? caption : caption + " · " + transitionPopulationLabel(population);
+	}
+
+	private static String transitionPeriodLabel(String code) {
+		return switch (code) {
+			case "1y" -> "1년";
+			case "3y" -> "3년";
+			case "5y" -> "5년";
+			default -> code;
+		};
+	}
+
+	private static String transitionKindLabel(String kind) {
+		return switch (kind) {
+			case "regular" -> "일반";
+			case "peer" -> "동반";
+			case "optional" -> "선택";
+			default -> kind;
+		};
+	}
+
+	private static String transitionPopulationLabel(String population) {
+		return TransitionsResponse.NPM_ALL.equals(population) ? "npm 전체 패키지" : population;
+	}
+
+	private void transitionCount(StringBuilder b, Integer value) {
+		b.append("<td class=\"n\">").append(value == null ? "—" : group(value)).append("</td>");
+	}
+
+	/**
+	 * {@code data_status} 별 사유, 또는 {@code COMPLETE} 인데 원시 유입과 채택 유입이 다를 때의
+	 * 보조 설명. 둘 다 아니면 {@code null} — 그때는 수치 행만으로 충분하다.
+	 */
+	private static String transitionRowNote(TransitionsResponse.Series series) {
+		return switch (series.dataStatus()) {
+			case TransitionsResponse.NO_DATA -> "의존자 없음";
+			case TransitionsResponse.OUT_OF_SCOPE -> "분석 대상 아님 · 다운로드 상위 10만 밖";
+			case TransitionsResponse.NOT_COMPUTED -> "준비 중 — 아직 이 구간이 적재되지 않았습니다";
+			default -> (series.inflow() != null && !series.inflow().equals(series.inflowAdopted()))
+				? "원시 유입 " + group(series.inflow()) + " · 신규 " + group(series.inflowNew()) + "건 포함"
+				: null;
+		};
 	}
 
 	/**
@@ -306,6 +410,8 @@ public class ReportHtmlRenderer {
 		TrendResponse downloads,
 		TrendResponse dependents,
 		VersionShareResponse versionShare,
+		/** 유지·유입·이탈. 생태계와 같은 취급 — 고를 수 있는 구역이 아니라 항상 들어간다. */
+		TransitionsResponse transitions,
 		/** 더하기로 고른 구역. 생태계는 여기 없다 — 언제나 들어가므로 고를 것이 아니다. */
 		Set<ReportSection> sections
 	) {

@@ -996,6 +996,12 @@ PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 �
 - createdAt
 - featureVersions
 - **세션이 보유한 완료 판정 결과(verdict·evidenceId 목록·narrative)를 PDF 요청 payload로 그대로 싣는다** — `FeatureAssessment`/`AnalysisRun`을 서버가 영속화하지 않으므로 재조회하지 않는다(`DEC-FEATURE-CACHE-20260917-01`, §9.1·§14.5). evidenceId는 영속된 `EvidenceRecord`를 가리키므로 그대로 조회할 수 있다.
+- 유지·유입·이탈 조회 `period`(1y/3y/5y, 생략 시 3y)와 그 시점의 `TransitionsResponse`(패키지×kind별
+  `retained`·`inflow`·`inflow_new`·`inflow_adopted`·`outflow`·`unobserved`·`data_status`·`t1`·`t2`·
+  `population`). 화면(S15P21A506-391)과 같은 원칙을 따른다 — 메인 유입 지표는 원시 `inflow`가
+  아니라 `inflow_adopted`이고, `data_status` 네 값(`COMPLETE`·`NO_DATA`·`OUT_OF_SCOPE`·
+  `NOT_COMPUTED`)은 0으로 뭉개지 않고 그대로 구분해 적는다. 이 기능(S15P21A506-361·391) 자체가
+  이 절 최초 작성(0917) 이후에 생겨 그때는 목록에 없었다 — S15P21A506-394가 추가했다.
 
 선택적으로 포함:
 
@@ -1025,7 +1031,7 @@ BLOCKED:
 - VERSION_RESULT_MISMATCH
 ```
 
-일부 기간 없음, 후보 `NO_DATA`, Version Share의 `기타` major 또는 확장 해석 결과의 `UNKNOWN|AMBIGUOUS`는 차단 사유가 아니다. 상태를 PDF에 표시한다.
+일부 기간 없음, 후보 `NO_DATA`, Version Share의 `기타` major 또는 확장 해석 결과의 `UNKNOWN|AMBIGUOUS`는 차단 사유가 아니다. 유지·유입·이탈의 `data_status`(`NO_DATA`·`OUT_OF_SCOPE`·`NOT_COMPUTED`)도 같은 종류의 결측이라 마찬가지로 차단 사유가 아니다(S15P21A506-394). 상태를 PDF에 표시한다.
 
 기능 비교 확장의 `REANALYSIS_REQUIRED`, `ANALYSIS_RUNNING`, `VERSION_RESULT_MISMATCH`는 PDF를 차단한다. 기존 결과는 비교 화면에서 유지하지만, 현재 선택 버전의 분석이 완료될 때까지 동일 ReportSnapshot의 PDF를 만들지 않는다.
 
@@ -1048,13 +1054,16 @@ BLOCKED:
 3. Downloads
 4. 직접 Dependency·표시 필터·Snapshot 간 signed 증감
 5. 최신 DB Snapshot 기반 Version Share와 기준일
-6. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
-7. 판정 또는 narrative에 연결된 근거 요약
-8. 자료 상태·해석 한계
+6. 유지·유입·이탈 — 선택 `period`·`t1`·`t2`·`population`과 패키지×kind별 네 범주(유지·유입·이탈·
+   미관측). 메인 유입은 `inflow_adopted`. `data_status`가 `NO_DATA`·`OUT_OF_SCOPE`·`NOT_COMPUTED`면
+   수 대신 사유를 적는다(S15P21A506-394 — 이 항목은 최초 작성 이후 추가됨)
+7. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
+8. 판정 또는 narrative에 연결된 근거 요약
+9. 자료 상태·해석 한계
 
 완료된 경우 추가 가능한 선택 구역:
 
-9. 완료 snapshot이 있는 **기준 패키지 1개의** 커뮤니티 구역 (`DEC-COMMUNITY-20260909-01`; 다른 비교 패키지로 대체하지 않음)
+10. 완료 snapshot이 있는 **기준 패키지 1개의** 커뮤니티 구역 (`DEC-COMMUNITY-20260909-01`; 다른 비교 패키지로 대체하지 않음)
 
 페이지 분할 규칙:
 
