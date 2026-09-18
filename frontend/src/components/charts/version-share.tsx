@@ -13,7 +13,12 @@ export const UNRESOLVED = 'UNRESOLVED'
 const fillOf = (label: string, i: number) =>
   label === UNRESOLVED ? UNRESOLVED_FILL : SHARE_FILLS[i % SHARE_FILLS.length]
 
-function HatchDef() {
+/**
+ * export한다 — `transition-bars.tsx`가 같은 "해석 불가/집계 대상 아님" 빗금을 재사용한다.
+ * 같은 페이지(생태계 탭)에 `id="pk-hatch"` 패턴을 두 번 정의하면 DOM id가 충돌하므로,
+ * 새로 만들지 않고 이 정의 하나만 쓴다.
+ */
+export function HatchDef() {
   return (
     <defs>
       <pattern

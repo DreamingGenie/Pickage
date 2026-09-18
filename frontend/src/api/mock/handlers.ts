@@ -15,6 +15,8 @@ import {
   LATEST_SNAPSHOT,
   MOCK_DICTIONARY,
   MOCK_PACKAGES,
+  MOCK_TRANSITIONS,
+  TRANSITION_PERIOD_SCALE,
   dependentsByMajor,
   pointMetric,
   seriesOf,
@@ -37,6 +39,9 @@ import {
   type PdfGenerateRequest,
   type PdfJob,
   type SimilarPackagesResponse,
+  type TransitionPeriodParam,
+  type TransitionSeriesItem,
+  type TransitionsResponse,
   type TrendQuery,
   type TrendSeries,
   type VersionShareResponse,
@@ -475,6 +480,109 @@ export function mockVersionShare(
     basis: 'dependents',
     sum_over_versions: true,
     items,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. GET /packages/transitions
+ * ------------------------------------------------------------------ */
+
+const TRANSITION_PERIODS: readonly TransitionPeriodParam[] = ['1y', '3y', '5y']
+
+function checkPeriod(period: string | undefined): TransitionPeriodParam {
+  if (period === undefined || period === '') return '3y'
+  if (!TRANSITION_PERIODS.includes(period as TransitionPeriodParam)) {
+    fail('V004', `period는 ${TRANSITION_PERIODS.join(', ')} 중 하나여야 합니다: ${period}`)
+  }
+  return period as TransitionPeriodParam
+}
+
+/** `LATEST_SNAPSHOT` 에서 period 만큼 거꾸로 뺀 날짜. 서버는 표에 저장된 값을 그대로
+ *  돌려줄 뿐 계산하지 않지만(TransitionPeriod.java), mock 은 보여줄 표가 없어 계산해 맞춘다. */
+function t1For(period: TransitionPeriodParam): string {
+  const years = { '1y': 1, '3y': 3, '5y': 5 }[period]
+  const d = new Date(`${LATEST_SNAPSHOT}T00:00:00Z`)
+  d.setUTCFullYear(d.getUTCFullYear() - years)
+  return d.toISOString().slice(0, 10)
+}
+
+function transitionRowsOf(name: string, period: TransitionPeriodParam): TransitionSeriesItem[] {
+  const fixture = MOCK_TRANSITIONS[name]
+  if (!fixture) {
+    // 카탈로그에는 있지만(그래서 not_found 는 아님) 전환 픽스처가 없는 채움 패키지 —
+    // 서버라면 배치가 아직 안 돈 패키지와 같은 모양이라 NOT_COMPUTED 로 낸다.
+    return (['regular', 'peer', 'optional'] as const).map((kind) => ({
+      name,
+      kind,
+      population: 'npm_all',
+      retained: null,
+      inflow: null,
+      inflow_new: null,
+      inflow_adopted: null,
+      outflow: null,
+      unobserved: null,
+      data_status: 'NOT_COMPUTED',
+    }))
+  }
+
+  const scale = TRANSITION_PERIOD_SCALE[period]
+  return fixture.map((row): TransitionSeriesItem => {
+    if (!row.counts) {
+      return {
+        name,
+        kind: row.kind,
+        population: 'npm_all',
+        retained: null,
+        inflow: null,
+        inflow_new: null,
+        inflow_adopted: null,
+        outflow: null,
+        unobserved: null,
+        data_status: row.dataStatus,
+      }
+    }
+    const retained = Math.round(row.counts.retained * scale)
+    const inflow = Math.round(row.counts.inflow * scale)
+    const inflowNew = Math.round(row.counts.inflowNew * scale)
+    const outflow = Math.round(row.counts.outflow * scale)
+    const unobserved = Math.round(row.counts.unobserved * scale)
+    return {
+      name,
+      kind: row.kind,
+      population: 'npm_all',
+      retained,
+      inflow,
+      inflow_new: inflowNew,
+      // 서버와 같은 계산(= inflow - inflow_new), 여기서 재발명하지 않는다.
+      inflow_adopted: inflow - inflowNew,
+      outflow,
+      unobserved,
+      data_status: row.dataStatus,
+    }
+  })
+}
+
+export function mockTransitions(
+  names: readonly string[] | undefined,
+  period?: string,
+): Promise<TransitionsResponse> {
+  const list = normalizeNames(names)
+  const resolvedPeriod = checkPeriod(period)
+  const { found, not_found } = split(list)
+
+  const series = found.flatMap((pkg) => transitionRowsOf(pkg.name, resolvedPeriod))
+
+  // 서버 규칙: 응답의 모든 행이 NOT_COMPUTED 일 때만 t1·t2 키 자체가 없다.
+  // (`hasAnyTransition()` 이 전체 표를 보고 판단 — 특정 period 만 비어도 다른 패키지에
+  // 값이 있으면 그 값은 그대로 나간다. mock 도 같은 기준으로 판정한다.)
+  const allNotComputed = series.length > 0 && series.every((s) => s.data_status === 'NOT_COMPUTED')
+
+  return delay<TransitionsResponse>({
+    metric: 'dependent_transitions',
+    period: resolvedPeriod,
+    ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
+    series,
     not_found,
   })
 }
