@@ -1,6 +1,6 @@
 # Pickage 모니터링 — `data` 노드 (j15a506**a**) · **child**
 #
-#   cd /srv/pickage/monitoring/deploy/prod/monitoring/data
+#   cd ~/S15P21A506/deploy/prod/monitoring/data
 #   docker compose up -d
 #
 # 계획과 단계별 확인 명령: ../README.md

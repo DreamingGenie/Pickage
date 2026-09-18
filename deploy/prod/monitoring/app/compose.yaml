@@ -1,6 +1,6 @@
 # Pickage 모니터링 — `app` 노드 (j15a506) · **parent**
 #
-#   cd /srv/pickage/monitoring/deploy/prod/monitoring/app
+#   cd ~/S15P21A506/deploy/prod/monitoring/app
 #   docker compose up -d
 #
 # 계획과 단계별 확인 명령: ../README.md

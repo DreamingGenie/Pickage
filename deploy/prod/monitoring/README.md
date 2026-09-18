@@ -88,20 +88,34 @@ compose 프로젝트 이름도 가른다 — `pickage-monitoring-app` · `pickag
 
 `stream.conf` 와 `.env` 는 커밋되지 않는다. 각각 `.example` 을 복사해 채운다.
 
-### 서버의 체크아웃은 `/srv/pickage/repo` 가 아니다
+### 서버에서는 `~/S15P21A506` 에서 띄운다 — ⚠ `/srv/pickage/repo` 가 아니다
 
-배포 잡이 그 경로를 매번 `git checkout -f` 로 덮어쓴다 ([`../README.md`](../README.md)).
-거기에 `stream.conf`·`.env` 를 두면 **다음 배포에 조용히 사라진다.**
-
-```bash
-# 최초 1회 — 모니터링 전용 체크아웃
-sudo mkdir -p /srv/pickage/monitoring && sudo chown $USER:$USER /srv/pickage/monitoring
-git clone <repo> /srv/pickage/monitoring
-```
+**클론을 새로 만들지 않는다.** 두 노드에 이미 사람용 체크아웃 `~/S15P21A506` 이 있고,
+`data` 노드의 minio·mlflow·spark·유사도 배치·주간 타이머가 전부 거기서 돈다
+([`../data/README.md`](../data/README.md)). 모니터링도 같은 곳을 쓴다.
 
 ```bash
-git -C /srv/pickage/monitoring log -1 --oneline   # 여기는 사람이 pull 한다. CI 가 안 건드린다
+cd ~/S15P21A506 && git pull                 # 두 노드에서 각각
+cd deploy/prod/monitoring/app               # data 노드는 .../monitoring/data
 ```
+
+**피해야 하는 것은 `/srv/pickage/repo` 하나다.** 그건 배포 잡의 작업 디렉터리를 가리키는
+심볼릭 링크이고, 잡이 매번 `git checkout -f` 와 `GIT_CLEAN_FLAGS` 로 정리한다.
+
+```yaml
+GIT_CLEAN_FLAGS: -ffdx -e deploy/prod/app/.env     # .gitlab-ci.yml 의 deploy-app
+```
+
+**예외가 `app/.env` 하나뿐이다.** 거기에 모니터링의 `stream.conf`·`.env` 를 두면
+**다음 배포에 조용히 사라진다.**
+
+```bash
+git -C ~/S15P21A506 log -1 --oneline   # 여기는 사람이 pull 한다. CI 가 안 건드린다
+```
+
+> `~/S15P21A506` 은 주간 배치(`pickage-weekly.service` 의 `WorkingDirectory`)도 쓰는
+> 체크아웃이다. **배치가 도는 중에 `git pull` 하지 않는다** — 그 회차가 읽는 스크립트가
+> 중간에 바뀐다. 확인: `docker ps --filter name=pickage-weekly-run`
 
 ---
 
@@ -304,7 +318,7 @@ rm .env stream.conf netdata.rehearsal.conf
 파일은 [`app/`](app/) 에 있다. **nginx 는 건드리지 않는다** — 확인은 5절의 SSH 터널로 한다.
 
 ```bash
-cd /srv/pickage/monitoring/deploy/prod/monitoring/app
+cd ~/S15P21A506/deploy/prod/monitoring/app
 cp .env.example .env
 getent group docker | cut -d: -f3        # 나온 값을 .env 의 DOCKER_GID 에 넣는다
 cp stream.conf.example stream.conf       # Phase 1 에서는 내용을 안 채워도 된다 (받을 child 가 없다)
@@ -699,7 +713,7 @@ netdata 는 **있는 것만 차트를 만든다.** ZFS·btrfs·InfiniBand·무�
 
 ```bash
 # 각 노드에서. data(child) 부터 내려야 parent 로그에 연결 실패가 안 쌓인다
-cd /srv/pickage/monitoring/<노드> && docker compose down -v   # 모니터링 데이터뿐이다. 운영 볼륨이 아니다
+cd ~/S15P21A506/deploy/prod/monitoring/<노드> && docker compose down -v   # 모니터링 데이터뿐이다
 ```
 
 보안그룹 규칙(Phase 4)과 systemd unit(Phase 5)은 따로 걷는다.
