@@ -1,8 +1,7 @@
 # 서버 모니터링 — 구축 계획 (S15P21A506-362)
 
-**아직 서버에 아무것도 떠 있지 않다.** 파일은 [`app/`](app/)·[`data/`](data/) 에 있고
-**로컬 리허설까지는 돌려 봤다**(Phase 0.5). 서버에서 잰 숫자는 아직 하나도 없다 —
-단계가 하나씩 서면 그 자리에 실측값과 운영 절차로 바꿔 쓴다.
+**`app` 노드는 떠 있다** (2026-09-18, Phase 1 완료). `data` 노드(Phase 4)는 아직이다 —
+보안그룹 한 줄과 스트리밍 설정이 남았다. 실측값은 7절의 "Phase 0·1 결과" 에 있다.
 
 대상은 두 노드 다다 — `app (j15a506)` · `data (j15a506a)`.
 노드 구성과 지금 도는 것들은 [`../README.md`](../README.md) · [`../data/README.md`](../data/README.md).
@@ -38,8 +37,8 @@
 
 **그 스택이 나빠서가 아니라 이 두 노드의 제약 때문이다.**
 
-- **코어가 2개다** (`app` 노드 — `application-prod.yaml` 의 Hikari 풀 주석이 그 근거다).
-  사용자 트래픽·api·postgres 가 이미 그 2코어를 나눠 쓴다. 여기에 scrape + TSDB 쓰기 +
+- **물리 2코어(4 vCPU)다** (`app` 노드 — 2026-09-18 `lscpu` 실측).
+  사용자 트래픽·api·postgres 가 이미 나눠 쓴다. 여기에 scrape + TSDB 쓰기 +
   Grafana 렌더링이 들어간다. 특히 cAdvisor 는 컨테이너 수에 비례해 CPU 를 꾸준히 먹는다.
 - **메모리가 배치 시각에 가장 빠듯하다.** `app` 이 약 10g/15Gi, `data` 가 약 14g/15Gi 다
   ([`../README.md`](../README.md) 의 "Spark worker② (상시)", [`../data/README.md`](../data/README.md)).
@@ -63,7 +62,7 @@ Netdata 는 `/api/v1/allmetrics?format=prometheus` 로 **Prometheus 형식을 �
 | `mem_limit` 과 `memswap_limit` 을 **짝으로** 넣는다 | 한쪽만 쓰면 상한이 조용히 2배가 된다 | [`../README.md`](../README.md) "Swap" |
 | 포트를 `0.0.0.0` 에 열지 않는다 | `app` 은 **인터넷에 노출된 유일한 노드**다. Netdata 기본 포트 19999 는 **로그인이 없다** | [`../README.md`](../README.md) "하지 말 것" |
 | `env_file:` 을 쓰지 않고 `${}` 치환으로 받는다 | `env_file` 이면 `.env` 의 **아무 줄이나** 바뀔 때 컨테이너가 재생성된다 | [`../README.md`](../README.md) "환경변수만 고쳤을 때" |
-| dbengine 디스크 상한을 **명시**한다 | `/dev/root` 하나에 DB·백업·도커가 같이 산다. 09-15 에 이미 56% 였다 | [`../README.md`](../README.md) "백업" |
+| dbengine 디스크 상한을 **명시**한다 | `/dev/root` 하나에 DB·백업·도커가 같이 산다. **09-18 실측 61%** 이고 늘고 있다 | [`../README.md`](../README.md) "백업" |
 | **별도 compose 프로젝트**로 띄운다 (`pickage-monitoring-app` · `pickage-monitoring-data`) | `app/compose.yaml` 에 넣으면 배포 잡이 돌 때마다 같이 재생성 후보가 된다. **배포가 흔들릴 때 모니터링은 살아 있어야 한다** | — |
 
 > ⚠ **`app/compose.yaml` 에 서비스를 추가하지 않는다.** 디렉터리를 따로 두는 이유가
@@ -230,6 +229,43 @@ deploy/prod/data/run-weekly-ingest.sh
 ---
 
 ## 7. 단계 — 각 단계는 마지막 명령으로 성공을 판정한다
+
+### ✔ Phase 0·1 결과 (2026-09-18, `app` 노드)
+
+| | 실측 |
+| --- | --- |
+| CPU | **물리 2코어 / 4 vCPU** — Xeon Platinum 8175M @2.50GHz (HT) |
+| 메모리 | 15Gi (유휴 사용 2.3Gi · 가용 13Gi) |
+| Swap | 2.0Gi, **used 3.0Mi** — 0 이 아니다 |
+| 디스크 `/` | 309G 중 **188G 사용 (61%)** · 122G 남음 |
+| 커널 | `6.17.0-1019-aws` |
+| `findmnt -no PROPAGATION /` | **`shared`** → `rslave` 를 그대로 쓴다 |
+| **netdata 자신** | **CPU 1.91% · 메모리 106 MiB / 512m** |
+
+**netdata 의 비용은 로컬 리허설과 거의 같았다**(1.3% / 152 MiB). 2코어 노드에서도 부담이 없다.
+
+> 🔴 **디스크가 늘고 있다.** 09-15 에 56% 였고 09-18 에 61% 다 — 3일에 5%p.
+> 이 추세가 이어지면 **첫 알람선(80%)에 09-29 쯤 닿는다.** 발표가 09-28 이다.
+> 증가가 선형이 아닐 수 있으니 단정할 것은 아니지만, **무엇이 먹고 있는지 먼저 볼 것.**
+>
+> ```bash
+> sudo du -sh /var/lib/docker ~/backup 2>/dev/null; docker system df
+> ```
+
+**기동 직후 로그에 뜨는 것들은 대부분 무해하다.** `CLAIM: ... AGENT_UNCLAIMED` 는
+**Netdata Cloud 에 안 붙었다는 뜻이라 오히려 원하는 상태**고, `MACHINE_GUID` ·
+`status file` · `health.silencers.json` 은 첫 기동에 없는 게 정상이다.
+`apps.plugin should run with CAP_DAC_READ_SEARCH` 도 **무시해도 된다** —
+`app.*` 컨텍스트가 정상적으로 수집되는 것을 확인했다.
+
+> ⚠ **`systemd.*` 컨텍스트가 비어 있다** (`SYSTEMD DBUS: Transport endpoint is not
+> connected`). 배치 유닛은 `data` 노드에 있으므로 당장 막히는 것은 없지만,
+> **Phase 5 전에 잡아야 한다.** 후보는 AppArmor 다 — netdata 공식 예시의
+> `security_opt: apparmor:unconfined` 를 eBPF 용으로 보고 뺐는데 그게 원인일 수 있다.
+>
+> ```bash
+> docker compose exec netdata ls -l /run/dbus/ ; sudo aa-status | head -3
+> ```
 
 ### Phase 0 — 사양을 실측해 박는다 (30분, 에이전트 없이)
 
@@ -425,15 +461,19 @@ Spark 웹 UI 를 다루는 기존 방식([`../data/README.md`](../data/README.md
 
 #### 순서
 
+> ⚠ **서버에서 고치는 파일은 `.env` 와 `stream.conf` 둘뿐이다.** 둘 다 커밋되지 않는다.
+> `netdata.conf`·`compose.yaml` 은 추적되는 파일이라 서버에서 고치면 **다음 `git pull` 이
+> 충돌한다.** 고칠 일이 있으면 저장소에서 고치고 서버는 pull 만 한다.
+> (`bind to` 의 사설 IP 는 이미 들어가 있다 — 서버에서 주석을 살릴 일이 없다)
+
 ```bash
 uuidgen        # 한 번만. 양 노드가 이 같은 값을 쓴다 — 팀 비밀 저장소에도 남길 것
 ```
 
-1. **`app`**: `app/stream.conf` 의 대괄호 안을 그 키로 바꾼다
-2. **`app`**: `app/netdata.conf` 의 `bind to` 를 사설 IP 가 든 줄로 바꾼다 (주석에 적어 뒀다)
-3. **`app`**: `docker compose up -d`
-4. 보안그룹에 위 한 줄을 넣는다
-5. **`data`**: `.env`·`stream.conf` 를 만들고 **같은 키**를 넣는다 → `docker compose up -d`
+0. 보안그룹에 위 한 줄을 넣는다 (없으면 child 가 **거부가 아니라 타임아웃**으로 끝난다)
+1. **`app`**: `git pull` → `app/stream.conf` 의 대괄호 안을 그 키로 바꾼다 → `docker compose up -d`
+2. **`app`**: 아래 `ss` 로 사설 IP 바인딩을 확인한다
+3. **`data`**: `git pull` → `.env`(`DOCKER_GID`)·`stream.conf`(**같은 키**) → `docker compose up -d`
 
 **parent 를 먼저 올린다.** 반대로 하면 child 가 붙을 곳이 없어 재시도 로그만 쌓인다.
 
@@ -607,7 +647,7 @@ j15a506-app
 | --- | --- | --- | --- |
 | 디스크 남음 | < 20% | < 10% | DB·백업·도커가 한 파티션이다 |
 | 메모리 | > 85% | > 95% | 컨테이너 스왑이 0 이라 넘기면 즉사한다 |
-| 스왑 사용 | **> 0** | — | **0 이 아니면 상한 밖에서 RAM 을 넘겼다는 신호**다 |
+| 스왑 사용 | > 64 MiB | — | 상한 밖에서 RAM 을 넘겼다는 신호. **`> 0` 으로 두면 상시 노란불이다** (app 노드가 평소 3 MiB) |
 | 비정상 컨테이너 | — | > 0 | healthcheck 실패 |
 
 > **이 페이지는 대시보드를 대신하지 않는다.** 여기는 "지금 괜찮은가" 만 답한다.
