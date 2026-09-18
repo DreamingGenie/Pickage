@@ -144,6 +144,29 @@ class ParseDataTeamEnvelopeTests(unittest.TestCase):
         with self.assertRaises(EnvelopeParseError):
             parse_data_team_envelope(doc_text)
 
+    def test_extracts_structured_facts_sections(self):
+        doc_text = (
+            "# debug@4.4.3\n"
+            "Debug utility.\n\n"
+            "## 소비 형태 · 진입점\n"
+            "- CommonJS\n"
+            "- 진입점: index.js\n\n"
+            "## 설치 조건\n"
+            "- Node >= 14\n\n"
+            "## README 전문\n\n"
+            "Hello world\n"
+        )
+
+        envelope = parse_data_team_envelope(doc_text)
+
+        self.assertEqual(
+            envelope.structured_facts,
+            {
+                "소비 형태 · 진입점": "- CommonJS\n- 진입점: index.js",
+                "설치 조건": "- Node >= 14",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

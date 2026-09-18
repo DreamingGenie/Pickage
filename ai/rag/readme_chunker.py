@@ -105,10 +105,18 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
         readme_body = after_anchor.strip()
         source_footer = ""
 
+    fact_headings = _find_headings(header_region)[1:]  # [0]은 제목(# {package}@{version}) 자신
+    structured_facts: dict[str, str] = {}
+    for i, (_, body_start, heading_text) in enumerate(fact_headings):
+        body_end = fact_headings[i + 1][0] if i + 1 < len(fact_headings) else len(header_region)
+        body = header_region[body_start:body_end].strip()
+        if body:
+            structured_facts[heading_text] = body
+
     return DataTeamEnvelope(
         package=package,
         version=version,
-        structured_facts={},
+        structured_facts=structured_facts,
         readme_body=readme_body,
         source_footer=source_footer,
     )
