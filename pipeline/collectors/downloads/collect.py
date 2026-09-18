@@ -15,11 +15,20 @@ import json
 import os
 import socket
 import sqlite3
+import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
 import requests
+
+try:
+    # start_backfill.cmd 는 stdout 을 로그 파일로 넘긴다. 콘솔이 아니면 인코딩이 로캘(cp949)로 정해져
+    # cp949 에 없는 글자 하나에 UnicodeEncodeError 로 수집기가 죽는다. chcp 65001 은 콘솔 코드페이지만 바꾼다.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 API = "https://api.npmjs.org/downloads/range"
 # npm은 대량 호출 시 UA에 연락 가능한 주소를 요구한다. 개인 주소는 저장소에 올리지 않으므로 비워 두고,
@@ -88,6 +97,11 @@ class Writer:
         self.n += 1
         if self.n >= self.rotate:
             self._open()
+
+    def flush(self):
+        """체크포인트 commit 직전에 호출. gzip 버퍼를 디스크에 내려 강제 종료 시 '체크포인트는 done 인데 행은 없는' 작업이 생기지 않게 한다."""
+        if self.fh:
+            self.fh.flush()
 
     def close(self):
         if self.fh:
@@ -267,8 +281,10 @@ def main():
             if len(recent) > 100:
                 recent.pop(0)
             if (i + 1) % 20 == 0:
+                W.flush()
                 db.commit()
             if (i + 1) % 100 == 0 or i + 1 == len(pending):
+                W.flush()
                 db.commit()
                 el = time.time() - started
                 per_task = (recent[-1] - recent[0]) / max(1, len(recent) - 1) if len(recent) > 1 else 0
@@ -284,8 +300,8 @@ def main():
     except KeyboardInterrupt:
         print("[collect] interrupted — checkpoint saved", flush=True)
     finally:
+        W.close()      # 행을 먼저 디스크에 내리고(gzip 트레일러 포함) 그 다음 체크포인트를 확정한다
         db.commit()
-        W.close()
         manifest(final=True)
         db.close()
         print(f"[collect] wrote manifest {manifest_path}", flush=True)

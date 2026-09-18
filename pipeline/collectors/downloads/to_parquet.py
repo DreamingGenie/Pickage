@@ -5,12 +5,24 @@ Spark 적재(계획 §3) 전까지의 로컬 대체. 결손 규칙(§4-1): downl
 """
 import argparse
 import glob
+import gzip
+import json
 import os
+import sys
+import zlib
 
 import duckdb
 import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
+
+try:
+    # status.py --refresh-parquet 는 이 스크립트의 stdout 을 그대로 물려받는다. 콘솔이 아니면
+    # 인코딩이 로캘(cp949)로 정해져 cp949 에 없는 글자 하나에 UnicodeEncodeError 로 죽는다.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--raw", required=True)
@@ -21,28 +33,39 @@ files = sorted(glob.glob(os.path.join(a.raw, "part-*.jsonl.gz")))
 assert files, "no parts under " + a.raw
 
 
+GZ_ERRORS = (EOFError, OSError, zlib.error)  # 절단=EOFError, 헤더/CRC 손상=BadGzipFile(OSError), deflate 블록 손상=zlib.error
+
+
 def _complete(path):
-    """수집기가 아직 쓰고 있는 part는 gzip 끝이 없어 읽다가 깨진다. 끝까지 읽히는 파일만 쓴다."""
-    import gzip
+    """끝까지 정상으로 읽히는 gzip 인가. 수집기가 아직 쓰고 있는 part 는 gzip 끝이 없어 읽다가 깨진다.
+    0바이트(회전 직후 강제 종료로 gzip 헤더조차 없는 part)는 읽을 게 없으니 불완전으로 본다."""
+    if os.path.getsize(path) == 0:
+        return False
     try:
         with gzip.open(path, "rb") as f:
             while f.read(1 << 20):
                 pass
         return True
-    except (EOFError, OSError):
+    except GZ_ERRORS:
         return False
 
 
 def _repair(path):
-    """강제 종료로 gzip 끝이 잘린 옛 part: 읽히는 줄까지 살려 다시 쓰고 원본은 .broken으로 보관."""
-    import gzip
+    """강제 종료로 gzip 끝이 잘린 옛 part: JSON 으로 읽히는 온전한 줄까지 살려 다시 쓰고 원본은 .broken 으로 보관.
+    CRC 손상 스트림은 예외가 나기 전에 쓰레기 줄을 내놓을 수 있어 줄마다 JSON 파싱으로 확인한다.
+    원본을 rename 하므로 수집기가 그 파일을 쓰고 있지 않다는 것이 확실할 때만 부른다."""
     lines = []
     try:
         with gzip.open(path, "rt", encoding="utf-8") as f:
             for line in f:
-                if line.endswith("\n"):
-                    lines.append(line)
-    except (EOFError, OSError):
+                if not line.endswith("\n"):
+                    break
+                try:
+                    json.loads(line)
+                except ValueError:
+                    break
+                lines.append(line)
+    except GZ_ERRORS:
         pass
     os.replace(path, path + ".broken")
     with gzip.open(path, "wt", encoding="utf-8") as f:
