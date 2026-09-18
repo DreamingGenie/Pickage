@@ -82,20 +82,31 @@ public class PackageQueryRepository {
 	 * <p><b>{@code last2} 를 따로 둔 것도 이유가 있다.</b> 윈도 함수는 {@code LIMIT} 보다 먼저
 	 * 평가되므로, 한 CTE 안에서 {@code LAG} 와 {@code LIMIT 2} 를 같이 쓰면 결과는 맞지만
 	 * 전체 이력에 {@code LAG} 를 계산한 뒤 2행을 잘라낸다. 행을 먼저 자르고 그 위에서 돌린다.
+	 *
+	 * <p><b>최신 버전은 {@code latest_ver} CTE 가 아니라 {@code LATERAL … LIMIT 1} 로 꺼낸다</b>
+	 * (S15P21A506-390). 원래는 {@code DISTINCT ON (v.package_id)} 였는데, 그 형태는 대상 패키지의
+	 * <b>버전 행을 전부 읽어 정렬한 뒤</b> 첫 행만 쓴다. 이름이 최대 3개라 평균적으로는 묻히지만
+	 * <b>변수는 이름 개수가 아니라 그 패키지의 버전 개수</b>다 — 상위 1% 가 122개, 최대는 37,328개
+	 * ({@code electron-remote-control}) 라 그런 패키지끼리 비교하면 정렬이 메모리를 넘겨 디스크로
+	 * 흘러넘친다. 운영 실측으로 버퍼 85,812 · {@code external merge Disk} · 콜드 18.8초였고,
+	 * {@code idx_version_pkg_ordinal(package_id, ordinal DESC)} 에서 패키지당 1행만 꺼내니
+	 * 버퍼 32 · 정렬 없음 · 콜드 8.1ms 다. §5 유사 후보에서 먼저 같은 수정을 했다(S15P21A506-383).
+	 *
+	 * <p>이 자리가 특히 비싼 이유는 <b>생태계 변화 탭이 기본으로 열리고, 개요 응답이 와야
+	 * 추이 3종이 출발</b>하기 때문이다. 그 직렬은 S15P21A506-304 에서 의도적으로 넣은 것이라
+	 * (기준일을 개요가 알려준다) 버그가 아니고, 그래서 개요가 느린 대가가 그만큼 크다.
+	 *
+	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
+	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
+	 * 바뀌기 전 {@code JOIN latest_ver} 도 INNER 라 그 패키지를 빼고 있었고, 그 구분이
+	 * {@code findExistingNames} 의 {@code not_found} 판정과 맞물려 있다.
+	 *
+	 * <p>{@code ORDER BY ordinal DESC} 는 그대로 둔다(명세 0.6). 문자열로 정렬하면 {@code 4.9.0}
+	 * 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이 화면에 "최신 버전 4.9.0" 으로만 나타난다.
 	 */
 	private static final String OVERVIEW_SQL = """
 		WITH target AS (
 		  SELECT package_id, name FROM package WHERE name = ANY(?)
-		),
-		latest_ver AS (
-		  -- 정렬은 언제나 ordinal 이다(명세 0.6). 문자열로 정렬하면 4.9.0 이 4.19.2 보다
-		  -- 뒤로 가고, 그 실수는 화면에 "최신 버전 4.9.0" 으로 조용히 나타난다.
-		  SELECT DISTINCT ON (v.package_id)
-		         v.package_id, v.version, v.published_at,
-		         v.description, v.licenses, v.deprecated
-		  FROM version v
-		  JOIN target t ON t.package_id = v.package_id
-		  ORDER BY v.package_id, v.ordinal DESC
 		),
 		last2 AS (
 		  SELECT ps.package_id, ps.snapshot_at, ps.downloads, ps.stars, ps.open_issues,
@@ -134,7 +145,13 @@ public class PackageQueryRepository {
 		       r.open_issues - r.prev_issues AS open_issues_delta
 		FROM target t
 		JOIN package p     ON p.package_id  = t.package_id
-		JOIN latest_ver lv ON lv.package_id = t.package_id
+		CROSS JOIN LATERAL (
+		  SELECT v.version, v.published_at, v.description, v.licenses, v.deprecated
+		  FROM version v
+		  WHERE v.package_id = t.package_id
+		  ORDER BY v.ordinal DESC
+		  LIMIT 1
+		) lv
 		LEFT JOIN recent r ON r.package_id  = t.package_id AND r.rn = 1
 		""";
 

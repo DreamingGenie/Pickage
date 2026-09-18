@@ -82,15 +82,16 @@ public class PackageService {
 	}
 
 	/**
-	 * 개요 SQL 은 {@code latest_ver} 를 INNER JOIN 하므로 <b>{@code version} 행이 하나도 없는
-	 * 패키지가 결과에서 빠진다.</b> 그러면 존재하는 이름이 {@code not_found} 로 분류되고,
+	 * 개요 SQL 은 최신 버전을 {@code CROSS JOIN LATERAL} 로 붙이므로 <b>{@code version} 행이
+	 * 하나도 없는 패키지가 결과에서 빠진다.</b> 그러면 존재하는 이름이 {@code not_found} 로 분류되고,
 	 * 화면은 "이름을 확인하세요" 를 띄운다 — 사용자는 멀쩡한 이름을 계속 다시 친다.
 	 *
 	 * <p>실제 DB 로 갈라 확인한 결과, 스냅샷만 없는 경우(consola)는 정상 동작하고
 	 * {@code version} 행이 아예 없는 경우만 해당된다. 파이프라인이 {@code package} 를
 	 * versions 에서 파생시키므로 실제로는 생기지 않을 것으로 보지만, <b>전제가 깨졌을 때
-	 * 조용히 지나가지 않도록</b> 로그를 남긴다. 이 경고가 찍히기 시작하면 SQL 을 LEFT JOIN 으로
-	 * 바꾸고 {@code latest_version} 을 nullable 로 열어야 한다(프론트 타입도 함께).
+	 * 조용히 지나가지 않도록</b> 로그를 남긴다. 이 경고가 찍히기 시작하면 SQL 을
+	 * {@code LEFT JOIN LATERAL} 로 바꾸고 {@code latest_version} 을 nullable 로 열어야 한다
+	 * (프론트 타입도 함께).
 	 */
 	private void warnIfSilentlyDropped(PackageNames names, List<String> notFound) {
 		if (notFound.isEmpty()) return;
