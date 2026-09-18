@@ -581,7 +581,7 @@ sh run-similarity-batch.sh
 [1/5] 코퍼스 확정
   run_id=package-text-20260908-v1  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v1
 [2/5] 모델 확정
-  v7  pickage-mlflow-artifacts/onnx_bge_v7
+  v7  pickage-mlflow-artifacts/v7
 [3/5] 중복 확인  model=v7/corpus=package-text-20260908-v1
 [4/5] 스테이징
 [5/5] 배치
