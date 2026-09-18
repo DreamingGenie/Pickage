@@ -338,9 +338,15 @@ async function refreshOnce() {
     //   pickage-weekly.service 는 oneshot 이고 보통 1초쯤 뜨다 지는데, 수집 주기가
     //   그보다 길어서 그 순간을 놓칠 수 있다. 실행 이력은 journalctl 이 답한다.
     const units = {};
+    // ⚠ 접미사를 떼고 키를 만든다. netdata 는 `pickage-weekly.service` 를 라벨에서
+    //   `pickage-weekly` 로 준다(2026-09-18 서버 확인). 다만 **타이머도 그렇게 주는지는
+    //   확인하지 못했다** — 한쪽만 접미사가 붙어 오면 키가 갈려서 같은 배치가 두 줄로
+    //   쪼개지고 각각 한 칸씩만 찬다. 어느 쪽이든 한 줄이 되도록 여기서 맞춘다.
+    //   (유닛 종류는 이름이 아니라 **어느 쿼리에서 왔는지**로 안다 — 아래 렌더 참고)
     const addUnit = (map, key) => {
-      for (const [name, v] of Object.entries(map || {})) {
-        if (!/^pickage/.test(name)) continue;          // 우리 유닛만
+      for (const [raw, v] of Object.entries(map || {})) {
+        if (!/^pickage/.test(raw)) continue;            // 우리 유닛만
+        const name = raw.replace(/\.(service|timer)$/, '');
         (units[name] = units[name] || {})[key] = v;
       }
     };
