@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>JPA 를 쓰지 않는다. 명세 0.7 이 "집계는 DB 에서 끝낸다" 로 정해 두어서 애플리케이션이
  * 하는 일은 {@code ResultSet} 을 record 로 옮기는 것뿐이고, §3·§6 의 SQL 은
- * {@code WITH … DISTINCT ON … ROW_NUMBER() OVER (PARTITION BY …)} 라 JPQL 로 표현할 수 없다.
+ * {@code WITH … CROSS JOIN LATERAL … ROW_NUMBER() OVER (PARTITION BY …)} 라 JPQL 로 표현할 수 없다.
  * JPA 를 써도 전부 native query 가 되어 엔티티는 껍데기만 남는다.
  *
  * <p><b>배열 바인딩은 전부 {@code = ANY(?)} + {@code createArrayOf} 다</b>(§10-1).
@@ -497,11 +497,15 @@ public class PackageQueryRepository {
 	 * 동안에는 이 경로가 실행되지 않아 드러나지 않았다.
 	 *
 	 * <p><b>{@code DISTINCT ON} 이 아니라 {@code LATERAL … LIMIT 1} 인 것도 이유가 있다.</b>
-	 * §3 개요 SQL 의 {@code latest_ver} 는 {@code DISTINCT ON} 인데, 그 형태는 대상 패키지의
-	 * <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 — 패키지당 평균 176행, webpack 은 578행이다.
-	 * 개요는 이름이 최대 3개라 묻히지만 여기는 후보가 {@code SimilarPackagesResponse.LIMIT_MAX} =
-	 * 50개까지라 그 비용이 쌓인다. 50개 실측이 콜드 4.96초로 명세의 1초를 넘겼다.
-	 * {@code (package_id, ordinal DESC)} 인덱스에서 <b>패키지당 1행</b>만 꺼내면 145ms 다.
+	 * {@code DISTINCT ON} 은 대상 패키지의 <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 —
+	 * 패키지당 평균 176행, webpack 은 578행이다. 여기는 후보가
+	 * {@code SimilarPackagesResponse.LIMIT_MAX} = 50개까지라 그 비용이 쌓여, 50개 실측이
+	 * 콜드 4.96초로 명세의 1초를 넘겼다. {@code (package_id, ordinal DESC)} 인덱스에서
+	 * <b>패키지당 1행</b>만 꺼내면 145ms 다.
+	 *
+	 * <p>§3 개요 SQL 도 같은 이유로 {@code DISTINCT ON} 이었다가 바뀌었다(S15P21A506-390).
+	 * 그쪽은 이름이 최대 3개라 평균적으로는 묻혔지만, <b>버전이 수만 개인 패키지</b>에서
+	 * 같은 결함이 드러났다.
 	 *
 	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
 	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
