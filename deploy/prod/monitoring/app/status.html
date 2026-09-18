@@ -358,32 +358,40 @@ async function refreshOnce() {
           <code>journalctl -u pickage-weekly.service -n 50</code>
         </td></tr></tbody></table></section>`;
     } else {
+      // ⚠ **유닛 이름에 `.service`·`.timer` 접미사가 없다.** netdata 가 떼고 준다 —
+      //   `pickage-weekly.service` 가 라벨에서는 `pickage-weekly` 다 (2026-09-18 서버 확인).
+      //   그래서 이름으로 서비스/타이머를 가를 수 없고, **어느 쿼리에서 온 값인지**로 가른다.
+      //   한 줄에 서비스 상태와 타이머 상태를 나란히 둔다.
       const rows = unitNames.map(name => {
         const u = units[name];
-        const isTimer = /\.timer$/.test(name);
-        const failed = u.failed > 0;
-        const active = (isTimer ? u.timerActive : u.active) > 0;
-        // 타이머가 꺼져 있으면 배치가 아예 안 돈다 — 아무도 모르게 안 도는 것이 최악이다.
-        // 서비스 실패는 10분 뒤 타이머가 다시 시도하므로 주의로 둔다.
-        let lv = '', txt;
-        if (failed) {
-          lv = 'sick'; txt = '실패'; bump('warn');
-        } else if (isTimer && !active) {
-          lv = 'sick'; txt = '꺼져 있음'; bump('bad');
-        } else if (isTimer) {
-          txt = '켜져 있음';
-        } else {
-          txt = active ? '실행 중' : '대기';
-        }
-        return `<tr class="${lv}"><td class="name">${esc(name)}</td>
-                <td><span class="st">${txt}</span></td></tr>`;
+
+        // 서비스 쪽 — 실패는 10분 뒤 타이머가 다시 시도하므로 '주의' 다.
+        let svc, sick = false;
+        if (u.failed > 0)        { svc = '실패'; sick = true; bump('warn'); }
+        else if (u.active > 0)   { svc = '실행 중'; }
+        else if (u.active != null) { svc = '대기'; }
+        else                     { svc = '—'; }
+
+        // 타이머 쪽 — **꺼져 있으면 아무것도 안 돌고 아무 에러도 안 난다.** 그래서 '문제' 다.
+        let tm;
+        if (u.timerActive == null)   { tm = '—'; }      // 수집 안 됨 (systemdunits.conf 확인)
+        else if (u.timerActive > 0)  { tm = '켜져 있음'; }
+        else                         { tm = '꺼져 있음'; sick = true; bump('bad'); }
+
+        return `<tr class="${sick ? 'sick' : ''}"><td class="name">${esc(name)}</td>
+                <td><span class="st">${svc}</span></td>
+                <td><span class="st">${tm}</span></td></tr>`;
       }).join('');
       batchHtml = `<section class="node"><header><b>배치</b>
           <span>systemd · 실행 이력은 journalctl</span></header>
-        <table class="c"><tbody>${rows}
-          <tr class="rest"><td colspan="2">마지막 실행과 로그는
+        <table class="c">
+          <thead><tr><th>유닛</th><th>서비스</th><th>타이머</th></tr></thead>
+          <tbody>${rows}
+          <tr class="rest"><td colspan="3">마지막 실행과 로그는
             <code>journalctl -u pickage-weekly.service -n 50</code> ·
-            다음 발화는 <code>systemctl list-timers 'pickage-*'</code></td></tr>
+            다음 발화는 <code>systemctl list-timers 'pickage-*'</code><br>
+            타이머가 <b>—</b> 면 수집이 안 되는 것입니다 —
+            <code>data/systemdunits.conf</code> 가 붙었는지 보세요.</td></tr>
         </tbody></table></section>`;
     }
     document.getElementById('nodes').insertAdjacentHTML('beforeend', batchHtml);

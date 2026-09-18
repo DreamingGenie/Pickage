@@ -258,14 +258,31 @@ deploy/prod/data/run-weekly-ingest.sh
 `apps.plugin should run with CAP_DAC_READ_SEARCH` 도 **무시해도 된다** —
 `app.*` 컨텍스트가 정상적으로 수집되는 것을 확인했다.
 
-> ⚠ **`systemd.*` 컨텍스트가 비어 있다** (`SYSTEMD DBUS: Transport endpoint is not
-> connected`). 배치 유닛은 `data` 노드에 있으므로 당장 막히는 것은 없지만,
-> **Phase 5 전에 잡아야 한다.** 후보는 AppArmor 다 — netdata 공식 예시의
-> `security_opt: apparmor:unconfined` 를 eBPF 용으로 보고 뺐는데 그게 원인일 수 있다.
+#### ✔ systemd 유닛이 안 보이던 것 — AppArmor 였다 (2026-09-18 해결)
+
+두 노드 모두 `systemd.*` 컨텍스트가 비어 있었다.
+
+```
+SYSTEMD DBUS: Failed to add signal match for shutdown: Transport endpoint is not connected
+```
+
+**소켓 문제가 아니었다.** `/run/dbus/system_bus_socket` 은 컨테이너 안에서 `srw-rw-rw-`
+로 멀쩡히 보였다. 두 호스트 모두 **AppArmor 가 enforce 모드로 29개 프로파일**을 돌리고
+있고, docker-default 프로파일이 그 연결을 끊고 있었다.
+
+`data` 노드 compose 에 `security_opt: apparmor:unconfined` 를 넣으니 바로
+`systemd.service_unit_state` 가 나왔다. **넣었다 뺐다 하며 확인했다.**
+
+> **`app` 노드에는 넣지 않았다.** 거기엔 `pickage` 유닛이 없고, 그 노드는 인터넷에
+> 노출된 유일한 노드라 더 좁게 둔다. 대신 `app` 의 systemd 유닛(docker.service 등)은
+> 모니터링되지 않는다 — 필요해지면 그때 같은 줄을 넣는다.
 >
-> ```bash
-> docker compose exec netdata ls -l /run/dbus/ ; sudo aa-status | head -3
-> ```
+> 치르는 값과 더 좁은 대안(커스텀 프로파일)은 `data/compose.yaml` 의 그 줄 주석에 있다.
+
+```bash
+# 확인 — data 노드에서
+curl -s 'http://127.0.0.1:19999/api/v2/contexts' | grep -c systemd.service_unit_state
+```
 
 ### Phase 0 — 사양을 실측해 박는다 (30분, 에이전트 없이)
 

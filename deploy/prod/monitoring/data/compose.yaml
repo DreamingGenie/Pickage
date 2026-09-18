@@ -30,6 +30,34 @@ services:
     cap_add:
       - SYS_PTRACE
 
+    # ⚠ **배치 상태(6절)를 보려면 이것이 필요하다.** 없으면 systemd 유닛이 하나도 안 보인다.
+    #
+    #   이 노드에 pickage-weekly.timer 가 있고, netdata 가 그 상태를 읽으려면
+    #   /run/dbus/system_bus_socket 으로 시스템 버스에 붙어야 한다. 소켓은 마운트돼
+    #   있고 권한도 srw-rw-rw- 인데(확인함), **AppArmor 의 docker-default 프로파일이
+    #   그 연결을 끊는다**:
+    #
+    #     SYSTEMD DBUS: Failed to add signal match for shutdown:
+    #                   Transport endpoint is not connected
+    #
+    #   2026-09-18 서버에서 이 줄만 넣었다 빼며 확인했다 — 넣으면
+    #   systemd.service_unit_state 가 나오고, 빼면 사라진다. 이 호스트는 AppArmor 가
+    #   enforce 모드로 29개 프로파일을 돌리고 있다.
+    #
+    # ⚠ **공짜가 아니다.** docker-default 프로파일이 주던 추가 구속이 사라진다.
+    #   이 컨테이너는 이미 pid: host · SYS_PTRACE · docker.sock · / 읽기 마운트를 갖고
+    #   있어서 AppArmor 가 막아 주던 여지가 크지는 않지만, 넓어지는 것은 맞다.
+    #
+    #   더 좁히려면 docker-default 에 dbus 접근만 더한 **커스텀 프로파일**을 두 호스트에
+    #   설치하는 방법이 있다. 프로파일이 없으면 컨테이너가 아예 안 뜨므로 관리 대상이
+    #   하나 느는데, 3주 프로젝트에서 그 값을 치를 이유가 없다고 봤다.
+    #
+    # ⚠ **`app` 노드에는 넣지 않았다.** 거기엔 pickage 유닛이 없고, 그 노드는
+    #   인터넷에 노출된 유일한 노드라 더 좁게 둔다. 대신 `app` 의 systemd 유닛
+    #   (docker.service 등)은 모니터링되지 않는다 — 필요해지면 그때 같은 줄을 넣는다.
+    security_opt:
+      - apparmor:unconfined
+
     environment:
       DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
@@ -41,6 +69,9 @@ services:
       # ⚠ child 쪽 stream.conf 는 **없으면 스트리밍이 그냥 안 된다.** 컨테이너는
       #   멀쩡히 뜨고 자기 대시보드도 나오는데 parent 화면에 이 노드만 안 나타난다.
       - ./stream.conf:/etc/netdata/stream.conf:ro
+      # 배치 타이머를 보려면 필요하다. 없으면 수집기가 *.service 만 읽어서
+      # **"타이머가 꺼져 있다" 를 영영 못 잡는다** — 그 파일의 주석을 볼 것.
+      - ./systemdunits.conf:/etc/netdata/go.d/systemdunits.conf:ro
 
       # ⚠ netdatalib 볼륨은 ram 모드에서도 둔다. 메트릭 DB 말고도 이 노드의
       #   machine GUID 가 여기 산다 — 지우면 parent 가 **다른 노드로 인식해서**
