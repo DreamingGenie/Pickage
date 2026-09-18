@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { USE_MOCK } from '@/api/endpoints'
@@ -15,10 +15,7 @@ import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
 import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
 import { toTransitionsModel } from '@/routes/report/ecosystem/transitions-adapter'
-import {
-  DEFAULT_TRANSITION_PERIOD,
-  type TransitionPeriod,
-} from '@/routes/report/ecosystem/transitions-model'
+import type { TransitionPeriod } from '@/routes/report/ecosystem/transitions-model'
 
 /**
  * 생태계 변화 탭.
@@ -30,7 +27,21 @@ import {
  * 조회 기간은 더 이상 이 층이 정하지 않는다. 서버가 보유한 전 구간을 주고, 좁히는 일은
  * 화면 안에서 끝난다(S15P21A506-374).
  */
-export function EcosystemReportTab({ packages }: { packages: string[] }) {
+export function EcosystemReportTab({
+  packages,
+  transitionPeriod,
+  onTransitionPeriodChange,
+}: {
+  packages: string[]
+  /**
+   * `ReportPage`가 정본으로 들고 있다(S15P21A506-394) — PDF 내보내기가 "화면이 지금 보는
+   * 기간"을 그대로 요청에 실어야 해서, 그 값을 쥔 곳이 이 탭 안(언마운트되면 사라지는
+   * state)이면 다이얼로그가 못 읽는다. 조회를 쏘는 층과 값을 갖는 층이 갈릴 수 있다는
+   * 뜻이라, 아래 `useTransitions` 호출은 여전히 여기서 이 값을 받아서만 한다.
+   */
+  transitionPeriod: TransitionPeriod
+  onTransitionPeriodChange: (next: TransitionPeriod) => void
+}) {
   /** 상한을 넘겨 보내면 서버가 V002 로 거절한다. 넘기기 전에 자른다. */
   const names = useMemo(() => [...new Set(packages)].slice(0, MAX_NAMES), [packages])
 
@@ -62,12 +73,12 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
    * 이미 서버가 정한 세 값 중 하나라 다른 조회 결과에 기댈 것이 없다(versionShare가
    * `overview.data?.snapshot_at`을 기다리는 것과 다른 이유).
    *
-   * `period`를 여기서 들고 있는 이유는 `ecosystem-view.tsx` 39행과 같은 규칙의
-   * 반대쪽이다 — 그쪽 `window`/`intervalKey`는 서버 왕복이 없어 화면 안에 두지만,
-   * 이 프리셋은 바뀔 때마다 새 요청이 나가므로 그 요청을 쏘는 이 층이 정본이어야 한다.
+   * `transitionPeriod` 값 자체는 이제 `ReportPage`가 정본으로 들고 있다(위 프롭 주석,
+   * S15P21A506-394) — PDF 내보내기 다이얼로그가 이 탭보다 위에 있어 이 탭 로컬 state로는
+   * 못 읽는다. 다만 그 값이 바뀔 때마다 새 요청을 쏘는 자리는 여전히 여기다 — 서버 왕복이
+   * 있는 조회라 `ecosystem-view.tsx`의 `window`/`intervalKey`(서버 왕복 없음, 화면 로컬)와
+   * 반대 이유로 이 층에 둔다.
    */
-  const [transitionPeriod, setTransitionPeriod] =
-    useState<TransitionPeriod>(DEFAULT_TRANSITION_PERIOD)
   const transitions = useTransitions(names, transitionPeriod)
 
   if (names.length === 0) {
@@ -127,7 +138,7 @@ export function EcosystemReportTab({ packages }: { packages: string[] }) {
         transitionsModel={transitionsModel}
         transitionsState={transitionsState}
         transitionPeriod={transitionPeriod}
-        onTransitionPeriodChange={setTransitionPeriod}
+        onTransitionPeriodChange={onTransitionPeriodChange}
       />
     </div>
   )

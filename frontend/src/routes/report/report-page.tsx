@@ -12,6 +12,10 @@ import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { useReportBasePackage } from '@/routes/report/_components/use-report-base-package'
+import {
+  DEFAULT_TRANSITION_PERIOD,
+  type TransitionPeriod,
+} from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
 /**
@@ -139,6 +143,16 @@ export function ReportPage() {
   const [exporting, setExporting] = useState(false)
   const [preview, setPreview] = useState<PdfJob | null>(null)
 
+  /**
+   * 유지·유입·이탈 조회 구간. 원래 `EcosystemReportTab` 로컬 state였지만, PDF 내보내기
+   * 다이얼로그(아래)가 "화면이 지금 보는 기간"을 그대로 요청에 실어야 해서 여기로
+   * 끌어올렸다(S15P21A506-394) — 안 그러면 화면에서 1y·5y를 보다가 PDF를 내보내도 문서는
+   * 서버 기본값(3y)으로 조용히 달라진다. 조회를 쏘는 자리는 여전히 `EcosystemReportTab`
+   * 안이다 — 그쪽 주석 참고.
+   */
+  const [transitionPeriod, setTransitionPeriod] =
+    useState<TransitionPeriod>(DEFAULT_TRANSITION_PERIOD)
+
   function closeEvidence() {
     const next = new URLSearchParams(searchParams)
     next.delete('evidence')
@@ -249,7 +263,11 @@ export function ReportPage() {
             className={cn('pt-7', tab !== 'ecosystem' && 'hidden')}
           >
             <Suspense fallback={<TabFallback />}>
-              <EcosystemReportTab packages={packages} />
+              <EcosystemReportTab
+                packages={packages}
+                transitionPeriod={transitionPeriod}
+                onTransitionPeriodChange={setTransitionPeriod}
+              />
             </Suspense>
           </TabsContent>
         )}
@@ -287,6 +305,7 @@ export function ReportPage() {
         open={exporting}
         onOpenChange={setExporting}
         packages={packages}
+        transitionPeriod={transitionPeriod}
         run={run}
         onGoToFeatures={() => setTab('features')}
         onPreview={(job) => {

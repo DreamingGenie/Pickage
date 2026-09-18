@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { useGeneratePdf } from '@/api/queries'
-import type { PdfJob, ReportSection } from '@/api/types'
+import type { PdfJob, ReportSection, TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
+import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
@@ -44,6 +45,7 @@ export function PdfExportDialog({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   run,
   onPreview,
   onGoToFeatures,
@@ -54,6 +56,13 @@ export function PdfExportDialog({
   from?: string
   to?: string
   snapshotAt?: string
+  /**
+   * 화면이 지금 보고 있는 유지·유입·이탈 구간. 선택 사항으로 두면 안 넘기는 실수가 조용히
+   * 통과되고, 그러면 화면에서 1y·5y를 보다가 PDF를 내보내도 서버 기본값(3y)으로 문서가
+   * 조용히 달라진다 — 공통-R08(화면과 PDF 결과가 일치해야 한다)을 어기는 상황이라 필수로
+   * 둔다(S15P21A506-394).
+   */
+  transitionPeriod: TransitionPeriodParam
   /** 기능 비교 진행 상태 — BLOCKED 판단과 재분석 시 stale COMPLETE 방지에 쓴다. */
   run: AnalysisRun
   /** 미리보기 모달을 여는 일은 부모가 한다 — 이 모달은 닫히고 그쪽이 열려야 한다. */
@@ -89,7 +98,14 @@ export function PdfExportDialog({
   }
 
   function submit() {
-    generate.mutate({ names: packages, from, to, snapshot_at: snapshotAt, sections })
+    generate.mutate({
+      names: packages,
+      from,
+      to,
+      snapshot_at: snapshotAt,
+      period: transitionPeriod,
+      sections,
+    })
   }
 
   return (
@@ -116,6 +132,7 @@ export function PdfExportDialog({
             from={from}
             to={to}
             snapshotAt={snapshotAt}
+            transitionPeriod={transitionPeriod}
             sections={sections}
             onToggle={toggle}
             onCancel={() => close(false)}
@@ -206,6 +223,7 @@ function Ready({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   sections,
   onToggle,
   onCancel,
@@ -215,6 +233,7 @@ function Ready({
   from?: string
   to?: string
   snapshotAt?: string
+  transitionPeriod: TransitionPeriodParam
   sections: ReportSection[]
   onToggle: (section: ReportSection) => void
   onCancel: () => void
@@ -234,8 +253,12 @@ function Ready({
         <Row label="생태계 조회 기간" value={from && to ? `${from} ~ ${to}` : '보유한 전 기간'} />
         <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
         <Row
+          label="유지·유입·이탈 조회 기간"
+          value={transitionPeriodLabel(transitionPeriod)}
+        />
+        <Row
           label="포함 내용"
-          value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 자료 상태"
+          value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 유지·유입·이탈 · 자료 상태"
         />
       </dl>
 
@@ -322,6 +345,10 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="min-w-0 flex-1 font-mono">{value}</dd>
     </div>
   )
+}
+
+function transitionPeriodLabel(period: TransitionPeriodParam): string {
+  return TRANSITION_PERIODS.find((p) => p.key === period)?.label ?? period
 }
 
 /* ------------------------------------------------------------------ *
