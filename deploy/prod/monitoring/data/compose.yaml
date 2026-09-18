@@ -1,0 +1,76 @@
+# Pickage 모니터링 — `data` 노드 (j15a506**a**) · **child**
+#
+#   cd /srv/pickage/monitoring/deploy/prod/monitoring/data
+#   docker compose up -d
+#
+# 계획과 단계별 확인 명령: ../README.md
+#
+# ⚠ 호스트명이 `app` 노드와 한 글자 차이다. 붙기 전에 `hostname` 을 볼 것.
+#   여기는 minio · mlflow · spark master·worker① 이 도는 노드다.
+
+# ⚠ 운영 스택(pickage-data)과 **다른 프로젝트 이름**이다. 같은 이름이면
+#   `docker compose down` 한 번에 MinIO 까지 같이 내려간다 — 수집 원본이 그 안에 있다.
+name: pickage-monitoring-data
+
+services:
+  netdata:
+    # `app` 과 **같은 버전을 쓴다.** 스트리밍 프로토콜은 버전이 벌어지면 붙지 않을 수 있고,
+    # 무엇보다 두 노드의 차트가 달라지면 한 화면에 놓고 비교하는 의미가 없어진다.
+    image: netdata/netdata:v2.10.1
+    restart: unless-stopped
+
+    hostname: j15a506a-data
+
+    # host 네트워크인 이유는 ../app/compose.yaml 과 같다.
+    # 이 노드에는 spark-master·spark-worker-1 도 host 모드로 떠 있다 —
+    # 포트는 안 겹친다(7077 · 8080 · 8081 · 40001-40014 vs 19999).
+    network_mode: host
+    pid: host
+
+    cap_add:
+      - SYS_PTRACE
+
+    environment:
+      DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      # 없으면 컨테이너 이름이 안 보인다. ../app/.env.example 의 설명 참고.
+      PGID: ${DOCKER_GID:?.env 를 만들고 DOCKER_GID 를 채울 것 (cp .env.example .env)}
+
+    volumes:
+      - ./netdata.conf:/etc/netdata/netdata.conf:ro
+      # ⚠ child 쪽 stream.conf 는 **없으면 스트리밍이 그냥 안 된다.** 컨테이너는
+      #   멀쩡히 뜨고 자기 대시보드도 나오는데 parent 화면에 이 노드만 안 나타난다.
+      - ./stream.conf:/etc/netdata/stream.conf:ro
+
+      # ⚠ netdatalib 볼륨은 ram 모드에서도 둔다. 메트릭 DB 말고도 이 노드의
+      #   machine GUID 가 여기 산다 — 지우면 parent 가 **다른 노드로 인식해서**
+      #   같은 서버가 이력 없는 새 노드로 한 번 더 생긴다.
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+
+      - /:/host/root:ro,rslave
+      # ⚠ **같은 `/` 를 한 번 더 붙인다. 빼면 컨테이너별 메트릭이 통째로 안 나온다.**
+      #   이 노드에서는 minio·mlflow·spark 가 통째로 안 보인다는 뜻이다.
+      #   이유와 판정 명령은 ../app/compose.yaml 의 같은 줄 주석에 있다.
+      - /:/host/parent-distro:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/log:/host/var/log:ro
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /run/dbus:/run/dbus:ro
+
+    # ⚠ 짝으로 둔다 (../../README.md 의 "Swap").
+    #
+    #   `app` 보다 작게 잡는 근거: 이 노드는 child 라 dbengine 을 안 돌린다(ram 모드).
+    #   그리고 **배치 시각에 이 노드가 가장 빠듯하다** — Spark 셋 12g + ai-similarity 2g
+    #   ≈ 14g / 15Gi (../data/README.md). 모니터링이 그 계산을 흔들면 안 된다.
+    mem_limit: 256m
+    memswap_limit: 256m
+
+volumes:
+  netdatalib:
+  netdatacache:
