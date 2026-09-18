@@ -1,6 +1,6 @@
 # Pickage 모니터링 — `data` 노드 (j15a506**a**) · **child**
 #
-#   cd /srv/pickage/monitoring/deploy/prod/monitoring/data
+#   cd ~/S15P21A506/deploy/prod/monitoring/data
 #   docker compose up -d
 #
 # 계획과 단계별 확인 명령: ../README.md
@@ -16,7 +16,7 @@ services:
   netdata:
     # `app` 과 **같은 버전을 쓴다.** 스트리밍 프로토콜은 버전이 벌어지면 붙지 않을 수 있고,
     # 무엇보다 두 노드의 차트가 달라지면 한 화면에 놓고 비교하는 의미가 없어진다.
-    image: netdata/netdata:v2.10.1
+    image: netdata/netdata:v2.10.1@sha256:7f62a1bee44692aa31fc50c81fdb319836227e5fca2fdbcc7cbe65ce356eb17e
     restart: unless-stopped
 
     hostname: j15a506a-data

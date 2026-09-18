@@ -1,8 +1,7 @@
 # 서버 모니터링 — 구축 계획 (S15P21A506-362)
 
-**아직 서버에 아무것도 떠 있지 않다.** 파일은 [`app/`](app/)·[`data/`](data/) 에 있고
-**로컬 리허설까지는 돌려 봤다**(Phase 0.5). 서버에서 잰 숫자는 아직 하나도 없다 —
-단계가 하나씩 서면 그 자리에 실측값과 운영 절차로 바꿔 쓴다.
+**`app` 노드는 떠 있다** (2026-09-18, Phase 1 완료). `data` 노드(Phase 4)는 아직이다 —
+호스트 방화벽 한 줄(`ufw`)과 스트리밍 설정이 남았다. 실측값은 7절의 "Phase 0·1 결과" 에 있다.
 
 대상은 두 노드 다다 — `app (j15a506)` · `data (j15a506a)`.
 노드 구성과 지금 도는 것들은 [`../README.md`](../README.md) · [`../data/README.md`](../data/README.md).
@@ -38,8 +37,8 @@
 
 **그 스택이 나빠서가 아니라 이 두 노드의 제약 때문이다.**
 
-- **코어가 2개다** (`app` 노드 — `application-prod.yaml` 의 Hikari 풀 주석이 그 근거다).
-  사용자 트래픽·api·postgres 가 이미 그 2코어를 나눠 쓴다. 여기에 scrape + TSDB 쓰기 +
+- **물리 2코어(4 vCPU)다** (`app` 노드 — 2026-09-18 `lscpu` 실측).
+  사용자 트래픽·api·postgres 가 이미 나눠 쓴다. 여기에 scrape + TSDB 쓰기 +
   Grafana 렌더링이 들어간다. 특히 cAdvisor 는 컨테이너 수에 비례해 CPU 를 꾸준히 먹는다.
 - **메모리가 배치 시각에 가장 빠듯하다.** `app` 이 약 10g/15Gi, `data` 가 약 14g/15Gi 다
   ([`../README.md`](../README.md) 의 "Spark worker② (상시)", [`../data/README.md`](../data/README.md)).
@@ -63,7 +62,7 @@ Netdata 는 `/api/v1/allmetrics?format=prometheus` 로 **Prometheus 형식을 �
 | `mem_limit` 과 `memswap_limit` 을 **짝으로** 넣는다 | 한쪽만 쓰면 상한이 조용히 2배가 된다 | [`../README.md`](../README.md) "Swap" |
 | 포트를 `0.0.0.0` 에 열지 않는다 | `app` 은 **인터넷에 노출된 유일한 노드**다. Netdata 기본 포트 19999 는 **로그인이 없다** | [`../README.md`](../README.md) "하지 말 것" |
 | `env_file:` 을 쓰지 않고 `${}` 치환으로 받는다 | `env_file` 이면 `.env` 의 **아무 줄이나** 바뀔 때 컨테이너가 재생성된다 | [`../README.md`](../README.md) "환경변수만 고쳤을 때" |
-| dbengine 디스크 상한을 **명시**한다 | `/dev/root` 하나에 DB·백업·도커가 같이 산다. 09-15 에 이미 56% 였다 | [`../README.md`](../README.md) "백업" |
+| dbengine 디스크 상한을 **명시**한다 | `/dev/root` 하나에 DB·백업·도커가 같이 산다. **09-18 실측 61%** 이고 늘고 있다 | [`../README.md`](../README.md) "백업" |
 | **별도 compose 프로젝트**로 띄운다 (`pickage-monitoring-app` · `pickage-monitoring-data`) | `app/compose.yaml` 에 넣으면 배포 잡이 돌 때마다 같이 재생성 후보가 된다. **배포가 흔들릴 때 모니터링은 살아 있어야 한다** | — |
 
 > ⚠ **`app/compose.yaml` 에 서비스를 추가하지 않는다.** 디렉터리를 따로 두는 이유가
@@ -88,20 +87,34 @@ compose 프로젝트 이름도 가른다 — `pickage-monitoring-app` · `pickag
 
 `stream.conf` 와 `.env` 는 커밋되지 않는다. 각각 `.example` 을 복사해 채운다.
 
-### 서버의 체크아웃은 `/srv/pickage/repo` 가 아니다
+### 서버에서는 `~/S15P21A506` 에서 띄운다 — ⚠ `/srv/pickage/repo` 가 아니다
 
-배포 잡이 그 경로를 매번 `git checkout -f` 로 덮어쓴다 ([`../README.md`](../README.md)).
-거기에 `stream.conf`·`.env` 를 두면 **다음 배포에 조용히 사라진다.**
-
-```bash
-# 최초 1회 — 모니터링 전용 체크아웃
-sudo mkdir -p /srv/pickage/monitoring && sudo chown $USER:$USER /srv/pickage/monitoring
-git clone <repo> /srv/pickage/monitoring
-```
+**클론을 새로 만들지 않는다.** 두 노드에 이미 사람용 체크아웃 `~/S15P21A506` 이 있고,
+`data` 노드의 minio·mlflow·spark·유사도 배치·주간 타이머가 전부 거기서 돈다
+([`../data/README.md`](../data/README.md)). 모니터링도 같은 곳을 쓴다.
 
 ```bash
-git -C /srv/pickage/monitoring log -1 --oneline   # 여기는 사람이 pull 한다. CI 가 안 건드린다
+cd ~/S15P21A506 && git pull                 # 두 노드에서 각각
+cd deploy/prod/monitoring/app               # data 노드는 .../monitoring/data
 ```
+
+**피해야 하는 것은 `/srv/pickage/repo` 하나다.** 그건 배포 잡의 작업 디렉터리를 가리키는
+심볼릭 링크이고, 잡이 매번 `git checkout -f` 와 `GIT_CLEAN_FLAGS` 로 정리한다.
+
+```yaml
+GIT_CLEAN_FLAGS: -ffdx -e deploy/prod/app/.env     # .gitlab-ci.yml 의 deploy-app
+```
+
+**예외가 `app/.env` 하나뿐이다.** 거기에 모니터링의 `stream.conf`·`.env` 를 두면
+**다음 배포에 조용히 사라진다.**
+
+```bash
+git -C ~/S15P21A506 log -1 --oneline   # 여기는 사람이 pull 한다. CI 가 안 건드린다
+```
+
+> `~/S15P21A506` 은 주간 배치(`pickage-weekly.service` 의 `WorkingDirectory`)도 쓰는
+> 체크아웃이다. **배치가 도는 중에 `git pull` 하지 않는다** — 그 회차가 읽는 스크립트가
+> 중간에 바뀐다. 확인: `docker ps --filter name=pickage-weekly-run`
 
 ---
 
@@ -177,7 +190,7 @@ ssh -N -L 19999:127.0.0.1:19999 <계정>@j15a506.p.ssafy.io
 > (네트워크 인터페이스 메트릭 때문에 host 모드가 권장된다.)
 > 그때는 `netdata.conf` 의 `[web] bind to` 로 주소를 직접 묶는다 —
 > `app` 노드의 `spark-worker-2` 가 같은 이유로 host 모드이고, 거기서는
-> **막는 것이 보안그룹뿐**이라는 경고가 이미 붙어 있다 ([`../README.md`](../README.md)).
+> **막는 것이 방화벽뿐**이라는 경고가 이미 붙어 있다 ([`../README.md`](../README.md)).
 
 ---
 
@@ -216,6 +229,43 @@ deploy/prod/data/run-weekly-ingest.sh
 ---
 
 ## 7. 단계 — 각 단계는 마지막 명령으로 성공을 판정한다
+
+### ✔ Phase 0·1 결과 (2026-09-18, `app` 노드)
+
+| | 실측 |
+| --- | --- |
+| CPU | **물리 2코어 / 4 vCPU** — Xeon Platinum 8175M @2.50GHz (HT) |
+| 메모리 | 15Gi (유휴 사용 2.3Gi · 가용 13Gi) |
+| Swap | 2.0Gi, **used 3.0Mi** — 0 이 아니다 |
+| 디스크 `/` | 309G 중 **188G 사용 (61%)** · 122G 남음 |
+| 커널 | `6.17.0-1019-aws` |
+| `findmnt -no PROPAGATION /` | **`shared`** → `rslave` 를 그대로 쓴다 |
+| **netdata 자신** | **CPU 1.91% · 메모리 106 MiB / 512m** |
+
+**netdata 의 비용은 로컬 리허설과 거의 같았다**(1.3% / 152 MiB). 2코어 노드에서도 부담이 없다.
+
+> 🔴 **디스크가 늘고 있다.** 09-15 에 56% 였고 09-18 에 61% 다 — 3일에 5%p.
+> 이 추세가 이어지면 **첫 알람선(80%)에 09-29 쯤 닿는다.** 발표가 09-28 이다.
+> 증가가 선형이 아닐 수 있으니 단정할 것은 아니지만, **무엇이 먹고 있는지 먼저 볼 것.**
+>
+> ```bash
+> sudo du -sh /var/lib/docker ~/backup 2>/dev/null; docker system df
+> ```
+
+**기동 직후 로그에 뜨는 것들은 대부분 무해하다.** `CLAIM: ... AGENT_UNCLAIMED` 는
+**Netdata Cloud 에 안 붙었다는 뜻이라 오히려 원하는 상태**고, `MACHINE_GUID` ·
+`status file` · `health.silencers.json` 은 첫 기동에 없는 게 정상이다.
+`apps.plugin should run with CAP_DAC_READ_SEARCH` 도 **무시해도 된다** —
+`app.*` 컨텍스트가 정상적으로 수집되는 것을 확인했다.
+
+> ⚠ **`systemd.*` 컨텍스트가 비어 있다** (`SYSTEMD DBUS: Transport endpoint is not
+> connected`). 배치 유닛은 `data` 노드에 있으므로 당장 막히는 것은 없지만,
+> **Phase 5 전에 잡아야 한다.** 후보는 AppArmor 다 — netdata 공식 예시의
+> `security_opt: apparmor:unconfined` 를 eBPF 용으로 보고 뺐는데 그게 원인일 수 있다.
+>
+> ```bash
+> docker compose exec netdata ls -l /run/dbus/ ; sudo aa-status | head -3
+> ```
 
 ### Phase 0 — 사양을 실측해 박는다 (30분, 에이전트 없이)
 
@@ -304,7 +354,7 @@ rm .env stream.conf netdata.rehearsal.conf
 파일은 [`app/`](app/) 에 있다. **nginx 는 건드리지 않는다** — 확인은 5절의 SSH 터널로 한다.
 
 ```bash
-cd /srv/pickage/monitoring/deploy/prod/monitoring/app
+cd ~/S15P21A506/deploy/prod/monitoring/app
 cp .env.example .env
 getent group docker | cut -d: -f3        # 나온 값을 .env 의 DOCKER_GID 에 넣는다
 cp stream.conf.example stream.conf       # Phase 1 에서는 내용을 안 채워도 된다 (받을 child 가 없다)
@@ -403,30 +453,61 @@ Spark 웹 UI 를 다루는 기존 방식([`../data/README.md`](../data/README.md
 
 #### 방화벽 한 줄
 
-**`app` 노드 인바운드 19999, 출처 `172.26.8.249`(`data`)** 만. Spark 포트를 같은 방식으로
-이미 열어 둔 선례가 있다 ([`../data/README.md`](../data/README.md) "먼저 방화벽").
+**`app` 노드 인바운드 19999, 출처 `172.26.8.249`(`data`)** 만.
 **child 가 parent 로 접속하므로 방향이 이쪽이다** — 반대로 열면 아무 일도 일어나지 않는다.
+
+> ⚠ **여는 곳은 AWS 보안그룹이 아니라 호스트 방화벽(`ufw`)이다.**
+> **이 팀에는 AWS 콘솔 권한이 있는 사람이 없다.** EC2 접속 키만 받아서 쓰고 있고,
+> 노드 간 통신은 보안그룹이 이미 허용하고 있어서 **호스트 방화벽만 열면 통한다** —
+> Spark 포트(7077·9000·40001·40002·40010-40014·40020)도 그렇게 열려 있다.
+> "보안그룹에서 연다" 고 적힌 문서를 보고 콘솔을 찾지 말 것.
+
+`app` 노드에서:
+
+```bash
+sudo ufw status numbered      # active 인지, 규칙이 이미 있는지 먼저 본다
+```
+
+```bash
+sudo ufw allow from 172.26.8.249 to any port 19999 proto tcp \
+  comment 'netdata child->parent (S15P21A506-362)'
+```
+
+`data` 노드에서 확인한다 (**`app` 이 사설 IP 에 바인딩된 뒤에** 해야 의미가 있다):
+
+```bash
+timeout 3 bash -c 'cat </dev/null >/dev/tcp/172.26.6.235/19999' && echo 열림 || echo 막힘
+```
 
 인터넷에서 닿는 문은 **여전히 80·443·22 뿐이다.** 5절 결정과 어긋나지 않는다.
 
+> **막혀 있고 방화벽으로도 못 열면** SSH 터널로 넘길 수 있다 — 이미 열려 있는 22 번에
+> 스트리밍을 태우고 child 의 `destination` 을 `127.0.0.1:19999` 로 둔다.
+> 터널이 죽으면 스트리밍이 끊기므로 `Restart=always` 인 systemd 유닛으로 감싼다.
+> 무인 접속이 되는지 먼저 본다: `ssh -o BatchMode=yes 172.26.6.235 true`
+
 #### 순서
+
+> ⚠ **서버에서 고치는 파일은 `.env` 와 `stream.conf` 둘뿐이다.** 둘 다 커밋되지 않는다.
+> `netdata.conf`·`compose.yaml` 은 추적되는 파일이라 서버에서 고치면 **다음 `git pull` 이
+> 충돌한다.** 고칠 일이 있으면 저장소에서 고치고 서버는 pull 만 한다.
+> (`bind to` 의 사설 IP 는 이미 들어가 있다 — 서버에서 주석을 살릴 일이 없다)
 
 ```bash
 uuidgen        # 한 번만. 양 노드가 이 같은 값을 쓴다 — 팀 비밀 저장소에도 남길 것
 ```
 
-1. **`app`**: `app/stream.conf` 의 대괄호 안을 그 키로 바꾼다
-2. **`app`**: `app/netdata.conf` 의 `bind to` 를 사설 IP 가 든 줄로 바꾼다 (주석에 적어 뒀다)
-3. **`app`**: `docker compose up -d`
-4. 보안그룹에 위 한 줄을 넣는다
-5. **`data`**: `.env`·`stream.conf` 를 만들고 **같은 키**를 넣는다 → `docker compose up -d`
+0. `app` 에서 위 `ufw` 규칙을 넣는다 (없으면 child 가 **거부가 아니라 타임아웃**으로 끝난다)
+1. **`app`**: `git pull` → `app/stream.conf` 의 대괄호 안을 그 키로 바꾼다 → `docker compose up -d`
+2. **`app`**: 아래 `ss` 로 사설 IP 바인딩을 확인한다
+3. **`data`**: `git pull` → `.env`(`DOCKER_GID`)·`stream.conf`(**같은 키**) → `docker compose up -d`
 
 **parent 를 먼저 올린다.** 반대로 하면 child 가 붙을 곳이 없어 재시도 로그만 쌓인다.
 
 #### ⚠ 이 단계에서 제일 틀리기 쉬운 곳
 
 parent 는 사설 IP 에도 바인딩해야 한다 — `bind to = 127.0.0.1:19999 172.26.6.235:19999`.
-**`*` 나 `0.0.0.0` 으로 적으면 5절 결정이 조용히 무효가 된다.** 보안그룹만 남고,
+**`*` 나 `0.0.0.0` 으로 적으면 5절 결정이 조용히 무효가 된다.** 호스트 방화벽만 남고,
 `app` 은 인터넷에 노출된 유일한 노드다.
 
 ```bash
@@ -593,7 +674,7 @@ j15a506-app
 | --- | --- | --- | --- |
 | 디스크 남음 | < 20% | < 10% | DB·백업·도커가 한 파티션이다 |
 | 메모리 | > 85% | > 95% | 컨테이너 스왑이 0 이라 넘기면 즉사한다 |
-| 스왑 사용 | **> 0** | — | **0 이 아니면 상한 밖에서 RAM 을 넘겼다는 신호**다 |
+| 스왑 사용 | > 64 MiB | — | 상한 밖에서 RAM 을 넘겼다는 신호. **`> 0` 으로 두면 상시 노란불이다** (app 노드가 평소 3 MiB) |
 | 비정상 컨테이너 | — | > 0 | healthcheck 실패 |
 
 > **이 페이지는 대시보드를 대신하지 않는다.** 여기는 "지금 괜찮은가" 만 답한다.
@@ -699,10 +780,10 @@ netdata 는 **있는 것만 차트를 만든다.** ZFS·btrfs·InfiniBand·무�
 
 ```bash
 # 각 노드에서. data(child) 부터 내려야 parent 로그에 연결 실패가 안 쌓인다
-cd /srv/pickage/monitoring/<노드> && docker compose down -v   # 모니터링 데이터뿐이다. 운영 볼륨이 아니다
+cd ~/S15P21A506/deploy/prod/monitoring/<노드> && docker compose down -v   # 모니터링 데이터뿐이다
 ```
 
-보안그룹 규칙(Phase 4)과 systemd unit(Phase 5)은 따로 걷는다.
+`ufw` 규칙(Phase 4)과 systemd unit(Phase 5)은 따로 걷는다 — `sudo ufw status numbered` 로 번호를 보고 `sudo ufw delete <번호>`.
 **nginx 는 건드릴 게 없다** — Phase 2 를 보류했으므로 `app.conf` 에 들어간 줄이 없다.
 
 > `down -v` 를 여기서는 붙여도 된다. **별도 compose 프로젝트로 띄우는 이득이 이것이다** —

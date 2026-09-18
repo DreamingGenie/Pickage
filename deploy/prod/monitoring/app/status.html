@@ -192,8 +192,12 @@ function level(kind, v) {
   if (kind === 'diskFree')  return v < 10 ? 'bad' : v < 20 ? 'warn' : '';
   if (kind === 'mem')       return v > 95 ? 'bad' : v > 85 ? 'warn' : '';
   if (kind === 'cpu')       return v > 95 ? 'warn' : '';
-  // 스왑은 0 이 아니면 그 자체로 신호다 — 상한 밖에서 RAM 을 넘겼다는 뜻이다
-  if (kind === 'swap')      return v > 0 ? 'warn' : '';
+  // 스왑이 쓰이고 있다는 것은 상한 밖에서 RAM 을 넘겼다는 신호다.
+  // ⚠ 다만 `> 0` 으로 두면 안 된다 — app 노드가 평소에 3 MiB 쯤 쓰고 있어서
+  //   (2026-09-18 실측) 화면이 **상시 노란불**이 된다. 늘 노란 대시보드는
+  //   사람이 무시하게 만들어서, 정작 진짜 신호가 왔을 때 아무도 안 본다.
+  //   부팅 잔여 수준을 넘는 값만 잡는다.
+  if (kind === 'swap')      return v > 64 ? 'warn' : '';        // MiB
   if (kind === 'unhealthy') return v > 0 ? 'bad' : '';
   return '';
 }
@@ -314,7 +318,7 @@ async function refreshOnce() {
           ${tile(level('cpu', cpu), 'CPU',
                  cpu == null ? null : { n: Math.round(cpu), u: '%' }, '')}
           ${tile(level('swap', swapM), '스왑',
-                 sw == null ? null : { n: sw.n, u: sw.u }, swapM ? '0 이 정상입니다' : '')}
+                 sw == null ? null : { n: sw.n, u: sw.u }, swapM > 64 ? '상한 밖에서 RAM 을 넘겼다는 신호' : '')}
         </div>
         ${rows.length ? `<table class="c">
           <thead><tr><th>컨테이너 ${up.length} / ${rows.length} 실행 중</th><th>상태</th>

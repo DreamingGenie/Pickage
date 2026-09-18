@@ -1,6 +1,6 @@
 # Pickage 모니터링 — `app` 노드 (j15a506) · **parent**
 #
-#   cd /srv/pickage/monitoring/deploy/prod/monitoring/app
+#   cd ~/S15P21A506/deploy/prod/monitoring/app
 #   docker compose up -d
 #
 # 계획과 단계별 확인 명령: ../README.md
@@ -18,9 +18,9 @@ services:
     #   그날 대시보드가 달라져도 무엇이 바뀐 건지 알 방법이 없다
     #   (../README.md 의 "하지 말 것" 에 있는 API_TAG=latest 와 같은 이유다).
     #   v2.10.1 = 2026-04-10 stable. 태그가 없으면 pull 이 **즉시 실패한다** — 조용히 틀리지 않는다.
-    #   TODO Phase 1: 처음 pull 한 뒤 digest 를 받아 이 줄 옆에 적을 것
-    #     docker images --digests netdata/netdata
-    image: netdata/netdata:v2.10.1
+    #   digest 까지 고정한다. 태그는 같은데 내용이 바뀌는 일을 막는다 —
+    #   2026-09-18 app 노드에서 받은 값이다 (docker images --digests netdata/netdata).
+    image: netdata/netdata:v2.10.1@sha256:7f62a1bee44692aa31fc50c81fdb319836227e5fca2fdbcc7cbe65ce356eb17e
     restart: unless-stopped
 
     # host 네트워크라 컨테이너 hostname 이 곧 대시보드에 찍히는 노드 이름이 된다.
