@@ -168,5 +168,43 @@ class ParseDataTeamEnvelopeTests(unittest.TestCase):
         )
 
 
+class ChunkReadmeOversizedSectionTests(unittest.TestCase):
+    def test_paragraphs_that_together_exceed_max_chars_split_into_multiple_chunks(self):
+        para_a = "A" * 30
+        para_b = "B" * 30
+        readme_text = f"## Notes\n\n{para_a}\n\n{para_b}\n"
+
+        chunks = chunk_readme(
+            readme_text,
+            package="foo",
+            version="1.0.0",
+            snapshot_id="snap-1",
+            max_chunk_chars=40,
+        )
+
+        notes_chunks = [c for c in chunks if c.section == "Notes"]
+        self.assertEqual(len(notes_chunks), 2)
+        self.assertEqual(notes_chunks[0].excerpt, para_a)
+        self.assertEqual(notes_chunks[1].excerpt, para_b)
+
+    def test_blank_line_inside_code_fence_does_not_split_the_fence(self):
+        code_block = "```js\nline1\n\nline2\n```"
+        readme_text = f"## Example\n\nIntro para.\n\n{code_block}\n\nTrailing para.\n"
+
+        chunks = chunk_readme(
+            readme_text,
+            package="foo",
+            version="1.0.0",
+            snapshot_id="snap-1",
+            max_chunk_chars=25,
+        )
+
+        example_chunks = [c for c in chunks if c.section == "Example"]
+        self.assertTrue(
+            any(code_block in c.excerpt for c in example_chunks),
+            f"code_block이 온전히 한 청크 안에 있어야 함: {[c.excerpt for c in example_chunks]!r}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

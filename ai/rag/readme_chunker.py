@@ -19,6 +19,56 @@ _ATX_HEADING_LINE_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*\n?$")
 _FENCE_LINE_RE = re.compile(r"^(```+|~~~+)")
 
 
+def _split_into_paragraphs(text: str) -> list[str]:
+    """빈 줄로 문단을 나누되, 코드펜스(``` / ~~~) 안의 빈 줄은 경계로 보지 않는다.
+
+    펜스 하나 전체(여는 줄~닫는 줄)는 항상 하나의 문단으로 묶여서 나온다.
+    """
+    paragraphs: list[str] = []
+    current_lines: list[str] = []
+    in_fence = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if _FENCE_LINE_RE.match(stripped):
+            in_fence = not in_fence
+            current_lines.append(line)
+            continue
+        if not stripped and not in_fence:
+            if current_lines:
+                paragraphs.append("\n".join(current_lines).strip())
+                current_lines = []
+            continue
+        current_lines.append(line)
+    if current_lines:
+        paragraphs.append("\n".join(current_lines).strip())
+    return [p for p in paragraphs if p]
+
+
+def _split_oversized_body(body: str, max_chars: int) -> list[str]:
+    """본문이 max_chars를 넘으면 문단(빈 줄) 경계로 여러 조각으로 나눈다.
+
+    코드펜스는 통째로 한 문단 취급되어 절대 안에서 안 잘린다(`_split_into_paragraphs`).
+    문단 자체가 max_chars를 넘는 경우(예: 거대한 코드펜스 하나)의 겹침 슬라이딩
+    윈도우는 아직 없음 — 그 경우 문단을 그대로(상한 초과 허용) 반환한다.
+    """
+    if len(body) <= max_chars:
+        return [body]
+
+    parts: list[str] = []
+    current = ""
+    for para in _split_into_paragraphs(body):
+        if not current:
+            current = para
+        elif len(current) + 2 + len(para) <= max_chars:
+            current = f"{current}\n\n{para}"
+        else:
+            parts.append(current)
+            current = para
+    if current:
+        parts.append(current)
+    return parts
+
+
 def _find_headings(text: str) -> list[tuple[int, int, str]]:
     """코드펜스(``` / ~~~) 안의 `#` 줄은 헤딩으로 인식하지 않는다.
 
@@ -159,18 +209,19 @@ def chunk_readme(
         verification_level = (
             "SUPPLEMENTARY" if section.strip().lower() in _NOISE_HEADINGS else "DISTRIBUTED_ARTIFACT"
         )
-        chunks.append(
-            EvidenceChunk(
-                evidence_id=f"{package}@{version}#{len(chunks)}",
-                snapshot_id=snapshot_id,
-                package=package,
-                version=version,
-                section=section,
-                excerpt=body,
-                confirmed_content=body,
-                verification_level=verification_level,
+        for part in _split_oversized_body(body, max_chunk_chars):
+            chunks.append(
+                EvidenceChunk(
+                    evidence_id=f"{package}@{version}#{len(chunks)}",
+                    snapshot_id=snapshot_id,
+                    package=package,
+                    version=version,
+                    section=section,
+                    excerpt=part,
+                    confirmed_content=part,
+                    verification_level=verification_level,
+                )
             )
-        )
 
     headings = _find_headings(readme_text)
 
