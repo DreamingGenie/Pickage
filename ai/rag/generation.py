@@ -9,6 +9,7 @@ B안은 §1.4("근거 없는 기능 생성·추천을 허용하지 않는다")·
 from __future__ import annotations
 
 import json
+import os
 from typing import Callable
 
 from ai.rag.types import (
@@ -143,20 +144,155 @@ def build_user_message(packages: list[PackageRef], evidence: list[EvidenceChunk]
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-def _call_gpt(system_prompt: str, user_message: str) -> str:
-    """실제 GPT-5.1 호출(2026-09-18 결정). 지연 import — 테스트는 llm_call 주입으로 우회."""
-    import openai  # noqa: PLC0415
+class GmsCallError(Exception):
+    """GMS 호출·응답 해석 실패(네트워크 오류·비완료 status·형식 위반 전부 포함)."""
 
-    client = openai.OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-5.1",
-        messages=[
+
+# types.py의 ComparisonResult/FeatureRow/FeatureResult/NarrativeSection과 손으로 맞춘
+# 스키마다(2026-09-18, [[rag-178-model-gpt-5.1]] 메모 참고) — types.py를 고치면 이것도
+# 같이 고칠 것, 자동 파생은 아직 안 함. GMS strict 모드 요구사항(추가 속성 금지,
+# 모든 필드 required)을 GmsCommunitySummarizer.java의 schema()와 같은 방식으로 맞춤.
+_RESPONSE_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "dataStatus": {"type": "string", "enum": ["COMPLETE", "COMPARISON_LIMITED"]},
+        "packages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"package": {"type": "string"}, "version": {"type": "string"}},
+                "required": ["package", "version"],
+                "additionalProperties": False,
+            },
+        },
+        "features": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "featureLabel": {"type": "string"},
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "package": {"type": "string"},
+                                "verdict": {
+                                    "type": "string",
+                                    "enum": [
+                                        "SUPPORTED",
+                                        "CONDITIONALLY_SUPPORTED",
+                                        "LIMITED_SUPPORT",
+                                        "UNCONFIRMED",
+                                        "UNSUPPORTED",
+                                    ],
+                                },
+                                "evidenceIds": {"type": "array", "items": {"type": "string"}},
+                                "groundedIn": {
+                                    "type": "string",
+                                    "enum": ["EVIDENCE", "GENERAL_KNOWLEDGE"],
+                                },
+                                "note": {"type": "string"},
+                            },
+                            "required": ["package", "verdict", "evidenceIds", "groundedIn", "note"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": ["featureLabel", "results"],
+                "additionalProperties": False,
+            },
+        },
+        "narrative": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "heading": {"type": "string"},
+                    "body": {"type": "string"},
+                    "evidenceIds": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["heading", "body", "evidenceIds"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["dataStatus", "packages", "features", "narrative"],
+    "additionalProperties": False,
+}
+
+
+def _build_gms_request_body(system_prompt: str, user_message: str, model: str) -> dict:
+    """GMS Responses API(`/v1/responses`) 요청 바디 — Chat Completions와 모양이 다르다.
+
+    2026-09-16 실측 근거: docs/for_community/GMS_연동_참고.md, 검증된 실제 구현은
+    backend/.../GmsCommunitySummarizer.java. role 분리 입력 배열 + json_schema
+    strict 포맷이 실제로 통과 확인됨.
+    """
+    return {
+        "model": model,
+        "input": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        response_format={"type": "json_object"},
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "comparison_result",
+                "schema": _RESPONSE_JSON_SCHEMA,
+                "strict": True,
+            }
+        },
+    }
+
+
+def _extract_gms_output_text(raw_response: str) -> str:
+    """GMS Responses API 응답 봉투를 풀어 실제 페이로드(JSON 문자열)를 꺼낸다.
+
+    GMS 응답은 이중 구조다 — 바깥 봉투(status/output)를 먼저 벗겨야 그 안에
+    `text.format`으로 강제한 JSON 문자열이 나온다(그 자체가 문자열이라 generate()가
+    한 번 더 json.loads 한다).
+    """
+    envelope = json.loads(raw_response)
+    if envelope.get("status") != "completed":
+        raise GmsCallError(f"GMS 응답 status가 completed가 아님: {envelope.get('status')!r}")
+    for item in envelope.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                return content["text"]
+    raise GmsCallError("GMS 응답에서 output_text를 찾을 수 없음")
+
+
+def _call_gms(system_prompt: str, user_message: str) -> str:
+    """실제 GMS(Responses API 프록시) 호출 (2026-09-18, GPT-5.1 결정 뒤 GMS 실체 확인해
+    Chat Completions에서 재작성함). 지연 import — 테스트는 llm_call 주입으로 우회.
+
+    필요 환경변수(app 노드 .env, api 서비스와 동일한 값 재사용):
+    GMS_API_KEY/GMS_BASE_URL/GMS_REQUEST_PATH/GMS_AUTH_HEADER/GMS_AUTH_SCHEME/GMS_MODEL.
+    """
+    import urllib.error  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    body = _build_gms_request_body(system_prompt, user_message, model=os.environ["GMS_MODEL"])
+    request = urllib.request.Request(
+        os.environ["GMS_BASE_URL"] + os.environ["GMS_REQUEST_PATH"],
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            os.environ["GMS_AUTH_HEADER"]: f"{os.environ['GMS_AUTH_SCHEME']} {os.environ['GMS_API_KEY']}",
+        },
+        method="POST",
     )
-    return response.choices[0].message.content
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw_response = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        # GMS 에러 포맷은 OpenAI 표준({"error":{...}})이 아니라 자체 포맷
+        # ({"statusCode":..., "message":...}) — 본문 그대로 실어서 원인 보존.
+        raise GmsCallError(f"GMS 호출 실패: HTTP {exc.code} {exc.read().decode('utf-8', 'replace')}") from exc
+    return _extract_gms_output_text(raw_response)
 
 
 def _parse_comparison_result(data: dict) -> ComparisonResult:
@@ -205,7 +341,7 @@ def generate(
     Args:
         variant: "A"(근거 전용, 기본) 또는 "B"(근거 우선 + 일반지식 보완, 실험용).
         llm_call: (system_prompt, user_message) -> 원시 JSON 문자열. 테스트에서
-            실제 GPT 호출 없이 주입하기 위한 자리 — 생략하면 실제 GPT-5.1을 호출한다.
+            실제 GMS 호출 없이 주입하기 위한 자리 — 생략하면 실제 GMS(GPT-5.1)를 호출한다.
 
     Returns:
         ComparisonResult. narrative 생성만 실패해도 features(판정표)는 채워서
@@ -214,7 +350,7 @@ def generate(
     """
     system_prompt = _PROMPTS[variant]
     user_message = build_user_message(packages, evidence)
-    call = llm_call or _call_gpt
+    call = llm_call or _call_gms
     raw_response = call(system_prompt, user_message)
     data = json.loads(raw_response)
     return _parse_comparison_result(data)

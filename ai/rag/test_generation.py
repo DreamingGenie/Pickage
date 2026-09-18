@@ -12,7 +12,14 @@ from __future__ import annotations
 import json
 import unittest
 
-from ai.rag.generation import PROMPT_A, build_user_message, generate
+from ai.rag.generation import (
+    PROMPT_A,
+    GmsCallError,
+    _build_gms_request_body,
+    _extract_gms_output_text,
+    build_user_message,
+    generate,
+)
 from ai.rag.types import EvidenceChunk, PackageRef
 
 
@@ -90,6 +97,54 @@ class GenerateHappyPathTests(unittest.TestCase):
         self.assertEqual(row.results[0].evidence_ids, ["foo@1.0.0#0"])
         self.assertEqual(row.results[1].verdict, "UNCONFIRMED")
         self.assertEqual(result.narrative, [])
+
+
+class BuildGmsRequestBodyTests(unittest.TestCase):
+    def test_uses_role_separated_input_and_json_schema_strict_format(self):
+        body = _build_gms_request_body("SYSTEM TEXT", "USER TEXT", model="gpt-5.1")
+
+        self.assertEqual(body["model"], "gpt-5.1")
+        self.assertEqual(
+            body["input"],
+            [
+                {"role": "system", "content": "SYSTEM TEXT"},
+                {"role": "user", "content": "USER TEXT"},
+            ],
+        )
+        self.assertEqual(body["text"]["format"]["type"], "json_schema")
+        self.assertTrue(body["text"]["format"]["strict"])
+        self.assertIn("schema", body["text"]["format"])
+
+
+class ExtractGmsOutputTextTests(unittest.TestCase):
+    def test_extracts_text_from_completed_envelope(self):
+        envelope = json.dumps(
+            {
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": '{"dataStatus":"COMPLETE"}'}],
+                    }
+                ],
+            }
+        )
+
+        text = _extract_gms_output_text(envelope)
+
+        self.assertEqual(text, '{"dataStatus":"COMPLETE"}')
+
+    def test_raises_when_status_is_not_completed(self):
+        envelope = json.dumps({"status": "incomplete", "output": []})
+
+        with self.assertRaises(GmsCallError):
+            _extract_gms_output_text(envelope)
+
+    def test_raises_when_no_output_text_found(self):
+        envelope = json.dumps({"status": "completed", "output": []})
+
+        with self.assertRaises(GmsCallError):
+            _extract_gms_output_text(envelope)
 
 
 if __name__ == "__main__":
