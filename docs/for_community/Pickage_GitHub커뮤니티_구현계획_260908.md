@@ -360,6 +360,8 @@ data_limits.lookback_days는 실제 마지막 검색 기간이며 검색 전 중
 
 topics는 §3.2 선택 순서, messages는 원본 created_at·수치 source ID 오름차순이다.
 flow는 모델이 검증 가능한 사건 순으로 작성하되 동일 시각 인과관계를 임의로 만들지 않는다.
+
+> **2026-09-20 (S15P21A506-406)** 화면은 `flow` 를 표시하지 않는다 — 쟁점 요약(`summary_ko`)과 같은 사건을 되풀이하는 정보라 뺐다. API 응답·저장 payload·검증(`flow` 1~4개, `flow_support`)은 그대로다. 생성을 멈추려면 GMS 프롬프트·JSON 스키마·요약/스냅샷 검증기·payload 를 함께 바꿔야 해 별도 작업으로 뒀다.
 summary는 topics의 사실 수치 합계다. 요약 실패나 댓글 절단으로 사실 comments_count를 100으로 자르지 않는다.
 
 limitation code는 아래 목록에서만 사용하고 설명은 서버 템플릿으로 만든다.

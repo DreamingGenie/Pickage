@@ -116,3 +116,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   그래프에 넘긴다), 왼쪽이 길면 `PackageCard` 가 늘어나며 안쪽이 세로 중앙이다. 왼쪽 열 `sticky` 는 폐지. 상시 노출 설명 문구는
   공용 `InfoDialog`(ⓘ 모달)로 옮겼다. 화면 용어는 `Dependents` 가 아니라 **의존 수**(`terms.tsx` 한 곳에서 바꾼다). PDF 제목도 같다(백엔드 `ReportHtmlRenderer`). "사용처"·
   "N개 프로젝트가 사용" 처럼 실제 사용량으로 읽히는 말은 쓰지 않는다.
+- `DEC-COMMUNITY-DEDUPE-20260920-01`(`S15P21A506-406`): 커뮤니티 탭은 같은 사실을 두 번 말하지 않는다. Issue 카드의 `논의 흐름`
+  번호 목록(`flow`)은 쟁점 요약과 중복이라 그리지 않고(API 는 계속 내려준다), 수집 상태 배지와 같은 뜻의 한계 문구
+  (`COMMENTS_TRUNCATED`·`COMMENTS_UNAVAILABLE`)도 숨긴다. 남는 한계·수집 기준은 ⓘ 모달로 둔다 — 저장소 이름 옆 `수집 기준과 한계`,
+  Issue 요약 옆 `요약 안내`. 모달로 옮겨도 한계 내용은 남겨 불완전 수집을 완전한 논의로 오해하게 하지 않는다.
