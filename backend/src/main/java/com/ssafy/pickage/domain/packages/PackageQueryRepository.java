@@ -555,13 +555,19 @@ public class PackageQueryRepository {
 	 *
 	 * <p>{@code idx_package_name_prefix}({@code text_pattern_ops})가 없으면 이 조회는
 	 * 순차 스캔이 된다 — 기본 collation 에서 {@code LIKE 'q%'} 는 일반 B-tree 를 타지 않는다.
+	 *
+	 * <p><b>{@code package_snapshot} 을 {@code JOIN}(inner)으로 건다.</b> {@code package} 는
+	 * deps.dev 전체 카탈로그(약 1,100만 행)라 스냅샷 없는 이름이 훨씬 많다. 스냅샷이 없으면
+	 * Dependency·Downloads·Version Share 를 낼 데이터 자체가 없으므로, 검색·직접 추가 결과에
+	 * 내보내면 사용자가 고른 뒤에야 빈 리포트로 확인하게 된다(S15P21A506-402). {@code LEFT
+	 * JOIN} 이던 시절엔 이런 이름도 그대로 나갔다.
 	 */
 	private static final String SEARCH_SQL = """
 		SELECT p.name
 		FROM package p
-		LEFT JOIN package_snapshot ps
-		       ON ps.package_id = p.package_id
-		      AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
+		JOIN package_snapshot ps
+		     ON ps.package_id = p.package_id
+		    AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
 		WHERE p.name LIKE ? ESCAPE '\\'
 		ORDER BY ps.downloads DESC NULLS LAST, p.name
 		LIMIT ?
