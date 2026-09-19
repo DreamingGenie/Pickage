@@ -98,3 +98,8 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   화면-01(§5.2)과 같은 `PackageSearch` 컴포넌트를 재사용해 접두사 자동완성을 붙였다 — IA
   §4.2도 이 결정에 맞춰 갱신했다. 서버 검증(`/packages/similar`)은 여전히 다음 화면(analyze-page
   1단계)에서 하고, 히어로에서는 형식만 확인한 뒤 prefill로 넘긴다.
+- `DEC-WEEKLY-GRID-20260920-01`(`S15P21A506-403`): 기준일 달력(deps.dev 실제 스냅샷 날짜)이 2026-02 이후 월요일 주간이 아니라서
+  그래프가 끊기고 Downloads 가 급락했다. **서버가 월요일 격자로 환산해 내려준다** — Downloads 는 구간 합계를 일평균으로
+  펼친 주간 합계, Dependents 는 관측 범위 안의 빈 주를 선형 보간. 화면은 이 응답을 그대로 그린다(선 끊김 규칙 `MAX_GAP_DAYS` 는
+  Downloads 의 관측 구멍용으로 유지). Dependents 카드는 변화율(지수)로 열고 실제값으로 전환한다(`MetricChart` `defaultScale`).
+  세부 규칙은 `../docs/설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
