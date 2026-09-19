@@ -64,13 +64,11 @@ def get_or_build_evidence(
 
 def compare_packages(
     packages: list[PackageRef],
-    variant: str = "A",
     max_chars_per_package: int = 12000,
 ) -> ComparisonResult:
     """175~180 전체 흐름을 순서대로 실행한다.
 
     Args:
-        variant: 178에 쓸 프롬프트. "A"(근거 전용, 기본) 또는 "B"(실험용).
         max_chars_per_package: 177(retrieve)에 그대로 전달하는 패키지당 근거
             글자수 예산 (2026-09-18 결정, [[retrieve]] docstring 참고).
 
@@ -82,7 +80,7 @@ def compare_packages(
         evidence_pool.extend(get_or_build_evidence(pkg.name, pkg.version))
 
     retrieved = retrieve(packages, evidence_pool, max_chars_per_package=max_chars_per_package)
-    result = generate(packages, retrieved, variant=variant)
+    result = generate(packages, retrieved)
 
     violations = verify_evidence_ids(result, retrieved) + verify_verdicts(result)
     if violations:

@@ -13,7 +13,7 @@ import json
 import unittest
 
 from ai.rag.generation import (
-    PROMPT_A,
+    PROMPT,
     GmsCallError,
     _build_gms_request_body,
     _extract_gms_output_text,
@@ -36,7 +36,7 @@ def _make_evidence(evidence_id: str, package: str, version: str) -> EvidenceChun
 
 
 class GenerateHappyPathTests(unittest.TestCase):
-    def test_calls_llm_with_prompt_a_and_parses_response(self):
+    def test_calls_llm_with_prompt_and_parses_response(self):
         packages = [PackageRef(name="foo", version="1.0.0"), PackageRef(name="bar", version="2.0.0")]
         evidence = [
             _make_evidence("foo@1.0.0#0", "foo", "1.0.0"),
@@ -80,11 +80,11 @@ class GenerateHappyPathTests(unittest.TestCase):
             recorded_calls.append((system_prompt, user_message))
             return json.dumps(fake_response)
 
-        result = generate(packages, evidence, variant="A", llm_call=fake_llm_call)
+        result = generate(packages, evidence, llm_call=fake_llm_call)
 
         self.assertEqual(len(recorded_calls), 1)
         called_system_prompt, called_user_message = recorded_calls[0]
-        self.assertEqual(called_system_prompt, PROMPT_A)
+        self.assertEqual(called_system_prompt, PROMPT)
         self.assertEqual(called_user_message, build_user_message(packages, evidence))
 
         self.assertEqual(result.data_status, "COMPLETE")
