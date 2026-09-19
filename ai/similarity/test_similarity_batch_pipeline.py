@@ -584,9 +584,96 @@ class LoadPackageText(QuietMixin, unittest.TestCase):
 
         self.assertEqual(got, [f"p{i:03d}" for i in range(n) if i % 2 == 0])
 
+    def _write_ranked(self, path, ranks, deps=None):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        names = [f"p{i}" for i in range(len(ranks))]
+        pq.write_table(
+            pa.table({
+                "name": names,
+                "rank": pa.array(ranks, type=pa.int64()),
+                "description": ["d" for _ in names],
+                "keywords": [["kw"] for _ in names],
+                "dependent_packages_count": deps if deps is not None else [10] * len(names),
+                "latest_release_published_at": ["2026-09-01" for _ in names],
+                "status": [None for _ in names],
+                "is_spam": [False for _ in names],
+            }),
+            path,
+        )
+
+    def test_max_rank_cuts_at_boundary_inclusive(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 2, 3, 4, 5])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=3)]
+        self.assertEqual(got, ["p0", "p1", "p2"])   # rank 3 은 포함, 4 부터 제외
+
+    def test_max_rank_none_keeps_all(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 2, 3, 4, 5])
+            got = [r["name"] for r in sbp.load_package_text(path, 5)]
+        self.assertEqual(len(got), 5)
+
+    def test_max_rank_counts_rows_not_rank_value_when_ranks_have_gaps(self):
+        """removed·unpublished 가 빠진 자리는 rank 결번이라, 컷은 N 행이 아니라 rank<=N 이다."""
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 2, 4, 5, 7])   # 3, 6 결번
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=5)]
+        self.assertEqual(got, ["p0", "p1", "p2", "p3"])   # 4행 — 5행이 아니다
+
+    def test_max_rank_drops_null_rank(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, None, 3])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=10)]
+        self.assertEqual(got, ["p0", "p2"])
+
+    def test_max_rank_intersects_with_dependents_floor(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            # rank 2 는 dependents 미달, rank 4 는 rank 초과 — 둘 다 빠지고 rank 1·3 만 남는다
+            self._write_ranked(path, [1, 2, 3, 4], deps=[10, 4, 10, 10])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=3)]
+        self.assertEqual(got, ["p0", "p2"])
+
+    def test_max_rank_preserves_order_across_row_groups(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        n = 40
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": [f"p{i:03d}" for i in range(n)],
+                    "rank": pa.array(list(range(1, n + 1)), type=pa.int64()),
+                    "description": ["d"] * n,
+                    "keywords": [["kw"]] * n,
+                    "dependent_packages_count": [10] * n,
+                    "latest_release_published_at": ["2026-09-01"] * n,
+                    "status": [None] * n,
+                    "is_spam": [False] * n,
+                }),
+                path,
+                row_group_size=6,
+            )
+            self.assertGreater(pq.read_metadata(path).num_row_groups, 1)
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=25)]
+        self.assertEqual(got, [f"p{i:03d}" for i in range(25)])
+
 
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
+
+    def test_max_rank_defaults_to_none(self):
+        self.assertIsNone(sbp.parse_args(self.BASE).max_rank)
+
+    def test_max_rank_parsed(self):
+        self.assertEqual(sbp.parse_args(self.BASE + ["--max-rank", "100000"]).max_rank, 100000)
 
     def test_retrieve_k_defaults_to_30(self):
         self.assertEqual(sbp.parse_args(self.BASE).retrieve_k, 30)

@@ -8,7 +8,8 @@
 2단계 랭커(넓게 검색 → 관문 → 정렬): 제안_유사후보_v1랭커_2단계분리_260910.md (2026-09-10 팀 승인)
 
 현재 구현 상태 (S15P21A506-168):
-  1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
+  1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01).
+                      --max-rank N 으로 다운로드 상위 N 컷 선택 가능 (S15P21A506-172)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
   4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
@@ -46,12 +47,21 @@ def log(msg: str) -> None:
 
 # ── 입력 ────────────────────────────────────────────────────────────────
 
-def load_package_text(path: str, min_dependents: int) -> list[dict]:
+def load_package_text(path: str, min_dependents: int, max_rank: int | None = None) -> list[dict]:
     """package_text parquet 를 행 dict 목록으로 읽는다.
 
     기대 컬럼: name, description, keywords, dependent_packages_count,
     latest_release_published_at, status (일부는 없을 수 있음).
     단 `dependent_packages_count` 는 아래 예선 필터가 쓰므로 없으면 안 된다.
+    `max_rank` 를 주면 `rank` 도 있어야 한다.
+
+    **`max_rank` — 다운로드 상위 N 컷** (S15P21A506-172). `rank` 는 수집기가
+    ecosyste.ms 목록을 `sort=downloads&order=desc` 로 받은 순서의 위치라, `rank <= N`
+    은 수집 시점 다운로드 상위 N 위 안이다. 다만 `build_package_text.py` 가
+    removed·unpublished 를 뺀 뒤에도 `rank` 를 다시 매기지 않으므로 결번이 있다 —
+    N=100000 이라도 행수는 그보다 조금 적다. 이 조건도 dependents 하한과 같이 읽기
+    단계에서 건다(같은 메모리 사유). `rank` 가 null 인 행은 통과하지 못한다.
+    None 이면 컷을 걸지 않는다(기존 동작).
 
     **dependents 하한만 읽기 단계에서 거른다** (S15P21A506-382). 전수를 파이썬
     dict 로 펼치면 92만 행에서 최고점이 2,230 MB 가 되어 컨테이너 상한(2 GiB)을
@@ -76,11 +86,14 @@ def load_package_text(path: str, min_dependents: int) -> list[dict]:
     # 여기를 통과한 것만 세기 때문에 `dependents<N 0` 으로 찍혀, 읽는 사람이 그 규칙이
     # 동작하지 않는다고 오해한다.
     total = pq.read_metadata(path).num_rows
-    table = pq.read_table(
-        path, filters=[("dependent_packages_count", ">=", min_dependents)]
-    )
+    filters = [("dependent_packages_count", ">=", min_dependents)]
+    cond = f"dependents>={min_dependents}"
+    if max_rank is not None:
+        filters.append(("rank", "<=", max_rank))
+        cond += f", rank<={max_rank}"
+    table = pq.read_table(path, filters=filters)
     rows = table.to_pylist()
-    log(f"package_text: {total} 행 중 dependents>={min_dependents} 인 {len(rows)} 행만 읽음  ({path})")
+    log(f"package_text: {total} 행 중 {cond} 인 {len(rows)} 행만 읽음  ({path})")
     return rows
 
 
@@ -478,6 +491,9 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
     p.add_argument("--min-dependents", type=int, default=5)
+    p.add_argument("--max-rank", type=int, default=None,
+                   help="package_text 의 rank(다운로드 내림차순 위치)가 이 값 이하인 행만 코퍼스로 쓴다 "
+                        "(예: 100000). 생략 시 컷 없음. dependents 하한과 교집합이다")
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--retrieve-k", type=int, default=30,
                    help="검색 단계 후보 수 (DEC-RANK: 최종보다 넉넉히 뽑아 관문으로 좁힌다)")
@@ -495,7 +511,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
     t0 = time.time()
 
-    rows = load_package_text(args.package_text, args.min_dependents)
+    rows = load_package_text(args.package_text, args.min_dependents, args.max_rank)
     rows = qualify(rows, args.min_dependents, args.max_age_months)
     if not rows:
         log("자격 통과 패키지 0개 — 중단")
@@ -528,6 +544,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         "input_rows_qualified": len(rows),
         "params": {
             "min_dependents": args.min_dependents,
+            "max_rank": args.max_rank,
             "max_age_months": args.max_age_months,
             "retrieve_k": args.retrieve_k,
             "user_k": args.user_k,

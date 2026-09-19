@@ -115,10 +115,17 @@ echo "[5/6] 배치"
 # TODO(별도 티켓): --state 로 증분 재임베딩을 쓸지. 이전 회차 산출물의
 #   text_hash_state.parquet 을 스테이징에 같이 받아 오면 된다.
 # TODO(별도 티켓): --batch-size·--query-block 을 이 노드 실측으로 고정.
+#
+# --max-rank 100000: 다운로드 상위 10만 위 안의 패키지만 코퍼스로 쓴다 (S15P21A506-172).
+#   package_text 의 rank 는 수집 시점 다운로드 내림차순 위치다. 이 인자가 없으면 컷이
+#   꺼져 92만 행 전체가 후보가 된다 (옵션 기본값이 컷 없음이다).
+#   결번이 있어 행수는 10만보다 적고, dependents·릴리스 경과·deprecated 조건과는
+#   교집합이다 — 2026-09-08 parquet 실측으로 자격 통과가 29,098 → 17,833 이 된다.
 docker compose run --rm ai-similarity \
   --package-text /work/in/package_text.parquet \
   --model-dir    /work/in/model \
-  --out          "/work/out/$OUT_RUN"
+  --out          "/work/out/$OUT_RUN" \
+  --max-rank     100000
 
 echo "      회수"
 docker compose run --rm -e AI_RESULT_PATH="$AI_DST_RESULT" ai-collect
