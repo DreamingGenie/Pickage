@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { CommunityLimitation, CommunityResult } from '@/api/types'
+import type { CommunityLimitation, CommunityMessage, CommunityResult } from '@/api/types'
 import { CommunityResultView } from '@/routes/report/community/result'
 import { SAMPLE_COMMUNITY_RESULT } from '@/routes/report/community/sample'
 
@@ -165,5 +165,142 @@ describe('설명 문구의 모달 이전', () => {
 
     expect(screen.getByText('공개 저장소 연결을 확인하지 못했습니다.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '수집 기준 안내' })).toBeInTheDocument()
+  })
+})
+
+/**
+ * 와이어프레임 형태(S15P21A506-407): 요약 수치 · 핵심 논의 · 실제 논의 흐름, 그리고 운영 측 발화는 오른쪽.
+ */
+describe('와이어프레임 구성', () => {
+  const message = (
+    author_login: string,
+    role: CommunityMessage['role'],
+    kind: CommunityMessage['kind'],
+  ): CommunityMessage => ({
+    author_login,
+    role,
+    kind,
+    created_at: '2026-04-03T20:13:21Z', // 한국 시간으로는 다음 날 05:13
+    text: `${author_login} 의 발화다.`,
+  })
+
+  function resultWithMessages(): CommunityResult {
+    const topic = SAMPLE_COMMUNITY_RESULT.topics[0]
+    return {
+      ...SAMPLE_COMMUNITY_RESULT,
+      topics: [
+        {
+          ...topic,
+          messages: [
+            message('asker', 'ISSUE_AUTHOR', 'DISCUSSION'),
+            message('maint', 'COLLABORATOR', 'USER_SOLUTION'),
+            message('member', 'ORGANIZATION_MEMBER', 'DISCUSSION'),
+            message('owner', 'REPOSITORY_OWNER', 'DISCUSSION'),
+            message('helper', 'CONTRIBUTOR', 'DISCUSSION'),
+            message('anon', null, 'DISCUSSION'),
+          ],
+        },
+      ],
+    }
+  }
+
+  const side = (login: string) => screen.getByText(login).closest('li')?.getAttribute('data-side')
+
+  it('패키지를 운영하는 쪽(협업자·조직 구성원·저장소 소유자)의 발화는 오른쪽, 나머지는 왼쪽이다', () => {
+    render(<CommunityResultView result={resultWithMessages()} freshness="FRESH" />)
+
+    expect(side('maint')).toBe('right')
+    expect(side('member')).toBe('right')
+    expect(side('owner')).toBe('right')
+    expect(side('asker')).toBe('left')
+    expect(side('helper')).toBe('left')
+    expect(side('anon')).toBe('left')
+  })
+
+  it('오른쪽 발화도 운영 측임을 역할 글자로 말한다 — 위치만으로 전달하지 않는다', () => {
+    render(<CommunityResultView result={resultWithMessages()} freshness="FRESH" />)
+
+    expect(screen.getByText('협업자')).toBeInTheDocument()
+    expect(screen.getByText('조직 구성원')).toBeInTheDocument()
+    expect(screen.getByText('저장소 소유자')).toBeInTheDocument()
+  })
+
+  it('"해결 방법 제시"만 표시하고, 평범한 논의에는 라벨을 달지 않는다', () => {
+    render(<CommunityResultView result={resultWithMessages()} freshness="FRESH" />)
+
+    expect(screen.getAllByText('해결 방법 제시')).toHaveLength(1)
+    expect(screen.queryByText('논의')).toBeNull()
+  })
+
+  it('발화 날짜는 한국 시간 기준이다', () => {
+    render(<CommunityResultView result={resultWithMessages()} freshness="FRESH" />)
+
+    expect(screen.getAllByText('2026-04-04').length).toBeGreaterThan(0)
+    expect(screen.queryByText('2026-04-03')).toBeNull()
+  })
+
+  it('요약 수치 4칸을 응답 값으로 채운다', () => {
+    render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
+    const s = SAMPLE_COMMUNITY_RESULT.summary
+    // 수치는 라벨과 같은 칸에 있다. (같은 "1건" 이 두 칸에 나올 수 있어 칸 단위로 본다)
+    const cell = (label: string) => screen.getByText(label).parentElement
+
+    expect(cell('분석 Issue')).toHaveTextContent(`${s.issue_count}건`)
+    expect(cell('누적 댓글')).toHaveTextContent(`${s.comment_count}개`)
+    expect(cell('사용자 반응')).toHaveTextContent(`${s.reaction_count}개`)
+    expect(cell('사용자 반응')).toHaveTextContent('GitHub 반응 합계')
+    expect(cell('열린 Issue')).toHaveTextContent(`${s.open_issue_count}건`)
+  })
+
+  it('열린 Issue 가 없으면 "지금 이어지는" 같은 말을 하지 않고 종료라고 적는다', () => {
+    const topic = { ...SAMPLE_COMMUNITY_RESULT.topics[0], state: 'CLOSED' as const }
+    const { container } = render(
+      <CommunityResultView
+        result={{
+          ...SAMPLE_COMMUNITY_RESULT,
+          summary: { ...SAMPLE_COMMUNITY_RESULT.summary, open_issue_count: 0 },
+          topics: [topic],
+        }}
+        freshness="FRESH"
+      />,
+    )
+
+    expect(screen.getByText('분석한 Issue 모두 종료')).toBeInTheDocument()
+    expect(container.textContent).toContain('· 종료 ·')
+    expect(container.textContent).not.toContain('지금 이어지는')
+  })
+
+  it('두 섹션 제목이 있고, "댓글 N개 중 대표 발화 N개" 같은 부가 문구는 없다', () => {
+    const { container } = render(
+      <CommunityResultView result={resultWithMessages()} freshness="FRESH" />,
+    )
+
+    expect(screen.getByRole('heading', { name: '핵심 논의' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '실제 논의 흐름' })).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/대표 발화 \d+개/)
+  })
+
+  it('저장소는 링크가 아니라 글자로만 보인다', () => {
+    const { container } = render(
+      <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
+    )
+
+    expect(
+      screen.getByText(`github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}`),
+    ).toBeInTheDocument()
+    expect(container.querySelector('a')).toBeNull()
+  })
+
+  it('기준 패키지 이름으로 제목을 만든다', () => {
+    render(
+      <CommunityResultView
+        result={SAMPLE_COMMUNITY_RESULT}
+        freshness="FRESH"
+        packageName="axios"
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'axios 커뮤니티 현황' })).toBeInTheDocument()
+    expect(screen.getByText('AXIOS · GITHUB COMMUNITY')).toBeInTheDocument()
   })
 })
