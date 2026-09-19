@@ -1,19 +1,13 @@
-import { InfoIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { TransitionBars } from '@/components/charts/transition-bars'
 import { seriesStyle } from '@/components/charts/tokens'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { SegmentedControl } from '@/components/common/segmented-control'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { MetricState } from '@/routes/report/ecosystem/model'
+import { DEPENDENTS_TERM } from '@/routes/report/ecosystem/terms'
 import {
   populationLabel,
   TRANSITION_KIND_INFO,
@@ -96,15 +90,24 @@ export function TransitionsPanel({
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-lg font-semibold">유지 · 유입 · 이탈</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-lg font-semibold">유지 · 유입 · 이탈</h3>
+          {/*
+            제목 밑에 상시 노출하던 두 문장을 여기로 옮겼다(S15P21A506-405). 하나는 이 수치가 위
+            그래프의 증감과 왜 다른지, 하나는 무엇을 세지 않는지 — 둘 다 이 패널의 **계산 기준**이라
+            한 모달에 둔다.
+          */}
+          <InfoDialog label="유지·유입·이탈 계산 기준 안내" title="계산 기준">
+            <p>
+              {DEPENDENTS_TERM} 그래프의 증감과는 다른 기준입니다. 그쪽은 버전별 합계이고, 이 수치는{' '}
+              {model.population ? populationLabel(model.population) : '집계 대상'} 중 프로젝트를
+              이름으로 센 결과라 계산 방식 자체가 다릅니다.
+            </p>
+            <p>devDependencies는 포함하지 않습니다.</p>
+          </InfoDialog>
+        </div>
         <span className="font-mono text-base text-muted-foreground">{dateLabel}</span>
       </div>
-
-      <p className="text-base leading-relaxed text-muted-foreground">
-        Dependents 그래프의 증감과는 다른 기준입니다 — 그쪽은 버전별 합계이고, 이 수치는{' '}
-        {model.population ? populationLabel(model.population) : '집계 대상'} 중 프로젝트를 이름으로
-        센 결과라 계산 방식 자체가 다릅니다.
-      </p>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
@@ -120,32 +123,18 @@ export function TransitionsPanel({
             onChange={(k) => setKind(k as TransitionKind)}
             options={TRANSITION_KINDS.map((k) => ({ key: k.key, label: k.label }))}
           />
-          <Dialog>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                aria-label="의존 종류 안내"
-                className="rounded-full p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground"
-              >
-                <InfoIcon aria-hidden className="size-3.5" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-sm">
-              <DialogHeader>
-                <DialogTitle>의존 종류</DialogTitle>
-              </DialogHeader>
-              <dl className="flex flex-col gap-3">
-                {TRANSITION_KIND_INFO.map((info) => (
-                  <div key={info.key}>
-                    <dt className="text-base font-medium">{info.label}</dt>
-                    <dd className="text-base leading-relaxed text-muted-foreground">
-                      {info.description}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </DialogContent>
-          </Dialog>
+          <InfoDialog label="의존 종류 안내" title="의존 종류">
+            <dl className="flex flex-col gap-3">
+              {TRANSITION_KIND_INFO.map((info) => (
+                <div key={info.key}>
+                  <dt className="text-base font-medium">{info.label}</dt>
+                  <dd className="text-base leading-relaxed text-muted-foreground">
+                    {info.description}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </InfoDialog>
         </div>
       </div>
 
@@ -204,8 +193,6 @@ export function TransitionsPanel({
           </div>
         </>
       )}
-
-      <p className="text-base text-muted-foreground/80">devDependencies는 포함하지 않습니다.</p>
     </div>
   )
 }

@@ -87,6 +87,16 @@ class ReportHtmlRendererTest {
 	 * {@code &} 하나에 XML 파싱이 깨져 PDF 변환이 실패한다.
 	 */
 	@Test
+	@DisplayName("의존 수 제목은 화면과 같은 한국어 용어다 (영어 Dependents 를 쓰지 않는다)")
+	void usesTheScreensKoreanTermForDependents() {
+		String html = new ReportHtmlRenderer().render(
+			sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of())));
+
+		assertTrue(html.contains("의존 수"));
+		assertFalse(html.contains("Dependents"), "PDF 제목이 화면과 다른 영어 용어로 돌아갔다");
+	}
+
+	@Test
 	@DisplayName("남의 문자열이 태그로 해석되지 않는다")
 	void escapesForeignText() {
 		String nasty = "<script>alert(1)</script> & \"quoted\" 'single'";

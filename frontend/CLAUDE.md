@@ -110,3 +110,9 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   예시로 둘러보기는 `express`·`yaml`·`axios`. 소개 화면 문구는 `Clauses` 로 **절 단위**로 끊어 줄이 마침표·쉼표 뒤에서만 바뀐다.
   2단계 예시의 후보 칩은 카드 폭(container query)에 따라 3등분/2등분해 오른쪽이 비지 않게 한다. 3단계 예시에는 보고서 1페이지의
   Dependents 증감을 넣었다 — 값은 아래 예시 보고서와 같은 계산(`deltaOf`)이다.
+- `DEC-REPORT1-LAYOUT-20260920-01`(`S15P21A506-405`): 보고서 1페이지의 조회 기간은 프리셋(`전체 기간·반년·1년·2년·3년`, 기본 전체 기간)
+  + 세부 기간이다. 프리셋은 `resolvePreset` 이 **실제 집계 날짜**로 풀어 세부 기간에 채우고, 날짜를 직접 고르면 풀린다. 좌우 열 높이는
+  언제나 같다 — 오른쪽이 길면 그래프 카드 둘이 높이를 똑같이 나눠 갖고(`MetricChart` `fill` + `ChartArea`가 늘어난 높이를 재서
+  그래프에 넘긴다), 왼쪽이 길면 `PackageCard` 가 늘어나며 안쪽이 세로 중앙이다. 왼쪽 열 `sticky` 는 폐지. 상시 노출 설명 문구는
+  공용 `InfoDialog`(ⓘ 모달)로 옮겼다. 화면 용어는 `Dependents` 가 아니라 **의존 수**(`terms.tsx` 한 곳에서 바꾼다). PDF 제목도 같다(백엔드 `ReportHtmlRenderer`). "사용처"·
+  "N개 프로젝트가 사용" 처럼 실제 사용량으로 읽히는 말은 쓰지 않는다.

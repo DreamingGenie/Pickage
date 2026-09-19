@@ -11,12 +11,15 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
+  DEFAULT_PERIOD_PRESET,
   stepOf,
   type EcosystemModel,
   type MajorSelection,
   type MetricKey,
   type MetricState,
+  type PeriodPresetKey,
 } from '@/routes/report/ecosystem/model'
+import { DEPENDENTS_TERM, DependentsConcept } from '@/routes/report/ecosystem/terms'
 import { TransitionsPanel } from '@/routes/report/ecosystem/transitions-panel'
 import {
   DEFAULT_TRANSITION_PERIOD,
@@ -103,20 +106,27 @@ export function EcosystemView({
    * 상태가 두 곳에 갈라지지 않는다.
    */
   const bounds = { start: snapshots[0] ?? '', end: snapshots[snapshots.length - 1] ?? '' }
-  const [local, setLocal] = useState<{ key: string; window: EcosystemControls['window'] }>(() => ({
+  const [local, setLocal] = useState<{
+    key: string
+    window: EcosystemControls['window']
+    presetKey: PeriodPresetKey | null
+  }>(() => ({
     key: `${bounds.start}~${bounds.end}`,
     window: bounds,
+    // 처음에는 받아 둔 전 구간을 그대로 보여 주므로 "전체 기간" 이 눌려 있다(S15P21A506-405).
+    presetKey: DEFAULT_PERIOD_PRESET,
   }))
   const [intervalKey, setIntervalKey] = useState('1w')
 
   const boundsKey = `${bounds.start}~${bounds.end}`
   const window = local.key === boundsKey ? local.window : bounds
+  const presetKey = local.key === boundsKey ? local.presetKey : DEFAULT_PERIOD_PRESET
 
-  const controls: EcosystemControls = { window, intervalKey }
+  const controls: EcosystemControls = { window, presetKey, intervalKey }
 
   function onControlsChange(next: EcosystemControls) {
     setIntervalKey(next.intervalKey)
-    setLocal({ key: boundsKey, window: next.window })
+    setLocal({ key: boundsKey, window: next.window, presetKey: next.presetKey })
   }
 
   /**
@@ -310,22 +320,31 @@ export function EcosystemView({
         자리가 한 화면에 같이 안 들어온다.** 카드에서 4.x 를 눌러 놓고 위로 스크롤해서
         확인하고 다시 내려와야 한다. 좌우로 나누면 누르는 즉시 옆에서 선이 바뀌는 것이 보인다.
 
-        차트 쪽을 `sticky` 로 붙여 둔다 — 카드가 길어져도 그래프가 화면에 남는다.
+        **두 열의 높이는 언제나 같다**(S15P21A506-405). 짧은 쪽이 늘어나 긴 쪽에 맞춘다 — 아래에
+        이유 없는 빈 공간이 생기지 않는다.
+        · 왼쪽이 길면 오른쪽 카드가 늘어나고 안의 요소는 세로 중앙에 놓인다(`PackageCard`).
+        · 오른쪽이 길면 왼쪽 열이 늘어나고, 그래프 카드 둘이 그 높이를 **똑같이 나눠** 갖는다
+          (`flex-1`). 그래프는 늘어난 만큼 함께 커진다(`MetricChart` 의 `fill`).
+        예전에는 왼쪽 열을 `sticky` 로 붙여 카드가 길어져도 그래프가 화면에 남게 했는데, 그 구조는
+        열 높이를 맞추는 것과 양립하지 않아 뺐다.
 
         좁은 화면에서는 한 줄로 무너진다. 그때는 차트가 먼저 오고 카드가 아래로 간다.
       */}
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
           <MetricChart
-            title="Dependents"
+            title={DEPENDENTS_TERM}
+            info={<DependentsConcept />}
+            infoTitle={`${DEPENDENTS_TERM}란?`}
             unit="의존 수 · 버전별 합계"
             series={windowedDependents}
             step={step}
             window={window}
             observedFrom={model.observedFrom.dependents}
-            coverageNote="이 지표의 관측 시작"
             emphasisKeys={emphasisKeys}
             height={height}
+            fill
+            className="lg:flex-1"
             state={metricState.dependents}
             defaultScale="index"
           />
@@ -336,9 +355,10 @@ export function EcosystemView({
             step={step}
             window={window}
             observedFrom={model.observedFrom.downloads}
-            coverageNote="이 지표의 관측 시작"
             emphasisKeys={emphasisKeys}
             height={height}
+            fill
+            className="lg:flex-1"
             state={metricState.downloads}
             /*
               Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비

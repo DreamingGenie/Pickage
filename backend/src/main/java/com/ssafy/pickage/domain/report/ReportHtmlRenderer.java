@@ -52,7 +52,9 @@ public class ReportHtmlRenderer {
 		cover(b, s);
 		overview(b, s.overview());
 		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads());
-		trend(b, "Dependents", "의존 수 · 버전별 합계", s.dependents());
+		// 제목은 화면과 같은 말이다 — 영어 "Dependents" 는 처음 보는 사람에게 무엇을 세는 값인지 전해지지
+		// 않는다(S15P21A506-405). 단위 줄은 제목과 겹치지 않게 뜻을 풀어 쓰고, 버전별 합계라는 한계를 남긴다.
+		trend(b, "의존 수", "다른 패키지가 의존 목록에 적어 둔 횟수 · 버전별 합계", s.dependents());
 		versionShare(b, s.versionShare());
 		transitions(b, s.transitions());
 

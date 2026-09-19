@@ -9,6 +9,7 @@ import { parsePackageInput } from '@/lib/package'
 import { PackageSearch } from '@/routes/analyze/package-search'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
+import { DEPENDENTS_DELTA_TERM } from '@/routes/report/ecosystem/terms'
 import {
   EXAMPLE_COMPARISON_PACKAGES,
   EXAMPLE_FEATURE_ROWS,
@@ -28,7 +29,7 @@ const STEP_COUNT = 3
 /** 2단계 예시의 비교 후보. 기준 패키지(winston)는 따로 그린다. */
 const DEMO_CANDIDATES = ['pino', 'bunyan', 'log4js'] as const
 /**
- * 3단계 예시에 넣는 Dependents 증감. 아래 "분석 결과 예시" 카드가 보여 주는 값과 같은 계산이다
+ * 3단계 예시에 넣는 의존 수 증감. 아래 "분석 결과 예시" 카드가 보여 주는 값과 같은 계산이다
  * (기준 패키지의 Total 선, 표시 구간의 처음과 끝). 손으로 적어 두면 두 곳이 어긋난다.
  */
 const SAMPLE_BASE = SAMPLE_ECOSYSTEM.packages[0]
@@ -260,7 +261,7 @@ export function ServiceIntroPage() {
                   className="flex items-baseline justify-between gap-3 opacity-0 group-data-[on=true]:animate-oss-rise"
                   style={{ animationDelay: '500ms' }}
                 >
-                  <span className="text-base text-muted-foreground">Dependents 증감</span>
+                  <span className="text-base text-muted-foreground">{DEPENDENTS_DELTA_TERM}</span>
                   <span className="font-mono text-lg leading-none font-semibold text-rose-600 tabular-nums">
                     {SAMPLE_DEPENDENTS_DELTA > 0 ? '+' : SAMPLE_DEPENDENTS_DELTA < 0 ? '−' : '±'}
                     {Math.abs(SAMPLE_DEPENDENTS_DELTA).toLocaleString()}

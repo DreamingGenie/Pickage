@@ -52,6 +52,67 @@ export interface SnapshotWindow {
   end: string
 }
 
+/* ------------------------------------------------------------------ *
+ * 조회 기간 프리셋 (S15P21A506-405)
+ * ------------------------------------------------------------------ */
+
+export type PeriodPresetKey = 'all' | '6m' | '1y' | '2y' | '3y'
+
+export interface PeriodPreset {
+  key: PeriodPresetKey
+  label: string
+  /** 최신 집계일에서 거슬러 올라갈 개월 수. `null` 이면 보유한 전부다. */
+  months: number | null
+}
+
+export const PERIOD_PRESETS: readonly PeriodPreset[] = [
+  { key: 'all', label: '전체 기간', months: null },
+  { key: '6m', label: '반년', months: 6 },
+  { key: '1y', label: '1년', months: 12 },
+  { key: '2y', label: '2년', months: 24 },
+  { key: '3y', label: '3년', months: 36 },
+]
+
+/** 처음 열릴 때의 기간. 받아 둔 전 구간을 그대로 보여 준다. */
+export const DEFAULT_PERIOD_PRESET: PeriodPresetKey = 'all'
+
+/**
+ * ISO 날짜를 개월 단위로 옮긴다. 도착 달에 그 날이 없으면 그 달 마지막 날로 맞춘다 —
+ * `2026-08-31` 의 6개월 전이 `2026-02-31` 이 되어 3월로 넘어가면 반년이 반년이 아니게 된다.
+ */
+export function shiftMonths(iso: string, months: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const index = y * 12 + (m - 1) + months
+  const year = Math.floor(index / 12)
+  const month = (index % 12) + 1
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${year}-${pad(month)}-${pad(Math.min(d, lastDay))}`
+}
+
+/**
+ * 프리셋을 **실제 집계 날짜**로 풀어 구간을 만든다.
+ *
+ * 끝은 언제나 가장 최근 집계일이고, 시작은 `끝 − N개월` 이후의 첫 집계일이다. 상대 기간을 그대로
+ * 날짜로 쓰지 않는 이유는 조회 도구줄의 원칙(`ecosystem-toolbar.tsx`) 때문이다 — 화면에 뜬 시작·끝은
+ * 언제나 서버가 준 집계를 가리켜야 한다. 그래서 프리셋을 눌러도 아래 날짜 선택은 목록에 있는 값으로
+ * 바뀐다.
+ *
+ * 자료가 프리셋보다 짧으면(예: 1년치밖에 없는데 3년) 시작이 첫 집계일이라 `전체 기간` 과 같은 구간이
+ * 된다. 그때도 누른 프리셋은 눌린 채로 둔다 — 눌렀는데 다른 버튼이 켜지면 조작이 어긋나 보인다.
+ *
+ * @param snapshots 오름차순 집계 날짜. 비어 있으면 빈 구간이다.
+ */
+export function resolvePreset(key: PeriodPresetKey, snapshots: readonly string[]): SnapshotWindow {
+  if (snapshots.length === 0) return { start: '', end: '' }
+  const first = snapshots[0]
+  const end = snapshots[snapshots.length - 1]
+  const months = PERIOD_PRESETS.find((p) => p.key === key)?.months ?? null
+  if (months === null) return { start: first, end }
+  const cutoff = shiftMonths(end, -months)
+  return { start: snapshots.find((d) => d >= cutoff) ?? first, end }
+}
+
 /**
  * 스냅샷 표시 간격.
  *

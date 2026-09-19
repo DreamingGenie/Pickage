@@ -108,10 +108,10 @@ describe('ServiceIntroPage 문구', () => {
     }
   })
 
-  it('3단계의 Dependents 증감은 아래 분석 결과 예시와 같은 값이다', () => {
+  it('3단계의 의존 수 증감은 아래 분석 결과 예시와 같은 값이다', () => {
     renderIntro()
     const values = screen
-      .getAllByText('Dependents 증감')
+      .getAllByText('의존 수 증감')
       .map((label) => label.nextElementSibling?.textContent?.trim())
     // 3단계 예시 + 예시 보고서의 기준 패키지 카드. 손으로 적은 숫자가 아니라 같은 계산이어야 한다.
     expect(values.length).toBeGreaterThanOrEqual(2)
