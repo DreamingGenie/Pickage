@@ -404,33 +404,37 @@ public class PackageService {
 			? List.of()
 			: repository.findRemovalReasons(PackageNames.of(existing.names()), period.code());
 
-		// 조회가 행을 돌려줬다는 것은 그 이름이 범위 안이라는 뜻이다(범위 표를 JOIN 했다).
-		// 행이 없거나 수가 비었으면 범위 밖이거나, 이탈 사유 회차가 통째로 없거나 둘 중 하나다.
+		// **행이 왔는가가 곧 범위 안인가다.** 조회가 범위 표를 JOIN 하므로 행이 없다는 것은
+		// "대상이 아니다" 한 가지 뜻뿐이고, 이탈 사유 회차를 올렸는지와는 무관하다.
+		// 여기에 적재 상태를 섞으면 표가 비어 있는 동안 대상 밖 패키지가 NOT_COMPUTED 로
+		// 나가 화면이 "집계 대기 중" 을 띄운다 — 영원히 안 나올 값인데도.
 		//
-		// 한 행이라도 수가 들어 있으면 표가 비어 있지 않은 것이 자명하므로 묻지 않는다.
-		// 정상 경로(요청한 패키지 중 하나라도 제거 이력이 있음)에 질의를 더하지 않으려는
-		// 것이고, hasAnyTransition() 을 조회 결과가 빌 때만 부르는 것과 같은 규칙이다.
-		boolean loaded = rows.stream().anyMatch(RemovalReasonRow::counted)
-			|| repository.hasAnyRemovalReason();
-		String missing = loaded ? RemovalReasonsResponse.OUT_OF_SCOPE
-			: RemovalReasonsResponse.NOT_COMPUTED;
-
+		// getTransitions 가 hasAnyTransition() 으로 둘을 가르는 것과 다른 상황이다.
+		// 그쪽은 행의 출처가 dependent_transition 자신이라 "행 없음" 이 두 뜻을 겸한다.
 		Map<String, RemovalReasonRow> byName = rows.stream()
 			.collect(Collectors.toMap(RemovalReasonRow::name, Function.identity()));
+
+		// 회차 적재 여부는 **범위 안인데 수가 빈 행**에만 필요하다. 그 상태가 "아무도 안
+		// 뺐다"(0)인지 "아직 안 올렸다"(모름)인지는 표를 봐야 알 수 있다.
+		//
+		// 한 행이라도 수가 들어 있으면 표가 빈 게 아님이 자명하므로 묻지 않는다. 정상
+		// 경로에 질의를 더하지 않으려는 것이고, hasAnyTransition() 을 조회 결과가 빌 때만
+		// 부르는 것과 같은 규칙이다.
+		boolean loaded = rows.stream().anyMatch(RemovalReasonRow::counted)
+			|| repository.hasAnyRemovalReason();
 
 		List<RemovalReasonsResponse.Series> series = existing.names().stream()
 			.map(name -> {
 				RemovalReasonRow row = byName.get(name);
 				if (row == null) {
-					return RemovalReasonsResponse.Series.unknown(name, missing);
-				}
-				if (!loaded) {
-					// 범위는 맞는데 회차가 없다. 0 이 아니라 모른다고 한다.
 					return RemovalReasonsResponse.Series.unknown(name,
-						RemovalReasonsResponse.NOT_COMPUTED);
+						RemovalReasonsResponse.OUT_OF_SCOPE);
 				}
 				if (!row.counted()) {
-					return RemovalReasonsResponse.Series.none(name);
+					// 범위는 맞는데 수가 없다. 회차가 없으면 모름, 있으면 0 이다.
+					return loaded ? RemovalReasonsResponse.Series.none(name)
+						: RemovalReasonsResponse.Series.unknown(name,
+							RemovalReasonsResponse.NOT_COMPUTED);
 				}
 				return RemovalReasonsResponse.Series.counted(name, row.removals(),
 					row.noReplacement(), row.withReplacement(), row.dependents());

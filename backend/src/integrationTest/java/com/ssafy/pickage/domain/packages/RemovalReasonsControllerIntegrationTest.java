@@ -196,6 +196,24 @@ class RemovalReasonsControllerIntegrationTest {
 	}
 
 	@Test
+	void 회차를_안_올려도_대상_밖은_대상_밖이다() throws Exception {
+		// **표가 비어 있어도 범위 판정은 흔들리지 않는다.** 범위는 dependent_transition 이
+		// 정하고 조회가 그것을 JOIN 하므로, 행이 없다는 것은 "대상이 아니다" 한 가지 뜻뿐이다.
+		//
+		// 여기에 적재 상태를 섞으면 대상 밖 패키지가 NOT_COMPUTED 로 나가 화면이
+		// "집계 대기 중" 을 띄운다 — 영원히 안 나올 값인데도. 머지 직후(Flyway 가 빈 표를
+		// 만들고 적재는 아직)가 정확히 이 상태다.
+		//
+		// 위 시험은 표를 비우지 않으려고 vue 를 심는데, 그 때문에 이 경우를 지나친다.
+		seedPackage(1, "obscure");
+
+		mockMvc.perform(get("/api/packages/removal-reasons").param("names", "obscure"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.series[0].data_status").value("OUT_OF_SCOPE"))
+			.andExpect(jsonPath("$.data.series[0].removals").value(nullValue()));
+	}
+
+	@Test
 	void 회차를_안_올렸으면_0_이_아니라_모른다고_한다() throws Exception {
 		// 유지·유입·이탈만 적재된 상태. 범위 조회는 행을 돌려주지만 수가 전부 null 이다.
 		// 이걸 NO_DATA 로 읽으면 **적재를 안 했을 뿐인데** "한 번도 버려진 적 없습니다" 가 된다.
