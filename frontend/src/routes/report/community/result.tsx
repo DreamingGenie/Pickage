@@ -1,5 +1,6 @@
+import { InfoDialog } from '@/components/common/info-dialog'
 import { StatusBadge } from '@/components/common/status-badge'
-import { CommunityDataLimitsNote } from '@/routes/report/community/data-limits'
+import { CommunityScopeInfo } from '@/routes/report/community/data-limits'
 import { CommunityIssueCard } from '@/routes/report/community/issue-card'
 import type { CommunityDataStatus, CommunityResult as CommunityResultData } from '@/api/types'
 
@@ -23,19 +24,26 @@ export function CommunityResultView({
   freshness: 'FRESH' | 'STALE'
 }) {
   const terminalMessage = TERMINAL_MESSAGE[result.data_status]
-  // issue_number 가 없는(저장소 범위) 한계만 여기서 낸다 — Issue 하나에 붙는 한계는
-  // `issue-card.tsx`가 각 카드 안에서 낸다.
-  const repoLimitations = result.limitations.filter((l) => l.issue_number === null)
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          {result.repository ? (
-            <p className="font-mono text-sm">{result.repository.full_name}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">확인된 저장소 없음</p>
-          )}
+          <div className="flex items-center gap-1.5">
+            {result.repository ? (
+              <p className="font-mono text-sm">{result.repository.full_name}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">확인된 저장소 없음</p>
+            )}
+            {/*
+              저장소 수준 한계(패키지 범위 추정, 제외된 이슈 등)와 맨 아래 수집 기준 각주를 한 모달로 모았다
+              (S15P21A506-406). 셋 다 "이 결과가 어떤 범위로 모였나" 에 대한 설명이라 나눌 이유가 없다.
+              터미널 상태(저장소 미확인 등)에서도 조회 기준은 그대로라 항상 둔다.
+            */}
+            <InfoDialog label="수집 기준 안내" title="수집 기준과 한계">
+              <CommunityScopeInfo limits={result.data_limits} limitations={result.limitations} />
+            </InfoDialog>
+          </div>
           <p className="font-mono text-base text-muted-foreground">
             기준 시각 {new Date(result.collected_at).toLocaleString('ko-KR')}
           </p>
@@ -59,15 +67,6 @@ export function CommunityResultView({
         </p>
       )}
 
-      {repoLimitations.map((l) => (
-        <p
-          key={l.code}
-          className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground"
-        >
-          {l.message}
-        </p>
-      ))}
-
       {terminalMessage ? (
         <p className="rounded-lg border border-dashed px-3 py-2 text-sm">{terminalMessage}</p>
       ) : (
@@ -81,8 +80,6 @@ export function CommunityResultView({
           ))}
         </div>
       )}
-
-      <CommunityDataLimitsNote limits={result.data_limits} />
     </div>
   )
 }
