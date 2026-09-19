@@ -129,19 +129,27 @@ public class PackageService {
 	 * §4·§5 추이
 	 * ------------------------------------------------------------------ */
 
+	/**
+	 * <b>기준일 달력이 불규칙해도 응답은 월요일 주간 격자다</b>(S15P21A506-403). DB 의 구간 합계를
+	 * 일평균으로 펼쳐 주간 합계로 환산한다({@link WeeklyTrend#downloads}). PDF 도 이 메서드를 부르므로
+	 * 화면과 PDF 가 같은 값을 쓴다.
+	 */
 	@Transactional(readOnly = true)
 	public TrendResponse getDownloadsTrend(PackageNames names, LocalDate from, LocalDate to) {
 		Existing existing = existing(names);
 		return TrendResponse.downloads(
-			toSeries(trendRows(from, to, window -> repository.findDownloadsTrend(names, window)), existing),
+			toSeries(trendRows(from, to,
+				window -> WeeklyTrend.downloads(repository.findDownloadsTrend(names, window), window)), existing),
 			existing.notFound());
 	}
 
+	/** 의존 수도 월요일 격자다. 관측이 없는 주는 양옆을 선형 보간해 잇는다({@link WeeklyTrend#dependents}). */
 	@Transactional(readOnly = true)
 	public TrendResponse getDependentsTrend(PackageNames names, LocalDate from, LocalDate to) {
 		Existing existing = existing(names);
 		return TrendResponse.dependents(
-			toSeries(trendRows(from, to, window -> repository.findDependentsTrend(names, window)), existing),
+			toSeries(trendRows(from, to,
+				window -> WeeklyTrend.dependents(repository.findDependentsTrend(names, window), window)), existing),
 			existing.notFound());
 	}
 
