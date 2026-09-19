@@ -35,7 +35,10 @@ def client():
         raise SystemExit(f'MinIO credentials not found: pipeline/minio/{name}\n'
                          'Local: copy .env.example to .env\n'
                          'Server: see pipeline/minio/README.md')
-    env = dict(line.split('=', 1) for line in path.read_text().splitlines()
+    # 인코딩을 명시한다. .env.example·.env.server.example 이 전부 한글 주석을 담은
+    # UTF-8 파일이라, 지정하지 않으면 Windows 한글 로캘(cp949)에서 UnicodeDecodeError 로
+    # 죽는다 — 파일이 아니라 읽는 쪽 로캘 문제라 재현이 그 환경에서만 된다(S15P21A506-402).
+    env = dict(line.split('=', 1) for line in path.read_text(encoding='utf-8').splitlines()
                if line and not line.startswith('#'))
     # Not MINIO_ENDPOINT: that name belongs to init-buckets.sh, which runs inside
     # the compose network and resolves http://minio:9000. This one is a host address.
