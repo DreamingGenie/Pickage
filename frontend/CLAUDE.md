@@ -70,7 +70,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
 
 - **보더 토큰 단일**: `--border` / `--input` = `#dbdee5`. 다른 보더 색 추가 금지.
 - **`components/ui/`는 shadcn 원본.** 수정하지 않는다. 변형이 필요하면 `components/common/`에 감싼다.
-- **차트는 목업.** 교체 시 `components/charts/mock-chart.tsx`의 `ChartProps` 시그니처 유지.
+- **차트는 직접 만든 SVG다**(`components/charts/`). 기하 계산은 `geometry.ts` 가 React·DOM 없이 갖는다 — 렌더러를 바꿔도 이 파일은 그대로 쓴다.
 - **새 화면은 `app/router.tsx`에 `lazy`로 추가.** eager import 하나가 초기 청크를 부풀린다.
 
 ## 현재 스코프
