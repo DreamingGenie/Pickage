@@ -103,3 +103,10 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   펼친 주간 합계, Dependents 는 관측 범위 안의 빈 주를 선형 보간. 화면은 이 응답을 그대로 그린다(선 끊김 규칙 `MAX_GAP_DAYS` 는
   Downloads 의 관측 구멍용으로 유지). Dependents 카드는 변화율(지수)로 열고 실제값으로 전환한다(`MetricChart` `defaultScale`).
   세부 규칙은 `../docs/설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
+- `DEC-INTRO-HERO-20260920-01`(`S15P21A506-404`): 인트로 히어로는 뷰포트 전폭으로 펴고(`left-1/2 w-screen -translate-x-1/2`,
+  가로 넘침은 `AppLayout` 의 `overflow-x-clip` 이 자른다), **`overflow-hidden` 은 배경 도형(`HeroBackdrop`)에만 둔다** — 히어로에
+  걸면 자동완성 목록이 잘린다. 히어로 `z-10` 은 `transform` 쌓임 맥락 때문에 필요하다. 문구는 제품 책임자가 정했다: 제목
+  `패키지 선택에, 확인할 근거를`, 설명 `유사한 기능을 가진 패키지를 제안하고, …` / `PDF로 다운로드 받아 …`("추천" 이 아니라 "제안" — 서비스는 우열을 권하지 않는다).
+  예시로 둘러보기는 `express`·`yaml`·`axios`. 소개 화면 문구는 `Clauses` 로 **절 단위**로 끊어 줄이 마침표·쉼표 뒤에서만 바뀐다.
+  2단계 예시의 후보 칩은 카드 폭(container query)에 따라 3등분/2등분해 오른쪽이 비지 않게 한다. 3단계 예시에는 보고서 1페이지의
+  Dependents 증감을 넣었다 — 값은 아래 예시 보고서와 같은 계산(`deltaOf`)이다.
