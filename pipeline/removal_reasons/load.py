@@ -1,7 +1,7 @@
 """구간별 이탈 사유를 MinIO 회차에서 받아 PostgreSQL 에 게시한다 (S15P21A506-396).
 
 입력  s3://pickage-curated/depsdev/v1/migration-pairs/
-      snapshot={snapshot}/run_id={run_id}/data/migration_pairs/removal_by_period.parquet
+      snapshot={snapshot}/run_id={run_id}/data/removal_by_period.parquet
 출력  public.dependent_removal_reason (전량 교체) + etl_* 이력
 
     .venv-bq/Scripts/python.exe -m pipeline.removal_reasons.load \\
@@ -98,7 +98,9 @@ SOURCE_DATASET = "migration-pairs"
 DATASET = "removal-reasons"
 TABLE = "dependent_removal_reason"
 SCOPE_TABLE = "dependent_transition"
-PARQUET = "data/migration_pairs/removal_by_period.parquet"
+# 회차 안은 평평하다 — ingest_derived.py 가 key = prefix + '/data/' + 파일명 으로 올린다.
+# 로컬 경로(data/migration_pairs/…)를 그대로 적으면 받아 오지 못한다.
+PARQUET = "data/removal_by_period.parquet"
 RUN_FILES = (PARQUET, "run_manifest.json")
 
 SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,200}\Z")

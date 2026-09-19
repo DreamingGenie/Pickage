@@ -33,11 +33,16 @@ from pipeline.removal_reasons.load import (  # noqa: E402
 
 SNAPSHOT = "2026-08-31"
 RUN_ID = "migration-pairs-20260918-v1"
-OTHER_PARQUET = "data/migration_pairs/migration_events.parquet"
+OTHER_PARQUET = "data/migration_events.parquet"
 
 
 def manifest(**over):
-    """실제 회차처럼 **여러 산출물이 섞인** manifest 를 만든다."""
+    """실제 회차처럼 **여러 산출물이 섞인** manifest 를 만든다.
+
+    파일 이름이 회차 안에서는 평평하다(data/<파일명>). 로컬의 data/migration_pairs/ 를
+    그대로 적으면 manifest 대조가 통과하지 못한다 — ingest_derived.py 가 basename 으로
+    올린다.
+    """
     base = {
         "dataset": SOURCE_DATASET, "snapshot": SNAPSHOT, "run_id": RUN_ID,
         "files": [

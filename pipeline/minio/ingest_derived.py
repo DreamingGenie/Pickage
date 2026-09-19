@@ -103,6 +103,40 @@ DATASETS = {
             '같은 내용의 CSV·JSONL 은 git datasets/deprecated_replacement_260831/ 에 있어 여기 올리지 않음.',
         ],
     },
+    'migration-pairs': {
+        'root': 'data/migration_pairs',
+        'prefix': 'depsdev/v1/migration-pairs',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_migration_pairs.py',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)',
+        'readme': 'datasets/migration_pairs_260908/README.md',
+        'jira': ['S15P21A506-281', 'S15P21A506-378', 'S15P21A506-396'],
+        'notes': [
+            '실행용 의존(Dependencies) 기준. 개발용 의존 기준 결과는 같은 버킷의'
+            ' npm-registry/v1/migration-pairs-dev/ 에 있다. 모집단이 달라(npm 전수 vs 상위 10만)'
+            ' 두 결과의 수치를 더하거나 lift 를 비교하면 안 된다.',
+            'removal_by_period 273,610행이 **DB 로 가는 유일한 산출물**이다'
+            ' (pipeline/removal_reasons/load.py → dependent_removal_reason). 나머지 셋은'
+            ' 분석·라벨용이라 버킷에만 있다. 적재기는 이 회차 manifest 를 그대로 대조하되'
+            ' etl 이력에는 removal-reasons 라는 제 이름으로 남긴다.',
+            'removal_by_period 는 구간이 **겹친다**. 1y ⊂ 3y ⊂ 5y 이고 셋 다 같은 날 끝나므로'
+            ' 같은 제거 한 건이 세 구간에 모두 들어간다. **구간끼리 더하면 안 된다.**'
+            ' 검산은 그 포함관계(1y ≤ 3y ≤ 5y ≤ 전 기간)로 한다 —'
+            ' removals = 대체동반 + 대체없음 은 두 FILTER 가 같은 조건을 갈라 써서 언제나 참이다.',
+            'removal_* 세 표의 단위는 **전이 건수**다. 같은 버킷 depsdev/v1/dependent-transitions/'
+            ' 의 outflow 는 **패키지 수**라 다른 수다. 한 의존자가 뺐다 넣었다 다시 뺐으면'
+            ' 앞은 2, 뒤는 1이다. 나란히 놓고 더하거나 비율을 내면 안 된다.',
+            'dependents 열은 removals 와 단위가 달라(의존자 수 vs 전이 건수) 나누면 해석할 수'
+            ' 있는 수가 나오지 않는다. 둘을 함께 두는 것은 그 차이를 보이기 위해서다.',
+            '2026-09-18 회차부터 전이 정렬에 동순위 처리가 들어갔다(S15P21A506-378). 그 전'
+            ' 회차(run_id=migration-pairs-20260909-v1, 이 항목이 생기기 전에 손으로 올린 것)와'
+            ' 수치가 0.001% 안에서 다르다. 결론은 바뀌지 않는다 — 경위는 README 8-5절.',
+            '쌍 CSV 3종과 removal_*.csv 는 git datasets/migration_pairs_260908/ 에 있다.'
+            ' 단 removal_by_period.csv 는 구간이 겹쳐 행이 빠르게 늘어(전량 273,610행)'
+            ' git 에 두지 않고 data/ 에만 둔다.',
+        ],
+    },
     'migration-pairs-dev': {
         'root': 'data/migration_pairs_dev',
         # deps.dev 가 아니라 npm registry 수집분에서 나온 것이라 npm-registry/v1 아래에 둔다
