@@ -405,8 +405,13 @@ public class PackageService {
 			: repository.findRemovalReasons(PackageNames.of(existing.names()), period.code());
 
 		// 조회가 행을 돌려줬다는 것은 그 이름이 범위 안이라는 뜻이다(범위 표를 JOIN 했다).
-		// 행이 없으면 범위 밖이거나, 이탈 사유 회차가 통째로 없거나 둘 중 하나다.
-		boolean loaded = repository.hasAnyRemovalReason();
+		// 행이 없거나 수가 비었으면 범위 밖이거나, 이탈 사유 회차가 통째로 없거나 둘 중 하나다.
+		//
+		// 한 행이라도 수가 들어 있으면 표가 비어 있지 않은 것이 자명하므로 묻지 않는다.
+		// 정상 경로(요청한 패키지 중 하나라도 제거 이력이 있음)에 질의를 더하지 않으려는
+		// 것이고, hasAnyTransition() 을 조회 결과가 빌 때만 부르는 것과 같은 규칙이다.
+		boolean loaded = rows.stream().anyMatch(RemovalReasonRow::counted)
+			|| repository.hasAnyRemovalReason();
 		String missing = loaded ? RemovalReasonsResponse.OUT_OF_SCOPE
 			: RemovalReasonsResponse.NOT_COMPUTED;
 
