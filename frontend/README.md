@@ -35,7 +35,7 @@ src/
       _components/          EvidenceDrawer · PDF 내보내기·미리보기 · 분석 실행 훅
   components/
     ui/         shadcn 원본 — 건드리지 않음
-    common/     Header · Stepper · PackageChip · StatusBadge · SegmentedControl · LoadingOverlay
+    common/     Header · Stepper · PackageChip · StatusBadge · SegmentedControl · LoadingOverlay · InfoDialog(ⓘ 설명 모달)
     charts/     직접 그린 SVG — line-chart · version-share · transition-bars.
                 좌표·눈금 계산은 geometry.ts (React·DOM 을 모른다)
   api/
