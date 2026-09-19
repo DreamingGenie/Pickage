@@ -18,7 +18,7 @@ from ai.rag.pipeline import VerificationFailedError
 from ai.rag.types import ComparisonResult, FeatureResult, FeatureRow
 
 
-def _fake_compare_ok(packages, variant="A"):
+def _fake_compare_ok(packages):
     return ComparisonResult(
         data_status="COMPLETE",
         packages=packages,
@@ -46,7 +46,7 @@ class ComparePOSTTests(unittest.TestCase):
 
         response = client.post(
             "/compare",
-            json={"packages": [{"package": "foo", "version": "1.0.0"}], "variant": "A"},
+            json={"packages": [{"package": "foo", "version": "1.0.0"}]},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -57,7 +57,7 @@ class ComparePOSTTests(unittest.TestCase):
         self.assertEqual(body["features"][0]["results"][0]["verdict"], "SUPPORTED")
 
     def test_verification_failure_returns_502_with_violations(self):
-        def fake_compare_fail(packages, variant="A"):
+        def fake_compare_fail(packages):
             raise VerificationFailedError(["evidenceId not in pool"])
 
         client = TestClient(create_app(compare_fn=fake_compare_fail))

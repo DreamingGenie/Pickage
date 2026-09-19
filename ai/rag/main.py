@@ -22,7 +22,6 @@ class PackageRefIn(BaseModel):
 
 class CompareRequest(BaseModel):
     packages: list[PackageRefIn]
-    variant: str = "A"
 
 
 def _serialize(result: ComparisonResult) -> dict:
@@ -62,7 +61,7 @@ def create_app(compare_fn: Callable[..., ComparisonResult] = compare_packages) -
     def compare(req: CompareRequest) -> dict:
         packages = [PackageRef(name=p.package, version=p.version) for p in req.packages]
         try:
-            result = compare_fn(packages, variant=req.variant)
+            result = compare_fn(packages)
         except VerificationFailedError as exc:
             raise HTTPException(status_code=502, detail={"violations": exc.violations}) from exc
         return _serialize(result)
