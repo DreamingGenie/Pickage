@@ -109,19 +109,35 @@ public final class CommunitySnapshotValidator {
                     t.flow() != null
                             && t.messages() != null
                             && t.flow().size() <= 4
-                            && t.messages().size() <= 3);
+                            && t.messages().size() <= CommunitySummaryValidator.MAX_MESSAGES
+                            && t.summaryMarks() != null
+                            && t.summaryMarks().size()
+                                    <= CommunitySummaryValidator.MAX_KEY_SENTENCES
+                                            + CommunitySummaryValidator.MAX_KEY_TERMS);
             if ("FAILED".equals(t.summaryStatus()))
                 require(
                         t.titleKo() == null
                                 && t.summaryKo() == null
                                 && t.flow().isEmpty()
-                                && t.messages().isEmpty());
+                                && t.messages().isEmpty()
+                                && t.summaryMarks().isEmpty());
             else {
                 require(
                         plain(t.titleKo(), 200)
                                 && plain(t.summaryKo(), 500)
                                 && !t.flow().isEmpty());
                 for (var f : t.flow()) require(f != null && plain(f.text(), 200));
+                // 강조 구간은 요약문 범위 안의 [start, end) 여야 한다. 종류는 둘뿐이다.
+                for (var k : t.summaryMarks())
+                    require(
+                            k != null
+                                    && k.start() >= 0
+                                    && k.start() < k.end()
+                                    && k.end() <= t.summaryKo().length()
+                                    && Set.of(
+                                                    SummaryMarkPayload.KEY_TERM,
+                                                    SummaryMarkPayload.KEY_SENTENCE)
+                                            .contains(k.kind()));
             }
             Set<String> ids = new HashSet<>();
             Instant previous = null;
@@ -196,11 +212,22 @@ public final class CommunitySnapshotValidator {
             require(p.path("repository").path("archived").isBoolean());
         }
         for (JsonNode t : p.path("topics")) {
+            // `summary_marks` 는 payload_version 을 올리지 않고 더한 선택 키다 — 이전 스냅샷에는 없어도 읽는다.
+            boolean hasMarks = t.has("summary_marks");
             keys(
                     t,
                     "source_issue_id issue_number state updated_at created_at title_original"
                             + " title_ko comments_count reactions_count collection_status"
-                            + " summary_status summary_ko flow messages");
+                            + " summary_status summary_ko flow messages"
+                            + (hasMarks ? " summary_marks" : ""));
+            if (hasMarks) {
+                require(t.path("summary_marks").isArray());
+                for (JsonNode k : t.path("summary_marks")) {
+                    keys(k, "start end kind");
+                    texts(k, "kind", false);
+                    require(k.path("start").isInt() && k.path("end").isInt());
+                }
+            }
             texts(
                     t,
                     "source_issue_id state updated_at created_at title_original collection_status"

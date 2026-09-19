@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import com.ssafy.pickage.domain.community.CommunitySnapshotPayloadException;
+import com.ssafy.pickage.domain.community.CommunitySnapshotValidator;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -95,6 +98,112 @@ class CommunityResultPayloadJsonTest {
         assertThat(restoredMessage.authorAssociation())
                 .isEqualTo(originalMessage.authorAssociation());
         assertThat(restoredMessage.isIssueAuthor()).isEqualTo(originalMessage.isIssueAuthor());
+    }
+
+    @Test
+    void 강조_구간은_summary_marks_로_저장되고_그대로_복원된다() throws Exception {
+        var topic = samplePayload().topics().getFirst();
+        var marked =
+                new TopicPayload(
+                        topic.sourceIssueId(),
+                        topic.issueNumber(),
+                        topic.state(),
+                        topic.updatedAt(),
+                        topic.createdAt(),
+                        topic.titleOriginal(),
+                        topic.titleKo(),
+                        topic.commentsCount(),
+                        topic.reactionsCount(),
+                        topic.collectionStatus(),
+                        topic.summaryStatus(),
+                        topic.summaryKo(),
+                        topic.flow(),
+                        topic.messages(),
+                        List.of(new SummaryMarkPayload(0, 10, SummaryMarkPayload.KEY_TERM)));
+
+        String json = objectMapper.writeValueAsString(marked);
+        TopicPayload restored = objectMapper.readValue(json, TopicPayload.class);
+
+        assertThat(json).contains("\"summary_marks\"").contains("\"KEY_TERM\"");
+        assertThat(restored).isEqualTo(marked);
+    }
+
+    @Test
+    void summary_marks_가_없는_이전_스냅샷도_읽고_빈_목록이_된다() throws Exception {
+        // payload_version 2 를 올리지 않고 선택 필드로 더했으므로, 운영에 이미 저장된 스냅샷(키 없음)이 오류 없이 읽혀야 한다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).remove("summary_marks");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(restored.topics().getFirst().summaryMarks()).isEmpty();
+        CommunitySnapshotValidator.validate(restored);
+    }
+
+    @Test
+    void 요약문_범위를_벗어난_강조_구간은_저장_검증에서_거부한다() {
+        var topic = samplePayload().topics().getFirst();
+        int length = topic.summaryKo().length();
+        for (var bad :
+                List.of(
+                        new SummaryMarkPayload(-1, 3, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(3, 3, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(0, length + 1, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(0, 3, "BOLD"))) {
+            var payload = withMarks(topic, List.of(bad));
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                            () -> CommunitySnapshotValidator.validate(payload))
+                    .as(bad.toString())
+                    .isInstanceOf(CommunitySnapshotPayloadException.class);
+        }
+        CommunitySnapshotValidator.validate(
+                withMarks(topic, List.of(new SummaryMarkPayload(0, length, SummaryMarkPayload.KEY_TERM))));
+    }
+
+    @Test
+    void 대표_발화는_4개까지_허용하고_5개부터_거부한다() {
+        var topic = samplePayload().topics().getFirst();
+        var messages = new java.util.ArrayList<MessagePayload>();
+        for (int i = 0; i < 5; i++)
+            messages.add(
+                    new MessagePayload(
+                            String.valueOf(100 + i),
+                            "user" + i,
+                            "NONE",
+                            false,
+                            "DISCUSSION",
+                            Instant.parse("2025-10-05T07:25:0" + i + "Z"),
+                            "발화 " + i));
+
+        CommunitySnapshotValidator.validate(withMessages(topic, messages.subList(0, 4)));
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> CommunitySnapshotValidator.validate(withMessages(topic, messages)))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    private static CommunityResultPayload withMarks(TopicPayload t, List<SummaryMarkPayload> marks) {
+        return single(
+                new TopicPayload(
+                        t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
+                        t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.flow(), t.messages(),
+                        marks));
+    }
+
+    private static CommunityResultPayload withMessages(TopicPayload t, List<MessagePayload> messages) {
+        return single(
+                new TopicPayload(
+                        t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
+                        t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.flow(), messages,
+                        t.summaryMarks()));
+    }
+
+    private static CommunityResultPayload single(TopicPayload topic) {
+        var base = samplePayload();
+        return new CommunityResultPayload(
+                base.repository(), base.policyVersion(), base.lookbackDays(), null, List.of(topic), List.of());
     }
 
     private static CommunityResultPayload samplePayload() {

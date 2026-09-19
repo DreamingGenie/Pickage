@@ -229,7 +229,7 @@ class GmsCommunitySummarizerTest {
         client().summarize(issue(7), BUDGET);
 
         JsonNode request = readTree(captured.get());
-        assertThat(request.path("max_output_tokens").asInt()).isEqualTo(3072);
+        assertThat(request.path("max_output_tokens").asInt()).isEqualTo(4096);
 
         JsonNode schema = request.path("text").path("format").path("schema");
         JsonNode flowItemSchema = schema.path("properties").path("flow").path("items");
@@ -243,6 +243,67 @@ class GmsCommunitySummarizerTest {
         assertThat(flowSupportItemProps.has("type")).isTrue();
         assertThat(flowSupportItemProps.has("id")).isTrue();
         assertThat(schema.path("required")).extracting(JsonNode::asText).contains("flow_support");
+    }
+
+    @Test
+    void 요청_스키마는_발화_4개와_핵심어_핵심_문장을_요구한다() {
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
+
+        client().summarize(issue(7), BUDGET);
+
+        JsonNode schema = readTree(captured.get()).path("text").path("format").path("schema");
+        JsonNode props = schema.path("properties");
+        assertThat(props.path("messages").path("maxItems").asInt()).isEqualTo(4);
+        assertThat(props.path("key_terms").path("items").path("type").asText()).isEqualTo("string");
+        assertThat(props.path("key_terms").path("maxItems").asInt())
+                .isEqualTo(CommunitySummaryValidator.MAX_KEY_TERMS);
+        assertThat(props.path("key_sentences").path("maxItems").asInt())
+                .isEqualTo(CommunitySummaryValidator.MAX_KEY_SENTENCES);
+        // strict 모드는 모든 속성이 required 여야 한다.
+        assertThat(schema.path("required"))
+                .extracting(JsonNode::asText)
+                .contains("key_terms", "key_sentences");
+    }
+
+    @Test
+    void 프롬프트는_요약문에서_글자_그대로_옮기라고_요구한다() {
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
+
+        client().summarize(issue(7), BUDGET);
+
+        String system = readTree(captured.get()).path("input").get(0).path("content").asText();
+        assertThat(system).contains("key_terms").contains("key_sentences").contains("character for character");
+        assertThat(system).contains("up to four").contains("exactly one message");
+    }
+
+    @Test
+    void 응답의_핵심어와_핵심_문장을_그대로_담는다() {
+        String payload =
+                VALID_PAYLOAD.replace(
+                        "\"messages\":",
+                        "\"key_terms\": [\"확인 방법\"], \"key_sentences\": [\"댓글에서 확인 방법이 제시됐다\"], \"messages\":");
+        server.respond(PATH, 200, gmsEnvelope(payload), java.util.Map.of());
+
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
+
+        assertThat(summary.status()).isEqualTo(SummaryStatus.READY);
+        assertThat(summary.keyTerms()).containsExactly("확인 방법");
+        assertThat(summary.keySentences()).containsExactly("댓글에서 확인 방법이 제시됐다");
+        // 위치는 여기서 계산하지 않는다 — 검증기가 최종 요약문에서 찾는다.
+        assertThat(summary.summaryMarks()).isEmpty();
+    }
+
+    @Test
+    void 핵심어_필드가_없어도_요약은_실패하지_않는다() {
+        server.respond(PATH, 200, gmsEnvelope(VALID_PAYLOAD), java.util.Map.of());
+
+        TopicSummary summary = client().summarize(issue(7), BUDGET);
+
+        assertThat(summary.status()).isEqualTo(SummaryStatus.READY);
+        assertThat(summary.keyTerms()).isEmpty();
+        assertThat(summary.keySentences()).isEmpty();
     }
 
     private static JsonNode readTree(String json) {

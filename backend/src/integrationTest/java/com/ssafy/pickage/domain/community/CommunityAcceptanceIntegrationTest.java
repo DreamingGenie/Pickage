@@ -335,7 +335,8 @@ class CommunityAcceptanceIntegrationTest {
                                         true,
                                         "DISCUSSION",
                                         date,
-                                        "확인된 메시지")));
+                                        "확인된 메시지")),
+                        List.of(new SummaryMarkPayload(0, 3, SummaryMarkPayload.KEY_TERM)));
         repository.upsert(
                 new CommunitySnapshotRow(
                         7,

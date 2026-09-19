@@ -19,4 +19,5 @@ public record TopicResponse(
         SummaryStatus summaryStatus,
         String summaryKo,
         List<DiscussionStepResponse> flow,
-        List<MessageResponse> messages) {}
+        List<MessageResponse> messages,
+        List<SummaryMarkResponse> summaryMarks) {}

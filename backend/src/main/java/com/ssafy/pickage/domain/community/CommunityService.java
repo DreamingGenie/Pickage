@@ -243,6 +243,14 @@ public class CommunityService {
                                                                                 m.kind(),
                                                                                 m.createdAt(),
                                                                                 m.text()))
+                                                        .toList(),
+                                                t.summaryMarks().stream()
+                                                        .map(
+                                                                k ->
+                                                                        new SummaryMarkResponse(
+                                                                                k.start(),
+                                                                                k.end(),
+                                                                                k.kind()))
                                                         .toList()))
                         .toList();
         var summary =
@@ -273,7 +281,7 @@ public class CommunityService {
                         p.lookbackDays(),
                         2,
                         100,
-                        3,
+                        CommunitySummaryValidator.MAX_MESSAGES,
                         CommunityPolicy.SOURCE_NOTE));
     }
 
