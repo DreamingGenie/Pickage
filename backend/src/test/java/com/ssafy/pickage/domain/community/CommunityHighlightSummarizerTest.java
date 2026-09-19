@@ -59,7 +59,7 @@ class CommunityHighlightSummarizerTest {
                 "본문");
     }
 
-    /** 4000자 댓글 15개 — 배치 없이도 highlights가 3개만 골라내는지 확인하는 큰 이슈. */
+    /** 4000자 댓글 15개 — 배치 없이도 highlights가 4개만 골라내는지 확인하는 큰 이슈. */
     private static CollectedIssue bigIssue() {
         var comments = new ArrayList<CollectedComment>();
         for (int i = 0; i < 15; i++)
@@ -114,7 +114,7 @@ class CommunityHighlightSummarizerTest {
     }
 
     @Test
-    void 댓글이_많은_이슈도_highlights_bundle로_단일_호출하며_최대_3개만_고른다() {
+    void 댓글이_많은_이슈도_highlights_bundle로_단일_호출하며_최대_4개만_고른다() {
         var delegate = RecordingSummarizer.alwaysReady();
 
         var attempt = highlightSummarizer(delegate).summarizeAsync(bigIssue(), BUDGET).join();
@@ -123,8 +123,8 @@ class CommunityHighlightSummarizerTest {
         assertThat(attempt.raw().status()).isEqualTo(SummaryStatus.READY);
         assertThat(attempt.bundle()).isEqualTo(CommunitySummarySourceBundle.highlights(bigIssue()));
         assertThat(attempt.bundle().issue().comments())
-                .as("highlights는 댓글 최대 3개만 골라야 한다")
-                .hasSizeLessThanOrEqualTo(3);
+                .as("highlights는 댓글 최대 4개만 골라야 한다")
+                .hasSize(4);
     }
 
     @Test

@@ -199,14 +199,22 @@ export function CommunityReportTab({
       {data.view_status === 'PROCESSING' && data.refresh && (
         <>
           {data.result && data.freshness && (
-            <CommunityResultView result={data.result} freshness={data.freshness} />
+            <CommunityResultView
+              result={data.result}
+              freshness={data.freshness}
+              packageName={basePackage}
+            />
           )}
           <CommunityProgress progress={toProgressModel(data.refresh)} />
         </>
       )}
 
       {data.view_status === 'RESULT' && data.result && data.freshness && (
-        <CommunityResultView result={data.result} freshness={data.freshness} />
+        <CommunityResultView
+          result={data.result}
+          freshness={data.freshness}
+          packageName={basePackage}
+        />
       )}
 
       {data.view_status === 'IDLE' && !notice && (

@@ -18,4 +18,47 @@ public record TopicPayload(
         String summaryStatus,
         String summaryKo,
         List<DiscussionStepPayload> flow,
-        List<MessagePayload> messages) {}
+        List<MessagePayload> messages,
+        List<SummaryMarkPayload> summaryMarks) {
+    /**
+     * `summary_marks` 는 payload_version 2 를 올리지 않고 나중에 더한 선택 필드다 — 이전에 저장된 스냅샷에는 없으므로
+     * null 이 오면 빈 목록으로 읽는다.
+     */
+    public TopicPayload {
+        summaryMarks = summaryMarks == null ? List.of() : List.copyOf(summaryMarks);
+    }
+
+    /** 강조 정보 없이 만드는 기존 생성자. */
+    public TopicPayload(
+            String sourceIssueId,
+            int issueNumber,
+            String state,
+            Instant updatedAt,
+            Instant createdAt,
+            String titleOriginal,
+            String titleKo,
+            long commentsCount,
+            long reactionsCount,
+            String collectionStatus,
+            String summaryStatus,
+            String summaryKo,
+            List<DiscussionStepPayload> flow,
+            List<MessagePayload> messages) {
+        this(
+                sourceIssueId,
+                issueNumber,
+                state,
+                updatedAt,
+                createdAt,
+                titleOriginal,
+                titleKo,
+                commentsCount,
+                reactionsCount,
+                collectionStatus,
+                summaryStatus,
+                summaryKo,
+                flow,
+                messages,
+                List.of());
+    }
+}

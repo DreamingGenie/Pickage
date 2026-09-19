@@ -14,7 +14,7 @@ backend/frontend가 공유할 community 상세 계약은 이 문서 하나를 �
 
 비교 대상을 확정한 사용자의 **최초 기준 패키지 하나**에 대해 GitHub 커뮤니티 현황을 제공한다.
 후보 노출 최대 3개·최초 기준만 선택·총 비교 1~3개라는 제품 결정을 바꾸지 않는다.
-community의 Issue 최대 2개·Issue별 대표 메시지 최대 3개는 비교 후보 개수와 별개다.
+community의 Issue 최대 2개·Issue별 대표 메시지 최대 4개는 비교 후보 개수와 별개다.
 
 - 기존 `/report/:reportId` 공통 shell에 세 번째 lazy tab을 추가한다. 새 최상위 route·중복 header는 만들지 않는다.
 - 기준 패키지의 저장소를 검증하고 Issue만 수집한다. PR·다른 패키지·시안의 예시 패키지로 대체하지 않는다.
@@ -22,7 +22,7 @@ community의 Issue 최대 2개·Issue별 대표 메시지 최대 3개는 비교 
 - 화면에 공개할 결과는 PostgreSQL `community_snapshot`의 최신 한 행으로 원자 게시한다.
 - raw 본문·댓글·prompt는 refresh 중 메모리에서만 사용한다. 원문 저장·이력 테이블·Redis·새 worker 서비스를 추가하지 않는다.
 - Spring → GMS 직접 호출은 이 bounded refresh에만 허용한다. 일반 분석 실행 경로까지 확대하지 않는다.
-- 저장소·작성자 식별자는 읽기 전용 텍스트다. 외부 이동·GitHub 원문 링크 버튼은 만들지 않는다.
+- 저장소·작성자 식별자는 읽기 전용 텍스트다. 외부 이동은 만들지 않는다 — **단 Issue 카드의 `GitHub에서 보기` 링크 버튼 하나만 예외**(2026-09-20 제품 책임자 결정, S15P21A506-409). 새 탭·`noopener noreferrer`, 저장소 이름과 Issue 번호로 프런트가 주소를 만든다(API 에 URL 필드 없음).
 - Issue 장기 시계열은 ecosystem Activity 확장 소유다. 여기서 배치 시계열을 구현하지 않는다.
 
 완료는 “화면이 보임”이 아니라, §11의 각 파트 산출물과 §12의 실패·경계 시험을 모두 통과한 상태다.
@@ -191,7 +191,8 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
 | title_ko | 공백 제외 비어 있지 않음, 최대 200자; 원제목의 의미를 보존 |
 | summary_ko / summary_support | 최대 500자 / 1~101개, 중복 없음 |
 | flow | 1~4개; text 최대 200자, support 1~101개 |
-| messages | 0~3개; source_comment_id 중복 없음, text 최대 300자 |
+| messages | 0~4개(2026-09-20 3→4); 입력 댓글 하나당 하나; source_comment_id 중복 없음, text 최대 300자 |
+| key_terms / key_sentences | 각각 최대 6개(최대 30자) / 최대 2개(최대 160자, 요약문의 60% 이하). **summary_ko 에서 글자 그대로 옮긴 문자열**만 인정한다 — 서버가 부분 문자열로 찾아 위치를 계산하고, 못 찾은 것·겹치는 것은 버린다(요약은 실패시키지 않는다). 모델이 준 위치는 쓰지 않는다 |
 | kind | DISCUSSION 또는 USER_SOLUTION |
 | support type/id | ISSUE_BODY 또는 COMMENT / 십진 문자열 |
 
@@ -347,11 +348,12 @@ Java long을 무조건 JS number로 내리지 않는다. GitHub source ID는 공
 | Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, summary_retry_at:nullable timestamp, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
 | Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean |
 | Summary | issue_count:integer, open_issue_count:integer, comment_count:integer, reaction_count:integer |
-| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, flow:Flow[], messages:Message[] |
+| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, flow:Flow[], messages:Message[], summary_marks:SummaryMark[](이전 스냅샷에는 없어 빈 목록으로 읽는다) |
 | Flow | text:string |
+| SummaryMark | start:integer, end:integer, kind:KEY_TERM or KEY_SENTENCE — `summary_ko` 안의 UTF-16 오프셋 `[start, end)`(Java `String`·JS 문자열과 같은 단위). 핵심어는 굵게, 핵심 문장은 형광펜(2026-09-20, S15P21A506-408) |
 | Message | author_login:nullable string, role:nullable enum, created_at:timestamp, kind:DISCUSSION or USER_SOLUTION, text:string |
 | Limitation | code:enum, message:string, issue_number:nullable positive integer |
-| DataLimits | policy_version:string, lookback_days:180 or 365, max_issues:2, max_comments_per_issue:100, max_messages_per_issue:3, source_note:string |
+| DataLimits | policy_version:string, lookback_days:180 or 365, max_issues:2, max_comments_per_issue:100, max_messages_per_issue:4, source_note:string |
 
 terminal 검증 결과에서는 repository=null, summary 수치 모두 0, topics=[]다.
 repository는 연결을 확인한 경우에만 채운다. model generated URL, package_id, author ID, source ID, support 목록은 wire에서 제외한다.
@@ -360,6 +362,8 @@ data_limits.lookback_days는 실제 마지막 검색 기간이며 검색 전 중
 
 topics는 §3.2 선택 순서, messages는 원본 created_at·수치 source ID 오름차순이다.
 flow는 모델이 검증 가능한 사건 순으로 작성하되 동일 시각 인과관계를 임의로 만들지 않는다.
+
+> **2026-09-20 (S15P21A506-406)** 화면은 `flow` 를 표시하지 않는다 — 쟁점 요약(`summary_ko`)과 같은 사건을 되풀이하는 정보라 뺐다. API 응답·저장 payload·검증(`flow` 1~4개, `flow_support`)은 그대로다. 생성을 멈추려면 GMS 프롬프트·JSON 스키마·요약/스냅샷 검증기·payload 를 함께 바꿔야 해 별도 작업으로 뒀다.
 summary는 topics의 사실 수치 합계다. 요약 실패나 댓글 절단으로 사실 comments_count를 100으로 자르지 않는다.
 
 limitation code는 아래 목록에서만 사용하고 설명은 서버 템플릿으로 만든다.
@@ -433,7 +437,8 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "collection_status": "COMPLETE",
         "summary_status": "FAILED",
         "flow": [],
-        "messages": []
+        "messages": [],
+        "summary_marks": []
       }],
       "limitations": [
         {"code": "ROOT_PACKAGE_SCOPE_HEURISTIC", "message": "루트 패키지 연결에 기반하며 모든 Issue의 주제를 보장하지 않습니다.", "issue_number": null},
@@ -444,7 +449,7 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "lookback_days": 180,
         "max_issues": 2,
         "max_comments_per_issue": 100,
-        "max_messages_per_issue": 3,
+        "max_messages_per_issue": 4,
         "source_note": "수치는 선택한 Issue 집합의 값이며 저장소 전체나 고유 참여자 수가 아닙니다."
       }
     }

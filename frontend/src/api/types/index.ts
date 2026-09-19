@@ -455,6 +455,16 @@ export interface CommunityMessage {
   text: string
 }
 
+/**
+ * 요약문(`summary_ko`) 안의 강조 구간. 서버가 계산한 UTF-16 오프셋 `[start, end)` 라 JS `String.slice` 와 같은 단위다
+ * (S15P21A506-408). `KEY_TERM` 은 핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다.
+ */
+export interface CommunitySummaryMark {
+  start: number
+  end: number
+  kind: 'KEY_TERM' | 'KEY_SENTENCE'
+}
+
 /** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
 export interface CommunityTopic {
   issue_number: number
@@ -472,8 +482,10 @@ export interface CommunityTopic {
   summary_status: CommunitySummaryStatus
   summary_ko: string | null
   flow: CommunityFlowStep[]
-  /** 최대 3개 */
+  /** 최대 4개 */
   messages: CommunityMessage[]
+  /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */
+  summary_marks: CommunitySummaryMark[]
 }
 
 export interface CommunityLimitation {

@@ -151,7 +151,8 @@ public class CommunityRefreshOrchestrator {
                                 summary.status().name(),
                                 summary.summaryKo(),
                                 summary.discussionFlow(),
-                                summary.messages()));
+                                summary.messages(),
+                                summary.summaryMarks()));
             }
             Instant retry =
                     CommunityPolicy.summaryStatus(topics) == SummaryStatus.FAILED
