@@ -287,6 +287,25 @@ class EmbedCorpus(QuietMixin, unittest.TestCase):
         self.assertEqual(emb.calls, [["tbb"]])  # only b re-embedded
         np.testing.assert_array_equal(vecs[0], cached)
 
+    def test_mixed_reuse_and_reembed_keep_row_positions(self):
+        """재사용·재임베딩이 섞여도 각 벡터가 제 행 위치에 들어간다."""
+        rows = [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+        texts = ["ta", "tbb", "tccc", "tdddd"]
+        cached_a = np.full(384, 7.0, dtype=np.float32)
+        cached_c = np.full(384, 9.0, dtype=np.float32)
+        state = {
+            "a": {"hash": sbp.text_hash("ta"), "vector": cached_a},
+            "b": {"hash": "stale", "vector": np.zeros(384, dtype=np.float32)},
+            "c": {"hash": sbp.text_hash("tccc"), "vector": cached_c},
+        }
+        emb = _FakeEmbedder()
+        vecs = sbp.embed_corpus(rows, texts, emb, state, batch_size=8)
+        self.assertEqual(emb.calls, [["tbb", "tdddd"]])
+        np.testing.assert_array_equal(vecs[0], cached_a)
+        np.testing.assert_array_equal(vecs[1], np.full(384, 3.0, dtype=np.float32))
+        np.testing.assert_array_equal(vecs[2], cached_c)
+        np.testing.assert_array_equal(vecs[3], np.full(384, 5.0, dtype=np.float32))
+
     def test_row_with_stale_hash_is_reembedded(self):
         rows = [{"name": "a"}]
         state = {"a": {"hash": "stale", "vector": np.zeros(384, dtype=np.float32)}}
