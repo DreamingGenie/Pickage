@@ -27,6 +27,10 @@ export function PackageSearch({
   disabled = false,
   autoFocus = false,
   className,
+  inputClassName,
+  icon = true,
+  invalid = false,
+  describedBy,
 }: {
   value: string
   onChange: (v: string) => void
@@ -37,6 +41,14 @@ export function PackageSearch({
   disabled?: boolean
   autoFocus?: boolean
   className?: string
+  /** 입력 요소 자체에 얹을 추가 스타일. 크기·모양이 다른 자리(인트로 히어로 등)에 재사용할 때 쓴다. */
+  inputClassName?: string
+  /** 왼쪽 돋보기 아이콘. 히어로처럼 오른쪽에 별도 제출 버튼을 두는 자리에서는 끈다. */
+  icon?: boolean
+  /** 호출 측이 들고 있는 오류 상태를 입력에 반영한다(`aria-invalid`). */
+  invalid?: boolean
+  /** 오류 문구 요소 id. `aria-describedby` 로 연결한다. */
+  describedBy?: string
 }) {
   const listId = useId()
   const [open, setOpen] = useState(false)
@@ -99,10 +111,12 @@ export function PackageSearch({
 
   return (
     <div ref={boxRef} className={cn('relative flex-1', className)}>
-      <SearchIcon
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
+      {icon && (
+        <SearchIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+      )}
       <input
         value={value}
         onChange={(e) => {
@@ -120,7 +134,13 @@ export function PackageSearch({
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
-        className="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50"
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        className={cn(
+          'h-11 w-full rounded-lg border border-input bg-background pr-3 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50',
+          icon ? 'pl-10' : 'pl-4',
+          inputClassName,
+        )}
       />
 
       {showList && (

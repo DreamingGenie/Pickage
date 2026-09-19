@@ -6,6 +6,7 @@ import { paths } from '@/app/routes'
 import { LineChart } from '@/components/charts/line-chart'
 import { SAMPLE_ECOSYSTEM } from '@/components/charts/sample'
 import { parsePackageInput } from '@/lib/package'
+import { PackageSearch } from '@/routes/analyze/package-search'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
 import {
   EXAMPLE_COMPARISON_PACKAGES,
@@ -58,35 +59,32 @@ export function ServiceIntroPage() {
             나란히 놓습니다. 어느 쪽이 낫다는 판정은 하지 않습니다.
           </p>
 
-          <form
-            className="relative mt-2 w-full max-w-xl"
-            onSubmit={(e) => {
-              e.preventDefault()
-              start(draft)
-            }}
-          >
-            <input
+          <div className="relative mt-2 w-full max-w-xl">
+            <PackageSearch
               value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value)
+              onChange={(v) => {
+                setDraft(v)
                 if (error) setError(null)
               }}
+              onSubmit={start}
               placeholder="npm 패키지명을 입력하세요"
-              aria-label="분석할 npm 패키지명"
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'intro-input-error' : undefined}
-              className="h-14 w-full rounded-full border bg-background pr-16 pl-7 text-base shadow-[0_2px_14px_-4px_rgba(15,23,42,0.14)] transition-shadow outline-none placeholder:text-muted-foreground/70 focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive"
+              ariaLabel="분석할 npm 패키지명"
+              icon={false}
+              invalid={Boolean(error)}
+              describedBy={error ? 'intro-input-error' : undefined}
+              className="w-full"
+              inputClassName="h-14 w-full rounded-full pr-16 pl-7 text-base shadow-[0_2px_14px_-4px_rgba(15,23,42,0.14)] placeholder:text-muted-foreground/70 aria-invalid:border-destructive"
             />
             <button
-              type="submit"
+              type="button"
               disabled={!draft.trim()}
               aria-label="분석 시작"
+              onClick={() => start(draft)}
               className="absolute top-2 right-2 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground transition-opacity outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-35"
             >
               <SearchIcon className="size-[18px]" />
             </button>
-          </form>
-
+          </div>
           {error && (
             <p id="intro-input-error" className="-mt-3 text-sm text-destructive">
               {error}
