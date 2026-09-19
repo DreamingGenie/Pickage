@@ -266,7 +266,7 @@ describe('와이어프레임 구성', () => {
     )
 
     expect(screen.getByText('분석한 Issue 모두 종료')).toBeInTheDocument()
-    expect(container.textContent).toContain('· 종료 ·')
+    expect(container.textContent).toContain('종료 · 댓글')
     expect(container.textContent).not.toContain('지금 이어지는')
   })
 
@@ -280,15 +280,12 @@ describe('와이어프레임 구성', () => {
     expect(container.textContent).not.toMatch(/대표 발화 \d+개/)
   })
 
-  it('저장소는 링크가 아니라 글자로만 보인다', () => {
-    const { container } = render(
-      <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
-    )
+  it('저장소 이름은 링크가 아니라 글자로만 보인다', () => {
+    render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
 
-    expect(
-      screen.getByText(`github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}`),
-    ).toBeInTheDocument()
-    expect(container.querySelector('a')).toBeNull()
+    const repo = screen.getByText(`github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}`)
+    expect(repo).toBeInTheDocument()
+    expect(repo.closest('a')).toBeNull()
   })
 
   it('기준 패키지 이름으로 제목을 만든다', () => {
@@ -302,5 +299,107 @@ describe('와이어프레임 구성', () => {
 
     expect(screen.getByRole('heading', { name: 'axios 커뮤니티 현황' })).toBeInTheDocument()
     expect(screen.getByText('AXIOS · GITHUB COMMUNITY')).toBeInTheDocument()
+  })
+})
+
+/**
+ * S15P21A506-409: Issue 원문 링크 버튼, 요약 강조, 발화 4개.
+ */
+describe('Issue 링크와 요약 강조', () => {
+  const topic = SAMPLE_COMMUNITY_RESULT.topics[0]
+
+  it('#번호 자리에 GitHub Issue 로 가는 링크 버튼이 있다 — 새 탭, noopener', () => {
+    render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
+
+    const link = screen.getByRole('link', { name: /GitHub에서 보기/ })
+    expect(link).toHaveAttribute(
+      'href',
+      `https://github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}/issues/${topic.issue_number}`,
+    )
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.getAttribute('rel')).toContain('noopener')
+    expect(link.getAttribute('rel')).toContain('noreferrer')
+    // 어느 Issue 인지와 새 탭이라는 것을 이름으로 알려 준다
+    expect(link).toHaveAccessibleName(new RegExp(`#${topic.issue_number}.*새 탭`))
+  })
+
+  it('링크는 이 하나뿐이다 — 확장 화면의 다른 곳에는 외부 링크를 두지 않는다', () => {
+    const { container } = render(
+      <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
+    )
+
+    const anchors = [...container.querySelectorAll('a')]
+    expect(anchors).toHaveLength(SAMPLE_COMMUNITY_RESULT.topics.length)
+    for (const a of anchors) expect(a.getAttribute('href')).toMatch(/^https:\/\/github\.com\//)
+  })
+
+  it('저장소를 확인하지 못한 상태에서는 링크를 그리지 않는다', () => {
+    const { container } = render(
+      <CommunityResultView
+        result={{
+          ...SAMPLE_COMMUNITY_RESULT,
+          data_status: 'UNVERIFIED_REPOSITORY',
+          repository: null,
+          topics: [],
+          limitations: [],
+        }}
+        freshness="FRESH"
+      />,
+    )
+
+    expect(container.querySelector('a')).toBeNull()
+  })
+
+  it('요약의 핵심어는 굵게, 핵심 문장은 형광펜(mark)으로 그린다', () => {
+    const { container } = render(
+      <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
+    )
+
+    // sample: '설정 동작' 핵심어, '댓글에서 확인 방법이 제시됐다' 핵심 문장
+    expect(container.querySelector('strong')).toHaveTextContent('설정 동작')
+    expect(container.querySelector('mark')).toHaveTextContent('댓글에서 확인 방법이 제시됐다')
+    // 강조를 그려도 글은 한 글자도 바뀌지 않는다
+    expect(container.textContent).toContain(topic.summary_ko)
+  })
+
+  it('강조 구간이 없거나(이전 스냅샷) 어긋나면 평문으로 보이고 화면이 깨지지 않는다', () => {
+    for (const marks of [
+      [],
+      undefined,
+      [{ start: 500, end: 900, kind: 'KEY_TERM' as const }],
+      [{ start: 5, end: 5, kind: 'KEY_TERM' as const }],
+    ]) {
+      const { container } = render(
+        <CommunityResultView
+          result={{
+            ...SAMPLE_COMMUNITY_RESULT,
+            topics: [{ ...topic, summary_marks: marks as unknown as typeof topic.summary_marks }],
+          }}
+          freshness="FRESH"
+        />,
+      )
+      expect(container.querySelector('strong')).toBeNull()
+      expect(container.querySelector('mark')).toBeNull()
+      expect(container.textContent).toContain(topic.summary_ko)
+      cleanup()
+    }
+  })
+
+  it('대표 발화는 4개까지 그린다', () => {
+    const messages = Array.from({ length: 4 }, (_, i) => ({
+      author_login: `user${i}`,
+      role: null,
+      kind: 'DISCUSSION' as const,
+      created_at: `2026-04-0${i + 1}T00:00:00Z`,
+      text: `${i + 1}번째 발화다.`,
+    }))
+    render(
+      <CommunityResultView
+        result={{ ...SAMPLE_COMMUNITY_RESULT, topics: [{ ...topic, messages }] }}
+        freshness="FRESH"
+      />,
+    )
+
+    for (const m of messages) expect(screen.getByText(m.text)).toBeInTheDocument()
   })
 })

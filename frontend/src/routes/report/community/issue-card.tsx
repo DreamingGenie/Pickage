@@ -1,7 +1,12 @@
+import { ExternalLinkIcon } from 'lucide-react'
+
 import { InfoDialog } from '@/components/common/info-dialog'
 import { StatusBadge } from '@/components/common/status-badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { IssueAccent } from '@/routes/report/community/accent'
+import { EmphasizedSummary } from '@/routes/report/community/emphasized-summary'
+import { githubIssueUrl } from '@/routes/report/community/summary-marks'
 import type { CommunityCollectionStatus, CommunityLimitation, CommunityTopic } from '@/api/types'
 
 const COLLECTION_STATUS: Record<
@@ -34,16 +39,21 @@ export function CommunityIssueCard({
   topic,
   limitations,
   accent,
+  repositoryFullName,
 }: {
   topic: CommunityTopic
   limitations: CommunityLimitation[]
   accent: IssueAccent
+  /** `owner/name`. 있으면 `#번호` 자리에 GitHub Issue 로 가는 링크 버튼을 둔다 */
+  repositoryFullName?: string | null
 }) {
   // 배지와 같은 말을 하는 것은 뺀다. 남는 것(요약 입력 한도 등)은 요약 옆 ⓘ 모달로 둔다.
   const notes = limitations.filter(
     (l) => l.issue_number === topic.issue_number && !DUPLICATES_COLLECTION_BADGE.has(l.code),
   )
   const collection = COLLECTION_STATUS[topic.collection_status]
+  const issueUrl = githubIssueUrl(repositoryFullName, topic.issue_number)
+  const stats = `${topic.state === 'OPEN' ? '열림' : '종료'} · 댓글 ${topic.comments_count} · 반응 ${topic.reactions_count}`
 
   const info =
     notes.length > 0 ? (
@@ -65,10 +75,40 @@ export function CommunityIssueCard({
         accent.bar,
       )}
     >
-      {/* 상태를 색이 아니라 글자(`열림`·`종료`)로 적는다 */}
-      <p className={cn('text-base font-bold', accent.text)}>
-        {`#${topic.issue_number} · ${topic.state === 'OPEN' ? '열림' : '종료'} · 댓글 ${topic.comments_count} · 반응 ${topic.reactions_count}`}
-      </p>
+      {/*
+        `#번호` 자리에는 실제 GitHub 논의 페이지로 가는 링크 버튼을 둔다(S15P21A506-409). 확장 화면 외부 링크 금지의
+        예외로 제품 책임자가 정한 **이 링크 하나뿐**이다 — 새 탭으로 열고 `noopener noreferrer` 를 붙인다.
+        주소는 검증된 저장소 이름과 Issue 번호로만 만든다. 만들 수 없으면 링크 없이 `#번호` 글자를 둔다.
+        상태는 색이 아니라 글자(`열림`·`종료`)로 적는다.
+      */}
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-1 text-base font-bold',
+          accent.text,
+        )}
+      >
+        {issueUrl ? (
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className={cn('h-8 gap-1.5 font-bold', accent.text)}
+          >
+            <a
+              href={issueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`GitHub에서 보기 — Issue #${topic.issue_number} (새 탭에서 열림)`}
+            >
+              GitHub에서 보기
+              <ExternalLinkIcon aria-hidden />
+            </a>
+          </Button>
+        ) : (
+          <span>{`#${topic.issue_number}`}</span>
+        )}
+        <span>{stats}</span>
+      </div>
 
       <div className="flex flex-col gap-1">
         <h4 className="text-xl leading-snug font-bold">{topic.title_ko ?? topic.title_original}</h4>
@@ -79,7 +119,7 @@ export function CommunityIssueCard({
 
       {topic.summary_ko ? (
         <p className="text-sm leading-relaxed">
-          {topic.summary_ko}
+          <EmphasizedSummary text={topic.summary_ko} marks={topic.summary_marks} />
           {info}
         </p>
       ) : (

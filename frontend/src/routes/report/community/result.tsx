@@ -144,6 +144,7 @@ export function CommunityResultView({
                   topic={topic}
                   limitations={result.limitations}
                   accent={issueAccent(i)}
+                  repositoryFullName={result.repository?.full_name}
                 />
               ))}
             </div>
