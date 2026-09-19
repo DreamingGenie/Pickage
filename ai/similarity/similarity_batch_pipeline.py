@@ -231,8 +231,10 @@ def embed_corpus(
     log(f"재임베딩 대상: {len(to_embed)} / {len(rows)} (변경·신규분)")
 
     vectors = np.zeros((len(rows), 384), dtype=np.float32)
+    # set 은 루프 밖에서 한 번만 만든다. 반복마다 만들면 O(n^2) 이다 (29k 건에서 26초).
+    to_embed_set = set(to_embed)
     for i, r in enumerate(rows):
-        if i not in set(to_embed):
+        if i not in to_embed_set:
             vectors[i] = state[r["name"]]["vector"]
     if to_embed:
         fresh = embedder.encode([texts[i] for i in to_embed], batch_size=batch_size)
