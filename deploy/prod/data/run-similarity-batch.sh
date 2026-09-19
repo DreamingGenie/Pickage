@@ -116,16 +116,14 @@ echo "[5/6] 배치"
 #   text_hash_state.parquet 을 스테이징에 같이 받아 오면 된다.
 # TODO(별도 티켓): --batch-size·--query-block 을 이 노드 실측으로 고정.
 #
-# --max-rank 100000: 다운로드 상위 10만 위 안의 패키지만 코퍼스로 쓴다 (S15P21A506-172).
-#   package_text 의 rank 는 수집 시점 다운로드 내림차순 위치다. 이 인자가 없으면 컷이
-#   꺼져 92만 행 전체가 후보가 된다 (옵션 기본값이 컷 없음이다).
-#   결번이 있어 행수는 10만보다 적고, dependents·릴리스 경과·deprecated 조건과는
-#   교집합이다 — 2026-09-08 parquet 실측으로 자격 통과가 29,098 → 17,833 이 된다.
+# --max-rank 를 명시하지 않는다 — 기본값 100000이 항상 적용된다(S15P21A506-402).
+#   컷 기준은 package_text 의 download_rank(registry·downloads 가 실제로 수집한 고정
+#   목록 기준)이고, 그 목록 밖은 옵션을 아무리 키워도 통과하지 못한다. 이전에는 이
+#   인자를 빼먹으면 컷 자체가 꺼졌다 — 이제 그 실수가 불가능하다.
 docker compose run --rm ai-similarity \
   --package-text /work/in/package_text.parquet \
   --model-dir    /work/in/model \
-  --out          "/work/out/$OUT_RUN" \
-  --max-rank     100000
+  --out          "/work/out/$OUT_RUN"
 
 echo "      회수"
 docker compose run --rm -e AI_RESULT_PATH="$AI_DST_RESULT" ai-collect

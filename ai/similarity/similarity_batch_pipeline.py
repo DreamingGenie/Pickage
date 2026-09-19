@@ -9,7 +9,9 @@
 
 현재 구현 상태 (S15P21A506-168):
   1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01).
-                      --max-rank N 으로 다운로드 상위 N 컷 선택 가능 (S15P21A506-172)
+                      --max-rank N(기본 100000, 생략해도 항상 적용)으로 download_rank 상한을
+                      건다 — download_rank 는 재계산되는 rank 가 아니라 registry·downloads
+                      가 실제로 수집된 고정 목록 기준이다 (S15P21A506-172, 정정 S15P21A506-402)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
   4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
@@ -47,33 +49,42 @@ def log(msg: str) -> None:
 
 # ── 입력 ────────────────────────────────────────────────────────────────
 
-def load_package_text(path: str, min_dependents: int, max_rank: int | None = None) -> list[dict]:
+def load_package_text(path: str, min_dependents: int, max_rank: int = 100000) -> list[dict]:
     """package_text parquet 를 행 dict 목록으로 읽는다.
 
     기대 컬럼: name, description, keywords, dependent_packages_count,
-    latest_release_published_at, status (일부는 없을 수 있음).
-    단 `dependent_packages_count` 는 아래 예선 필터가 쓰므로 없으면 안 된다.
-    `max_rank` 를 주면 `rank` 도 있어야 한다.
+    latest_release_published_at, status, download_rank (일부는 없을 수 있으나
+    `download_rank` 는 아래 자격 조건이 항상 쓰므로 반드시 있어야 한다 — 없는 parquet 는
+    build_package_text.py 구버전 산출물이니 다시 만들어야 한다, S15P21A506-402).
 
-    **`max_rank` — 다운로드 상위 N 컷** (S15P21A506-172). `rank` 는 수집기가
-    ecosyste.ms 목록을 `sort=downloads&order=desc` 로 받은 순서의 위치라, `rank <= N`
-    은 수집 시점 다운로드 상위 N 위 안이다. 다만 `build_package_text.py` 가
-    removed·unpublished 를 뺀 뒤에도 `rank` 를 다시 매기지 않으므로 결번이 있다 —
-    N=100000 이라도 행수는 그보다 조금 적다. 이 조건도 dependents 하한과 같이 읽기
-    단계에서 건다(같은 메모리 사유). `rank` 가 null 인 행은 통과하지 못한다.
-    None 이면 컷을 걸지 않는다(기존 동작).
+    **`max_rank` — 리포트 가능 범위 안에서 추가로 더 좁힐 상한** (S15P21A506-172,
+    정정 S15P21A506-402). `download_rank` 는 `build_package_text.py` 가
+    `datasets/targets/rank_top100k_20260902.csv`(registry·downloads 수집기가 실제로
+    데이터를 모은 고정 목록)에서 조인한 값이다 — 그 목록 밖이면 NULL이고, 목록 안이면
+    1~100000 사이 값이다. **이 필터는 옵션이 아니라 항상 걸린다.** `max_rank` 를
+    생략해도 기본값 100000이 적용되어 목록 밖(NULL) 패키지는 절대 코퍼스에 들어오지
+    않는다 — 후보로 추천되고 나서야 리포트가 텅 빈 상태가 되는 사고를 옵션 하나에
+    맡기지 않기 위해서다.
 
-    **dependents 하한만 읽기 단계에서 거른다** (S15P21A506-382). 전수를 파이썬
-    dict 로 펼치면 92만 행에서 최고점이 2,230 MB 가 되어 컨테이너 상한(2 GiB)을
-    넘고, 첫 로그 한 줄도 못 남긴 채 커널에 죽는다 — 2026-09-17 첫 실운영 실행이
-    그랬다. 실제로 쓰는 것은 자격 필터를 통과한 3% 뿐인데 나머지 97%를 먼저 다
-    올리기 때문이다. 이 조건 하나로 92만 → 12.9만 행, 최고점 306 MB 가 된다.
+    (이전에는 `rank`—collect_keywords.py 가 `--run` 마다 ecosyste.ms 목록을 새로
+    호출해 얻는 그날그날의 순위—를 갖다 썼다. `rank` 는 실제 리포트 데이터 수집
+    범위와 날짜가 다르면 어긋난다. `download_rank` 는 그 어긋남 없이 정확히 같은
+    목록을 가리킨다.)
+
+    **dependents 하한·download_rank 상한을 읽기 단계에서 거른다** (S15P21A506-382,
+    -402). 전수를 파이썬 dict 로 펼치면 92만 행에서 최고점이 2,230 MB 가 되어
+    컨테이너 상한(2 GiB)을 넘고, 첫 로그 한 줄도 못 남긴 채 커널에 죽는다 —
+    2026-09-17 첫 실운영 실행이 그랬다. 실제로 쓰는 것은 자격 필터를 통과한 3%
+    뿐인데 나머지 97%를 먼저 다 올리기 때문이다. dependents 조건 하나로 92만 →
+    12.9만 행, 최고점 306 MB 가 된다.
 
     **나머지 조건은 qualify() 에 그대로 둔다.** 릴리스 경과·deprecated·spam 까지
-    여기로 끌어오면 자격 판정의 주체가 둘로 갈린다. 여기서 거르는 것은 qualify()
-    의 dependents 규칙과 글자 그대로 같은 하나뿐이고, null 처리도 일치한다 —
-    pyarrow 의 `>=` 는 null 을 통과시키지 않고 qualify 도 `dep is None` 을 버린다.
-    그래서 통과 집합과 그 순서가 수정 전후 동일하다(92만 코퍼스에서 29,164행 확인).
+    여기로 끌어오면 자격 판정의 주체가 둘로 갈린다. dependents 하한은 qualify()
+    의 규칙과 글자 그대로 같고, null 처리도 일치한다 — pyarrow 의 `>=` 는 null 을
+    통과시키지 않고 qualify 도 `dep is None` 을 버린다. 그래서 통과 집합과 그
+    순서가 수정 전후 동일하다(92만 코퍼스에서 29,164행 확인). `download_rank`
+    상한은 qualify() 에 대응하는 규칙이 없는 새 조건이다(리포트 가능 범위 자체를
+    정하는 것이라 코퍼스 자격과는 다른 층위다).
 
     ⚠ `--batch-size`·`--query-block` 을 줄이는 것은 이 구간에 듣지 않는다. 그 둘은
     임베딩·검색 단계를 지배하고 최고점은 그보다 앞이다 (compose.yaml 의 OOM 안내
@@ -86,11 +97,17 @@ def load_package_text(path: str, min_dependents: int, max_rank: int | None = Non
     # 여기를 통과한 것만 세기 때문에 `dependents<N 0` 으로 찍혀, 읽는 사람이 그 규칙이
     # 동작하지 않는다고 오해한다.
     total = pq.read_metadata(path).num_rows
-    filters = [("dependent_packages_count", ">=", min_dependents)]
-    cond = f"dependents>={min_dependents}"
-    if max_rank is not None:
-        filters.append(("rank", "<=", max_rank))
-        cond += f", rank<={max_rank}"
+    schema_names = pq.read_schema(path).names
+    if "download_rank" not in schema_names:
+        raise ValueError(
+            f"{path} 에 download_rank 컬럼이 없습니다 — build_package_text.py 구버전 산출물로 "
+            "보입니다. S15P21A506-402 반영 버전으로 package_text 를 다시 만들어야 합니다."
+        )
+    filters = [
+        ("dependent_packages_count", ">=", min_dependents),
+        ("download_rank", "<=", max_rank),
+    ]
+    cond = f"dependents>={min_dependents}, download_rank<={max_rank}"
     table = pq.read_table(path, filters=filters)
     rows = table.to_pylist()
     log(f"package_text: {total} 행 중 {cond} 인 {len(rows)} 행만 읽음  ({path})")
@@ -493,9 +510,10 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
     p.add_argument("--min-dependents", type=int, default=5)
-    p.add_argument("--max-rank", type=int, default=None,
-                   help="package_text 의 rank(다운로드 내림차순 위치)가 이 값 이하인 행만 코퍼스로 쓴다 "
-                        "(예: 100000). 생략 시 컷 없음. dependents 하한과 교집합이다")
+    p.add_argument("--max-rank", type=int, default=100000,
+                   help="package_text 의 download_rank(리포트 가능 고정 목록 기준 순위)가 이 값 "
+                        "이하인 행만 코퍼스로 쓴다. 생략해도 100000이 기본 적용된다 — 목록 밖"
+                        "(NULL)은 이 값을 아무리 키워도 통과하지 못한다. dependents 하한과 교집합이다")
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--retrieve-k", type=int, default=30,
                    help="검색 단계 후보 수 (DEC-RANK: 최종보다 넉넉히 뽑아 관문으로 좁힌다)")
