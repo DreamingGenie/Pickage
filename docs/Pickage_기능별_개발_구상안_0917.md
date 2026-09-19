@@ -467,6 +467,8 @@ canonical endpoint: `GET /packages/downloads?names=a,b,c&from=&to=`
 - 조회 요청 상한은 현재 `SnapshotWindow.MAX_WEEKS`와 같은 **104주**다. 실제 보유 자료가 더 짧으면 확보된 구간만 반환한다.
 - 기간과 호출 기준일 기록
 - 누락 구간은 null/gap으로 보존하고 주간 관측 간격이 8일을 넘으면 차트 path를 끊는다. S15P21A506-304로 관측 공백(8일 초과) 단절과 지표 카드별 오류 격리가 구현됐다.
+- 기준일 달력이 월요일 주간이 아니어도(2026-02 이후 금·화·목이 섞임) **서버는 월요일 격자로 응답한다**(S15P21A506-403). Downloads 는 구간 합계를 일평균으로 펼쳐 주간 합계로 환산하고, Dependents 는 관측 범위 안의 빈 주를 선형 보간한다. 그래서 8일 초과 단절은 Downloads 에서 그 패키지의 행이 없어 7일이 덮이지 않은 주에만 나타난다. 세부 규칙은 `설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
+- Dependents 카드는 변화율(구간 시작 = 100%)로 열고 실제값(로그축)으로 전환한다.
 - 0은 정상 응답에서 실제 값이 0일 때만 사용
 - Downloads와 Dependents는 공통 TrendResponse 계열을 재사용하되 metric/unit metadata로 의미를 구분한다. 구체 wire field는 Notion/Swagger 정본을 따른다.
 - 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다. S15P21A506-311로 로그축이 구현됐다.
@@ -1293,7 +1295,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 25. 두 서버가 각각 4 vCPU·15Gi·Swap 0·320G NVMe 실측 기준을 유지하는지 확인
 26. PDF 생성이 #1 data worker에서 실행되고 app API 요청과 무거운 생성 실행이 분리되는지 확인
 27. Dependency/Downloads 비교 그래프가 로그축 계약을 따르고 유효 point 2개 이하에서 `데이터 축적 중 (N주차)` 상태로 전환되는지 확인
-28. 표시한 trend의 8일 초과 관측 공백이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인
+28. Downloads 의 8일 초과 관측 공백(7일이 덮이지 않은 주)이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인. Dependents 는 서버가 빈 주를 보간하므로 끊김 없이 이어지는지 확인
 29. GitHub 커뮤니티 refresh의 Spring→GMS 직접 호출이 확장-03 bounded 예외에만 한정되고 코어 서빙 경로로 확산되지 않는지 확인
 30. 저장소에 구현된 6개 endpoint와 Notion/Swagger의 차이를 pending alignment로 관리하는지 확인
 31. 새 모델 결과의 S3·`similar_package` 원자 게시와 실행 manifest 연결을 구현·검증

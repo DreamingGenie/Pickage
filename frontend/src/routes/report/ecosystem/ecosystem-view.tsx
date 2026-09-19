@@ -327,6 +327,7 @@ export function EcosystemView({
             emphasisKeys={emphasisKeys}
             height={height}
             state={metricState.dependents}
+            defaultScale="index"
           />
           <MetricChart
             title="Downloads"

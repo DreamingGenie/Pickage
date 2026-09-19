@@ -213,14 +213,29 @@ public class PackageQueryRepository {
 	 * <p><b>없는 스냅샷의 행을 만들어 끼우지 않는다.</b> 신규 패키지는 옛 스냅샷에 행이 아예
 	 * 없어서 시리즈 길이가 서로 다르다. 0 으로 채우면 "그 주에 아무도 안 받았다" 가 되어
 	 * 화면에 없는 급락이 그려진다.
+	 *
+	 * <p><b>{@code downloads} 는 그 주의 값이 아니라 {@code [직전 기준일, 이 기준일)} 구간
+	 * 합계다</b>(S15P21A506-278). 기준일 달력이 매주 월요일이 아니라서 구간 길이가 1일에서
+	 * 18일까지 흔들린다. 그래서 <b>직전 기준일을 같이 내보내</b> {@link WeeklyTrend} 가 일평균으로
+	 * 펼쳐 주간 합계로 다시 만든다(S15P21A506-403).
+	 *
+	 * <p>직전 기준일은 {@code snapshot} 달력 <b>전체</b>에서 {@code LAG} 로 구한다. 조회 구간으로
+	 * 자른 뒤에 구하면 구간 첫 행의 직전이 사라진다. 달력의 첫 날짜는 직전이 없어 구간을 정할
+	 * 수 없으므로 뺀다.
 	 */
 	private static final String DOWNLOADS_TREND_SQL = """
-		SELECT p.name, NULL::text AS major, ps.snapshot_at, ps.downloads AS value
+		WITH cal AS (
+		  SELECT snapshot_at, LAG(snapshot_at) OVER (ORDER BY snapshot_at) AS previous_at
+		  FROM snapshot
+		)
+		SELECT p.name, ps.snapshot_at, cal.previous_at, ps.downloads AS value
 		FROM package_snapshot ps
 		JOIN package p ON p.package_id = ps.package_id
+		JOIN cal ON cal.snapshot_at = ps.snapshot_at
 		WHERE p.name = ANY(?)
 		  AND ps.snapshot_at BETWEEN ? AND ?
 		  AND ps.downloads IS NOT NULL
+		  AND cal.previous_at IS NOT NULL
 		ORDER BY p.name, ps.snapshot_at
 		""";
 
@@ -282,21 +297,25 @@ public class PackageQueryRepository {
 		         m.snapshot_at
 		""";
 
-	public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
-		return findTrend(DOWNLOADS_TREND_SQL, names, window);
+	/**
+	 * 다운로드 구간 행. <b>조회 구간보다 양옆으로 {@link WeeklyTrend#EDGE_MARGIN_DAYS} 일 더</b>
+	 * 가져온다 — 구간 가장자리 월요일의 7일이 그 밖의 기준일 구간에 걸쳐 있을 수 있다.
+	 * 실제로 어느 월요일까지 내보낼지는 {@link WeeklyTrend} 가 조회 구간으로 다시 자른다.
+	 */
+	public List<IntervalRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
+		return jdbcTemplate.query(DOWNLOADS_TREND_SQL,
+			ps -> bindWidened(ps, names, window),
+			(rs, i) -> new IntervalRow(
+				rs.getString("name"),
+				rs.getObject("snapshot_at", LocalDate.class),
+				rs.getObject("previous_at", LocalDate.class),
+				rs.getLong("value")));
 	}
 
+	/** 의존 수도 같은 이유로 양옆을 더 가져온다 — 구간 밖 이웃 관측치가 있어야 가장자리를 보간한다. */
 	public List<TrendRow> findDependentsTrend(PackageNames names, SnapshotWindow window) {
-		return findTrend(DEPENDENTS_TREND_SQL, names, window);
-	}
-
-	private List<TrendRow> findTrend(String sql, PackageNames names, SnapshotWindow window) {
-		return jdbcTemplate.query(sql,
-			ps -> {
-				ps.setArray(1, ps.getConnection().createArrayOf("text", names.toArray()));
-				ps.setObject(2, window.from());
-				ps.setObject(3, window.to());
-			},
+		return jdbcTemplate.query(DEPENDENTS_TREND_SQL,
+			ps -> bindWidened(ps, names, window),
 			(rs, i) -> new TrendRow(
 				rs.getString("name"),
 				rs.getString("major"),
@@ -304,8 +323,22 @@ public class PackageQueryRepository {
 				rs.getLong("value")));
 	}
 
-	/** {@code major} 는 dependents 에만 있다. downloads 는 버전으로 쪼갤 수 없어 항상 {@code null} 이다. */
+	private static void bindWidened(java.sql.PreparedStatement ps, PackageNames names,
+		SnapshotWindow window) throws java.sql.SQLException {
+		ps.setArray(1, ps.getConnection().createArrayOf("text", names.toArray()));
+		ps.setObject(2, window.from().minusDays(WeeklyTrend.EDGE_MARGIN_DAYS));
+		ps.setObject(3, window.to().plusDays(WeeklyTrend.EDGE_MARGIN_DAYS));
+	}
+
+	/** {@code major} 는 dependents 에만 있다. */
 	public record TrendRow(String name, String major, LocalDate snapshotAt, long value) {
+	}
+
+	/**
+	 * 다운로드 한 행. {@code value} 는 {@code [previousSnapshotAt, snapshotAt)} 의 합계다.
+	 * downloads 는 버전으로 쪼갤 수 없어 major 가 없다.
+	 */
+	public record IntervalRow(String name, LocalDate snapshotAt, LocalDate previousSnapshotAt, long value) {
 	}
 
 	/* ------------------------------------------------------------------ *
