@@ -14,12 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.RemovalReasonRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TransitionRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
@@ -365,6 +367,77 @@ public class PackageService {
 		LocalDate t2 = rows.stream().map(TransitionRow::t2).findFirst().orElse(null);
 
 		return TransitionsResponse.of(period.code(), t1, t2, series, existing.notFound());
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-08 이탈 사유 (S15P21A506-396)
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 대체를 동반한 이탈과 아무것도 안 넣은 이탈.
+	 *
+	 * <p><b>{@link #getTransitions} 와 단위가 다르다.</b> 저쪽은 패키지 수를 세고 이쪽은 전이
+	 * 건수를 센다. 그래서 응답을 따로 내고 {@code unit} 을 값으로 싣는다.
+	 *
+	 * <p><b>네 갈래를 가른다.</b> 위 세 갈래에 하나가 더 붙는다.
+	 * <ul>
+	 *   <li>{@code not_found} — {@code package} 에 이름 자체가 없다</li>
+	 *   <li>{@code OUT_OF_SCOPE} — 이름은 있는데 유지·유입·이탈 대상이 아니다</li>
+	 *   <li>{@code NO_DATA} — 대상인데 이 구간에 <b>한 번도 빠진 적이 없다.</b> 0 이 맞다</li>
+	 *   <li>{@code NOT_COMPUTED} — 이탈 사유 회차가 아직 적재되지 않았다</li>
+	 * </ul>
+	 *
+	 * <p>세 번째가 이 지표에서 특히 중요하다 — 대상 97,745개 중 <b>57,201개(58.5%)</b>가
+	 * 거기 해당한다. 적재기가 {@code removals > 0} 인 행만 넣으므로 표에 행이 없는 것이
+	 * 곧 "세어 보니 없었다" 이고, 조회가 {@code dependent_transition} 을 함께 보는 이유가
+	 * 그것이다.
+	 *
+	 * <p>네 번째를 {@link PackageQueryRepository#hasAnyRemovalReason()} 로 따로 확인한다.
+	 * 유지·유입·이탈만 적재된 상태에서는 조회가 모든 대상에 행을 돌려주되 수가 전부
+	 * {@code null} 이라, 이 검사가 없으면 <b>적재를 안 했을 뿐인데 "한 번도 버려진 적
+	 * 없습니다" 를 띄운다.</b>
+	 */
+	@Transactional(readOnly = true)
+	public RemovalReasonsResponse getRemovalReasons(PackageNames names, TransitionPeriod period) {
+		Existing existing = existing(names);
+		List<RemovalReasonRow> rows = existing.names().isEmpty()
+			? List.of()
+			: repository.findRemovalReasons(PackageNames.of(existing.names()), period.code());
+
+		// 조회가 행을 돌려줬다는 것은 그 이름이 범위 안이라는 뜻이다(범위 표를 JOIN 했다).
+		// 행이 없으면 범위 밖이거나, 이탈 사유 회차가 통째로 없거나 둘 중 하나다.
+		boolean loaded = repository.hasAnyRemovalReason();
+		String missing = loaded ? RemovalReasonsResponse.OUT_OF_SCOPE
+			: RemovalReasonsResponse.NOT_COMPUTED;
+
+		Map<String, RemovalReasonRow> byName = rows.stream()
+			.collect(Collectors.toMap(RemovalReasonRow::name, Function.identity()));
+
+		List<RemovalReasonsResponse.Series> series = existing.names().stream()
+			.map(name -> {
+				RemovalReasonRow row = byName.get(name);
+				if (row == null) {
+					return RemovalReasonsResponse.Series.unknown(name, missing);
+				}
+				if (!loaded) {
+					// 범위는 맞는데 회차가 없다. 0 이 아니라 모른다고 한다.
+					return RemovalReasonsResponse.Series.unknown(name,
+						RemovalReasonsResponse.NOT_COMPUTED);
+				}
+				if (!row.counted()) {
+					return RemovalReasonsResponse.Series.none(name);
+				}
+				return RemovalReasonsResponse.Series.counted(name, row.removals(),
+					row.noReplacement(), row.withReplacement(), row.dependents());
+			})
+			.toList();
+
+		// transitions 와 같은 규칙 — 표가 가진 값만 쓴다. 읽을 행이 없으면 모른다고 한다.
+		// 두 응답의 t1·t2 가 같은 값인 것은 적재기가 같은 표에서 가져오기 때문이다.
+		LocalDate t1 = rows.stream().map(RemovalReasonRow::t1).findFirst().orElse(null);
+		LocalDate t2 = rows.stream().map(RemovalReasonRow::t2).findFirst().orElse(null);
+
+		return RemovalReasonsResponse.of(period.code(), t1, t2, series, existing.notFound());
 	}
 
 	/* ------------------------------------------------------------------ *
