@@ -1,7 +1,8 @@
-import { CheckIcon, CircleAlertIcon, Loader2Icon } from 'lucide-react'
+import { CheckIcon, CircleAlertIcon, DownloadIcon, Loader2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
+import { pdfDownloadUrl } from '@/api/endpoints'
 import { useGeneratePdf } from '@/api/queries'
 import type { PdfJob, ReportSection, TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -250,15 +251,16 @@ function Ready({
 
       <dl className="flex flex-col divide-y rounded-lg border">
         <Row label="비교 대상" value={packages.join(' · ')} />
-        <Row label="생태계 조회 기간" value={from && to ? `${from} ~ ${to}` : '보유한 전 기간'} />
-        <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
+        {/* 조건을 주지 않으면 화면의 기본값이다 — 전체 기간, 주 단위. 의존 수 그래프는 실제값으로 그린다. */}
         <Row
-          label="유지·유입·이탈 조회 기간"
-          value={transitionPeriodLabel(transitionPeriod)}
+          label="생태계 조회 기간"
+          value={from && to ? `${from} ~ ${to}` : '보유한 전 기간 · 매주'}
         />
+        <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
+        <Row label="유지·유입·이탈 조회 기간" value={transitionPeriodLabel(transitionPeriod)} />
         <Row
           label="포함 내용"
-          value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 유지·유입·이탈 · 자료 상태"
+          value="그래프와 수치 표 — Downloads · 의존 수(실제값) · Version Share · 유지·유입·이탈 · 자료 상태"
         />
       </dl>
 
@@ -280,7 +282,7 @@ function Ready({
         <SectionToggle
           section="COMMUNITY"
           label="커뮤니티 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note="기준 패키지의 GitHub 저장소 수치·핵심 논의·실제 논의 흐름이 실립니다. 자료가 아직 수집되지 않았다면 그 안내만 실립니다."
           checked={sections.includes('COMMUNITY')}
           onToggle={onToggle}
         />
@@ -446,27 +448,46 @@ function Complete({
 
       {/*
         요청했지만 못 채운 구역. 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를
-        알 수 없다 — 문서 안에도 같은 말이 적혀 있다.
+        알 수 없다 — 문서 안에도 같은 말이 적혀 있다. 이유는 구역마다 다르다.
       */}
       {job.omitted.length > 0 && (
-        <p className="rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
-          {job.omitted.map(sectionLabel).join(' · ')} 구역은 해당 분석 기능이 아직 없어 자리와
-          사유만 실렸습니다.
-        </p>
+        <ul className="flex flex-col gap-1 rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
+          {job.omitted.map((section) => (
+            <li key={section}>{omittedNote(section)}</li>
+          ))}
+        </ul>
       )}
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           닫기
         </Button>
-        <Button onClick={onPreview}>미리보기</Button>
+        <Button variant="outline" onClick={onPreview}>
+          미리보기
+        </Button>
+        {/*
+          미리보기를 거치지 않고 바로 받는다. 버튼이 아니라 링크다 — 서버가 attachment 로 보내므로 여는 것만으로
+          저장된다(미리보기 모달의 다운로드와 같은 방식). blob 을 만들면 같은 파일을 메모리에 한 번 더 들고 있어야 한다.
+        */}
+        <Button asChild>
+          <a href={pdfDownloadUrl(job.report_id)} download={job.file_name}>
+            <DownloadIcon className="size-4" aria-hidden />
+            다운로드
+          </a>
+        </Button>
       </DialogFooter>
     </>
   )
 }
 
-function sectionLabel(section: ReportSection): string {
-  return section === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'
+/**
+ * 채우지 못한 구역의 이유. 둘은 이유가 다르다 — 기능 심화 분석은 기능이 아직 없어서, 커뮤니티 분석은 이 패키지의
+ * 자료가 아직 수집되지 않아서다(기능은 있다). 같은 말로 안내하면 커뮤니티가 "미완성 기능"으로 읽힌다.
+ */
+function omittedNote(section: ReportSection): string {
+  return section === 'COMMUNITY'
+    ? '커뮤니티 분석: 이 패키지의 GitHub 자료가 아직 수집되지 않아 안내만 실렸습니다. GitHub 커뮤니티 탭을 한 번 연 뒤 다시 만들면 채워집니다.'
+    : '기능 심화 분석: 해당 분석 기능이 아직 없어 자리와 사유만 실렸습니다.'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

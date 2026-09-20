@@ -129,6 +129,11 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   보인다는 제품 책임자 판단으로 바꿨다. 배치는 **왼쪽 두 칸 = 저장소 전체**(`전체 Issue`·`열린 Issue`), **오른쪽 두 칸 = 핵심 논의(요약한 Issue)**(`핵심 논의 누적 댓글`·`핵심 논의 사용자 반응`)다 — 두 범위가 섞여 있어 이해가 안 된다는 제품 책임자 지적으로 순서로 묶고 라벨에 `핵심 논의`를 붙였다. 값은 `repository.issue_count`·`open_issue_count`
   (선택·nullable)이고 못 구했거나 이전 스냅샷이면 두 칸 모두 `—` 로 보인다(0 으로 지어내지 않는다). 천 단위 쉼표를 쓴다(`1,234건`). `summary.issue_count`·
   `open_issue_count` 는 응답에 남아 있지만 화면은 더 쓰지 않는다. 기획 문서의 "저장소 전체 수치라고 표기하지 않는다" 제약은 이 두 수치에 한해 풀었다.
+- `DEC-PDF-GRAPHS-20260920-01`(`S15P21A506-414`): PDF·미리보기는 표와 숫자만 있던 문서를 **그래프 위, 수치 표 아래**로 바꿨다 — Downloads·의존 수 선그래프,
+  Version Share 도넛·막대, 유지·유입·이탈 막대(화면과 같은 기하: `geometry.ts` 를 자바 `ChartGeometry` 로 옮겼고 같은 입력의 TypeScript 실행 결과와 대조한다). 조회
+  조건은 **화면의 기본값**(전체 기간·주 단위)이고 **의존 수 그래프는 실제값**(화면 기본은 변화율)·로그 눈금이다. 내보내기 모달의 `더할 구역`에서 **커뮤니티 분석**을 고를
+  수 있고(기준 패키지의 저장된 스냅샷을 싣는다, 자료가 없으면 안내만), `PDF가 준비되었습니다` 모달에 미리보기를 거치지 않는 **다운로드 버튼**을 뒀다. 그래프는
+  SVG(도형만)+HTML 라벨이다 — SVG 안의 글자는 운영 컨테이너에 글꼴 설정이 없어 PDF 에서 사라질 수 있다. 서버가 SVG 를 그리려고 `openhtmltopdf-svg-support`(Batik)를 더했다.
 - `DEC-COMMUNITY-LINK-MARKS-20260920-01`(`S15P21A506-408`·`S15P21A506-409`): 커뮤니티 Issue 카드의 `#번호` 자리에 그 Issue 의 GitHub 페이지로
   가는 링크 버튼(`GitHub에서 보기`)을 둔다 — 제품 책임자가 확장 화면 외부 링크 금지의 예외로 정했다. 새 탭·`noopener noreferrer`, 주소는
   검증된 `repository.full_name` 과 Issue 번호로 프런트가 만든다(`githubIssueUrl`, 모양이 이상하면 링크 없이 `#번호` 글자). 저장소 이름·작성자는
