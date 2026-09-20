@@ -214,5 +214,26 @@ class DocumentStatusMessageTests(unittest.TestCase):
         self.assertIn("LIMITED", seen[0])
 
 
+
+class MetaEvidenceMessageTests(unittest.TestCase):
+    """헤더 근거를 모델이 근거로 알아보게 한다 (S15P21A506-420)."""
+
+    def test_every_evidence_item_carries_its_source_type(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        meta = _make_evidence("foo@1.0.0#meta-entry", "foo", "1.0.0")
+        meta.source_type = "TARBALL_PACKAGE_JSON"
+        readme = _make_evidence("foo@1.0.0#0", "foo", "1.0.0")
+
+        message = json.loads(build_user_message(packages, [meta, readme]))
+
+        self.assertEqual(
+            [e["sourceType"] for e in message["evidence"]], ["TARBALL_PACKAGE_JSON", "TARBALL_README"]
+        )
+
+    def test_prompt_explains_package_metadata_and_keeps_environment_facts_out_of_the_rows(self):
+        self.assertIn("TARBALL_PACKAGE_JSON", PROMPT)
+        self.assertIn("라이선스", PROMPT)  # 라이선스·설치 크기 자체를 비교 기능 행으로 삼지 말 것
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,10 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 # 175가 실제로 생성하는 값의 부분집합 (전체 enum은 §7.4 참고)
-SourceType = Literal["TARBALL_README"]
+#
+# TARBALL_PACKAGE_JSON(S15P21A506-420): 인계 파일 헤더(소비 형태·진입점, 설치 조건, 설명)에서 뽑은
+# 패키지 메타데이터 근거. package.json 과 배포 파일 목록에서 기계적으로 만든 값이다.
+SourceType = Literal["TARBALL_README", "TARBALL_PACKAGE_JSON"]
 VerificationLevel = Literal["DISTRIBUTED_ARTIFACT", "SUPPLEMENTARY"]
 
 GroundedIn = Literal["EVIDENCE", "GENERAL_KNOWLEDGE"]

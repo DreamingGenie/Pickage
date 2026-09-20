@@ -64,6 +64,12 @@ PROMPT = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "�
    패키지에 기능이 없다고 판단하지 마십시오 — 그런 항목은 UNCONFIRMED로 두고, UNSUPPORTED는
    근거가 명시적으로 부정할 때만 쓰십시오. documentStatus가 없거나 OK인 패키지에는 이 규칙이
    추가 제약을 만들지 않습니다.
+8-4. sourceType이 TARBALL_PACKAGE_JSON인 근거는 README 발췌가 아니라 패키지 메타데이터(package.json과
+   배포 파일 목록에서 뽑은 설명, 명령, 진입점, 모듈 형식, 타입 선언 여부)입니다. 이 사실은 그대로 판정
+   근거로 인용할 수 있습니다(예: 타입 선언 제공 여부, ESM/CJS 지원, 명령줄 실행 파일 유무). 단 "타입 선언:
+   포함"은 선언 파일이 있다는 뜻이지 그 안에 어떤 API가 있는지를 말하지 않으며, 진입점 목록은 경로일 뿐
+   기능 이름이 아닙니다 — 이를 근거로 특정 API의 존재를 단정하지 마십시오. 라이선스·설치 크기·파일 수·
+   의존성 개수 같은 환경 정보 자체를 비교 기능(표의 행)으로 삼지 마십시오.
 
 ## 비교 축(표의 행) 선정 규칙
 
@@ -101,6 +107,7 @@ def build_user_message(
                 "package": e.package,
                 "version": e.version,
                 "section": e.section,
+                "sourceType": e.source_type,
                 "excerpt": e.excerpt,
                 "verificationLevel": e.verification_level,
             }

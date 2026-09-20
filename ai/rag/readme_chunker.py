@@ -188,6 +188,91 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
     )
 
 
+# 설치 조건(설치 크기·파일 수·의존성·라이선스) 청크를 근거로 넘길지. 이 값들은 "기능"이 아니라
+# 환경 정보라 비교 표의 기능 행으로 새어 나올 수 있어 기본은 넘기지 않는다(S15P21A506-420 실측 A/B).
+INCLUDE_INSTALL_CONDITIONS = False
+
+_ENTRY_HEADING_KEY = "소비형태·진입점"
+_INSTALL_HEADING_KEY = "설치조건"
+
+# 소비 형태 섹션에서 근거로 삼는 줄. `형태`(bin 이 있으면 CLI 로 분류하는 휴리스틱이라 라이브러리를
+# CLI 로 오해하게 함)와 키워드·스타일 진입점은 판정 근거가 못 되어 뺀다.
+_ENTRY_KEEP_KEYS = ("명령", "진입점", "모듈 형식", "타입 선언")
+
+_ENTRY_LIST_RE = re.compile(r"^(진입점 \d+개: )(.*)$")
+
+
+def _squash_heading(text: str) -> str:
+    """제목의 공백 변형(`소비 형태 · 진입점` / `소비 형태·진입점`)을 무시하려고 공백을 지운다."""
+    return re.sub(r"\s+", "", text)
+
+
+def _clean_entry_line(line: str) -> str:
+    """`진입점 2개: , browser` 처럼 첫 항목이 빈 문자열이면 루트 진입점 `.` 으로 되돌린다.
+
+    인계 파일은 exports 의 "." 에서 앞의 `./` 문자 집합을 벗기다 빈 문자열이 남는다(운영 노드 실물).
+    그대로 두면 모델이 빈 진입점을 오해한다. 나머지 줄과 `외 N개` 꼬리는 건드리지 않는다.
+    """
+    match = _ENTRY_LIST_RE.match(line)
+    if not match:
+        return line
+    items = match.group(2).split(", ")
+    if items and items[0] == "":
+        items[0] = "."
+    return match.group(1) + ", ".join(items)
+
+
+def chunk_header(
+    envelope: DataTeamEnvelope,
+    snapshot_id: str,
+    include_install: bool | None = None,
+) -> list[EvidenceChunk]:
+    """인계 파일 헤더를 판정 근거(패키지 메타데이터) 청크로 만든다 (S15P21A506-420).
+
+    README 에 없는 사실 — 타입 선언 제공 여부, ESM/CJS, 진입점 구성, 명령 — 은 지금까지 GPT 에
+    닿지 않아 근거가 있는데도 미확인이 되었다. 근거 ID 는 `pkg@ver#meta-…` 로 README 청크
+    번호(`#0`…)와 섞이지 않게 한다. 헤더가 없는 옛 서식이면 아무것도 만들지 않는다.
+
+    청크: 설명(`#meta-desc`) → 소비 형태·진입점의 근거 줄(`#meta-entry`) → 설치 조건
+    (`#meta-install`, include_install 일 때만). 순서가 곧 `retrieve` 예산에 담기는 순서다.
+    """
+    if include_install is None:
+        include_install = INCLUDE_INSTALL_CONDITIONS
+
+    def _chunk(suffix: str, section: str, excerpt: str) -> EvidenceChunk:
+        return EvidenceChunk(
+            evidence_id=f"{envelope.package}@{envelope.version}#meta-{suffix}",
+            snapshot_id=snapshot_id,
+            package=envelope.package,
+            version=envelope.version,
+            section=section,
+            excerpt=excerpt,
+            confirmed_content=excerpt,
+            source_type="TARBALL_PACKAGE_JSON",
+            verification_level="DISTRIBUTED_ARTIFACT",
+            path="package.json",
+        )
+
+    chunks: list[EvidenceChunk] = []
+    if envelope.description:
+        chunks.append(_chunk("desc", "설명", envelope.description))
+
+    for heading, body in envelope.structured_facts.items():
+        key = _squash_heading(heading)
+        if key == _ENTRY_HEADING_KEY:
+            kept = [
+                _clean_entry_line(line.strip()[2:].strip())
+                for line in body.splitlines()
+                if line.strip().startswith("- ")
+                and line.strip()[2:].split(":", 1)[0].strip().startswith(_ENTRY_KEEP_KEYS)
+            ]
+            if kept:
+                chunks.append(_chunk("entry", heading, "\n".join(kept)))
+        elif key == _INSTALL_HEADING_KEY and include_install:
+            chunks.append(_chunk("install", heading, body))
+    return chunks
+
+
 _STATUS_RE = re.compile(r"상태\s+(OK|LIMITED|NONE)\b")
 _README_BYTES_RE = re.compile(r"README\s+([\d,]+)\s*B\b")
 _PROSE_CHARS_RE = re.compile(r"산문\s+([\d,]+)\s*자")

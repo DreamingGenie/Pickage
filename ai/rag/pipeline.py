@@ -19,7 +19,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ai.rag.generation import generate
-from ai.rag.readme_chunker import chunk_readme, parse_data_team_envelope, parse_source_footer
+from ai.rag.readme_chunker import (
+    chunk_header,
+    chunk_readme,
+    parse_data_team_envelope,
+    parse_source_footer,
+)
 from ai.rag.readme_source import ReadmeSourceNotFoundError, resolve_readme_path
 from ai.rag.retrieval import retrieve
 from ai.rag.types import ComparisonResult, EvidenceChunk, PackageRef, PackageSource
@@ -69,7 +74,11 @@ def load_document(
 
     envelope = parse_data_team_envelope(doc_text)
     snapshot_id = hashlib.sha256(doc_text.encode("utf-8")).hexdigest()[:16]
-    chunks = chunk_readme(envelope.readme_body, package, version, snapshot_id=snapshot_id)
+    # 헤더 근거(#meta-…)를 README 청크 앞에 둔다 — `retrieve` 는 문서 순서대로 예산을 채우므로
+    # 작은 메타 청크가 긴 README 에 밀려나지 않는다. README 청크 번호(#0…)는 그대로다(S15P21A506-420).
+    chunks = chunk_header(envelope, snapshot_id) + chunk_readme(
+        envelope.readme_body, package, version, snapshot_id=snapshot_id
+    )
     return LoadedDocument(
         chunks=chunks,
         source=parse_source_footer(envelope.source_footer, package, version),

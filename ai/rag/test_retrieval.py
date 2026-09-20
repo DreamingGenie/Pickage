@@ -71,5 +71,22 @@ class RetrievePackageScopeTests(unittest.TestCase):
         self.assertEqual([c.evidence_id for c in result], ["e1"])
 
 
+
+class RetrieveMetaEvidenceTests(unittest.TestCase):
+    """헤더 근거(#meta-*)가 예산에서 밀려나지 않는다 (S15P21A506-420)."""
+
+    def test_meta_chunks_placed_first_survive_a_tight_budget(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        chunks = [
+            _chunk("foo@1.0.0#meta-entry", "foo", "모듈 형식: type=module"),
+            _chunk("foo@1.0.0#0", "foo", "a" * 500),
+            _chunk("foo@1.0.0#1", "foo", "b" * 500),
+        ]
+
+        result = retrieve(packages, chunks, max_chars_per_package=100)
+
+        self.assertEqual(result[0].evidence_id, "foo@1.0.0#meta-entry")
+
+
 if __name__ == "__main__":
     unittest.main()
