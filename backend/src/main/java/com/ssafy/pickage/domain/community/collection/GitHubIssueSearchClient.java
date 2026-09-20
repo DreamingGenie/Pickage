@@ -80,7 +80,44 @@ public class GitHubIssueSearchClient {
                                 + "/search/issues?q="
                                 + URLEncoder.encode(query, StandardCharsets.UTF_8)
                                 + "&sort=comments&order=desc&per_page=30");
+        return parseSearchPage(fetchSearchJson(uri, remainingBudget));
+    }
 
+    /**
+     * 저장소 전체 Issue 수(PR 제외). {@code openOnly} 면 열려 있는 것만 센다(S15P21A506-413).
+     *
+     * <p>{@code per_page=1} 이라 본문은 작고, 필요한 것은 {@code total_count} 뿐이다. 이 값은 요약 수치 카드에 쓰이는 보조 정보라
+     * **결과가 불완전({@code incomplete_results})하면 믿지 않고 {@code null}** 을 돌려준다 — 틀린 숫자를 보여주느니 비워 둔다.
+     *
+     * @throws GitHubRateLimitException search rate limit 소진
+     * @throws UpstreamFetchException 그 외 통신 오류·byte 상한 초과·형식 오류
+     */
+    public Integer countIssues(String owner, String repo, boolean openOnly, Duration remainingBudget) {
+        String query = "repo:" + owner + "/" + repo + " is:issue" + (openOnly ? " is:open" : "");
+        URI uri =
+                URI.create(
+                        apiBase
+                                + "/search/issues?q="
+                                + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                                + "&per_page=1");
+        JsonNode root;
+        try {
+            root = JSON.readTree(fetchSearchJson(uri, remainingBudget));
+        } catch (IOException e) {
+            throw new UpstreamFetchException("GitHub search 응답 JSON 파싱 실패", e);
+        }
+        if (root == null
+                || !root.path("total_count").isIntegralNumber()
+                || !root.path("total_count").canConvertToInt()
+                || root.path("total_count").asInt(-1) < 0
+                || !root.path("incomplete_results").isBoolean())
+            throw new UpstreamFetchException("Invalid search count shape");
+        if (root.path("incomplete_results").asBoolean(false)) return null;
+        return root.path("total_count").asInt();
+    }
+
+    /** search 엔드포인트 하나를 호출해 본문 JSON 문자열을 돌려준다. rate limit·상태 코드·크기 상한을 여기서 한 번에 처리한다. */
+    private String fetchSearchJson(URI uri, Duration remainingBudget) {
         rateGate.check("search");
         HttpRequest.Builder builder =
                 HttpRequest.newBuilder(uri)
@@ -113,8 +150,7 @@ public class GitHubIssueSearchClient {
             if (response.statusCode() != 200) {
                 throw new UpstreamFetchException("GitHub search 오류 상태: " + response.statusCode());
             }
-            String json = BoundedHttpReader.readBounded(body, maxResponseBytes, "GitHub search");
-            return parseSearchPage(json);
+            return BoundedHttpReader.readBounded(body, maxResponseBytes, "GitHub search");
         } catch (IOException e) {
             throw new UpstreamFetchException("GitHub search 응답 스트림 종료 오류", e);
         }

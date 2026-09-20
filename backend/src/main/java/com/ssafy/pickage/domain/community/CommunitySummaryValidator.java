@@ -13,6 +13,17 @@ import java.util.*;
 public final class CommunitySummaryValidator {
     private static final Logger log = LoggerFactory.getLogger(CommunitySummaryValidator.class);
 
+    /**
+     * 모델이 만든 글의 길이 상한(코드 포인트). 저장 검증기({@link CommunitySnapshotValidator})도 같은 값을 쓴다.
+     *
+     * <p>GMS 프롬프트가 요구하는 길이(제목 100·요약 400·발화 200)보다 넉넉하다 — 모델은 요구한 길이를 자주 넘긴다(발화 250 을 요구했는데
+     * 264·286·373 자가 나온 것을 2026-09-20 실측으로 확인, S15P21A506-412). 넘긴 글은 실패로 버리지 않고 {@link #fit} 이 자른다.
+     */
+    public static final int MAX_TITLE = 200;
+
+    public static final int MAX_SUMMARY = 500;
+    public static final int MAX_MESSAGE_TEXT = 300;
+
     /** 대표 발화 상한(2026-09-20 3→4, S15P21A506-408). 하이라이트 댓글 선택·GMS 스키마·스냅샷 검증기와 같은 값이다. */
     public static final int MAX_MESSAGES = 4;
 
@@ -35,36 +46,25 @@ public final class CommunitySummaryValidator {
                     summary.status() == SummaryStatus.READY
                             || summary.status() == SummaryStatus.PARTIAL,
                     "status");
-            String titleKo = stripLinks(summary.titleKo());
-            String summaryKo = stripLinks(summary.summaryKo());
-            require(CommunitySnapshotValidator.plain(titleKo, 200), "titleKo not plain/too long");
-            require(CommunitySnapshotValidator.plain(summaryKo, 500), "summaryKo not plain/too long");
+            // ① 링크를 지우고 ② 꺾쇠를 전각으로 바꾸고 ③ 길이를 맞춘다. 링크 문구("(링크 생략)")가 길이를 바꾸므로 길이가 맨 끝이다.
+            String titleKo = fit(neutralize(stripLinks(summary.titleKo()), "titleKo"), MAX_TITLE, "titleKo");
+            String summaryKo =
+                    fit(neutralize(stripLinks(summary.summaryKo()), "summaryKo"), MAX_SUMMARY, "summaryKo");
+            require(CommunitySnapshotValidator.plain(titleKo, MAX_TITLE), "titleKo not plain/too long");
+            require(
+                    CommunitySnapshotValidator.plain(summaryKo, MAX_SUMMARY),
+                    "summaryKo not plain/too long");
             support(bundle, summary.summarySupport(), "summarySupport");
-            require(
-                    summary.discussionFlow() != null
-                            && !summary.discussionFlow().isEmpty()
-                            && summary.discussionFlow().size() <= 4,
-                    "discussionFlow size");
-            require(
-                    summary.flowSupport() != null
-                            && summary.flowSupport().size() == summary.discussionFlow().size(),
-                    "flowSupport size mismatch");
-            var flow = new ArrayList<DiscussionStepPayload>();
-            for (int i = 0; i < summary.discussionFlow().size(); i++) {
-                String stepText = stripLinks(summary.discussionFlow().get(i).text());
-                require(CommunitySnapshotValidator.plain(stepText, 200), "flow[" + i + "] not plain/too long");
-                support(bundle, summary.flowSupport().get(i), "flowSupport[" + i + "]");
-                flow.add(new DiscussionStepPayload(stepText));
-            }
             require(summary.messages() != null && summary.messages().size() <= MAX_MESSAGES, "messages size");
             var messages = new ArrayList<MessagePayload>();
             var seen = new HashSet<String>();
             for (var m : summary.messages()) {
                 require(m != null, "message null");
-                String messageText = stripLinks(m.text());
+                String messageText =
+                        fit(neutralize(stripLinks(m.text()), "message"), MAX_MESSAGE_TEXT, "message");
                 require(seen.add(m.sourceCommentId()), "duplicate message sourceCommentId");
                 require(
-                        CommunitySnapshotValidator.plain(messageText, 300),
+                        CommunitySnapshotValidator.plain(messageText, MAX_MESSAGE_TEXT),
                         "message text not plain/too long ("
                                 + describe(messageText)
                                 + ")");
@@ -101,21 +101,21 @@ public final class CommunitySummaryValidator {
             return new TopicSummary(
                     titleKo,
                     summaryKo,
-                    List.copyOf(flow),
                     List.copyOf(messages),
                     summary.status(),
                     List.of(),
                     List.of(),
                     List.of(),
-                    List.of(),
-                    marks(summaryKo, summary.keySentences(), summary.keyTerms()));
+                    // 핵심어·핵심 문장도 같은 치환을 거쳐야 치환된 요약문 안에서 찾아진다.
+                    marks(
+                            summaryKo,
+                            neutralizeAll(summary.keySentences()),
+                            neutralizeAll(summary.keyTerms())));
         } catch (RuntimeException e) {
             log.warn(
-                    "요약 검증 실패: {} ({}) — flow={}, flowSupport={}, messages={}, summarySupport={}",
+                    "요약 검증 실패: {} ({}) — messages={}, summarySupport={}",
                     e.getClass().getSimpleName(),
                     e.getMessage(),
-                    summary == null ? null : summary.discussionFlow().size(),
-                    summary == null ? null : summary.flowSupport().size(),
                     summary == null ? null : summary.messages().size(),
                     summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();
@@ -123,11 +123,81 @@ public final class CommunitySummaryValidator {
     }
 
     /**
+     * HTML 꺾쇠({@code <} {@code >})를 전각({@code ＜} {@code ＞})으로 바꿔 **태그로 읽히지 않게** 한다. 길이는 그대로다.
+     *
+     * <p>이전에는 꺾쇠가 하나라도 있으면 그 이슈의 요약 전체를 실패로 버렸다(XSS 방어). 프롬프트가 금지해도 모델은 코드 조각이 든 논의(예:
+     * {@code <script>}·제네릭 {@code List<String>})를 옮기며 꺾쇠를 쓴다 — axios #5366 에서 확인했고, 그 한 글자 때문에 요약이 통째로
+     * 사라졌다(S15P21A506-412). 전각 문자는 HTML 에서 태그를 여는 글자가 아니라서 방어는 그대로이고, 코드 조각은 {@code ＜div＞} 처럼
+     * 그대로 읽힌다. 저장 검증기({@link CommunitySnapshotValidator#plain})는 원본 꺾쇠를 계속 거부한다 — 이 치환을 거치지 않은 값이 저장되면
+     * 막는 이중 방어다. 내용은 로그에 남기지 않는다.
+     */
+    static String neutralize(String text, String field) {
+        if (text == null || (text.indexOf('<') < 0 && text.indexOf('>') < 0)) return text;
+        log.info("요약 꺾쇠 치환: field={}", field);
+        return text.replace('<', '＜').replace('>', '＞');
+    }
+
+    private static List<String> neutralizeAll(List<String> values) {
+        if (values == null) return null;
+        var out = new ArrayList<String>(values.size());
+        for (String v : values) out.add(neutralize(v, "mark"));
+        return out;
+    }
+
+    /**
+     * 길이 상한({@code max}, 코드 포인트)을 넘은 글을 **마지막 완결 문장까지** 잘라 돌려준다. 넘지 않았으면 그대로다.
+     *
+     * <p>길이 초과는 요약 전체를 버릴 이유가 아니다 — 모델은 요구한 길이를 자주 넘기고, 넘겼다는 이유로 이슈 하나의 요약이 통째로 사라지면
+     * 사용자는 아무것도 못 본다(S15P21A506-412). 그렇다고 스키마 {@code maxLength} 로 막으면 GMS 가 문장 중간·단어 중간에서 글을 끊는다(실측:
+     * "…우회책을 Type").
+     *
+     * <p>자르는 규칙: ① 상한 안에서 문장이 끝나는 마지막 자리(., !, ?, … 뒤에 공백이나 끝이 오는 곳)까지. ② 그런 자리가 앞쪽 3분의 1
+     * 안이면(너무 많이 잃는다) 마지막 공백까지 자르고 "…"을 붙인다. ③ 공백도 없으면 상한에서 자르고 "…"을 붙인다. 소수점(3.5)·약어처럼
+     * 뒤에 공백이 없는 마침표는 문장 끝으로 보지 않는다. 결과는 언제나 {@code max} 이하다.
+     *
+     * <p>내용은 로그에 남기지 않는다(외부 글이다) — 어느 필드가 몇 자에서 몇 자로 줄었는지만 남긴다.
+     */
+    static String fit(String text, int max, String field) {
+        if (text == null) return null;
+        int length = text.codePointCount(0, text.length());
+        if (length <= max) return text;
+        String fitted = cut(text, max);
+        log.info(
+                "요약 길이 보정: field={}, {}자 → {}자",
+                field,
+                length,
+                fitted.codePointCount(0, fitted.length()));
+        return fitted;
+    }
+
+    private static String cut(String text, int max) {
+        int limit = text.offsetByCodePoints(0, max);
+        int floor = text.offsetByCodePoints(0, max / 3);
+        for (int i = limit - 1; i >= floor; i--) {
+            if (isSentenceEnd(text.charAt(i))
+                    && (i + 1 >= text.length() || Character.isWhitespace(text.charAt(i + 1)))) {
+                String head = text.substring(0, i + 1).stripTrailing();
+                if (!head.isBlank()) return head;
+            }
+        }
+        // "…" 한 글자를 붙일 자리를 남긴다.
+        int room = text.offsetByCodePoints(0, max - 1);
+        int space = text.lastIndexOf(' ', room);
+        int end = space >= floor ? space : room;
+        String head = text.substring(0, end).stripTrailing();
+        return head.isBlank() ? text.substring(0, room) + "…" : head + "…";
+    }
+
+    private static boolean isSentenceEnd(char c) {
+        return c == '.' || c == '!' || c == '?' || c == '…' || c == '。';
+    }
+
+    /**
      * 모델이 준 핵심 문장·핵심어를 **최종 요약문 안에서 찾아** 강조 구간으로 바꾼다.
      *
      * <p>강조는 읽기 보조라 어긋난 것은 **버릴 뿐 요약을 실패시키지 않는다**(모델이 요약문에 없는 말을 "핵심어"로 줘도 요약은
      * 멀쩡하다). 요약문에 글자 그대로 있는 것만 인정하고, 위치는 서버가 계산한다 — 모델이 준 오프셋은 믿지 않는다. 링크
-     * 제거({@link #stripLinks}) 뒤의 문장 기준이라 반드시 그 뒤에 부른다.
+     * 제거({@link #stripLinks})·꺾쇠 치환({@link #neutralize}) 뒤의 문장 기준이라 반드시 그 뒤에 부른다.
      *
      * <p>규칙: 핵심 문장 ≤ {@value #MAX_KEY_SENTENCES}개·{@value #MAX_KEY_SENTENCE_LENGTH}자(요약문의 60% 이하), 핵심어 ≤
      * {@value #MAX_KEY_TERMS}개·{@value #MAX_KEY_TERM_LENGTH}자. 같은 종류끼리는 겹치지 않는다. 핵심어는 핵심 문장 안에
@@ -196,8 +266,8 @@ public final class CommunitySummaryValidator {
      * URL·마크다운 링크만 "(링크 생략)"으로 지우고 나머지 텍스트는 그대로 남긴다(2026-09-16
      * 오세진 님 결정 — 실측에서 axios/prisma/vitest처럼 보안 권고문·문서 링크가 많은 이슈가
      * 이 이유만으로 요약 전체가 FAILED로 떨어지는 사례가 잦았다). {@code <}/{@code >}(HTML
-     * 태그, XSS 방어)는 여기서 건드리지 않는다 — {@link CommunitySnapshotValidator#plain}이
-     * 이 메서드가 돌려준 텍스트에 대해서도 그대로 검사해 걸러낸다.
+     * 태그, XSS 방어)는 여기서 건드리지 않고 {@link #neutralize} 가 전각으로 바꾼다 —
+     * {@link CommunitySnapshotValidator#plain}이 이 메서드와 그 치환을 거친 텍스트를 마지막으로 한 번 더 검사한다.
      */
     private static String stripLinks(String text) {
         if (text == null) return null;

@@ -10,15 +10,15 @@ import java.util.List;
  *
  * <p>{@code keyTerms}·{@code keySentences}는 모델이 "요약문에서 그대로 옮겨 온" 문자열이라 **아직 믿지 않는다**.
  * {@link CommunitySummaryValidator}가 요약문 안에서 실제로 찾아 위치를 계산한 것만 {@code summaryMarks}로 남긴다.
+ *
+ * <p>논의 흐름({@code flow})은 만들지 않는다(S15P21A506-412). 화면이 S15P21A506-406 부터 그리지 않아 출력 토큰만 썼다.
  */
 public record TopicSummary(
         String titleKo,
         String summaryKo,
-        List<DiscussionStepPayload> discussionFlow,
         List<MessagePayload> messages,
         SummaryStatus status,
         List<SourceRef> summarySupport,
-        List<List<SourceRef>> flowSupport,
         List<String> keyTerms,
         List<String> keySentences,
         List<SummaryMarkPayload> summaryMarks) {
@@ -28,26 +28,13 @@ public record TopicSummary(
     public TopicSummary(
             String titleKo,
             String summaryKo,
-            List<DiscussionStepPayload> discussionFlow,
             List<MessagePayload> messages,
             SummaryStatus status,
-            List<SourceRef> summarySupport,
-            List<List<SourceRef>> flowSupport) {
-        this(
-                titleKo,
-                summaryKo,
-                discussionFlow,
-                messages,
-                status,
-                summarySupport,
-                flowSupport,
-                List.of(),
-                List.of(),
-                List.of());
+            List<SourceRef> summarySupport) {
+        this(titleKo, summaryKo, messages, status, summarySupport, List.of(), List.of(), List.of());
     }
 
     public static TopicSummary failed() {
-        return new TopicSummary(
-                null, null, List.of(), List.of(), SummaryStatus.FAILED, List.of(), List.of());
+        return new TopicSummary(null, null, List.of(), SummaryStatus.FAILED, List.of());
     }
 }

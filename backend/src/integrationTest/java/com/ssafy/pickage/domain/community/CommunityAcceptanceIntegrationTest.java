@@ -333,7 +333,6 @@ class CommunityAcceptanceIntegrationTest {
                         "COMPLETE",
                         "READY",
                         "확인된 요약",
-                        List.of(new DiscussionStepPayload("확인된 흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",
@@ -353,7 +352,8 @@ class CommunityAcceptanceIntegrationTest {
                         DataStatus.AVAILABLE,
                         new CommunityResultPayload(
                                 new RepositoryPayload(
-                                        "fixture", "repo", "fixture/repo", "PACKAGE_SCOPED", false),
+                                                "fixture", "repo", "fixture/repo", "PACKAGE_SCOPED", false)
+                                        .withIssueCounts(1234, 56),
                                 "github-active-v1",
                                 365,
                                 null,
@@ -374,6 +374,9 @@ class CommunityAcceptanceIntegrationTest {
                 result.path("topics").get(0).path("messages").get(0).path("role").asText());
         assertFalse(result.toString().contains("source_comment_id"));
         assertFalse(result.toString().contains("source_issue_id"));
+        // 저장소 전체 Issue 수(S15P21A506-413) — 요약한 Issue 수(summary.issue_count)와 다른 값이다.
+        assertEquals(1234, result.path("repository").path("issue_count").asInt());
+        assertEquals(56, result.path("repository").path("open_issue_count").asInt());
         assertEquals(2, result.path("summary").path("comment_count").asInt());
         assertEquals(3, result.path("summary").path("reaction_count").asInt());
         context.close();

@@ -42,9 +42,7 @@ class CommunityServiceTest {
                         null,
                         null,
                         List.of(),
-                        List.of(),
                         com.ssafy.pickage.domain.community.dto.SummaryStatus.SKIPPED,
-                        List.of(),
                         List.of());
     }
 
@@ -141,6 +139,57 @@ class CommunityServiceTest {
         assertThat(response.viewStatus()).isEqualTo(ViewStatus.IDLE);
         assertThat(response.result()).isNull();
         assertThat(response.refresh()).isNull();
+    }
+
+    @Test
+    void 저장소_전체_Issue_수는_응답_repository에_실려_나간다() {
+        // S15P21A506-413 — 화면의 "전체 Issue"·"열린 Issue" 카드가 읽는 값. 저장된 값이 없으면(이전 스냅샷) null 이다.
+        InMemoryCommunitySnapshotRepository repository = new InMemoryCommunitySnapshotRepository();
+        var base = sampleRow(Instant.now().minus(Duration.ofHours(1)), null);
+        repository.upsert(
+                new CommunitySnapshotRow(
+                        base.packageId(),
+                        base.snapshotId(),
+                        base.payloadVersion(),
+                        base.collectedAt(),
+                        base.dataStatus(),
+                        new CommunityResultPayload(
+                                base.result().repository().withIssueCounts(1234, 56),
+                                base.result().policyVersion(),
+                                base.result().lookbackDays(),
+                                base.result().summaryRetryAt(),
+                                base.result().topics(),
+                                base.result().limitations())));
+        RefreshTaskRegistry registry = new RefreshTaskRegistry();
+        CommunityService service =
+                newService(
+                        repository,
+                        registry,
+                        com.ssafy.pickage.domain.community.CommunityTestFixtures.track(
+                                new RefreshAdmissionCoordinator(registry)));
+
+        var repositoryInfo = service.getStatus(NAME).result().repository();
+
+        assertThat(repositoryInfo.issueCount()).isEqualTo(1234);
+        assertThat(repositoryInfo.openIssueCount()).isEqualTo(56);
+    }
+
+    @Test
+    void 이전_스냅샷은_저장소_Issue_수가_null이다() {
+        InMemoryCommunitySnapshotRepository repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRow(Instant.now().minus(Duration.ofHours(1)), null));
+        RefreshTaskRegistry registry = new RefreshTaskRegistry();
+        CommunityService service =
+                newService(
+                        repository,
+                        registry,
+                        com.ssafy.pickage.domain.community.CommunityTestFixtures.track(
+                                new RefreshAdmissionCoordinator(registry)));
+
+        var repositoryInfo = service.getStatus(NAME).result().repository();
+
+        assertThat(repositoryInfo.issueCount()).isNull();
+        assertThat(repositoryInfo.openIssueCount()).isNull();
     }
 
     @Test

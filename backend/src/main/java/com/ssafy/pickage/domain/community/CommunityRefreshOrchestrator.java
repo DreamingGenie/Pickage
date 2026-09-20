@@ -82,11 +82,13 @@ public class CommunityRefreshOrchestrator {
             if (collected instanceof IssueCollectionResult.NoDiscussionData empty) {
                 empty.limitations()
                         .forEach(c -> limitations.add(CommunityPolicy.limitation(c, null)));
+                // 최근 논의가 없어도 저장소 규모는 보여 줄 수 있다.
+                var emptyCounts = repositoryCounts(v, task);
                 publish(
                         task,
                         packageId,
                         new CommunityResultPayload(
-                                repository,
+                                repository.withIssueCounts(emptyCounts.total(), emptyCounts.open()),
                                 CommunityPolicy.VERSION,
                                 empty.lookbackDays(),
                                 null,
@@ -113,6 +115,9 @@ public class CommunityRefreshOrchestrator {
             // 시간을 다 쓰고 이슈2는 시작하자마자 예산이 바닥나는 문제가 실제로 재현됐다. 남은
             // 예산은 디스패치 시점에 한 번만 읽어 두 호출이 같은 창을 공정하게 나눠 쓰게 한다.
             task.advanceStage(RefreshStage.GMS);
+            // 저장소 전체 Issue 수(S15P21A506-413). 핵심 수집(검색 quota)이 끝난 뒤에 시작해 본 수집과 quota 를 다투지 않고,
+            // GMS 호출과 나란히 돌려 지연을 늘리지 않는다. 실패해도 null 로 흡수돼 결과 게시에는 영향이 없다.
+            var countsFuture = CompletableFuture.supplyAsync(() -> repositoryCounts(v, task));
             var budget = task.collectionTimeLeft();
             var futures =
                     pending.stream().map(p -> summarizer.summarizeAsync(p.issue(), budget)).toList();
@@ -150,7 +155,6 @@ public class CommunityRefreshOrchestrator {
                                 issue.collectionStatus().name(),
                                 summary.status().name(),
                                 summary.summaryKo(),
-                                summary.discussionFlow(),
                                 summary.messages(),
                                 summary.summaryMarks()));
             }
@@ -158,9 +162,10 @@ public class CommunityRefreshOrchestrator {
                     CommunityPolicy.summaryStatus(topics) == SummaryStatus.FAILED
                             ? Instant.now().plus(CommunityProperties.FAILURE_COOLDOWN)
                             : null;
+            var counts = countsFuture.join();
             var payload =
                     new CommunityResultPayload(
-                            repository,
+                            repository.withIssueCounts(counts.total(), counts.open()),
                             CommunityPolicy.VERSION,
                             success.lookbackDays(),
                             retry,
@@ -180,6 +185,27 @@ public class CommunityRefreshOrchestrator {
                             ? CommunityErrorCode.REFRESH_DEADLINE_EXCEEDED
                             : CommunityErrorCode.GITHUB_UNAVAILABLE,
                     null);
+        }
+    }
+
+    /**
+     * 저장소 전체 Issue 수와 열린 수. **실패해도 예외를 내보내지 않는다** — 수치 카드용 보조 정보라 못 구하면 {@code null} 로 두고 결과는
+     * 그대로 게시한다(S15P21A506-413). 검증기는 음수·열린 수가 전체보다 큰 값을 거부하므로 여기서 걸러 게시 실패로 번지지 않게 한다.
+     */
+    private RepositoryIssueCounts repositoryCounts(
+            RepositoryVerificationResult.Verified v, RefreshTask task) {
+        try {
+            var counts =
+                    collection.repositoryIssueCounts(v.owner(), v.repo(), task.collectionTimeLeft());
+            if (counts == null) return RepositoryIssueCounts.UNKNOWN;
+            Integer total = counts.total(), open = counts.open();
+            if ((total != null && total < 0) || (open != null && open < 0))
+                return RepositoryIssueCounts.UNKNOWN;
+            if (total != null && open != null && open > total) return RepositoryIssueCounts.UNKNOWN;
+            return counts;
+        } catch (RuntimeException e) {
+            log.warn("저장소 Issue 수 집계 실패: {}", e.getClass().getSimpleName());
+            return RepositoryIssueCounts.UNKNOWN;
         }
     }
 

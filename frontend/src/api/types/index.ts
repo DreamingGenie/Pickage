@@ -433,6 +433,12 @@ export interface CommunityRepository {
   full_name: string
   scope: CommunityRepositoryScope
   archived: boolean
+  /**
+   * 저장소 **전체** Issue 수(PR 제외)와 그중 열려 있는 수(S15P21A506-413). 요약한 Issue 몇 건이 아니라 저장소 규모다.
+   * 서버가 못 구했거나(`null`) 이 값을 더하기 전에 저장된 스냅샷이면(키 없음) 비어 있다 — 화면은 둘을 같게 다룬다.
+   */
+  issue_count?: number | null
+  open_issue_count?: number | null
 }
 
 export interface CommunitySummary {
@@ -440,10 +446,6 @@ export interface CommunitySummary {
   open_issue_count: number
   comment_count: number
   reaction_count: number
-}
-
-export interface CommunityFlowStep {
-  text: string
 }
 
 export interface CommunityMessage {
@@ -465,7 +467,12 @@ export interface CommunitySummaryMark {
   kind: 'KEY_TERM' | 'KEY_SENTENCE'
 }
 
-/** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
+/**
+ * Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다.
+ *
+ * 논의 흐름(`flow`)은 없다. 화면이 그리지 않아 서버도 만들지도 내려주지도 않는다(S15P21A506-412).
+ * 옛 서버 응답에 남아 있어도 이 화면은 읽지 않는다.
+ */
 export interface CommunityTopic {
   issue_number: number
   state: 'OPEN' | 'CLOSED'
@@ -481,7 +488,6 @@ export interface CommunityTopic {
   collection_status: CommunityCollectionStatus
   summary_status: CommunitySummaryStatus
   summary_ko: string | null
-  flow: CommunityFlowStep[]
   /** 최대 4개 */
   messages: CommunityMessage[]
   /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */

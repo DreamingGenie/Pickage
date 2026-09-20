@@ -220,12 +220,6 @@ public class CommunityService {
                                                         t.collectionStatus()),
                                                 SummaryStatus.valueOf(t.summaryStatus()),
                                                 t.summaryKo(),
-                                                t.flow().stream()
-                                                        .map(
-                                                                f ->
-                                                                        new DiscussionStepResponse(
-                                                                                f.text()))
-                                                        .toList(),
                                                 t.messages().stream()
                                                         .map(
                                                                 m ->
@@ -270,7 +264,13 @@ public class CommunityService {
                 r == null
                         ? null
                         : new RepositoryInfoResponse(
-                                r.owner(), r.name(), r.fullName(), r.scope(), r.archived()),
+                                r.owner(),
+                                r.name(),
+                                r.fullName(),
+                                r.scope(),
+                                r.archived(),
+                                r.issueCount(),
+                                r.openIssueCount()),
                 summary,
                 topics,
                 p.limitations().stream()
