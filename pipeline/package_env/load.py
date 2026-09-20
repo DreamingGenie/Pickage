@@ -147,7 +147,7 @@ def pull_run(s3, collected_date: str, run_id: str, target: Path) -> Path:
     return target
 
 
-def write_transport(parquet: Path, target: Path) -> int:
+def write_transport(parquet: Path, target: Path, memory: str) -> int:
     """parquet 을 psql COPY 용 CSV 로 옮기고 행 수를 돌려준다.
 
     이스케이프·따옴표를 손으로 만들지 않고 DuckDB 에 맡긴다. 패키지 이름에 쉼표나 따옴표가
@@ -156,15 +156,24 @@ def write_transport(parquet: Path, target: Path) -> int:
 
     개수 두 열의 NULL 은 빈 칸으로 나가고 Postgres 가 정수 열의 빈 칸을 NULL 로 읽는다.
     0 으로 채우면 unpublish 된 버전이 "의존 없음" 이 되어 거짓이 된다.
+
+    **여기서 정렬하지 않는다.** 빌더가 이미 (Name, Version) 순으로 쓴 parquet 이라 읽으면
+    그 순서로 나오고, Postgres 는 입력 순서를 쓰지 않는다. 2,156만 행을 한 번 더 정렬하면
+    메모리를 그만큼 잡는데, 실제로 운영 컨테이너에서 OOM 으로 죽었다.
     """
     import duckdb
 
     con = duckdb.connect()
+    # 상한을 넘으면 옆 폴더로 흘린다. 컨테이너 메모리가 좁아도 죽지 않게 한다.
+    temp = target.parent / "duckdb-tmp"
+    temp.mkdir(exist_ok=True)
+    con.execute(f"SET memory_limit='{memory}'")
+    con.execute(f"SET temp_directory='{temp.as_posix()}'")
+    con.execute("SET preserve_insertion_order=false")
     con.execute(f"""COPY (
         SELECT Name, Version, module_format, types_bundled,
                direct_dependencies, peer_dependencies
-        FROM read_parquet('{parquet.as_posix()}')
-        ORDER BY Name, Version)
+        FROM read_parquet('{parquet.as_posix()}'))
         TO '{target.as_posix()}' (FORMAT CSV, HEADER false)""")
     rows = con.execute(
         f"SELECT count(*) FROM read_parquet('{parquet.as_posix()}')").fetchone()[0]
@@ -307,6 +316,8 @@ def parse_args(argv=None):
     parser.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리. 주면 MinIO 를 안 본다")
     parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "data/package_env_load")
+    parser.add_argument("--memory", default="2GB",
+                        help="DuckDB 상한. 넘으면 작업 폴더의 duckdb-tmp 로 흘린다")
     parser.add_argument("--verify-only", action="store_true",
                         help="게시 직전까지 전부 실행한 뒤 ROLLBACK. DB 는 그대로 둔다")
     target = parser.add_mutually_exclusive_group(required=True)
@@ -354,7 +365,7 @@ def main(argv=None) -> int:
     work = (args.work_dir / args.execution_id / attempt_id).resolve()
     work.mkdir(parents=True, exist_ok=False)
     transport = work / "package_env.copy.csv"
-    staged = write_transport(parquet, transport)
+    staged = write_transport(parquet, transport, args.memory)
     if staged != entry["rows"]:
         raise SystemExit(f"manifest 의 행 수와 실제가 다르다: {entry['rows']} vs {staged}")
     print(f"전송 파일 준비: {staged:,}행 ({transport.name})", flush=True)
