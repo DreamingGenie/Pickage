@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 
 from ai.rag.main import create_app
 from ai.rag.pipeline import VerificationFailedError
-from ai.rag.types import ComparisonResult, FeatureResult, FeatureRow
+from ai.rag.readme_source import ReadmeSourceNotFoundError
+from ai.rag.types import ComparisonResult, FeatureResult, FeatureRow, PackageSource
 
 
 def _fake_compare_ok(packages):
@@ -69,6 +70,67 @@ class ComparePOSTTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 502)
         self.assertEqual(response.json()["detail"]["violations"], ["evidenceId not in pool"])
+
+
+
+class SourcesAndNotFoundTests(unittest.TestCase):
+    """문헌 상태 전달과 404 (S15P21A506-419)."""
+
+    def test_response_carries_the_document_status_per_package(self):
+        def compare_with_sources(packages):
+            result = _fake_compare_ok(packages)
+            result.sources = [
+                PackageSource("foo", "1.0.0", "LIMITED", readme_bytes=917, prose_chars=214),
+            ]
+            return result
+
+        client = TestClient(create_app(compare_fn=compare_with_sources))
+
+        body = client.post("/compare", json={"packages": [{"package": "foo", "version": "1.0.0"}]}).json()
+
+        self.assertEqual(
+            body["sources"],
+            [{"package": "foo", "version": "1.0.0", "status": "LIMITED", "readmeBytes": 917, "proseChars": 214}],
+        )
+
+    def test_unknown_status_is_null_not_a_guess(self):
+        def compare_with_unknown(packages):
+            result = _fake_compare_ok(packages)
+            result.sources = [PackageSource("foo", "1.0.0")]
+            return result
+
+        client = TestClient(create_app(compare_fn=compare_with_unknown))
+
+        source = client.post(
+            "/compare", json={"packages": [{"package": "foo", "version": "1.0.0"}]}
+        ).json()["sources"][0]
+
+        self.assertIsNone(source["status"])
+        self.assertIsNone(source["readmeBytes"])
+
+    def test_existing_fields_are_unchanged_when_no_sources_are_given(self):
+        client = TestClient(create_app(compare_fn=_fake_compare_ok))
+
+        body = client.post("/compare", json={"packages": [{"package": "foo", "version": "1.0.0"}]}).json()
+
+        self.assertEqual(body["sources"], [])
+        self.assertEqual(body["dataStatus"], "COMPLETE")
+
+    def test_missing_document_is_404_with_a_machine_readable_code_and_no_server_path(self):
+        def compare_missing(packages):
+            raise ReadmeSourceNotFoundError(
+                "/srv/pickage/docs/y/yaml@2.9.1.md", package="yaml", version="2.9.1"
+            )
+
+        client = TestClient(create_app(compare_fn=compare_missing))
+
+        response = client.post("/compare", json={"packages": [{"package": "yaml", "version": "2.9.1"}]})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json()["detail"], {"code": "DOC_NOT_FOUND", "package": "yaml", "version": "2.9.1"}
+        )
+        self.assertNotIn("/srv/", response.text)
 
 
 if __name__ == "__main__":

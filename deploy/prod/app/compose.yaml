@@ -120,6 +120,27 @@ services:
       PICKAGE_CURATED_S3_ENDPOINT: ${PICKAGE_CURATED_S3_ENDPOINT:-}
       PICKAGE_CURATED_S3_ACCESS_KEY: ${PICKAGE_CURATED_S3_ACCESS_KEY:-}
       PICKAGE_CURATED_S3_SECRET_KEY: ${PICKAGE_CURATED_S3_SECRET_KEY:-}
+
+      # ── 기능-12 문헌 디스크 캐시 (S15P21A506-393) ──
+      #
+      # 위 PICKAGE_OPS_S3_* 와 같은 규칙이다 — application-prod.yaml 에 배선이 없고
+      # 스프링이 이름만으로 프로퍼티에 잇는다(PICKAGE_DOCS_PATH -> pickage.docs.path).
+      # 이름이 틀리면 예외가 아니라 조용히 @Value 의 기본값으로 떨어진다.
+      #
+      # DocStore 가 @Value 로 이 값을 읽는다(pickage.docs.path). 기본값이 같은 경로라
+      # 이름이 틀려도 지금은 티가 안 나지만, 경로를 옮길 때 조용히 옛 자리를 보게 된다.
+      PICKAGE_DOCS_PATH: /var/lib/pickage/docs
+    volumes:
+      # 패키지 문헌 191,781개. 사람이 scp 로 한 번 올려 둔 것이고, 캐시 미스 때 api 가
+      # 같은 자리에 더 쓴다(상한 2 GB, 넘으면 1.6 GB 까지 atime 오래된 것부터 지운다).
+      #
+      # ⚠ **레포 밖의 절대 경로다.** 이유가 둘이다 —
+      #   · 배포 job 의 GIT_CLEAN_FLAGS(-ffdx)가 레포 안의 추적 안 되는 파일을 매번 지운다
+      #   · compose 가 러너의 임시 체크아웃에서 돌아, 상대 경로는 배포마다 다른 곳을 가리킨다
+      #   /srv/pickage 는 app.env·repo 가 이미 쓰는 고정 경로다.
+      #
+      # `:ro` 가 아니다 — 미스 때 써야 한다.
+      - /srv/pickage/docs:/var/lib/pickage/docs
     ports:
       # 루프백에만 연다. 밖에서 오는 요청은 전부 nginx(443)를 지난다.
       # 이 줄을 "8080:8080" 으로 쓰면 TLS 도 인증도 없는 문이 하나 열린다.

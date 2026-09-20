@@ -19,6 +19,7 @@ from ai.rag.types import (
     FeatureRow,
     NarrativeSection,
     PackageRef,
+    PackageSource,
 )
 
 PROMPT = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "근거 목록"을 최우선으로 사용해서
@@ -58,12 +59,31 @@ PROMPT = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "�
 8-2. EVIDENCE 판정의 이유(note)는 반드시 인용한 excerpt의 실제 문구를 가깝게
    재진술해서 설명하십시오. GENERAL_KNOWLEDGE 판정의 이유는 "일반적으로 이런 종류의
    패키지는..." 형태로 명확히 일반화된 설명임을 드러내십시오.
+8-3. 입력에 documentStatus가 있으면 패키지별 자료 상태입니다. LIMITED는 그 패키지 README의
+   산문이 짧다는 뜻이고, NONE은 README가 없다는 뜻입니다. 근거가 짧거나 없다는 이유만으로 그
+   패키지에 기능이 없다고 판단하지 마십시오 — 그런 항목은 UNCONFIRMED로 두고, UNSUPPORTED는
+   근거가 명시적으로 부정할 때만 쓰십시오. documentStatus가 없거나 OK인 패키지에는 이 규칙이
+   추가 제약을 만들지 않습니다.
+8-4. sourceType이 TARBALL_PACKAGE_JSON인 근거는 README 발췌가 아니라 패키지 메타데이터(package.json과
+   배포 파일 목록에서 뽑은 설명, 명령, 진입점, 모듈 형식, 타입 선언 여부)입니다. 이 사실은 그대로 판정
+   근거로 인용할 수 있습니다(예: 타입 선언 제공 여부, ESM/CJS 지원, 명령줄 실행 파일 유무). 단 "타입 선언:
+   포함"은 선언 파일이 있다는 뜻이지 그 안에 어떤 API가 있는지를 말하지 않으며, 진입점 목록은 경로일 뿐
+   기능 이름이 아닙니다 — 이를 근거로 특정 API의 존재를 단정하지 마십시오. 라이선스·설치 크기·파일 수·
+   의존성 개수 같은 환경 정보 자체를 비교 기능(표의 행)으로 삼지 마십시오.
 
 ## 비교 축(표의 행) 선정 규칙
 
 9. 비교 대상 패키지 전부에 적용 가능한 공통·도메인 차원을 우선 선택하십시오. 특정
    패키지 하나에만 있는 고유 기능은 우선순위를 낮추십시오(판정 결과가 갈리는 건
    괜찮습니다 — 질문 자체가 모든 패키지에 적용 가능해야 합니다).
+9-1. 표의 행은 패키지가 사용자에게 제공하는 기능·역량(무엇을 할 수 있는가)이어야 합니다.
+   패키징·소비 방식 항목 — 타입 선언 제공 여부, TypeScript 지원, ESM/CJS 모듈 형식, 명령줄 실행
+   파일(CLI) 유무, 브라우저 진입점, 진입점 구성 — 은 기능이 아니라 배포 형태입니다. 이런 행은 표
+   전체에서 **최대 1개**이고, 기능 행이 이미 5개 이상 채워진 뒤에만 허용됩니다. 이런 행이 2개 이상인
+   표는 잘못된 출력이니 만들지 마십시오. 패키징 성격 행이 없어도 표는 완전합니다.
+   TARBALL_PACKAGE_JSON 근거는 위 항목의 행을 만들려고 있는 것이 아니라, 이미 정한 기능 행의 판정을
+   뒷받침할 때만 인용하는 보조 근거입니다. 예외: 명령줄 실행이나 타입 제공이 비교 대상 패키지들의 핵심
+   용도(예: 삭제·빌드 같은 CLI 도구끼리의 비교)이면 그 기능 자체를 행으로 삼을 수 있습니다.
 10. 근거+일반지식으로도 판단이 안 서면 5~7개를 억지로 채우지 말고 확인 가능한 수만
     반환하십시오. 그 경우 dataStatus를 COMPARISON_LIMITED로 반환하십시오.
 11. 선정한 축마다 비교 대상 모든 패키지에 대해 판정을 시도하십시오. 근거도 일반지식도
@@ -73,11 +93,26 @@ PROMPT = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "�
 
 반드시 아래(공용) JSON 스키마로만 응답하십시오. 다른 텍스트를 앞뒤에 붙이지 마십시오.
 모든 결과 항목에 "groundedIn"을 EVIDENCE 또는 GENERAL_KNOWLEDGE로 반드시 채우십시오.
+
+언어: 화면에 표시되는 텍스트 — featureLabel, note, 해설의 heading과 body — 는 모두 한국어로
+작성하십시오. 근거(README)가 영어여도 마찬가지입니다. 다음은 원어 그대로 두십시오: 패키지 이름,
+함수·API·옵션 이름, 코드, 그리고 README를 인용하는 부분(인용은 원문 그대로 따옴표로 묶고 그 뜻을
+한국어로 설명하십시오 — 8-2의 재진술 규칙은 그대로 적용됩니다). verdict, groundedIn, dataStatus의
+값과 evidenceIds는 스키마가 정한 영문 값을 그대로 쓰십시오.
 """
 
 
-def build_user_message(packages: list[PackageRef], evidence: list[EvidenceChunk]) -> str:
-    """177 출력(evidence)을 178 입력 JSON(계획 문서 "입력(근거 전달) 형식")으로 직렬화."""
+def build_user_message(
+    packages: list[PackageRef],
+    evidence: list[EvidenceChunk],
+    sources: list[PackageSource] | None = None,
+) -> str:
+    """177 출력(evidence)을 178 입력 JSON(계획 문서 "입력(근거 전달) 형식")으로 직렬화.
+
+    sources(S15P21A506-419): 패키지별 인계 파일 상태. **상태를 읽은 패키지만** documentStatus에
+    싣고, 하나도 없으면 키 자체를 넣지 않는다 — 넘기지 않은 호출은 예전 입력과 글자 하나 다르지
+    않아야 한다(프롬프트 회귀 방지).
+    """
     payload = {
         "comparedPackages": [{"package": p.name, "version": p.version} for p in packages],
         "evidence": [
@@ -86,12 +121,18 @@ def build_user_message(packages: list[PackageRef], evidence: list[EvidenceChunk]
                 "package": e.package,
                 "version": e.version,
                 "section": e.section,
+                "sourceType": e.source_type,
                 "excerpt": e.excerpt,
                 "verificationLevel": e.verification_level,
             }
             for e in evidence
         ],
     }
+    known = [s for s in (sources or []) if s.status is not None]
+    if known:
+        payload["documentStatus"] = [
+            {"package": s.package, "version": s.version, "status": s.status} for s in known
+        ]
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -283,6 +324,7 @@ def generate(
     packages: list[PackageRef],
     evidence: list[EvidenceChunk],
     llm_call: Callable[[str, str], str] | None = None,
+    sources: list[PackageSource] | None = None,
 ) -> ComparisonResult:
     """177이 추린 근거로 비교 축·판정·해설을 한 번의 LLM 호출로 생성한다.
 
@@ -293,6 +335,8 @@ def generate(
     Args:
         llm_call: (system_prompt, user_message) -> 원시 JSON 문자열. 테스트에서
             실제 GMS 호출 없이 주입하기 위한 자리 — 생략하면 실제 GMS(GPT-5.1)를 호출한다.
+        sources: 패키지별 인계 파일 상태(S15P21A506-419). 모델 입력의 documentStatus로만 쓰이고,
+            응답의 `ComparisonResult.sources`는 이 함수가 아니라 호출부(pipeline)가 붙인다.
 
     Returns:
         ComparisonResult. narrative 생성만 실패해도 features(판정표)는 채워서
@@ -300,7 +344,7 @@ def generate(
         narrative 파싱 실패를 분리 처리하지 않음, 지금은 전체가 함께 실패한다.
     """
     system_prompt = PROMPT
-    user_message = build_user_message(packages, evidence)
+    user_message = build_user_message(packages, evidence, sources=sources)
     call = llm_call or _call_gms
     raw_response = call(system_prompt, user_message)
     data = json.loads(raw_response)
