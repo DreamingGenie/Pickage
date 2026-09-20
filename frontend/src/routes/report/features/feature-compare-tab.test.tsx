@@ -6,25 +6,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/client'
 import {
   FEATURE_NOT_AVAILABLE,
-  type FeatureCellWire,
-  type FeatureComparisonResponse,
+  type FeatureRunErrorCode,
+  type FeatureRunResponse,
   type FeatureTarget,
   type FeatureVersionsResponse,
+  type PackageEnvResponse,
+  type RagComparisonResult,
 } from '@/api/types'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { FeatureCompareTab } from '@/routes/report/features/feature-compare-tab'
 
-const { fetchFeatureVersions, fetchFeatureComparison } = vi.hoisted(() => ({
-  fetchFeatureVersions: vi.fn(),
-  fetchFeatureComparison: vi.fn(),
-}))
+const { fetchFeatureVersions, fetchPackageEnv, startFeatureRun, fetchFeatureRun } = vi.hoisted(
+  () => ({
+    fetchFeatureVersions: vi.fn(),
+    fetchPackageEnv: vi.fn(),
+    startFeatureRun: vi.fn(),
+    fetchFeatureRun: vi.fn(),
+  }),
+)
 
 // 실제 mock 데이터·지연 대신 endpoints 경계에서 직접 목한다 — 시나리오를 결정적으로 구성한다.
-// USE_MOCK 이 false 라 진행 단계 흉내도 돌지 않는다(응답이 오면 곧바로 완료).
 vi.mock('@/api/endpoints', () => ({
   USE_MOCK: false,
   fetchFeatureVersions,
-  fetchFeatureComparison,
+  fetchPackageEnv,
+  startFeatureRun,
+  fetchFeatureRun,
 }))
 
 const NAMES = ['pino', 'winston']
@@ -59,71 +66,88 @@ function versionsFor(names: string[]): FeatureVersionsResponse {
   }
 }
 
-function cell(
-  target: FeatureTarget,
-  verdict: FeatureCellWire['verdict'],
-  extra: Partial<FeatureCellWire> = {},
-): FeatureCellWire {
+/** `package_env` 응답. AI 실행과 무관한 단순 조회다. */
+function envFor(targets: FeatureTarget[]): PackageEnvResponse {
   return {
-    package_name: target.package_name,
-    version: target.version,
-    verdict,
-    data_status: 'COMPLETE',
-    evidence_ids: [],
-    note: null,
-    reason_code: null,
-    ...extra,
+    items: targets.map((t, i) => ({
+      name: t.package_name,
+      version: t.version,
+      module_format: i === 0 ? 'CJS' : 'ESM_CJS',
+      types_bundled: i === 0,
+      direct_dependencies: i === 0 ? 3 : null,
+      peer_dependencies: 0,
+    })),
+    not_found: [],
   }
 }
 
-/** 6행짜리 정상 결과. `over` 로 셀 하나씩 바꿔 시나리오를 만든다. */
-function comparisonFor(
-  targets: FeatureTarget[],
-  over: Partial<FeatureComparisonResponse> = {},
-  childLoggerVerdict: FeatureCellWire['verdict'] = 'SUPPORTED',
-): FeatureComparisonResponse {
-  const labels = [
-    '구조화 JSON',
-    'Child logger',
-    '다중 출력 경로',
-    '예외·거부 처리',
-    '데이터 마스킹',
-  ]
+/** RAG 응답 원본. **여기만 camelCase 다**(계약의 주인이 `ai/rag/main.py`). */
+function ragResult(targets: FeatureTarget[]): RagComparisonResult {
+  const labels = ['구조화 JSON', 'Child logger', '다중 출력 경로']
   return {
-    data_status: 'COMPLETE',
-    comparison_state: 'COMPLETE',
-    packages: targets,
-    environment: null,
-    environment_note: null,
-    features: labels.map((label, i) => ({
-      feature_id: `f${i}`,
-      feature_label: label,
-      results: targets.map((t, j) =>
-        cell(
-          t,
-          label === 'Child logger' && t.package_name === 'pino' ? childLoggerVerdict : 'SUPPORTED',
-          {
-            evidence_ids: [`E${String(i * 2 + j + 1).padStart(2, '0')}`],
-          },
-        ),
-      ),
+    dataStatus: 'COMPLETE',
+    packages: targets.map((t) => ({ package: t.package_name, version: t.version })),
+    features: labels.map((featureLabel, i) => ({
+      featureLabel,
+      results: targets.map((t, j) => ({
+        package: t.package_name,
+        version: t.version,
+        verdict: 'SUPPORTED' as const,
+        evidenceIds: [`E${String(i * 2 + j + 1).padStart(2, '0')}`],
+        groundedIn: 'EVIDENCE' as const,
+        note: null,
+      })),
     })),
-    narrative: [],
-    narrative_error: null,
-    evidence_count: 10,
-    analyzed_at: '2026-09-02T09:24:00+09:00',
+    narrative: [{ heading: '공통 기반', body: '두 패키지 모두 확인되었습니다.', evidenceIds: [] }],
+    narrativeError: null,
+    sources: targets.map((t) => ({
+      package: t.package_name,
+      version: t.version,
+      status: 'OK' as const,
+      readmeBytes: 4096,
+      proseChars: 2048,
+    })),
+  }
+}
+
+function runResponse(over: Partial<FeatureRunResponse> = {}): FeatureRunResponse {
+  return {
+    run_id: 'run-1',
+    status: 'RUNNING',
+    phase: 'PREPARING_DOCS',
+    refs: ['pino@10.3.1', 'winston@3.19.0'],
+    elapsed_sec: 0,
+    result: null,
+    error_code: null,
+    error_detail: null,
     ...over,
   }
 }
 
+const TARGETS: FeatureTarget[] = [
+  { package_name: 'pino', version: '10.3.1' },
+  { package_name: 'winston', version: '3.19.0' },
+]
+
+/** 완료 응답을 돌려주는 폴링. 시작 → 첫 조회에서 끝난다. */
+function completesWith(result = ragResult(TARGETS)) {
+  startFeatureRun.mockResolvedValue(runResponse())
+  fetchFeatureRun.mockResolvedValue(runResponse({ status: 'COMPLETED', phase: 'DONE', result }))
+}
+
+function failsWith(code: FeatureRunErrorCode) {
+  startFeatureRun.mockResolvedValue(runResponse())
+  fetchFeatureRun.mockResolvedValue(runResponse({ status: 'FAILED', error_code: code }))
+}
+
 beforeEach(() => {
   fetchFeatureVersions.mockReset()
-  fetchFeatureComparison.mockReset()
+  fetchPackageEnv.mockReset()
+  startFeatureRun.mockReset()
+  fetchFeatureRun.mockReset()
   onOpenEvidence.mockReset()
   fetchFeatureVersions.mockImplementation(async (names: string[]) => versionsFor(names))
-  fetchFeatureComparison.mockImplementation(async (targets: FeatureTarget[]) =>
-    comparisonFor(targets),
-  )
+  fetchPackageEnv.mockImplementation(async (targets: FeatureTarget[]) => envFor(targets))
 })
 
 // 전역 자동 정리가 없다 — 남겨 두면 다음 시험에서 같은 문구가 둘로 잡힌다.
@@ -132,83 +156,86 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-const findTable = () => screen.findByRole('heading', { name: '핵심 기능 비교' })
+const startButton = () => screen.getByRole('button', { name: '기능 비교 시작' })
 
 describe('FeatureCompareTab', () => {
-  it('패키지마다 최신 안정 버전이 골라져 있고 사용자가 아무것도 하지 않아도 분석이 시작된다', async () => {
+  it('소비 조건 표는 버전을 고르는 즉시 뜨고, AI 분석은 저절로 시작하지 않는다', async () => {
+    completesWith()
     renderTab()
 
-    await findTable()
-
-    expect(fetchFeatureComparison).toHaveBeenCalledTimes(1)
-    expect(fetchFeatureComparison).toHaveBeenCalledWith([
-      { package_name: 'pino', version: '10.3.1' },
-      { package_name: 'winston', version: '3.19.0' },
-    ])
+    const summary = within(await screen.findByRole('region', { name: '핵심 비교 요약' }))
+    expect(summary.getByText('CommonJS')).toBeInTheDocument()
+    expect(summary.getByText('ESM · CommonJS 둘 다')).toBeInTheDocument()
+    // null 은 0 이 아니라 모름이다 — 0개로 적지 않는다
+    expect(summary.getByText('미확인')).toBeInTheDocument()
     expect(screen.getByLabelText('pino')).toHaveValue('10.3.1')
-    expect(screen.getByLabelText('winston')).toHaveValue('3.19.0')
-    expect(screen.getByText(/분석 완료 · 근거 10건 연결/)).toBeInTheDocument()
+
+    expect(startFeatureRun).not.toHaveBeenCalled()
+    expect(startButton()).toBeEnabled()
   })
 
-  it('버전 드롭다운을 바꿔도 분석을 시작하지 않고 기존 결과를 둔 채 재분석 필요로 알린다', async () => {
+  it('버튼을 누르면 로딩을 보여 주고, 끝나면 그 자리에 결과가 뜬다', async () => {
     const user = userEvent.setup()
+    let release: (value: FeatureRunResponse) => void = () => {}
+    startFeatureRun.mockReturnValue(
+      new Promise<FeatureRunResponse>((resolve) => {
+        release = resolve
+      }),
+    )
+    fetchFeatureRun.mockResolvedValue(
+      runResponse({ status: 'COMPLETED', phase: 'DONE', result: ragResult(TARGETS) }),
+    )
     renderTab()
-    await findTable()
 
-    await user.selectOptions(screen.getByLabelText('pino'), '10.2.0')
+    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
 
-    expect(await screen.findByText(/재분석 필요 · 기존 결과 유지/)).toBeInTheDocument()
-    expect(screen.getByText(/pino 10\.3\.1 → 10\.2\.0 변경됨/)).toBeInTheDocument()
-    // 표는 그대로, 새 분석은 시작하지 않았다
-    expect(screen.getByRole('heading', { name: '핵심 기능 비교' })).toBeInTheDocument()
-    expect(fetchFeatureComparison).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('분석을 시작하고 있습니다')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '핵심 기능 비교' })).not.toBeInTheDocument()
+    // 확인된 사실은 생성을 기다리지 않는다 — 위 표는 그대로 보인다
+    expect(screen.getByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+
+    release(runResponse())
+
+    expect(await screen.findByRole('heading', { name: '핵심 기능 비교' })).toBeInTheDocument()
+    expect(screen.getByText('두 패키지 모두 확인되었습니다.')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(startFeatureRun).toHaveBeenCalledWith([
+        { package_name: 'pino', version: '10.3.1' },
+        { package_name: 'winston', version: '3.19.0' },
+      ]),
+    )
     expect(screen.getByRole('button', { name: '선택한 버전으로 재분석' })).toBeEnabled()
   })
 
-  it('재분석에 성공하면 결과를 바꾸고 직전 결과와 달라진 점을 한 번 보여준다', async () => {
+  it('근거를 확인하지 못해 실패하면 다시 시도할 수 있다고 말하지 않는다', async () => {
     const user = userEvent.setup()
+    failsWith('VERIFICATION_FAILED')
     renderTab()
-    await findTable()
-    fetchFeatureComparison.mockImplementationOnce(async (targets: FeatureTarget[]) =>
-      comparisonFor(targets, {}, 'LIMITED_SUPPORT'),
-    )
 
-    await user.selectOptions(screen.getByLabelText('pino'), '10.2.0')
-    await user.click(screen.getByRole('button', { name: '선택한 버전으로 재분석' }))
-
-    expect(await screen.findByText(/재분석 완료 · 직전 결과와 달라진 점/)).toBeInTheDocument()
-    expect(screen.getByText('Child logger · pino: 지원 → 제한적')).toBeInTheDocument()
-    expect(screen.getByText('pino 10.3.1 → 10.2.0')).toBeInTheDocument()
-    // 결과가 새 버전으로 바뀌었으니 재분석 필요 안내는 사라진다
-    expect(screen.queryByText(/재분석 필요 · 기존 결과 유지/)).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: '확인' }))
-    expect(screen.queryByText(/재분석 완료 · 직전 결과와 달라진 점/)).not.toBeInTheDocument()
-  })
-
-  it('재분석에 실패하면 이전 결과를 그대로 두고 실패만 알린다', async () => {
-    const user = userEvent.setup()
-    renderTab()
-    await findTable()
-    fetchFeatureComparison.mockRejectedValueOnce(
-      new ApiError(500, 'S001', '분석 서버에서 오류가 발생했습니다.'),
-    )
-
-    await user.selectOptions(screen.getByLabelText('winston'), '3.18.3')
-    await user.click(screen.getByRole('button', { name: '선택한 버전으로 재분석' }))
+    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
 
     expect(
-      await screen.findByText(/재분석에 실패했습니다 · 이전 결과를 유지했습니다/),
+      await screen.findByText(/판정의 근거를 확인하지 못해 결과를 내지 않았습니다/),
     ).toBeInTheDocument()
-    expect(screen.getByText('분석 서버에서 오류가 발생했습니다.')).toBeInTheDocument()
-    // 이전 결과의 열 머리글이 그대로다
-    const table = screen.getByRole('table')
-    expect(within(table).getByText('3.19.0')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
+    // 실패해도 확인된 소비 조건은 그대로 남는다
+    expect(screen.getByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+  })
+
+  it('문헌을 아직 못 받아 실패하면 다시 시도할 수 있다', async () => {
+    const user = userEvent.setup()
+    failsWith('DOC_NOT_FOUND')
+    renderTab()
+
+    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
+
+    expect(await screen.findByText(/이 버전의 문헌을 아직 받지 못했습니다/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeEnabled()
   })
 
-  it('정식 버전이 없으면 사전 배포 버전을 고르지 않고 사용자의 선택을 기다린다', async () => {
+  it('정식 버전이 없으면 사전 배포 버전을 고르지 않고 시작 버튼을 막는다', async () => {
     const user = userEvent.setup()
+    completesWith()
     fetchFeatureVersions.mockResolvedValue({
       packages: [
         {
@@ -220,22 +247,16 @@ describe('FeatureCompareTab', () => {
     })
     renderTab(['left-pad'])
 
-    expect(await screen.findByText('비교할 버전을 선택해 주세요')).toBeInTheDocument()
-    expect(fetchFeatureComparison).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('left-pad')).toHaveValue('')
-    expect(screen.getByRole('button', { name: '선택한 버전으로 분석' })).toBeDisabled()
+    expect(await screen.findByText(/비교할 버전을 먼저 고르세요/)).toBeInTheDocument()
+    expect(startButton()).toBeDisabled()
+    expect(fetchPackageEnv).not.toHaveBeenCalled()
 
     await user.selectOptions(screen.getByLabelText('left-pad'), '1.4.0-beta.2')
-    await user.click(screen.getByRole('button', { name: '선택한 버전으로 분석' }))
 
-    await waitFor(() =>
-      expect(fetchFeatureComparison).toHaveBeenCalledWith([
-        { package_name: 'left-pad', version: '1.4.0-beta.2' },
-      ]),
-    )
+    await waitFor(() => expect(startButton()).toBeEnabled())
   })
 
-  it('이 조합의 기능 비교가 없으면 고른 패키지를 적어 알리고 분석을 부르지 않는다', async () => {
+  it('이 조합의 기능 비교가 없으면 고른 패키지를 적어 알리고 아무것도 부르지 않는다', async () => {
     fetchFeatureVersions.mockRejectedValue(
       new ApiError(404, FEATURE_NOT_AVAILABLE, '이 조합의 기능 비교는 아직 준비되지 않았습니다.'),
     )
@@ -243,82 +264,16 @@ describe('FeatureCompareTab', () => {
 
     expect(await screen.findByText(/아직 준비되지 않았습니다/)).toBeInTheDocument()
     expect(screen.getByText('pino')).toBeInTheDocument()
-    expect(fetchFeatureComparison).not.toHaveBeenCalled()
-  })
-
-  it('비교 가능한 기능이 부족하면 제한 안내를 붙이고, 환경·해설 데이터가 없으면 그 섹션을 그리지 않는다', async () => {
-    fetchFeatureComparison.mockImplementation(async (targets: FeatureTarget[]) => {
-      const full = comparisonFor(targets)
-      return {
-        ...full,
-        comparison_state: 'COMPARISON_LIMITED',
-        features: full.features.slice(0, 2),
-      }
-    })
-    renderTab()
-
-    expect(await screen.findByText('직접 비교 가능한 기능이 제한적입니다')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '핵심 비교 요약' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '기능 비교 해설' })).not.toBeInTheDocument()
-  })
-
-  it('환경 표와 해설이 있으면 그리고, 값이 없는 칸은 미확인으로 적는다', async () => {
-    fetchFeatureComparison.mockImplementation(async (targets: FeatureTarget[]) =>
-      comparisonFor(targets, {
-        environment: [
-          {
-            key: 'node',
-            label: 'Node.js',
-            values: [
-              { package_name: 'pino', value: '>=12' },
-              { package_name: 'winston', value: null },
-            ],
-          },
-        ],
-        narrative: [
-          { heading: '공통 기반', body: '두 패키지 모두 확인되었습니다.', evidence_ids: ['E01'] },
-        ],
-      }),
-    )
-    renderTab()
-
-    expect(await screen.findByRole('heading', { name: '핵심 비교 요약' })).toBeInTheDocument()
-    // 표 하단 고지에도 '미확인' 이 있어, 환경 표 안에서만 본다
-    const environment = within(screen.getByRole('region', { name: '핵심 비교 요약' }))
-    expect(environment.getByText('>=12')).toBeInTheDocument()
-    expect(environment.getByText('미확인')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '기능 비교 해설' })).toBeInTheDocument()
-    expect(screen.getByText('두 패키지 모두 확인되었습니다.')).toBeInTheDocument()
-    expect(screen.getByText(/추천 · 순위 · 승자 표시는 제공하지 않습니다/)).toBeInTheDocument()
-  })
-
-  it('일시적 조회 실패로 미확인이 된 셀은 사유를 적고 다시 시도할 수 있다', async () => {
-    const user = userEvent.setup()
-    fetchFeatureComparison.mockImplementationOnce(async (targets: FeatureTarget[]) => {
-      const full = comparisonFor(targets, { data_status: 'PARTIAL' })
-      full.features[0].results[0] = cell(targets[0], 'UNCONFIRMED', {
-        data_status: 'COLLECTION_ERROR',
-        reason_code: 'TRANSIENT_FETCH_ERROR',
-      })
-      return full
-    })
-    renderTab()
-
-    expect(await screen.findByText(/일부 완료 · 확인 가능한 결과 먼저 표시/)).toBeInTheDocument()
-    expect(screen.getByText('일시적으로 자료를 받지 못함')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: '다시 시도' }))
-
-    await waitFor(() => expect(fetchFeatureComparison).toHaveBeenCalledTimes(2))
-    await waitFor(() =>
-      expect(screen.queryByText(/일부 완료 · 확인 가능한 결과 먼저 표시/)).not.toBeInTheDocument(),
-    )
+    expect(startFeatureRun).not.toHaveBeenCalled()
   })
 
   it('셀을 누르면 그 셀의 첫 근거 ID 로 근거 열기를 요청한다', async () => {
     const user = userEvent.setup()
+    completesWith()
     renderTab()
-    await findTable()
+
+    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
+    await screen.findByRole('heading', { name: '핵심 기능 비교' })
 
     await user.click(screen.getByRole('button', { name: '구조화 JSON pino 지원 — 근거 열기' }))
 

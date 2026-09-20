@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { ApiError, errorNotice } from '@/api/client'
-import { USE_MOCK } from '@/api/endpoints'
-import { useFeatureComparisonRun, useFeatureVersions } from '@/api/queries'
-import { FEATURE_NOT_AVAILABLE, type FeatureTarget } from '@/api/types'
+import { useFeatureRun, useFeatureVersions, useStartFeatureRun } from '@/api/queries'
 import {
-  adaptComparison,
-  adaptVersions,
-  diffAnalyses,
-  isEmptyChange,
-} from '@/routes/report/features/adapter'
+  FEATURE_NOT_AVAILABLE,
+  type FeatureRunErrorCode,
+  type FeatureRunPhase,
+  type FeatureTarget,
+} from '@/api/types'
+import { adaptVersions, diffAnalyses, isEmptyChange } from '@/routes/report/features/adapter'
+import { sourceNote as ragSourceNote, toComparisonView } from '@/routes/report/features/rag-adapter'
 import type { ChangeSummary, ComparisonView, PackageVersions } from '@/routes/report/features/model'
 
 /**
- * 기능 분석 실행 상태 (구상안 §9, S15P21A506-217).
+ * 기능 분석 실행 상태 (구상안 §9, S15P21A506-217 · BE-130).
  *
  * <h2>무엇을 들고 있나</h2>
  *
@@ -23,12 +23,21 @@ import type { ChangeSummary, ComparisonView, PackageVersions } from '@/routes/re
  *   서버는 판정을 저장하지 않으므로(`DEC-FEATURE-CACHE-20260917-01`) 새로고침하면 사라진다.
  * - 실패하면 이전 완료 결과를 그대로 둔다. 성공해야만 결과 포인터가 바뀐다(§9.3).
  *
- * <h2>진행 단계</h2>
+ * <h2>스스로 시작하지 않는다</h2>
  *
- * 완료되지 않은 단계를 완료로 보내지 않는다. 분석 API 가 단계를 알려주는 방식(SSE)은
- * 아직 없으므로 **실제 진행은 알 수 없다** — 그래서 mock 개발 모드에서만 시간에 따라
- * 단계를 흉내 내 화면 상태를 확인한다. 그 밖에는 끝날 때까지 0단계로 두고 결과가 오면 한
- * 번에 완료로 바꾼다. SSE 가 붙으면 `PROGRESS` 를 서버 이벤트로 바꾼다.
+ * 예전에는 최신 안정 버전이 다 정해지면 화면에 들어오는 즉시 분석이 돌았다. 지금은 뒤에
+ * LLM 생성이 붙고 서버에 동시 실행 상한이 있어(BE-130), 탭을 열기만 한 사람 몫까지 돌리면
+ * 정작 누른 사람이 기다린다. **사용자가 누를 때만** `start()` 로 시작한다.
+ *
+ * <h2>결과를 기다리지 않고 시작한다</h2>
+ *
+ * 시작은 `run_id` 만 돌려받고(nginx 60초 제한), 그 뒤는 2초 폴링이다(`useFeatureRun`).
+ * 단계도 흉내 내지 않는다 — 서버가 `phase` 로 실제 단계를 준다.
+ *
+ * <h2>소비 조건은 여기 없다</h2>
+ *
+ * 핵심 비교 요약(`package_env`)은 이 실행과 무관하다. `GET /api/packages/env` 의 키 조회라
+ * 버전을 고르는 즉시 뜨고, 분석이 실패해도 그대로 보인다(기능-10-R06).
  */
 export const RUN_STEPS = [
   { key: 'VERSION_VERIFIED', label: '정확한 버전 확인' },
@@ -40,7 +49,7 @@ export const RUN_STEPS = [
 ] as const
 
 /**
- * - `IDLE`: 아직 시작하지 않음(정식 버전이 없어 사용자의 선택을 기다림)
+ * - `IDLE`: 아직 시작하지 않음. 사용자가 버튼을 누르기를 기다린다
  * - `RUNNING`: 버전 목록을 받는 중이거나 분석 중. 재분석 중에도 이전 결과가 있으면 그대로 보인다
  * - `COMPLETED`: 완료된 결과가 있고 실행 중이 아님
  * - `FAILED`: 결과가 하나도 없는데 실패함
@@ -48,12 +57,33 @@ export const RUN_STEPS = [
  */
 export type RunStatus = 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE'
 
+/**
+ * 실패 안내.
+ *
+ * `VERIFICATION_FAILED` 는 **재시도로 나아지지 않는다** — 파이프라인에 재시도가 없어 다시
+ * 눌러도 같은 답이 나온다. 재시도 버튼을 두면 사용자가 헛되이 기다린다.
+ */
+const ERROR_MESSAGE: Record<FeatureRunErrorCode, string> = {
+  DOC_NOT_FOUND: '이 버전의 문헌을 아직 받지 못했습니다.',
+  VERIFICATION_FAILED: '판정의 근거를 확인하지 못해 결과를 내지 않았습니다.',
+  RAG_UNAVAILABLE: '분석 서버에 연결하지 못했습니다.',
+  INTERRUPTED: '분석이 중간에 끊겼습니다.',
+}
+
+const RETRYABLE: ReadonlySet<FeatureRunErrorCode> = new Set([
+  'DOC_NOT_FOUND',
+  'RAG_UNAVAILABLE',
+  'INTERRUPTED',
+])
+
 export interface AnalysisRun {
   status: RunStatus
   /** 완료된 단계 수. RUN_STEPS 앞에서부터 채워진다. */
   doneCount: number
-  /** 시작 후 흐른 초 */
+  /** 시작 후 흐른 초. 서버가 세어 준 값이다 */
   elapsedSec: number
+  /** 서버가 말하는 현재 단계. 실행 중이 아니면 null */
+  phase: FeatureRunPhase | null
   /** 한 번이라도 완료된 적이 있는지. 재분석 중에도 이전 결과를 계속 보여주려면 필요하다. */
   hasCompletedOnce: boolean
   /**
@@ -81,58 +111,49 @@ export interface FeatureAnalysis extends AnalysisRun {
   /** 패키지별 현재 선택. 고를 수 없으면(정식 버전 없음) null */
   selected: Record<string, string | null>
   select: (name: string, version: string) => void
+  /** 버전까지 정해진 비교 대상. 하나라도 못 고르면 null */
+  targets: FeatureTarget[] | null
   /** 지금 화면에 보이는 완료 결과 */
   completed: ComparisonView | null
+  /** 완료 결과에 딸린 문헌 상태 안내. 없으면 null */
+  sourceNote: string | null
   /** 재분석이 성공한 직후 한 번 보여주는 변경점 */
   changes: ChangeSummary | null
   dismissChanges: () => void
   /** 마지막 시도의 실패. 이전 결과가 있으면 그 결과는 유지된 채로 이것만 알린다 */
   failure: FeatureFailure | null
-  /** `선택한 버전으로 재분석` 을 누를 수 있는지 */
+  /** `선택한 버전으로 분석` 을 누를 수 있는지 */
   canStart: boolean
   retryVersions: () => void
 }
-
-/** mock 개발 모드에서만 쓰는 단계별 소요 시간 흉내. 근거 추출이 제일 오래 걸린다. */
-const STEP_MS = [400, 800, 500, 1600, 600, 900]
 
 interface State {
   /** 이 상태가 어느 비교 대상 조합의 것인지. 조합이 바뀌면 통째로 버린다 */
   key: string
   picks: Record<string, string>
   completed: ComparisonView | null
+  sourceNote: string | null
   changes: ChangeSummary | null
   runId: number
-  running: boolean
-  failed: string | null
-  /** 응답은 왔지만 진행 흉내가 끝나기 전(mock 에서만 생긴다) */
-  arrived: { runId: number; view: ComparisonView } | null
-  doneCount: number
-  elapsedSec: number
+  failed: FeatureFailure | null
 }
 
 type Action =
   | { type: 'RESET'; key: string }
   | { type: 'PICK'; name: string; version: string }
-  | { type: 'START'; runId: number }
-  | { type: 'ARRIVED'; runId: number; view: ComparisonView }
-  | { type: 'COMMIT' }
-  | { type: 'FAILED'; runId: number; message: string }
-  | { type: 'PROGRESS'; doneCount: number }
-  | { type: 'TICK'; elapsedSec: number }
+  | { type: 'START' }
+  | { type: 'COMMIT'; view: ComparisonView; note: string | null }
+  | { type: 'FAILED'; failure: FeatureFailure }
   | { type: 'DISMISS_CHANGES' }
 
 const initial = (key: string): State => ({
   key,
   picks: {},
   completed: null,
+  sourceNote: null,
   changes: null,
   runId: 0,
-  running: false,
   failed: null,
-  arrived: null,
-  doneCount: 0,
-  elapsedSec: 0,
 })
 
 function reducer(state: State, action: Action): State {
@@ -142,42 +163,21 @@ function reducer(state: State, action: Action): State {
     case 'PICK':
       return { ...state, picks: { ...state.picks, [action.name]: action.version } }
     case 'START':
-      return {
-        ...state,
-        runId: action.runId,
-        running: true,
-        failed: null,
-        arrived: null,
-        doneCount: 0,
-        elapsedSec: 0,
-        // 새 분석을 시작하면 지난 변경점 안내는 거둔다
-        changes: null,
-      }
-    case 'ARRIVED':
-      if (action.runId !== state.runId) return state
-      return { ...state, arrived: { runId: action.runId, view: action.view } }
+      // 새 분석을 시작하면 지난 변경점 안내와 실패는 거둔다. 완료 결과는 그대로 둔다.
+      return { ...state, runId: state.runId + 1, failed: null, changes: null }
     case 'COMMIT': {
-      if (!state.arrived) return state
-      const next = state.arrived.view
-      const diff = state.completed ? diffAnalyses(state.completed, next) : null
+      const diff = state.completed ? diffAnalyses(state.completed, action.view) : null
       return {
         ...state,
-        completed: next,
+        completed: action.view,
+        sourceNote: action.note,
         changes: diff && !isEmptyChange(diff) ? diff : null,
-        running: false,
         failed: null,
-        arrived: null,
-        doneCount: RUN_STEPS.length,
       }
     }
     case 'FAILED':
-      if (action.runId !== state.runId) return state
       // 이전 완료 결과는 건드리지 않는다 — 성공해야만 바뀐다(§9.3)
-      return { ...state, running: false, failed: action.message, arrived: null }
-    case 'PROGRESS':
-      return { ...state, doneCount: Math.max(state.doneCount, action.doneCount) }
-    case 'TICK':
-      return { ...state, elapsedSec: action.elapsedSec }
+      return { ...state, failed: action.failure }
     case 'DISMISS_CHANGES':
       return { ...state, changes: null }
   }
@@ -186,16 +186,16 @@ function reducer(state: State, action: Action): State {
 export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
   const key = names.join(',')
   const [state, dispatch] = useReducer(reducer, key, initial)
-  const runSeq = useRef(0)
-  const autoStartedFor = useRef<string | null>(null)
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
+  const consumed = useRef<string | null>(null)
 
   // 비교 대상이 바뀌면 이전 조합의 선택·결과를 통째로 버린다. 렌더 중 dispatch 는 React 가
   // 곧바로 다시 그리므로 낡은 값이 화면에 나가지 않는다.
   if (state.key !== key) dispatch({ type: 'RESET', key })
 
   const versionsQuery = useFeatureVersions(names)
-  const comparison = useFeatureComparisonRun()
-  const runComparison = comparison.mutateAsync
+  const start = useStartFeatureRun()
+  const poll = useFeatureRun(activeRunId)
 
   const versions = useMemo(
     () => (versionsQuery.data ? adaptVersions(versionsQuery.data) : null),
@@ -226,62 +226,53 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
     return list.length > 0 ? list : null
   }, [names, versions, selected])
 
-  const start = useCallback(
-    (list: FeatureTarget[]) => {
-      const id = ++runSeq.current
-      dispatch({ type: 'START', runId: id })
-      runComparison(list).then(
-        (response) => dispatch({ type: 'ARRIVED', runId: id, view: adaptComparison(response) }),
-        (error) => dispatch({ type: 'FAILED', runId: id, message: errorNotice(error).message }),
-      )
-    },
-    [runComparison],
-  )
-
-  // 최초 진입: 모든 패키지에 최신 안정 버전이 있으면 사용자가 아무것도 하지 않아도 시작한다(§9.1).
-  // 정식 버전이 없는 패키지가 있으면 시작하지 않는다 — 사전 배포 버전을 대신 고르지 않는다.
-  const allDefaulted =
-    versions !== null && names.every((n) => versions.find((v) => v.name === n)?.latestStable)
-  useEffect(() => {
-    if (!targets || !allDefaulted || autoStartedFor.current === key) return
-    autoStartedFor.current = key
-    start(targets)
-  }, [targets, allDefaulted, key, start])
-
-  // 진행 표시. 실제 단계는 알 수 없으므로 흉내는 mock 개발 모드에서만 낸다.
-  useEffect(() => {
-    if (!state.running) return
-    const startedAt = Date.now()
-    const timers: number[] = []
-    if (USE_MOCK) {
-      let acc = 0
-      STEP_MS.forEach((ms, i) => {
-        acc += ms
-        timers.push(window.setTimeout(() => dispatch({ type: 'PROGRESS', doneCount: i + 1 }), acc))
-      })
-    }
-    const tick = window.setInterval(
-      () => dispatch({ type: 'TICK', elapsedSec: Math.floor((Date.now() - startedAt) / 1000) }),
-      1000,
-    )
-    return () => {
-      timers.forEach(clearTimeout)
-      clearInterval(tick)
-    }
-  }, [state.running, state.runId])
-
-  // 응답이 왔고 진행 표시도 끝났으면 결과를 바꾼다.
-  const progressDone = !USE_MOCK || state.doneCount >= RUN_STEPS.length
-  useEffect(() => {
-    if (state.running && state.arrived?.runId === state.runId && progressDone) {
-      dispatch({ type: 'COMMIT' })
-    }
-  }, [state.running, state.arrived, state.runId, progressDone])
+  const running = start.isPending || poll.data?.status === 'RUNNING'
 
   const restart = useCallback(() => {
-    if (!targets || state.running) return
-    start(targets)
-  }, [targets, state.running, start])
+    if (!targets || running) return
+    dispatch({ type: 'START' })
+    setActiveRunId(null)
+    start.mutate(targets, {
+      onSuccess: (res) => setActiveRunId(res.run_id),
+      onError: (error) => {
+        const notice = errorNotice(error)
+        dispatch({
+          type: 'FAILED',
+          failure: { message: notice.message, retryable: notice.retryable, kind: 'RUN' },
+        })
+      },
+    })
+  }, [targets, running, start])
+
+  /**
+   * 폴링 결과를 상태로 옮긴다.
+   *
+   * 한 run 은 한 번만 반영한다(`consumed`) — 폴링이 멈춘 뒤에도 같은 데이터로 다시 그려질 때
+   * 변경점을 또 계산하면 직전 결과와 자기 자신을 비교하게 된다.
+   */
+  useEffect(() => {
+    const data = poll.data
+    if (!data || data.status === 'RUNNING' || consumed.current === data.run_id) return
+    consumed.current = data.run_id
+
+    if (data.status === 'COMPLETED' && data.result) {
+      dispatch({
+        type: 'COMMIT',
+        view: toComparisonView(data.result),
+        note: ragSourceNote(data.result),
+      })
+      return
+    }
+    const code = data.error_code
+    dispatch({
+      type: 'FAILED',
+      failure: {
+        message: code ? ERROR_MESSAGE[code] : '분석에 실패했습니다.',
+        retryable: code ? RETRYABLE.has(code) : true,
+        kind: 'RUN',
+      },
+    })
+  }, [poll.data])
 
   const select = useCallback(
     (name: string, version: string) => dispatch({ type: 'PICK', name, version }),
@@ -298,7 +289,7 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
   const versionsFailed = versionsQuery.isError && !unavailable
   const status: RunStatus = unavailable
     ? 'UNAVAILABLE'
-    : versionsQuery.isLoading || state.running
+    : versionsQuery.isLoading || running
       ? 'RUNNING'
       : state.completed
         ? 'COMPLETED'
@@ -311,13 +302,15 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
     const notice = errorNotice(versionsQuery.error)
     failure = { message: notice.message, retryable: notice.retryable, kind: 'VERSIONS' }
   } else if (state.failed) {
-    failure = { message: state.failed, retryable: true, kind: 'RUN' }
+    failure = state.failed
   }
 
   return {
     status,
-    doneCount: state.doneCount,
-    elapsedSec: state.elapsedSec,
+    // 서버가 주는 단계는 셋이라 여섯 칸에 대응하지 않는다. 진행 표시는 `phase` 로 한다.
+    doneCount: state.completed && !running ? RUN_STEPS.length : 0,
+    elapsedSec: poll.data?.elapsed_sec ?? 0,
+    phase: running ? (poll.data?.phase ?? 'PREPARING_DOCS') : null,
     hasCompletedOnce: state.completed !== null,
     runId: state.runId,
     reanalysisRequired,
@@ -325,12 +318,13 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
     versions,
     selected,
     select,
+    targets,
     completed: state.completed,
+    sourceNote: state.sourceNote,
     changes: state.changes,
     dismissChanges,
     failure,
-    canStart:
-      targets !== null && !state.running && (state.completed === null || reanalysisRequired),
+    canStart: targets !== null && !running,
     retryVersions,
   }
 }

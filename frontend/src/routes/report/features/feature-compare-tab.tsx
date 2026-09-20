@@ -1,33 +1,26 @@
-import { AnalysisProgress } from '@/routes/report/_components/analysis-progress'
+import { usePackageEnv } from '@/api/queries'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
-import {
-  AnalysisFailure,
-  AnalysisStatusCard,
-  NoAnalysis,
-  SelectionPrompt,
-} from '@/routes/report/features/analysis-status-card'
+import { AiComparisonSection } from '@/routes/report/features/ai-comparison-section'
+import { AnalysisFailure, NoAnalysis } from '@/routes/report/features/analysis-status-card'
+import { environmentNote, toEnvironmentRows } from '@/routes/report/features/environment-adapter'
 import { EnvironmentTable } from '@/routes/report/features/environment-table'
-import { FeatureTable } from '@/routes/report/features/feature-table'
-import { NarrativeSection } from '@/routes/report/features/narrative-section'
+import type { ComparisonPackage } from '@/routes/report/features/model'
 import { VersionPickerCard } from '@/routes/report/features/version-picker-card'
 
 /**
  * v1-OSS-03B-feature-compare (IA §9)
  *
- * 순서: 버전 선택 → 분석 상태 → 핵심 비교 요약 → 핵심 기능 비교 → 해설.
+ * 순서: 버전 선택 → **핵심 비교 요약** → AI 기능 비교.
  *
- * <h2>상태는 결과를 지우지 않는다</h2>
+ * <h2>두 영역은 독립이다</h2>
  *
- * 최초 분석이 끝나기 전에는 진행 카드 + skeleton 을 보여준다(IA §9.4). 한 번이라도 완료된 뒤
- * 에는 재분석 중이든, 버전을 바꿔 재분석이 필요하든, 재분석이 실패했든 **이전 완료 결과가
- * 그대로 남는다.** 성공해야만 결과가 교체된다(구상안 §9.3). 생태계 변화 탭은 이 분석을
- * 기다리지 않는다 — 대기 상태는 이 탭 안에만 있다.
+ * 핵심 비교 요약은 `GET /api/packages/env` 에서 온다 — 배치가 미리 접어 둔 표를 키 조회하는
+ * **단순 비교**라 버전을 고르는 즉시 뜨고, AI 가 돌든 실패하든 상관하지 않는다. 아래 AI
+ * 영역은 눌러야 시작하고 분 단위로 간다. 묶으면 **확인된 사실까지 생성이 끝날 때까지 못
+ * 보여 준다**(기능-10-R06).
  *
- * <h2>값은 어디서 오나</h2>
- *
- * `useAnalysisRun` 이 들고 있는 완료 결과다. 실 분석 API 는 아직 없어서(BE S15P21A506-130)
- * mock 이 아닌 배포본은 구상안 16장 POC 실측을 그 조합에만 돌려준다(`api/poc-features.ts`).
- * 다른 조합은 "아직 준비되지 않음"이다 — 남의 결과를 대신 띄우지 않는다.
+ * 그래서 분석이 도는 중에도 위 표는 흐려지지 않는다. 흐리면 "이것도 아직 확정이 아니다" 로
+ * 읽히는데, 그 값들은 LLM 이 만든 것이 아니라 배포 산출물에서 기계적으로 읽은 것이다.
  *
  * 셀을 눌렀을 때 열리는 근거 Drawer 는 이 탭의 일이 아니다(`EvidenceDrawer`).
  */
@@ -41,14 +34,23 @@ export function FeatureCompareTab({
   run: FeatureAnalysis
   onOpenEvidence: (evidenceId: string) => void
 }) {
-  const running = run.status === 'RUNNING'
-  const view = run.completed
+  /**
+   * 버전이 정해진 것만 소비 조건을 묻는다.
+   *
+   * 버전을 모르는 채로 물으면 서버가 V004 로 거절한다 — 정확한 버전에 붙는 표라서
+   * "최신" 같은 것을 대신 고르지 않는다(기능-10-R01).
+   */
+  const targets: ComparisonPackage[] = packages
+    .filter((name) => run.selected[name])
+    .map((name) => ({ name, version: run.selected[name] as string }))
+
+  const env = usePackageEnv(targets.map((t) => ({ package_name: t.name, version: t.version })))
 
   // 이 조합의 기능 비교가 없다. 고를 버전도, 다시 해 볼 일도 없다.
   if (run.status === 'UNAVAILABLE') return <NoAnalysis packages={packages} />
 
   // 버전 목록조차 못 받았다 — 버전 선택 카드를 그릴 수 없다
-  if (!view && run.failure?.kind === 'VERSIONS') {
+  if (run.failure?.kind === 'VERSIONS') {
     return (
       <AnalysisFailure
         message={run.failure.message}
@@ -58,38 +60,23 @@ export function FeatureCompareTab({
     )
   }
 
-  const progressLabels = packages.map((name) =>
-    run.selected[name] ? `${name}@${run.selected[name]}` : name,
-  )
-
   return (
     <div className="flex flex-col gap-5">
       <VersionPickerCard run={run} />
 
-      {/* 최초 분석: 결과가 아직 없으니 자리를 skeleton 으로 잡고 진행만 보여준다 */}
-      {!view && running && <AnalysisProgress run={run} packages={progressLabels} />}
+      {/* 배치 산출물의 단순 조회다. AI 를 기다리지 않고, 분석 중에도 흐려지지 않는다. */}
+      <EnvironmentTable
+        packages={targets}
+        rows={toEnvironmentRows(targets, env.data)}
+        note={environmentNote(env.data)}
+        loading={env.isPending && targets.length > 0}
+      />
 
-      {!view && run.status === 'FAILED' && run.failure && (
-        <AnalysisFailure
-          message={run.failure.message}
-          retryable={run.failure.retryable}
-          onRetry={run.restart}
-        />
-      )}
-
-      {!view && run.status === 'IDLE' && <SelectionPrompt />}
-
-      {/* 재분석: 이전 결과를 그대로 두고 상태 카드만 위에 얹는다 (IA §9.4) */}
-      {view && running && <AnalysisProgress run={run} packages={progressLabels} compactCard />}
-      {view && !running && <AnalysisStatusCard run={run} />}
-
-      {view && (
-        <>
-          <EnvironmentTable view={view} dimmed={running} />
-          <FeatureTable view={view} dimmed={running} onOpenEvidence={onOpenEvidence} />
-          <NarrativeSection view={view} dimmed={running} />
-        </>
-      )}
+      {/*
+        여기부터 AI 영역이다. 위와 시각적으로 갈라 둔다 — 값의 출처가 다르다는 것이 화면에서
+        보여야 한다. 위는 배포 산출물에서 읽은 사실이고, 아래는 그 사실 위에 LLM 이 붙인 판정이다.
+      */}
+      <AiComparisonSection run={run} onOpenEvidence={onOpenEvidence} />
     </div>
   )
 }

@@ -43,6 +43,10 @@ export const queryKeys = {
     // 결과는 캐시하지 않는다(뮤테이션). 버전 목록만 키가 있다.
     versions: (names: readonly string[]) =>
       [...queryKeys.features.all, 'versions', sorted(names)] as const,
+    // 소비 조건은 배치 산출물이라 캐시해도 된다 — 같은 (이름, 버전) 이면 값이 안 바뀐다.
+    env: (refs: readonly string[]) => [...queryKeys.features.all, 'env', sorted(refs)] as const,
+    // run 은 식별자로 캐시한다. 결과 자체는 캐시하지 않는다(DEC-FEATURE-CACHE-20260917-01).
+    run: (runId: string) => [...queryKeys.features.all, 'run', runId] as const,
   },
   community: {
     all: ['community'] as const,

@@ -1,6 +1,5 @@
 import { useId } from 'react'
 
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import type { PackageVersions } from '@/routes/report/features/model'
@@ -11,7 +10,9 @@ import type { PackageVersions } from '@/routes/report/features/model'
  * - 최신 안정 버전이 자동으로 골라져 있고, 그 결과가 곧바로 보인다. 설정을 마쳐야 표를 보는
  *   흐름이 아니다.
  * - 드롭다운을 바꿔도 **분석은 시작하지 않는다.** `재분석 필요` 로만 표시하고 기존 결과는
- *   유지한다. 사용자가 `선택한 버전으로 재분석` 을 눌러야 시작한다(구상안 §9.2).
+ *   유지한다. 사용자가 아래 AI 영역에서 `선택한 버전으로 재분석` 을 눌러야 시작한다(구상안 §9.2).
+ * - 고른 버전은 위 핵심 비교 요약(`package_env` 단순 조회)에도 그대로 쓰인다. 그쪽은 AI 실행과
+ *   무관하게 즉시 갱신된다.
  * - 정식 버전이 없으면 사전 배포 버전을 대신 고르지 않는다. 사용자의 선택을 기다린다.
  * - 이 버전은 Dependency 그래프의 major 선택과 별개의 축이다(IA §7.1).
  */
@@ -29,7 +30,7 @@ export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
           기능 비교 버전 선택
         </h3>
         <p className="text-base text-muted-foreground">
-          최신 안정 버전이 자동 선택되어 결과가 즉시 표시됩니다. 버전 변경은 Dependency 그래프
+          최신 안정 버전이 자동 선택되어 소비 조건이 즉시 표시됩니다. 버전 변경은 Dependency 그래프
           필터와 별도로 동작합니다.
         </p>
       </header>
@@ -54,16 +55,11 @@ export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
           <Skeleton aria-hidden className="h-9 w-56" />
         )}
 
-        <Button
-          type="button"
-          size="sm"
-          // 드롭다운은 위쪽에 맞추고, 버튼은 라벨 높이만큼 내려 드롭다운과 같은 줄에 둔다
-          className="mt-[26px] ml-auto"
-          onClick={run.restart}
-          disabled={!run.canStart}
-        >
-          {completed ? '선택한 버전으로 재분석' : '선택한 버전으로 분석'}
-        </Button>
+        {/*
+          분석 시작 버튼은 여기 없다. 아래 AI 영역이 그 실행의 주인이라 버튼도 거기 둔다 —
+          버전 선택은 위 핵심 비교 요약(단순 조회)에도 쓰이므로 이 카드가 AI 실행을
+          대표하면 두 영역이 한 덩어리로 읽힌다.
+        */}
       </div>
     </section>
   )

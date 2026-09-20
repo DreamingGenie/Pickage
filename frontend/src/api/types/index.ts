@@ -675,3 +675,93 @@ export interface PackageRef {
   /** 사용자가 입력한 버전 레인지 (예: ^18.2.0). 미지정 시 null */
   range: string | null
 }
+
+/* ------------------------------------------------------------------ *
+ * 버전별 소비 조건 · 기능 비교 run (BE S15P21A506-130)
+ *
+ * 217 이 처음 잡았던 `FeatureComparisonResponse.environment` 와 다르다. 백엔드가 이 둘을
+ * **다른 엔드포인트**로 나눴기 때문이다 — 소비 조건은 배치가 미리 접어 둔 표를 키 조회하는
+ * 것이라 즉시 뜨고, 기능 비교는 LLM 생성이 붙어 분 단위로 간다. 묶으면 확인된 사실까지
+ * 생성이 끝날 때까지 못 보여 준다(기능-10-R06).
+ * ------------------------------------------------------------------ */
+
+/** `UNKNOWN` 은 판정 실패가 아니라 unpublish 된 버전이라 선언을 못 본 것이다. */
+export type PackageModuleFormat = 'CJS' | 'ESM_ONLY' | 'ESM_CJS' | 'UNKNOWN'
+
+export interface PackageEnvItemWire {
+  name: string
+  version: string
+  module_format: PackageModuleFormat
+  /** 거짓은 "타입 없음" 이 아니라 "이 패키지 안에는 없음" 이다 — `@types/xxx` 를 따로 깐다 */
+  types_bundled: boolean
+  /** 전이 의존이 아니다. null 은 0 이 아니라 모름(unpublish) */
+  direct_dependencies: number | null
+  /** 사용자가 이미 갖고 있어야 하는 조건. direct 와 더하지 않는다 */
+  peer_dependencies: number | null
+}
+
+export interface PackageEnvResponse {
+  /** 요청한 순서 그대로 */
+  items: PackageEnvItemWire[]
+  /** 표에 행이 없는 `이름@버전`. 일부가 없어도 200 이다 */
+  not_found: string[]
+}
+
+export type FeatureRunStatus = 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+/** 백엔드가 실제로 지나는 단계. 프런트의 여섯 칸과 대응하지 않는다 */
+export type FeatureRunPhase = 'PREPARING_DOCS' | 'COMPARING' | 'DONE'
+
+/** `VERIFICATION_FAILED` 는 재시도해도 같은 답이 나올 수 있다 — 재시도가 없는 파이프라인이다 */
+export type FeatureRunErrorCode =
+  | 'DOC_NOT_FOUND'
+  | 'VERIFICATION_FAILED'
+  | 'RAG_UNAVAILABLE'
+  | 'INTERRUPTED'
+
+/**
+ * RAG 서버 응답 원본.
+ *
+ * **여기만 camelCase 다.** 백엔드가 이 값을 우리 타입으로 옮기지 않고 그대로 통과시킨다 —
+ * 계약의 주인이 `ai/rag/main.py` 이고, 옮기면 백엔드의 snake_case 전략이 `featureLabel` 을
+ * `feature_label` 로 바꿔 AI 가 정한 이름과 달라진다.
+ */
+export interface RagComparisonResult {
+  dataStatus: 'COMPLETE' | 'COMPARISON_LIMITED'
+  packages: { package: string; version: string }[]
+  features: {
+    featureLabel: string
+    results: {
+      package: string
+      version: string
+      verdict: FeatureVerdict
+      evidenceIds: string[]
+      groundedIn: 'EVIDENCE' | 'GENERAL_KNOWLEDGE'
+      note: string | null
+    }[]
+  }[]
+  narrative: { heading: string; body: string; evidenceIds: string[] }[]
+  narrativeError: string | null
+  /** 패키지별 인계 파일 상태. dataStatus 와 다른 축이다 */
+  sources: {
+    package: string
+    version: string
+    status: 'OK' | 'LIMITED' | 'NONE' | null
+    readmeBytes: number | null
+    proseChars: number | null
+  }[]
+}
+
+export interface FeatureRunResponse {
+  run_id: string
+  status: FeatureRunStatus
+  phase: FeatureRunPhase
+  /** `이름@버전` */
+  refs: string[]
+  elapsed_sec: number
+  /** COMPLETED 일 때만 */
+  result: RagComparisonResult | null
+  /** FAILED 일 때만 */
+  error_code: FeatureRunErrorCode | null
+  error_detail: unknown
+}
