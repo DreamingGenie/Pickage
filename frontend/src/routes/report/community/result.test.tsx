@@ -2,7 +2,12 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { CommunityLimitation, CommunityMessage, CommunityResult } from '@/api/types'
+import type {
+  CommunityLimitation,
+  CommunityMessage,
+  CommunityResult,
+  CommunityTopic,
+} from '@/api/types'
 import { CommunityResultView } from '@/routes/report/community/result'
 import { SAMPLE_COMMUNITY_RESULT } from '@/routes/report/community/sample'
 
@@ -23,7 +28,12 @@ const limitation = (
   issue_number: number | null,
 ): CommunityLimitation => ({ code, message, issue_number })
 
-/** 논의 흐름이 있고, 댓글이 일부만 수집됐고, 요약 입력이 잘린 Issue 하나가 든 결과. */
+/**
+ * 댓글이 일부만 수집됐고, 요약 입력이 잘린 Issue 하나가 든 결과.
+ *
+ * **옛 서버 응답을 흉내 내 `flow` 를 실어 보낸다.** 서버는 S15P21A506-412 부터 `flow` 를 내려주지 않지만, 배포 순서가
+ * 어긋나 옛 응답이 오더라도 화면이 그것을 그리지 않아야 한다(아래 시험). 타입에는 없는 필드라 단언으로 붙인다.
+ */
 function resultWith(overrides: Partial<CommunityResult> = {}): CommunityResult {
   const topic = SAMPLE_COMMUNITY_RESULT.topics[0]
   return {
@@ -37,7 +47,7 @@ function resultWith(overrides: Partial<CommunityResult> = {}): CommunityResult {
           { text: '둘째 단계 문장이다.' },
           { text: '셋째 단계 문장이다.' },
         ],
-      },
+      } as CommunityTopic,
     ],
     limitations: [
       limitation(

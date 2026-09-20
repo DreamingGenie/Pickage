@@ -117,7 +117,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   공용 `InfoDialog`(ⓘ 모달)로 옮겼다. 화면 용어는 `Dependents` 가 아니라 **의존 수**(`terms.tsx` 한 곳에서 바꾼다). PDF 제목도 같다(백엔드 `ReportHtmlRenderer`). "사용처"·
   "N개 프로젝트가 사용" 처럼 실제 사용량으로 읽히는 말은 쓰지 않는다.
 - `DEC-COMMUNITY-DEDUPE-20260920-01`(`S15P21A506-406`): 커뮤니티 탭은 같은 사실을 두 번 말하지 않는다. Issue 카드의 `논의 흐름`
-  번호 목록(`flow`)은 쟁점 요약과 중복이라 그리지 않고(API 는 계속 내려준다), 수집 상태 배지와 같은 뜻의 한계 문구
+  번호 목록(`flow`)은 쟁점 요약과 중복이라 그리지 않고(당시에는 API 가 계속 내려줬으나 `S15P21A506-412` 에서 GMS 생성·저장·응답까지 걷어 냈다 — 타입·목업에도 없다), 수집 상태 배지와 같은 뜻의 한계 문구
   (`COMMENTS_TRUNCATED`·`COMMENTS_UNAVAILABLE`)도 숨긴다. 남는 한계·수집 기준은 ⓘ 모달로 둔다 — 저장소 이름 옆 `수집 기준과 한계`,
   Issue 요약 옆 `요약 안내`. 모달로 옮겨도 한계 내용은 남겨 불완전 수집을 완전한 논의로 오해하게 하지 않는다.
 - `DEC-COMMUNITY-WIREFRAME-20260920-01`(`S15P21A506-407`): 커뮤니티 탭 본문은 기획 와이어프레임 형태다 — 제목·저장소 카드, 요약 수치 4칸,

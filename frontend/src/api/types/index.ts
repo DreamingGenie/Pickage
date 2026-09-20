@@ -442,10 +442,6 @@ export interface CommunitySummary {
   reaction_count: number
 }
 
-export interface CommunityFlowStep {
-  text: string
-}
-
 export interface CommunityMessage {
   author_login: string | null
   role: CommunityMessageRole | null
@@ -465,7 +461,12 @@ export interface CommunitySummaryMark {
   kind: 'KEY_TERM' | 'KEY_SENTENCE'
 }
 
-/** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
+/**
+ * Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다.
+ *
+ * 논의 흐름(`flow`)은 없다. 화면이 그리지 않아 서버도 만들지도 내려주지도 않는다(S15P21A506-412).
+ * 옛 서버 응답에 남아 있어도 이 화면은 읽지 않는다.
+ */
 export interface CommunityTopic {
   issue_number: number
   state: 'OPEN' | 'CLOSED'
@@ -481,7 +482,6 @@ export interface CommunityTopic {
   collection_status: CommunityCollectionStatus
   summary_status: CommunitySummaryStatus
   summary_ko: string | null
-  flow: CommunityFlowStep[]
   /** 최대 4개 */
   messages: CommunityMessage[]
   /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */

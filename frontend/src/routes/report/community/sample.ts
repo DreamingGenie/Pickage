@@ -34,10 +34,6 @@ export const SAMPLE_COMMUNITY_RESULT: CommunityResult = {
       collection_status: 'COMPLETE',
       summary_status: 'READY',
       summary_ko: '작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.',
-      flow: [
-        { text: '설정 동작에 관한 질문이 제기됐다.' },
-        { text: '댓글에서 확인 방법이 제시됐다.' },
-      ],
       // '설정 동작' 은 핵심어, '댓글에서 확인 방법이 제시됐다' 는 핵심 문장
       summary_marks: [
         { start: 5, end: 10, kind: 'KEY_TERM' },

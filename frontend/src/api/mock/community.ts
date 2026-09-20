@@ -116,7 +116,6 @@ function topic(
     collection_status: 'COMPLETE',
     summary_status: 'SKIPPED',
     summary_ko: null,
-    flow: [],
     messages: [],
     summary_marks: [],
     ...overrides,
@@ -151,7 +150,6 @@ function fixtureResult(name: string): CommunityResult | null {
           reactions_count: 2,
           summary_status: 'READY',
           summary_ko: '설정을 재적용하는 방법이 댓글에서 공유됐다.',
-          flow: [{ text: '재시작 후 로그 레벨이 초기화된다는 문제가 제기됐다.' }],
           summary_marks: [{ start: 4, end: 12, kind: 'KEY_TERM' }],
           messages: [
             {
@@ -231,10 +229,6 @@ function fixtureResult(name: string): CommunityResult | null {
         reactions_count: 1,
         summary_status: 'READY',
         summary_ko: '작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.',
-        flow: [
-          { text: '설정 동작에 관한 질문이 제기됐다.' },
-          { text: '댓글에서 확인 방법이 제시됐다.' },
-        ],
         messages: [
           {
             author_login: 'example-user',
