@@ -126,7 +126,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   장식이라 역할은 배지 글자로도 말한다. 열린 Issue 가 없을 수 있어 `지금 이어지는` 표현과 `사용자 반응` 빨간 강조는 쓰지 않는다.
 - `DEC-COMMUNITY-REPO-COUNTS-20260920-01`(`S15P21A506-413`): 커뮤니티 탭 상단 수치 4칸의 좌우는 **저장소 전체** 수치다 — 왼쪽 `전체 Issue`(저장소 전체
   Issue 수, PR 제외), 오른쪽 `열린 Issue`(현재 open 인 전체 수). 예전 `분석 Issue 2건 · 최근 180일 공개 Issue` 는 요약한 Issue(최대 2건)에서 센 값이라 분석이 부족해
-  보인다는 제품 책임자 판단으로 바꿨다. 가운데 두 칸(`누적 댓글`·`사용자 반응`)은 요약한 Issue 기준 그대로다. 값은 `repository.issue_count`·`open_issue_count`
+  보인다는 제품 책임자 판단으로 바꿨다. 배치는 **왼쪽 두 칸 = 저장소 전체**(`전체 Issue`·`열린 Issue`), **오른쪽 두 칸 = 핵심 논의(요약한 Issue)**(`핵심 논의 누적 댓글`·`핵심 논의 사용자 반응`)다 — 두 범위가 섞여 있어 이해가 안 된다는 제품 책임자 지적으로 순서로 묶고 라벨에 `핵심 논의`를 붙였다. 값은 `repository.issue_count`·`open_issue_count`
   (선택·nullable)이고 못 구했거나 이전 스냅샷이면 두 칸 모두 `—` 로 보인다(0 으로 지어내지 않는다). 천 단위 쉼표를 쓴다(`1,234건`). `summary.issue_count`·
   `open_issue_count` 는 응답에 남아 있지만 화면은 더 쓰지 않는다. 기획 문서의 "저장소 전체 수치라고 표기하지 않는다" 제약은 이 두 수치에 한해 풀었다.
 - `DEC-COMMUNITY-LINK-MARKS-20260920-01`(`S15P21A506-408`·`S15P21A506-409`): 커뮤니티 Issue 카드의 `#번호` 자리에 그 Issue 의 GitHub 페이지로

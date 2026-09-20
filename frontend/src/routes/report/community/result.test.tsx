@@ -262,9 +262,24 @@ describe('와이어프레임 구성', () => {
     expect(cell('열린 Issue')).toHaveTextContent('56건')
     expect(cell('열린 Issue')).toHaveTextContent('현재 open 상태 전체')
     expect(repo.issue_count).toBe(1234)
-    expect(cell('누적 댓글')).toHaveTextContent(`${s.comment_count}개`)
-    expect(cell('사용자 반응')).toHaveTextContent(`${s.reaction_count}개`)
-    expect(cell('사용자 반응')).toHaveTextContent('GitHub 반응 합계')
+    expect(cell('핵심 논의 누적 댓글')).toHaveTextContent(`${s.comment_count}개`)
+    expect(cell('핵심 논의 사용자 반응')).toHaveTextContent(`${s.reaction_count}개`)
+    expect(cell('핵심 논의 사용자 반응')).toHaveTextContent('GitHub 반응 합계')
+  })
+
+  it('왼쪽 두 칸은 저장소 전체, 오른쪽 두 칸은 핵심 논의로 묶어 나열한다', () => {
+    render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
+
+    // 순서로 범위를 나눈다 — 섞이면 "4,320건"과 "57개"가 같은 범위의 수치로 읽힌다.
+    const labels = ['전체 Issue', '열린 Issue', '핵심 논의 누적 댓글', '핵심 논의 사용자 반응']
+    const order = labels.map((l) => {
+      const node = screen.getByText(l)
+      return Array.from(node.closest('.grid')!.children).indexOf(node.parentElement!)
+    })
+    expect(order).toEqual([0, 1, 2, 3])
+    // 예전 라벨이 남아 있지 않다.
+    expect(screen.queryByText('누적 댓글')).toBeNull()
+    expect(screen.queryByText('사용자 반응')).toBeNull()
   })
 
   it('"2건만 분석한다"로 읽히는 문구를 상단 수치에 쓰지 않는다', () => {
@@ -295,7 +310,7 @@ describe('와이어프레임 구성', () => {
     expect(cell('열린 Issue')).toHaveTextContent('—')
     expect(cell('전체 Issue')).not.toHaveTextContent('0건')
     // 나머지 두 칸은 영향을 받지 않는다.
-    expect(cell('누적 댓글')).toHaveTextContent(
+    expect(cell('핵심 논의 누적 댓글')).toHaveTextContent(
       `${SAMPLE_COMMUNITY_RESULT.summary.comment_count}개`,
     )
   })

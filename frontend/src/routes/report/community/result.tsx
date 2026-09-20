@@ -127,8 +127,10 @@ export function CommunityResultView({
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {/*
-              좌우 두 칸은 **저장소 전체** 수치다(S15P21A506-413). 예전에는 요약한 Issue(최대 2건)에서 센 값이라 "2건만 분석한다"로
-              읽혀 분석이 부족해 보였다. 그 2건이 어떤 기준으로 골라졌는지는 저장소 카드의 수집 기준 안내(ⓘ)에 있다.
+              **왼쪽 두 칸은 저장소 전체, 오른쪽 두 칸은 핵심 논의(요약한 Issue)** 수치다(S15P21A506-413). 두 종류가 섞여 있으면
+              "4,320건"과 "57개"가 같은 범위의 수치처럼 읽혀 이해가 안 됐다. 그래서 순서로 묶고 오른쪽 라벨에는 `핵심 논의`를 붙인다.
+              예전에는 왼쪽도 요약한 Issue(최대 2건)에서 센 값이라 "2건만 분석한다"로 읽혔다. 그 2건이 어떤 기준으로 골라졌는지는
+              저장소 카드의 수집 기준 안내(ⓘ)에 있다. 작은 화면(2열)에서도 줄이 [전체·열린] / [핵심 논의 둘]로 갈린다.
             */}
             <Kpi
               label="전체 Issue"
@@ -136,15 +138,19 @@ export function CommunityResultView({
               sub={totalIssues == null ? '이번 자료에는 집계되지 않았습니다' : 'GitHub 저장소 전체'}
             />
             <Kpi
-              label="누적 댓글"
-              value={`${summary.comment_count}개`}
-              sub={topics.map((t) => `#${t.issue_number} ${t.comments_count}개`).join(' · ') || '—'}
-            />
-            <Kpi label="사용자 반응" value={`${summary.reaction_count}개`} sub="GitHub 반응 합계" />
-            <Kpi
               label="열린 Issue"
               value={issueCountText(openIssues)}
               sub={openIssues == null ? '이번 자료에는 집계되지 않았습니다' : '현재 open 상태 전체'}
+            />
+            <Kpi
+              label="핵심 논의 누적 댓글"
+              value={`${summary.comment_count}개`}
+              sub={topics.map((t) => `#${t.issue_number} ${t.comments_count}개`).join(' · ') || '—'}
+            />
+            <Kpi
+              label="핵심 논의 사용자 반응"
+              value={`${summary.reaction_count}개`}
+              sub="GitHub 반응 합계"
             />
           </div>
 
