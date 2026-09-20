@@ -93,6 +93,12 @@ PROMPT = """당신은 npm 패키지 비교 엔진입니다. 아래 제공된 "�
 
 반드시 아래(공용) JSON 스키마로만 응답하십시오. 다른 텍스트를 앞뒤에 붙이지 마십시오.
 모든 결과 항목에 "groundedIn"을 EVIDENCE 또는 GENERAL_KNOWLEDGE로 반드시 채우십시오.
+
+언어: 화면에 표시되는 텍스트 — featureLabel, note, 해설의 heading과 body — 는 모두 한국어로
+작성하십시오. 근거(README)가 영어여도 마찬가지입니다. 다음은 원어 그대로 두십시오: 패키지 이름,
+함수·API·옵션 이름, 코드, 그리고 README를 인용하는 부분(인용은 원문 그대로 따옴표로 묶고 그 뜻을
+한국어로 설명하십시오 — 8-2의 재진술 규칙은 그대로 적용됩니다). verdict, groundedIn, dataStatus의
+값과 evidenceIds는 스키마가 정한 영문 값을 그대로 쓰십시오.
 """
 
 

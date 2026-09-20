@@ -248,5 +248,38 @@ class MetaEvidenceMessageTests(unittest.TestCase):
         self.assertIn("최대 1개", rule)
 
 
+class OutputLanguageTests(unittest.TestCase):
+    """화면에 나가는 텍스트는 한국어로 고정한다 (S15P21A506-420).
+
+    프롬프트가 언어를 지정하지 않아, 같은 입력에서도 실행마다 영어/한국어가 섞여 나왔다
+    (실측: 같은 입력 8회 중 영어 6회, 한국어 2회).
+    """
+
+    def _rule(self) -> str:
+        return PROMPT.split("## 출력 형식")[1]
+
+    def test_prompt_asks_for_korean_in_every_displayed_field(self):
+        rule = self._rule()
+
+        self.assertIn("한국어", rule)
+        for field in ("featureLabel", "note", "heading", "body"):
+            with self.subTest(field=field):
+                self.assertIn(field, rule)
+
+    def test_identifiers_and_quotations_keep_their_original_language(self):
+        # 패키지명·API 이름·코드와 README 인용 원문까지 번역하면 8-2(인용 문구를 가깝게 재진술)와
+        # 검증 가능성이 깨진다. 원어 유지가 명시되어야 한다.
+        rule = self._rule()
+
+        self.assertIn("패키지 이름", rule)
+        self.assertIn("원문", rule)
+
+    def test_enum_values_stay_english_because_the_schema_requires_them(self):
+        rule = self._rule()
+
+        self.assertIn("verdict", rule)
+        self.assertIn("groundedIn", rule)
+
+
 if __name__ == "__main__":
     unittest.main()
