@@ -166,6 +166,61 @@ class ReportChartsTest {
 	}
 
 	/* ------------------------------------------------------------------ *
+	 * 변화율 선그래프 (S15P21A506-416)
+	 * ------------------------------------------------------------------ */
+
+	@Test
+	void 변화율_그래프는_선마다_경로와_100퍼센트_기준선을_그린다() {
+		String html = ReportCharts.changeRateChart(List.of(
+			weekly("axios", 0, 1000, 1200, 1500, 2100),
+			weekly("got", 1, 300, 330, 360, 420)), "변화율");
+
+		assertWellFormed(html);
+		assertThat(count(html, "<path ")).isEqualTo(2);
+		assertThat(count(html, "<circle ")).isEqualTo(2);
+		assertThat(html).contains(ReportCharts.BASELINE_LABEL).contains(ReportCharts.INDEX_NOTE);
+		assertThat(html).doesNotContain(ReportCharts.LOG_NOTE);
+		// 눈금은 화면과 같은 함수의 결과다(값은 ChartGeometryTest).
+		assertThat(html).contains(">87%</span>").contains(">132%</span>").contains(">178%</span>").contains(">223%</span>");
+		assertThat(svgOf(html)).doesNotContain("<text");
+	}
+
+	@Test
+	void 기준선은_눈금선과_다른_진한_선이다() {
+		String html = ReportCharts.changeRateChart(List.of(weekly("a", 0, 100, 120, 150)), "x");
+
+		assertThat(count(html, "stroke=\"#0F172A\" stroke-width=\"1\" stroke-opacity=\"0.55\"")).isEqualTo(1);
+	}
+
+	@Test
+	void 같은_선이라도_변화율이면_실제값과_다른_그림이다() {
+		var lines = List.of(weekly("a", 0, 1000, 1200, 1500), weekly("b", 1, 30000, 33000, 36000));
+
+		assertThat(ReportCharts.changeRateChart(lines, "x")).isNotEqualTo(ReportCharts.lineChart(lines, "x"));
+		// 둘 다 100 에서 출발한다 — 첫 점의 y 가 같다.
+		var d = Pattern.compile("<path d=\"M[\\d.]+ ([\\d.]+)").matcher(ReportCharts.changeRateChart(lines, "x"))
+			.results().map(m -> m.group(1)).toList();
+		assertThat(d).hasSize(2).containsOnly(d.getFirst());
+	}
+
+	@Test
+	void 첫_값이_0인_선은_변화율에서_빠지고_남는_선이_없으면_그래프가_없다() {
+		String html = ReportCharts.changeRateChart(List.of(weekly("zero", 0, 0, 5, 9), weekly("ok", 1, 10, 20)), "x");
+
+		assertThat(count(html, "<path ")).isEqualTo(1);
+		assertThat(ReportCharts.changeRateChart(List.of(weekly("zero", 0, 0, 5, 9)), "x")).isEmpty();
+		assertThat(ReportCharts.changeRateChart(List.of(), "x")).isEmpty();
+	}
+
+	@Test
+	void 변화가_없는_선도_기준선과_함께_그려진다() {
+		String html = ReportCharts.changeRateChart(List.of(weekly("flat", 0, 700, 700, 700)), "x");
+
+		assertWellFormed(html);
+		assertThat(html).contains(">98.0%</span>").contains(">102.0%</span>").contains(ReportCharts.BASELINE_LABEL);
+	}
+
+	/* ------------------------------------------------------------------ *
 	 * Version Share
 	 * ------------------------------------------------------------------ */
 

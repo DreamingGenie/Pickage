@@ -59,11 +59,26 @@ final class ReportCharts {
 	 * @param lines 이미 시계열이 정렬된 선. 점이 없는 선은 그리지 않는다.
 	 */
 	static String lineChart(List<Line> lines, String ariaLabel) {
+		return chart(lines, ariaLabel, false);
+	}
+
+	/**
+	 * 같은 선을 <b>변화율</b>로 그린다 — 선마다 첫 관측치를 100% 로 두고 그 대비 비율이다(화면의 변화율 모드).
+	 * 규모가 다른 패키지를 같은 축에서 비교하려는 그래프라 세로는 선형이고, 100% 기준선을 진하게 긋는다.
+	 * 그릴 수 있는 선이 없으면 빈 문자열이다.
+	 *
+	 * @param lines <b>실제값</b> 선. 여기서 환산한다.
+	 */
+	static String changeRateChart(List<Line> lines, String ariaLabel) {
+		return chart(ChartGeometry.indexLines(lines), ariaLabel, true);
+	}
+
+	private static String chart(List<Line> lines, String ariaLabel, boolean index) {
 		List<Line> drawable = lines.stream().filter(l -> !l.points().isEmpty()).toList();
 		if (drawable.isEmpty()) return "";
 
 		Domain xd = ChartGeometry.extentX(drawable);
-		Domain yd = ChartGeometry.extentY(drawable);
+		Domain yd = index ? ChartGeometry.extentIndex(drawable) : ChartGeometry.extentY(drawable);
 
 		StringBuilder b = new StringBuilder(4096);
 		b.append("<div class=\"figure\">");
@@ -75,18 +90,28 @@ final class ReportCharts {
 			.append("\" height=\"").append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ')
 			.append(HEIGHT).append("\" role=\"img\" aria-label=\"").append(esc(ariaLabel)).append("\">");
 
-		List<Double> ticks = ChartGeometry.ticksY(yd, Y_TICKS);
+		List<Double> ticks = index ? ChartGeometry.ticksLinear(yd, Y_TICKS) : ChartGeometry.ticksY(yd, Y_TICKS);
 		for (double t : ticks) {
-			double y = ChartGeometry.scaleY(t, yd, PLOT);
+			double y = scaleY(t, yd, index);
 			b.append("<line x1=\"").append(ChartGeometry.f2(PLOT.x())).append("\" y1=\"")
 				.append(ChartGeometry.f2(y)).append("\" x2=\"").append(ChartGeometry.f2(PLOT.x() + PLOT.w()))
 				.append("\" y2=\"").append(ChartGeometry.f2(y))
 				.append("\" stroke=\"#E5E7EB\" stroke-width=\"1\"/>");
 		}
 
+		// 뜻이 있는 기준선 — 눈금은 도메인을 고르게 나눈 것이라 100 위에 떨어진다는 보장이 없다. 눈금선보다 진하게 긋는다.
+		boolean baseline = index && INDEX_BASE >= yd.lo() && INDEX_BASE <= yd.hi();
+		double baseY = baseline ? scaleY(INDEX_BASE, yd, true) : 0;
+		if (baseline) {
+			b.append("<line x1=\"").append(ChartGeometry.f2(PLOT.x())).append("\" y1=\"")
+				.append(ChartGeometry.f2(baseY)).append("\" x2=\"").append(ChartGeometry.f2(PLOT.x() + PLOT.w()))
+				.append("\" y2=\"").append(ChartGeometry.f2(baseY))
+				.append("\" stroke=\"#0F172A\" stroke-width=\"1\" stroke-opacity=\"0.55\"/>");
+		}
+
 		for (Line line : drawable) {
 			Style st = ChartGeometry.style(line.tone());
-			b.append("<path d=\"").append(ChartGeometry.buildLine(line.points(), xd, yd, PLOT))
+			b.append("<path d=\"").append(ChartGeometry.buildLine(line.points(), xd, yd, PLOT, index))
 				.append("\" fill=\"none\" stroke=\"").append(st.color()).append("\" stroke-width=\"1.6\"");
 			if (st.dash() != null) b.append(" stroke-dasharray=\"").append(st.dash()).append('"');
 			b.append(" stroke-linejoin=\"round\"/>");
@@ -94,16 +119,22 @@ final class ReportCharts {
 			// 마지막 점 — 가장 최근 값이 어디인지. 점이 하나뿐인 선은 이것만 보인다.
 			var last = line.points().getLast();
 			b.append("<circle cx=\"").append(ChartGeometry.f2(ChartGeometry.scaleX(last.date().toEpochDay(), xd, PLOT)))
-				.append("\" cy=\"").append(ChartGeometry.f2(ChartGeometry.scaleY(last.value(), yd, PLOT)))
+				.append("\" cy=\"").append(ChartGeometry.f2(scaleY(last.value(), yd, index)))
 				.append("\" r=\"2.4\" fill=\"").append(st.color()).append("\"/>");
 		}
 		b.append("</svg>");
 
 		// 눈금·날짜는 HTML 로 얹는다 — 위 "왜 SVG 이고 글자는 HTML 인가" 참고.
 		for (double t : ticks) {
-			double y = ChartGeometry.scaleY(t, yd, PLOT);
+			double y = scaleY(t, yd, index);
 			b.append("<span class=\"tick\" style=\"top:").append(ChartGeometry.f2(y - 5)).append("px\">")
-				.append(esc(ChartGeometry.formatTick(t, yd, Y_TICKS))).append("</span>");
+				.append(esc(index ? ChartGeometry.formatIndexTick(t, yd, Y_TICKS)
+					: ChartGeometry.formatTick(t, yd, Y_TICKS)))
+				.append("</span>");
+		}
+		if (baseline) {
+			b.append("<span class=\"blab\" style=\"top:").append(ChartGeometry.f2(baseY - 12)).append("px\">")
+				.append(esc(BASELINE_LABEL)).append("</span>");
 		}
 		for (double[] tick : xTicks(xd)) {
 			double x = ChartGeometry.scaleX(tick[0], xd, PLOT);
@@ -112,10 +143,23 @@ final class ReportCharts {
 				.append("</span>");
 		}
 		b.append("</div>");
-		b.append("<p class=\"note\">").append(esc(LOG_NOTE)).append("</p>");
+		b.append("<p class=\"note\">").append(esc(index ? INDEX_NOTE : LOG_NOTE)).append("</p>");
 		b.append("</div>");
 		return b.toString();
 	}
+
+	private static double scaleY(double v, Domain yd, boolean index) {
+		return index ? ChartGeometry.scaleYLinear(v, yd, PLOT) : ChartGeometry.scaleY(v, yd, PLOT);
+	}
+
+	private static final double INDEX_BASE = ChartGeometry.INDEX_BASE;
+
+	/** 변화율 그래프의 기준선 이름표. */
+	static final String BASELINE_LABEL = "구간 시작 100%";
+
+	/** 변화율 그래프 아래의 설명. 무엇을 100% 로 잡았는지 숨기지 않는다. */
+	static final String INDEX_NOTE =
+		"변화율 — 패키지마다 표시 구간의 첫 관측치를 100%로 두고 그 대비 비율로 그렸습니다. 규모가 달라도 성장 속도를 나란히 볼 수 있으며, 세로 눈금은 선형입니다.";
 
 	/** 그래프 아래에 붙이는 설명. 눈금 간격이 균등하지 않다는 것을 숨기지 않는다. */
 	static final String LOG_NOTE =
@@ -279,6 +323,8 @@ final class ReportCharts {
 			.sw { display: inline-block; width: 24px; height: 0; vertical-align: middle; margin-right: 3px; }
 			.tag { font-size: 7.5pt; background: #f3f4f6; color: #4b5563; padding: 0 4px; }
 			.chart { position: relative; }
+			.blab { position: absolute; right: 16px; padding: 0 3px; font-size: 7.5pt; line-height: 10px;
+			        color: #0f172a; background: #ffffff; }
 			.chart svg { position: absolute; left: 0; top: 0; }
 			.tick { position: absolute; left: 0; width: 42px; text-align: right;
 			        font-size: 7.5pt; line-height: 10px; color: #6b7280; }

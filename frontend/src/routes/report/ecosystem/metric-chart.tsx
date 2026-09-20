@@ -89,7 +89,8 @@ export function MetricChart({
   /** "실제값·변화율" 토글을 낼지. 인트로 미리보기처럼 조작이 없는 자리는 끈다. */
   allowIndex?: boolean
   /**
-   * 처음 보여 줄 모드. 기본은 실제값이고, Dependents 는 `index`(변화율)로 연다(S15P21A506-403).
+   * 처음 보여 줄 모드. 기본은 실제값이다. 한때 Dependents 를 `index`(변화율)로 열었으나(S15P21A506-403)
+   * 실제값이 기본으로 되돌아왔다(S15P21A506-416).
    * `allowIndex` 가 꺼져 있으면 무시된다 — 토글이 없는 카드가 변화율로 열리면 되돌릴 방법이 없다.
    */
   defaultScale?: ScaleMode
@@ -102,8 +103,8 @@ export function MetricChart({
   const hasInfo = Boolean(info) || showClampNote
 
   /**
-   * 기본은 실제값이고, 부르는 쪽이 `defaultScale` 로 바꾼다. Dependents 는 변화율로 시작한다 —
-   * 규모가 다른 패키지를 나란히 놓는 비교 화면에서 먼저 궁금한 것은 "누가 더 빨리 늘었나" 라서다.
+   * 기본은 실제값이고, 부르는 쪽이 `defaultScale` 로 바꿀 수 있다. 변화율은 토글로 전환한다 —
+   * 규모가 다른 패키지를 나란히 놓고 "누가 더 빨리 늘었나" 를 볼 때 쓴다.
    *
    * 변화율은 **구간 시작을 100% 로 두고 그 대비 비율**을 그린다. 규모가 다른 패키지를 같은
    * 축에서 비교하려는 쪽의 답이다 — 의존 수 300 짜리와 3만짜리가 둘 다 100 에서 출발하므로

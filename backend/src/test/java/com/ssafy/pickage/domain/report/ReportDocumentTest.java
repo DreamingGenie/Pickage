@@ -165,13 +165,50 @@ class ReportDocumentTest {
 
 		// 선그래프 둘(Downloads·의존 수) × 패키지 둘 = path 넷. major 별 세 시리즈가 세 줄이 되지 않는다.
 		assertThat(count(html, "<path d=\"M")).as("선 넷 + 도넛 조각").isGreaterThanOrEqualTo(4);
-		assertThat(count(html, "stroke-dasharray=\"7 3\"")).as("둘째 패키지는 파선").isEqualTo(2);
-		// 실제값 축이다 — 첫 눈금은 합계 범위(7k 안팎~180k 안팎)에서 나오고 변화율(%)이 아니다.
+		assertThat(count(html, "stroke-dasharray=\"7 3\"")).as("둘째 패키지는 파선 — 의존 수 실제값·변화율, Downloads").isEqualTo(3);
+		// 첫 그래프는 실제값 축이다 — 눈금은 합계 범위에서 나오고 변화율(%)이 아니다.
 		int dep = html.indexOf("<h2>의존 수</h2>");
-		int depTable = html.indexOf("<table>", dep);
-		String depFigure = html.substring(dep, depTable);
-		assertThat(depFigure).doesNotContain("%</span>");
-		assertThat(depFigure).contains("class=\"tick\"");
+		String depReal = html.substring(dep, html.indexOf("<p class=\"sub\">변화율</p>", dep));
+		assertThat(depReal).doesNotContain("%</span>");
+		assertThat(depReal).contains("class=\"tick\"");
+	}
+
+	@Test
+	void 의존_수가_Downloads보다_먼저_나온다() {
+		String html = RENDERER.render(sources(Set.of(), null));
+
+		assertThat(html.indexOf("<h2>의존 수</h2>")).isPositive()
+			.isLessThan(html.indexOf("<h2>Downloads</h2>"));
+		assertThat(html.indexOf("<h2>Downloads</h2>")).isLessThan(html.indexOf("<h2>Version Share</h2>"));
+	}
+
+	@Test
+	void 의존_수는_실제값_그래프_아래에_변화율_그래프가_있고_그_아래에_표가_있다() {
+		String html = RENDERER.render(sources(Set.of(), null));
+
+		int heading = html.indexOf("<h2>의존 수</h2>");
+		int real = html.indexOf("<p class=\"sub\">실제값</p>", heading);
+		int rate = html.indexOf("<p class=\"sub\">변화율</p>", heading);
+		int table = html.indexOf("<table>", heading);
+		assertThat(real).isGreaterThan(heading);
+		assertThat(rate).isGreaterThan(real);
+		assertThat(table).isGreaterThan(rate);
+
+		String rateChart = html.substring(rate, table);
+		assertThat(rateChart).contains(ReportCharts.BASELINE_LABEL).contains(ReportCharts.INDEX_NOTE);
+		assertThat(rateChart).contains("%</span>");
+		// 변화율 그래프의 선은 패키지마다 하나 — major 별로 갈라지지 않는다.
+		assertThat(count(rateChart, "<path d=\"M")).isEqualTo(2);
+	}
+
+	@Test
+	void Downloads에는_변화율_그래프를_붙이지_않는다() {
+		String html = RENDERER.render(sources(Set.of(), null));
+
+		int downloads = html.indexOf("<h2>Downloads</h2>");
+		String section = html.substring(downloads, html.indexOf("<h2>Version Share</h2>", downloads));
+		assertThat(section).doesNotContain(ReportCharts.BASELINE_LABEL).doesNotContain("class=\"sub\"");
+		assertThat(count(html, ReportCharts.BASELINE_LABEL)).isEqualTo(1);
 	}
 
 	@Test

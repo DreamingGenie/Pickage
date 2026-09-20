@@ -101,7 +101,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
 - `DEC-WEEKLY-GRID-20260920-01`(`S15P21A506-403`): 기준일 달력(deps.dev 실제 스냅샷 날짜)이 2026-02 이후 월요일 주간이 아니라서
   그래프가 끊기고 Downloads 가 급락했다. **서버가 월요일 격자로 환산해 내려준다** — Downloads 는 구간 합계를 일평균으로
   펼친 주간 합계, Dependents 는 관측 범위 안의 빈 주를 선형 보간. 화면은 이 응답을 그대로 그린다(선 끊김 규칙 `MAX_GAP_DAYS` 는
-  Downloads 의 관측 구멍용으로 유지). Dependents 카드는 변화율(지수)로 열고 실제값으로 전환한다(`MetricChart` `defaultScale`).
+  Downloads 의 관측 구멍용으로 유지). Dependents 카드는 처음에 변화율(지수)로 열었으나 `S15P21A506-416` 에서 **실제값이 기본**으로 바뀌었다(변화율은 토글로 전환, `MetricChart` `defaultScale` 은 기본값 그대로 쓴다).
   세부 규칙은 `../docs/설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
 - `DEC-INTRO-HERO-20260920-01`(`S15P21A506-404`): 인트로 히어로는 뷰포트 전폭으로 펴고(`left-1/2 w-screen -translate-x-1/2`,
   가로 넘침은 `AppLayout` 의 `overflow-x-clip` 이 자른다), **`overflow-hidden` 은 배경 도형(`HeroBackdrop`)에만 둔다** — 히어로에
@@ -131,7 +131,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   `open_issue_count` 는 응답에 남아 있지만 화면은 더 쓰지 않는다. 기획 문서의 "저장소 전체 수치라고 표기하지 않는다" 제약은 이 두 수치에 한해 풀었다.
 - `DEC-PDF-GRAPHS-20260920-01`(`S15P21A506-414`): PDF·미리보기는 표와 숫자만 있던 문서를 **그래프 위, 수치 표 아래**로 바꿨다 — Downloads·의존 수 선그래프,
   Version Share 도넛·막대, 유지·유입·이탈 막대(화면과 같은 기하: `geometry.ts` 를 자바 `ChartGeometry` 로 옮겼고 같은 입력의 TypeScript 실행 결과와 대조한다). 조회
-  조건은 **화면의 기본값**(전체 기간·주 단위)이고 **의존 수 그래프는 실제값**(화면 기본은 변화율)·로그 눈금이다. 내보내기 모달의 `더할 구역`에서 **커뮤니티 분석**을 고를
+  조건은 **화면의 기본값**(전체 기간·주 단위)이다. **의존 수는 Downloads 보다 먼저** 나오고 실제값 그래프(로그 눈금) 아래에 변화율 그래프(구간 시작 = 100%, 선형 눈금)를 함께 싣는다(`S15P21A506-416`). 내보내기 모달의 `더할 구역`에서 **커뮤니티 분석**을 고를
   수 있고(기준 패키지의 저장된 스냅샷을 싣는다, 자료가 없으면 안내만), `PDF가 준비되었습니다` 모달에 미리보기를 거치지 않는 **다운로드 버튼**을 뒀다. 그래프는
   SVG(도형만)+HTML 라벨이다 — SVG 안의 글자는 운영 컨테이너에 글꼴 설정이 없어 PDF 에서 사라질 수 있다. 서버가 SVG 를 그리려고 `openhtmltopdf-svg-support`(Batik)를 더했다.
 - `DEC-COMMUNITY-LINK-MARKS-20260920-01`(`S15P21A506-408`·`S15P21A506-409`): 커뮤니티 Issue 카드의 `#번호` 자리에 그 Issue 의 GitHub 페이지로
