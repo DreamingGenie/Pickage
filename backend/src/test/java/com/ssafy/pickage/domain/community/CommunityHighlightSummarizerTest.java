@@ -6,7 +6,6 @@ import com.ssafy.pickage.domain.community.collection.CollectedComment;
 import com.ssafy.pickage.domain.community.collection.CollectedIssue;
 import com.ssafy.pickage.domain.community.collection.CommentCollectionStatus;
 import com.ssafy.pickage.domain.community.dto.SummaryStatus;
-import com.ssafy.pickage.domain.community.payload.DiscussionStepPayload;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -95,11 +94,9 @@ class CommunityHighlightSummarizerTest {
         return new TopicSummary(
                 "제목",
                 "요약",
-                List.of(new DiscussionStepPayload("흐름")),
                 List.of(),
                 SummaryStatus.READY,
-                support,
-                List.of(support));
+                support);
     }
 
     @Test

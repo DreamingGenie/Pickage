@@ -40,22 +40,6 @@ public final class CommunitySummaryValidator {
             require(CommunitySnapshotValidator.plain(titleKo, 200), "titleKo not plain/too long");
             require(CommunitySnapshotValidator.plain(summaryKo, 500), "summaryKo not plain/too long");
             support(bundle, summary.summarySupport(), "summarySupport");
-            require(
-                    summary.discussionFlow() != null
-                            && !summary.discussionFlow().isEmpty()
-                            && summary.discussionFlow().size() <= 4,
-                    "discussionFlow size");
-            require(
-                    summary.flowSupport() != null
-                            && summary.flowSupport().size() == summary.discussionFlow().size(),
-                    "flowSupport size mismatch");
-            var flow = new ArrayList<DiscussionStepPayload>();
-            for (int i = 0; i < summary.discussionFlow().size(); i++) {
-                String stepText = stripLinks(summary.discussionFlow().get(i).text());
-                require(CommunitySnapshotValidator.plain(stepText, 200), "flow[" + i + "] not plain/too long");
-                support(bundle, summary.flowSupport().get(i), "flowSupport[" + i + "]");
-                flow.add(new DiscussionStepPayload(stepText));
-            }
             require(summary.messages() != null && summary.messages().size() <= MAX_MESSAGES, "messages size");
             var messages = new ArrayList<MessagePayload>();
             var seen = new HashSet<String>();
@@ -101,21 +85,17 @@ public final class CommunitySummaryValidator {
             return new TopicSummary(
                     titleKo,
                     summaryKo,
-                    List.copyOf(flow),
                     List.copyOf(messages),
                     summary.status(),
-                    List.of(),
                     List.of(),
                     List.of(),
                     List.of(),
                     marks(summaryKo, summary.keySentences(), summary.keyTerms()));
         } catch (RuntimeException e) {
             log.warn(
-                    "요약 검증 실패: {} ({}) — flow={}, flowSupport={}, messages={}, summarySupport={}",
+                    "요약 검증 실패: {} ({}) — messages={}, summarySupport={}",
                     e.getClass().getSimpleName(),
                     e.getMessage(),
-                    summary == null ? null : summary.discussionFlow().size(),
-                    summary == null ? null : summary.flowSupport().size(),
                     summary == null ? null : summary.messages().size(),
                     summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();

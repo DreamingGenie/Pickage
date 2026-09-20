@@ -86,7 +86,7 @@ class GmsCommunitySummarizerRealNetworkTest {
                 .isEqualTo(SummaryStatus.READY);
         assertThat(summary.titleKo()).isNotBlank();
         assertThat(summary.summaryKo()).isNotBlank();
-        assertThat(summary.discussionFlow()).isNotEmpty();
+        assertThat(summary.messages()).isNotEmpty();
     }
 
     /**
@@ -179,8 +179,6 @@ class GmsCommunitySummarizerRealNetworkTest {
         System.out.println(
                 "[실네트워크 GMS 대형 fixture 결과] status="
                         + summary.status()
-                        + ", flow.size="
-                        + summary.discussionFlow().size()
                         + ", messages.size="
                         + summary.messages().size());
         assertThat(summary).as("항상 TopicSummary를 반환해야 함(예외 전파 금지)").isNotNull();

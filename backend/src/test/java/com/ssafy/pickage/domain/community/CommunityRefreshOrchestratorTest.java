@@ -35,9 +35,7 @@ class CommunityRefreshOrchestratorTest {
                         null,
                         null,
                         List.of(),
-                        List.of(),
                         SummaryStatus.SKIPPED,
-                        List.of(),
                         List.of());
     }
 

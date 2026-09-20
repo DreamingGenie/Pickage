@@ -175,10 +175,6 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
   "title_ko": "설정 동작 확인",
   "summary_ko": "작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.",
   "summary_support": [{"type": "ISSUE_BODY", "id": "701"}, {"type": "COMMENT", "id": "9007199254740993"}],
-  "flow": [
-    {"text": "설정 동작에 관한 질문이 제기됐다.", "support": [{"type": "ISSUE_BODY", "id": "701"}]},
-    {"text": "댓글에서 확인 방법이 제시됐다.", "support": [{"type": "COMMENT", "id": "9007199254740993"}]}
-  ],
   "messages": [
     {"source_comment_id": "9007199254740993", "kind": "DISCUSSION", "text": "설정을 확인하는 방법을 제시했다."}
   ]
@@ -190,7 +186,7 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
 | issue_number | 요청 Issue number와 동일한 양의 정수 |
 | title_ko | 공백 제외 비어 있지 않음, 최대 200자; 원제목의 의미를 보존 |
 | summary_ko / summary_support | 최대 500자 / 1~101개, 중복 없음 |
-| flow | 1~4개; text 최대 200자, support 1~101개 |
+| flow | **요청하지 않는다**(2026-09-20, S15P21A506-412). 스키마·프롬프트에 없고 검증하지 않는다 |
 | messages | 0~4개(2026-09-20 3→4); 입력 댓글 하나당 하나; source_comment_id 중복 없음, text 최대 300자 |
 | key_terms / key_sentences | 각각 최대 6개(최대 30자) / 최대 2개(최대 160자, 요약문의 60% 이하). **summary_ko 에서 글자 그대로 옮긴 문자열**만 인정한다 — 서버가 부분 문자열로 찾아 위치를 계산하고, 못 찾은 것·겹치는 것은 버린다(요약은 실패시키지 않는다). 모델이 준 위치는 쓰지 않는다 |
 | kind | DISCUSSION 또는 USER_SOLUTION |
@@ -222,7 +218,7 @@ MAINTAINER를 association에서 추정하지 않는다. 여러 댓글의 말을 
 추가 검증 모델 호출을 조용히 도입하지 않는다.
 
 요약 실패여도 이미 검증한 Issue 원제목·수치·시각은 게시할 수 있다.
-실패 topic은 title_ko/summary_ko=null, flow/messages=[]로 두고 원제목을 표시한다.
+실패 topic은 title_ko/summary_ko=null, messages=[]로 두고 원제목을 표시한다.
 support 목록은 생성 시 메모리 검증 후 폐기한다. 장기 저장에는 issue source ID와 선택된 대표 comment ID만 남긴다.
 따라서 모든 요약 문장의 장기 원문 재감사까지 지원한다고 주장하지 않는다.
 
@@ -348,8 +344,7 @@ Java long을 무조건 JS number로 내리지 않는다. GitHub source ID는 공
 | Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, summary_retry_at:nullable timestamp, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
 | Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean |
 | Summary | issue_count:integer, open_issue_count:integer, comment_count:integer, reaction_count:integer |
-| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, flow:Flow[], messages:Message[], summary_marks:SummaryMark[](이전 스냅샷에는 없어 빈 목록으로 읽는다) |
-| Flow | text:string |
+| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, messages:Message[], summary_marks:SummaryMark[](이전 스냅샷에는 없어 빈 목록으로 읽는다) |
 | SummaryMark | start:integer, end:integer, kind:KEY_TERM or KEY_SENTENCE — `summary_ko` 안의 UTF-16 오프셋 `[start, end)`(Java `String`·JS 문자열과 같은 단위). 핵심어는 굵게, 핵심 문장은 형광펜(2026-09-20, S15P21A506-408) |
 | Message | author_login:nullable string, role:nullable enum, created_at:timestamp, kind:DISCUSSION or USER_SOLUTION, text:string |
 | Limitation | code:enum, message:string, issue_number:nullable positive integer |
@@ -361,9 +356,9 @@ title_original은 출력할 때 200자로 제한하고 잘림을 표시한다. �
 data_limits.lookback_days는 실제 마지막 검색 기간이며 검색 전 중단이면 기본 정책 180이다.
 
 topics는 §3.2 선택 순서, messages는 원본 created_at·수치 source ID 오름차순이다.
-flow는 모델이 검증 가능한 사건 순으로 작성하되 동일 시각 인과관계를 임의로 만들지 않는다.
-
-> **2026-09-20 (S15P21A506-406)** 화면은 `flow` 를 표시하지 않는다 — 쟁점 요약(`summary_ko`)과 같은 사건을 되풀이하는 정보라 뺐다. API 응답·저장 payload·검증(`flow` 1~4개, `flow_support`)은 그대로다. 생성을 멈추려면 GMS 프롬프트·JSON 스키마·요약/스냅샷 검증기·payload 를 함께 바꿔야 해 별도 작업으로 뒀다.
+> **2026-09-20 (S15P21A506-406 → 412)** `flow`(논의 흐름)는 쓰지 않는다. 화면은 406 에서 그리기를 멈췄다 — 쟁점 요약(`summary_ko`)과 같은 사건을 되풀이하는 정보라서다. 412 에서 생성도 멈췄다: GMS 프롬프트·JSON 스키마(`flow`·`flow_support`), 요약 검증기, `TopicSummary`·`TopicPayload`·`TopicResponse` 에서 걷어 냈고 API 응답에도 없다.
+>
+> **저장된 스냅샷 호환**: `payload_version` 은 2 그대로다. 올리면 운영에 저장된 스냅샷이 전부 읽히지 않는다. `summary_marks` 를 선택 키로 더한 것과 반대로, `flow` 는 **있어도 없어도 되는 키**로 다룬다 — 스냅샷 JSON 검증기는 `flow` 가 있으면 예전 모양(`[{text}]`)만 확인하고, 읽을 때(`TopicPayload` 의 `@JsonIgnoreProperties("flow")`) 값은 버린다. 새 스냅샷에는 쓰지 않는다. 다른 모르는 필드는 여전히 거부한다. 이 변경이 배포된 뒤 **이전 버전으로 되돌리면**, 이전 검증기가 `flow` 를 필수로 요구하므로 새로 저장된 스냅샷을 읽지 못하고(`CommunitySnapshotPayloadException`, 서비스가 따로 삼키지 않는다) 그 패키지의 커뮤니티 조회가 실패할 수 있다. 되돌릴 일이 생기면 새로 저장된 스냅샷부터 정리할 것.
 summary는 topics의 사실 수치 합계다. 요약 실패나 댓글 절단으로 사실 comments_count를 100으로 자르지 않는다.
 
 limitation code는 아래 목록에서만 사용하고 설명은 서버 템플릿으로 만든다.
@@ -436,7 +431,6 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "updated_at": "2026-09-10T00:00:00Z",
         "collection_status": "COMPLETE",
         "summary_status": "FAILED",
-        "flow": [],
         "messages": [],
         "summary_marks": []
       }],

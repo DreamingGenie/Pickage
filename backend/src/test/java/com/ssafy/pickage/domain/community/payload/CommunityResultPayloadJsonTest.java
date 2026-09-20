@@ -117,7 +117,6 @@ class CommunityResultPayloadJsonTest {
                         topic.collectionStatus(),
                         topic.summaryStatus(),
                         topic.summaryKo(),
-                        topic.flow(),
                         topic.messages(),
                         List.of(new SummaryMarkPayload(0, 10, SummaryMarkPayload.KEY_TERM)));
 
@@ -139,6 +138,71 @@ class CommunityResultPayloadJsonTest {
 
         assertThat(restored.topics().getFirst().summaryMarks()).isEmpty();
         CommunitySnapshotValidator.validate(restored);
+    }
+
+    @Test
+    void 새_스냅샷은_flow를_저장하지_않고_그대로_읽힌다() throws Exception {
+        String json = objectMapper.writeValueAsString(samplePayload());
+
+        assertThat(json).doesNotContain("\"flow\"");
+        var node = objectMapper.readTree(json);
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(samplePayload());
+    }
+
+    @Test
+    void flow가_남아_있는_이전_스냅샷도_읽고_flow만_버린다() throws Exception {
+        // payload_version 2 를 올리지 않고 flow 를 걷어 냈으므로, 운영에 이미 저장된 스냅샷(flow 있음)이 그대로 읽혀야 한다.
+        // 이 매퍼는 모르는 필드를 거부하는 기본 설정이라 TopicPayload 의 @JsonIgnoreProperties("flow") 가 없으면 여기서 깨진다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        var topic = (com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0);
+        topic.putArray("flow").addObject().put("text", "Node.js와 worker thread 제약을 확인했습니다.");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(samplePayload());
+        assertThat(objectMapper.writeValueAsString(restored)).doesNotContain("\"flow\"");
+    }
+
+    @Test
+    void flow가_비어_있거나_FAILED_요약에_남은_이전_스냅샷도_읽는다() throws Exception {
+        // 예전 검증기는 READY/PARTIAL 이면 flow 1개 이상, FAILED 이면 flow 빈 배열을 요구했다. 둘 다 이제는 상관없다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).putArray("flow");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunitySnapshotValidator.validate(objectMapper.treeToValue(node, CommunityResultPayload.class));
+    }
+
+    @Test
+    void 모양이_깨진_flow는_여전히_거부한다() throws Exception {
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        var topic = (com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0);
+        topic.putArray("flow").addObject().put("text", "흐름").put("support", "x");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+
+        topic.put("flow", "not-an-array");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    @Test
+    void 알_수_없는_필드는_여전히_거부한다() throws Exception {
+        // flow 만 예외다 — 다른 모르는 키까지 조용히 삼키면 payload 계약이 느슨해진다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).put("surprise", "x");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> objectMapper.treeToValue(node, CommunityResultPayload.class))
+                .isInstanceOf(com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException.class);
     }
 
     @Test
@@ -187,7 +251,7 @@ class CommunityResultPayloadJsonTest {
                 new TopicPayload(
                         t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
                         t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
-                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.flow(), t.messages(),
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.messages(),
                         marks));
     }
 
@@ -196,7 +260,7 @@ class CommunityResultPayloadJsonTest {
                 new TopicPayload(
                         t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
                         t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
-                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.flow(), messages,
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), messages,
                         t.summaryMarks()));
     }
 
@@ -217,9 +281,6 @@ class CommunityResultPayloadJsonTest {
                         Instant.parse("2025-10-05T07:25:06Z"),
                         "worker thread에서 모듈을 불러오는 제약을 설명합니다.");
 
-        DiscussionStepPayload step =
-                new DiscussionStepPayload("Node.js와 worker thread 제약을 확인했습니다.");
-
         TopicPayload topic =
                 new TopicPayload(
                         String.valueOf(1000L + 2272),
@@ -234,7 +295,6 @@ class CommunityResultPayloadJsonTest {
                         "COMPLETE",
                         "READY",
                         "transport target의 모듈 전달과 번들러 호환성에 관한 논의입니다.",
-                        List.of(step),
                         List.of(message));
 
         RepositoryPayload repository =

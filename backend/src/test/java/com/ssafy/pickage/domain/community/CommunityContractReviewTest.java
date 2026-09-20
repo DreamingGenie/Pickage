@@ -77,7 +77,6 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "요약",
-                        List.of(new DiscussionStepPayload("흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",
@@ -88,8 +87,7 @@ class CommunityContractReviewTest {
                                         Instant.now(),
                                         "메시지")),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
         var result = CommunitySummaryValidator.validate(bundle, summary);
         assertEquals(SummaryStatus.READY, result.status());
         var message = result.messages().getFirst();
@@ -105,11 +103,9 @@ class CommunityContractReviewTest {
                                 new TopicSummary(
                                         summary.titleKo(),
                                         summary.summaryKo(),
-                                        summary.discussionFlow(),
                                         summary.messages(),
                                         summary.status(),
-                                        invented,
-                                        List.of(invented)))
+                                        invented))
                         .status());
     }
 
@@ -212,17 +208,14 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "자세한 내용은 https://example.com/advisory 를 참고하세요.",
-                        List.of(new DiscussionStepPayload("[공지](https://example.com)에서 확인됨")),
                         List.of(),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
 
         var result = CommunitySummaryValidator.validate(bundle, summary);
 
         assertEquals(SummaryStatus.READY, result.status());
         assertEquals("자세한 내용은 (링크 생략) 를 참고하세요.", result.summaryKo());
-        assertEquals("(링크 생략)에서 확인됨", result.discussionFlow().getFirst().text());
         assertFalse(result.summaryKo().contains("https://"));
     }
 
@@ -234,11 +227,9 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "<script>alert(1)</script>",
-                        List.of(new DiscussionStepPayload("흐름")),
                         List.of(),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
 
         assertEquals(SummaryStatus.FAILED, CommunitySummaryValidator.validate(bundle, summary).status());
     }
@@ -310,7 +301,6 @@ class CommunityContractReviewTest {
                 "COMPLETE",
                 status,
                 null,
-                List.of(),
                 List.of());
     }
 
@@ -396,11 +386,9 @@ class CommunityContractReviewTest {
         return new TopicSummary(
                 "확인된 제목",
                 "확인된 요약",
-                List.of(new DiscussionStepPayload("확인된 흐름")),
                 List.of(),
                 SummaryStatus.READY,
-                support,
-                List.of(support));
+                support);
     }
 
     @Test

@@ -220,12 +220,6 @@ public class CommunityService {
                                                         t.collectionStatus()),
                                                 SummaryStatus.valueOf(t.summaryStatus()),
                                                 t.summaryKo(),
-                                                t.flow().stream()
-                                                        .map(
-                                                                f ->
-                                                                        new DiscussionStepResponse(
-                                                                                f.text()))
-                                                        .toList(),
                                                 t.messages().stream()
                                                         .map(
                                                                 m ->

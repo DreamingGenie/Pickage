@@ -121,3 +121,11 @@ curl "https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses" \
   방식은 동일하게 적용할 가치가 있다.
 - rate limit 판정은 213·212와 다시 다른 형태일 가능성이 높다(OpenAI/GMS 고유 헤더) —
   Phase 4 착수 시 실제 오류 응답을 보고 판단한다.
+
+**2026-09-20 S15P21A506-412 — `flow`·`flow_support` 를 요청에서 뺐다**: 화면이 논의 흐름을
+그리지 않게 된 뒤(406) 출력 토큰만 쓰고, 개수 상한을 넘기면 요약 전체가 검증에서 탈락하는
+원인이었다. `GmsCommunitySummarizer` 의 프롬프트와 JSON 스키마(`properties`·`required`)에서 두
+필드를 함께 걷어 냈다 — OpenAI strict 모드는 모든 속성을 `required` 로 요구하므로 `properties` 와
+`required` 를 함께 뺐다(`GmsCommunitySummarizerTest` 가 둘이 같은지 확인한다). 실제 GMS
+(`gpt-5.4-mini`, `GmsCommunitySummarizerRealNetworkTest`)로 `status=READY`·발화 4개까지 확인했다.
+`MAX_OUTPUT_TOKENS`(4096)는 그대로 뒀다 — 줄일 수 있는지는 실측 뒤에 따로 본다.

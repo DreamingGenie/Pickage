@@ -333,7 +333,6 @@ class CommunityAcceptanceIntegrationTest {
                         "COMPLETE",
                         "READY",
                         "확인된 요약",
-                        List.of(new DiscussionStepPayload("확인된 흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",

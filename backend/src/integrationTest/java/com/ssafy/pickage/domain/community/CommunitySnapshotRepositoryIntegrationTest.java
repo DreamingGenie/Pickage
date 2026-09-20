@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.ssafy.pickage.domain.community.payload.CommunityResultPayload;
-import com.ssafy.pickage.domain.community.payload.DiscussionStepPayload;
 import com.ssafy.pickage.domain.community.payload.MessagePayload;
 import com.ssafy.pickage.domain.community.payload.RepositoryPayload;
 import com.ssafy.pickage.domain.community.payload.TopicPayload;
@@ -207,8 +206,6 @@ class CommunitySnapshotRepositoryIntegrationTest {
                         "DISCUSSION",
                         Instant.parse("2025-10-05T07:25:06Z"),
                         "worker thread에서 모듈을 불러오는 제약을 설명합니다.");
-        DiscussionStepPayload step =
-                new DiscussionStepPayload("Node.js와 worker thread 제약을 확인했습니다.");
         TopicPayload topic =
                 new TopicPayload(
                         String.valueOf(1000L + 2272),
@@ -223,7 +220,6 @@ class CommunitySnapshotRepositoryIntegrationTest {
                         "COMPLETE",
                         "READY",
                         "transport target의 모듈 전달과 번들러 호환성에 관한 논의입니다.",
-                        List.of(step),
                         List.of(message));
         CommunityResultPayload payload =
                 new CommunityResultPayload(

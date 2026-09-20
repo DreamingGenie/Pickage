@@ -150,7 +150,6 @@ public class CommunityRefreshOrchestrator {
                                 issue.collectionStatus().name(),
                                 summary.status().name(),
                                 summary.summaryKo(),
-                                summary.discussionFlow(),
                                 summary.messages(),
                                 summary.summaryMarks()));
             }

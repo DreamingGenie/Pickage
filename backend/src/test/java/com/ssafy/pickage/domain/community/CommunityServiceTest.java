@@ -42,9 +42,7 @@ class CommunityServiceTest {
                         null,
                         null,
                         List.of(),
-                        List.of(),
                         com.ssafy.pickage.domain.community.dto.SummaryStatus.SKIPPED,
-                        List.of(),
                         List.of());
     }
 

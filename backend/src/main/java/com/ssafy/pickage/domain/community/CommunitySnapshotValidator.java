@@ -106,9 +106,7 @@ public final class CommunitySnapshotValidator {
                     t.summaryStatus() != null
                             && Set.of("READY", "PARTIAL", "FAILED").contains(t.summaryStatus()));
             require(
-                    t.flow() != null
-                            && t.messages() != null
-                            && t.flow().size() <= 4
+                    t.messages() != null
                             && t.messages().size() <= CommunitySummaryValidator.MAX_MESSAGES
                             && t.summaryMarks() != null
                             && t.summaryMarks().size()
@@ -118,15 +116,10 @@ public final class CommunitySnapshotValidator {
                 require(
                         t.titleKo() == null
                                 && t.summaryKo() == null
-                                && t.flow().isEmpty()
                                 && t.messages().isEmpty()
                                 && t.summaryMarks().isEmpty());
             else {
-                require(
-                        plain(t.titleKo(), 200)
-                                && plain(t.summaryKo(), 500)
-                                && !t.flow().isEmpty());
-                for (var f : t.flow()) require(f != null && plain(f.text(), 200));
+                require(plain(t.titleKo(), 200) && plain(t.summaryKo(), 500));
                 // 강조 구간은 요약문 범위 안의 [start, end) 여야 한다. 종류는 둘뿐이다.
                 for (var k : t.summaryMarks())
                     require(
@@ -213,12 +206,16 @@ public final class CommunitySnapshotValidator {
         }
         for (JsonNode t : p.path("topics")) {
             // `summary_marks` 는 payload_version 을 올리지 않고 더한 선택 키다 — 이전 스냅샷에는 없어도 읽는다.
+            // `flow` 는 반대로 걷어 낸 키다(S15P21A506-412) — 새 스냅샷에는 없고, 그 전에 저장된 스냅샷에는 남아 있다.
+            // 둘 다 payload_version 을 올리지 않는다: 올리면 저장된 스냅샷이 전부 읽히지 않는다.
             boolean hasMarks = t.has("summary_marks");
+            boolean hasFlow = t.has("flow");
             keys(
                     t,
                     "source_issue_id issue_number state updated_at created_at title_original"
                             + " title_ko comments_count reactions_count collection_status"
-                            + " summary_status summary_ko flow messages"
+                            + " summary_status summary_ko messages"
+                            + (hasFlow ? " flow" : "")
                             + (hasMarks ? " summary_marks" : ""));
             if (hasMarks) {
                 require(t.path("summary_marks").isArray());
@@ -238,11 +235,14 @@ public final class CommunitySnapshotValidator {
                     t.path("issue_number").isInt()
                             && t.path("comments_count").isIntegralNumber()
                             && t.path("reactions_count").isIntegralNumber()
-                            && t.path("flow").isArray()
                             && t.path("messages").isArray());
-            for (JsonNode f : t.path("flow")) {
-                keys(f, "text");
-                texts(f, "text", false);
+            // 옛 스냅샷의 flow 는 읽지도 쓰지도 않지만 모양은 예전대로 확인한다 — 깨진 payload 를 받아 주지 않는다.
+            if (hasFlow) {
+                require(t.path("flow").isArray());
+                for (JsonNode f : t.path("flow")) {
+                    keys(f, "text");
+                    texts(f, "text", false);
+                }
             }
             for (JsonNode m : t.path("messages")) {
                 keys(
