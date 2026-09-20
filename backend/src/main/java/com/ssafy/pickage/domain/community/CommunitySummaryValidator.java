@@ -13,6 +13,17 @@ import java.util.*;
 public final class CommunitySummaryValidator {
     private static final Logger log = LoggerFactory.getLogger(CommunitySummaryValidator.class);
 
+    /**
+     * 모델이 만든 글의 길이 상한(코드 포인트). 저장 검증기({@link CommunitySnapshotValidator})도 같은 값을 쓴다.
+     *
+     * <p>GMS 프롬프트가 요구하는 길이(제목 100·요약 400·발화 200)보다 넉넉하다 — 모델은 요구한 길이를 자주 넘긴다(발화 250 을 요구했는데
+     * 264·286·373 자가 나온 것을 2026-09-20 실측으로 확인, S15P21A506-412). 넘긴 글은 실패로 버리지 않고 {@link #fit} 이 자른다.
+     */
+    public static final int MAX_TITLE = 200;
+
+    public static final int MAX_SUMMARY = 500;
+    public static final int MAX_MESSAGE_TEXT = 300;
+
     /** 대표 발화 상한(2026-09-20 3→4, S15P21A506-408). 하이라이트 댓글 선택·GMS 스키마·스냅샷 검증기와 같은 값이다. */
     public static final int MAX_MESSAGES = 4;
 
@@ -35,20 +46,23 @@ public final class CommunitySummaryValidator {
                     summary.status() == SummaryStatus.READY
                             || summary.status() == SummaryStatus.PARTIAL,
                     "status");
-            String titleKo = stripLinks(summary.titleKo());
-            String summaryKo = stripLinks(summary.summaryKo());
-            require(CommunitySnapshotValidator.plain(titleKo, 200), "titleKo not plain/too long");
-            require(CommunitySnapshotValidator.plain(summaryKo, 500), "summaryKo not plain/too long");
+            // 링크를 지운 뒤 길이를 맞춘다 — 링크 문구("(링크 생략)")가 길이를 바꾸므로 반드시 이 순서다.
+            String titleKo = fit(stripLinks(summary.titleKo()), MAX_TITLE, "titleKo");
+            String summaryKo = fit(stripLinks(summary.summaryKo()), MAX_SUMMARY, "summaryKo");
+            require(CommunitySnapshotValidator.plain(titleKo, MAX_TITLE), "titleKo not plain/too long");
+            require(
+                    CommunitySnapshotValidator.plain(summaryKo, MAX_SUMMARY),
+                    "summaryKo not plain/too long");
             support(bundle, summary.summarySupport(), "summarySupport");
             require(summary.messages() != null && summary.messages().size() <= MAX_MESSAGES, "messages size");
             var messages = new ArrayList<MessagePayload>();
             var seen = new HashSet<String>();
             for (var m : summary.messages()) {
                 require(m != null, "message null");
-                String messageText = stripLinks(m.text());
+                String messageText = fit(stripLinks(m.text()), MAX_MESSAGE_TEXT, "message");
                 require(seen.add(m.sourceCommentId()), "duplicate message sourceCommentId");
                 require(
-                        CommunitySnapshotValidator.plain(messageText, 300),
+                        CommunitySnapshotValidator.plain(messageText, MAX_MESSAGE_TEXT),
                         "message text not plain/too long ("
                                 + describe(messageText)
                                 + ")");
@@ -100,6 +114,54 @@ public final class CommunitySummaryValidator {
                     summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();
         }
+    }
+
+    /**
+     * 길이 상한({@code max}, 코드 포인트)을 넘은 글을 **마지막 완결 문장까지** 잘라 돌려준다. 넘지 않았으면 그대로다.
+     *
+     * <p>길이 초과는 요약 전체를 버릴 이유가 아니다 — 모델은 요구한 길이를 자주 넘기고, 넘겼다는 이유로 이슈 하나의 요약이 통째로 사라지면
+     * 사용자는 아무것도 못 본다(S15P21A506-412). 그렇다고 스키마 {@code maxLength} 로 막으면 GMS 가 문장 중간·단어 중간에서 글을 끊는다(실측:
+     * "…우회책을 Type").
+     *
+     * <p>자르는 규칙: ① 상한 안에서 문장이 끝나는 마지막 자리(., !, ?, … 뒤에 공백이나 끝이 오는 곳)까지. ② 그런 자리가 앞쪽 3분의 1
+     * 안이면(너무 많이 잃는다) 마지막 공백까지 자르고 "…"을 붙인다. ③ 공백도 없으면 상한에서 자르고 "…"을 붙인다. 소수점(3.5)·약어처럼
+     * 뒤에 공백이 없는 마침표는 문장 끝으로 보지 않는다. 결과는 언제나 {@code max} 이하다.
+     *
+     * <p>내용은 로그에 남기지 않는다(외부 글이다) — 어느 필드가 몇 자에서 몇 자로 줄었는지만 남긴다.
+     */
+    static String fit(String text, int max, String field) {
+        if (text == null) return null;
+        int length = text.codePointCount(0, text.length());
+        if (length <= max) return text;
+        String fitted = cut(text, max);
+        log.info(
+                "요약 길이 보정: field={}, {}자 → {}자",
+                field,
+                length,
+                fitted.codePointCount(0, fitted.length()));
+        return fitted;
+    }
+
+    private static String cut(String text, int max) {
+        int limit = text.offsetByCodePoints(0, max);
+        int floor = text.offsetByCodePoints(0, max / 3);
+        for (int i = limit - 1; i >= floor; i--) {
+            if (isSentenceEnd(text.charAt(i))
+                    && (i + 1 >= text.length() || Character.isWhitespace(text.charAt(i + 1)))) {
+                String head = text.substring(0, i + 1).stripTrailing();
+                if (!head.isBlank()) return head;
+            }
+        }
+        // "…" 한 글자를 붙일 자리를 남긴다.
+        int room = text.offsetByCodePoints(0, max - 1);
+        int space = text.lastIndexOf(' ', room);
+        int end = space >= floor ? space : room;
+        String head = text.substring(0, end).stripTrailing();
+        return head.isBlank() ? text.substring(0, room) + "…" : head + "…";
+    }
+
+    private static boolean isSentenceEnd(char c) {
+        return c == '.' || c == '!' || c == '?' || c == '…' || c == '。';
     }
 
     /**

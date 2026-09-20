@@ -119,7 +119,9 @@ public final class CommunitySnapshotValidator {
                                 && t.messages().isEmpty()
                                 && t.summaryMarks().isEmpty());
             else {
-                require(plain(t.titleKo(), 200) && plain(t.summaryKo(), 500));
+                require(
+                        plain(t.titleKo(), CommunitySummaryValidator.MAX_TITLE)
+                                && plain(t.summaryKo(), CommunitySummaryValidator.MAX_SUMMARY));
                 // 강조 구간은 요약문 범위 안의 [start, end) 여야 한다. 종류는 둘뿐이다.
                 for (var k : t.summaryMarks())
                     require(
@@ -141,7 +143,7 @@ public final class CommunitySnapshotValidator {
                                 && decimalId(m.sourceCommentId())
                                 && ids.add(m.sourceCommentId())
                                 && m.createdAt() != null
-                                && plain(m.text(), 300));
+                                && plain(m.text(), CommunitySummaryValidator.MAX_MESSAGE_TEXT));
                 require(
                         m.kind() != null
                                 && Set.of("DISCUSSION", "USER_SOLUTION").contains(m.kind()));

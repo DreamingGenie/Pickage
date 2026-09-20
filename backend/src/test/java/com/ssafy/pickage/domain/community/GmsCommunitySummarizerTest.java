@@ -53,6 +53,10 @@ class GmsCommunitySummarizerTest {
     }
 
     private CollectedIssue issue(int number) {
+        return issueWithBody(number, "설정이 반영되지 않습니다.");
+    }
+
+    private CollectedIssue issueWithBody(int number, String body) {
         return new CollectedIssue(
                 number,
                 "설정 동작 확인",
@@ -76,7 +80,7 @@ class GmsCommunitySummarizerTest {
                 "701",
                 Instant.parse("2026-01-01T00:00:00Z"),
                 "user-1",
-                "설정이 반영되지 않습니다.");
+                body);
     }
 
     private static String gmsEnvelope(String outputTextJson) {
@@ -232,6 +236,52 @@ class GmsCommunitySummarizerTest {
         // 프롬프트가 flow 를 여전히 요구하면 스키마와 어긋나 모델이 헤맨다.
         String systemPrompt = request.path("input").get(0).path("content").asText();
         assertThat(systemPrompt).doesNotContainIgnoringCase("flow");
+    }
+
+    @Test
+    void 본문이_빈_이슈는_ISSUE_BODY_근거가_없다고_입력에_밝히고_프롬프트가_인용을_막는다() {
+        // expressjs/express#101 — 본문이 비어 있는데 모델이 ISSUE_BODY 를 인용해 요약 전체가 실패했다(회귀).
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
+
+        client().summarize(issueWithBody(7, ""), BUDGET);
+
+        JsonNode input = readTree(captured.get()).path("input");
+        assertThat(input.get(0).path("content").asText())
+                .contains("Cite ISSUE_BODY only when an [ISSUE_BODY id=...] block appears")
+                .contains("never cite the issue number");
+        String user = input.get(1).path("content").asText();
+        assertThat(user).doesNotContain("[ISSUE_BODY").contains("there is no ISSUE_BODY source");
+    }
+
+    @Test
+    void 본문이_있는_이슈는_ISSUE_BODY_블록을_그대로_보낸다() {
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
+
+        client().summarize(issueWithBody(7, "본문이 있다"), BUDGET);
+
+        String user = readTree(captured.get()).path("input").get(1).path("content").asText();
+        assertThat(user).contains("[ISSUE_BODY id=701]").doesNotContain("there is no ISSUE_BODY source");
+    }
+
+    @Test
+    void 프롬프트는_길이_초과를_거부한다고_하지_않고_낮은_목표를_준다() {
+        // S15P21A506-412 — 서버는 길이를 넘긴 글을 실패로 버리지 않고 마지막 완결 문장까지 자른다. 모델은 요구한 길이를 자주
+        // 넘기므로(실측: 250 요구에 264·286·373자) 검증기 상한(제목 200·요약 500·발화 300)보다 한참 낮게 요구한다.
+        AtomicReference<String> captured = new AtomicReference<>();
+        server.respondCapturingBody(PATH, gmsEnvelope(VALID_PAYLOAD), captured::set);
+
+        client().summarize(issue(7), BUDGET);
+
+        String prompt = readTree(captured.get()).path("input").get(0).path("content").asText();
+        assertThat(prompt)
+                .contains("title_ko at most 100")
+                .contains("summary_ko at most 400")
+                .contains("each message text at most 200")
+                .doesNotContain("rejecting the whole answer");
+        assertThat(200).isLessThan(CommunitySummaryValidator.MAX_MESSAGE_TEXT);
+        assertThat(400).isLessThan(CommunitySummaryValidator.MAX_SUMMARY);
     }
 
     @Test

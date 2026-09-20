@@ -82,7 +82,10 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             issue body itself as a message. \
             Produce exactly one message for every comment you were given (at most 4), in the order \
             they were given — do not skip a comment. Cite at most 5 distinct source ids \
-            in summary_support (issue body + up to 4 comments). \
+            in summary_support (the issue body if present + up to 4 comments). The issue body is \
+            optional: many issues have none. Cite ISSUE_BODY only when an [ISSUE_BODY id=...] \
+            block appears in the input, and never cite the issue number or any id that is not \
+            shown in a block header. If there is no issue body, cite comments only. \
             The reader finds a long summary tiring, so also mark what matters in summary_ko: \
             key_terms are 3 to 6 short keywords or phrases (each under 20 characters) and \
             key_sentences are the 1 or 2 shortest sentences or clauses that carry the core \
@@ -92,9 +95,11 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
             The server checks each one by exact substring search in summary_ko and silently \
             discards anything that does not match, so finish summary_ko first and then copy from it. \
             Do not mark most of the summary; marking everything marks nothing. \
-            Hard length limits, counted in characters, that the server enforces by rejecting the \
-            whole answer: title_ko at most 100, summary_ko at most 450, each message text at most \
-            250. Never write the characters < or > in any text.""";
+            Length limits, counted in characters: title_ko at most 100, summary_ko at most 400, \
+            each message text at most 200 — one or two short sentences. You tend to overshoot \
+            these limits, so aim well below them. The server cuts anything longer back to its \
+            last complete sentence, which drops the end of your text, so put what matters first. \
+            Never write the characters < or > in any text.""";
 
     private final HttpClient httpClient;
     private final URI endpoint;
@@ -191,6 +196,9 @@ public final class GmsCommunitySummarizer implements CommunitySummarizer {
         if (body != null && !body.isBlank()) {
             sb.append("[ISSUE_BODY id=").append(issue.sourceIssueId()).append("]\n");
             sb.append(body).append("\n\n");
+        } else {
+            // 본문이 빈 이슈에서 모델이 없는 ISSUE_BODY 를 인용해 요약 전체가 탈락하는 일이 있었다(expressjs/express#101).
+            sb.append("(this issue has no body, so there is no ISSUE_BODY source; cite comments only)\n\n");
         }
         for (CollectedComment c : issue.comments()) {
             if (c.body() == null || c.body().isBlank()) continue;
