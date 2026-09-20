@@ -261,5 +261,36 @@ class VerifyEvidenceIdsOwnershipTests(unittest.TestCase):
         self.assertEqual(len(violations), 1)
 
 
+
+class VerifyMetaEvidenceIdsTests(unittest.TestCase):
+    """#meta-* 근거 ID 도 README 근거처럼 존재·소속을 검증받는다 (S15P21A506-420)."""
+
+    def _result_citing(self, evidence_id: str, package: str = "foo") -> ComparisonResult:
+        return _result(
+            FeatureRow(
+                feature_label="타입 선언 제공",
+                results=[
+                    FeatureResult(
+                        package=package, version="1.0.0", verdict="SUPPORTED",
+                        evidence_ids=[evidence_id], grounded_in="EVIDENCE", note="타입 선언이 포함됨",
+                    )
+                ],
+            )
+        )
+
+    def test_a_meta_id_in_the_pool_is_accepted(self):
+        pool = [_chunk("foo@1.0.0#meta-entry", "foo", "1.0.0")]
+
+        self.assertEqual(verify_evidence_ids(self._result_citing("foo@1.0.0#meta-entry"), pool), [])
+
+    def test_a_meta_id_of_another_package_is_still_rejected(self):
+        pool = [_chunk("bar@1.0.0#meta-entry", "bar", "1.0.0")]
+
+        violations = verify_evidence_ids(self._result_citing("bar@1.0.0#meta-entry", package="foo"), pool)
+
+        self.assertEqual(len(violations), 1)
+        self.assertIn("소속", violations[0])
+
+
 if __name__ == "__main__":
     unittest.main()

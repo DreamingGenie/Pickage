@@ -24,7 +24,9 @@ def _write_readme(root: Path, package: str, version: str, body: str) -> None:
     shard_dir.mkdir(parents=True, exist_ok=True)
     key = package.replace("/", "__") + "@" + version
     (shard_dir / f"{key}.md").write_text(
-        f"# {package}@{version}\nsome desc\n\n## README 전문\n\n{body}\n",
+        # 설명 줄은 일부러 없다 — 설명은 `#meta-desc` 근거가 되므로(S15P21A506-420), README 청킹만
+        # 보는 이 시험들의 기대(청크 1개)를 흐리지 않게 한다. 설명 근거는 MetaEvidenceOrderTests 가 본다.
+        f"# {package}@{version}\n\n## README 전문\n\n{body}\n",
         encoding="utf-8",
     )
 
@@ -135,6 +137,46 @@ class LoadDocumentTests(unittest.TestCase):
 
             self.assertEqual(ctx.exception.package, "ghost")
             self.assertEqual(ctx.exception.version, "9.9.9")
+
+
+
+class MetaEvidenceOrderTests(unittest.TestCase):
+    """헤더 근거는 README 청크 앞에 놓이고, README 청크 번호는 그대로다 (S15P21A506-420)."""
+
+    _DOC = (
+        "# foo@1.0.0\n\nA parser\n\n"
+        "## 소비 형태 · 진입점\n\n- 명령: 없음\n- 진입점: exports 선언 없음 (단일 진입점)\n"
+        "- 모듈 형식: type=commonjs (기본값), main 있음\n- 타입 선언: 포함 — dist/index.d.ts\n\n"
+        "## 설치 조건\n\n- 파일 수: 3\n\n"
+        "## README 전문\n\nBody.\n\n---\n" + _FOOTER
+    )
+
+    def test_meta_chunks_come_first_so_a_small_budget_still_keeps_them(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", self._DOC)
+
+            ids = [c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks]
+
+            self.assertEqual(ids[:2], ["foo@1.0.0#meta-desc", "foo@1.0.0#meta-entry"])
+            self.assertEqual(ids[-1], "foo@1.0.0#0")
+
+    def test_readme_chunk_numbers_do_not_shift(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", self._DOC)
+
+            readme_ids = [
+                c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks if "#meta-" not in c.evidence_id
+            ]
+
+            self.assertEqual(readme_ids, ["foo@1.0.0#0"])
+
+    def test_a_document_without_a_header_or_description_behaves_exactly_as_before(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", "# foo@1.0.0\n\n## README 전문\n\nBody.\n")
+
+            ids = [c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks]
+
+            self.assertEqual(ids, ["foo@1.0.0#0"])
 
 
 if __name__ == "__main__":
