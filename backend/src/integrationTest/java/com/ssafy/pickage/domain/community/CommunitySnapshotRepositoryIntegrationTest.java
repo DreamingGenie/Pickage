@@ -97,6 +97,46 @@ class CommunitySnapshotRepositoryIntegrationTest {
     }
 
     @Test
+    void 저장소_Issue_수_키가_없는_이전_스냅샷도_DB에서_읽는다() {
+        // S15P21A506-413 — payload_version 을 올리지 않고 선택 키로 더했으므로, 운영에 이미 저장된 행(키 없음)이 읽혀야 한다.
+        seedPackage(4, "koa");
+        repository.upsert(sampleRow(4));
+        jdbcTemplate.update(
+                "UPDATE community_snapshot SET result = result #- '{repository,issue_count}'"
+                        + " #- '{repository,open_issue_count}' WHERE package_id = 4");
+
+        var found = repository.findByPackageId(4).orElseThrow();
+
+        assertThat(found.result().repository().issueCount()).isNull();
+        assertThat(found.result().repository().openIssueCount()).isNull();
+    }
+
+    @Test
+    void 저장소_Issue_수는_DB를_거쳐도_그대로다() {
+        seedPackage(5, "hapi");
+        var row = sampleRow(5);
+        repository.upsert(
+                new CommunitySnapshotRow(
+                        row.packageId(),
+                        row.snapshotId(),
+                        row.payloadVersion(),
+                        row.collectedAt(),
+                        row.dataStatus(),
+                        new CommunityResultPayload(
+                                row.result().repository().withIssueCounts(4321, 12),
+                                row.result().policyVersion(),
+                                row.result().lookbackDays(),
+                                row.result().summaryRetryAt(),
+                                row.result().topics(),
+                                row.result().limitations())));
+
+        var found = repository.findByPackageId(5).orElseThrow();
+
+        assertThat(found.result().repository().issueCount()).isEqualTo(4321);
+        assertThat(found.result().repository().openIssueCount()).isEqualTo(12);
+    }
+
+    @Test
     void 두번째_upsert는_이전_행을_교체한다_원자적_교체() {
         seedPackage(2, "fastify");
         CommunitySnapshotRow first = sampleRow(2);

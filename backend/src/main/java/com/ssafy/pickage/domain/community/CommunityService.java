@@ -264,7 +264,13 @@ public class CommunityService {
                 r == null
                         ? null
                         : new RepositoryInfoResponse(
-                                r.owner(), r.name(), r.fullName(), r.scope(), r.archived()),
+                                r.owner(),
+                                r.name(),
+                                r.fullName(),
+                                r.scope(),
+                                r.archived(),
+                                r.issueCount(),
+                                r.openIssueCount()),
                 summary,
                 topics,
                 p.limitations().stream()

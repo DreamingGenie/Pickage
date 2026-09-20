@@ -15,7 +15,8 @@
       "summary_retry_at": null,
       "repository": {
         "owner": "fixture", "name": "repo", "full_name": "fixture/repo",
-        "scope": "PACKAGE_SCOPED", "archived": false
+        "scope": "PACKAGE_SCOPED", "archived": false,
+        "issue_count": 1234, "open_issue_count": 56
       },
       "summary": { "issue_count": 1, "comment_count": 2, "reaction_count": 3, "open_issue_count": 1 },
       "topics": [{

@@ -9,6 +9,8 @@ import java.util.concurrent.CompletionException;
 
 /** 선택한 topic 집합의 사실 수치와 수집 한계를 끝까지 함께 전달한다. */
 public class IssueCollectionService {
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(IssueCollectionService.class);
     private final GitHubIssueSearchClient searchClient;
     private final GitHubIssueCommentsClient commentsClient;
 
@@ -68,6 +70,38 @@ public class IssueCollectionService {
             return new IssueCollectionResult.FetchLimited(
                     timeLeft(deadline).isZero() ? "시간 예산 소진" : "GitHub collection unavailable",
                     null);
+        }
+    }
+
+    /**
+     * 저장소 전체 Issue 수와 열린 Issue 수(S15P21A506-413). **어떤 실패도 예외로 내보내지 않는다** — 이 값은 수치 카드용 보조
+     * 정보라 못 구해도 커뮤니티 결과는 게시돼야 한다. 못 구한 값은 {@code null} 이다.
+     *
+     * <p>두 조회는 서로 독립이라 함께 보낸다. 열린 수가 전체 수보다 크면(두 조회 사이에 Issue 가 새로 열림) 전체 수를 열린 수로 맞춘다.
+     */
+    public RepositoryIssueCounts repositoryIssueCounts(String owner, String repo, Duration budget) {
+        Instant deadline = Instant.now().plus(budget);
+        var total = CompletableFuture.supplyAsync(() -> countOrNull(owner, repo, false, deadline));
+        var open = CompletableFuture.supplyAsync(() -> countOrNull(owner, repo, true, deadline));
+        Integer totalCount = total.join();
+        Integer openCount = open.join();
+        if (totalCount != null && openCount != null && openCount > totalCount)
+            totalCount = openCount;
+        return new RepositoryIssueCounts(totalCount, openCount);
+    }
+
+    private Integer countOrNull(String owner, String repo, boolean openOnly, Instant deadline) {
+        try {
+            Duration left = timeLeft(deadline);
+            if (left.isZero()) return null;
+            return searchClient.countIssues(owner, repo, openOnly, left);
+        } catch (RuntimeException e) {
+            // 내용은 남기지 않는다 — 어떤 종류의 실패였는지만.
+            log.warn(
+                    "저장소 Issue 수 조회 실패(수치 카드는 비워 둔다): {} openOnly={}",
+                    e.getClass().getSimpleName(),
+                    openOnly);
+            return null;
         }
     }
 

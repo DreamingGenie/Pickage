@@ -205,6 +205,93 @@ class CommunityResultPayloadJsonTest {
                 .isInstanceOf(com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException.class);
     }
 
+    // ---- 저장소 전체 Issue 수 (S15P21A506-413)
+
+    private static com.fasterxml.jackson.databind.node.ObjectNode repositoryNode(
+            com.fasterxml.jackson.databind.JsonNode root) {
+        return (com.fasterxml.jackson.databind.node.ObjectNode) root.path("repository");
+    }
+
+    @Test
+    void 저장소_Issue_수는_repository에_저장되고_그대로_복원된다() throws Exception {
+        var base = samplePayload();
+        var withCounts =
+                new CommunityResultPayload(
+                        base.repository().withIssueCounts(1234, 56),
+                        base.policyVersion(),
+                        base.lookbackDays(),
+                        base.summaryRetryAt(),
+                        base.topics(),
+                        base.limitations());
+
+        String json = objectMapper.writeValueAsString(withCounts);
+        var node = objectMapper.readTree(json);
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(node.path("repository").path("issue_count").asInt()).isEqualTo(1234);
+        assertThat(node.path("repository").path("open_issue_count").asInt()).isEqualTo(56);
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(withCounts);
+    }
+
+    @Test
+    void Issue_수_키가_없는_이전_스냅샷도_읽고_null이_된다() throws Exception {
+        // payload_version 2 를 올리지 않고 선택 필드로 더했으므로, 운영에 이미 저장된 스냅샷(키 없음)이 오류 없이 읽혀야 한다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        repositoryNode(node).remove("issue_count");
+        repositoryNode(node).remove("open_issue_count");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(restored.repository().issueCount()).isNull();
+        assertThat(restored.repository().openIssueCount()).isNull();
+        CommunitySnapshotValidator.validate(restored);
+    }
+
+    @Test
+    void 조회에_실패해_null로_저장된_Issue_수도_읽는다() throws Exception {
+        // 새 스냅샷은 못 구한 값을 "issue_count": null 로 쓴다.
+        var json = objectMapper.writeValueAsString(samplePayload());
+        assertThat(json).contains("\"issue_count\":null").contains("\"open_issue_count\":null");
+        var node = objectMapper.readTree(json);
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunitySnapshotValidator.validate(objectMapper.treeToValue(node, CommunityResultPayload.class));
+    }
+
+    @Test
+    void 모양이_틀린_Issue_수는_거부한다() throws Exception {
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+
+        repositoryNode(node).put("issue_count", "1234");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+
+        repositoryNode(node).put("issue_count", 1.5);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    @Test
+    void 음수이거나_열린_수가_전체보다_큰_Issue_수는_저장_검증에서_거부한다() {
+        var base = samplePayload();
+        for (var counts : List.of(new Integer[] {-1, 0}, new Integer[] {5, -2}, new Integer[] {5, 9})) {
+            var bad =
+                    new CommunityResultPayload(
+                            base.repository().withIssueCounts(counts[0], counts[1]),
+                            base.policyVersion(),
+                            base.lookbackDays(),
+                            base.summaryRetryAt(),
+                            base.topics(),
+                            base.limitations());
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validate(bad))
+                    .as("issue=%s open=%s", counts[0], counts[1])
+                    .isInstanceOf(CommunitySnapshotPayloadException.class);
+        }
+    }
+
     @Test
     void 요약문_범위를_벗어난_강조_구간은_저장_검증에서_거부한다() {
         var topic = samplePayload().topics().getFirst();

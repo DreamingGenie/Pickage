@@ -72,6 +72,13 @@ public final class CommunitySnapshotValidator {
             require(
                     (r.owner() + "/" + r.name()).equals(r.fullName())
                             && Set.of("PACKAGE_SCOPED", "REPOSITORY_WIDE").contains(r.scope()));
+            // 저장소 전체 Issue 수(S15P21A506-413) — 선택 필드라 null 이어도 된다. 있으면 음수가 아니고 열린 수가 전체를 넘지 않는다.
+            require(r.issueCount() == null || r.issueCount() >= 0);
+            require(r.openIssueCount() == null || r.openIssueCount() >= 0);
+            require(
+                    r.issueCount() == null
+                            || r.openIssueCount() == null
+                            || r.openIssueCount() <= r.issueCount());
         }
         Set<Integer> numbers = new HashSet<>();
         Set<String> sources = new HashSet<>();
@@ -202,9 +209,24 @@ public final class CommunitySnapshotValidator {
                         && p.path("topics").isArray()
                         && p.path("limitations").isArray());
         if (!p.path("repository").isNull()) {
-            keys(p.path("repository"), "owner name full_name scope archived");
-            texts(p.path("repository"), "owner name full_name scope", false);
-            require(p.path("repository").path("archived").isBoolean());
+            // `issue_count`·`open_issue_count` 는 payload_version 을 올리지 않고 더한 선택 키다(S15P21A506-413) — 이전 스냅샷에는
+            // 없고, 새 스냅샷에는 조회에 실패하면 null 로 들어간다. 있으면 null 이거나 정수여야 한다.
+            var repo = p.path("repository");
+            boolean hasIssueCount = repo.has("issue_count");
+            boolean hasOpenCount = repo.has("open_issue_count");
+            keys(
+                    repo,
+                    "owner name full_name scope archived"
+                            + (hasIssueCount ? " issue_count" : "")
+                            + (hasOpenCount ? " open_issue_count" : ""));
+            texts(repo, "owner name full_name scope", false);
+            require(repo.path("archived").isBoolean());
+            if (hasIssueCount)
+                require(repo.path("issue_count").isNull() || repo.path("issue_count").isInt());
+            if (hasOpenCount)
+                require(
+                        repo.path("open_issue_count").isNull()
+                                || repo.path("open_issue_count").isInt());
         }
         for (JsonNode t : p.path("topics")) {
             // `summary_marks` 는 payload_version 을 올리지 않고 더한 선택 키다 — 이전 스냅샷에는 없어도 읽는다.

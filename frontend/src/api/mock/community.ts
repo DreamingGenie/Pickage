@@ -99,7 +99,15 @@ function now(): string {
 function repositoryOf(name: string): CommunityRepository {
   const pkg = BY_NAME.get(name)
   const owner = pkg?.repo_url?.match(/github\.com\/([^/]+)\//)?.[1] ?? name
-  return { owner, name, full_name: `${owner}/${name}`, scope: 'PACKAGE_SCOPED', archived: false }
+  return {
+    owner,
+    name,
+    full_name: `${owner}/${name}`,
+    scope: 'PACKAGE_SCOPED',
+    archived: false,
+    issue_count: 1234,
+    open_issue_count: 56,
+  }
 }
 
 function topic(

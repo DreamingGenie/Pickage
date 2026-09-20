@@ -249,33 +249,84 @@ describe('와이어프레임 구성', () => {
     expect(screen.queryByText('2026-04-03')).toBeNull()
   })
 
-  it('요약 수치 4칸을 응답 값으로 채운다', () => {
+  it('요약 수치 4칸: 좌우는 저장소 전체 수치, 가운데 둘은 요약한 Issue 의 수치다', () => {
     render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
     const s = SAMPLE_COMMUNITY_RESULT.summary
-    // 수치는 라벨과 같은 칸에 있다. (같은 "1건" 이 두 칸에 나올 수 있어 칸 단위로 본다)
+    const repo = SAMPLE_COMMUNITY_RESULT.repository!
+    // 수치는 라벨과 같은 칸에 있다. (같은 숫자가 두 칸에 나올 수 있어 칸 단위로 본다)
     const cell = (label: string) => screen.getByText(label).parentElement
 
-    expect(cell('분석 Issue')).toHaveTextContent(`${s.issue_count}건`)
+    // 천 단위 쉼표를 넣는다 — 저장소 전체 수치는 네 자리를 넘기 쉽다.
+    expect(cell('전체 Issue')).toHaveTextContent('1,234건')
+    expect(cell('전체 Issue')).toHaveTextContent('GitHub 저장소 전체')
+    expect(cell('열린 Issue')).toHaveTextContent('56건')
+    expect(cell('열린 Issue')).toHaveTextContent('현재 open 상태 전체')
+    expect(repo.issue_count).toBe(1234)
     expect(cell('누적 댓글')).toHaveTextContent(`${s.comment_count}개`)
     expect(cell('사용자 반응')).toHaveTextContent(`${s.reaction_count}개`)
     expect(cell('사용자 반응')).toHaveTextContent('GitHub 반응 합계')
-    expect(cell('열린 Issue')).toHaveTextContent(`${s.open_issue_count}건`)
   })
 
-  it('열린 Issue 가 없으면 "지금 이어지는" 같은 말을 하지 않고 종료라고 적는다', () => {
+  it('"2건만 분석한다"로 읽히는 문구를 상단 수치에 쓰지 않는다', () => {
+    const { container } = render(
+      <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
+    )
+
+    expect(screen.queryByText('분석 Issue')).toBeNull()
+    expect(container.textContent).not.toContain('분석한 Issue 모두 종료')
+    expect(container.textContent).not.toMatch(/최근 \d+일 공개 Issue/)
+  })
+
+  it.each([
+    ['서버가 못 구해 null 이면', { issue_count: null, open_issue_count: null }],
+    ['이 값을 더하기 전에 저장된 스냅샷이라 키가 없으면', {}],
+  ])('저장소 수치가 %s 빈 값(—)으로 두고 0건으로 지어내지 않는다', (_label, counts) => {
+    const repository = { ...SAMPLE_COMMUNITY_RESULT.repository!, ...counts }
+    if (Object.keys(counts).length === 0) {
+      delete repository.issue_count
+      delete repository.open_issue_count
+    }
+    render(
+      <CommunityResultView result={{ ...SAMPLE_COMMUNITY_RESULT, repository }} freshness="FRESH" />,
+    )
+    const cell = (label: string) => screen.getByText(label).parentElement
+
+    expect(cell('전체 Issue')).toHaveTextContent('—')
+    expect(cell('열린 Issue')).toHaveTextContent('—')
+    expect(cell('전체 Issue')).not.toHaveTextContent('0건')
+    // 나머지 두 칸은 영향을 받지 않는다.
+    expect(cell('누적 댓글')).toHaveTextContent(
+      `${SAMPLE_COMMUNITY_RESULT.summary.comment_count}개`,
+    )
+  })
+
+  it('한쪽만 구했으면 그 칸만 채우고 다른 칸은 비운다', () => {
+    const repository = {
+      ...SAMPLE_COMMUNITY_RESULT.repository!,
+      issue_count: 9876,
+      open_issue_count: null,
+    }
+    render(
+      <CommunityResultView result={{ ...SAMPLE_COMMUNITY_RESULT, repository }} freshness="FRESH" />,
+    )
+    const cell = (label: string) => screen.getByText(label).parentElement
+
+    expect(cell('전체 Issue')).toHaveTextContent('9,876건')
+    expect(cell('열린 Issue')).toHaveTextContent('—')
+  })
+
+  it('열린 Issue 가 0건이면 0건이라 적고 "지금 이어지는" 같은 말을 하지 않는다', () => {
     const topic = { ...SAMPLE_COMMUNITY_RESULT.topics[0], state: 'CLOSED' as const }
+    const repository = { ...SAMPLE_COMMUNITY_RESULT.repository!, open_issue_count: 0 }
     const { container } = render(
       <CommunityResultView
-        result={{
-          ...SAMPLE_COMMUNITY_RESULT,
-          summary: { ...SAMPLE_COMMUNITY_RESULT.summary, open_issue_count: 0 },
-          topics: [topic],
-        }}
+        result={{ ...SAMPLE_COMMUNITY_RESULT, repository, topics: [topic] }}
         freshness="FRESH"
       />,
     )
 
-    expect(screen.getByText('분석한 Issue 모두 종료')).toBeInTheDocument()
+    // 저장소 전체 기준이라 0건은 "열린 Issue 가 없다"는 사실이다(빈 값과 다르다).
+    expect(screen.getByText('열린 Issue').parentElement).toHaveTextContent('0건')
     expect(container.textContent).toContain('종료 · 댓글')
     expect(container.textContent).not.toContain('지금 이어지는')
   })

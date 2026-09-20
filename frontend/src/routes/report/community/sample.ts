@@ -19,6 +19,8 @@ export const SAMPLE_COMMUNITY_RESULT: CommunityResult = {
     full_name: 'pickage-fixture/community-fixture',
     scope: 'PACKAGE_SCOPED',
     archived: false,
+    issue_count: 1234,
+    open_issue_count: 56,
   },
   summary: { issue_count: 1, open_issue_count: 1, comment_count: 2, reaction_count: 1 },
   topics: [

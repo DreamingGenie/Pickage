@@ -14,6 +14,16 @@ const TERMINAL_MESSAGE: Partial<Record<CommunityDataStatus, string>> = {
   NO_DISCUSSION_DATA: '최근 조회 기간 안에서 조건에 맞는 논의를 찾지 못했습니다.',
 }
 
+/**
+ * 저장소 전체 Issue 수 표기. 천 단위 쉼표를 넣는다(`12,345건`).
+ *
+ * 값이 없으면 — 서버가 못 구했거나 이 값을 더하기 전에 저장된 스냅샷이다(S15P21A506-413) — `—` 로 둔다. 0 으로 채우면 "Issue 가
+ * 없는 저장소"로 읽히므로 없는 값을 지어내지 않는다.
+ */
+function issueCountText(count: number | null | undefined): string {
+  return count == null ? '—' : `${count.toLocaleString('ko-KR')}건`
+}
+
 /** 요약 수치 한 칸. `sub` 는 그 수치가 무엇으로 이루어졌는지 한 줄로 말한다. */
 function Kpi({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
@@ -52,7 +62,8 @@ export function CommunityResultView({
 }) {
   const terminalMessage = TERMINAL_MESSAGE[result.data_status]
   const { summary, topics } = result
-  const closedCount = summary.issue_count - summary.open_issue_count
+  const totalIssues = result.repository?.issue_count
+  const openIssues = result.repository?.open_issue_count
   const hasThreads = topics.some((t) => t.messages.length > 0)
 
   return (
@@ -115,10 +126,14 @@ export function CommunityResultView({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {/*
+              좌우 두 칸은 **저장소 전체** 수치다(S15P21A506-413). 예전에는 요약한 Issue(최대 2건)에서 센 값이라 "2건만 분석한다"로
+              읽혀 분석이 부족해 보였다. 그 2건이 어떤 기준으로 골라졌는지는 저장소 카드의 수집 기준 안내(ⓘ)에 있다.
+            */}
             <Kpi
-              label="분석 Issue"
-              value={`${summary.issue_count}건`}
-              sub={`최근 ${result.data_limits.lookback_days}일 공개 Issue`}
+              label="전체 Issue"
+              value={issueCountText(totalIssues)}
+              sub={totalIssues == null ? '이번 자료에는 집계되지 않았습니다' : 'GitHub 저장소 전체'}
             />
             <Kpi
               label="누적 댓글"
@@ -128,10 +143,8 @@ export function CommunityResultView({
             <Kpi label="사용자 반응" value={`${summary.reaction_count}개`} sub="GitHub 반응 합계" />
             <Kpi
               label="열린 Issue"
-              value={`${summary.open_issue_count}건`}
-              sub={
-                summary.open_issue_count === 0 ? '분석한 Issue 모두 종료' : `종료 ${closedCount}건`
-              }
+              value={issueCountText(openIssues)}
+              sub={openIssues == null ? '이번 자료에는 집계되지 않았습니다' : '현재 open 상태 전체'}
             />
           </div>
 

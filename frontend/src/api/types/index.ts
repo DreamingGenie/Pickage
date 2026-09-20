@@ -433,6 +433,12 @@ export interface CommunityRepository {
   full_name: string
   scope: CommunityRepositoryScope
   archived: boolean
+  /**
+   * 저장소 **전체** Issue 수(PR 제외)와 그중 열려 있는 수(S15P21A506-413). 요약한 Issue 몇 건이 아니라 저장소 규모다.
+   * 서버가 못 구했거나(`null`) 이 값을 더하기 전에 저장된 스냅샷이면(키 없음) 비어 있다 — 화면은 둘을 같게 다룬다.
+   */
+  issue_count?: number | null
+  open_issue_count?: number | null
 }
 
 export interface CommunitySummary {

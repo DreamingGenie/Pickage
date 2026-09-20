@@ -96,8 +96,12 @@ archived는 수집 중단 이유가 아니라 `REPOSITORY_ARCHIVED` limitation�
 
 수치는 선택된 Issue record의 `comments`, `reactions.total_count`, `state`만 사용한다.
 댓글 수는 수집한 100개나 사람이 쓴 댓글만의 수가 아니며, 반응에 comment reaction을 중복 합산하지 않는다.
-상단 issue_count/open_issue_count/comment_count/reaction_count는 **같은 topics 집합**의 합계다.
-저장소 전체 수치·고유 참여자 수·실시간 원자 스냅샷이라고 표기하지 않는다.
+`summary` 의 issue_count/open_issue_count/comment_count/reaction_count는 **같은 topics 집합**의 합계다.
+고유 참여자 수·실시간 원자 스냅샷이라고 표기하지 않는다.
+
+> **2026-09-20 (S15P21A506-413) 저장소 전체 수치**: 화면 상단 수치 4칸 중 좌우 두 칸은 요약한 Issue(최대 2건)에서 센 값이 아니라 **저장소 전체 Issue 수**와 **현재 열려 있는 Issue 전체 수**다. "분석 Issue 2건"이 분석이 부족해 보인다는 제품 책임자 판단에 따라, 위 "저장소 전체 수치라고 표기하지 않는다" 제약을 이 두 수치에 한해 푼다. 값은 `repository.issue_count`·`repository.open_issue_count` 로 내려온다(`summary` 는 그대로 topics 합계). GitHub Search API 로 `repo:{owner}/{repo} is:issue`(PR 제외)와 `is:issue is:open` 의 `total_count` 를 `per_page=1` 로 센다 — 조회 시점의 값이고 실시간 원자 스냅샷이 아니다.
+>
+> 이 값은 **보조 정보**다. 못 구하면(rate limit·통신 오류·`incomplete_results`) `null` 이고 결과 게시는 그대로 진행한다. `payload_version` 은 올리지 않는다 — 선택 키라 이전에 저장된 스냅샷에는 키가 없고 새 스냅샷은 못 구한 값을 `null` 로 쓴다. 화면은 없음과 `null` 을 같게 `—` 로 보인다(0건으로 지어내지 않는다). 핵심 수집이 끝난 뒤 GMS 호출과 나란히 조회하므로 본 수집의 search quota(인증 30/분)를 먼저 쓰지 않고 지연도 늘리지 않는다. 대신 갱신 한 번에 search 호출이 2회 늘어난다. 논의가 없어(NO_DISCUSSION_DATA) 카드가 숨겨지는 경우에도 저장소 수치는 저장된다.
 
 ### 3.3 최신 댓글 최대 100개
 
@@ -192,7 +196,9 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
 | kind | DISCUSSION 또는 USER_SOLUTION |
 | support type/id | ISSUE_BODY 또는 COMMENT / 십진 문자열 |
 
-**길이 초과는 실패가 아니다**(2026-09-20, S15P21A506-412). 모델은 요구한 길이를 자주 넘긴다 — 발화 250자를 요구했는데 264·286·373·324자가 나왔고, 324자 하나 때문에 이슈 요약 전체가 `message text not plain/too long` 으로 탈락했다(lodash #6106). 그래서 서버가 위 상한(제목 200·요약 500·발화 300)을 넘은 글을 **마지막 완결 문장까지** 잘라 쓴다(`CommunitySummaryValidator.fit`). 문장 끝(`.`·`!`·`?`·`…` 뒤에 공백)이 앞쪽 3분의 1 안이면 마지막 공백까지 자르고 `…` 를 붙이고, 공백도 없으면 상한에서 자른다. 소수점(`3.5`)은 문장 끝이 아니다. 스키마 `maxLength` 는 쓰지 않는다 — GMS 가 받아들이지만 문장·단어 중간에서 글을 끊는다. 프롬프트는 상한보다 한참 낮게(100·400·200) 요구해 자를 일 자체를 줄인다. 강조 구간은 잘린 글을 기준으로 다시 찾으므로 잘려 나간 부분의 강조는 조용히 버려진다. HTML 꺾쇠(`<` `>`)·링크 처리는 이 완화와 무관하게 그대로다.
+**길이 초과는 실패가 아니다**(2026-09-20, S15P21A506-412). 모델은 요구한 길이를 자주 넘긴다 — 발화 250자를 요구했는데 264·286·373·324자가 나왔고, 324자 하나 때문에 이슈 요약 전체가 `message text not plain/too long` 으로 탈락했다(lodash #6106). 그래서 서버가 위 상한(제목 200·요약 500·발화 300)을 넘은 글을 **마지막 완결 문장까지** 잘라 쓴다(`CommunitySummaryValidator.fit`). 문장 끝(`.`·`!`·`?`·`…` 뒤에 공백)이 앞쪽 3분의 1 안이면 마지막 공백까지 자르고 `…` 를 붙이고, 공백도 없으면 상한에서 자른다. 소수점(`3.5`)은 문장 끝이 아니다. 스키마 `maxLength` 는 쓰지 않는다 — GMS 가 받아들이지만 문장·단어 중간에서 글을 끊는다. 프롬프트는 상한보다 한참 낮게(100·400·200) 요구해 자를 일 자체를 줄인다. 강조 구간은 잘린 글을 기준으로 다시 찾으므로 잘려 나간 부분의 강조는 조용히 버려진다. 링크 처리는 이 완화와 무관하게 그대로다.
+
+**HTML 꺾쇠(`<` `>`)는 요약을 실패시키지 않고 전각(`＜` `＞`)으로 바꾼다**(2026-09-20, S15P21A506-412). 예전에는 꺾쇠가 하나라도 있으면 그 이슈의 요약 전체를 버렸다(XSS 방어). 프롬프트가 금지해도 모델은 코드 조각이 든 논의를 옮기며 꺾쇠를 써서(axios #5366) 요약이 통째로 사라졌다. 전각 문자는 HTML 에서 태그를 여는 글자가 아니라 방어는 그대로이고, 코드 조각은 `＜div＞` 처럼 읽힌다. 제목·요약·발화와 핵심어·핵심 문장에 같은 치환을 적용해 강조도 그대로 찾는다. 저장 검증기는 **원본 꺾쇠를 계속 거부**한다 — 치환을 거치지 않은 값이 저장되면 게시 검증이 막는 이중 방어다. 순서는 링크 제거 → 꺾쇠 치환 → 길이 맞춤이다.
 
 USER_SOLUTION은 댓글의 해결 방법 제시 유형이지 작성자 역할이나 채택·정답 판정이 아니다.
 Issue body를 대표 메시지로 만들지 않는다. 모델은 작성자·association·시각·수치·상태·URL을 출력하지 않는다.
@@ -344,7 +350,7 @@ Java long을 무조건 JS number로 내리지 않는다. GitHub source ID는 공
 | CommunityResponse | package_name:string, view_status:enum, freshness:nullable enum, refresh:nullable Refresh, result:nullable Result |
 | Refresh | refresh_id:nullable UUID string, status:enum, stage:nullable enum, stage_message:string, started_at:nullable timestamp, last_updated_at:timestamp, poll_after_seconds:nullable integer, retry_at:nullable timestamp, error_code:nullable enum |
 | Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, summary_retry_at:nullable timestamp, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
-| Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean |
+| Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean, issue_count:nullable integer(저장소 전체 Issue 수, PR 제외), open_issue_count:nullable integer(그중 열린 수) — 둘 다 이전 스냅샷에는 없어 null 로 읽는다(2026-09-20, S15P21A506-413) |
 | Summary | issue_count:integer, open_issue_count:integer, comment_count:integer, reaction_count:integer |
 | Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, messages:Message[], summary_marks:SummaryMark[](이전 스냅샷에는 없어 빈 목록으로 읽는다) |
 | SummaryMark | start:integer, end:integer, kind:KEY_TERM or KEY_SENTENCE — `summary_ko` 안의 UTF-16 오프셋 `[start, end)`(Java `String`·JS 문자열과 같은 단위). 핵심어는 굵게, 핵심 문장은 형광펜(2026-09-20, S15P21A506-408) |
@@ -418,7 +424,9 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "name": "community-fixture",
         "full_name": "pickage-fixture/community-fixture",
         "scope": "PACKAGE_SCOPED",
-        "archived": false
+        "archived": false,
+        "issue_count": 1234,
+        "open_issue_count": 56
       },
       "summary": {"issue_count": 1, "open_issue_count": 1, "comment_count": 2, "reaction_count": 1},
       "topics": [{
