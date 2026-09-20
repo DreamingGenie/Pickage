@@ -234,6 +234,19 @@ class MetaEvidenceMessageTests(unittest.TestCase):
         self.assertIn("TARBALL_PACKAGE_JSON", PROMPT)
         self.assertIn("라이선스", PROMPT)  # 라이선스·설치 크기 자체를 비교 기능 행으로 삼지 말 것
 
+    def test_prompt_puts_functional_axes_before_packaging_axes(self):
+        # 헤더 근거가 생긴 뒤 표가 "CLI 제공·타입 선언 포함·ESM/CJS" 같은 패키징 성격 행으로 기울었다
+        # (실측: 패키징 성격 행 7% → 25%). 기능 비교가 핵심이므로 기능 축이 먼저다.
+        axis_rules = PROMPT.split("## 비교 축(표의 행) 선정 규칙")[1].split("## 출력 형식")[0]
+
+        self.assertIn("9-1.", axis_rules)
+        rule = axis_rules.split("9-1.")[1].split("10.")[0]
+        self.assertIn("기능", rule)
+        self.assertIn("패키징", rule)
+        # 권고형 문구("우선하십시오")만으로는 모델이 따르지 않았다(실측: 패키징 행 25% → 23%).
+        # "최대 1개"라는 명시적 상한을 넣었을 때 14%로 내려갔으므로 이 문구를 지킨다.
+        self.assertIn("최대 1개", rule)
+
 
 if __name__ == "__main__":
     unittest.main()
