@@ -102,6 +102,61 @@ services:
     mem_limit: 256m
     memswap_limit: 256m
 
+  # ── 파이프라인 모니터 — "데이터가 어디까지 왔나" 의 재료 ─────────────
+  #
+  # netdata 는 자원만 본다. 이것은 그 다음 질문에 **물을 때 그 자리에서** 답하는 HTTP 서버다 —
+  # 주간 회차가 어디까지 갔나(_ops/weekly), MinIO 어느 경로에 무엇이 새로 생겼나,
+  # /srv/pickage/ingest-work 에 무엇이 쌓였나, 파이프라인 컨테이너의 로그 꼬리는 어떤가.
+  # 무엇을 보는지는 ./pipeline-monitor.yaml, 코드와 API 는 pipeline/monitor/README.md.
+  #
+  # 사람은 app 노드의 같은 서버(19998)에 터널을 열고, 그 서버가 이 노드의 것을 사설망으로
+  # 받아 중계한다. 그래서 이 노드는 사설 IP 에도 듣고, 문은 호스트 방화벽 한 줄이다 —
+  # netdata 스트리밍(Phase 4)과 같은 모양, 방향만 반대다 (../README.md 11.3).
+  pipeline-monitor:
+    # 코드는 이미지에 없다. ../../data/compose.yaml 의 ingest-weekly 와 같은 이유로
+    # 저장소의 pipeline/ 을 마운트한다 — 이 노드에는 레지스트리가 없어 고칠 때마다 굽게 된다.
+    # 이미지는 런타임(python + boto3)뿐이라 의존성이 바뀔 때만 다시 굽는다:
+    #   docker compose build pipeline-monitor
+    image: pickage-pipeline-monitor:runtime
+    build:
+      context: ../../../../pipeline/monitor
+    restart: unless-stopped
+
+    # host 네트워크인 이유 둘. (1) MinIO 를 127.0.0.1:9000 으로 붙는다 — 이 스택은 운영
+    # 스택(pickage-data)과 compose 네트워크가 달라 서비스 이름(minio)이 안 풀린다.
+    # (2) `ports:` 없이 듣는 주소를 설정이 혼자 정한다 — pipeline-monitor.yaml 의 listen
+    # (127.0.0.1 과 사설 IP 172.26.8.249 의 19998). 0.0.0.0 을 적지 않는다.
+    #   확인:  ss -ltn | grep 19998   → 두 줄. 0.0.0.0 이 나오면 즉시 되돌린다
+    network_mode: host
+    # 보고서의 hostname 에 찍힌다. netdata 와 같은 이름을 쓴다.
+    hostname: j15a506a-data
+
+    environment:
+      MONITOR_CONFIG: /etc/pipeline-monitor.yaml
+      # 전용 계정 pickage-monitor (pipeline/minio/policies/monitor.json). 루트 키를 넣지 말 것.
+      PICKAGE_S3_ENDPOINT: ${MONITOR_S3_ENDPOINT:?.env 에 MONITOR_S3_ENDPOINT 를 채울 것}
+      PICKAGE_S3_ACCESS_KEY: ${MONITOR_S3_ACCESS_KEY:?.env 에 MONITOR_S3_ACCESS_KEY 를 채울 것 (../../data/README.md "파이프라인 모니터에 줄 계정")}
+      PICKAGE_S3_SECRET_KEY: ${MONITOR_S3_SECRET_KEY:?.env 에 MONITOR_S3_SECRET_KEY 를 채울 것}
+
+    # uid 1000 으로 돌면서 docker 소켓을 읽으려면 호스트 docker 그룹이어야 한다.
+    # netdata 의 PGID 와 같은 값이다. 틀리면 보고서의 docker 절에 "Permission denied" 가 남는다.
+    group_add:
+      - "${DOCKER_GID:?.env 를 만들고 DOCKER_GID 를 채울 것}"
+
+    volumes:
+      - ../../../../pipeline:/opt/work/pipeline:ro
+      - ./pipeline-monitor.yaml:/etc/pipeline-monitor.yaml:ro
+      # 주간 수집 산출물·단계 로그. 읽기만 한다.
+      - /srv/pickage/ingest-work:/host/srv/pickage/ingest-work:ro
+      # ⚠ GET 만 부른다 (pipeline/monitor/dockerapi.py). 소켓의 의미는 위 netdata 의 같은 줄.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+
+    # 버킷 목록(최대 30만 객체)을 메모리에 들고 집계한다. 실측 전이라 넉넉히 두고 짝으로 둔다.
+    # 배치 시각 계산(위 netdata 주석)에 이 값을 더한다.
+    mem_limit: 256m
+    memswap_limit: 256m
+
 volumes:
   netdatalib:
   netdatacache:

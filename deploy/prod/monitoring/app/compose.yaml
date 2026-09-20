@@ -124,6 +124,50 @@ services:
     mem_limit: 512m
     memswap_limit: 512m
 
+  # ── 파이프라인 모니터 — "데이터가 어디까지 왔나" 의 입구 ─────────────
+  #
+  # 물으면 그때 계산해 답하는 HTTP 서버다 (pipeline/monitor/server.py). 사람은 netdata 와
+  # 같은 터널에 19998 을 하나 더 얹어 http://127.0.0.1:19998/ 을 연다.
+  # 이 노드는 자기 컨테이너·로그만 보고, MinIO 목록·주간 회차·로컬 디스크는 data 노드의
+  # 같은 서버에서 사설망으로 받아 중계한다 (./pipeline-monitor.yaml 의 peers).
+  # 무엇을 보는지는 ./pipeline-monitor.yaml, 코드와 API 는 pipeline/monitor/README.md.
+  pipeline-monitor:
+    # 코드는 이미지에 없다 — pipeline/ 을 마운트한다. 이유와 다시 굽는 때는
+    # ../data/compose.yaml 의 같은 서비스 주석.
+    image: pickage-pipeline-monitor:runtime
+    build:
+      context: ../../../../pipeline/monitor
+    restart: unless-stopped
+
+    # host 네트워크인 이유는 netdata 와 같다 — `ports:` 없이 **듣는 주소를 설정이 혼자 정한다**
+    # (pipeline-monitor.yaml 의 listen = 127.0.0.1:19998 만). 이 노드는 인터넷에 노출된
+    # 유일한 노드다. 0.0.0.0 으로 바꾸면 로그 꼬리가 든 화면이 밖에 열린다.
+    #   확인:  ss -ltn | grep 19998   → 127.0.0.1 한 줄만
+    network_mode: host
+    hostname: j15a506-app
+
+    environment:
+      MONITOR_CONFIG: /etc/pipeline-monitor.yaml
+      # 전용 계정 pickage-monitor (pipeline/minio/policies/monitor.json). 루트 키를 넣지 말 것.
+      PICKAGE_S3_ENDPOINT: ${MONITOR_S3_ENDPOINT:?.env 에 MONITOR_S3_ENDPOINT 를 채울 것}
+      PICKAGE_S3_ACCESS_KEY: ${MONITOR_S3_ACCESS_KEY:?.env 에 MONITOR_S3_ACCESS_KEY 를 채울 것 (../../data/README.md "파이프라인 모니터에 줄 계정")}
+      PICKAGE_S3_SECRET_KEY: ${MONITOR_S3_SECRET_KEY:?.env 에 MONITOR_S3_SECRET_KEY 를 채울 것}
+
+    # uid 1000 으로 돌면서 docker 소켓을 읽으려면 호스트 docker 그룹이어야 한다 (netdata 의 PGID).
+    group_add:
+      - "${DOCKER_GID:?.env 를 만들고 DOCKER_GID 를 채울 것}"
+
+    volumes:
+      - ../../../../pipeline:/opt/work/pipeline:ro
+      - ./pipeline-monitor.yaml:/etc/pipeline-monitor.yaml:ro
+      # ⚠ GET 만 부른다 (pipeline/monitor/dockerapi.py). 소켓의 의미는 위 netdata 의 같은 줄.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+
+    # 이 노드는 목록 집계를 안 한다(중계·컨테이너 로그뿐). 짝으로 둔다.
+    mem_limit: 128m
+    memswap_limit: 128m
+
 volumes:
   netdatalib:
   netdatacache:

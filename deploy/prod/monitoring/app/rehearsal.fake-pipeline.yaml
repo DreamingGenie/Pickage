@@ -1,0 +1,36 @@
+# 로컬 리허설에 **가짜 파이프라인**을 얹는다 — 화면의 모든 절이 채워지고 움직이는 것을 눈으로 보기 위한 것.
+# 운영에서 쓰지 않는다. rehearsal.override.yaml 뒤에 붙인다:
+#
+#   MSYS_NO_PATHCONV=1 docker compose -f compose.yaml -f rehearsal.override.yaml -f rehearsal.fake-pipeline.yaml \
+#     -p pickage-monitoring-rehearsal up -d --build
+#
+# 무엇을 흉내 내는지는 pipeline/monitor/fake_pipeline.py 의 머리 주석.
+
+services:
+  # 이름을 실제 수집 컨테이너와 같게 둔다 — 화면의 컨테이너 절에 그 이름으로 잡힌다.
+  fake-weekly:
+    image: pickage-pipeline-monitor:runtime
+    container_name: pickage-weekly-run
+    restart: unless-stopped
+    # named volume 의 소유권 문제를 피하려고 root 로 쓴다. 내 PC 의 가짜 데이터다.
+    user: "0"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      PICKAGE_S3_ENDPOINT: ${MONITOR_S3_ENDPOINT}
+      PICKAGE_S3_ACCESS_KEY: ${MONITOR_S3_ACCESS_KEY}
+      PICKAGE_S3_SECRET_KEY: ${MONITOR_S3_SECRET_KEY}
+      FAKE_STEP_SECONDS: ${FAKE_STEP_SECONDS:-8}
+      FAKE_INGEST_WORK: /host/srv/pickage/ingest-work
+    volumes:
+      - ../../../../pipeline:/opt/work/pipeline:ro
+      - fake-ingest-work:/host/srv/pickage/ingest-work
+    entrypoint: ["python", "-m", "pipeline.monitor.fake_pipeline"]
+
+  # data 역할 모니터가 가짜 산출물 디렉터리를 실제 경로처럼 본다.
+  pipeline-monitor-data:
+    volumes:
+      - fake-ingest-work:/host/srv/pickage/ingest-work:ro
+
+volumes:
+  fake-ingest-work:

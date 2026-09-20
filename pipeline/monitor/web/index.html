@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<!--
+  Pickage 데이터 흐름 — "데이터가 잘 흐르고 있는가" 한 장.
+
+  pipeline-monitor 컨테이너(pipeline/monitor/server.py)가 이 파일을 / 로 서빙한다.
+  터널을 열고 http://127.0.0.1:19998/ 을 연다 — scripts/open-monitoring.* 이 19999(netdata) 와
+  같이 열어 준다. status.html(19999) 은 자원, 여기(19998) 는 데이터 흐름이다.
+
+  재료는 같은 서버의 API 다. **요청할 때 계산한다** — 파일로 미리 써 두지 않는다.
+      /api/nodes               이 노드와 중계하는 노드들
+      /api/report?node=<x>     그 노드의 보고서. data 노드 것은 app 서버가 사설망으로 중계한다
+      /api/inventory?node=<x>  마지막 전체 목록. &fresh=1 이면 지금 버킷을 통째로 나열한다 — "전체 목록 조회" 버튼만 쓴다
+      ?fresh=1                 보고서 캐시(3초)를 무시하고 지금 다시 만든다 — "지금 확인" 버튼
+
+  ── 화면을 이렇게 짠 이유 ────────────────────────────────────────────
+  status.html 과 같은 원칙이다 — 판정 한 줄이 제일 크고, 나머지는 그 근거로 아래에 깔린다.
+  다만 여기는 "괜찮은가" 뒤에 **"무엇이 생겼나"** 를 묻는 사람이 오므로, 목록이 길다.
+  그래서 최근 것을 위에, 나머지는 접어 둔다. 접힌 것은 <details> 라 클릭 한 번이면 펴진다.
+
+  - 15초마다 다시 읽는다. "지금 확인" 은 서버의 캐시까지 비우고 다시 만든다.
+  - 한 노드에 닿지 못하면 그 노드 자리에 이유가 뜬다. 나머지 노드는 그대로 보인다.
+  - 모르는 것을 정상이라고 말하지 않는다. 절이 통째로 실패하면 그 자리에 실패 메시지가 뜬다.
+  - 시각은 상대(3분 전)로 쓰고, 마우스를 올리면 절대 시각이 보인다.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pickage 데이터 흐름</title>
+<style>
+  :root {
+    --bg:#f7f7f8; --panel:#fff; --line:#e4e4e7; --hair:#efeff1;
+    --fg:#18181b; --dim:#71717a; --faint:#a1a1aa;
+    --ok:#15803d; --warn:#b45309; --bad:#b91c1c; --info:#1d4ed8; --track:#e7e7ea;
+    --new:#ecfdf5; --newfg:#047857;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1115; --panel:#16181d; --line:#262a31; --hair:#1f232a;
+      --fg:#e7e7ea; --dim:#8b8f98; --faint:#6b7079;
+      --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --info:#93c5fd; --track:#23272e;
+      --new:#0b2a1f; --newfg:#6ee7b7;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:28px 20px 56px; background:var(--bg); color:var(--fg);
+         font:14.5px/1.5 -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+
+  .top { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
+         padding-bottom:14px; border-bottom:1px solid var(--line); }
+  .top h1 { font-size:16px; font-weight:600; margin:0; letter-spacing:-.01em; }
+  .top nav a { font-size:12.5px; color:var(--dim); margin-left:14px; }
+  .top .when { font-size:12px; color:var(--faint); font-variant-numeric:tabular-nums;
+               display:flex; align-items:center; gap:10px; }
+  .top button { font:inherit; font-size:12px; color:var(--dim); background:var(--panel);
+                border:1px solid var(--line); border-radius:6px; padding:4px 10px; cursor:pointer; }
+  .top button:disabled { cursor:default; opacity:.6; }
+  button.act { font:inherit; font-size:12px; color:var(--fg); background:var(--panel); border:1px solid var(--faint);
+               border-radius:6px; padding:4px 10px; cursor:pointer; margin-left:auto; }
+  button.act:disabled { cursor:default; opacity:.6; }
+
+  .verdict { display:flex; gap:14px; align-items:flex-start; padding:26px 2px 22px; }
+  .verdict .dot { width:13px; height:13px; border-radius:50%; margin-top:11px; flex:none; background:var(--faint); }
+  .verdict .t { font-size:29px; font-weight:650; letter-spacing:-.025em; line-height:1.15; }
+  .verdict .d { font-size:14px; color:var(--dim); margin-top:5px; max-width:70ch; }
+  .verdict ul { margin:8px 0 0; padding-left:18px; font-size:13.5px; }
+  .verdict li { margin:2px 0; }
+  .is-ok .dot { background:var(--ok); } .is-ok .t { color:var(--ok); }
+  .is-warn .dot { background:var(--warn); } .is-warn .t { color:var(--warn); }
+  .is-bad .dot { background:var(--bad); } .is-bad .t { color:var(--bad); }
+
+  section.card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+                 padding:18px 20px 12px; margin-bottom:16px; }
+  section.card > header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  section.card > header b { font-size:14px; font-weight:600; }
+  section.card > header span { font-size:12px; color:var(--faint); }
+  section.card > header .stale { color:var(--warn); font-weight:600; }
+  .note { font-size:12.5px; color:var(--dim); margin:6px 0 10px; }
+  .fail { font-size:13px; color:var(--bad); padding:8px 12px; border-left:2px solid var(--bad); margin:6px 0; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; font-size:11.5px; color:var(--dim); padding:0 8px 7px 0;
+       border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:6px 8px 6px 0; border-bottom:1px solid var(--hair); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  th.r, td.r { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.name { font-weight:500; word-break:break-all; }
+  tr.new td { background:var(--new); }
+  td.new, .newfg { color:var(--newfg); font-weight:600; }
+  tr.sick td { color:var(--bad); }
+  tr.dimrow td { color:var(--faint); }
+
+  .chip { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.02em; padding:1px 7px;
+          border-radius:999px; border:1px solid var(--line); color:var(--dim); white-space:nowrap; margin:1px 2px 1px 0; }
+  .chip.ok { color:var(--ok); border-color:var(--ok); }
+  .chip.warn { color:var(--warn); border-color:var(--warn); }
+  .chip.bad { color:var(--bad); border-color:var(--bad); }
+  .chip.info { color:var(--info); border-color:var(--info); }
+
+  details { margin:4px 0; }
+  summary { cursor:pointer; font-size:12.5px; color:var(--dim); user-select:none; }
+  summary:hover { color:var(--fg); }
+  pre { margin:6px 0 4px; padding:10px 12px; background:var(--bg); border:1px solid var(--hair); border-radius:6px;
+        font-size:11.5px; line-height:1.45; overflow:auto; max-height:320px; white-space:pre-wrap; word-break:break-all; }
+  pre .err { color:var(--bad); }
+  .bar { height:3px; background:var(--track); border-radius:2px; margin:6px 0 4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--faint); }
+  .bar.warn i { background:var(--warn); } .bar.bad i { background:var(--bad); }
+  .kv { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px 18px; margin:4px 0 12px; }
+  .kv .k { font-size:11.5px; font-weight:600; color:var(--dim); }
+  .kv .v { font-size:19px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .kv .n { font-size:11.5px; color:var(--faint); }
+  .bucket { padding:10px 0 4px; border-top:1px solid var(--hair); }
+  .bucket:first-of-type { border-top:0; }
+  .bucket h3 { font-size:13px; margin:0 0 6px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .bucket h3 span { font-size:12px; color:var(--faint); font-weight:400; }
+  footer { margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+           font-size:12.5px; color:var(--faint); line-height:1.7; }
+  footer a { color:var(--dim); }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Pickage 데이터 흐름</h1>
+    <div class="when">
+      <span id="updated">불러오는 중…</span>
+      <button id="now" type="button">지금 확인</button>
+      <nav><a href="http://127.0.0.1:19999/status.html">서버 상태</a><a href="http://127.0.0.1:19999/">netdata 대시보드</a></nav>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="dot"></div>
+    <div><div class="t">확인 중</div><div class="d"></div></div>
+  </div>
+
+  <div id="body"></div>
+
+  <footer>
+    15초마다 다시 읽고, 값은 <b>물을 때마다 그 자리에서</b> 만듭니다. MinIO 는 <b>이벤트 구독</b>으로 보고, 버킷 전체 나열은 <b>전체 목록 조회</b> 버튼을 눌렀을 때만 합니다.<br>
+    <b>"지금 서버 괜찮은가"</b> 는 <a href="http://127.0.0.1:19999/status.html">서버 상태</a>, <b>"그때 무슨 일이 있었나"</b> 는
+    <a href="http://127.0.0.1:19999/">netdata 대시보드</a> (같은 터널의 19999). 이 화면은 <b>"데이터가 어디까지 왔나"</b> 만 답합니다.<br>
+    무엇을 어떻게 보는지는 저장소의 <code>deploy/prod/monitoring/README.md</code> 11절.
+  </footer>
+</div>
+
+<script>
+// ── 유틸 ────────────────────────────────────────────────────────────────
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+function bytes(n) {
+  if (n == null) return '—';
+  const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB']; let i = 0; let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (i === 0 ? v : v >= 100 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i];
+}
+function ago(iso, now) {
+  if (!iso) return '—';
+  const t = Date.parse(iso); if (isNaN(t)) return esc(iso);
+  const s = Math.max(0, Math.round(((now || Date.now()) - t) / 1000));
+  const txt = s < 60 ? `${s}초 전` : s < 3600 ? `${Math.round(s / 60)}분 전`
+            : s < 86400 * 2 ? `${(s / 3600).toFixed(s < 36000 ? 1 : 0)}시간 전` : `${Math.round(s / 86400)}일 전`;
+  return `<span title="${esc(local(iso))}">${txt}</span>`;
+}
+function local(iso) {
+  const t = Date.parse(iso); return isNaN(t) ? iso : new Date(t).toLocaleString('ko-KR', { hour12: false });
+}
+const num = n => n == null ? '—' : Number(n).toLocaleString('ko-KR');
+const chip = (text, cls) => `<span class="chip ${cls || ''}">${esc(text)}</span>`;
+function pre(lines, errRe) {
+  if (!lines || !lines.length) return '<pre>(없음)</pre>';
+  return '<pre>' + lines.map(l => errRe && errRe.test(l) ? `<span class="err">${esc(l)}</span>` : esc(l)).join('\n') + '</pre>';
+}
+const ERR_RE = /\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b/i;
+
+// 판정 누적. 한 곳에서만 올린다 — 어디서 무엇 때문에 색이 바뀌었는지 목록으로 남는다.
+const findings = [];
+let worst = 'ok';
+function flag(level, text) {
+  findings.push({ level, text });
+  if (level === 'bad') worst = 'bad'; else if (level === 'warn' && worst !== 'bad') worst = 'warn';
+}
+
+
+// ── 주간 수집 회차 ───────────────────────────────────────────────────────
+const STATUS_CLS = { SUCCEEDED: 'ok', RUNNING: 'info', PENDING: '', FAILED: 'warn', BLOCKED: 'bad', SKIPPED: '', REQUESTED: 'info', NONE: '' };
+const STATUS_KO = { SUCCEEDED: '성공', RUNNING: '실행 중', PENDING: '대기', FAILED: '실패', BLOCKED: '차단됨', SKIPPED: '건너뜀', REQUESTED: '요청됨', NONE: '없음' };
+function renderWeekly(weekly, now) {
+  if (!weekly) return '';
+  const runs = weekly.runs || [];
+  if (runs.length) {
+    const latest = runs[0];
+    if (latest.status === 'BLOCKED') flag('bad', `주간 회차 ${latest.week_of} 가 BLOCKED — 연속 ${latest.consecutive_failures}회 실패로 자동 재시도가 멈췄습니다. 수동 실행 요청이 필요합니다.`);
+    else if (latest.status === 'FAILED') flag('warn', `주간 회차 ${latest.week_of} 가 FAILED (연속 ${latest.consecutive_failures}회). 10분 뒤 타이머가 다시 시도합니다.`);
+    runs.forEach(r => { if (r.manual && r.manual.pending) flag('warn', `${r.week_of} 수동 실행 요청이 아직 처리되지 않았습니다 (최대 10분).`); });
+  }
+  const rows = runs.map(r => {
+    const steps = (r.steps || []).map(s => chip(`${s.step} ${STATUS_KO[s.status] || s.status}${s.attempt_count > 1 ? ' ×' + s.attempt_count : ''}`, STATUS_CLS[s.status])).join('');
+    const errors = (r.steps || []).filter(s => s.error_message).map(s => `<b>${esc(s.step)}</b>\n${esc(s.error_message)}`).join('\n\n');
+    const detail = [];
+    if (r.last_error) detail.push(`<details><summary>마지막 오류</summary><pre class="err">${esc(r.last_error)}</pre></details>`);
+    if (errors) detail.push(`<details><summary>단계별 오류 메시지</summary><pre>${errors}</pre></details>`);
+    const stepDetails = (r.steps || []).filter(s => s.detail && Object.keys(s.detail).length);
+    if (stepDetails.length) detail.push(`<details><summary>단계 상세 (detail)</summary><pre>${esc(JSON.stringify(Object.fromEntries(stepDetails.map(s => [s.step, s.detail])), null, 1))}</pre></details>`);
+    const manual = r.manual && r.manual.requested_at
+      ? `<div class="note">수동 요청 ${ago(r.manual.requested_at, now)} · ${r.manual.pending ? '<b class="newfg">아직 안 집어 감</b>' : '집어 감 ' + ago(r.manual.claimed_at, now)}</div>` : '';
+    const cov = r.coverage || {};
+    const cls = r.status === 'BLOCKED' ? 'sick' : '';
+    return `<tr class="${cls}"><td class="name mono">${esc(r.week_of)}</td>
+      <td>${chip(STATUS_KO[r.status] || r.status, STATUS_CLS[r.status])}${r.consecutive_failures ? ` <span class="chip warn">연속 실패 ${r.consecutive_failures}</span>` : ''}</td>
+      <td>${steps || '<span class="chip">단계 없음</span>'}${manual}${detail.join('')}</td>
+      <td class="mono">${esc(cov.downloads_through || '—')}</td>
+      <td class="r">${ago(r.updated_at || r.finished_at || r.started_at, now)}</td></tr>`;
+  }).join('');
+  return `<section class="card"><header><b>주간 수집 회차</b><span>pickage-raw/_ops/weekly · ${weekly.weeks_total}주 중 최근 ${runs.length}주 · 읽은 시각 ${ago(weekly.listed_at, now)}</span></header>
+    ${runs.length ? `<table><thead><tr><th>회차 (week_of)</th><th>상태</th><th>단계</th><th>데이터 끝 (downloads_through)</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
+                  : '<div class="note">회차 객체가 하나도 없습니다. 타이머가 아직 한 번도 돌지 않았거나 _ops/weekly 를 못 읽는 것입니다.</div>'}
+    <div class="note">가장 최근 <b>성공</b> 회차의 "데이터 끝" 이 지금 서비스가 가진 다운로드 데이터의 끝입니다. 단계 로그 전문은 아래 로컬 디스크 절의 <code>logs/&lt;step&gt;.log</code>.</div>
+  </section>`;
+}
+
+// ── MinIO · 이벤트 (기본) ────────────────────────────────────────────────
+// 서버가 켜진 뒤 버킷 이벤트 구독으로 쌓은 것. 목록 조회를 하지 않는다.
+const EVENT_KO = { 'Put': '올라옴', 'CompleteMultipartUpload': '올라옴(멀티파트)', 'Copy': '복사', 'Delete': '지워짐', 'DeleteMarkerCreated': '지워짐' };
+const evName = e => { const m = (e.event || '').split(':').pop(); return (e.event || '').includes('Removed') ? '지워짐' : (EVENT_KO[m] || m); };
+const evRow = (e, now) => `<tr class="${(e.event || '').includes('Created') ? 'new' : 'dimrow'}"><td class="r">${ago(e.time, now)}</td>
+  <td class="mono">${esc(e.bucket)}</td><td class="name mono">${esc(e.key)}</td><td class="r">${bytes(e.size)}</td>
+  <td>${esc(evName(e))}</td><td class="mono">${esc(e.principal || '')}</td></tr>`;
+const evTable = (rows, now) => `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>객체</th><th class="r">크기</th><th>무엇</th><th>누가</th></tr></thead><tbody>${rows.map(e => evRow(e, now)).join('')}</tbody></table>`;
+
+function renderEvents(node, minio, now) {
+  if (!minio) return '';
+  const ev = minio.events;
+  if (!ev) return '';
+  const buckets = Object.entries(ev.buckets || {});
+  const down = buckets.filter(([, b]) => !b.connected);
+  down.forEach(([name, b]) => flag('warn', `${node}: MinIO ${name} 이벤트 구독이 끊겨 있습니다 — ${b.error || ''}. 이 사이에 생긴 것은 화면에 안 옵니다.`));
+  const openGaps = (ev.gaps || []).filter(g => g.to);
+  const conn = buckets.length ? `${buckets.length - down.length}/${buckets.length} 버킷 구독 중` : '구독한 버킷 없음';
+  const recent = ev.recent || [];
+  const head = recent.slice(0, 30), rest = recent.slice(30);
+  const gapsHtml = openGaps.length ? `<details><summary>끊겼던 구간 ${openGaps.length}건 — 그 사이 것은 모릅니다</summary><pre>${openGaps.map(g => `${esc(g.bucket)}  ${esc(local(g.from))} ~ ${esc(local(g.to))}  ${esc(g.error || '')}`).join('\n')}</pre></details>` : '';
+  const completed = ev.completed || [];
+  const prefixes = ev.prefixes || [];
+  const prefRows = prefixes.map(p => `<tr class="new"><td class="mono">${esc(p.bucket)}</td><td class="name mono">${esc(p.prefix)}
+      <details><summary>최근 객체 ${p.recent.length}개</summary><pre>${p.recent.map(o => `${esc(o.time.slice(11, 19))}  ${bytes(o.size).padStart(9)}  ${esc(o.key)}`).join('\n')}</pre></details></td>
+      <td class="r new">+${num(p.objects)}</td><td class="r">${bytes(p.bytes)}</td><td class="r">${ago(p.latest, now)}</td></tr>`).join('');
+  return `<section class="card"><header><b>MinIO · 방금 올라온 것</b>
+      <span>${esc(conn)} · ${ago(ev.listening_since, now)}부터 · ${ev.retention_hours}시간치 ${num(ev.held)}건 보관</span></header>
+    <div class="note">모니터가 <b title="${esc(local(ev.listening_since))}">켜진 뒤</b>에 생긴 것만 여기 옵니다 (버킷 이벤트 구독). 그 전 상태는 아래 <b>전체 목록 조회</b> 버튼으로 보세요.</div>
+    ${gapsHtml}
+    <div class="bucket"><h3>완료 알림 <span>_SUCCESS 가 찍힌 실행 · ${completed.length}건</span></h3>
+      ${completed.length ? `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>실행 경로</th><th>누가</th></tr></thead><tbody>${completed.slice(0, 50).map(e => `<tr class="new"><td class="r">${ago(e.time, now)}</td><td class="mono">${esc(e.bucket)}</td><td class="name mono">${esc(e.prefix)}</td><td class="mono">${esc(e.principal || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="note">아직 없습니다. 회차가 끝나면 여기 뜹니다.</div>'}</div>
+    <div class="bucket"><h3>경로별 신규 <span>이벤트 기준 · ${prefixes.length}개 경로 · 총 +${num(ev.totals.created)} 객체 · ${bytes(ev.totals.bytes)}${ev.totals.removed ? ` · 삭제 ${num(ev.totals.removed)}` : ''}</span></h3>
+      ${prefixes.length ? `<table><thead><tr><th>버킷</th><th>경로</th><th class="r">객체</th><th class="r">크기</th><th class="r">최근</th></tr></thead><tbody>${prefRows}</tbody></table>` : '<div class="note">아직 없습니다.</div>'}</div>
+    <div class="bucket"><h3>이벤트 흐름 <span>최근 ${recent.length}건</span></h3>
+      ${recent.length ? evTable(head, now) + (rest.length ? `<details><summary>이전 ${rest.length}건</summary>${evTable(rest, now)}</details>` : '') : '<div class="note">아직 없습니다. 무언가 올라오면 15초 안에 보입니다.</div>'}</div>
+  </section>`;
+}
+
+// ── 포인터 ─────────────────────────────────────────────────────────────
+function renderPointers(minio, now) {
+  if (!minio || !(minio.pointers || []).length) return '';
+  const rows = minio.pointers.map(p => {
+    const v = p.value || {};
+    return `<tr class="${p.missing ? 'dimrow' : ''}"><td class="name mono">${esc(p.bucket)}/${esc(p.key)}</td>
+      <td class="mono">${p.missing ? `없음 (${esc(p.error || '')})` : esc(v.run_id || v.run_path || JSON.stringify(v).slice(0, 80))}</td>
+      <td class="mono">${esc(v.collected_date || v.model || '')}</td><td class="r">${p.missing ? '—' : ago(p.modified, now)}</td></tr>`;
+  }).join('');
+  return `<section class="card"><header><b>포인터 (_current.json)</b><span>소비자가 지금 읽는 실행</span></header>
+    <table><thead><tr><th>객체</th><th>run_id</th><th>collected_date · 모델</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="note">코퍼스 포인터가 바뀌면 다음 유사도 배치가 그것을 집고, 벡터 포인터가 바뀌면 app 노드의 로더가 DB 에 게시합니다. "없음" 은 아직 한 번도 게시되지 않았다는 뜻입니다.</div>
+  </section>`;
+}
+
+// ── MinIO · 전체 목록 (버튼으로만) ──────────────────────────────────────
+// 버킷을 통째로 나열한다 — 객체 1,000개당 요청 하나. 그래서 사람이 누를 때만 하고,
+// 결과는 다음에 누를 때까지 그대로 둔다. 자동 갱신은 마지막 결과만 다시 읽는다.
+const inventories = {};       // node → 마지막 전체 목록 응답
+const invBusy = {};
+
+async function fullInventory(node) {
+  if (invBusy[node]) return;
+  invBusy[node] = true;
+  const btn = document.getElementById('inv-btn-' + node);
+  if (btn) { btn.disabled = true; btn.textContent = '전체 목록 조회 중… (객체가 많으면 오래 걸립니다)'; }
+  try {
+    const res = await fetch(`api/inventory?node=${encodeURIComponent(node)}&fresh=1`, { cache: 'no-store' });
+    inventories[node] = await res.json();
+  } catch (e) {
+    inventories[node] = { available: false, error: e.message };
+  } finally {
+    invBusy[node] = false;
+  }
+  await refresh(false);
+}
+
+function renderInventory(node, minio, now) {
+  if (!minio || !minio.inventory_enabled) return '';
+  const inv = inventories[node];
+  const button = `<button type="button" class="act" id="inv-btn-${esc(node)}" onclick="fullInventory('${esc(node)}')">전체 목록 조회</button>`;
+  let body;
+  if (!inv || !inv.available) {
+    body = `<div class="note">아직 조회하지 않았습니다. 모니터가 켜지기 <b>전</b>에 있던 것(지난 스냅샷·완료된 실행·경로별 개수와 크기)을 보려면 ${button} 를 누르세요.
+      버킷을 통째로 나열하므로 객체가 많으면 시간이 걸리고, 결과는 다음에 누를 때까지 남습니다.${inv && inv.error ? `<div class="fail">${esc(inv.error)}</div>` : ''}</div>`;
+    return `<section class="card"><header><b>MinIO · 전체 목록</b><span>버튼을 눌렀을 때만</span></header>${body}</section>`;
+  }
+  const week = now - 7 * 86400 * 1000;
+  const runs = inv.completed_runs || [];
+  const recentRuns = runs.filter(r => Date.parse(r.completed_at) >= week), olderRuns = runs.filter(r => Date.parse(r.completed_at) < week);
+  const runRow = r => `<tr class="${Date.parse(r.completed_at) >= now - 86400 * 1000 ? 'new' : ''}"><td class="r">${ago(r.completed_at, now)}</td><td class="mono">${esc(r.bucket)}</td><td class="name mono">${esc(r.prefix)}</td><td class="r">${num(r.objects)}</td><td class="r">${bytes(r.bytes)}</td></tr>`;
+  const runTable = rows => `<table><thead><tr><th class="r">완료</th><th>버킷</th><th>실행 경로 (_SUCCESS 가 찍힌 곳)</th><th class="r">객체</th><th class="r">크기</th></tr></thead><tbody>${rows.map(runRow).join('')}</tbody></table>`;
+  const cards = (inv.buckets || []).map(b => {
+    if (b.error) return `<div class="bucket"><h3>${esc(b.name)}</h3><div class="fail">목록 실패 — ${esc(b.error)}</div></div>`;
+    if (b.truncated) flag('warn', `MinIO 버킷 ${b.name} 전체 목록이 max_objects 에서 잘렸습니다. 아래 숫자가 전체가 아닙니다.`);
+    const prefixes = (b.prefixes || []).slice().sort((x, y) => (Date.parse(y.latest) || 0) - (Date.parse(x.latest) || 0));
+    const rows = prefixes.map(p => {
+      const fresh = p.new && p.new.objects > 0;
+      const recent = (p.recent || []).map(o => `${esc(o.modified.slice(0, 19).replace('T', ' '))}  ${bytes(o.size).padStart(9)}  ${esc(o.key)}`).join('\n');
+      return `<tr class="${fresh ? 'new' : ''}"><td class="name mono">${esc(p.prefix)}${fresh ? `<details><summary>최근 객체 ${p.recent.length}개</summary><pre>${recent}</pre></details>` : ''}</td>
+        <td class="r">${num(p.objects)}</td><td class="r">${bytes(p.bytes)}</td><td class="r">${ago(p.latest, now)}</td>
+        <td class="r ${fresh ? 'new' : ''}">${fresh ? `+${num(p.new.objects)} · ${bytes(p.new.bytes)}` : '—'}</td>
+        <td class="r">${p.new_7d && p.new_7d.objects ? `+${num(p.new_7d.objects)} · ${bytes(p.new_7d.bytes)}` : '—'}</td></tr>`;
+    }).join('');
+    return `<div class="bucket"><h3>${esc(b.name)}<span>${num(b.objects)} 객체 · ${bytes(b.bytes)} · 최근 변경 ${ago(b.latest, now)}${b.truncated ? ' · <b class="chip warn">목록 잘림</b>' : ''}</span></h3>
+      ${prefixes.length ? `<details><summary>경로 ${prefixes.length}개 (깊이 ${b.depth})</summary>
+        <table><thead><tr><th>경로</th><th class="r">객체</th><th class="r">크기</th><th class="r">최근 변경</th><th class="r">24시간 신규</th><th class="r">7일 신규</th></tr></thead><tbody>${rows}</tbody></table></details>` : '<div class="note">비어 있음</div>'}</div>`;
+  }).join('');
+  return `<section class="card"><header><b>MinIO · 전체 목록</b>
+      <span><b title="${esc(local(inv.listed_at))}">${ago(inv.listed_at, now)}</b> 조회 · ${inv.took_seconds}초 걸림${inv.fetched_via ? ` · ${esc(inv.fetched_via)} 가 중계` : ''}</span> ${button}</header>
+    <div class="note">이 표는 <b>버튼을 누른 시각</b>의 것입니다. 자동으로 갱신되지 않습니다 — 방금 생긴 것은 위 "방금 올라온 것" 절이 답합니다.</div>
+    <div class="bucket"><h3>완료된 데이터셋 실행 <span>_SUCCESS 기준 · 지난 7일 ${recentRuns.length}건 · 전체 ${runs.length}건 (최대 200)</span></h3>
+      ${recentRuns.length ? runTable(recentRuns) : '<div class="note">지난 7일 동안 완료된 실행이 없습니다.</div>'}
+      ${olderRuns.length ? `<details><summary>그 이전 ${olderRuns.length}건</summary>${runTable(olderRuns)}</details>` : ''}</div>
+    ${cards}
+    ${(inv.errors || []).length ? `<div class="fail">목록 실패 ${inv.errors.length}건 — ${inv.errors.map(e => esc(e.bucket + ': ' + e.error)).join(' · ')}</div>` : ''}
+  </section>`;
+}
+
+// ── 로컬 디스크 ─────────────────────────────────────────────────────────
+function renderLocal(node, local, now) {
+  if (!local) return '';
+  const paths = (local.paths || []).map(p => {
+    if (p.missing) { flag('warn', `${node}: ${p.label} 이 없습니다 (마운트 확인).`); return `<div class="bucket"><h3>${esc(p.label)}</h3><div class="fail">경로가 없습니다 — compose 의 마운트를 보세요.</div></div>`; }
+    const d = p.disk; let disk = '';
+    if (d && d.total) {
+      const usedPct = d.used / d.total * 100; const free = 100 - usedPct;
+      const lv = free < 10 ? 'bad' : free < 20 ? 'warn' : '';
+      if (lv) flag(lv, `${node}: ${p.label} 이 있는 파티션의 남은 공간이 ${Math.round(free)}% 입니다.`);
+      disk = `<div class="kv"><div><div class="k">파티션 남음</div><div class="v">${Math.round(free)}%</div><div class="bar ${lv}"><i style="width:${usedPct}%"></i></div><div class="n">${bytes(d.used)} 사용 · 전체 ${bytes(d.total)}</div></div>
+        <div><div class="k">이 경로</div><div class="v">${bytes(p.bytes)}</div><div class="n">${num(p.files)} 파일 · 최근 변경 ${ago(p.latest, now)}</div></div>
+        <div><div class="k">지난 ${p.new.window_hours}시간 신규</div><div class="v ${p.new.files ? 'newfg' : ''}">${num(p.new.files)} 파일</div><div class="n">${bytes(p.new.bytes)}</div></div></div>`;
+    }
+    const entries = (p.entries || []).map(e => `<tr class="${Date.parse(e.latest) >= now - p.new.window_hours * 3600 * 1000 ? 'new' : ''}"><td class="name mono">${esc(e.name)}</td><td class="r">${num(e.files)}</td><td class="r">${bytes(e.bytes)}</td><td class="r">${ago(e.latest, now)}</td></tr>`).join('');
+    const fresh = (p.new.list || []).map(f => `${esc(f.modified.slice(0, 19).replace('T', ' '))}  ${bytes(f.bytes).padStart(9)}  ${esc(f.path)}`).join('\n');
+    return `<div class="bucket"><h3>${esc(p.label)}</h3>${disk}
+      <table><thead><tr><th>바로 아래</th><th class="r">파일</th><th class="r">크기</th><th class="r">최근 변경</th></tr></thead><tbody>${entries}</tbody></table>
+      ${p.new.files ? `<details><summary>지난 ${p.new.window_hours}시간에 생기거나 바뀐 파일 (최근 ${p.new.list.length}개)</summary><pre>${fresh}</pre></details>` : ''}
+    </div>`;
+  }).join('');
+  const logs = (local.logs || []).map(l => {
+    if (l.error_lines) flag('warn', `${node}: 로그 ${l.path} 꼬리에 에러로 보이는 줄이 ${l.error_lines}개 있습니다.`);
+    return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ` · <b class="chip warn">에러 ${l.error_lines}줄</b>` : ''}</summary>${pre(l.tail, ERR_RE)}</details>`;
+  }).join('');
+  return `<section class="card"><header><b>로컬 디스크 · ${esc(node)}</b><span>MinIO 에 올라가기 전의 산출물과 단계별 로그</span></header>${paths}
+    ${logs ? `<div class="bucket"><h3>단계별 로그 <span>최근 ${local.logs.length}개 · 꼬리 ${local.logs[0].tail.length}줄</span></h3>${logs}</div>` : ''}
+  </section>`;
+}
+
+// ── 컨테이너·로그 ───────────────────────────────────────────────────────
+function renderDocker(node, docker, now) {
+  if (!docker) return '';
+  const rows = (docker.containers || []).map(c => {
+    const up = c.state === 'running';
+    let sick = false, st;
+    if (c.state === 'restarting') { sick = true; st = chip('재시작 반복', 'bad'); flag('bad', `${node}: ${c.name} 가 계속 재시작하고 있습니다.`); }
+    else if (up) st = chip(c.health === 'unhealthy' ? '비정상' : '실행 중', c.health === 'unhealthy' ? 'bad' : 'ok');
+    else if (c.exit_code === 0) st = chip('끝남 (0)', '');
+    else { sick = true; st = chip(`끝남 (${c.exit_code})`, 'warn'); flag('warn', `${node}: ${c.name} 가 종료 코드 ${c.exit_code} 로 끝났습니다 (${ago(c.finished_at, now).replace(/<[^>]+>/g, '')}).`); }
+    if (c.oom_killed) { sick = true; flag('bad', `${node}: ${c.name} 가 OOM 으로 죽었습니다 — mem_limit 을 보세요.`); }
+    if (c.health === 'unhealthy') flag('bad', `${node}: ${c.name} healthcheck 실패.`);
+    const log = c.log || {};
+    if (log.error_lines) flag('warn', `${node}: ${c.name} 로그 꼬리에 에러로 보이는 줄이 ${log.error_lines}개 있습니다.`);
+    const logHtml = log.error ? `<div class="fail">로그 못 읽음 — ${esc(log.error)}</div>`
+      : `<details><summary>최근 ${log.since_hours}시간 · 꼬리 ${(log.lines || []).length}줄${log.error_lines ? ` · <b class="chip warn">에러 ${log.error_lines}줄</b>` : ''}</summary>${pre(log.lines, ERR_RE)}</details>`;
+    return `<tr class="${sick ? 'sick' : ''}"><td class="name mono">${esc(c.name)}<div class="note" style="margin:0">${esc(c.image)}</div></td>
+      <td>${st}${c.oom_killed ? ' ' + chip('OOM', 'bad') : ''}<div class="note" style="margin:0">${esc(c.status || '')}</div></td>
+      <td class="r">${c.restart_count || 0}</td>
+      <td class="r">${up ? ago(c.started_at, now) : ago(c.finished_at, now)}</td>
+      <td>${logHtml}</td></tr>`;
+  }).join('');
+  return `<section class="card"><header><b>컨테이너·로그 · ${esc(node)}</b><span>운영 스택 컨테이너 전부, 멈춘 것 포함 · ${docker.matched}개 (모니터링 스택 자신은 제외)</span></header>
+    ${rows ? `<table><thead><tr><th>컨테이너</th><th>상태</th><th class="r">재시작</th><th class="r">시작·종료</th><th>로그</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="note">걸리는 컨테이너가 없습니다.</div>'}
+    <div class="note">"끝남 (0)" 은 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다. 늘어나는지를 보세요.</div>
+  </section>`;
+}
+
+// ── 노드 하나 ───────────────────────────────────────────────────────────
+function renderNode(node, report, now) {
+  if (report.unreachable) {
+    flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`);
+    return `<section class="card"><header><b>${esc(node)}</b><span class="stale">닿지 못함</span></header>
+      <div class="fail">${esc((report.errors || [{}])[0].message || '')}</div></section>`;
+  }
+  const via = report.fetched_via ? ` · ${esc(report.fetched_via)} 가 중계` : '';
+  const cached = report.cached ? ' · 캐시' : '';
+  const errors = (report.errors || []).map(e => { flag('warn', `${node}: 보고서의 ${e.section} 절이 실패했습니다 — ${e.message}`); return `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`; }).join('');
+  const header = `<section class="card"><header><b>${esc(node)}</b><span class="mono">${esc(report.hostname || '')}</span>
+      <span>${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}</span></header>
+      ${errors || '<div class="note">모든 절이 정상적으로 만들어졌습니다.</div>'}</section>`;
+  return header
+    + renderWeekly(report.weekly, now)
+    + renderEvents(node, report.minio, now)
+    + renderPointers(report.minio, now)
+    + renderInventory(node, report.minio, now)
+    + renderLocal(node, report.local, now)
+    + renderDocker(node, report.docker, now);
+}
+
+function setVerdict(cls, title, desc, items) {
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + cls;
+  v.querySelector('.t').textContent = title;
+  v.querySelector('.d').innerHTML = esc(desc) + (items && items.length ? '<ul>' + items.map(i => `<li>${esc(i)}</li>`).join('') + '</ul>' : '');
+}
+
+async function refreshOnce(fresh) {
+  findings.length = 0; worst = 'ok';
+  const started = Date.now();
+  try {
+    const r = await fetch('api/nodes', { cache: 'no-store' });
+    if (!r.ok) throw new Error('api/nodes ' + r.status);
+    const nodes = (await r.json()).nodes || [];
+    // 노드마다 따로 묻는다. 하나가 느리거나 죽어도 나머지는 온다.
+    const reports = await Promise.all(nodes.map(async node => {
+      try {
+        const res = await fetch(`api/report?node=${encodeURIComponent(node)}${fresh ? '&fresh=1' : ''}`, { cache: 'no-store' });
+        const body = await res.json();
+        return body.node ? body : { node, unreachable: true, errors: [{ section: 'fetch', message: `${res.status}` }] };
+      } catch (e) {
+        return { node, unreachable: true, errors: [{ section: 'fetch', message: e.message }] };
+      }
+    }));
+    await Promise.all(nodes.map(async (node, i) => {
+      const m = reports[i] && reports[i].minio;
+      if (!m || !m.inventory_enabled || invBusy[node]) return;
+      try {
+        const res = await fetch(`api/inventory?node=${encodeURIComponent(node)}`, { cache: 'no-store' });
+        const body = await res.json();
+        if (body.available || !inventories[node]) inventories[node] = body;
+      } catch (e) { /* 전체 목록은 없어도 화면은 선다 */ }
+    }));
+    const now = Date.now();
+    // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
+    const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
+    if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.');
+    document.getElementById('body').innerHTML = order.map(x => renderNode(x.n, x.r, now)).join('');
+
+    document.getElementById('updated').textContent =
+      `${new Date().toLocaleTimeString('ko-KR')} 기준 · ${((now - started) / 1000).toFixed(1)}초 걸림 · 15초마다`;
+    const items = findings.map(f => f.text);
+    if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·컨테이너·로그에서 걸리는 것이 없습니다.', []);
+    else if (worst === 'warn') setVerdict('is-warn', '주의', '아래 항목을 보세요. 당장 장애는 아니지만 두면 커지거나, 확인이 필요한 것입니다.', items);
+    else setVerdict('is-bad', '문제', '아래 빨간 항목부터 보세요.', items);
+  } catch (e) {
+    setVerdict('is-bad', '상태를 읽지 못했습니다', e.message + ' — pipeline-monitor 가 내려갔거나 SSH 터널(19998)이 끊겼을 수 있습니다.', []);
+    document.getElementById('updated').textContent = '갱신 실패 · ' + new Date().toLocaleTimeString('ko-KR');
+  }
+}
+
+// ── 갱신 — status.html 과 같은 모양. 겹쳐 돌지 않는다 ────────────────────
+// 15초. 값은 서버가 물을 때마다 만들므로 이 주기가 곧 "얼마나 실시간인가" 다.
+// MinIO 는 이벤트 구독이라 갱신에 비용이 없다. 전체 목록은 그 절의 버튼으로만 긁는다.
+let busy = false, timer = null;
+async function refresh(fresh) { if (busy) return; busy = true; try { await refreshOnce(fresh); } finally { busy = false; } }
+function rearm() { clearInterval(timer); timer = setInterval(() => refresh(false), 15000); }
+const nowBtn = document.getElementById('now');
+nowBtn.addEventListener('click', async () => {
+  nowBtn.disabled = true; const label = nowBtn.textContent; nowBtn.textContent = '다시 만드는 중…';
+  await refresh(true); nowBtn.textContent = label; nowBtn.disabled = false; rearm();
+});
+refresh(false); rearm();
+</script>

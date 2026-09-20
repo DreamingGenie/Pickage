@@ -9,10 +9,12 @@
 | `ops.json` | app 노드 api (`pickage-ops`) | `pickage-raw` 의 `_ops/weekly/` **읽기** + `manual-request.json` **쓰기** |
 | `similarity-loader.json` | app 노드 similarity-loader (`pickage-similarity-loader`) | `pickage-vectors` **읽기만**. 쓰기·삭제 없다 |
 | `api-loader.json` | app 노드 백엔드 로더 (`pickage-api-loader`) — **소비자는 아직 없다** | `pickage-curated` **읽기만**. 쓰기·삭제 없다 |
+| `monitor.json` | 두 노드의 파이프라인 모니터 (`pickage-monitor`, S15P21A506-362) | 전 버킷 **목록·이벤트 구독**(`ListenBucketNotification`) + `_ops/`·`_current.json` **읽기만**. 쓰기·삭제 없고 데이터 본문도 못 읽는다 |
 
 적용 방법은 [deploy/prod/data/README.md](../../../deploy/prod/data/README.md) 의
 "GPU 서버용 계정" · "app 노드 api 에 줄 계정" ·
-"app 노드 similarity-loader 에 줄 계정" · "app 노드 백엔드 로더에 줄 계정".
+"app 노드 similarity-loader 에 줄 계정" · "app 노드 백엔드 로더에 줄 계정" ·
+"파이프라인 모니터에 줄 계정".
 
 **소비자마다 계정을 따로 둔다.** 하나로 합치면 권한이 그중 가장 넓은 것으로 수렴하고,
 유출 시 무엇을 폐기해야 하는지도 흐려진다 — 폐기는 계정 하나 지우는 것이어야 한다.

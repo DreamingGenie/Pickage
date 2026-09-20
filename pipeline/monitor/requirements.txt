@@ -1,0 +1,6 @@
+# pipeline/minio/requirements.txt 와 같은 boto3 핀. 다른 버전을 쓰면 같은 MinIO 에 붙는
+# 두 클라이언트의 거동이 갈린다.
+boto3==1.43.89
+PyYAML>=6.0,<7
+# 버킷 이벤트 구독(ListenBucketNotification)은 MinIO 확장이라 boto3 에 없다. 이것만 minio SDK 로.
+minio>=7.2,<8
