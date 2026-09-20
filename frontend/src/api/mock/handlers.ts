@@ -318,7 +318,8 @@ export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
     // 실제 크기가 아니다. 화면이 "크기 표시" 자리를 그리는지 보기 위한 값이다.
     bytes: 12_000 + names.length * 3_400,
     created_at: new Date().toISOString(),
-    omitted: sections,
+    // 커뮤니티 분석은 이제 기능이 있어 실린다(mock 은 자리 문구만). 기능 심화 분석만 자리와 사유가 실린다.
+    omitted: sections.filter((s) => s !== 'COMMUNITY'),
   })
 }
 
@@ -344,7 +345,9 @@ function mockReportHtml(names: string[], sections: readonly string[], notFound: 
     .map(
       (s) =>
         `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>` +
-        `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
+        (s === 'COMMUNITY'
+          ? `<p class="note">mock 예시입니다. 실제 문서에는 기준 패키지의 저장소 수치·핵심 논의·실제 논의 흐름이 실립니다.</p>`
+          : `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`),
     )
     .join('')
 

@@ -89,7 +89,9 @@ class CommunityServiceTest {
                                 ("pinojs/pino").split("/", 2)[1],
                                 "pinojs/pino",
                                 "PACKAGE_SCOPED",
-                                false),
+                                false,
+                                120,
+                                8),
                         "github-active-v1",
                         180,
                         summaryRetryAt,
@@ -174,10 +176,131 @@ class CommunityServiceTest {
         assertThat(repositoryInfo.openIssueCount()).isEqualTo(56);
     }
 
+    /** 저장소 전체 Issue 수가 비어 있는 스냅샷(이전에 저장됐거나 조회에 실패한 채 저장됨). */
+    private CommunitySnapshotRow sampleRowWithoutCounts(Instant collectedAt) {
+        var base = sampleRow(collectedAt, null);
+        return new CommunitySnapshotRow(
+                base.packageId(),
+                base.snapshotId(),
+                base.payloadVersion(),
+                base.collectedAt(),
+                base.dataStatus(),
+                new CommunityResultPayload(
+                        base.result().repository().withIssueCounts(null, null),
+                        base.result().policyVersion(),
+                        base.result().lookbackDays(),
+                        base.result().summaryRetryAt(),
+                        base.result().topics(),
+                        base.result().limitations()));
+    }
+
+    private CommunityService serviceWith(InMemoryCommunitySnapshotRepository repository) {
+        RefreshTaskRegistry registry = new RefreshTaskRegistry();
+        return newService(
+                repository,
+                registry,
+                com.ssafy.pickage.domain.community.CommunityTestFixtures.track(
+                        new RefreshAdmissionCoordinator(registry)));
+    }
+
+    // ---- 수치가 비어 있는 스냅샷의 복구 (S15P21A506-415)
+
+    @Test
+    void 수치가_비어_있고_30분이_지난_스냅샷은_24시간_안이어도_신선하지_않다() {
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRowWithoutCounts(Instant.now().minus(Duration.ofMinutes(31))));
+
+        var status = serviceWith(repository).getStatus(NAME);
+
+        // 화면은 STALE 을 보고 다시 수집을 요청한다 — 배포 전에 저장된 스냅샷이 하루를 기다리지 않고 복구된다.
+        assertThat(status.freshness()).isEqualTo(com.ssafy.pickage.domain.community.dto.Freshness.STALE);
+        assertThat(status.result().repository().issueCount()).isNull();
+    }
+
+    @Test
+    void 수치가_비어_있어도_30분_안이면_신선하다() {
+        // 열 때마다 다시 수집하면 GMS 요약 비용이 매번 든다 — 조회가 방금 실패한 스냅샷은 잠시 그대로 둔다.
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRowWithoutCounts(Instant.now().minus(Duration.ofMinutes(5))));
+
+        assertThat(serviceWith(repository).getStatus(NAME).freshness())
+                .isEqualTo(com.ssafy.pickage.domain.community.dto.Freshness.FRESH);
+    }
+
+    @Test
+    void 수치가_채워져_있으면_한_시간이_지나도_신선하다() {
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRow(Instant.now().minus(Duration.ofHours(1)), null));
+
+        assertThat(serviceWith(repository).getStatus(NAME).freshness())
+                .isEqualTo(com.ssafy.pickage.domain.community.dto.Freshness.FRESH);
+    }
+
+    @Test
+    void 한쪽만_비어_있어도_수치가_비어_있는_것으로_본다() {
+        var repository = new InMemoryCommunitySnapshotRepository();
+        var base = sampleRow(Instant.now().minus(Duration.ofMinutes(45)), null);
+        repository.upsert(
+                new CommunitySnapshotRow(
+                        base.packageId(),
+                        base.snapshotId(),
+                        base.payloadVersion(),
+                        base.collectedAt(),
+                        base.dataStatus(),
+                        new CommunityResultPayload(
+                                base.result().repository().withIssueCounts(500, null),
+                                base.result().policyVersion(),
+                                base.result().lookbackDays(),
+                                base.result().summaryRetryAt(),
+                                base.result().topics(),
+                                base.result().limitations())));
+
+        assertThat(serviceWith(repository).getStatus(NAME).freshness())
+                .isEqualTo(com.ssafy.pickage.domain.community.dto.Freshness.STALE);
+    }
+
+    @Test
+    void 수치가_비어_있고_30분이_지나면_새로_수집을_시작한다() {
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRowWithoutCounts(Instant.now().minus(Duration.ofMinutes(31))));
+
+        var outcome = serviceWith(repository).refresh(NAME, RefreshTrigger.TAB_OPENED);
+
+        assertThat(outcome.accepted()).isTrue();
+    }
+
+    @Test
+    void 수치가_비어_있어도_30분_안이면_다시_수집하지_않는다() {
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(sampleRowWithoutCounts(Instant.now().minus(Duration.ofMinutes(5))));
+
+        var outcome = serviceWith(repository).refresh(NAME, RefreshTrigger.TAB_OPENED);
+
+        assertThat(outcome.accepted()).isFalse();
+    }
+
+    @Test
+    void 저장소를_확인하지_못한_종료_상태는_수치가_없어도_신선하다() {
+        // 저장소가 없으면 수치가 있을 수 없다 — 무한히 재수집하지 않는다.
+        var repository = new InMemoryCommunitySnapshotRepository();
+        repository.upsert(
+                new CommunitySnapshotRow(
+                        PACKAGE_ID,
+                        UUID.randomUUID(),
+                        (short) 2,
+                        Instant.now().minus(Duration.ofHours(3)),
+                        DataStatus.UNVERIFIED_REPOSITORY,
+                        new CommunityResultPayload(
+                                null, "github-active-v1", 180, null, List.of(), List.of())));
+
+        assertThat(serviceWith(repository).getStatus(NAME).freshness())
+                .isEqualTo(com.ssafy.pickage.domain.community.dto.Freshness.FRESH);
+    }
+
     @Test
     void 이전_스냅샷은_저장소_Issue_수가_null이다() {
         InMemoryCommunitySnapshotRepository repository = new InMemoryCommunitySnapshotRepository();
-        repository.upsert(sampleRow(Instant.now().minus(Duration.ofHours(1)), null));
+        repository.upsert(sampleRowWithoutCounts(Instant.now().minus(Duration.ofMinutes(5))));
         RefreshTaskRegistry registry = new RefreshTaskRegistry();
         CommunityService service =
                 newService(

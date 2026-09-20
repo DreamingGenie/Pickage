@@ -30,7 +30,8 @@ public final class BoundedCommunitySummarizer implements AutoCloseable {
      */
     public CompletableFuture<TopicSummary> summarizeAsync(
             CommunitySummarySourceBundle source, Duration budget) {
-        return CompletableFuture.supplyAsync(() -> summarize(source, budget));
+        // 공용 풀이 아니라 전용 실행기다 — 이 스레드는 GMS 응답을 최대 30초 기다린다({@link CommunityAsync}).
+        return CompletableFuture.supplyAsync(() -> summarize(source, budget), CommunityAsync.EXECUTOR);
     }
 
     private TopicSummary call(Callable<TopicSummary> task, Duration budget) {

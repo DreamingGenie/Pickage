@@ -4,15 +4,24 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.springframework.stereotype.Component;
 
+import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
+import com.ssafy.pickage.domain.report.ChartGeometry.Line;
+import com.ssafy.pickage.domain.report.ChartGeometry.Pt;
+import com.ssafy.pickage.domain.report.ReportCharts.ShareGroup;
 
 /**
  * 보고서를 HTML 로 그린다. <b>미리보기와 PDF 가 이 하나를 공유한다.</b>
@@ -20,11 +29,16 @@ import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
  * <p>모달은 이 HTML 을 그대로 띄우고, 다운로드는 {@link HtmlToPdf} 가 같은 HTML 을 변환한다.
  * 둘을 따로 그리면 언젠가 내용이 갈린다(공통-R08).
  *
- * <h2>⚠ 레이아웃은 임시다</h2>
+ * <h2>그래프 위, 수치 표 아래</h2>
+ *
+ * 생태계 구역은 서비스 화면의 그래프를 먼저 놓고 그 아래에 구체적인 수치 표를 둔다(S15P21A506-414). 그래프는
+ * {@link ReportCharts}, 커뮤니티 구역은 {@link ReportCommunity} 가 그린다. 조회 조건은 <b>화면의 기본값</b>이다 —
+ * 전체 기간·매주, 의존 수는 실제값.
+ *
+ * <h2>⚠ 레이아웃은 아직 임시다</h2>
  *
  * 구상안 §13.4 의 아홉 구역과 분할 규칙은 아직 반영하지 않았다. 기능 비교가 없고
  * {@code ReportSnapshot} 도 확정 전이라 지금 맞춰 그려도 다시 그리게 된다.
- * <b>그래서 이 한 파일에 가둔다</b> — 갈아끼울 때 다른 곳을 건드리지 않도록.
  *
  * <h2>XHTML 로 쓴다</h2>
  *
@@ -51,17 +65,20 @@ public class ReportHtmlRenderer {
 
 		cover(b, s);
 		overview(b, s.overview());
-		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads());
+		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads(), s);
 		// 제목은 화면과 같은 말이다 — 영어 "Dependents" 는 처음 보는 사람에게 무엇을 세는 값인지 전해지지
 		// 않는다(S15P21A506-405). 단위 줄은 제목과 겹치지 않게 뜻을 풀어 쓰고, 버전별 합계라는 한계를 남긴다.
-		trend(b, "의존 수", "다른 패키지가 의존 목록에 적어 둔 횟수 · 버전별 합계", s.dependents());
+		// 그래프는 실제값이다 — 화면의 기본 표시는 변화율이지만 문서는 절대 규모를 보여준다(S15P21A506-414).
+		trend(b, "의존 수", "다른 패키지가 의존 목록에 적어 둔 횟수 · 버전별 합계", s.dependents(), s);
 		versionShare(b, s.versionShare());
 		transitions(b, s.transitions());
 
-		// 고른 구역은 아직 채울 내용이 없어도 자리를 그린다. 빼버리면 체크한 것이
-		// 문서에서 사라져 사용자가 실패로 읽는다.
-		for (ReportSection section : s.sections()) {
-			pending(b, section);
+		// 순서는 서버가 정한다 — 보내는 순서와 무관하게 문서 구성이 같다. 고른 구역은 채울 내용이 없어도 자리를
+		// 그린다. 빼버리면 체크한 것이 문서에서 사라져 사용자가 실패로 읽는다.
+		for (ReportSection section : ReportSection.values()) {
+			if (!s.sections().contains(section)) continue;
+			if (section == ReportSection.COMMUNITY) community(b, s);
+			else pending(b, section);
 		}
 
 		limits(b, s);
@@ -84,7 +101,7 @@ public class ReportHtmlRenderer {
 			.append("</header>");
 
 		b.append("<table class=\"meta\"><tbody>");
-		metaRow(b, "조회 기간", date(s.from()) + " ~ " + date(s.to()));
+		metaRow(b, "조회 기간", period(s));
 		metaRow(b, "버전 분포 기준일", date(s.versionShare().snapshotAt()));
 		metaRow(b, "생성 시각", STAMP.format(Instant.now()) + " UTC");
 		b.append("</tbody></table>");
@@ -112,15 +129,23 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
-	 * 추이는 표로 낸다. <b>그래프가 아니다.</b>
+	 * 추이. <b>그래프를 위에, 구체적인 수치 표를 아래에</b> 둔다(S15P21A506-414).
 	 *
-	 * <p>구상안 §13.4 는 그래프를 요구하지만, 화면과 같은 그림을 여기서 다시 그리면 두 곳의
-	 * 렌더링이 갈린다. 차트를 어떻게 옮길지는 {@code ReportSnapshot} 확정과 함께 정할 일이라
-	 * 지금은 <b>양 끝과 증감</b>만 적는다.
+	 * <p>그래프는 화면과 같은 규칙으로 그린다({@link ChartGeometry}) — 패키지별 한 줄이고, 의존 수는 버전별
+	 * 시리즈를 날짜마다 더한 합계다(화면의 {@code TOTAL} 과 같다). 표는 그대로 남긴다: 그래프가 모양을, 표가 양 끝과 증감을
+	 * 정확한 숫자로 말한다. 그릴 점이 없으면 그래프 자리에 그렇다고 적고 표도 "자료 없음" 을 그대로 낸다.
 	 */
-	private void trend(StringBuilder b, String title, String unit, TrendResponse trend) {
+	private void trend(StringBuilder b, String title, String unit, TrendResponse trend, Sources s) {
+		// 제목·단위·그래프를 한 덩어리로 묶는다 — 묶지 않으면 제목만 쪽 끝에 남고 그래프가 다음 쪽으로 넘어간다.
+		b.append("<div class=\"keep\">");
 		heading(b, title);
 		b.append("<p class=\"unit\">").append(esc(unit)).append("</p>");
+
+		String chart = ReportCharts.lineChart(lines(trend, s), title + " 추이");
+		if (chart.isEmpty()) note(b, "그래프로 그릴 자료가 없습니다.");
+		else b.append(chart);
+		b.append("</div>");
+
 		b.append("<table><thead><tr><th>패키지</th><th>버전</th>")
 			.append("<th class=\"n\">처음</th><th class=\"n\">마지막</th><th class=\"n\">증감</th>")
 			.append("</tr></thead><tbody>");
@@ -149,6 +174,17 @@ public class ReportHtmlRenderer {
 	private void versionShare(StringBuilder b, VersionShareResponse share) {
 		heading(b, "Version Share");
 		b.append("<p class=\"unit\">기준일 ").append(esc(date(share.snapshotAt()))).append("</p>");
+
+		// 패키지마다 도넛과 막대. 화면은 카드 하나에 한 패키지씩이라 문서도 패키지별로 나눈다.
+		for (var item : share.items()) {
+			List<ShareGroup> groups = foldSlices(item.slices());
+			if (groups.isEmpty()) continue;
+			b.append("<div class=\"vsblock\"><p class=\"vsname mono\">").append(esc(item.name())).append("</p>")
+				.append("<table class=\"vs\"><tbody><tr><td class=\"vd\">")
+				.append(ReportCharts.donut(groups, item.name() + " Version Share"))
+				.append("</td><td>").append(ReportCharts.shareBars(groups)).append("</td></tr></tbody></table></div>");
+		}
+
 		b.append("<table><thead><tr><th>패키지</th><th>major</th>")
 			.append("<th class=\"n\">의존 수</th><th class=\"n\">비율</th></tr></thead><tbody>");
 
@@ -187,6 +223,7 @@ public class ReportHtmlRenderer {
 	private void transitions(StringBuilder b, TransitionsResponse t) {
 		heading(b, "유지 · 유입 · 이탈");
 		b.append("<p class=\"unit\">").append(esc(transitionsCaption(t))).append("</p>");
+		transitionBars(b, t);
 
 		b.append("<table><thead><tr><th>패키지</th><th>종류</th>")
 			.append("<th class=\"n\">유지</th><th class=\"n\">유입</th>")
@@ -271,6 +308,142 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
+	 * 커뮤니티 분석. 기준 패키지의 저장된 스냅샷을 그린다({@link ReportCommunity}). 자료가 아직 없으면 그 사실을 적는다.
+	 */
+	private void community(StringBuilder b, Sources s) {
+		heading(b, ReportSection.COMMUNITY.label());
+		String name = s.community() != null && s.community().packageName() != null
+			? s.community().packageName()
+			: s.names().isEmpty() ? "" : s.names().getFirst();
+		ReportCommunity.render(b, s.community(), name);
+	}
+
+	/**
+	 * 유지·유입·이탈 막대. 패키지마다 일반·동반·선택 세 칸이다. <b>막대 길이는 비교 중인 모든 행에서 한 번 잡은 최댓값</b>을
+	 * 기준으로 한다 — 행마다 따로 잡으면 패키지끼리 길이를 비교할 수 없다(화면과 같다).
+	 */
+	private void transitionBars(StringBuilder b, TransitionsResponse t) {
+		if (t.series().isEmpty()) return;
+
+		double max = 0;
+		for (var series : t.series()) {
+			if (isPlaceholder(series)) continue;
+			for (Integer v : counts(series)) if (v != null) max = Math.max(max, v);
+		}
+
+		// 패키지 순서는 응답 순서 그대로, 종류는 일반 → 동반 → 선택.
+		Map<String, Map<String, TransitionsResponse.Series>> byPackage = new LinkedHashMap<>();
+		for (var series : t.series()) {
+			byPackage.computeIfAbsent(series.name(), k -> new TreeMap<>(Comparator.comparingInt(ReportHtmlRenderer::kindOrder)))
+				.put(series.kind(), series);
+		}
+
+		for (var entry : byPackage.entrySet()) {
+			b.append("<div class=\"vsblock\"><p class=\"vsname mono\">").append(esc(entry.getKey())).append("</p>")
+				.append("<table class=\"tk\"><tbody><tr>");
+			for (var kind : entry.getValue().entrySet()) {
+				var series = kind.getValue();
+				b.append("<td><p class=\"kindname\">").append(esc(transitionKindLabel(series.kind()))).append("</p>")
+					.append(ReportCharts.transitionBars(counts(series), series.dataStatus(), max));
+				String rowNote = transitionRowNote(series);
+				if (rowNote != null) b.append("<p class=\"note\">").append(esc(rowNote)).append("</p>");
+				b.append("</td>");
+			}
+			b.append("</tr></tbody></table></div>");
+		}
+	}
+
+	private static int kindOrder(String kind) {
+		return switch (kind) {
+			case "regular" -> 0;
+			case "peer" -> 1;
+			case "optional" -> 2;
+			default -> 3;
+		};
+	}
+
+	private static boolean isPlaceholder(TransitionsResponse.Series series) {
+		return TransitionsResponse.OUT_OF_SCOPE.equals(series.dataStatus())
+			|| TransitionsResponse.NOT_COMPUTED.equals(series.dataStatus());
+	}
+
+	/** 유지·유입(채택)·이탈·미관측 순. 유입은 원시가 아니라 채택 수다 — 표와 같은 기준이다. */
+	private static Integer[] counts(TransitionsResponse.Series series) {
+		return new Integer[] {series.retained(), series.inflowAdopted(), series.outflow(), series.unobserved()};
+	}
+
+	/**
+	 * 화면이 그리는 선을 문서용으로 만든다. 패키지 하나가 한 줄이고, 같은 이름의 시리즈(의존 수는 major 별로 나뉘어 온다)는
+	 * 날짜마다 더한다 — 화면의 {@code totalOf} 와 같다. 점이 없는 시리즈는 뺀다(0 으로 채우지 않는다).
+	 *
+	 * <p>선 모양은 <b>비교 순서</b>를 따른다. 0 번이 기준 패키지(실선)다 — 카드·범례·차트가 같은 순서를 쓴다.
+	 */
+	private static List<Line> lines(TrendResponse trend, Sources s) {
+		Map<String, TreeMap<LocalDate, Long>> sums = new LinkedHashMap<>();
+		for (var series : trend.series()) {
+			if (series.points().isEmpty()) continue;
+			var byDate = sums.computeIfAbsent(series.name(), k -> new TreeMap<>());
+			for (var p : series.points()) byDate.merge(p.snapshotAt(), p.value(), Long::sum);
+		}
+
+		List<String> order = new ArrayList<>();
+		for (var item : s.overview().items()) order.add(item.name());
+		for (String name : s.names()) if (!order.contains(name)) order.add(name);
+
+		List<Line> out = new ArrayList<>();
+		for (var entry : sums.entrySet()) {
+			int idx = order.indexOf(entry.getKey());
+			List<Pt> points = new ArrayList<>();
+			for (var p : entry.getValue().entrySet()) points.add(new Pt(p.getKey(), p.getValue()));
+			out.add(new Line(entry.getKey(), idx < 0 ? out.size() : idx, points));
+		}
+		out.sort(Comparator.comparingInt(Line::tone));
+		return out;
+	}
+
+	/**
+	 * 큰 몫 다섯 개만 나누고 나머지는 "기타" 로 접는다(화면의 {@code foldSlices}). {@code pct} 는 서버가 준 값을 그대로
+	 * 더한다 — 같은 비율을 두 곳에서 구하면 언젠가 다른 숫자가 나온다.
+	 */
+	private static List<ShareGroup> foldSlices(List<VersionShareResponse.Slice> slices) {
+		if (slices.isEmpty()) return List.of();
+		var sorted = new ArrayList<>(slices);
+		sorted.sort((a, b) -> Long.compare(b.dependents(), a.dependents()));
+
+		List<ShareGroup> groups = new ArrayList<>();
+		double other = 0;
+		for (int i = 0; i < sorted.size(); i++) {
+			var sl = sorted.get(i);
+			if (i < MAX_SLICES) groups.add(new ShareGroup(sl.major() + ".x", sl.pct().doubleValue() / 100));
+			else other += sl.pct().doubleValue() / 100;
+		}
+		if (sorted.size() > MAX_SLICES) groups.add(new ShareGroup("기타", other));
+		return groups;
+	}
+
+	private static final int MAX_SLICES = 5;
+
+	/**
+	 * 조회 기간. <b>조건을 주지 않았으면 서버가 가진 전 기간이다</b> — 화면의 기본값(전체 기간)과 같다. 예전에는 조건이
+	 * 없을 때 "자료 없음 ~ 자료 없음" 으로 적혀, 자료가 있는데도 없는 것처럼 읽혔다. 실제 범위는 응답의 점에서 읽는다.
+	 */
+	private static String period(Sources s) {
+		if (s.from() != null && s.to() != null) return s.from() + " ~ " + s.to();
+		LocalDate lo = null;
+		LocalDate hi = null;
+		for (TrendResponse trend : List.of(s.downloads(), s.dependents())) {
+			for (var series : trend.series()) {
+				for (var p : series.points()) {
+					if (lo == null || p.snapshotAt().isBefore(lo)) lo = p.snapshotAt();
+					if (hi == null || p.snapshotAt().isAfter(hi)) hi = p.snapshotAt();
+				}
+			}
+		}
+		if (lo == null) return "자료 없음";
+		return "전체 기간 · " + lo + " ~ " + hi + " (주간)";
+	}
+
+	/**
 	 * 아직 만들 수 없는 구역.
 	 *
 	 * <p>제목을 적고 비어 있는 이유를 쓴다. <b>빈 자리를 남기지 않는다</b> — 제목만 있고
@@ -349,7 +522,7 @@ public class ReportHtmlRenderer {
 			       font-size: 11pt; line-height: 1.6; color: #111827; }
 			h1 { font-size: 20pt; margin: 0 0 4px; }
 			h2 { font-size: 13pt; margin: 22px 0 8px; padding-bottom: 4px;
-			     border-bottom: 1px solid #d1d5db; }
+			     border-bottom: 1px solid #d1d5db; -fs-page-break-min-height: 45mm; }
 			.subject { font-size: 12pt; color: #374151; margin: 0 0 16px; }
 			.unit { font-size: 9pt; color: #6b7280; margin: 0 0 6px; }
 			.note { font-size: 9pt; color: #4b5563; margin: 4px 0; }
@@ -362,7 +535,14 @@ public class ReportHtmlRenderer {
 			.n { text-align: right; }
 			.mono { font-variant-numeric: tabular-nums; }
 			.muted { color: #6b7280; }
-			""".formatted(HtmlToPdf.FAMILY);
+			.vsblock { margin: 6px 0 10px; page-break-inside: avoid; }
+			.vsname { font-size: 10pt; font-weight: bold; margin: 0 0 3px; }
+			table.vs, table.tk { border: none; margin: 0; }
+			table.vs td, table.tk td { border: none; padding: 0 12px 0 0; vertical-align: middle; }
+			td.vd { width: 128px; }
+			table.tk td { width: 33%%; vertical-align: top; }
+			.kindname { font-size: 9pt; font-weight: bold; margin: 0 0 2px; }
+			""".formatted(HtmlToPdf.FAMILY) + ReportCharts.css() + ReportCommunity.css();
 	}
 
 	private static String date(LocalDate date) {
@@ -415,7 +595,19 @@ public class ReportHtmlRenderer {
 		/** 유지·유입·이탈. 생태계와 같은 취급 — 고를 수 있는 구역이 아니라 항상 들어간다. */
 		TransitionsResponse transitions,
 		/** 더하기로 고른 구역. 생태계는 여기 없다 — 언제나 들어가므로 고를 것이 아니다. */
-		Set<ReportSection> sections
+		Set<ReportSection> sections,
+		/**
+		 * 기준 패키지의 커뮤니티 결과(저장된 스냅샷). {@code COMMUNITY} 를 고르지 않았으면 {@code null}. 고르고도 자료가
+		 * 없으면 상태만 담긴 응답이다 — 구역은 그 사실을 적는다(S15P21A506-414).
+		 */
+		CommunityStatusResponse community
 	) {
+
+		/** 커뮤니티 자료 없이 만든다(그 구역을 고르지 않은 문서). */
+		public Sources(List<String> names, LocalDate from, LocalDate to, PackagesOverviewResponse overview,
+			TrendResponse downloads, TrendResponse dependents, VersionShareResponse versionShare,
+			TransitionsResponse transitions, Set<ReportSection> sections) {
+			this(names, from, to, overview, downloads, dependents, versionShare, transitions, sections, null);
+		}
 	}
 }
