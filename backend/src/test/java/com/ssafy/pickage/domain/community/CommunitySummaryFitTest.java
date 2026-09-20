@@ -192,13 +192,93 @@ class CommunitySummaryFitTest {
         assertThat(cps(result.titleKo())).isLessThanOrEqualTo(CommunitySummaryValidator.MAX_TITLE);
     }
 
+    // ---- 꺾쇠 치환: 요약을 버리지 않는다 (axios #5366)
+
     @Test
-    void 길이는_고쳐도_HTML_꺾쇠는_여전히_거부한다() {
-        // 길이만 완화한다 — XSS 방어(< >)는 오세진 님 결정대로 그대로 거부한다.
-        String withTag = sentences("설정을 <script> 태그로 넣으라고 설명했다.", 14);
+    void 발화에_꺾쇠가_있어도_요약은_실패하지_않고_전각으로_바뀐다() {
+        // axios #5366 을 재현한다 — 코드 조각이 든 논의를 옮기며 모델이 꺾쇠를 써서 이슈 요약 전체가 실패했다.
+        String message = "타입을 List<String> 으로 두고 <script> 태그는 쓰지 말라고 설명했다.";
 
-        var result = CommunitySummaryValidator.validate(bundle(), summary(bundle(), "제목", "요약", withTag, List.of()));
+        var result = CommunitySummaryValidator.validate(bundle(), summary(bundle(), "제목", "요약", message, List.of()));
 
-        assertThat(result.status()).isEqualTo(SummaryStatus.FAILED);
+        assertThat(result.status()).isEqualTo(SummaryStatus.READY);
+        for (var m : result.messages()) {
+            assertThat(m.text()).isEqualTo("타입을 List＜String＞ 으로 두고 ＜script＞ 태그는 쓰지 말라고 설명했다.");
+            assertThat(m.text()).doesNotContain("<").doesNotContain(">");
+            // 저장 검증기가 마지막으로 한 번 더 거른다 — 치환된 값은 통과해야 게시가 실패하지 않는다.
+            assertThat(CommunitySnapshotValidator.plain(m.text(), CommunitySummaryValidator.MAX_MESSAGE_TEXT)).isTrue();
+        }
+    }
+
+    @Test
+    void 제목과_요약문의_꺾쇠도_바꾼다() {
+        var result =
+                CommunitySummaryValidator.validate(
+                        bundle(), summary(bundle(), "<b>굵게</b> 제목", "a > b 이고 c < d 이다.", "발화", List.of()));
+
+        assertThat(result.status()).isEqualTo(SummaryStatus.READY);
+        assertThat(result.titleKo()).isEqualTo("＜b＞굵게＜/b＞ 제목");
+        assertThat(result.summaryKo()).isEqualTo("a ＞ b 이고 c ＜ d 이다.");
+    }
+
+    @Test
+    void 꺾쇠가_든_핵심_문장도_치환된_요약문에서_강조로_찾는다() {
+        String key = "Promise<void> 를 반환한다.";
+        String summaryKo = "핵심 함수는 " + key + " 나머지는 부수적이다.";
+
+        var result =
+                CommunitySummaryValidator.validate(
+                        bundle(), summary(bundle(), "제목", summaryKo, "발화", List.of(key)));
+
+        assertThat(result.status()).isEqualTo(SummaryStatus.READY);
+        assertThat(result.summaryMarks())
+                .extracting(m -> result.summaryKo().substring(m.start(), m.end()))
+                .containsExactly("Promise＜void＞ 를 반환한다.");
+    }
+
+    @Test
+    void 꺾쇠가_든_긴_발화도_치환과_자르기를_함께_거쳐_실패하지_않는다() {
+        String longWithTag = sentences("설정을 <script> 태그로 넣으라고 설명했다.", 14);
+        assertThat(cps(longWithTag)).isGreaterThan(CommunitySummaryValidator.MAX_MESSAGE_TEXT);
+
+        var result = CommunitySummaryValidator.validate(bundle(), summary(bundle(), "제목", "요약", longWithTag, List.of()));
+
+        assertThat(result.status()).isEqualTo(SummaryStatus.READY);
+        for (var m : result.messages()) {
+            assertThat(cps(m.text())).isLessThanOrEqualTo(CommunitySummaryValidator.MAX_MESSAGE_TEXT);
+            assertThat(m.text()).doesNotContain("<").doesNotContain(">").contains("＜script＞");
+        }
+    }
+
+    @Test
+    void 꺾쇠_치환은_길이를_바꾸지_않고_꺾쇠가_없는_글은_그대로_둔다() {
+        String plain = "꺾쇠가 없는 글이다.";
+
+        assertThat(CommunitySummaryValidator.neutralize(plain, "message")).isSameAs(plain);
+        assertThat(CommunitySummaryValidator.neutralize(null, "message")).isNull();
+        String withTag = "a<b>c";
+        assertThat(CommunitySummaryValidator.neutralize(withTag, "message")).hasSize(withTag.length());
+    }
+
+    @Test
+    void 링크와_꺾쇠가_함께_있어도_링크는_지우고_꺾쇠는_바꾼다() {
+        var result =
+                CommunitySummaryValidator.validate(
+                        bundle(),
+                        summary(bundle(), "제목", "요약", "<https://example.com/a> 를 참고하라고 했다.", List.of()));
+
+        assertThat(result.status()).isEqualTo(SummaryStatus.READY);
+        for (var m : result.messages()) {
+            assertThat(m.text()).doesNotContain("https://").doesNotContain("<").doesNotContain(">");
+            assertThat(m.text()).contains("링크 생략");
+        }
+    }
+
+    @Test
+    void 저장_검증기는_원본_꺾쇠가_든_값을_계속_거부한다() {
+        // 이중 방어 — 치환을 거치지 않은 값이 저장 경로로 들어오면 게시 검증에서 막힌다.
+        assertThat(CommunitySnapshotValidator.plain("<script>", 500)).isFalse();
+        assertThat(CommunitySnapshotValidator.plain("a > b", 500)).isFalse();
+        assertThat(CommunitySnapshotValidator.plain("＜script＞", 500)).isTrue();
     }
 }

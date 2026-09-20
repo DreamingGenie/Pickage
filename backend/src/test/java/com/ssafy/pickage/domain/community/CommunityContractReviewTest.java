@@ -220,7 +220,7 @@ class CommunityContractReviewTest {
     }
 
     @Test
-    void R05_HTML_태그는_링크_완화와_무관하게_여전히_거부된다() {
+    void R05_HTML_태그는_요약을_버리지_않고_전각으로_바꿔_태그로_읽히지_않게_한다() {
         var bundle = CommunitySummarySourceBundle.from(issue(1));
         var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
         var summary =
@@ -231,7 +231,15 @@ class CommunityContractReviewTest {
                         SummaryStatus.READY,
                         support);
 
-        assertEquals(SummaryStatus.FAILED, CommunitySummaryValidator.validate(bundle, summary).status());
+        var result = CommunitySummaryValidator.validate(bundle, summary);
+
+        // S15P21A506-412 — 예전에는 여기서 요약 전체가 FAILED 였다. 이제는 꺾쇠만 전각으로 바꿔 살린다.
+        assertEquals(SummaryStatus.READY, result.status());
+        assertEquals("＜script＞alert(1)＜/script＞", result.summaryKo());
+        assertFalse(result.summaryKo().contains("<") || result.summaryKo().contains(">"));
+        // 저장 검증기의 원본 꺾쇠 거부는 그대로다 — 치환된 값은 통과한다.
+        assertTrue(CommunitySnapshotValidator.plain(result.summaryKo(), 500));
+        assertFalse(CommunitySnapshotValidator.plain("<script>", 500));
     }
 
     final InMemoryCommunitySnapshotRepository store = new InMemoryCommunitySnapshotRepository();

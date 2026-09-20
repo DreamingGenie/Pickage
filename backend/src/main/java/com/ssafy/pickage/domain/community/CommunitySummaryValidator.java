@@ -46,9 +46,10 @@ public final class CommunitySummaryValidator {
                     summary.status() == SummaryStatus.READY
                             || summary.status() == SummaryStatus.PARTIAL,
                     "status");
-            // 링크를 지운 뒤 길이를 맞춘다 — 링크 문구("(링크 생략)")가 길이를 바꾸므로 반드시 이 순서다.
-            String titleKo = fit(stripLinks(summary.titleKo()), MAX_TITLE, "titleKo");
-            String summaryKo = fit(stripLinks(summary.summaryKo()), MAX_SUMMARY, "summaryKo");
+            // ① 링크를 지우고 ② 꺾쇠를 전각으로 바꾸고 ③ 길이를 맞춘다. 링크 문구("(링크 생략)")가 길이를 바꾸므로 길이가 맨 끝이다.
+            String titleKo = fit(neutralize(stripLinks(summary.titleKo()), "titleKo"), MAX_TITLE, "titleKo");
+            String summaryKo =
+                    fit(neutralize(stripLinks(summary.summaryKo()), "summaryKo"), MAX_SUMMARY, "summaryKo");
             require(CommunitySnapshotValidator.plain(titleKo, MAX_TITLE), "titleKo not plain/too long");
             require(
                     CommunitySnapshotValidator.plain(summaryKo, MAX_SUMMARY),
@@ -59,7 +60,8 @@ public final class CommunitySummaryValidator {
             var seen = new HashSet<String>();
             for (var m : summary.messages()) {
                 require(m != null, "message null");
-                String messageText = fit(stripLinks(m.text()), MAX_MESSAGE_TEXT, "message");
+                String messageText =
+                        fit(neutralize(stripLinks(m.text()), "message"), MAX_MESSAGE_TEXT, "message");
                 require(seen.add(m.sourceCommentId()), "duplicate message sourceCommentId");
                 require(
                         CommunitySnapshotValidator.plain(messageText, MAX_MESSAGE_TEXT),
@@ -104,7 +106,11 @@ public final class CommunitySummaryValidator {
                     List.of(),
                     List.of(),
                     List.of(),
-                    marks(summaryKo, summary.keySentences(), summary.keyTerms()));
+                    // 핵심어·핵심 문장도 같은 치환을 거쳐야 치환된 요약문 안에서 찾아진다.
+                    marks(
+                            summaryKo,
+                            neutralizeAll(summary.keySentences()),
+                            neutralizeAll(summary.keyTerms())));
         } catch (RuntimeException e) {
             log.warn(
                     "요약 검증 실패: {} ({}) — messages={}, summarySupport={}",
@@ -114,6 +120,28 @@ public final class CommunitySummaryValidator {
                     summary == null ? null : summary.summarySupport().size());
             return TopicSummary.failed();
         }
+    }
+
+    /**
+     * HTML 꺾쇠({@code <} {@code >})를 전각({@code ＜} {@code ＞})으로 바꿔 **태그로 읽히지 않게** 한다. 길이는 그대로다.
+     *
+     * <p>이전에는 꺾쇠가 하나라도 있으면 그 이슈의 요약 전체를 실패로 버렸다(XSS 방어). 프롬프트가 금지해도 모델은 코드 조각이 든 논의(예:
+     * {@code <script>}·제네릭 {@code List<String>})를 옮기며 꺾쇠를 쓴다 — axios #5366 에서 확인했고, 그 한 글자 때문에 요약이 통째로
+     * 사라졌다(S15P21A506-412). 전각 문자는 HTML 에서 태그를 여는 글자가 아니라서 방어는 그대로이고, 코드 조각은 {@code ＜div＞} 처럼
+     * 그대로 읽힌다. 저장 검증기({@link CommunitySnapshotValidator#plain})는 원본 꺾쇠를 계속 거부한다 — 이 치환을 거치지 않은 값이 저장되면
+     * 막는 이중 방어다. 내용은 로그에 남기지 않는다.
+     */
+    static String neutralize(String text, String field) {
+        if (text == null || (text.indexOf('<') < 0 && text.indexOf('>') < 0)) return text;
+        log.info("요약 꺾쇠 치환: field={}", field);
+        return text.replace('<', '＜').replace('>', '＞');
+    }
+
+    private static List<String> neutralizeAll(List<String> values) {
+        if (values == null) return null;
+        var out = new ArrayList<String>(values.size());
+        for (String v : values) out.add(neutralize(v, "mark"));
+        return out;
     }
 
     /**
@@ -169,7 +197,7 @@ public final class CommunitySummaryValidator {
      *
      * <p>강조는 읽기 보조라 어긋난 것은 **버릴 뿐 요약을 실패시키지 않는다**(모델이 요약문에 없는 말을 "핵심어"로 줘도 요약은
      * 멀쩡하다). 요약문에 글자 그대로 있는 것만 인정하고, 위치는 서버가 계산한다 — 모델이 준 오프셋은 믿지 않는다. 링크
-     * 제거({@link #stripLinks}) 뒤의 문장 기준이라 반드시 그 뒤에 부른다.
+     * 제거({@link #stripLinks})·꺾쇠 치환({@link #neutralize}) 뒤의 문장 기준이라 반드시 그 뒤에 부른다.
      *
      * <p>규칙: 핵심 문장 ≤ {@value #MAX_KEY_SENTENCES}개·{@value #MAX_KEY_SENTENCE_LENGTH}자(요약문의 60% 이하), 핵심어 ≤
      * {@value #MAX_KEY_TERMS}개·{@value #MAX_KEY_TERM_LENGTH}자. 같은 종류끼리는 겹치지 않는다. 핵심어는 핵심 문장 안에
@@ -238,8 +266,8 @@ public final class CommunitySummaryValidator {
      * URL·마크다운 링크만 "(링크 생략)"으로 지우고 나머지 텍스트는 그대로 남긴다(2026-09-16
      * 오세진 님 결정 — 실측에서 axios/prisma/vitest처럼 보안 권고문·문서 링크가 많은 이슈가
      * 이 이유만으로 요약 전체가 FAILED로 떨어지는 사례가 잦았다). {@code <}/{@code >}(HTML
-     * 태그, XSS 방어)는 여기서 건드리지 않는다 — {@link CommunitySnapshotValidator#plain}이
-     * 이 메서드가 돌려준 텍스트에 대해서도 그대로 검사해 걸러낸다.
+     * 태그, XSS 방어)는 여기서 건드리지 않고 {@link #neutralize} 가 전각으로 바꾼다 —
+     * {@link CommunitySnapshotValidator#plain}이 이 메서드와 그 치환을 거친 텍스트를 마지막으로 한 번 더 검사한다.
      */
     private static String stripLinks(String text) {
         if (text == null) return null;
