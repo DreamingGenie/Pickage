@@ -509,6 +509,93 @@ public class PackageQueryRepository {
 	}
 
 	/**
+	 * 구간별 이탈 사유 (S15P21A506-396).
+	 *
+	 * <p><b>{@code dependent_transition} 을 함께 보는 것이 이 조회의 핵심이다.</b>
+	 * 이탈 사유 표에는 <b>한 번이라도 빠진 대상만</b> 행이 있다(적재기가 {@code removals > 0}
+	 * 인 것만 넣고 DB 제약이 그것을 강제한다). 그래서 행이 없다는 사실만으로는
+	 * <b>"대상인데 한 번도 안 빠졌다"</b>(0 이 맞는 값)와 <b>"애초에 대상이 아니다"</b>
+	 * (모른다)를 가를 수 없다.
+	 *
+	 * <p>가르지 못하면 화면이 <b>대상 97,745개 중 57,201개(58.5%)</b>에 "분석 대상이
+	 * 아닙니다" 를 띄운다. 그래서 범위를 정하는 표를 {@code JOIN} 으로 두고, 이탈 사유를
+	 * {@code LEFT JOIN} 으로 얹는다 — 조회 결과에 행이 있으면 대상이고, {@code removals} 가
+	 * {@code null} 이면 대상이되 제거가 없었다는 뜻이다.
+	 *
+	 * <p>적재 범위를 그쪽 표에서 얻는 것은 적재기와 같은 규칙이다
+	 * ({@code pipeline/removal_reasons/load.py}). 두 곳이 같은 표를 보므로 어긋날 수 없다.
+	 *
+	 * <p>{@code GROUP BY} 로 접는 이유 — {@code dependent_transition} 은 {@code kind} 마다
+	 * 행이 있어 한 대상이 최대 3행이다. {@code t1}·{@code t2} 는 {@code period} 로 정해지는
+	 * 상수라 어느 행에서 읽어도 같지만, {@code LIMIT 1} 로 집으면 "정렬 없이 하나 고르기" 가
+	 * 되어 읽는 사람이 결정성을 의심하게 된다. {@code min()} 은 어느 쪽이든 같은 값이라는
+	 * 것을 코드로 말한다. 이탈 사유 쪽은 {@code (package_id, period)} 가 PK 라 애초에 한
+	 * 행이고, {@code min()} 은 그 행의 값을 그대로 돌려준다.
+	 */
+	private static final String REMOVAL_REASONS_SQL = """
+		SELECT p.name,
+		       min(t.t1) AS t1, min(t.t2) AS t2,
+		       min(r.removals)         AS removals,
+		       min(r.no_replacement)   AS no_replacement,
+		       min(r.with_replacement) AS with_replacement,
+		       min(r.dependents)       AS dependents
+		FROM package p
+		JOIN dependent_transition t
+		  ON t.package_id = p.package_id AND t.period = ?
+		LEFT JOIN dependent_removal_reason r
+		  ON r.package_id = p.package_id AND r.period = t.period
+		WHERE p.name = ANY (?)
+		GROUP BY p.name
+		ORDER BY p.name
+		""";
+
+	public List<RemovalReasonRow> findRemovalReasons(PackageNames names, String period) {
+		return jdbcTemplate.query(REMOVAL_REASONS_SQL,
+			ps -> {
+				ps.setString(1, period);
+				ps.setArray(2, ps.getConnection()
+					.createArrayOf("text", names.values().toArray()));
+			},
+			(rs, i) -> new RemovalReasonRow(
+				rs.getString("name"),
+				(Integer)rs.getObject("removals"),
+				(Integer)rs.getObject("no_replacement"),
+				(Integer)rs.getObject("with_replacement"),
+				(Integer)rs.getObject("dependents"),
+				rs.getObject("t1", LocalDateTime.class).toLocalDate(),
+				rs.getObject("t2", LocalDateTime.class).toLocalDate()));
+	}
+
+	/**
+	 * 대상이되 제거가 없었던 행은 수가 전부 {@code null} 이다. {@code getInt} 를 쓰면 0 으로
+	 * 접혀 "세어 보니 없었다" 와 "조회가 값을 못 읽었다" 가 같아지므로 박싱 타입으로 받는다.
+	 */
+	public record RemovalReasonRow(String name, Integer removals, Integer noReplacement,
+		Integer withReplacement, Integer dependents, LocalDate t1, LocalDate t2) {
+
+		/** 범위 안이고 실제로 제거가 있었는가. */
+		public boolean counted() {
+			return removals != null;
+		}
+	}
+
+	/**
+	 * 이탈 사유 회차가 적재되어 있는가.
+	 *
+	 * <p>{@link #hasAnyTransition()} 과 같은 이유로 필요하고, 여기서는 <b>더 중요하다.</b>
+	 * 유지·유입·이탈만 적재하고 이탈 사유를 안 올린 상태에서는 위 조회가 모든 대상에 대해
+	 * 행을 돌려주되 수가 전부 {@code null} 이다. 이 검사가 없으면 그것을 "아무도 안 뺐다"(0)로
+	 * 읽어, <b>적재를 안 했을 뿐인데 "이 패키지는 한 번도 버려진 적 없습니다" 를 띄운다.</b>
+	 */
+	private static final String ANY_REMOVAL_REASON_SQL =
+		"SELECT EXISTS (SELECT 1 FROM dependent_removal_reason LIMIT 1)";
+
+	public boolean hasAnyRemovalReason() {
+		return Boolean.TRUE.equals(
+			jdbcTemplate.queryForObject(ANY_REMOVAL_REASON_SQL, Boolean.class));
+	}
+
+	/**
 	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
 	 *
 	 * <p><b>{@link PackageNames} 를 받지 않는 것이 의도다.</b> 그 객체는 비교 화면의 규칙

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
@@ -174,6 +175,32 @@ public class PackageController {
 	) {
 		return ApiResponseUtil.createSuccessResponse(
 			service.getTransitions(PackageNames.of(names), TransitionPeriod.of(period)));
+	}
+
+	/**
+	 * 기능-08 — 이탈 사유. <b>위 조회와 단위가 다르다.</b>
+	 *
+	 * <p>{@code transitions} 의 {@code outflow} 는 "T1 엔 쓰고 T2 엔 안 쓰는 패키지가 몇
+	 * 개인가" 이고 여기 {@code removals} 는 "그 사이 빼는 행위가 몇 번 있었나" 다. 한
+	 * 의존자가 뺐다 넣었다 다시 뺐으면 앞은 1, 뒤는 2다. <b>두 수를 더하거나 나누면 안 된다.</b>
+	 * 그래서 응답이 따로이고 {@code unit} 을 값으로 싣는다.
+	 *
+	 * <p>구간과 기준일은 같다 — 적재기가 같은 표에서 t1·t2 를 가져오므로 한 화면에 나란히
+	 * 놓아도 어긋나지 않는다.
+	 */
+	@Operation(summary = "구간별 이탈 사유",
+		description = "X 를 뺀 전이를 대체 동반(with_replacement)과 대체 없음(no_replacement)으로 "
+			+ "가른다. period 는 1y·3y·5y 중 하나이며 기본 3y. 한 패키지가 한 줄이다(kind 없음). "
+			+ "unit=transitions — 패키지 수가 아니라 전이 건수이며 유지·유입·이탈의 수와 "
+			+ "더하거나 나누면 안 된다. 대상인데 제거가 없으면 0 과 NO_DATA, 대상 밖이면 "
+			+ "null 과 OUT_OF_SCOPE 로 나간다.")
+	@GetMapping("/packages/removal-reasons")
+	public ApiResponseBody<RemovalReasonsResponse> getRemovalReasons(
+		@RequestParam(name = "names", required = false) List<String> names,
+		@RequestParam(name = "period", required = false) String period
+	) {
+		return ApiResponseUtil.createSuccessResponse(
+			service.getRemovalReasons(PackageNames.of(names), TransitionPeriod.of(period)));
 	}
 
 	/**
