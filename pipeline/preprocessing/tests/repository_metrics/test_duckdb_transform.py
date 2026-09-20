@@ -95,6 +95,31 @@ class RepositoryDuckDBTransformTests(unittest.TestCase):
         self.assertEqual(report["mapping"]["null"], 1)
         self.assertEqual(self._rows("quality/selection", "package_id, reason"), [(1, "SELECTED"), (2, "NO_EXACT_OBSERVATION")])
 
+    def test_raw_extra_columns_are_projected_out_without_changing_results(self):
+        inputs = self._inputs([(1, "alpha")], [(1, "1.0.0", TS, 1)],
+                              [(TS, "alpha", "1.0.0", True, TS, 1, "https://github.com/acme/repo")],
+                              [(TS, "GITHUB", "acme/repo", 4, 2)])
+        inputs["files"]["package"] = [self._parquet(
+            "package-extra", [("package_id", "INTEGER"), ("name", "VARCHAR"), ("description", "VARCHAR")],
+            [(1, "alpha", "unused")])]
+        inputs["files"]["version"] = [self._parquet(
+            "version-extra", [("package_id", "INTEGER"), ("version", "VARCHAR"), ("published_at", "TIMESTAMP"),
+                               ("ordinal", "BIGINT"), ("license", "VARCHAR")],
+            [(1, "1.0.0", TS, 1, "unused")])]
+        inputs["files"]["versions_full"] = [self._parquet(
+            "versions-full-extra", [("SnapshotAt", "TIMESTAMP"), ("Name", "VARCHAR"), ("Version", "VARCHAR"),
+                                     ("is_release", "BOOLEAN"), ("published_at", "TIMESTAMP"), ("ordinal", "BIGINT"),
+                                     ("source_repo", "VARCHAR"), ("readme", "VARCHAR")],
+            [(TS, "alpha", "1.0.0", True, TS, 1, "https://github.com/acme/repo", "unused")])]
+        inputs["files"]["projects"] = [self._parquet(
+            "projects-extra", [("SnapshotAt", "TIMESTAMP"), ("Type", "VARCHAR"), ("project_name", "VARCHAR"),
+                                ("StarsCount", "BIGINT"), ("OpenIssuesCount", "BIGINT"), ("license", "VARCHAR")],
+            [(TS, "GITHUB", "acme/repo", 4, 2, "unused")])]
+        with duckdb.connect(config={"threads": 2}) as con:
+            report = transform(con, inputs, self.temp / "out")
+        self.assertEqual(report["output_counts"]["metric/data"], 1)
+        self.assertEqual(self._rows("metric/data", "package_id, stars, open_issues"), [(1, 4, 2)])
+
     def test_github_case_variants_deduplicate_but_conflicting_values_null(self):
         packages = [(1, "alpha")]
         versions = [(1, "1.0.0", TS, 1)]

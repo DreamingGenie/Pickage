@@ -35,10 +35,11 @@ def check_quality(con, root, record):
     _compare(con, 'grouped_expected_quality', 'grouped_actual_quality')
 
 
-def verify_history(*, run_dir, cache_dir, cache_sha256, run_manifest_sha256):
+def verify_history(*, run_dir, cache_dir, cache_sha256, run_manifest_sha256,
+                   threads=4, memory_limit='16GB', max_temp_size='256GB'):
     root, cache_dir = _path(run_dir), _path(cache_dir)
     cache = verify_cache(cache_dir, cache_sha256)
-    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb'), memory_limit='16GB', max_temp_size='256GB') as con:
+    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb'), threads=threads, memory_limit=memory_limit, max_temp_size=max_temp_size) as con:
         manifest, plan = writer._read_manifest(con, root, run_manifest_sha256)
         if plan != writer._plan(cache_dir, cache_sha256, cache, plan['partitions']):
             raise ValueError('History input identity differs')

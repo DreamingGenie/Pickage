@@ -168,7 +168,7 @@ def _publish_pointer(s3, prefix, manifest_body, request, old_pointer):
 
 
 def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, memory='4GB',
-        *, expected_parent=_UNPINNED_PARENT, versions_table='versions_full'):
+        *, expected_parent=_UNPINNED_PARENT, versions_table='versions_full', input_cache_dir=None):
     """One writer, immutable attempts, last-step pointer publication; no raw writes."""
     for value in (bronze_run_id, run_id):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', value):
@@ -237,7 +237,7 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
                           json_bytes({'manifest_sha256': _hash(prepared[0])}))
             _publish_pointer(s3, prefix, prepared[0], request, old_pointer)
             return manifest
-        cache = root / 'cache'
+        cache = Path(input_cache_dir).resolve() if input_cache_dir is not None else root / 'cache'
         previous_ids = previous_packages = previous_versions = None
         if parent:
             parent_prefix = parent.get('run_prefix', '')
@@ -320,6 +320,16 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
         put_immutable(s3, CURATED_BUCKET, prefix + '/_SUCCESS',
                       json_bytes({'manifest_sha256': _hash(body)}))
         _publish_pointer(s3, prefix, body, request, old_pointer)
+        # Both connections are closed and immutable outputs have been uploaded
+        # and GET-verified. These databases are not inputs to recovery or consumers.
+        removed = []
+        for name in ('work.duckdb', 'weekly-metadata.duckdb'):
+            scratch_db = local / name
+            if scratch_db.is_file():
+                size = scratch_db.stat().st_size
+                scratch_db.unlink()
+                removed.append({'path': name, 'bytes': size})
+        (local / 'scratch-cleanup.json').write_bytes(json_bytes({'removed': removed}))
         print(json.dumps({'status': 'PASSED', 'run_prefix': prefix, 'report': report}, ensure_ascii=False), flush=True)
         return manifest
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 import shutil
 import tempfile
 import hashlib
+import os
+import copy
 from pathlib import Path
 
 import duckdb
@@ -17,6 +19,10 @@ from pipeline.preprocessing.version_dependents.historical_production_input impor
 from pipeline.preprocessing.version_dependents.historical_production_input import verify_inputs as verify_v1, selection, _inputs, _verify_profile, _verify_used_raw, prepare_tables, connection, verify_historical_inputs
 
 FORMAT = "historical-production-input-sharded-v2"
+_RECOVERY_PROOF_ENV = "PICKAGE_INPUT_RECOVERY_PROOF"
+_RECOVERY_PROOF_SHA_ENV = "PICKAGE_INPUT_RECOVERY_PROOF_SHA256"
+_RECOVERY_PROOF_FORMAT = "reader-limit-input-recovery-v1"
+_READER_CONTRACT_PATH = "pipeline/preprocessing/version_dependents/historical_artifact.py"
 
 
 def _record(path, con=None):
@@ -41,6 +47,42 @@ def contract():
             "validation_sha256": file_sha256(Path(__file__).with_name('historical_production_events.py')),
             "validation_sql_sha256": file_sha256(Path(__file__).with_name('historical_production_sql.py')),
             "base_input_contract": base_contract()}
+
+
+def _normalise_compatible_generation(value):
+    """Remove only the two hashes changed by the manifest reader repair."""
+    normalized = copy.deepcopy(value)
+    normalized.pop("parallel_input_sha256", None)
+    base = normalized.get("base_input_contract")
+    if isinstance(base, dict):
+        profile = base.get("profile_generation")
+        if isinstance(profile, dict):
+            profile.pop(_READER_CONTRACT_PATH, None)
+    return normalized
+
+
+def _compatible_generation(root, digest, old, current):
+    """Accept an old generation only with an exact, pinned recovery proof."""
+    proof_name = os.environ.get(_RECOVERY_PROOF_ENV)
+    proof_sha = os.environ.get(_RECOVERY_PROOF_SHA_ENV)
+    if not proof_name or not proof_sha:
+        return False
+    proof_path = _path(Path(proof_name))
+    _validate_sha(proof_sha, "input recovery proof SHA")
+    if file_sha256(proof_path) != proof_sha:
+        raise ValueError("Input recovery proof SHA mismatch")
+    proof = _read_json(proof_path)
+    expected_keys = {"format", "manifest_path", "manifest_sha256", "previous_contract", "new_contract"}
+    if set(proof) != expected_keys or proof.get("format") != _RECOVERY_PROOF_FORMAT:
+        raise ValueError("Input recovery proof format mismatch")
+    manifest_path = _path(Path(root) / "input_manifest.json")
+    if proof["manifest_path"] != str(manifest_path) or proof["manifest_sha256"] != digest:
+        raise ValueError("Input recovery proof manifest mismatch")
+    if proof["previous_contract"] != old or proof["new_contract"] != current:
+        raise ValueError("Input recovery proof generation mismatch")
+    if _normalise_compatible_generation(old) != _normalise_compatible_generation(current):
+        raise ValueError("Input recovery proof permits unexpected generation changes")
+    return True
 
 
 def _safe_output(output: Path, protected: list[Path]) -> None:
@@ -206,7 +248,11 @@ def _manifest(root, digest):
     m = _read_json(path)
     if m.get("format") != FORMAT or m.get("preparation_status") != "COMPLETE" or m.get("policy") != POLICY:
         raise ValueError("Sharded input contract mismatch")
-    if m.get("generation_contract") != contract() or file_sha256(root / "input_plan.json") != m.get("input_plan_sha256"):
+    current_contract = contract()
+    generation = m.get("generation_contract")
+    if generation != current_contract and not _compatible_generation(root, digest, generation, current_contract):
+        raise ValueError("Sharded generation or plan mismatch")
+    if file_sha256(root / "input_plan.json") != m.get("input_plan_sha256"):
         raise ValueError("Sharded generation or plan mismatch")
     plan = _read_json(root / 'input_plan.json')
     if any(m.get(k) != v for k, v in plan.items()):
@@ -218,7 +264,18 @@ def _manifest(root, digest):
     return m
 
 
-def verify_inputs(prepared_dir, manifest_sha256):
+def _verify_source_consistency(con):
+    # Fixed-size extrema preserve DISTINCT-count semantics without maintaining
+    # two additional distinct sets for every source version across all shards.
+    if con.execute("""SELECT EXISTS(SELECT 1 FROM declarations
+        GROUP BY source_package_id,source_version
+        HAVING min(birth_index) IS DISTINCT FROM max(birth_index)
+        OR min(coalesce(dependency_error::INTEGER,-1)) <>
+           max(coalesce(dependency_error::INTEGER,-1)))""").fetchone()[0]:
+        raise ValueError('Source birth or error flag differs across shards')
+
+
+def verify_inputs(prepared_dir, manifest_sha256, *, threads=4, memory_limit='16GB', max_temp_size='256GB'):
     root = _path(prepared_dir); m = _manifest(root, manifest_sha256)
     if set(m.get("partitions", {})) != {f"{i:03d}" for i in range(m["partition_count"])}:
         raise ValueError("Partition inventory mismatch")
@@ -226,9 +283,9 @@ def verify_inputs(prepared_dir, manifest_sha256):
     ready = sum(p['status'] == 'READY' for p in m['partitions'].values())
     if inventory != m['files'] or len(inventory) != len(TABLES) * ready:
         raise ValueError('Global file inventory mismatch')
-    with tempfile.TemporaryDirectory(prefix='parallel-input-check-') as scratch, connection(Path(scratch) / 'check.duckdb', memory_limit='16GB', max_temp_size='256GB') as con:
+    with tempfile.TemporaryDirectory(prefix='parallel-input-check-') as scratch, connection(Path(scratch) / 'check.duckdb', threads=threads, memory_limit=memory_limit, max_temp_size=max_temp_size) as con:
         seen = []
-        for key, part in m['partitions'].items():
+        for index, (key, part) in enumerate(m['partitions'].items(), 1):
             if part['status'] == 'EMPTY':
                 if part['names'] or part['files'] or part['rows'] != {t: 0 for t in TABLES}:
                     raise ValueError('Empty partition contains data')
@@ -251,6 +308,8 @@ def verify_inputs(prepared_dir, manifest_sha256):
                     or any(partition_for(name, m['partition_count']) != int(key) for name in names)):
                 raise ValueError('Partition name membership mismatch')
             seen.extend(names)
+            if index % 16 == 0 or index == len(m['partitions']):
+                print(f'INPUT_VERIFY partitions={index}/{len(m["partitions"])}', flush=True)
         selected = m['selection']
         if (len(seen) != len(set(seen)) or len(seen) != selected['chosen_count']
                 or sha256(sorted(seen)) != selected['chosen_names_sha256']
@@ -260,12 +319,13 @@ def verify_inputs(prepared_dir, manifest_sha256):
             raise ValueError('Partition row totals mismatch')
         open_all(con, root, m)
         from pipeline.preprocessing.version_dependents.historical_production_events import validate_weighted_inputs
+        print('INPUT_VERIFY global_identity START', flush=True)
         validate_weighted_inputs(con, len(m["calendar"]))
-        if con.execute("SELECT EXISTS(SELECT 1 FROM declarations GROUP BY source_package_id,source_version "
-                       "HAVING count(DISTINCT birth_index)>1 OR "
-                       "count(DISTINCT coalesce(dependency_error::VARCHAR,'NULL'))>1)").fetchone()[0]:
-            raise ValueError('Source birth or error flag differs across shards')
+        print('INPUT_VERIFY global_identity COMPLETE; source_consistency START', flush=True)
+        _verify_source_consistency(con)
+        print('INPUT_VERIFY source_consistency COMPLETE', flush=True)
     verify_bytes(root, manifest_sha256)
+    print('INPUT_VERIFY COMPLETE', flush=True)
     return m
 
 

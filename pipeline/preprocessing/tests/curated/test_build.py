@@ -96,6 +96,10 @@ class BuildIntegrationTests(unittest.TestCase):
         pointer = json.loads(self.s3.get_object(Bucket=build.CURATED_BUCKET,
                                                  Key=build.CURRENT)["Body"].read())
         self.assertEqual(pointer["run_prefix"], prefix)
+        self.assertEqual(list(Path(self.temp.name).rglob('work.duckdb')), [])
+        cleanup = list(Path(self.temp.name).rglob('scratch-cleanup.json'))
+        self.assertEqual(len(cleanup), 1)
+        self.assertGreater(json.loads(cleanup[0].read_bytes())['removed'][0]['bytes'], 0)
 
     def test_same_run_reverifies_without_mutating_outputs(self):
         versions, requirements = _valid_inputs()

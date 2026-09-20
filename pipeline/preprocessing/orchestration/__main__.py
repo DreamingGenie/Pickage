@@ -22,6 +22,8 @@ def main(argv=None):
                         help="Additional approved download run; repeat in descending priority order")
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--memory-limit", default="2GB")
+    parser.add_argument("--dependents-workers", type=int, choices=(1, 2, 4))
+    parser.add_argument("--dependents-max-temp-size", default="100GB")
     parser.add_argument("--repository-engine", choices=("duckdb", "native", "docker"), default="duckdb")
     args = parser.parse_args(argv)
     if args.command == "weekly" and (not args.snapshot or not args.run_id or args.request):
@@ -54,6 +56,8 @@ def main(argv=None):
                     bronze_run_id=args.bronze_run_id, download_run_id=args.download_run_id,
                     download_history_run_ids=args.download_history_run_id,
                     options={"workers": 2, "threads": args.threads, "memory_limit": args.memory_limit,
+                             "dependents_workers": args.dependents_workers or min(2, args.threads),
+                             "dependents_max_temp_size": args.dependents_max_temp_size,
                              "repository_engine": args.repository_engine})
                 atomic_json(request_path, request)
             bundle = runner.run(request, s3, args.work_dir)

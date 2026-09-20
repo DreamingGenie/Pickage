@@ -114,6 +114,8 @@ def calculate(con, *, files, snapshot, snapshot_timestamp, output, runtime=None)
 
 
 def execute_stage(request, completed, s3, work_dir):
+    if request.get("options", {}).get("dependents_engine", "parallel") == "parallel":
+        return _execute_parallel_stage(request, completed, s3, work_dir)
     workers = request.get("options", {}).get("workers", 2)
     prefix = f"{PREFIX}/snapshot={request['snapshot']}/run_id={request['run_id']}"
     identity = {"request": request, "population_manifest_sha256": completed["package_version"]["manifest_sha256"]}
@@ -169,3 +171,50 @@ def execute_stage(request, completed, s3, work_dir):
             "bucket": BUCKET, "prefix": prefix, "manifest_key": manifest_key, "manifest_sha256": sha(body),
             "marker_key": prefix + "/_SUCCESS", "marker_sha256": sha(marker), "files": manifest["files"],
             "quality": manifest["quality"], "metadata": {"snapshot_count": 1}}
+
+
+def _execute_parallel_stage(request, completed, s3, work_dir):
+    """Run the durable weighted CPU coordinator and publish the same stage contract."""
+    from pipeline.preprocessing.orchestration.dependents_parallel import calculate
+    options = request.get("options", {})
+    threads = options.get("threads", 2)
+    workers = options.get("dependents_workers", min(2, threads))
+    io_workers = options.get("workers", 2)
+    memory_limit = options.get("memory_limit", "2GB")
+    max_temp_size = options.get("dependents_max_temp_size", "100GB")
+    prefix = f"{PREFIX}/snapshot={request['snapshot']}/run_id={request['run_id']}"
+    identity = {"request": request, "population_manifest_sha256": completed["package_version"]["manifest_sha256"]}
+    root = Path(work_dir) / "dependents"
+    root.mkdir(parents=True, exist_ok=True)
+    manifest_key = prefix + "/run_manifest.json"
+    existing = read_optional(s3, BUCKET, manifest_key)
+    if existing is None:
+        files = {}
+        for table in ("requirements", "versions_full"):
+            from pipeline.preprocessing.orchestration.contracts import version_table
+            ref = request["raw_refs"][version_table(request) if table == "versions_full" else table]
+            raw = json.loads(pinned(s3, ref)); files[table] = download_files(s3, ref["bucket"], raw["files"], root / "cache", workers=io_workers)
+        population = completed["package_version"]
+        for table in ("package", "version"):
+            records = [row for row in population["files"] if f"/{table}/data/" in row["key"]]
+            if not records: raise ValueError("Missing Curated population files: " + table)
+            files[table] = download_files(s3, BUCKET, records, root / "cache", workers=io_workers)
+        from pipeline.preprocessing.orchestration.intake import hydrate_ref
+        files["targets"] = hydrate_ref(s3, request["targets"]["dependents"], root / "targets.parquet")
+        attempt = root / "parallel-attempt"
+        attempt.mkdir(exist_ok=True)
+        directory, schemas, quality = calculate(
+            files=files, snapshot=request["snapshot"], snapshot_timestamp=request["snapshot_timestamp"],
+            output=attempt, workers=workers, threads=threads,
+            memory_limit=memory_limit, max_temp_size=max_temp_size)
+        records = upload_outputs(s3, BUCKET, prefix + "/attempts/parallel", directory, workers=io_workers)
+        for record in records:
+            schema = next(row for row in schemas if record["key"].endswith("/" + row["path"])); record.update(schema)
+        manifest = {"format_version": 1, "dataset": "version-dependents-single", "status": "PASSED", "identity": identity, "run_id": request["run_id"], "snapshot": request["snapshot"], "files": records, "quality": quality, "db_loaded": False, "metric": "DISTINCT_SOURCE_PACKAGE_VERSION_PER_TARGET_VERSION_AND_SNAPSHOT", "dependency_kind": "dependencies", "engine": "historical_parallel_cpu_weighted"}
+        body = json_bytes(manifest); put_immutable(s3, BUCKET, manifest_key, body)
+    else:
+        body = existing[0]; manifest = json.loads(body)
+        if manifest.get("identity") != identity or manifest.get("status") != "PASSED": raise ValueError("Dependents run input identity differs")
+        verify_files(s3, BUCKET, manifest["files"], workers=io_workers)
+    marker = json_bytes({"manifest_sha256": sha(body)}); put_immutable(s3, BUCKET, prefix + "/_SUCCESS", marker)
+    return {"stage": "dependents", "run_id": request["run_id"], "snapshot": request["snapshot"], "bucket": BUCKET, "prefix": prefix, "manifest_key": manifest_key, "manifest_sha256": sha(body), "marker_key": prefix + "/_SUCCESS", "marker_sha256": sha(marker), "files": manifest["files"], "quality": manifest["quality"], "metadata": {"snapshot_count": 1, "engine": "historical_parallel_cpu_weighted"}}

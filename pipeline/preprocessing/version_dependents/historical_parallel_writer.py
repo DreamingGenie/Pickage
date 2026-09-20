@@ -156,7 +156,8 @@ def _accept(root, parent, attempt, plan, receipt, phase):
                   receipt_sha256=file_sha256(attempt / 'receipt.json'), run_plan_sha256=sha256(plan)))
 
 
-def build_history(*, cache_dir, cache_sha256, output, partitions, resume=False, max_partitions=None):
+def build_history(*, cache_dir, cache_sha256, output, partitions, resume=False, max_partitions=None,
+                  threads=4, memory_limit='16GB', max_temp_size='256GB'):
     from pipeline.preprocessing.version_dependents.historical_parallel_verify import check_counts, check_quality
     cache_dir, root = _path(cache_dir), _path(output)
     if root == cache_dir or root.is_relative_to(cache_dir) or cache_dir.is_relative_to(root):
@@ -171,7 +172,7 @@ def build_history(*, cache_dir, cache_sha256, output, partitions, resume=False, 
     else:
         root.mkdir(parents=True, exist_ok=False)
     written = []
-    with _run_lock(root), connection(root / ('working-' + uuid.uuid4().hex + '.duckdb'), memory_limit='16GB', max_temp_size='256GB') as con:
+    with _run_lock(root), connection(root / ('working-' + uuid.uuid4().hex + '.duckdb'), threads=threads, memory_limit=memory_limit, max_temp_size=max_temp_size) as con:
         plan_path = root / 'run_plan.json'
         if plan_path.exists():
             if _read_json(plan_path) != plan or file_sha256(plan_path) != sha256(plan):

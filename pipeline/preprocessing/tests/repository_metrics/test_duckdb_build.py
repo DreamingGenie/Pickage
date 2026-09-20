@@ -48,6 +48,7 @@ class DuckDBBuildContractTests(unittest.TestCase):
             manifest, before = verify_completed(directory)
             self.assertEqual(manifest["runtime"]["engine"], "duckdb")
             self.assertEqual(manifest["request"]["execution"]["memory_limit"], "256MB")
+            self.assertEqual(manifest["request"]["execution"]["max_temp_directory_size"], "100GB")
             self.assertEqual(set(manifest["report"]["output_counts"]), fixture.GROUPS)
             self.assertEqual(result["publication"]["status"], "PUBLISHED")
             with patch("pipeline.preprocessing.repository_metrics.duckdb_transform.transform", side_effect=AssertionError("must reuse")):
@@ -58,9 +59,15 @@ class DuckDBBuildContractTests(unittest.TestCase):
 
     def test_engine_and_memory_change_cannot_reuse_run_id(self):
         self.execute()
-        for settings in ({"engine": "native"}, {"memory_limit": "512MB"}):
+        for settings in ({"engine": "native"}, {"memory_limit": "512MB"},
+                         {"max_temp_directory_size": "200GB"}):
             with self.subTest(settings=settings), self.assertRaisesRegex(ValueError, "different input or contract"):
                 self.execute(**settings)
+
+    def test_invalid_spill_limit_is_rejected(self):
+        for value in ("10", "0GB", "10gb", "10 GB"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "explicit MB or GB"):
+                self.execute(max_temp_directory_size=value)
 
     def test_publish_failure_does_not_publish_success_marker(self):
         self.s3.fail_output = True

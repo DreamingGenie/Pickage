@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sys
 import time
 import uuid
 
@@ -24,10 +25,49 @@ from pipeline.preprocessing.version_dependents.historical_parallel_pool import P
 from pipeline.preprocessing.version_dependents import historical_parallel_input as inputs
 from pipeline.preprocessing.version_dependents import historical_parallel_worker as worker
 from pipeline.preprocessing.version_dependents import historical_production as old
-from pipeline.preprocessing.experiments.dependents.historical_throughput_benchmark import _resources, _disk
+from pipeline.preprocessing.experiments.dependents.historical_throughput_benchmark import _resources as _windows_resources, _disk
 
 FORMAT = 'historical-parallel-cpu-v2'
 FILES = old.WEIGHTED_PART_FILES
+
+
+def _resources(root_pid):
+    """Observe this process tree on Windows and Linux with one result shape."""
+    if os.name == 'nt':
+        return _windows_resources(root_pid)
+    if sys.platform != 'linux':
+        raise RuntimeError('POSIX resource observation requires Linux /proc')
+    processes = {}
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            # comm is parenthesized and may contain spaces; parse the fields
+            # after the final ')' instead of relying on split() indexes.
+            stat = (entry / 'stat').read_text(encoding='ascii')
+            fields = stat.rsplit(')', 1)[1].split()
+            statm = (entry / 'statm').read_text(encoding='ascii').split()
+            processes[int(entry.name)] = (int(fields[1]),
+                                          (int(fields[11]) + int(fields[12])) / os.sysconf('SC_CLK_TCK'),
+                                          int(statm[1]) * os.sysconf('SC_PAGE_SIZE'))
+        except (FileNotFoundError, PermissionError, ValueError, IndexError):
+            continue
+    family = {root_pid}
+    while True:
+        expanded = family | {pid for pid, (parent, _cpu, _rss) in processes.items() if parent in family}
+        if expanded == family:
+            break
+        family = expanded
+    rss = 0
+    cpu = {}
+    for pid in family:
+        record = processes.get(pid)
+        if record is None:
+            continue
+        _parent, seconds, resident = record
+        rss += resident
+        cpu[str(pid)] = seconds
+    return {'tree_rss_bytes': rss, 'cpu_seconds_by_pid': cpu, 'observed_pids': sorted(family)}
 
 
 def contract():
@@ -287,8 +327,6 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
         raise ValueError('Unknown history layout')
     if history_layout == 'grouped' and max_snapshots is not None:
         raise ValueError('Grouped history checkpoints by partition, not snapshot')
-    if os.name != 'nt':
-        raise ValueError('This local parallel implementation has only validated Windows containment')
     old.ranked_resolver.validate_options('cpu', lookup_batch, 128)
     if max_partitions is not None and (type(max_partitions) is not int or max_partitions < 1):
         raise ValueError('max_partitions must be positive')
@@ -299,7 +337,7 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
     old._check_output_path(root)
     if root.is_relative_to(prepared) or prepared.is_relative_to(root):
         raise ValueError('Run output overlaps prepared input')
-    manifest = inputs.verify_inputs(prepared, manifest_sha256)
+    manifest = inputs.verify_inputs(prepared, manifest_sha256, **settings)
     if manifest['scope'] == 'FULL_SELECTED' and not allow_full_selected:
         raise ValueError('Full selected execution requires explicit allow_full_selected=True')
     if resume:
@@ -346,7 +384,7 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
                                                     'WHERE package_id IS NOT NULL ORDER BY partition_id,package_id').fetchall():
                     groups[str(part)].append(package_id)
             history = build_history(cache_dir=directory / 'cache', cache_sha256=cached['cache_sha256'],
-                output=directory / 'history', partitions=groups, resume=(directory / 'history').exists())
+                output=directory / 'history', partitions=groups, resume=(directory / 'history').exists(), **settings)
         else:
             history = old.build_history(cache_dir=directory / 'cache', cache_sha256=cached['cache_sha256'],
                 output=directory / 'history', resume=(directory / 'history').exists(), max_snapshots=max_snapshots)
@@ -373,7 +411,8 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
                 'elapsed_seconds': time.perf_counter() - started, 'ready_for_load': False}
 
 
-def verify_run(*, run_dir, manifest_sha256):
+def verify_run(*, run_dir, manifest_sha256, threads=4, memory_limit='16GB', max_temp_size='256GB'):
+    settings = {'threads': threads, 'memory_limit': memory_limit, 'max_temp_size': max_temp_size}
     root = _path(run_dir)
     if file_sha256(root / 'run_manifest.json') != manifest_sha256:
         raise ValueError('Run manifest SHA mismatch')
@@ -383,7 +422,7 @@ def verify_run(*, run_dir, manifest_sha256):
             or result['ready_for_load'] is not False or result['upstream_resolution_status'] != 'PARTIAL'):
         raise ValueError('Parallel run contract mismatch')
     prepared = _path(_read_json(root / 'input_location.json')['prepared_dir'])
-    manifest = inputs.verify_inputs(prepared, plan['input_manifest_sha256'])
+    manifest = inputs.verify_inputs(prepared, plan['input_manifest_sha256'], **settings)
     if ({str(p): n for p, n in _groups(manifest).items()} != plan['partitions']
             or plan['scope'] != manifest['scope'] or result['scope'] != manifest['scope']
             or result['full_selection_executed'] != (manifest['scope'] == 'FULL_SELECTED')
@@ -396,7 +435,7 @@ def verify_run(*, run_dir, manifest_sha256):
     if cached != result['cache']:
         raise ValueError('Cache pointer mismatch')
     directory = old._verify_cache_chain(root, cached, manifest, plan, receipts)
-    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb'), memory_limit='16GB', max_temp_size='256GB') as con:
+    with connection(root / ('verify-' + uuid.uuid4().hex + '.duckdb'), **settings) as con:
         _merge(con, root, prepared, manifest, receipts)
         old._check_cache_derivation(con, directory / 'cache')
     if plan['history_layout'] == 'grouped':
@@ -406,7 +445,8 @@ def verify_run(*, run_dir, manifest_sha256):
     else:
         raise ValueError('Unknown history layout')
     verify_history(run_dir=directory / 'history', cache_dir=directory / 'cache',
-        cache_sha256=cached['cache_sha256'], run_manifest_sha256=result['history']['run_manifest_sha256'])
+        cache_sha256=cached['cache_sha256'], run_manifest_sha256=result['history']['run_manifest_sha256'],
+        **(settings if plan['history_layout'] == 'grouped' else {}))
     return {'verified': True, 'scope': manifest['scope'], 'partitions': len(receipts),
             'snapshots': len(manifest['calendar']), 'ready_for_load': False}
 

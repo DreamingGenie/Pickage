@@ -23,6 +23,7 @@ FORMAT = "historical-daily-artifact-v1"
 FILES = ("counts.parquet", "quality.parquet", "lineage.parquet")
 MODE = "HISTORICAL_RECONSTRUCTION_FROM_FIXED_INPUT"
 METRIC = "DISTINCT_SOURCE_VERSIONS_ON_RESOLVED_DIRECT_REQUIREMENTS"
+_MAX_JSON_BYTES = 16 * 1024 * 1024
 
 
 def _path(path):
@@ -32,9 +33,22 @@ def _path(path):
 
 
 def _read_json(path):
-    if _reparse(path) or not path.is_file() or path.stat().st_size > 4 * 1024 * 1024:
-        raise ValueError("Missing, unsafe, or oversized manifest: " + str(path))
-    return json.loads(path.read_bytes())
+    path = Path(path)
+    if _reparse(path) or not path.is_file():
+        raise ValueError("Missing or unsafe manifest: " + str(path))
+    try:
+        if path.stat().st_size > _MAX_JSON_BYTES:
+            raise ValueError("Oversized manifest (maximum 16 MiB): " + str(path))
+        with path.open("rb") as stream:
+            body = stream.read(_MAX_JSON_BYTES + 1)
+        # A file can grow after the initial stat.  The bounded read catches
+        # growth observed during the read; the second stat catches growth
+        # that happened just after the read returned.
+        if len(body) > _MAX_JSON_BYTES or path.stat().st_size > _MAX_JSON_BYTES:
+            raise ValueError("Oversized manifest (maximum 16 MiB): " + str(path))
+    except FileNotFoundError as error:
+        raise ValueError("Missing or unsafe manifest: " + str(path)) from error
+    return json.loads(body)
 
 
 def _publish_json(path, body):

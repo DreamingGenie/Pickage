@@ -2,6 +2,7 @@
 from __future__ import annotations
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 import shutil
@@ -30,6 +31,20 @@ def _file_sha(path):
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk); size += len(chunk)
     return size, digest.hexdigest()
+
+def _materialize_verified(cached: Path, target: Path, expected_size: int, expected_sha: str) -> Path:
+    """Materialize a verified cache entry without a second full copy when possible."""
+    cached, target = Path(cached).resolve(), Path(target).resolve()
+    if target.exists():
+        if _file_sha(target) != (expected_size, expected_sha):
+            raise ValueError("Hydrated file differs: " + str(target))
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.link(cached, target)
+    except OSError:
+        shutil.copyfile(cached, target)
+    return target
 
 def _check_ref(s3, ref, waiting=False):
     try: body = _body(s3, ref["bucket"], ref["key"])
@@ -61,17 +76,16 @@ def hydrate_ref(s3, ref: Mapping[str, Any], target: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         size = s3.head_object(Bucket=ref["bucket"], Key=ref["key"])["ContentLength"]
+        if target.exists():
+            if _file_sha(target) != (size, ref["sha256"]):
+                raise ValueError("Hydrated object differs: " + str(target))
+            return target
         cached = download_files(s3, ref["bucket"], [{**ref, "bytes": size}], target.parent / ".ref-cache", workers=1)[0]
     except Exception as error:
         if _missing(error):
             raise WaitingInput("Required object has not arrived: " + ref["key"]) from error
         raise
-    if target.exists():
-        if _file_sha(target) != (size, ref["sha256"]):
-            raise ValueError("Hydrated object differs: " + str(target))
-    else:
-        shutil.copyfile(cached, target)
-    return target
+    return _materialize_verified(cached, target, size, ref["sha256"])
 
 def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: str, source_manifest=True) -> dict:
     """Verify one native raw run and materialize its files; preserve source receipt as _MANIFEST.json."""
@@ -102,14 +116,13 @@ def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: st
         if not isinstance(key, str) or not isinstance(path, str): raise ValueError("Bronze file requires key/path")
         path = _safe(path)
         record = {"key": key, "bytes": row.get("bytes"), "sha256": row.get("sha256")}
-        cached = download_files(s3, ref["bucket"], [record], cache, workers=1)[0]
         target = (destination / path).resolve()
         if not target.is_relative_to(destination): raise ValueError("Bronze file escapes destination")
-        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
-            if _file_sha(target) != (record["bytes"], record["sha256"]):
-                raise ValueError("Hydrated Bronze file differs")
-        else: shutil.copyfile(cached, target)
+            _materialize_verified(target, target, record["bytes"], record["sha256"])
+        else:
+            cached = download_files(s3, ref["bucket"], [record], cache, workers=1)[0]
+            _materialize_verified(cached, target, record["bytes"], record["sha256"])
     return manifest
 
 def _check_schema(root: Path, expected: dict[str, str]) -> None:

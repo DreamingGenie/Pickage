@@ -127,5 +127,85 @@ class ParallelPoolTests(unittest.TestCase):
             self.assertTrue(_wait_until(lambda: not _alive(grandchild)))
 
 
+def _posix_alive(pid):
+    if not pid:
+        return False
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+        # The state is the first field after the command name. A zombie has
+        # exited already even though kill(pid, 0) still succeeds until reaped.
+        state = stat.rsplit(")", 1)[1].split()[0]
+        if state == "Z":
+            return False
+    except (FileNotFoundError, PermissionError, OSError):
+        return False
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+def _posix_init_child(record):
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
+    Path(record).write_text(str(child.pid), encoding="ascii")
+    return child
+
+
+def _posix_coordinator_entry(record, ready):
+    with Pool(1, _handler, initializer=_posix_init_child, initargs=(record,)) as pool:
+        while not pool.idle:
+            pool.events(.1)
+        Path(ready).write_text(f"{os.getpid()}\n{pool.slots[0]['process'].pid}", encoding="ascii")
+        while True:
+            pool.events(.2)
+
+
+@unittest.skipUnless(os.name != "nt", "POSIX process-group tests")
+class PosixParallelPoolTests(unittest.TestCase):
+    def _ready(self, pool):
+        return _wait_until(lambda: len(pool.idle) == pool.size or bool(pool.events(.05)) and len(pool.idle) == pool.size)
+
+    def test_worker_group_shutdown_kills_grandchild(self):
+        with tempfile.TemporaryDirectory() as directory:
+            record = str(Path(directory) / "grandchild.pid")
+            with Pool(1, _handler, initializer=_posix_init_child, initargs=(record,)) as pool:
+                self.assertTrue(self._ready(pool))
+                self.assertTrue(_wait_until(lambda: Path(record).exists()))
+                grandchild = int(Path(record).read_text(encoding="ascii"))
+                worker = pool.slots[0]["process"]
+                worker.terminate(); worker.join(5)
+                self.assertTrue(_wait_until(lambda: any(e["kind"] == "DEAD" for e in pool.events(.1))))
+                self.assertTrue(_wait_until(lambda: not _posix_alive(grandchild)))
+
+    def test_pool_close_keeps_coordinator_alive_after_success_and_error(self):
+        with Pool(1, _handler) as pool:
+            self.assertTrue(self._ready(pool))
+            pool.submit(pool.idle[0], "ok")
+            self.assertTrue(any(event["kind"] == "RESULT" for event in pool.events(2)))
+        self.assertTrue(_posix_alive(os.getpid()))
+
+        with Pool(1, _handler) as pool:
+            self.assertTrue(self._ready(pool))
+            pool.submit(pool.idle[0], "error")
+            self.assertTrue(any(event["kind"] == "ERROR" for event in pool.events(2)))
+        self.assertTrue(_posix_alive(os.getpid()))
+
+    def test_coordinator_death_kills_worker_and_grandchild(self):
+        with tempfile.TemporaryDirectory() as directory:
+            record = str(Path(directory) / "grandchild.pid"); ready = str(Path(directory) / "ready")
+            import multiprocessing as mp
+            coordinator = mp.get_context("spawn").Process(target=_posix_coordinator_entry, args=(record, ready))
+            coordinator.start()
+            self.assertTrue(_wait_until(lambda: Path(ready).exists()))
+            self.assertTrue(_wait_until(lambda: Path(record).exists()))
+            grandchild = int(Path(record).read_text(encoding="ascii"))
+            coordinator_pid, worker_pid = map(int, Path(ready).read_text(encoding="ascii").splitlines())
+            coordinator.terminate(); coordinator.join(5)
+            self.assertFalse(_posix_alive(coordinator_pid))
+            self.assertTrue(_wait_until(lambda: not _posix_alive(worker_pid)))
+            self.assertTrue(_wait_until(lambda: not _posix_alive(grandchild)))
+
+
 if __name__ == "__main__":
     unittest.main()

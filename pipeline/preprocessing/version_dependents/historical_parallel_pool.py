@@ -1,8 +1,9 @@
-"""Persistent spawned workers, each contained by a parent-owned Windows job.
+"""Persistent spawned workers with platform process-tree containment.
 
 No task may initialize its Node child until the parent has assigned its job.
 Closing the last job handle (including coordinator death) kills the whole tree.
-This local implementation deliberately rejects other platforms until tested.
+Windows uses Job Objects. POSIX uses a worker-owned process group and a
+parent-death signal, so a Node descendant cannot outlive its worker tree.
 """
 from __future__ import annotations
 
@@ -11,13 +12,44 @@ from ctypes import wintypes
 import multiprocessing as mp
 from multiprocessing.connection import wait
 import os
+import signal
+import time
 import traceback
+
+
+def _posix_parent_death_signal(parent_pid):
+    """Arrange for a worker to terminate its own process group if orphaned."""
+    if os.name == 'nt':
+        return
+    import ctypes.util
+    libc_name = ctypes.util.find_library('c')
+    if not libc_name:
+        raise RuntimeError('POSIX process containment requires libc prctl support')
+    libc = ctypes.CDLL(libc_name, use_errno=True)
+    prctl = getattr(libc, 'prctl', None)
+    if prctl is None:
+        raise RuntimeError('POSIX process containment requires prctl')
+    prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong]
+    prctl.restype = ctypes.c_int
+    # PR_SET_PDEATHSIG. The parent pid check closes the setup race.
+    if prctl(1, signal.SIGTERM, 0, 0, 0) != 0 or os.getppid() != parent_pid:
+        os._exit(1)
+
+
+def _kill_process_group(signum=signal.SIGTERM, pgid=None):
+    if os.name != 'nt':
+        try:
+            os.killpg(os.getpgrp() if pgid is None else pgid, signum)
+        except (ProcessLookupError, PermissionError):
+            pass
 
 
 class Job:
     def __init__(self):
+        self.handle = None
+        self.pgid = None
         if os.name != 'nt':
-            raise RuntimeError('Parallel process containment currently requires Windows')
+            return
         class Basic(ctypes.Structure):
             _fields_ = [('process_time', ctypes.c_int64), ('job_time', ctypes.c_int64),
                         ('flags', wintypes.DWORD), ('min_working', ctypes.c_size_t),
@@ -51,6 +83,19 @@ class Job:
             raise error
 
     def assign(self, pid):
+        if os.name != 'nt':
+            # The worker creates its own session before START; wait until the
+            # group is observable by the coordinator.
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    if os.getpgid(pid) == pid:
+                        self.pgid = pid
+                        return
+                except ProcessLookupError:
+                    break
+                time.sleep(0.01)
+            raise RuntimeError(f'Unable to isolate worker process group {pid}')
         handle = self.api.OpenProcess(0x0100 | 0x0001, False, pid)  # SET_QUOTA | TERMINATE
         if not handle:
             raise ctypes.WinError(ctypes.get_last_error())
@@ -61,6 +106,11 @@ class Job:
             self.api.CloseHandle(handle)
 
     def close(self):
+        if os.name != 'nt':
+            if self.pgid is not None:
+                _kill_process_group(signal.SIGKILL, self.pgid)
+                self.pgid = None
+            return
         if self.handle:
             self.api.CloseHandle(self.handle)
             self.handle = None
@@ -69,8 +119,16 @@ class Job:
 def _child(pipe, initializer, handler, args):
     context = None
     try:
+        if os.name != 'nt':
+            os.setsid()
+        parent_pid = os.getppid()
+        _posix_parent_death_signal(parent_pid)
         if pipe.recv() != 'START':
             return
+        if os.name != 'nt':
+            # The parent has assigned the worker's private group before START.
+            signal.signal(signal.SIGTERM, lambda signum, frame: _kill_process_group(signal.SIGKILL))
+            signal.signal(signal.SIGINT, lambda signum, frame: _kill_process_group(signal.SIGKILL))
         context = initializer(*args) if initializer else None
         pipe.send({'kind': 'READY', 'pid': os.getpid()})
         while True:
@@ -102,8 +160,6 @@ class Pool:
     def __init__(self, size, handler, *, initializer=None, initargs=()):
         if type(size) is not int or not 1 <= size <= 4:
             raise ValueError('Use 1..4 parallel workers')
-        if os.name != 'nt':
-            raise RuntimeError('Parallel process containment currently requires Windows')
         self.ctx = mp.get_context('spawn')
         self.size, self.handler, self.initializer, self.initargs = size, handler, initializer, initargs
         self.slots = {}

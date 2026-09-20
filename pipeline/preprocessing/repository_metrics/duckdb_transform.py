@@ -28,6 +28,22 @@ _OUTPUTS = (
     "quality/unmapped_projects",
 )
 
+# Keep the input relations narrow before joins and sorts.  The raw versions
+# files contain additional metadata columns that the repository contract does
+# not consume; materialising those columns multiplied the spill footprint.
+_INPUT_COLUMNS = {
+    "package": ("package_id", "name"),
+    "version": ("package_id", "version", "published_at", "ordinal"),
+    "versions_full": ("SnapshotAt", "Name", "Version", "is_release",
+                       "published_at", "ordinal", "source_repo"),
+    "projects": ("SnapshotAt", "Type", "project_name", "StarsCount",
+                 "OpenIssuesCount"),
+}
+
+
+def _quoted_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
 
 def _files(inputs: dict, name: str) -> list[str]:
     values = inputs.get("files", {}).get(name)
@@ -41,7 +57,8 @@ def _read(con: Any, inputs: dict, name: str) -> str:
     if type(expected) is not int or expected < 0:
         raise ValidationError(f"missing manifest count: {name}")
     table = "input_" + name.replace("-", "_")
-    con.execute(f"CREATE OR REPLACE TEMP TABLE {table} AS SELECT * FROM read_parquet(?)", [_files(inputs, name)])
+    columns = ", ".join(_quoted_identifier(column) for column in _INPUT_COLUMNS[name])
+    con.execute(f"CREATE OR REPLACE TEMP TABLE {table} AS SELECT {columns} FROM read_parquet(?)", [_files(inputs, name)])
     actual = con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
     if actual != expected:
         raise ValidationError(f"input row count mismatch: {name}")

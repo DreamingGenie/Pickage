@@ -28,7 +28,7 @@ def die_once(task, context):
     os._exit(17)
 
 
-@unittest.skipUnless(os.name == 'nt', 'Windows parallel runner')
+@unittest.skipUnless(os.name in ('nt', 'posix'), 'Supported parallel runner')
 class ParallelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

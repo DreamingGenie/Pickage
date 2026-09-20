@@ -44,19 +44,23 @@ def describe(name, request, s3, *, metadata=None):
 
 def _restore_files(s3, records, root, relative, workers):
     root = Path(root)
-    paths = download_files(s3, BUCKET, records, root.parent / "download-cache", workers=workers)
-    for record, path in zip(records, paths):
+    from pipeline.preprocessing.orchestration.intake import _materialize_verified
+    pending = []
+    for record in records:
         target = (root / relative(record)).resolve()
         if not target.is_relative_to(root.resolve()):
             raise ValueError("Hydrated output escapes directory")
-        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
             from pipeline.preprocessing.requirements_resolution.input import file_sha256
             if target.stat().st_size != record["bytes"] or file_sha256(target) != record["sha256"]:
                 raise ValueError("Saved local stage output differs")
-        else:
-            import shutil
-            shutil.copyfile(path, target)
+        else: pending.append((record, target))
+    if not pending:
+        return
+    paths = download_files(s3, BUCKET, [record for record, _ in pending],
+                           root.parent / "download-cache", workers=workers)
+    for (record, target), path in zip(pending, paths):
+        _materialize_verified(path, target, record["bytes"], record["sha256"])
 
 
 def _snapshot(request, s3, work, workers):
@@ -117,7 +121,8 @@ def execute_stage(name, request, completed, s3, work_dir):
     if name == "package_version":
         from pipeline.preprocessing.curated.build import run
         run(s3, snapshot, request["bronze_run_id"], run_id, work / "package-version",
-            workers=workers, threads=threads, memory=memory, expected_parent=request["parent"], versions_table=version_table(request))
+            workers=workers, threads=threads, memory=memory, expected_parent=request["parent"],
+            versions_table=version_table(request), input_cache_dir=work / "inputs" / ".raw-cache")
         return describe(name, request, s3)
     candidate_info = completed["snapshot"]["metadata"]
     candidate = Path(candidate_info["candidate_path"])
@@ -152,7 +157,8 @@ def execute_stage(name, request, completed, s3, work_dir):
             versions_dir=versions, projects_dir=Path(candidate_info["projects_dir"]),
             candidate_path=candidate, run_id=run_id, work_dir=work / "repository",
             threads=threads, driver_memory=memory.lower().replace("gb", "g").replace("mb", "m"),
-            memory_limit=memory, publish=True, engine=options.get("repository_engine", "duckdb"))
+            memory_limit=memory, max_temp_directory_size=options.get("repository_max_temp_directory_size", "100GB"),
+            publish=True, engine=options.get("repository_engine", "duckdb"))
     else:
         from pipeline.preprocessing.package_snapshot.build import run
         run(**common, population_run_id=run_id, population_manifest_sha256=population["manifest_sha256"],

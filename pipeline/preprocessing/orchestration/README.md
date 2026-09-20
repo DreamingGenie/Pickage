@@ -5,7 +5,7 @@
 
 ## 실행
 
-저장소 루트에서 기존 Python 환경(DuckDB/boto3), Node/npm의 semver 및 npm-package-arg,
+저장소 루트에서 기존 Python 환경(DuckDB/boto3/numpy), Node/npm의 semver 및 npm-package-arg,
 환경을 사용한다. 기본 repository 엔진은 DuckDB이며 Java·Spark가 필요하지 않다.
 MinIO 설정은 기존 `pipeline/minio/README.md`의 `.env` 설정을 그대로 사용한다.
 `PICKAGE_MINIO_ENV`가 설정되어 있으면 기존 client가 해당 설정 파일을 선택한다.
@@ -30,6 +30,24 @@ Docker가 만든 긴 파일 경로를 Windows에서 읽지 못하는 경우가 �
 `name VARCHAR` Parquet에 고정한다. 두 목록이 같다고 가정하지 않는다.
 
 ## 주간 실행
+
+### dependents 병렬 계산
+
+기본 dependents 경로는 기존 CPU resolver와 `weighted-events-v2` 집계를 사용한다.
+대상 패키지를 128개 입력 묶음으로 고정하고 기본 작업자 2개로 처리한다.
+각 대상에 의존하는 원천 패키지의 모든 적격 버전을 계산하며, 대표 버전으로 줄이지 않는다.
+
+`--threads`와 `--memory-limit`는 전체 DuckDB 예산이며 작업자별로 나눈다.
+예를 들어 `--threads 2 --memory-limit 4GB --dependents-workers 2`이면 각 작업자는
+1스레드·2GB를 사용한다. 기존 CLI 메모리 기본값은 2GB이므로 4GB 실행은 명시해야 한다.
+작업자는 1·2·4개, 전체 스레드는 작업자 수 이상 8개 이하로 지정한다.
+`--dependents-max-temp-size 100GB`는 DuckDB 임시 파일 예산이며 작업자별로 나눈다.
+Python·Node 메모리와 영구 중간 파일은 이 DuckDB 한도에 포함되지 않는다.
+
+입력 준비 연결을 닫은 뒤 병렬 작업자를 시작하고, 작업자가 끝난 뒤 검증·출력을 실행한다.
+완료 묶음은 receipt로 남겨 같은 입력·코드·run ID·work-dir 재개 시 검증 후 재사용한다.
+원천·코드가 달라진 과거 실행의 manifest를 고쳐서 재사용하지 않는다.
+기존 직렬 계산은 비교용 oracle로 보존하며 요청 JSON의 `dependents_engine: legacy`로만 선택한다.
 
 ### 주간 입고 데이터 한 명령 실행 (v2)
 

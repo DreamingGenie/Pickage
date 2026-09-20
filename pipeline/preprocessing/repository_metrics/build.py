@@ -9,7 +9,9 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sys
+import threading
 import uuid
 
 import duckdb
@@ -21,6 +23,58 @@ ROOT = REPO_ROOT
 DATASET = "repository-metrics"
 PREFIX = "depsdev/v1/repository-metrics"
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+SIZE = re.compile(r"^[1-9][0-9]*(?:MB|GB)$")
+
+
+def _size_bytes(value):
+    if not isinstance(value, str) or not SIZE.fullmatch(value):
+        raise ValueError("size must be an explicit MB or GB value")
+    unit = 1024 ** (3 if value.endswith("GB") else 2)
+    return int(value[:-2]) * unit
+
+
+class _SpillTelemetry:
+    """Sample DuckDB's spill directory without adding a runtime dependency."""
+
+    def __init__(self, directory, interval=2.0):
+        self.directory = Path(directory)
+        self.interval = interval
+        self.peak_bytes = 0
+        self.samples = 0
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _measure(self):
+        total = 0
+        if self.directory.exists():
+            for path in self.directory.rglob("*"):
+                if path.is_file():
+                    try:
+                        total += path.stat().st_size
+                    except OSError:
+                        # DuckDB can rotate or remove spill files while sampled.
+                        continue
+        self.peak_bytes = max(self.peak_bytes, total)
+        self.samples += 1
+
+    def _run(self):
+        while not self._stop.wait(self.interval):
+            self._measure()
+
+    def __enter__(self):
+        self._measure()
+        self._thread = threading.Thread(target=self._run, name="duckdb-spill-telemetry", daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_):
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=max(self.interval, 1.0) + 1.0)
+        self._measure()
+
+    def report(self):
+        return {"peak_spill_bytes": self.peak_bytes, "spill_samples": self.samples}
 
 
 def sha_file(path):
@@ -158,7 +212,7 @@ def publish_run(s3, run_dir):
 
 def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects_dir,
         candidate_path, run_id, work_dir, threads=2, driver_memory="4g", publish=False,
-        spark=None, engine="duckdb", memory_limit="2GB"):
+        spark=None, engine="duckdb", memory_limit="2GB", max_temp_directory_size="100GB"):
     from pipeline.preprocessing.repository_metrics.input import prepare_inputs, reverify_inputs
     if engine not in ("duckdb", "native", "docker"):
         raise ValueError("Unsupported execution engine")
@@ -168,14 +222,22 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
         raise ValueError("threads must be between 1 and 8")
     if not isinstance(memory_limit, str) or not re.fullmatch(r"[1-9][0-9]*(?:MB|GB)", memory_limit):
         raise ValueError("memory_limit must be an explicit MB or GB value")
+    if engine == "duckdb":
+        _size_bytes(max_temp_directory_size)
     execution = {"engine": engine, "threads": threads}
     if engine == "duckdb":
-        execution.update(memory_limit=memory_limit, duckdb=duckdb.__version__, max_temp_directory_size="10GB")
+        execution.update(memory_limit=memory_limit, duckdb=duckdb.__version__,
+                         max_temp_directory_size=max_temp_directory_size)
     else:
         execution["driver_memory"] = driver_memory
     if not RUN_ID.fullmatch(run_id):
         raise ValueError("Invalid run ID")
     work_dir = Path(work_dir).resolve()
+    if engine == "duckdb":
+        work_dir.parent.mkdir(parents=True, exist_ok=True)
+        free_bytes = shutil.disk_usage(work_dir.parent).free
+        if free_bytes < _size_bytes(max_temp_directory_size):
+            raise ValueError(f"insufficient free disk for DuckDB spill limit: {max_temp_directory_size}")
     for source in (curated_outputs, versions_dir, projects_dir, Path(candidate_path).parent):
         source = Path(source).resolve()
         if work_dir == source or work_dir.is_relative_to(source) or source.is_relative_to(work_dir):
@@ -189,6 +251,8 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
     report = {"run_id": run_id, "status": "RUNNING", "phase": "INPUT",
               "started_at": datetime.now(timezone.utc).isoformat()}
     owned_spark = False
+    runtime_info = None
+    spill_telemetry = None
     try:
         attempt_dir.mkdir(parents=True, exist_ok=False)
         inputs = prepare_inputs(s3, snapshot=snapshot, curated_run_id=curated_run_id,
@@ -218,11 +282,17 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
                 from pipeline.preprocessing.repository_metrics.duckdb_transform import transform
                 with duckdb.connect(str(attempt_dir / "working.duckdb"),
                                     config={"threads": threads, "memory_limit": memory_limit}) as con:
-                    con.execute("SET temp_directory=?", [str(attempt_dir / "scratch")])
-                    con.execute("SET max_temp_directory_size='10GB'")
+                    spill_directory = attempt_dir / "scratch"
+                    con.execute("SET temp_directory=?", [str(spill_directory)])
+                    con.execute("SET max_temp_directory_size=?", [max_temp_directory_size])
                     con.execute("SET preserve_insertion_order=false")
-                    result = transform(con, inputs, attempt_dir / "outputs")
-                runtime_info = {**execution, "python": sys.version.split()[0]}
+                    spill_telemetry = _SpillTelemetry(spill_directory)
+                    try:
+                        with spill_telemetry:
+                            result = transform(con, inputs, attempt_dir / "outputs")
+                    finally:
+                        runtime_info = {**execution, **spill_telemetry.report(),
+                                        "python": sys.version.split()[0]}
             elif engine == "docker":
                 from pipeline.preprocessing.repository_metrics.docker_runtime import transform_docker
                 result = transform_docker(inputs, attempt_dir / "outputs", threads=threads,
@@ -238,6 +308,7 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
                 runtime_info = {"engine": "native", "spark": spark.version, "python": sys.version.split()[0]}
             else:
                 raise ValueError("Unsupported execution engine")
+            report["runtime"] = runtime_info
             report["phase"] = "VERIFY"
             files, _ = inventory_outputs(run_dir, attempt_dir / "outputs", result["output_counts"])
             reverify_inputs(inputs, s3=s3)
@@ -264,6 +335,8 @@ def run(s3, *, snapshot, curated_run_id, curated_outputs, versions_dir, projects
         report["phase"] = "COMPLETE"
         return report
     except BaseException as error:
+        if runtime_info is not None:
+            report["runtime"] = runtime_info
         report.update(status="FAILED", error_type=type(error).__name__, error=str(error))
         raise
     finally:
@@ -305,7 +378,9 @@ def main():
     parser.add_argument("--driver-memory", default="4g")
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--engine", choices=("duckdb", "native", "docker"), default="duckdb")
-    parser.add_argument("--memory-limit", default="2GB", help="DuckDB memory limit; spill is capped at 10GB")
+    parser.add_argument("--memory-limit", default="2GB", help="DuckDB memory limit")
+    parser.add_argument("--max-temp-directory-size", default="100GB",
+                        help="DuckDB temporary spill limit")
     args = vars(parser.parse_args())
     s3 = client_from_env(args.pop("minio_env"), args.pop("minio_endpoint"))
     print(json.dumps(run(s3, **args), ensure_ascii=False, indent=2))
