@@ -148,6 +148,61 @@ final class ChartGeometry {
 		return span == 0 ? "0" : sign + compact(a);
 	}
 
+	/** 변화율 축의 기준선. 구간 첫 관측치가 여기에 놓인다(화면의 {@code INDEX_BASE}). */
+	static final double INDEX_BASE = 100;
+
+	/**
+	 * 구간의 첫 관측치를 100 으로 두고 나머지를 그 대비 비율로 바꾼다(화면의 {@code indexSeriesTo100}).
+	 * 선마다 자기 첫 점이 기준이다 — 관측 시작이 달라도 "그 시점부터 몇 % 변했나" 를 나란히 놓고 본다.
+	 * 기준값이 0 이면 비율을 만들 수 없다. 지어내지 않고 그 선은 뺀다(화면은 통째로 결측이 되어 그려지지 않는다).
+	 */
+	static List<Line> indexLines(List<Line> lines) {
+		List<Line> out = new ArrayList<>();
+		for (Line line : lines) {
+			if (line.points().isEmpty()) continue;
+			double base = line.points().getFirst().value();
+			if (base == 0) continue;
+			List<Pt> points = new ArrayList<>();
+			for (Pt p : line.points()) points.add(new Pt(p.date(), p.value() / base * INDEX_BASE));
+			out.add(new Line(line.label(), line.tone(), points));
+		}
+		return out;
+	}
+
+	/**
+	 * 변화율 y 도메인(화면의 {@code indexedExtentY}). 0 이 아니라 100 이 기준선이라 항상 도메인에 넣고, 위아래로
+	 * 최소 여유를 둔다(2%p, 실제 편차의 12%).
+	 */
+	static Domain extentIndex(List<Line> lines) {
+		double lo = Double.POSITIVE_INFINITY;
+		double hi = Double.NEGATIVE_INFINITY;
+		for (Line line : lines) {
+			for (Pt p : line.points()) {
+				if (p.value() < lo) lo = p.value();
+				if (p.value() > hi) hi = p.value();
+			}
+		}
+		if (Double.isInfinite(lo)) return new Domain(90, 110);
+		lo = Math.min(lo, INDEX_BASE);
+		hi = Math.max(hi, INDEX_BASE);
+		double pad = Math.max((hi - lo) * 0.12, 2);
+		return new Domain(lo - pad, hi + pad);
+	}
+
+	/** 선형 눈금(화면의 {@code ticksYLinear}). */
+	static List<Double> ticksLinear(Domain d, int count) {
+		List<Double> out = new ArrayList<>();
+		for (int i = 0; i <= count; i++) out.add(d.lo() + ((d.hi() - d.lo()) * i) / count);
+		return out;
+	}
+
+	/** 변화율 눈금 라벨(화면의 {@code formatIndexTick}). 소수 자리는 눈금 간격에 맞춘다. */
+	static String formatIndexTick(double v, Domain d, int count) {
+		double step = (d.hi() - d.lo()) / count;
+		int decimals = step >= 5 ? 0 : step >= 1 ? 1 : 2;
+		return fixed(v, decimals) + "%";
+	}
+
 	static String compact(double n) {
 		if (n >= 1_000_000) return fixed(n / 1_000_000, n >= 10_000_000 ? 0 : 1) + "M";
 		if (n >= 1_000) return fixed(n / 1_000, n >= 10_000 ? 0 : 1) + "k";
@@ -191,18 +246,30 @@ final class ChartGeometry {
 		return lHi == lLo ? b.y() + b.h() : b.y() + b.h() - ((toLog(v) - lLo) / (lHi - lLo)) * b.h();
 	}
 
+	/** 선형 보간(화면의 {@code scaleYLinear}) — 변화율처럼 선형 공간이 맞는 축. */
+	static double scaleYLinear(double v, Domain d, Box b) {
+		return d.hi() == d.lo() ? b.y() + b.h() : b.y() + b.h() - ((v - d.lo()) / (d.hi() - d.lo())) * b.h();
+	}
+
+	/** 로그 축 선. */
+	static String buildLine(List<Pt> points, Domain xd, Domain yd, Box b) {
+		return buildLine(points, xd, yd, b, false);
+	}
+
 	/**
 	 * 간격이 벌어지면 선을 끊는다. 잇지 않으면 관측하지 않은 주를 양옆의 직선으로 메워 연속 관측처럼 보인다.
 	 * 반환은 단일 path {@code d} 이며 구간마다 새 {@code M} 으로 시작한다.
+	 *
+	 * @param linear {@code true} 면 세로를 선형으로(변화율), 아니면 로그로 놓는다.
 	 */
-	static String buildLine(List<Pt> points, Domain xd, Domain yd, Box b) {
+	static String buildLine(List<Pt> points, Domain xd, Domain yd, Box b, boolean linear) {
 		StringBuilder d = new StringBuilder();
 		boolean pen = false;
 		Pt prev = null;
 		for (Pt p : points) {
 			if (prev != null && ChronoUnit.DAYS.between(prev.date(), p.date()) > MAX_GAP_DAYS) pen = false;
 			double x = scaleX(p.date().toEpochDay(), xd, b);
-			double y = scaleY(p.value(), yd, b);
+			double y = linear ? scaleYLinear(p.value(), yd, b) : scaleY(p.value(), yd, b);
 			d.append(pen ? 'L' : 'M').append(f2(x)).append(' ').append(f2(y));
 			pen = true;
 			prev = p;

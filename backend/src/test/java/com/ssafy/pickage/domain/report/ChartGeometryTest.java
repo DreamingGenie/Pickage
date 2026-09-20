@@ -162,6 +162,93 @@ class ChartGeometryTest {
 		assertThat(ChartGeometry.scaleY(500, new Domain(8.5, 184), box)).isCloseTo(-49.726751443582145, within(1e-9));
 	}
 
+	/* ------------------------------------------------------------------ *
+	 * 변화율 (S15P21A506-416) — 기대값은 같은 입력으로 화면의 indexSeriesTo100·indexedExtentY 등을 실행해 얻었다.
+	 * ------------------------------------------------------------------ */
+
+	private static void assertIndex(List<Line> lines, double[][] values, double lo, double hi, double[] ticks,
+		String[] labels) {
+		List<Line> idx = ChartGeometry.indexLines(lines);
+		assertThat(idx).hasSize(values.length);
+		for (int i = 0; i < values.length; i++) {
+			assertThat(idx.get(i).points()).hasSize(values[i].length);
+			for (int j = 0; j < values[i].length; j++) {
+				assertThat(idx.get(i).points().get(j).value()).isCloseTo(values[i][j], within(1e-9));
+			}
+		}
+		Domain d = ChartGeometry.extentIndex(idx);
+		assertThat(d.lo()).isCloseTo(lo, within(1e-9));
+		assertThat(d.hi()).isCloseTo(hi, within(1e-9));
+		List<Double> t = ChartGeometry.ticksLinear(d, 3);
+		for (int i = 0; i < ticks.length; i++) assertThat(t.get(i)).isCloseTo(ticks[i], within(1e-9));
+		assertThat(t.stream().map(v -> ChartGeometry.formatIndexTick(v, d, 3)).toList()).containsExactly(labels);
+	}
+
+	@Test
+	void 변화율은_선마다_첫_점을_100으로_둔다() {
+		assertIndex(List.of(weekly(1000, 1200, 1500, 2100), weekly(300, 330, 360, 420)),
+			new double[][] {{100, 120, 150, 210}, {100, 110, 120, 140}},
+			86.8, 223.2,
+			new double[] {86.8, 132.26666666666665, 177.73333333333332, 223.2},
+			new String[] {"87%", "132%", "178%", "223%"});
+	}
+
+	@Test
+	void 변화율_눈금의_소수_자리는_눈금_간격을_따른다() {
+		// 100 근처에 몰린 값 — 정수 눈금이면 네 눈금이 모두 "100%" 가 된다.
+		assertIndex(List.of(weekly(1000, 1004, 1010, 1012)),
+			new double[][] {{100, 100.4, 101, 101.2}},
+			98, 103.2,
+			new double[] {98, 99.73333333333333, 101.46666666666667, 103.2},
+			new String[] {"98.0%", "99.7%", "101.5%", "103.2%"});
+	}
+
+	@Test
+	void 줄어드는_선도_100이_도메인_안에_있다() {
+		assertIndex(List.of(weekly(50000, 48000, 47000, 41000)),
+			new double[][] {{100, 96, 94, 82}},
+			79.84, 102.16,
+			new double[] {79.84, 87.28, 94.72, 102.16},
+			new String[] {"80%", "87%", "95%", "102%"});
+	}
+
+	@Test
+	void 변화가_없으면_위아래_2퍼센트_포인트를_벌린다() {
+		assertIndex(List.of(weekly(700, 700, 700)),
+			new double[][] {{100, 100, 100}},
+			98, 102,
+			new double[] {98, 99.33333333333333, 100.66666666666667, 102},
+			new String[] {"98.0%", "99.3%", "100.7%", "102.0%"});
+	}
+
+	@Test
+	void 첫_값이_0이면_비율을_지어내지_않고_그_선을_뺀다() {
+		List<Line> idx = ChartGeometry.indexLines(List.of(weekly(0, 5, 9), weekly(10, 20, 30)));
+
+		assertThat(idx).hasSize(1);
+		assertThat(idx.getFirst().points().getLast().value()).isCloseTo(300, within(1e-9));
+	}
+
+	@Test
+	void 그릴_선이_없으면_변화율_도메인은_90에서_110이다() {
+		assertThat(ChartGeometry.extentIndex(List.of())).isEqualTo(new Domain(90, 110));
+	}
+
+	@Test
+	void 선형_좌표와_선형_선은_화면과_같다() {
+		Box box = new Box(46, 10, 582, 178);
+		Domain d = new Domain(86.8, 223.2);
+		assertThat(ChartGeometry.scaleYLinear(150, d, box)).isCloseTo(105.52492668621699, within(1e-9));
+		assertThat(ChartGeometry.scaleYLinear(100, d, box)).isCloseTo(170.77419354838707, within(1e-9));
+
+		// 2024-01-08 → 02-05 는 간격이 넘어 끊긴다.
+		var points = List.of(new Pt(LocalDate.of(2024, 1, 1), 100), new Pt(LocalDate.of(2024, 1, 8), 120),
+			new Pt(LocalDate.of(2024, 2, 5), 150));
+		Domain xd = new Domain(LocalDate.of(2024, 1, 1).toEpochDay(), LocalDate.of(2024, 2, 5).toEpochDay());
+		assertThat(ChartGeometry.buildLine(points, xd, d, box, true))
+			.isEqualTo("M46.00 170.77L162.40 144.67M628.00 105.52");
+	}
+
 	@Test
 	void 선_모양은_세_가지를_돌려_쓰고_색만으로_구분하지_않는다() {
 		assertThat(ChartGeometry.style(0).dash()).isNull();

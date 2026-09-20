@@ -468,7 +468,7 @@ canonical endpoint: `GET /packages/downloads?names=a,b,c&from=&to=`
 - 기간과 호출 기준일 기록
 - 누락 구간은 null/gap으로 보존하고 주간 관측 간격이 8일을 넘으면 차트 path를 끊는다. S15P21A506-304로 관측 공백(8일 초과) 단절과 지표 카드별 오류 격리가 구현됐다.
 - 기준일 달력이 월요일 주간이 아니어도(2026-02 이후 금·화·목이 섞임) **서버는 월요일 격자로 응답한다**(S15P21A506-403). Downloads 는 구간 합계를 일평균으로 펼쳐 주간 합계로 환산하고, Dependents 는 관측 범위 안의 빈 주를 선형 보간한다. 그래서 8일 초과 단절은 Downloads 에서 그 패키지의 행이 없어 7일이 덮이지 않은 주에만 나타난다. 세부 규칙은 `설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
-- Dependents 카드는 변화율(구간 시작 = 100%)로 열고 실제값(로그축)으로 전환한다.
+- Dependents 카드는 실제값(로그축)으로 열고 변화율(구간 시작 = 100%)로 전환한다. (2026-09-20, S15P21A506-416 — 이전에는 변화율이 기본이었다)
 - 0은 정상 응답에서 실제 값이 0일 때만 사용
 - Downloads와 Dependents는 공통 TrendResponse 계열을 재사용하되 metric/unit metadata로 의미를 구분한다. 구체 wire field는 Notion/Swagger 정본을 따른다.
 - 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다. S15P21A506-311로 로그축이 구현됐다.
@@ -1053,8 +1053,9 @@ BLOCKED:
 
 1. 표지·요약
 2. 후보·비교 대상과 분석 범위
-3. Downloads
-4. 직접 Dependency·표시 필터·Snapshot 간 signed 증감
+3. 직접 Dependency(의존 수)·표시 필터·Snapshot 간 signed 증감 — **Downloads 보다 앞에 둔다**(2026-09-20, S15P21A506-416).
+   실제값 그래프 아래에 변화율 그래프(구간 시작 = 100%)를 함께 싣고 그 아래에 수치 표를 둔다
+4. Downloads
 5. 최신 DB Snapshot 기반 Version Share와 기준일
 6. 유지·유입·이탈 — 선택 `period`·`t1`·`t2`·`population`과 패키지×kind별 네 범주(유지·유입·이탈·
    미관측). 메인 유입은 `inflow_adopted`. `data_status`가 `NO_DATA`·`OUT_OF_SCOPE`·`NOT_COMPUTED`면

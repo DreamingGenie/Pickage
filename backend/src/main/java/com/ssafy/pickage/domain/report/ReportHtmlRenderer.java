@@ -33,7 +33,7 @@ import com.ssafy.pickage.domain.report.ReportCharts.ShareGroup;
  *
  * 생태계 구역은 서비스 화면의 그래프를 먼저 놓고 그 아래에 구체적인 수치 표를 둔다(S15P21A506-414). 그래프는
  * {@link ReportCharts}, 커뮤니티 구역은 {@link ReportCommunity} 가 그린다. 조회 조건은 <b>화면의 기본값</b>이다 —
- * 전체 기간·매주, 의존 수는 실제값.
+ * 전체 기간·매주. 의존 수는 Downloads 보다 먼저 나오고 실제값 그래프 아래에 변화율 그래프가 붙는다(S15P21A506-416).
  *
  * <h2>⚠ 레이아웃은 아직 임시다</h2>
  *
@@ -65,11 +65,13 @@ public class ReportHtmlRenderer {
 
 		cover(b, s);
 		overview(b, s.overview());
-		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads(), s);
+		// 의존 수가 Downloads 보다 먼저다 — 서비스가 가장 앞세우는 지표다(S15P21A506-416). 화면도 같은 순서다.
 		// 제목은 화면과 같은 말이다 — 영어 "Dependents" 는 처음 보는 사람에게 무엇을 세는 값인지 전해지지
 		// 않는다(S15P21A506-405). 단위 줄은 제목과 겹치지 않게 뜻을 풀어 쓰고, 버전별 합계라는 한계를 남긴다.
-		// 그래프는 실제값이다 — 화면의 기본 표시는 변화율이지만 문서는 절대 규모를 보여준다(S15P21A506-414).
-		trend(b, "의존 수", "다른 패키지가 의존 목록에 적어 둔 횟수 · 버전별 합계", s.dependents(), s);
+		// 그래프는 실제값 아래에 변화율을 함께 둔다 — 실제값은 절대 규모를, 변화율은 규모가 다른 패키지의 성장
+		// 속도를 보여준다(S15P21A506-414·416).
+		trend(b, "의존 수", "다른 패키지가 의존 목록에 적어 둔 횟수 · 버전별 합계", s.dependents(), s, true);
+		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads(), s, false);
 		versionShare(b, s.versionShare());
 		transitions(b, s.transitions());
 
@@ -135,16 +137,31 @@ public class ReportHtmlRenderer {
 	 * 시리즈를 날짜마다 더한 합계다(화면의 {@code TOTAL} 과 같다). 표는 그대로 남긴다: 그래프가 모양을, 표가 양 끝과 증감을
 	 * 정확한 숫자로 말한다. 그릴 점이 없으면 그래프 자리에 그렇다고 적고 표도 "자료 없음" 을 그대로 낸다.
 	 */
-	private void trend(StringBuilder b, String title, String unit, TrendResponse trend, Sources s) {
+	private void trend(StringBuilder b, String title, String unit, TrendResponse trend, Sources s,
+		boolean withChangeRate) {
+		List<Line> lines = lines(trend, s);
+
 		// 제목·단위·그래프를 한 덩어리로 묶는다 — 묶지 않으면 제목만 쪽 끝에 남고 그래프가 다음 쪽으로 넘어간다.
 		b.append("<div class=\"keep\">");
 		heading(b, title);
 		b.append("<p class=\"unit\">").append(esc(unit)).append("</p>");
 
-		String chart = ReportCharts.lineChart(lines(trend, s), title + " 추이");
-		if (chart.isEmpty()) note(b, "그래프로 그릴 자료가 없습니다.");
-		else b.append(chart);
+		String chart = ReportCharts.lineChart(lines, title + " 추이");
+		if (chart.isEmpty()) {
+			note(b, "그래프로 그릴 자료가 없습니다.");
+		} else {
+			if (withChangeRate) b.append("<p class=\"sub\">실제값</p>");
+			b.append(chart);
+		}
 		b.append("</div>");
+
+		// 변화율은 실제값 아래, 수치 표 위. 따로 묶어 쪽 경계에서 두 그래프가 서로를 끌고 넘어가지 않게 한다.
+		if (withChangeRate) {
+			String rate = ReportCharts.changeRateChart(lines, title + " 변화율");
+			if (!rate.isEmpty()) {
+				b.append("<div class=\"keep\"><p class=\"sub\">변화율</p>").append(rate).append("</div>");
+			}
+		}
 
 		b.append("<table><thead><tr><th>패키지</th><th>버전</th>")
 			.append("<th class=\"n\">처음</th><th class=\"n\">마지막</th><th class=\"n\">증감</th>")
@@ -525,6 +542,7 @@ public class ReportHtmlRenderer {
 			     border-bottom: 1px solid #d1d5db; -fs-page-break-min-height: 45mm; }
 			.subject { font-size: 12pt; color: #374151; margin: 0 0 16px; }
 			.unit { font-size: 9pt; color: #6b7280; margin: 0 0 6px; }
+			.sub { font-size: 10pt; font-weight: bold; color: #374151; margin: 8px 0 0; }
 			.note { font-size: 9pt; color: #4b5563; margin: 4px 0; }
 			table { width: 100%%; border-collapse: collapse; margin: 6px 0 12px; }
 			th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left;
