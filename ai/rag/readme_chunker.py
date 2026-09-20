@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 
-from ai.rag.types import DataTeamEnvelope, EvidenceChunk
+from ai.rag.types import DataTeamEnvelope, EvidenceChunk, PackageSource
 
 _ATX_HEADING_LINE_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*\n?$")
 _FENCE_LINE_RE = re.compile(r"^(```+|~~~+)")
@@ -102,6 +102,13 @@ _NOISE_HEADINGS = {
 }
 
 
+# `---` 한 줄 + 다음 줄이 `근거:` 로 시작하는 꼬리 구분선. CRLF 도 받는다.
+_FOOTER_SEPARATOR_RE = re.compile(r"^---[ \t]*\r?\n(?=근거:)", re.MULTILINE)
+
+# 인계 파일이 설명이 비었을 때 넣는 자리표시(백엔드 DocAssembler). 근거로 쓰지 않는다.
+_NO_DESCRIPTION = "(설명 없음)"
+
+
 class EnvelopeParseError(Exception):
     """데이터팀 인계 포맷(봉투)이 예상과 다를 때 명확히 실패시키기 위한 예외.
 
@@ -147,8 +154,12 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
     if not sep:
         raise EnvelopeParseError(f"제목 줄 형식이 올바르지 않습니다: {title_match.group(1)!r}")
 
-    footer_match = re.search(r"^---[ \t]*$", after_anchor, re.MULTILINE)
-    if footer_match:
+    # 꼬리는 `---` 다음 줄이 `근거:` 로 시작하는 **마지막** 자리다. 예전에는 첫 `---` 를 꼬리로
+    # 봐서, README 중간에 수평선이 있으면 그 뒤 본문이 통째로 근거에서 사라졌다(운영 노드
+    # 실측 5.4%, S15P21A506-419). 꼬리가 없으면 남은 전체를 README 로 본다.
+    footer_matches = list(_FOOTER_SEPARATOR_RE.finditer(after_anchor))
+    if footer_matches:
+        footer_match = footer_matches[-1]
         readme_body = after_anchor[: footer_match.start()].strip()
         source_footer = after_anchor[footer_match.end():].strip()
     else:
@@ -156,6 +167,10 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
         source_footer = ""
 
     fact_headings = _find_headings(header_region)[1:]  # [0]은 제목(# {package}@{version}) 자신
+    description_end = fact_headings[0][0] if fact_headings else len(header_region)
+    description = header_region[title_match.end():description_end].strip()
+    if description == _NO_DESCRIPTION:
+        description = ""
     structured_facts: dict[str, str] = {}
     for i, (_, body_start, heading_text) in enumerate(fact_headings):
         body_end = fact_headings[i + 1][0] if i + 1 < len(fact_headings) else len(header_region)
@@ -169,6 +184,32 @@ def parse_data_team_envelope(doc_text: str) -> DataTeamEnvelope:
         structured_facts=structured_facts,
         readme_body=readme_body,
         source_footer=source_footer,
+        description=description,
+    )
+
+
+_STATUS_RE = re.compile(r"상태\s+(OK|LIMITED|NONE)\b")
+_README_BYTES_RE = re.compile(r"README\s+([\d,]+)\s*B\b")
+_PROSE_CHARS_RE = re.compile(r"산문\s+([\d,]+)\s*자")
+
+
+def _to_int(match: re.Match[str] | None) -> int | None:
+    return int(match.group(1).replace(",", "")) if match else None
+
+
+def parse_source_footer(footer: str, package: str, version: str) -> PackageSource:
+    """인계 파일 꼬리(`근거: S1 README 917 B / 산문 214자 · … · 상태 LIMITED`)를 읽는다.
+
+    각 값은 따로 읽는다 — 숫자 형식이 달라져도 상태는 살린다. **읽지 못한 값은 None** 이고
+    추측해서 채우지 않는다(S15P21A506-419).
+    """
+    status_match = _STATUS_RE.search(footer)
+    return PackageSource(
+        package=package,
+        version=version,
+        status=status_match.group(1) if status_match else None,  # type: ignore[arg-type]
+        readme_bytes=_to_int(_README_BYTES_RE.search(footer)),
+        prose_chars=_to_int(_PROSE_CHARS_RE.search(footer)),
     )
 
 

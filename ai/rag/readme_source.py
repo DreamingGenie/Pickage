@@ -32,7 +32,16 @@ class ReadmeSourceNotFoundError(Exception):
 
     TODO: "청킹 실패"와 구분되는 "재수집 필요" 상태로 호출자에게 알려야 한다는
     pipeline.py의 옛 TODO가 아직 남아 있음 — 지금은 이 예외 하나로만 구분한다.
+
+    package·version(S15P21A506-419)은 API 가 "어느 패키지의 자료가 없는지"를 404 로 알리는 데
+    쓴다. `path` 는 서버 내부 경로라 응답에 싣지 않는다.
     """
+
+    def __init__(self, path: str, package: str | None = None, version: str | None = None) -> None:
+        super().__init__(path)
+        self.path = path
+        self.package = package
+        self.version = version
 
 
 def read_readme_envelope(package: str, version: str, root: str | Path) -> DataTeamEnvelope:
@@ -41,5 +50,5 @@ def read_readme_envelope(package: str, version: str, root: str | Path) -> DataTe
     try:
         doc_text = path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
-        raise ReadmeSourceNotFoundError(str(path)) from exc
+        raise ReadmeSourceNotFoundError(str(path), package=package, version=version) from exc
     return parse_data_team_envelope(doc_text)

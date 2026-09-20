@@ -20,7 +20,7 @@ from ai.rag.generation import (
     build_user_message,
     generate,
 )
-from ai.rag.types import EvidenceChunk, PackageRef
+from ai.rag.types import EvidenceChunk, PackageRef, PackageSource
 
 
 def _make_evidence(evidence_id: str, package: str, version: str) -> EvidenceChunk:
@@ -148,6 +148,70 @@ class ExtractGmsOutputTextTests(unittest.TestCase):
 
         with self.assertRaises(GmsCallError):
             _extract_gms_output_text(envelope)
+
+
+
+class DocumentStatusMessageTests(unittest.TestCase):
+    """문헌 상태를 프롬프트 입력에 싣는다 (S15P21A506-419)."""
+
+    def _packages(self):
+        return [PackageRef(name="foo", version="1.0.0"), PackageRef(name="bar", version="2.0.0")]
+
+    def test_document_status_is_added_only_when_sources_are_given(self):
+        evidence = [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]
+        sources = [
+            PackageSource("foo", "1.0.0", "LIMITED"),
+            PackageSource("bar", "2.0.0", "OK"),
+        ]
+
+        without = json.loads(build_user_message(self._packages(), evidence))
+        with_status = json.loads(build_user_message(self._packages(), evidence, sources=sources))
+
+        self.assertNotIn("documentStatus", without)
+        self.assertEqual(
+            with_status["documentStatus"],
+            [
+                {"package": "foo", "version": "1.0.0", "status": "LIMITED"},
+                {"package": "bar", "version": "2.0.0", "status": "OK"},
+            ],
+        )
+
+    def test_packages_with_an_unknown_status_are_left_out(self):
+        evidence = [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]
+        sources = [PackageSource("foo", "1.0.0"), PackageSource("bar", "2.0.0", "NONE")]
+
+        message = json.loads(build_user_message(self._packages(), evidence, sources=sources))
+
+        self.assertEqual(message["documentStatus"], [{"package": "bar", "version": "2.0.0", "status": "NONE"}])
+
+    def test_no_known_status_means_no_key_at_all(self):
+        evidence = [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]
+
+        message = json.loads(
+            build_user_message(self._packages(), evidence, sources=[PackageSource("foo", "1.0.0")])
+        )
+
+        self.assertNotIn("documentStatus", message)
+
+    def test_prompt_tells_the_model_not_to_read_a_short_readme_as_a_missing_feature(self):
+        self.assertIn("documentStatus", PROMPT)
+        self.assertIn("LIMITED", PROMPT)
+
+    def test_generate_passes_the_status_through_to_the_model_input(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        evidence = [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]
+        seen = []
+
+        def fake_llm(system_prompt, user_message):
+            seen.append(user_message)
+            return json.dumps(
+                {"dataStatus": "COMPLETE", "packages": [{"package": "foo", "version": "1.0.0"}],
+                 "features": [], "narrative": []}
+            )
+
+        generate(packages, evidence, llm_call=fake_llm, sources=[PackageSource("foo", "1.0.0", "LIMITED")])
+
+        self.assertIn("LIMITED", seen[0])
 
 
 if __name__ == "__main__":

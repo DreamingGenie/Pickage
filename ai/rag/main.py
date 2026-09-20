@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from ai.rag.pipeline import VerificationFailedError, compare_packages
+from ai.rag.readme_source import ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, PackageRef
 
 
@@ -50,6 +51,18 @@ def _serialize(result: ComparisonResult) -> dict:
             for n in result.narrative
         ],
         "narrativeError": result.narrative_error,
+        # 패키지별 인계 파일 상태(S15P21A506-419). 못 읽은 값은 null — "모름"과 "OK"를 구분한다.
+        # dataStatus(비교 가능 여부)와는 다른 축이라 섞지 않는다.
+        "sources": [
+            {
+                "package": s.package,
+                "version": s.version,
+                "status": s.status,
+                "readmeBytes": s.readme_bytes,
+                "proseChars": s.prose_chars,
+            }
+            for s in result.sources
+        ],
     }
 
 
@@ -62,6 +75,13 @@ def create_app(compare_fn: Callable[..., ComparisonResult] = compare_packages) -
         packages = [PackageRef(name=p.package, version=p.version) for p in req.packages]
         try:
             result = compare_fn(packages)
+        except ReadmeSourceNotFoundError as exc:
+            # 인계 파일이 없다 — 서버 오류가 아니라 "이 버전의 자료가 아직 없음"이다(스냅샷은
+            # 특정 시점까지만 채워져 있다). 서버 내부 경로는 응답에 싣지 않는다.
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "DOC_NOT_FOUND", "package": exc.package, "version": exc.version},
+            ) from exc
         except VerificationFailedError as exc:
             raise HTTPException(status_code=502, detail={"violations": exc.violations}) from exc
         return _serialize(result)

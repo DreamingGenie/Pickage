@@ -22,6 +22,9 @@ Verdict = Literal[
     "UNSUPPORTED",
 ]
 DataStatus = Literal["COMPLETE", "COMPARISON_LIMITED"]
+# 인계 파일 꼬리의 `상태 …`(백엔드 DocAssembler 판정). README 산문 1,000자 이상이면 OK,
+# 짧지만 진입점·bin·.d.ts 등이 있으면 LIMITED, 그 밖 NONE. dataStatus 와 다른 축이다.
+SourceStatus = Literal["OK", "LIMITED", "NONE"]
 
 
 @dataclass
@@ -46,6 +49,8 @@ class DataTeamEnvelope:
     structured_facts: dict[str, str]
     readme_body: str
     source_footer: str
+    # 제목 아래 한 줄 설명. 인계 파일이 자리표시 `(설명 없음)`을 쓰면 빈 문자열이다.
+    description: str = ""
 
 
 @dataclass
@@ -105,6 +110,20 @@ class NarrativeSection:
 
 
 @dataclass
+class PackageSource:
+    """비교 대상 한 패키지의 인계 파일 상태 — 꼬리 `근거: … 상태 …` 줄에서 읽는다 (S15P21A506-419).
+
+    못 읽은 값은 None 이다. 추측해서 채우지 않는다 — 소비하는 쪽이 "모름"과 "OK"를 구분해야 한다.
+    """
+
+    package: str
+    version: str
+    status: SourceStatus | None = None
+    readme_bytes: int | None = None
+    prose_chars: int | None = None
+
+
+@dataclass
 class ComparisonResult:
     """178(generate)의 출력. `ai/기능비교 프론트화면.png` 시안 구조 그대로."""
 
@@ -113,3 +132,5 @@ class ComparisonResult:
     features: list[FeatureRow]
     narrative: list[NarrativeSection] = field(default_factory=list)
     narrative_error: str | None = None
+    # 패키지별 인계 파일 상태. LLM 이 만드는 값이 아니라 pipeline 이 파일에서 읽어 붙인다.
+    sources: list[PackageSource] = field(default_factory=list)
