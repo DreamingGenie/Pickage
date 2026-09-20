@@ -21,6 +21,9 @@ public class CommunityRefreshOrchestrator {
     private final CommunityHighlightSummarizer summarizer;
     private final CommunitySnapshotPublisher publisher;
 
+    /** 저장소 Issue 수 조회에 쓰는 시간 상한. 보조 정보라 전체 35초 예산 중 이만큼만 쓴다. */
+    private static final Duration COUNT_BUDGET = Duration.ofSeconds(6);
+
     public CommunityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
@@ -111,13 +114,16 @@ public class CommunityRefreshOrchestrator {
                 pending.add(new PendingTopic(issue, sources));
             }
 
+            // 저장소 전체 Issue 수(S15P21A506-413). 핵심 수집(검색 quota)이 끝난 뒤에 조회해 본 수집과 quota 를 다투지 않는다.
+            // **GMS 를 디스패치하기 전에, 이 스레드에서 순차로** 조회한다(S15P21A506-415). 예전에는 GMS 와 나란히 공용 풀에서
+            // 돌렸는데, 그 풀이 GMS 응답 대기에 다 잡히는 서버(코어가 적은 배포 서버)에서는 예산이 바닥난 뒤에야 시작해 모든 패키지의
+            // 수치가 비었다. 실패해도 null 로 흡수돼 결과 게시에는 영향이 없고, 조회는 수백 ms 라 GMS 예산을 거의 쓰지 않는다.
+            var counts = repositoryCounts(v, task);
+
             // 이슈별 GMS 호출을 동시에 디스패치한다(S15P21A506-368 후속) — 순차로 돌면 이슈1이
             // 시간을 다 쓰고 이슈2는 시작하자마자 예산이 바닥나는 문제가 실제로 재현됐다. 남은
             // 예산은 디스패치 시점에 한 번만 읽어 두 호출이 같은 창을 공정하게 나눠 쓰게 한다.
             task.advanceStage(RefreshStage.GMS);
-            // 저장소 전체 Issue 수(S15P21A506-413). 핵심 수집(검색 quota)이 끝난 뒤에 시작해 본 수집과 quota 를 다투지 않고,
-            // GMS 호출과 나란히 돌려 지연을 늘리지 않는다. 실패해도 null 로 흡수돼 결과 게시에는 영향이 없다.
-            var countsFuture = CompletableFuture.supplyAsync(() -> repositoryCounts(v, task));
             var budget = task.collectionTimeLeft();
             var futures =
                     pending.stream().map(p -> summarizer.summarizeAsync(p.issue(), budget)).toList();
@@ -162,7 +168,6 @@ public class CommunityRefreshOrchestrator {
                     CommunityPolicy.summaryStatus(topics) == SummaryStatus.FAILED
                             ? Instant.now().plus(CommunityProperties.FAILURE_COOLDOWN)
                             : null;
-            var counts = countsFuture.join();
             var payload =
                     new CommunityResultPayload(
                             repository.withIssueCounts(counts.total(), counts.open()),
@@ -195,8 +200,10 @@ public class CommunityRefreshOrchestrator {
     private RepositoryIssueCounts repositoryCounts(
             RepositoryVerificationResult.Verified v, RefreshTask task) {
         try {
-            var counts =
-                    collection.repositoryIssueCounts(v.owner(), v.repo(), task.collectionTimeLeft());
+            // 조회에 쓸 수 있는 시간은 남은 예산 안에서 COUNT_BUDGET 까지다 — GitHub 가 느려도 GMS 예산을 다 잡아먹지 않는다.
+            Duration budget = task.collectionTimeLeft();
+            if (budget.compareTo(COUNT_BUDGET) > 0) budget = COUNT_BUDGET;
+            var counts = collection.repositoryIssueCounts(v.owner(), v.repo(), budget);
             if (counts == null) return RepositoryIssueCounts.UNKNOWN;
             Integer total = counts.total(), open = counts.open();
             if ((total != null && total < 0) || (open != null && open < 0))

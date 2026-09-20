@@ -20,6 +20,15 @@ public final class CommunitySnapshotTtl {
     /** 구현계획 §설정과 보안 — 결과 제공 7일. */
     public static final Duration SERVE_WINDOW = Duration.ofDays(7);
 
+    /**
+     * 저장소 전체 Issue 수가 비어 있는 스냅샷을 다시 수집해도 되는 나이(S15P21A506-415).
+     *
+     * <p>수치가 못 구해진 채 저장되면(조회 실패, 또는 수치를 더하기 전에 저장된 스냅샷) 24시간 신선 창 동안 화면이 계속 "—" 이다.
+     * 그렇다고 열 때마다 다시 수집하면 GMS 요약 비용이 매번 든다 — 이 간격이 그 사이의 절충이다. 수치가 있는 스냅샷에는 적용하지
+     * 않는다.
+     */
+    public static final Duration COUNTS_RETRY_WINDOW = Duration.ofMinutes(30);
+
     private CommunitySnapshotTtl() {}
 
     /** 24시간 이내면 갱신 없이 그대로 재사용한다({@code freshness=FRESH}). */

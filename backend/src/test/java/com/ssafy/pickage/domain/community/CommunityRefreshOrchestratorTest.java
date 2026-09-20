@@ -113,6 +113,26 @@ class CommunityRefreshOrchestratorTest {
     }
 
     @Test
+    void 공용_풀이_막혀_있어도_수집을_끝내고_저장소_Issue_수를_싣는다() throws Exception {
+        // S15P21A506-415 — 코어가 적은 배포 서버에서 모든 패키지의 수치가 비었다. 수치 조회를 GMS 와 나란히 공용 풀에 올렸는데,
+        // 그 풀이 GMS 응답 대기에 다 잡혀 조회가 예산이 바닥난 뒤에야 시작했기 때문이다. 풀을 전부 붙잡아 그 상황을 만든다.
+        var collection = successCollection();
+        collection.counts = new RepositoryIssueCounts(1234, 56);
+
+        try (var blocked = new CommonPoolBlocker()) {
+            var row =
+                    org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+                            java.time.Duration.ofSeconds(15),
+                            () -> runWith(collection, new InMemoryCommunitySnapshotRepository()),
+                            "공용 풀에 기대면 수집이 멈추거나 수치가 빈다");
+
+            assertThat(row.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+            assertThat(row.result().repository().issueCount()).isEqualTo(1234);
+            assertThat(row.result().repository().openIssueCount()).isEqualTo(56);
+        }
+    }
+
+    @Test
     void 저장소_전체_Issue_수와_열린_수를_결과에_싣는다() {
         var collection = successCollection();
         collection.counts = new RepositoryIssueCounts(1234, 56);
