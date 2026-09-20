@@ -557,6 +557,104 @@ export interface CommunityStatusResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * 기능 비교 [확장] (S15P21A506-217)
+ *
+ * ⚠ pending API alignment — Notion API 명세에 아직 없다. 구상안 §7·§9·§10 과
+ * `ai/rag/main.py` 의 `/compare` 응답을 wire 규칙(snake_case)으로 옮긴 **임시안**이다.
+ * BE 연동(S15P21A506-130·313)이 확정되면 이 절을 명세에 맞춰 고친다. 화면은 이 타입이
+ * 아니라 `routes/report/features/adapter.ts` 가 만든 도메인 모델만 본다.
+ * ------------------------------------------------------------------ */
+
+/** 구상안 §7.2. `UNSUPPORTED` 는 공식 부정 근거가 연결됐을 때만 쓴다. */
+export type FeatureVerdict =
+  'SUPPORTED' | 'CONDITIONALLY_SUPPORTED' | 'LIMITED_SUPPORT' | 'UNCONFIRMED' | 'UNSUPPORTED'
+
+/** 구상안 §7.2. verdict 와 다른 축이다 — 섞지 않는다. */
+export type FeatureDataStatus =
+  'COMPLETE' | 'PARTIAL' | 'NO_DATA' | 'COLLECTION_ERROR' | 'CONFLICT' | 'STALE'
+
+/** 구상안 §11 — 미확인 사유. UI 행동(재시도 여부)이 여기서 갈린다. */
+export type FeatureReasonCode =
+  | 'TRANSIENT_FETCH_ERROR'
+  | 'PARTIAL_SOURCE_FAILURE'
+  | 'ANALYZER_STALE'
+  | 'SOURCE_ABSENT'
+  | 'EVIDENCE_CONFLICT'
+  | 'RUNTIME_REQUIRED'
+
+/** 기능 비교가 아직 없는 조합. 클라이언트가 만든 코드이므로 서버 `ApiErrorCode` 와 섞지 않는다. */
+export const FEATURE_NOT_AVAILABLE = 'FEATURE_NOT_AVAILABLE'
+
+/** 구상안 §9.1 — 패키지별 선택 가능 버전. */
+export interface FeatureVersionOption {
+  package_name: string
+  /** 사전 배포가 아닌 가장 최근 버전. 없으면 null(`NO_STABLE_VERSION`) — 사전 배포를 자동 선택하지 않는다. */
+  latest_stable: string | null
+  /** 최신순 */
+  versions: { version: string; prerelease: boolean }[]
+}
+
+export interface FeatureVersionsResponse {
+  packages: FeatureVersionOption[]
+}
+
+/** 분석 요청·응답 모두에서 쓰는 (패키지, 정확한 버전) 쌍. */
+export interface FeatureTarget {
+  package_name: string
+  version: string
+}
+
+export interface FeatureCellWire {
+  package_name: string
+  version: string
+  verdict: FeatureVerdict
+  data_status: FeatureDataStatus
+  /** 이 셀의 판정이 기댄 근거. 비어 있을 수 있다(근거 부족은 UNCONFIRMED). */
+  evidence_ids: string[]
+  note: string | null
+  reason_code: FeatureReasonCode | null
+}
+
+export interface FeatureRowWire {
+  feature_id: string
+  feature_label: string
+  /** 요청한 패키지 순서를 따른다 */
+  results: FeatureCellWire[]
+}
+
+/** 공통 환경·설치 조건 한 행(구조화 데이터 계층). 이 계층이 없으면 응답의 `environment` 가 null 이다. */
+export interface FeatureEnvironmentRowWire {
+  key: string
+  label: string
+  /** 값이 없으면 null — 화면이 `미확인` 으로 적는다 */
+  values: { package_name: string; value: string | null }[]
+}
+
+export interface FeatureNarrativeWire {
+  heading: string
+  body: string
+  evidence_ids: string[]
+}
+
+export interface FeatureComparisonResponse {
+  data_status: FeatureDataStatus
+  /** `COMPARISON_LIMITED` — 비교 가능한 기능이 부족하다. 억지 표를 만들지 않는다(구상안 §8) */
+  comparison_state: 'COMPLETE' | 'COMPARISON_LIMITED'
+  packages: FeatureTarget[]
+  environment: FeatureEnvironmentRowWire[] | null
+  environment_note: string | null
+  features: FeatureRowWire[]
+  narrative: FeatureNarrativeWire[]
+  /** 표는 있는데 해설만 못 만든 경우의 사유. 표의 판정은 그대로 유효하다 */
+  narrative_error: string | null
+  evidence_count: number | null
+  /** ISO 8601 또는 날짜 */
+  analyzed_at: string
+  /** 미리 확인해 둔 예시 결과일 때만 true. 분석 서버가 그 자리에서 만든 값이 아니다 */
+  is_example?: boolean
+}
+
+/* ------------------------------------------------------------------ *
  * 화면 전용 타입 (서버 스펙 아님)
  * ------------------------------------------------------------------ */
 

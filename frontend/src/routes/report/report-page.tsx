@@ -117,7 +117,7 @@ export function ReportPage() {
    */
   const [picked, setTab] = useState<ReportTab>('ecosystem')
   const tab: ReportTab = evidenceId ? 'features' : picked
-  const run = useAnalysisRun()
+  const run = useAnalysisRun(packages)
 
   /**
    * 한 번 방문한 탭은 언마운트하지 않는다(S15P21A506-316).
@@ -239,7 +239,7 @@ export function ReportPage() {
           </UnderlineTabsTrigger>
           <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
-            {run.status !== 'COMPLETED' && (
+            {run.status === 'RUNNING' && (
               <>
                 <span
                   aria-hidden

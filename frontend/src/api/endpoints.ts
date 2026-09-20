@@ -10,6 +10,7 @@
 
 import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
 import { mockCommunityRefresh, mockCommunityStatus } from '@/api/mock/community'
+import { mockFeatureComparison, mockFeatureVersions } from '@/api/mock/features'
 import {
   mockDependentsTrend,
   mockDictManifest,
@@ -23,12 +24,16 @@ import {
   mockTransitions,
   mockVersionShare,
 } from '@/api/mock/handlers'
+import { pocFeatureComparison, pocFeatureVersions } from '@/api/poc-features'
 import type {
   CommunityRefreshTrigger,
   CommunityStatusResponse,
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
+  FeatureComparisonResponse,
+  FeatureTarget,
+  FeatureVersionsResponse,
   PackageDictionary,
   PackageSearchResponse,
   PackagesOverviewResponse,
@@ -226,4 +231,27 @@ export function postCommunityRefresh(
     : post<CommunityStatusResponse>('/packages/community/refresh', undefined, {
         params: { name, trigger },
       })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-217. 기능 비교 [확장]
+ *
+ * 실 endpoint 는 아직 없다(BE S15P21A506-130·313). mock 이 아니면 구상안 16장 POC 실측을
+ * 그 조합에만 돌려주고, 나머지는 `FEATURE_NOT_AVAILABLE` 로 거절한다 — `api/poc-features.ts`.
+ * 실 API 가 붙으면 이 두 함수의 `poc*` 분기를 `get`/`post` 로 바꾸고 그 파일을 지운다.
+ * ------------------------------------------------------------------ */
+
+/** 패키지별 선택 가능 버전과 최신 안정 버전(구상안 §9.1). */
+export function fetchFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
+  return USE_MOCK ? mockFeatureVersions(names) : pocFeatureVersions(names)
+}
+
+/**
+ * 정확한 버전 조합의 기능 비교를 새로 계산한다. **판정은 캐시하지 않는다**
+ * (`DEC-FEATURE-CACHE-20260917-01`) — 그래서 react-query 조회가 아니라 뮤테이션으로 부른다.
+ */
+export function fetchFeatureComparison(
+  targets: FeatureTarget[],
+): Promise<FeatureComparisonResponse> {
+  return USE_MOCK ? mockFeatureComparison(targets) : pocFeatureComparison(targets)
 }

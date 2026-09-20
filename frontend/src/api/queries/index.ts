@@ -6,6 +6,8 @@ import {
   fetchDictManifest,
   fetchDictionary,
   fetchDownloadsTrend,
+  fetchFeatureComparison,
+  fetchFeatureVersions,
   fetchPackageSearch,
   fetchPackagesOverview,
   fetchPdfPreview,
@@ -17,7 +19,13 @@ import {
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
 import { ApiError } from '@/api/client'
-import { MAX_NAMES, type CommunityRefreshTrigger, type TransitionPeriodParam } from '@/api/types'
+import {
+  FEATURE_NOT_AVAILABLE,
+  MAX_NAMES,
+  type CommunityRefreshTrigger,
+  type FeatureTarget,
+  type TransitionPeriodParam,
+} from '@/api/types'
 
 export { queryKeys }
 
@@ -262,6 +270,39 @@ export function useCommunityRefresh() {
   return useMutation({
     mutationFn: ({ name, trigger }: { name: string; trigger: CommunityRefreshTrigger }) =>
       postCommunityRefresh(name, trigger),
+    retry: false,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-217. 기능 비교
+ * ------------------------------------------------------------------ */
+
+/**
+ * 패키지별 선택 가능 버전. 조합에 대한 기능 비교가 없으면(`FEATURE_NOT_AVAILABLE`) 다시
+ * 물어도 같은 답이므로 재시도하지 않는다.
+ */
+export function useFeatureVersions(names: readonly string[]) {
+  return useQuery({
+    queryKey: queryKeys.features.versions(names),
+    queryFn: () => fetchFeatureVersions(names),
+    enabled: usable(names),
+    staleTime: 5 * 60_000,
+    retry: (count, error) => {
+      if (error instanceof ApiError && (error.isValidation || error.code === FEATURE_NOT_AVAILABLE))
+        return false
+      return count < 1
+    },
+  })
+}
+
+/**
+ * 조회가 아니라 **분석 실행**이다 — 판정을 캐시하지 않고 부를 때마다 새로 계산한다.
+ * 자동 재시도하지 않는다. 다시 하는 일은 사용자가 버튼으로 정한다(구상안 §9.3).
+ */
+export function useFeatureComparisonRun() {
+  return useMutation({
+    mutationFn: (targets: FeatureTarget[]) => fetchFeatureComparison(targets),
     retry: false,
   })
 }
