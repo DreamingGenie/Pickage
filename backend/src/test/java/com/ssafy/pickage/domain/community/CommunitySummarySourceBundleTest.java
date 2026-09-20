@@ -123,7 +123,7 @@ class CommunitySummarySourceBundleTest {
                 .containsExactly("oldest", "middle", "newest");
     }
 
-    // --- 2026-09-16: highlights() — 반응 최다 댓글 + 유지관리자 답글 + 그 주변 댓글(최대 3개) ---
+    // --- highlights() — 반응 최다 댓글 + 유지관리자 답글 + 그 주변 댓글, 남는 자리는 반응순 채우기(최대 4개, 2026-09-20) ---
 
     private static CollectedComment commentWithAssociation(
             String id, String authorId, String association, int reactionCount, Instant createdAt) {
@@ -132,14 +132,14 @@ class CommunitySummarySourceBundleTest {
     }
 
     @Test
-    void highlights는_반응_최다_댓글_유지관리자_답글_그_주변_댓글까지_최대_3개를_고른다() {
+    void highlights는_반응_최다_댓글_유지관리자_답글_그_주변_댓글을_먼저_고르고_남는_자리를_반응순으로_채운다() {
         var topComment = comment("top", "other", 100, BASE.plusSeconds(1));
         var earlyMaintainer =
-                commentWithAssociation("early-maintainer", "maint", "MEMBER", 0, BASE); // top보다 먼저 — 제외돼야 함
+                commentWithAssociation("early-maintainer", "maint", "MEMBER", 0, BASE); // top보다 먼저 — 유지관리자 답글로는 제외
         var lateMaintainer =
                 commentWithAssociation("late-maintainer", "maint", "OWNER", 0, BASE.plusSeconds(2));
         var nearby = comment("nearby", "other", 5, BASE.plusSeconds(3)); // 유지관리자 답글 이후 첫 댓글
-        var farNoise = comment("far-noise", "other", 9, BASE.plusSeconds(4)); // nearby보다 늦음 — 제외돼야 함
+        var farNoise = comment("far-noise", "other", 9, BASE.plusSeconds(4)); // 남는 한 자리를 반응순으로 채운다
 
         var bundle =
                 CommunitySummarySourceBundle.highlights(
@@ -149,23 +149,57 @@ class CommunitySummarySourceBundleTest {
 
         assertThat(bundle.issue().comments())
                 .extracting(CollectedComment::sourceCommentId)
-                .containsExactly("top", "late-maintainer", "nearby"); // 시각순, 반응 수와 무관
+                .containsExactly("top", "late-maintainer", "nearby", "far-noise"); // 시각순, 반응 수와 무관
+        assertThat(bundle.limited()).isTrue(); // early-maintainer 가 빠졌다
+    }
+
+    @Test
+    void highlights는_댓글이_아무리_많아도_최대_4개만_고른다() {
+        var comments = new ArrayList<CollectedComment>();
+        for (int i = 0; i < 10; i++) comments.add(comment("c" + i, "other", i, BASE.plusSeconds(i)));
+
+        var bundle = CommunitySummarySourceBundle.highlights(issue("issue-author", comments));
+
+        assertThat(bundle.issue().comments()).hasSize(4);
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("c6", "c7", "c8", "c9"); // 반응 상위 4개
         assertThat(bundle.limited()).isTrue();
     }
 
     @Test
-    void highlights는_유지관리자_답글이_없으면_반응_1_2순위_댓글_2개만_고른다() {
-        var topComment = comment("top", "other", 10, BASE);
-        var secondComment = comment("second", "other", 5, BASE.plusSeconds(1));
-        var thirdComment = comment("third", "other", 1, BASE.plusSeconds(2)); // 3순위 — 제외돼야 함
+    void highlights는_유지관리자_답글이_없으면_반응_많은_순으로_최대_4개까지_채운다() {
+        var comments =
+                List.of(
+                        comment("top", "other", 10, BASE),
+                        comment("second", "other", 5, BASE.plusSeconds(1)),
+                        comment("third", "other", 1, BASE.plusSeconds(2)),
+                        comment("fourth", "other", 0, BASE.plusSeconds(3)),
+                        comment("fifth", "other", 0, BASE.plusSeconds(4)));
 
-        var bundle =
-                CommunitySummarySourceBundle.highlights(
-                        issue("issue-author", List.of(topComment, secondComment, thirdComment)));
+        var bundle = CommunitySummarySourceBundle.highlights(issue("issue-author", comments));
+
+        // 반응 0인 둘 중에는 최신(fifth)이 우선이다.
+        assertThat(bundle.issue().comments())
+                .extracting(CollectedComment::sourceCommentId)
+                .containsExactly("top", "second", "third", "fifth");
+    }
+
+    @Test
+    void highlights는_Bot_댓글을_후보에서_뺀다() {
+        // 요약 검증기는 Bot 댓글이 발화로 나오면 요약 전체를 실패시킨다 — 애초에 고르지 않는다.
+        var bot =
+                new CollectedComment(
+                        "bot", "dependabot", "NONE", true, BASE, FULL_COMMENT, "bot-id", 999);
+        var human = comment("human", "other", 1, BASE.plusSeconds(1));
+
+        var bundle = CommunitySummarySourceBundle.highlights(issue("issue-author", List.of(bot, human)));
 
         assertThat(bundle.issue().comments())
                 .extracting(CollectedComment::sourceCommentId)
-                .containsExactly("top", "second");
+                .containsExactly("human");
+        assertThat(bundle.sources())
+                .doesNotContainKey(new TopicSummary.SourceRef("COMMENT", "bot"));
     }
 
     @Test

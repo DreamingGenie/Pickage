@@ -174,16 +174,23 @@ class CommunityAcceptanceIntegrationTest {
      * 이 목록은 {@code deploy/local/seed/*.sql} 의 TRUNCATE 문과 **같아야 한다.** package 를
      * 참조하는 표를 새로 만들면 여기에도 넣는다 — TRUNCATE 는 참조하는 표가 비어 있어도 같이
      * 지정하지 않으면 거절한다. community_snapshot 은 V3(S15P21A506-315),
-     * dependent_transition 은 V8(S15P21A506-361)에서 이 이유로 추가됐다.
+     * dependent_transition 은 V8(S15P21A506-361), dependent_removal_reason 은
+     * V9(S15P21A506-396)에서 이 이유로 추가됐다.
+     *
+     * <p>이 문자열은 시드 파일을 읽지 않고 손으로 베낀 것이라 **드리프트가 난다.** 실제로
+     * V8 을 넣을 때 시드만 고치고 여기를 빠뜨려 MR !173 이 머지 블록에 걸렸다. 옆의
+     * {@code R14_allSharedSeedScriptsExecuteWithCommunityForeignKey} 가 파일을 직접 읽어
+     * 돌리므로 그쪽이 본 검사이고, 이 시험은 목록 자체가 실행 가능한지만 본다.
      */
     @Test
     void R14_existingSeedTruncateMustRemainExecutable() {
         assertDoesNotThrow(
                 () ->
                         jdbc.execute(
-                                "TRUNCATE community_snapshot, dependent_transition,"
-                                        + " similar_package, package_version_snapshot,"
-                                        + " package_snapshot, version, package"));
+                                "TRUNCATE community_snapshot, dependent_removal_reason,"
+                                        + " dependent_transition, similar_package,"
+                                        + " package_version_snapshot, package_snapshot,"
+                                        + " version, package"));
     }
 
     @Test
@@ -326,7 +333,6 @@ class CommunityAcceptanceIntegrationTest {
                         "COMPLETE",
                         "READY",
                         "확인된 요약",
-                        List.of(new DiscussionStepPayload("확인된 흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",
@@ -335,7 +341,8 @@ class CommunityAcceptanceIntegrationTest {
                                         true,
                                         "DISCUSSION",
                                         date,
-                                        "확인된 메시지")));
+                                        "확인된 메시지")),
+                        List.of(new SummaryMarkPayload(0, 3, SummaryMarkPayload.KEY_TERM)));
         repository.upsert(
                 new CommunitySnapshotRow(
                         7,
@@ -345,7 +352,8 @@ class CommunityAcceptanceIntegrationTest {
                         DataStatus.AVAILABLE,
                         new CommunityResultPayload(
                                 new RepositoryPayload(
-                                        "fixture", "repo", "fixture/repo", "PACKAGE_SCOPED", false),
+                                                "fixture", "repo", "fixture/repo", "PACKAGE_SCOPED", false)
+                                        .withIssueCounts(1234, 56),
                                 "github-active-v1",
                                 365,
                                 null,
@@ -366,6 +374,9 @@ class CommunityAcceptanceIntegrationTest {
                 result.path("topics").get(0).path("messages").get(0).path("role").asText());
         assertFalse(result.toString().contains("source_comment_id"));
         assertFalse(result.toString().contains("source_issue_id"));
+        // 저장소 전체 Issue 수(S15P21A506-413) — 요약한 Issue 수(summary.issue_count)와 다른 값이다.
+        assertEquals(1234, result.path("repository").path("issue_count").asInt());
+        assertEquals(56, result.path("repository").path("open_issue_count").asInt());
         assertEquals(2, result.path("summary").path("comment_count").asInt());
         assertEquals(3, result.path("summary").path("reaction_count").asInt());
         context.close();

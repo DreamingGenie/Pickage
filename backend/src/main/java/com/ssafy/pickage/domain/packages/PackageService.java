@@ -14,12 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.RemovalReasonRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TransitionRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
@@ -82,15 +84,16 @@ public class PackageService {
 	}
 
 	/**
-	 * 개요 SQL 은 {@code latest_ver} 를 INNER JOIN 하므로 <b>{@code version} 행이 하나도 없는
-	 * 패키지가 결과에서 빠진다.</b> 그러면 존재하는 이름이 {@code not_found} 로 분류되고,
+	 * 개요 SQL 은 최신 버전을 {@code CROSS JOIN LATERAL} 로 붙이므로 <b>{@code version} 행이
+	 * 하나도 없는 패키지가 결과에서 빠진다.</b> 그러면 존재하는 이름이 {@code not_found} 로 분류되고,
 	 * 화면은 "이름을 확인하세요" 를 띄운다 — 사용자는 멀쩡한 이름을 계속 다시 친다.
 	 *
 	 * <p>실제 DB 로 갈라 확인한 결과, 스냅샷만 없는 경우(consola)는 정상 동작하고
 	 * {@code version} 행이 아예 없는 경우만 해당된다. 파이프라인이 {@code package} 를
 	 * versions 에서 파생시키므로 실제로는 생기지 않을 것으로 보지만, <b>전제가 깨졌을 때
-	 * 조용히 지나가지 않도록</b> 로그를 남긴다. 이 경고가 찍히기 시작하면 SQL 을 LEFT JOIN 으로
-	 * 바꾸고 {@code latest_version} 을 nullable 로 열어야 한다(프론트 타입도 함께).
+	 * 조용히 지나가지 않도록</b> 로그를 남긴다. 이 경고가 찍히기 시작하면 SQL 을
+	 * {@code LEFT JOIN LATERAL} 로 바꾸고 {@code latest_version} 을 nullable 로 열어야 한다
+	 * (프론트 타입도 함께).
 	 */
 	private void warnIfSilentlyDropped(PackageNames names, List<String> notFound) {
 		if (notFound.isEmpty()) return;
@@ -128,19 +131,27 @@ public class PackageService {
 	 * §4·§5 추이
 	 * ------------------------------------------------------------------ */
 
+	/**
+	 * <b>기준일 달력이 불규칙해도 응답은 월요일 주간 격자다</b>(S15P21A506-403). DB 의 구간 합계를
+	 * 일평균으로 펼쳐 주간 합계로 환산한다({@link WeeklyTrend#downloads}). PDF 도 이 메서드를 부르므로
+	 * 화면과 PDF 가 같은 값을 쓴다.
+	 */
 	@Transactional(readOnly = true)
 	public TrendResponse getDownloadsTrend(PackageNames names, LocalDate from, LocalDate to) {
 		Existing existing = existing(names);
 		return TrendResponse.downloads(
-			toSeries(trendRows(from, to, window -> repository.findDownloadsTrend(names, window)), existing),
+			toSeries(trendRows(from, to,
+				window -> WeeklyTrend.downloads(repository.findDownloadsTrend(names, window), window)), existing),
 			existing.notFound());
 	}
 
+	/** 의존 수도 월요일 격자다. 관측이 없는 주는 양옆을 선형 보간해 잇는다({@link WeeklyTrend#dependents}). */
 	@Transactional(readOnly = true)
 	public TrendResponse getDependentsTrend(PackageNames names, LocalDate from, LocalDate to) {
 		Existing existing = existing(names);
 		return TrendResponse.dependents(
-			toSeries(trendRows(from, to, window -> repository.findDependentsTrend(names, window)), existing),
+			toSeries(trendRows(from, to,
+				window -> WeeklyTrend.dependents(repository.findDependentsTrend(names, window), window)), existing),
 			existing.notFound());
 	}
 
@@ -364,6 +375,86 @@ public class PackageService {
 		LocalDate t2 = rows.stream().map(TransitionRow::t2).findFirst().orElse(null);
 
 		return TransitionsResponse.of(period.code(), t1, t2, series, existing.notFound());
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 기능-08 이탈 사유 (S15P21A506-396)
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 대체를 동반한 이탈과 아무것도 안 넣은 이탈.
+	 *
+	 * <p><b>{@link #getTransitions} 와 단위가 다르다.</b> 저쪽은 패키지 수를 세고 이쪽은 전이
+	 * 건수를 센다. 그래서 응답을 따로 내고 {@code unit} 을 값으로 싣는다.
+	 *
+	 * <p><b>네 갈래를 가른다.</b> 위 세 갈래에 하나가 더 붙는다.
+	 * <ul>
+	 *   <li>{@code not_found} — {@code package} 에 이름 자체가 없다</li>
+	 *   <li>{@code OUT_OF_SCOPE} — 이름은 있는데 유지·유입·이탈 대상이 아니다</li>
+	 *   <li>{@code NO_DATA} — 대상인데 이 구간에 <b>한 번도 빠진 적이 없다.</b> 0 이 맞다</li>
+	 *   <li>{@code NOT_COMPUTED} — 이탈 사유 회차가 아직 적재되지 않았다</li>
+	 * </ul>
+	 *
+	 * <p>세 번째가 이 지표에서 특히 중요하다 — 대상 97,745개 중 <b>57,201개(58.5%)</b>가
+	 * 거기 해당한다. 적재기가 {@code removals > 0} 인 행만 넣으므로 표에 행이 없는 것이
+	 * 곧 "세어 보니 없었다" 이고, 조회가 {@code dependent_transition} 을 함께 보는 이유가
+	 * 그것이다.
+	 *
+	 * <p>네 번째를 {@link PackageQueryRepository#hasAnyRemovalReason()} 로 따로 확인한다.
+	 * 유지·유입·이탈만 적재된 상태에서는 조회가 모든 대상에 행을 돌려주되 수가 전부
+	 * {@code null} 이라, 이 검사가 없으면 <b>적재를 안 했을 뿐인데 "한 번도 버려진 적
+	 * 없습니다" 를 띄운다.</b>
+	 */
+	@Transactional(readOnly = true)
+	public RemovalReasonsResponse getRemovalReasons(PackageNames names, TransitionPeriod period) {
+		Existing existing = existing(names);
+		List<RemovalReasonRow> rows = existing.names().isEmpty()
+			? List.of()
+			: repository.findRemovalReasons(PackageNames.of(existing.names()), period.code());
+
+		// **행이 왔는가가 곧 범위 안인가다.** 조회가 범위 표를 JOIN 하므로 행이 없다는 것은
+		// "대상이 아니다" 한 가지 뜻뿐이고, 이탈 사유 회차를 올렸는지와는 무관하다.
+		// 여기에 적재 상태를 섞으면 표가 비어 있는 동안 대상 밖 패키지가 NOT_COMPUTED 로
+		// 나가 화면이 "집계 대기 중" 을 띄운다 — 영원히 안 나올 값인데도.
+		//
+		// getTransitions 가 hasAnyTransition() 으로 둘을 가르는 것과 다른 상황이다.
+		// 그쪽은 행의 출처가 dependent_transition 자신이라 "행 없음" 이 두 뜻을 겸한다.
+		Map<String, RemovalReasonRow> byName = rows.stream()
+			.collect(Collectors.toMap(RemovalReasonRow::name, Function.identity()));
+
+		// 회차 적재 여부는 **범위 안인데 수가 빈 행**에만 필요하다. 그 상태가 "아무도 안
+		// 뺐다"(0)인지 "아직 안 올렸다"(모름)인지는 표를 봐야 알 수 있다.
+		//
+		// 한 행이라도 수가 들어 있으면 표가 빈 게 아님이 자명하므로 묻지 않는다. 정상
+		// 경로에 질의를 더하지 않으려는 것이고, hasAnyTransition() 을 조회 결과가 빌 때만
+		// 부르는 것과 같은 규칙이다.
+		boolean loaded = rows.stream().anyMatch(RemovalReasonRow::counted)
+			|| repository.hasAnyRemovalReason();
+
+		List<RemovalReasonsResponse.Series> series = existing.names().stream()
+			.map(name -> {
+				RemovalReasonRow row = byName.get(name);
+				if (row == null) {
+					return RemovalReasonsResponse.Series.unknown(name,
+						RemovalReasonsResponse.OUT_OF_SCOPE);
+				}
+				if (!row.counted()) {
+					// 범위는 맞는데 수가 없다. 회차가 없으면 모름, 있으면 0 이다.
+					return loaded ? RemovalReasonsResponse.Series.none(name)
+						: RemovalReasonsResponse.Series.unknown(name,
+							RemovalReasonsResponse.NOT_COMPUTED);
+				}
+				return RemovalReasonsResponse.Series.counted(name, row.removals(),
+					row.noReplacement(), row.withReplacement(), row.dependents());
+			})
+			.toList();
+
+		// transitions 와 같은 규칙 — 표가 가진 값만 쓴다. 읽을 행이 없으면 모른다고 한다.
+		// 두 응답의 t1·t2 가 같은 값인 것은 적재기가 같은 표에서 가져오기 때문이다.
+		LocalDate t1 = rows.stream().map(RemovalReasonRow::t1).findFirst().orElse(null);
+		LocalDate t2 = rows.stream().map(RemovalReasonRow::t2).findFirst().orElse(null);
+
+		return RemovalReasonsResponse.of(period.code(), t1, t2, series, existing.notFound());
 	}
 
 	/* ------------------------------------------------------------------ *

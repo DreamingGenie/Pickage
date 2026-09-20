@@ -29,9 +29,9 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 | 버킷 | 역할 | 저장 대상 | 현재 상태 |
 | --- | --- | --- | --- |
 | `pickage-raw` | Bronze 원본 보관 | 수집된 Parquet 원본, 원본·검증 manifest, 완료 표시 | deps.dev 데이터 입고 완료 |
-| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과, 빌더가 만든 파생 데이터셋 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고 |
-| `pickage-vectors` | 벡터 산출물 보관 | 향후 패키지 임베딩과 패키지·모델 버전 연결 정보 | 버킷 생성만 완료; 벡터 생성·검색 연동 미구현 |
-| `pickage-mlflow-artifacts` | 학습·실험 산출물 보관 | 향후 MLflow의 모델 파일, 평가 보고서 등 | 버킷 생성만 완료; MLflow 연동 미구현 |
+| `pickage-curated` | 정제·가공 데이터 보관 | `package`·`version` 적재용 Parquet, ID 매핑, 품질 검증 결과, 빌더가 만든 파생 데이터셋 | 2026-08-31 스냅샷 전처리·저장·재검증 완료; [Curated 안내](../curated/README.md) 참고. `experiments/` 아래에 실험 산출물도 함께 들어 있다(아래 참고) |
+| `pickage-vectors` | 벡터 산출물 보관 | 패키지 임베딩 기반 후보 색인, 패키지·모델 버전 연결 정보 | 후보 색인 1회차 게시(4객체 9.7 MiB). 벡터 검색 엔진 연동은 미구현 |
+| `pickage-mlflow-artifacts` | 학습·실험 산출물 보관 | 학습한 모델 파일과 그 manifest | **모델 2벌 265.5 MiB 보관 중**(손 업로드, 경로 규약 밖 — 아래 참고). MLflow 서비스 연동은 미구현 |
 | `pickage-quarantine` | 검증 실패 데이터 격리 | 향후 오류 레코드와 실패 사유 등 조사 대상 | 버킷 생성만 완료; 자동 격리 미구현 |
 
 `pickage-vectors`는 벡터 파일 보관용이지 벡터 검색 엔진 자체가 아니다.
@@ -41,8 +41,18 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 
 ## 현재 진행 상황
 
-2026-09-14 확인 기준이다. 아래 입고 수치는 저장된 검증 manifest 기준이며,
-이 문서 작성 시 전체 객체의 해시를 다시 계산한 결과는 아니다.
+**2026-09-18 서버 MinIO 전수 점검 기준이다.** 버킷 5개의 객체를 모두 나열해 개수와 바이트를
+세었다(`list_objects_v2` 전수). 객체 내용의 해시를 다시 계산한 것은 아니다 — 입고 시 대조한
+SHA-256 결과는 각 회차의 `run_manifest.json` 에 있다.
+
+| 버킷 | 객체 | 바이트 |
+| --- | ---: | ---: |
+| `pickage-raw` | 15,291 | 47,058,739,230 (43.8 GiB) |
+| `pickage-curated` | 2,467 | 24,203,130,244 (22.5 GiB) |
+| `pickage-mlflow-artifacts` | 10 | 278,392,408 (265.5 MiB) |
+| `pickage-vectors` | 4 | 10,148,650 (9.7 MiB) |
+| `pickage-quarantine` | 0 | 0 |
+| **합계** | **17,772** | **71,550,410,532 (66.6 GiB)** |
 
 - [x] 루트 Compose에서 로컬 MinIO 실행 및 데이터 볼륨 관리
 - [x] MinIO 준비 완료 후 없는 버킷만 자동 생성
@@ -58,8 +68,12 @@ MinIO를 실행하는 것만으로 전처리나 PostgreSQL 적재가 수행되�
 - [x] npm registry 원본 입고 — 두 회차 모두 완료 (2026-09-16). `collected_date=2026-09-09`
       (`registry-20260909-v1`, 4,291 파일 · 765 MB) 와 `collected_date=2026-09-16`
       (`registry-20260916-v1`, 4,315 파일 · 988 MB, 샤드 4개). SHA-256 대조 실패 0건
+- [x] npm downloads 원본 입고 — 백필(`downloads-278-20260909-v1`)과 주간 1회차(`downloads-weekly-20260914`)
+- [x] 주간 갱신 1회차 실행 (`bronze-weekly-20260914`, 상태는 `pickage-raw/_ops/weekly/2026-09-14/run.json`,
+      S15P21A506-273). 2026-09-18 01:11 UTC `SUCCEEDED`
+- [x] 후보 색인 1회차 게시 (`pickage-vectors/model=v2/corpus=package-text-20260908-v1`, 후보 465,160행)
 - [ ] PostgreSQL 적재
-- [ ] Spark·벡터 생성·MLflow 연동
+- [ ] Spark·벡터 검색 엔진·MLflow 서비스 연동
 - [ ] 권한 분리(서비스 계정), 백업 및 자동 스케줄링
 
 서버 MinIO는 루트 자격증명 하나를 함께 쓰는 상태다. 버킷별 권한을 가른 서비스 계정은
@@ -135,6 +149,104 @@ peer 열 자체는 deps.dev `requirements` 에서만 오므로 `depsdev/v1` 아�
 서버 `pickage-raw` 에 넣었다. gzip JSONL 1,000개(184,154,394바이트)에 관리 파일 3개를
 더해 1,003객체이며, 원본 manifest 기준 1,000/1,000페이지·100만 행이다. 같은 실행 ID로
 재실행해 객체 수가 늘지 않고 전량 해시 검증만 통과하는 것을 확인했다.
+
+### 입고 회차 목록
+
+**아래 바이트는 prefix 전체다** — 데이터 파일에 관리 파일(`run_manifest.json`·`_SUCCESS`)을 더한
+값이다. 이어지는 문단들의 수치는 데이터 파일만 센 것이라 조금 작다. 예를 들어 Bronze 는
+데이터 3,231개 33,443,300,362 B 에 관리 파일 696개가 붙어 3,927객체 33,444,184,636 B 가 된다.
+
+`pickage-raw` — 수집기 원본과 Bronze.
+
+| run_id | 객체 | 바이트 | 무엇 |
+| --- | ---: | ---: | --- |
+| `bronze-20260907-v1` | 3,927 | 33,444,184,636 | deps.dev Bronze 초기 적재(`projects`·`pkg_project`·`requirements`·`versions_full`) |
+| `bronze-weekly-20260914` | 931 | 10,033,410,669 | 주간 갱신 1회차(`projects`·`requirements`·`versions_min`) |
+| `registry-20260916-v1` | 4,321 | 989,127,592 | npm registry 원본, 수집일 2026-09-16(샤드 4개) |
+| `registry-20260909-v1` | 4,294 | 766,251,533 | npm registry 원본, 수집일 2026-09-09 |
+| `keywords-20260909-v1` | 1,003 | 184,419,176 | ecosyste.ms keywords, 수집일 2026-09-08 |
+| `downloads-278-20260909-v1` | 771 | 1,598,541,546 | npm downloads 백필 원본 |
+| `downloads-weekly-20260914` | 42 | 41,720,375 | npm downloads 주간 1회차 |
+| (관리) `_ops/weekly/2026-09-14/run.json` | 1 | 3,174 | 주간 실행 상태 (S15P21A506-273) |
+| (관리) `experiments/raw-benchmark-20260915/targets` | 1 | 1,080,529 | 벤치마크 대상 목록 |
+
+`pickage-curated` — Curated 와 파생 데이터셋.
+
+| run_id | 객체 | 바이트 | 무엇 |
+| --- | ---: | ---: | --- |
+| `curated-20260907-v2` | 47 | 4,847,760,032 | `package`·`version` 적재용 Parquet |
+| `package-dependents-20260915-v1` | 3 | 104,146,164 | 패키지별 의존 패키지 수. **코드는 develop 미머지**(S15P21A506-354) |
+| `package-text-20260908-v1` | 3 | 86,161,332 | 유사도 배치 코퍼스 |
+| `package-dependents-candidate-pool-20260916-v1` | 3 | 61,555,594 | 후보 풀 |
+| `package-peers-20260915-v1` | 5 | 47,779,985 | **폐기됨** — 아래 "폐기한 회차" |
+| `package-peers-20260915-v2` | 4 | 46,896,743 | npm 전수 peer 목록 |
+| `migration-pairs-20260909-v1` | 5 | 28,704,431 | 이동쌍(실행용 의존·npm 전수) |
+| `migration-pairs-dev-20260914-v1` | 5 | 5,870,873 | 이동쌍(개발용 의존·registry 수집분) |
+| `dependent-transitions-20260917-v1` | 3 | 5,743,139 | 유지·유입·이탈 전이 |
+| `deprecated-replacement-20260914-v1` | 3 | 2,840,619 | 폐기→대체 학습쌍 |
+| `peer-similarity-20260914-v1` | 4 | 2,268,414 | 대체 후보 peer 유사도 |
+| (포인터) `_current.json` 4개 | 4 | 852 | `package-version`·`package-peers`·`peer-similarity`·`package-text` |
+| `experiments/` 6개 prefix | 2,378 | 18,963,402,066 | 실험 산출물 — 아래 참고 |
+
+### `pickage-mlflow-artifacts` 는 경로 규약 밖이다
+
+**빈 버킷이 아니다.** 모델 2벌이 들어 있다. 문서만 보고 비어 있다고 판단해 지우거나 덮어쓰지 말 것.
+
+| prefix | 올라간 날 | model_ver | 객체 |
+| --- | --- | --- | --- |
+| `v7/` | 2026-09-12 | `bge-small-v7-hiconf-batch32-step1310` | `model.onnx`(138,482,077 B) · `tokenizer.json` · `tokenizer_config.json` · `run_manifest.json` · `_SUCCESS.txt` |
+| `v7-v5clean/` | 2026-09-15 | `bge-small-v7-v5clean-batch32-step500` | 같은 5개 |
+
+다른 버킷과 규약이 다르다. **입고기(`ingest_*.py`)를 거치지 않고 손으로 올린 것이기 때문이다.**
+
+- 경로가 버킷 root 에 flat 하다(`v7/`). 다른 버킷의 `<source>/v1/<dataset>/<partition>/run_id=…/` 를 따르지 않는다.
+- 완료 표시가 `_SUCCESS.txt` 다. 다른 곳은 `_SUCCESS` 다.
+- `run_manifest.json` 에 학습 정보(`adapter`·`training`·`eval`·`onnx_export`)는 있지만
+  **객체별 sha256 과 검증 상태 필드가 없다.** 입고기가 만든 manifest 와 형태가 다르다.
+- 두 모델의 `tokenizer.json`·`tokenizer_config.json` 은 내용이 같다(MD5 대조). 모델별로 자족적이어야
+  하므로 이 중복은 정당하다. `model.onnx` 는 크기가 같지만 내용은 다르다 — 크기만 보고 같다고 판단하지 말 것.
+
+규약에 맞출지는 별도 판단이 필요하다. 맞추려면 모델을 다시 올려야 하고, 모델을 읽는 쪽
+(추론 서버·후보 색인 배치)의 경로도 함께 바꿔야 한다.
+
+### `pickage-curated/experiments/` — 실험 산출물, 규약 밖이다
+
+`pickage-curated` 의 22.5 GiB 중 **17.7 GiB(2,378객체)가 `experiments/` 아래**다. 정제 데이터가
+아니라 Spark 실험의 입력·출력이며, 회차마다 `_CLAIM.json`(`run_id`·`input_identity`)을 둔 별도 규약을 쓴다.
+
+| prefix | 객체 | 바이트 |
+| --- | ---: | ---: |
+| `raw-freeze-20260915-b1` | 1,962 | 13,769,370,788 |
+| `benchmark-ec2-20260916-a1` | 73 | 5,038,734,827 |
+| `sample-ec2-20260916-a1` | 137 | 125,178,901 |
+| `sample1000-ec2-20260916-a1` | 84 | 14,558,052 |
+| `sample1000-ec2-20260916-a2` | 84 | 14,558,067 |
+| `repository22-20260917-a1` | 38 | 1,001,431 |
+
+**`raw-freeze-20260915-b1` 은 `pickage-raw` 객체의 사본이다.** 경로가
+`inputs/objects/pickage-raw/<원래 경로>` 로 원본 위치를 그대로 담고 있고(Bronze 의 `projects`·
+`requirements`·`versions_full` 과 downloads 백필), 표본으로 고른 객체 하나를 원본과 MD5 로
+대조해 같은 객체임을 확인했다. 실험 입력을 고정하려는 의도로 보이지만 **이 저장소 어디에도
+이 규약을 적은 문서가 없다**(`_CLAIM`·`raw-freeze`·`input_identity` 로 전수 검색).
+
+지우기 전에 만든 사람에게 확인할 것. 13.8 GB 이고, 이 버킷에서 가장 큰 prefix 이며,
+**같은 바이트가 `pickage-raw` 에도 그대로 있다.**
+
+### 포인터(`_current.json`)가 없는 파생 데이터셋
+
+읽는 쪽이 "최신 회차"를 이름으로 찾아야 하는 데이터셋이다.
+
+- `depsdev/v1/deprecated-replacement`
+- `depsdev/v1/migration-pairs`
+- `depsdev/v1/package-dependents`
+- `depsdev/v1/package-dependents-candidate-pool`
+- `depsdev/v1/dependent-transitions`
+- `npm-registry/v1/migration-pairs-dev`
+
+**지금은 급하지 않다.** 여섯 개 모두 서버에 올라간 회차가 하나뿐이라 "최신"을 고를 일이
+없기 때문이다. 포인터가 필요해지는 시점은 **둘째 회차가 생길 때**다. 그때 `_current.json`
+없이 새 회차를 올리면 읽는 쪽이 조용히 옛 회차를 계속 본다. 포인터 형식은 이미 게시된
+`package-text` 의 것을 따른다.
 
 ## 로컬 실행
 
@@ -226,6 +338,23 @@ ssh -i ~/.ssh/J15A506T.pem ubuntu@j15a506a.p.ssafy.io   'docker inspect pickage-
 `.env.server` 는 `.gitignore` 가 막는다(`.env.*` 전체를 막고 `.example` 만 예외로 둔다).
 **로컬 `.env` 에 서버 값을 넣지 말 것** — 그 파일은 루트 compose 가 로컬 컨테이너를
 띄울 때 함께 읽는다.
+
+#### 키 이름 — `PICKAGE_S3_*` 가 쓸 이름이다
+
+`client()` 는 자격증명을 두 이름으로 받는다. **새로 만드는 파일에는 `PICKAGE_S3_*` 를
+쓴다.**
+
+| 이름 | 쓰는 곳 |
+| --- | --- |
+| `PICKAGE_S3_ACCESS_KEY` · `PICKAGE_S3_SECRET_KEY` | 새 파일. 예: `.env.similarity-loader` |
+| `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | 옛 이름. `.env` · `.env.server` · `.env.data` 가 아직 이것이다 |
+
+옛 이름을 한 번에 걷어 내지 않는 이유는 **같은 파일을 다른 모듈도 읽기** 때문이다 —
+`pipeline/repository_metrics/build.py` 와 `pipeline/requirements_resolution/build.py` 가
+`MINIO_ROOT_*` 로 직접 파싱한다. 여기만 바꾸면 그 둘이 조용히 죽는다.
+
+**권한을 좁힌 계정을 `MINIO_ROOT_*` 라는 이름에 넣지 말 것.** 이름이 ROOT 면 루트 키를
+넣어도 어색해 보이지 않고, 그게 계정을 따로 만든 이유를 지운다 (S15P21A506-385).
 
 ### 3. 대상을 지정해 실행한다
 

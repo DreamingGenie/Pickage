@@ -287,6 +287,25 @@ class EmbedCorpus(QuietMixin, unittest.TestCase):
         self.assertEqual(emb.calls, [["tbb"]])  # only b re-embedded
         np.testing.assert_array_equal(vecs[0], cached)
 
+    def test_mixed_reuse_and_reembed_keep_row_positions(self):
+        """재사용·재임베딩이 섞여도 각 벡터가 제 행 위치에 들어간다."""
+        rows = [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+        texts = ["ta", "tbb", "tccc", "tdddd"]
+        cached_a = np.full(384, 7.0, dtype=np.float32)
+        cached_c = np.full(384, 9.0, dtype=np.float32)
+        state = {
+            "a": {"hash": sbp.text_hash("ta"), "vector": cached_a},
+            "b": {"hash": "stale", "vector": np.zeros(384, dtype=np.float32)},
+            "c": {"hash": sbp.text_hash("tccc"), "vector": cached_c},
+        }
+        emb = _FakeEmbedder()
+        vecs = sbp.embed_corpus(rows, texts, emb, state, batch_size=8)
+        self.assertEqual(emb.calls, [["tbb", "tdddd"]])
+        np.testing.assert_array_equal(vecs[0], cached_a)
+        np.testing.assert_array_equal(vecs[1], np.full(384, 3.0, dtype=np.float32))
+        np.testing.assert_array_equal(vecs[2], cached_c)
+        np.testing.assert_array_equal(vecs[3], np.full(384, 5.0, dtype=np.float32))
+
     def test_row_with_stale_hash_is_reembedded(self):
         rows = [{"name": "a"}]
         state = {"a": {"hash": "stale", "vector": np.zeros(384, dtype=np.float32)}}
@@ -517,6 +536,10 @@ class LoadPackageText(QuietMixin, unittest.TestCase):
                 "latest_release_published_at": [self.ROWS[n][1] for n in names],
                 "status": [self.ROWS[n][2] for n in names],
                 "is_spam": [self.ROWS[n][3] for n in names],
+                # 이 클래스의 시험은 dependents 규칙만 본다 — 전부 고정 목록 안(1)으로 두어
+                # download_rank 기본 컷(100000)에 걸리지 않게 한다. download_rank 자체를
+                # 다루는 시험은 아래 _write_ranked 를 쓴다.
+                "download_rank": [1] * len(names),
             }),
             path,
         )
@@ -575,6 +598,7 @@ class LoadPackageText(QuietMixin, unittest.TestCase):
                     "latest_release_published_at": ["2026-09-01" for _ in names],
                     "status": [None for _ in names],
                     "is_spam": [False for _ in names],
+                    "download_rank": [1] * n,
                 }),
                 path,
                 row_group_size=7,   # 50행 / 7 = row group 8개
@@ -584,9 +608,131 @@ class LoadPackageText(QuietMixin, unittest.TestCase):
 
         self.assertEqual(got, [f"p{i:03d}" for i in range(n) if i % 2 == 0])
 
+    def _write_ranked(self, path, ranks, deps=None):
+        """download_rank 를 채운 parquet. `ranks` 의 각 값이 그대로 download_rank 가 된다 —
+        고정 목록(rank_top100k_20260902.csv) 조인 결과를 흉내낸다(build_package_text.py 참고)."""
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        names = [f"p{i}" for i in range(len(ranks))]
+        pq.write_table(
+            pa.table({
+                "name": names,
+                "download_rank": pa.array(ranks, type=pa.int64()),
+                "description": ["d" for _ in names],
+                "keywords": [["kw"] for _ in names],
+                "dependent_packages_count": deps if deps is not None else [10] * len(names),
+                "latest_release_published_at": ["2026-09-01" for _ in names],
+                "status": [None for _ in names],
+                "is_spam": [False for _ in names],
+            }),
+            path,
+        )
+
+    def test_max_rank_cuts_at_boundary_inclusive(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 2, 3, 4, 5])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=3)]
+        self.assertEqual(got, ["p0", "p1", "p2"])   # download_rank 3 은 포함, 4 부터 제외
+
+    def test_max_rank_omitted_still_cuts_at_default_100000(self):
+        """옵션을 아예 안 줘도 100000 밖(NULL 포함)은 통과 못 한다 — S15P21A506-402 의 핵심.
+
+        이전에는 --max-rank 를 빼먹으면(None) 컷 자체가 꺼져 리포트 데이터 없는 패키지가
+        후보로 다시 섞였다. 이제는 옵션을 잊어도 안전해야 한다.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 100000, 100001, None])
+            got = {r["name"] for r in sbp.load_package_text(path, 5)}   # max_rank 인자 생략
+        self.assertEqual(got, {"p0", "p1"})
+        self.assertNotIn("p2", got)   # 100001 — 목록 상한 밖
+        self.assertNotIn("p3", got)   # NULL — 애초에 목록에 없음
+
+    def test_max_rank_counts_rows_not_rank_value_when_ranks_have_gaps(self):
+        """상위 목록에서 이름이 하나 빠지면 download_rank 값에도 결번이 생긴다 —
+        컷은 N 행이 아니라 download_rank<=N 이다."""
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, 2, 4, 5, 7])   # 3, 6 결번
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=5)]
+        self.assertEqual(got, ["p0", "p1", "p2", "p3"])   # 4행 — 5행이 아니다
+
+    def test_max_rank_drops_null_rank(self):
+        """download_rank NULL = 고정 목록 밖 = 리포트 불가. 상한을 아무리 키워도 통과 못 한다."""
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            self._write_ranked(path, [1, None, 3])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=10)]
+        self.assertEqual(got, ["p0", "p2"])
+
+    def test_max_rank_intersects_with_dependents_floor(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            # download_rank 2 는 dependents 미달, download_rank 4 는 상한 초과 — 둘 다 빠지고 1·3 만 남는다
+            self._write_ranked(path, [1, 2, 3, 4], deps=[10, 4, 10, 10])
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=3)]
+        self.assertEqual(got, ["p0", "p2"])
+
+    def test_max_rank_preserves_order_across_row_groups(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        n = 40
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": [f"p{i:03d}" for i in range(n)],
+                    "download_rank": pa.array(list(range(1, n + 1)), type=pa.int64()),
+                    "description": ["d"] * n,
+                    "keywords": [["kw"]] * n,
+                    "dependent_packages_count": [10] * n,
+                    "latest_release_published_at": ["2026-09-01"] * n,
+                    "status": [None] * n,
+                    "is_spam": [False] * n,
+                }),
+                path,
+                row_group_size=6,
+            )
+            self.assertGreater(pq.read_metadata(path).num_row_groups, 1)
+            got = [r["name"] for r in sbp.load_package_text(path, 5, max_rank=25)]
+        self.assertEqual(got, [f"p{i:03d}" for i in range(25)])
+
+    def test_missing_download_rank_column_raises_clear_error(self):
+        """download_rank 없는(구버전) package_text 를 넣으면 조용히 다 통과시키지 않고 즉시 에러."""
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "package_text.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": ["p0"],
+                    "rank": pa.array([1], type=pa.int64()),   # 구버전 컬럼만 있고 download_rank 없음
+                    "description": ["d"],
+                    "keywords": [["kw"]],
+                    "dependent_packages_count": [10],
+                    "latest_release_published_at": ["2026-09-01"],
+                    "status": [None],
+                    "is_spam": [False],
+                }),
+                path,
+            )
+            with self.assertRaises(ValueError):
+                sbp.load_package_text(path, 5)
+
 
 class ParseArgs(unittest.TestCase):
     BASE = ["--package-text", "x", "--model-dir", "y", "--out", "z"]
+
+    def test_max_rank_defaults_to_100000(self):
+        """생략해도 컷이 꺼지지 않는다 — S15P21A506-402."""
+        self.assertEqual(sbp.parse_args(self.BASE).max_rank, 100000)
+
+    def test_max_rank_parsed(self):
+        self.assertEqual(sbp.parse_args(self.BASE + ["--max-rank", "50000"]).max_rank, 50000)
 
     def test_retrieve_k_defaults_to_30(self):
         self.assertEqual(sbp.parse_args(self.BASE).retrieve_k, 30)

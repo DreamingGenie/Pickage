@@ -467,6 +467,8 @@ canonical endpoint: `GET /packages/downloads?names=a,b,c&from=&to=`
 - 조회 요청 상한은 현재 `SnapshotWindow.MAX_WEEKS`와 같은 **104주**다. 실제 보유 자료가 더 짧으면 확보된 구간만 반환한다.
 - 기간과 호출 기준일 기록
 - 누락 구간은 null/gap으로 보존하고 주간 관측 간격이 8일을 넘으면 차트 path를 끊는다. S15P21A506-304로 관측 공백(8일 초과) 단절과 지표 카드별 오류 격리가 구현됐다.
+- 기준일 달력이 월요일 주간이 아니어도(2026-02 이후 금·화·목이 섞임) **서버는 월요일 격자로 응답한다**(S15P21A506-403). Downloads 는 구간 합계를 일평균으로 펼쳐 주간 합계로 환산하고, Dependents 는 관측 범위 안의 빈 주를 선형 보간한다. 그래서 8일 초과 단절은 Downloads 에서 그 패키지의 행이 없어 7일이 덮이지 않은 주에만 나타난다. 세부 규칙은 `설계_지표별_관측기간_기준일_표시계약_260918.md` §2.
+- Dependents 카드는 실제값(로그축)으로 열고 변화율(구간 시작 = 100%)로 전환한다. (2026-09-20, S15P21A506-416 — 이전에는 변화율이 기본이었다)
 - 0은 정상 응답에서 실제 값이 0일 때만 사용
 - Downloads와 Dependents는 공통 TrendResponse 계열을 재사용하되 metric/unit metadata로 의미를 구분한다. 구체 wire field는 Notion/Swagger 정본을 따른다.
 - 여러 패키지 비교 그래프는 규모 차이를 고려해 로그축을 사용한다. S15P21A506-311로 로그축이 구현됐다.
@@ -996,6 +998,12 @@ PDF 생성 요청 시 새 분석을 하지 않고 현재 완료된 **생태계 �
 - createdAt
 - featureVersions
 - **세션이 보유한 완료 판정 결과(verdict·evidenceId 목록·narrative)를 PDF 요청 payload로 그대로 싣는다** — `FeatureAssessment`/`AnalysisRun`을 서버가 영속화하지 않으므로 재조회하지 않는다(`DEC-FEATURE-CACHE-20260917-01`, §9.1·§14.5). evidenceId는 영속된 `EvidenceRecord`를 가리키므로 그대로 조회할 수 있다.
+- 유지·유입·이탈 조회 `period`(1y/3y/5y, 생략 시 3y)와 그 시점의 `TransitionsResponse`(패키지×kind별
+  `retained`·`inflow`·`inflow_new`·`inflow_adopted`·`outflow`·`unobserved`·`data_status`·`t1`·`t2`·
+  `population`). 화면(S15P21A506-391)과 같은 원칙을 따른다 — 메인 유입 지표는 원시 `inflow`가
+  아니라 `inflow_adopted`이고, `data_status` 네 값(`COMPLETE`·`NO_DATA`·`OUT_OF_SCOPE`·
+  `NOT_COMPUTED`)은 0으로 뭉개지 않고 그대로 구분해 적는다. 이 기능(S15P21A506-361·391) 자체가
+  이 절 최초 작성(0917) 이후에 생겨 그때는 목록에 없었다 — S15P21A506-394가 추가했다.
 
 선택적으로 포함:
 
@@ -1025,7 +1033,7 @@ BLOCKED:
 - VERSION_RESULT_MISMATCH
 ```
 
-일부 기간 없음, 후보 `NO_DATA`, Version Share의 `기타` major 또는 확장 해석 결과의 `UNKNOWN|AMBIGUOUS`는 차단 사유가 아니다. 상태를 PDF에 표시한다.
+일부 기간 없음, 후보 `NO_DATA`, Version Share의 `기타` major 또는 확장 해석 결과의 `UNKNOWN|AMBIGUOUS`는 차단 사유가 아니다. 유지·유입·이탈의 `data_status`(`NO_DATA`·`OUT_OF_SCOPE`·`NOT_COMPUTED`)도 같은 종류의 결측이라 마찬가지로 차단 사유가 아니다(S15P21A506-394). 상태를 PDF에 표시한다.
 
 기능 비교 확장의 `REANALYSIS_REQUIRED`, `ANALYSIS_RUNNING`, `VERSION_RESULT_MISMATCH`는 PDF를 차단한다. 기존 결과는 비교 화면에서 유지하지만, 현재 선택 버전의 분석이 완료될 때까지 동일 ReportSnapshot의 PDF를 만들지 않는다.
 
@@ -1041,20 +1049,24 @@ BLOCKED:
 
 ### 13.4 문서 레이아웃
 
-필수 구성:
+필수 구성 — **각 수치 구역은 그래프를 위에, 구체적인 수치 표를 아래에 둔다**(2026-09-20, S15P21A506-414. 화면이 보여주는 그래프를 문서에 옮기고 표는 양 끝·증감을 정확한 숫자로 말한다. 조회 조건은 화면의 기본값 — 전체 기간·주 단위 — 이고 의존 수 그래프는 실제값·로그 눈금이다):
 
 1. 표지·요약
 2. 후보·비교 대상과 분석 범위
-3. Downloads
-4. 직접 Dependency·표시 필터·Snapshot 간 signed 증감
+3. 직접 Dependency(의존 수)·표시 필터·Snapshot 간 signed 증감 — **Downloads 보다 앞에 둔다**(2026-09-20, S15P21A506-416).
+   실제값 그래프 아래에 변화율 그래프(구간 시작 = 100%)를 함께 싣고 그 아래에 수치 표를 둔다
+4. Downloads
 5. 최신 DB Snapshot 기반 Version Share와 기준일
-6. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
-7. 판정 또는 narrative에 연결된 근거 요약
-8. 자료 상태·해석 한계
+6. 유지·유입·이탈 — 선택 `period`·`t1`·`t2`·`population`과 패키지×kind별 네 범주(유지·유입·이탈·
+   미관측). 메인 유입은 `inflow_adopted`. `data_status`가 `NO_DATA`·`OUT_OF_SCOPE`·`NOT_COMPUTED`면
+   수 대신 사유를 적는다(S15P21A506-394 — 이 항목은 최초 작성 이후 추가됨)
+7. 현재 선택 버전의 기능 비교: 분석 버전, 핵심 환경, 핵심 기능표, 중립 해설
+8. 판정 또는 narrative에 연결된 근거 요약
+9. 자료 상태·해석 한계
 
 완료된 경우 추가 가능한 선택 구역:
 
-9. 완료 snapshot이 있는 **기준 패키지 1개의** 커뮤니티 구역 (`DEC-COMMUNITY-20260909-01`; 다른 비교 패키지로 대체하지 않음)
+10. 완료 snapshot이 있는 **기준 패키지 1개의** 커뮤니티 구역 (`DEC-COMMUNITY-20260909-01`; 다른 비교 패키지로 대체하지 않음). 2026-09-20(S15P21A506-414)부터 실제로 실린다 — 저장소 전체 수치(전체 Issue·열린 Issue)와 핵심 논의 수치(누적 댓글·사용자 반응)를 좌우로 나눈 수치 네 칸, 핵심 논의(요약·강조), 실제 논의 흐름, 수집 기준과 한계. 저장된 스냅샷을 읽기만 하고, 자료가 없으면 그 사실을 적는다. 링크는 넣지 않는다(IA §1-14).
 
 페이지 분할 규칙:
 
@@ -1284,7 +1296,7 @@ Prometheus·Grafana·healthchecks.io는 v1에서 제외한다. 그 전까지는 
 25. 두 서버가 각각 4 vCPU·15Gi·Swap 0·320G NVMe 실측 기준을 유지하는지 확인
 26. PDF 생성이 #1 data worker에서 실행되고 app API 요청과 무거운 생성 실행이 분리되는지 확인
 27. Dependency/Downloads 비교 그래프가 로그축 계약을 따르고 유효 point 2개 이하에서 `데이터 축적 중 (N주차)` 상태로 전환되는지 확인
-28. 표시한 trend의 8일 초과 관측 공백이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인
+28. Downloads 의 8일 초과 관측 공백(7일이 덮이지 않은 주)이 선으로 연결되지 않고, 로그축이 0을 안전하게 표시하는지 확인. Dependents 는 서버가 빈 주를 보간하므로 끊김 없이 이어지는지 확인
 29. GitHub 커뮤니티 refresh의 Spring→GMS 직접 호출이 확장-03 bounded 예외에만 한정되고 코어 서빙 경로로 확산되지 않는지 확인
 30. 저장소에 구현된 6개 endpoint와 Notion/Swagger의 차이를 pending alignment로 관리하는지 확인
 31. 새 모델 결과의 S3·`similar_package` 원자 게시와 실행 manifest 연결을 구현·검증

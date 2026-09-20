@@ -209,6 +209,13 @@ export interface PdfGenerateRequest {
   from?: string
   to?: string
   snapshot_at?: string
+  /**
+   * 유지·유입·이탈 조회 구간. 생략하면 서버 기본값(3y) — `from`·`to`(생태계 조회 구간)와는
+   * 다른 축이라 그 값으로 대신할 수 없다. 화면이 지금 보여주고 있는 기간과 다르면 PDF가
+   * 화면과 다른 숫자를 담게 되므로, 호출부는 항상 현재 선택된 `TransitionPeriod`를 넘겨야
+   * 한다(S15P21A506-394).
+   */
+  period?: TransitionPeriodParam
   sections?: ReportSection[]
 }
 
@@ -316,6 +323,52 @@ export interface VersionShareResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * GET /packages/transitions — 유지·유입·이탈 (S15P21A506-361, S15P21A506-391)
+ *
+ * 근거: `backend/.../domain/packages/dto/TransitionsResponse.java`. 추이(Downloads·
+ * Dependents)와 다른 서버 개념이다 — 저건 임의 구간·주간 시계열(SnapshotWindow),
+ * 이건 프리셋 3개짜리 단일 스냅샷 비교(TransitionPeriod). 기간 선택기를 공유하지 않는다.
+ * ------------------------------------------------------------------ */
+
+export type TransitionPeriodParam = '1y' | '3y' | '5y'
+export type TransitionKindWire = 'regular' | 'peer' | 'optional'
+export type TransitionDataStatusWire = 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface TransitionSeriesItem {
+  name: string
+  /** 요청한 이름마다 항상 이 순서로 3줄(regular·peer·optional) — 요청 안 해도 전부 온다. */
+  kind: TransitionKindWire
+  population: 'npm_all'
+  /**
+   * `data_status`가 행 전체를 지배한다 — COMPLETE·NO_DATA 면 여섯 숫자 필드가 실수치,
+   * OUT_OF_SCOPE·NOT_COMPUTED 면 전부 `null`이다(키는 남는다, `ALWAYS` 직렬화). 0 으로
+   * 바꾸지 않는다 — null 은 "몰라서 못 셌다", 0 은 "세어 보니 없었다"로 뜻이 다르다.
+   */
+  retained: number | null
+  /** 원시 유입. 93.8~97.5%가 신생 프로젝트라 그대로 "채택"으로 읽으면 안 된다. */
+  inflow: number | null
+  /** inflow 의 부분집합 — T1 시점엔 아직 존재하지도 않던 패키지. */
+  inflow_new: number | null
+  /** = inflow - inflow_new, 서버 계산값. 실제 채택 수 — 메인 지표로 쓸 값. */
+  inflow_adopted: number | null
+  outflow: number | null
+  /** 판정 불가(대표 릴리스가 구간 안에서 안 바뀜) — retained 에 합치면 안 된다. */
+  unobserved: number | null
+  data_status: TransitionDataStatusWire
+}
+
+export interface TransitionsResponse {
+  metric: 'dependent_transitions'
+  /** 요청이 생략했으면 서버가 적용한 기본값(3y)을 그대로 돌려준다. */
+  period: TransitionPeriodParam
+  /** NOT_COMPUTED 가 응답 전체(모든 행)에 해당하면 t1·t2 는 키 자체가 없다. */
+  t1?: string
+  t2?: string
+  series: TransitionSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
  * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
@@ -380,6 +433,12 @@ export interface CommunityRepository {
   full_name: string
   scope: CommunityRepositoryScope
   archived: boolean
+  /**
+   * 저장소 **전체** Issue 수(PR 제외)와 그중 열려 있는 수(S15P21A506-413). 요약한 Issue 몇 건이 아니라 저장소 규모다.
+   * 서버가 못 구했거나(`null`) 이 값을 더하기 전에 저장된 스냅샷이면(키 없음) 비어 있다 — 화면은 둘을 같게 다룬다.
+   */
+  issue_count?: number | null
+  open_issue_count?: number | null
 }
 
 export interface CommunitySummary {
@@ -387,10 +446,6 @@ export interface CommunitySummary {
   open_issue_count: number
   comment_count: number
   reaction_count: number
-}
-
-export interface CommunityFlowStep {
-  text: string
 }
 
 export interface CommunityMessage {
@@ -402,7 +457,22 @@ export interface CommunityMessage {
   text: string
 }
 
-/** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
+/**
+ * 요약문(`summary_ko`) 안의 강조 구간. 서버가 계산한 UTF-16 오프셋 `[start, end)` 라 JS `String.slice` 와 같은 단위다
+ * (S15P21A506-408). `KEY_TERM` 은 핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다.
+ */
+export interface CommunitySummaryMark {
+  start: number
+  end: number
+  kind: 'KEY_TERM' | 'KEY_SENTENCE'
+}
+
+/**
+ * Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다.
+ *
+ * 논의 흐름(`flow`)은 없다. 화면이 그리지 않아 서버도 만들지도 내려주지도 않는다(S15P21A506-412).
+ * 옛 서버 응답에 남아 있어도 이 화면은 읽지 않는다.
+ */
 export interface CommunityTopic {
   issue_number: number
   state: 'OPEN' | 'CLOSED'
@@ -418,9 +488,10 @@ export interface CommunityTopic {
   collection_status: CommunityCollectionStatus
   summary_status: CommunitySummaryStatus
   summary_ko: string | null
-  flow: CommunityFlowStep[]
-  /** 최대 3개 */
+  /** 최대 4개 */
   messages: CommunityMessage[]
+  /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */
+  summary_marks: CommunitySummaryMark[]
 }
 
 export interface CommunityLimitation {

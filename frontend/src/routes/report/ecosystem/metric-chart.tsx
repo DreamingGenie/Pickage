@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CircleAlertIcon } from 'lucide-react'
 
 import {
@@ -10,6 +10,7 @@ import {
 } from '@/components/charts/geometry'
 import { LineChart, SeriesLegend } from '@/components/charts/line-chart'
 import { errorNotice } from '@/api/client'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { SegmentedControl } from '@/components/common/segmented-control'
 import {
   MIN_POINTS_FOR_LINE,
@@ -48,12 +49,15 @@ export function MetricChart({
   step,
   window,
   observedFrom,
-  coverageNote,
+  info,
+  infoTitle,
+  fill = false,
   emphasisKeys = null,
   height = 192,
   showLegend = false,
   state = { status: 'ready' },
   allowIndex = true,
+  defaultScale = 'absolute',
   className,
 }: {
   title: string
@@ -64,7 +68,19 @@ export function MetricChart({
   step: number
   window: SnapshotWindow
   observedFrom?: string
-  coverageNote?: string
+  /**
+   * 제목 옆 ⓘ 모달의 본문. 카드에 상시 노출하기엔 길지만 읽는 사람이 궁금해할 설명을 여기 둔다
+   * (S15P21A506-405). 관측 시작 안내는 넘기지 않아도 **이 카드가 스스로 덧붙인다** — 구간이
+   * 이 지표의 관측 시작보다 앞서 잘렸을 때만 의미가 있는 문장이라서다.
+   */
+  info?: ReactNode
+  /** 모달 제목. 없으면 카드 제목을 쓴다. */
+  infoTitle?: string
+  /**
+   * 부모가 준 높이를 채운다. 좌우 열의 높이를 맞추려고 카드가 늘어나면 그래프도 함께 커진다 —
+   * 그렇지 않으면 카드만 커지고 안에 빈 자리가 생긴다. `height` 는 이때 **최솟값**이다.
+   */
+  fill?: boolean
   emphasisKeys?: readonly string[] | null
   height?: number
   showLegend?: boolean
@@ -72,19 +88,29 @@ export function MetricChart({
   state?: MetricState
   /** "실제값·변화율" 토글을 낼지. 인트로 미리보기처럼 조작이 없는 자리는 끈다. */
   allowIndex?: boolean
+  /**
+   * 처음 보여 줄 모드. 기본은 실제값이다. 한때 Dependents 를 `index`(변화율)로 열었으나(S15P21A506-403)
+   * 실제값이 기본으로 되돌아왔다(S15P21A506-416).
+   * `allowIndex` 가 꺼져 있으면 무시된다 — 토글이 없는 카드가 변화율로 열리면 되돌릴 방법이 없다.
+   */
+  defaultScale?: ScaleMode
   className?: string
 }) {
   /** 고른 시작이 이 지표의 관측 시작보다 앞서면 여기서 잘린다. */
   const clamped = Boolean(observedFrom && window.start < observedFrom)
+  /** 관측 시작 안내는 잘렸을 때만 뜬다. 자료를 받는 중이거나 실패했을 때는 말할 것이 없다. */
+  const showClampNote = state.status === 'ready' && clamped
+  const hasInfo = Boolean(info) || showClampNote
 
   /**
-   * 실제값이 기본이다. "몇 개인가" 가 먼저 오는 질문이고, 변화율은 그 위에 얹는 관점이다.
+   * 기본은 실제값이고, 부르는 쪽이 `defaultScale` 로 바꿀 수 있다. 변화율은 토글로 전환한다 —
+   * 규모가 다른 패키지를 나란히 놓고 "누가 더 빨리 늘었나" 를 볼 때 쓴다.
    *
    * 변화율은 **구간 시작을 100% 로 두고 그 대비 비율**을 그린다. 규모가 다른 패키지를 같은
    * 축에서 비교하려는 쪽의 답이다 — 의존 수 300 짜리와 3만짜리가 둘 다 100 에서 출발하므로
    * 성장 속도만 남는다.
    */
-  const [scaleMode, setScaleMode] = useState<ScaleMode>('absolute')
+  const [scaleMode, setScaleMode] = useState<ScaleMode>(defaultScale)
   const showingIndex = allowIndex && scaleMode === 'index'
 
   /** 공백 판정 기준을 지금 보고 있는 간격에 맞춘다(아래 LineChart 호출부와 같은 식·같은 이유). */
@@ -136,10 +162,27 @@ export function MetricChart({
         뺐다 — 읽는 사람이 쓰는 정보가 아니라 화면을 만든 쪽의 사정이었다. 대신 제목의
         `title` 속성에 남겨 두어 필요하면 확인할 수 있게 한다.
       */}
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
-          {title}
-        </h3>
+      {/*
+        min-h-10: 토글이 있는 카드(의존 수)와 없는 카드(Downloads)의 머리글 높이가 달라 두 카드가 자연
+        높이에서 13px 어긋났다. 최솟값을 맞춰 두 카드가 언제나 같은 높이가 되게 한다(S15P21A506-405).
+      */}
+      <header className="flex min-h-10 flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
+            {title}
+          </h3>
+          {hasInfo && (
+            <InfoDialog label={`${title} 안내`} title={infoTitle ?? title}>
+              {info}
+              {showClampNote && (
+                <p>
+                  이 지표는 {observedFrom}부터 관측되어, 고른 조회 기간 중 그 이전 구간은 그리지
+                  않았습니다.
+                </p>
+              )}
+            </InfoDialog>
+          )}
+        </div>
         {allowIndex && (
           <SegmentedControl
             label={`${title} 실제값·변화율 전환`}
@@ -157,78 +200,117 @@ export function MetricChart({
         <SeriesLegend series={series} emphasisKeys={emphasisKeys} />
       )}
 
-      {state.status === 'loading' ? (
-        <ChartLoading height={height} />
-      ) : state.status === 'error' ? (
-        <MetricError height={height} error={state.error} onRetry={state.onRetry} />
-      ) : rawMax === 0 ? (
-        <EmptyState height={height}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
-      ) : lined.length === 0 ? (
-        /*
-          점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
-          그릴 선이 하나도 없다 — 관측치는 숨기지 않고 그대로 적되, 선은 그리지 않는다.
-        */
-        <EmptyState height={height} icon={false}>
-          {accumulating.map((s) => (
-            <span key={s.key}>
-              <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
-              {validCount(s)}주차
-            </span>
-          ))}
-          <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
-        </EmptyState>
-      ) : (
-        <>
-          <LineChart
-            series={lined}
-            height={height}
-            emphasisKeys={emphasisKeys}
-            observedFrom={observedFrom}
+      <ChartArea fill={fill} minHeight={height}>
+        {(h) =>
+          state.status === 'loading' ? (
+            <ChartLoading height={h} />
+          ) : state.status === 'error' ? (
+            <MetricError height={h} error={state.error} onRetry={state.onRetry} />
+          ) : rawMax === 0 ? (
+            <EmptyState height={h}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
+          ) : lined.length === 0 ? (
             /*
-              공백 판정 기준을 지금 보고 있는 간격에 맞춘다.
+            점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
+            그릴 선이 하나도 없다 — 관측치는 숨기지 않고 그대로 적되, 선은 그리지 않는다.
+          */
+            <EmptyState height={h} icon={false}>
+              {accumulating.map((s) => (
+                <span key={s.key}>
+                  <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
+                  {validCount(s)}주차
+                </span>
+              ))}
+              <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
+            </EmptyState>
+          ) : (
+            <>
+              <LineChart
+                series={lined}
+                height={h}
+                emphasisKeys={emphasisKeys}
+                observedFrom={observedFrom}
+                /*
+                공백 판정 기준을 지금 보고 있는 간격에 맞춘다.
 
-              매주 보기(step 1)면 8일이지만, 4주 간격으로 솎아 보는 중이면 이웃 점 사이가
-              원래 28일이다. 8일을 그대로 쓰면 정상 구간까지 전부 공백으로 판정돼 선이
-              아예 사라진다.
+                매주 보기(step 1)면 8일이지만, 4주 간격으로 솎아 보는 중이면 이웃 점 사이가
+                원래 28일이다. 8일을 그대로 쓰면 정상 구간까지 전부 공백으로 판정돼 선이
+                아예 사라진다.
 
-              **솎아도 공백은 그대로 드러난다.** `sampleEvery` 가 시간이 아니라 인덱스로
-              솎으므로 남은 두 점은 항상 정확히 step 칸 떨어져 있고, 그 사이에 행이 하나라도
-              빠지면 간격이 (step+1)×7 일이 되어 이 기준을 반드시 넘는다. 그래서 이 식은
-              배율이 무엇이든 **"사이에 빠진 주가 있는가"** 라는 같은 질문을 던진다.
+                **솎아도 공백은 그대로 드러난다.** `sampleEvery` 가 시간이 아니라 인덱스로
+                솎으므로 남은 두 점은 항상 정확히 step 칸 떨어져 있고, 그 사이에 행이 하나라도
+                빠지면 간격이 (step+1)×7 일이 되어 이 기준을 반드시 넘는다. 그래서 이 식은
+                배율이 무엇이든 **"사이에 빠진 주가 있는가"** 라는 같은 질문을 던진다.
 
-              비례해서 느슨하게 잡으면 안 된다. step×7 의 1.5 배쯤으로 두면 분기 보기의
-              임계값이 19주가 되어 **한 달 넘는 수집 중단이 연속한 선으로 그려진다** —
-              이 판정을 넣은 이유(`DEC-RECONCILIATION-20260910-01` 7번)를 가장 티가 안 나는
-              자리에서 다시 어기는 셈이다.
+                비례해서 느슨하게 잡으면 안 된다. step×7 의 1.5 배쯤으로 두면 분기 보기의
+                임계값이 19주가 되어 **한 달 넘는 수집 중단이 연속한 선으로 그려진다** —
+                이 판정을 넣은 이유(`DEC-RECONCILIATION-20260910-01` 7번)를 가장 티가 안 나는
+                자리에서 다시 어기는 셈이다.
 
-              +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
-              유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
-            */
-            maxGapDays={maxGapDays}
-            yScale={yScale}
-            yDomainOf={yDomainOf}
-            yFormat={showingIndex ? formatIndexTick : undefined}
-            valueFormat={showingIndex ? formatPercent : undefined}
-            baseline={showingIndex ? INDEX_BASE : undefined}
-            baselineLabel={showingIndex ? '구간 시작 100%' : undefined}
-            ariaLabel={`${title} 추이 (${ariaSuffix})`}
-          />
-          {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
-          {accumulating.length > 0 && <AccumulatingNotes series={accumulating} />}
-        </>
+                +1 일은 수집 시각이 밀리는 데 대한 여유다. 한 주(7일)보다 작기만 하면 위 등가성이
+                유지되므로, 여유가 모자라면 배율과 무관하게 이 값만 키우면 된다.
+              */
+                maxGapDays={maxGapDays}
+                yScale={yScale}
+                yDomainOf={yDomainOf}
+                yFormat={showingIndex ? formatIndexTick : undefined}
+                valueFormat={showingIndex ? formatPercent : undefined}
+                baseline={showingIndex ? INDEX_BASE : undefined}
+                baselineLabel={showingIndex ? '구간 시작 100%' : undefined}
+                ariaLabel={`${title} 추이 (${ariaSuffix})`}
+              />
+            </>
+          )
+        }
+      </ChartArea>
+      {/* 선을 그리기엔 짧은 시리즈가 옆에 남아 있으면 숨기지 않고 따로 알린다(311b) */}
+      {state.status === 'ready' && lined.length > 0 && accumulating.length > 0 && (
+        <AccumulatingNotes series={accumulating} />
       )}
 
       {state.status === 'ready' && state.refreshError !== undefined && (
         <RefreshNotice error={state.refreshError} onRetry={state.onRetry} />
       )}
-
-      {state.status === 'ready' && clamped && (
-        <p className="-mt-1.5 text-base leading-relaxed text-muted-foreground">
-          {coverageNote ?? '수집된 구간을 넘습니다'} — 이 지표는 {observedFrom} 부터 있어 그 뒤만
-          그렸습니다.
-        </p>
-      )}
     </section>
+  )
+}
+
+/**
+ * 그래프가 그려지는 자리.
+ *
+ * `fill` 이 꺼져 있으면 `minHeight` 그대로다. 켜져 있으면 카드가 늘어난 만큼 이 자리도 늘어나고,
+ * **실제로 얼마나 늘었는지 재서** 안의 그래프에 넘긴다.
+ *
+ * 안쪽을 `absolute` 로 띄우는 것이 핵심이다. 그래프가 자기 높이로 이 자리를 밀면, 한 번 커진 카드가
+ * 줄어들 이유를 잃는다 — 화면을 넓혀 오른쪽 카드가 짧아져도 왼쪽이 예전 높이를 붙들고 있게 된다.
+ * 띄워 두면 이 자리의 높이는 오직 바깥(카드·그리드)이 정한다.
+ */
+function ChartArea({
+  fill,
+  minHeight,
+  children,
+}: {
+  fill: boolean
+  minHeight: number
+  children: (height: number) => ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [measured, setMeasured] = useState(minHeight)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!fill || !el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(([entry]) => {
+      setMeasured(Math.max(minHeight, Math.floor(entry.contentRect.height)))
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [fill, minHeight])
+
+  if (!fill) return <>{children(minHeight)}</>
+  return (
+    <div ref={ref} className="relative flex-1" style={{ minHeight }}>
+      <div className="absolute inset-0">{children(Math.max(minHeight, measured))}</div>
+    </div>
   )
 }
 

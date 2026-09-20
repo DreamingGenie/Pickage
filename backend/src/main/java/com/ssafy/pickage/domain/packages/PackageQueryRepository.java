@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>JPA 를 쓰지 않는다. 명세 0.7 이 "집계는 DB 에서 끝낸다" 로 정해 두어서 애플리케이션이
  * 하는 일은 {@code ResultSet} 을 record 로 옮기는 것뿐이고, §3·§6 의 SQL 은
- * {@code WITH … DISTINCT ON … ROW_NUMBER() OVER (PARTITION BY …)} 라 JPQL 로 표현할 수 없다.
+ * {@code WITH … CROSS JOIN LATERAL … ROW_NUMBER() OVER (PARTITION BY …)} 라 JPQL 로 표현할 수 없다.
  * JPA 를 써도 전부 native query 가 되어 엔티티는 껍데기만 남는다.
  *
  * <p><b>배열 바인딩은 전부 {@code = ANY(?)} + {@code createArrayOf} 다</b>(§10-1).
@@ -82,20 +82,31 @@ public class PackageQueryRepository {
 	 * <p><b>{@code last2} 를 따로 둔 것도 이유가 있다.</b> 윈도 함수는 {@code LIMIT} 보다 먼저
 	 * 평가되므로, 한 CTE 안에서 {@code LAG} 와 {@code LIMIT 2} 를 같이 쓰면 결과는 맞지만
 	 * 전체 이력에 {@code LAG} 를 계산한 뒤 2행을 잘라낸다. 행을 먼저 자르고 그 위에서 돌린다.
+	 *
+	 * <p><b>최신 버전은 {@code latest_ver} CTE 가 아니라 {@code LATERAL … LIMIT 1} 로 꺼낸다</b>
+	 * (S15P21A506-390). 원래는 {@code DISTINCT ON (v.package_id)} 였는데, 그 형태는 대상 패키지의
+	 * <b>버전 행을 전부 읽어 정렬한 뒤</b> 첫 행만 쓴다. 이름이 최대 3개라 평균적으로는 묻히지만
+	 * <b>변수는 이름 개수가 아니라 그 패키지의 버전 개수</b>다 — 상위 1% 가 122개, 최대는 37,328개
+	 * ({@code electron-remote-control}) 라 그런 패키지끼리 비교하면 정렬이 메모리를 넘겨 디스크로
+	 * 흘러넘친다. 운영 실측으로 버퍼 85,812 · {@code external merge Disk} · 콜드 18.8초였고,
+	 * {@code idx_version_pkg_ordinal(package_id, ordinal DESC)} 에서 패키지당 1행만 꺼내니
+	 * 버퍼 32 · 정렬 없음 · 콜드 8.1ms 다. §5 유사 후보에서 먼저 같은 수정을 했다(S15P21A506-383).
+	 *
+	 * <p>이 자리가 특히 비싼 이유는 <b>생태계 변화 탭이 기본으로 열리고, 개요 응답이 와야
+	 * 추이 3종이 출발</b>하기 때문이다. 그 직렬은 S15P21A506-304 에서 의도적으로 넣은 것이라
+	 * (기준일을 개요가 알려준다) 버그가 아니고, 그래서 개요가 느린 대가가 그만큼 크다.
+	 *
+	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
+	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
+	 * 바뀌기 전 {@code JOIN latest_ver} 도 INNER 라 그 패키지를 빼고 있었고, 그 구분이
+	 * {@code findExistingNames} 의 {@code not_found} 판정과 맞물려 있다.
+	 *
+	 * <p>{@code ORDER BY ordinal DESC} 는 그대로 둔다(명세 0.6). 문자열로 정렬하면 {@code 4.9.0}
+	 * 이 {@code 4.19.2} 보다 뒤로 가고, 그 실수는 에러 없이 화면에 "최신 버전 4.9.0" 으로만 나타난다.
 	 */
 	private static final String OVERVIEW_SQL = """
 		WITH target AS (
 		  SELECT package_id, name FROM package WHERE name = ANY(?)
-		),
-		latest_ver AS (
-		  -- 정렬은 언제나 ordinal 이다(명세 0.6). 문자열로 정렬하면 4.9.0 이 4.19.2 보다
-		  -- 뒤로 가고, 그 실수는 화면에 "최신 버전 4.9.0" 으로 조용히 나타난다.
-		  SELECT DISTINCT ON (v.package_id)
-		         v.package_id, v.version, v.published_at,
-		         v.description, v.licenses, v.deprecated
-		  FROM version v
-		  JOIN target t ON t.package_id = v.package_id
-		  ORDER BY v.package_id, v.ordinal DESC
 		),
 		last2 AS (
 		  SELECT ps.package_id, ps.snapshot_at, ps.downloads, ps.stars, ps.open_issues,
@@ -134,7 +145,13 @@ public class PackageQueryRepository {
 		       r.open_issues - r.prev_issues AS open_issues_delta
 		FROM target t
 		JOIN package p     ON p.package_id  = t.package_id
-		JOIN latest_ver lv ON lv.package_id = t.package_id
+		CROSS JOIN LATERAL (
+		  SELECT v.version, v.published_at, v.description, v.licenses, v.deprecated
+		  FROM version v
+		  WHERE v.package_id = t.package_id
+		  ORDER BY v.ordinal DESC
+		  LIMIT 1
+		) lv
 		LEFT JOIN recent r ON r.package_id  = t.package_id AND r.rn = 1
 		""";
 
@@ -196,14 +213,29 @@ public class PackageQueryRepository {
 	 * <p><b>없는 스냅샷의 행을 만들어 끼우지 않는다.</b> 신규 패키지는 옛 스냅샷에 행이 아예
 	 * 없어서 시리즈 길이가 서로 다르다. 0 으로 채우면 "그 주에 아무도 안 받았다" 가 되어
 	 * 화면에 없는 급락이 그려진다.
+	 *
+	 * <p><b>{@code downloads} 는 그 주의 값이 아니라 {@code [직전 기준일, 이 기준일)} 구간
+	 * 합계다</b>(S15P21A506-278). 기준일 달력이 매주 월요일이 아니라서 구간 길이가 1일에서
+	 * 18일까지 흔들린다. 그래서 <b>직전 기준일을 같이 내보내</b> {@link WeeklyTrend} 가 일평균으로
+	 * 펼쳐 주간 합계로 다시 만든다(S15P21A506-403).
+	 *
+	 * <p>직전 기준일은 {@code snapshot} 달력 <b>전체</b>에서 {@code LAG} 로 구한다. 조회 구간으로
+	 * 자른 뒤에 구하면 구간 첫 행의 직전이 사라진다. 달력의 첫 날짜는 직전이 없어 구간을 정할
+	 * 수 없으므로 뺀다.
 	 */
 	private static final String DOWNLOADS_TREND_SQL = """
-		SELECT p.name, NULL::text AS major, ps.snapshot_at, ps.downloads AS value
+		WITH cal AS (
+		  SELECT snapshot_at, LAG(snapshot_at) OVER (ORDER BY snapshot_at) AS previous_at
+		  FROM snapshot
+		)
+		SELECT p.name, ps.snapshot_at, cal.previous_at, ps.downloads AS value
 		FROM package_snapshot ps
 		JOIN package p ON p.package_id = ps.package_id
+		JOIN cal ON cal.snapshot_at = ps.snapshot_at
 		WHERE p.name = ANY(?)
 		  AND ps.snapshot_at BETWEEN ? AND ?
 		  AND ps.downloads IS NOT NULL
+		  AND cal.previous_at IS NOT NULL
 		ORDER BY p.name, ps.snapshot_at
 		""";
 
@@ -265,21 +297,25 @@ public class PackageQueryRepository {
 		         m.snapshot_at
 		""";
 
-	public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
-		return findTrend(DOWNLOADS_TREND_SQL, names, window);
+	/**
+	 * 다운로드 구간 행. <b>조회 구간보다 양옆으로 {@link WeeklyTrend#EDGE_MARGIN_DAYS} 일 더</b>
+	 * 가져온다 — 구간 가장자리 월요일의 7일이 그 밖의 기준일 구간에 걸쳐 있을 수 있다.
+	 * 실제로 어느 월요일까지 내보낼지는 {@link WeeklyTrend} 가 조회 구간으로 다시 자른다.
+	 */
+	public List<IntervalRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
+		return jdbcTemplate.query(DOWNLOADS_TREND_SQL,
+			ps -> bindWidened(ps, names, window),
+			(rs, i) -> new IntervalRow(
+				rs.getString("name"),
+				rs.getObject("snapshot_at", LocalDate.class),
+				rs.getObject("previous_at", LocalDate.class),
+				rs.getLong("value")));
 	}
 
+	/** 의존 수도 같은 이유로 양옆을 더 가져온다 — 구간 밖 이웃 관측치가 있어야 가장자리를 보간한다. */
 	public List<TrendRow> findDependentsTrend(PackageNames names, SnapshotWindow window) {
-		return findTrend(DEPENDENTS_TREND_SQL, names, window);
-	}
-
-	private List<TrendRow> findTrend(String sql, PackageNames names, SnapshotWindow window) {
-		return jdbcTemplate.query(sql,
-			ps -> {
-				ps.setArray(1, ps.getConnection().createArrayOf("text", names.toArray()));
-				ps.setObject(2, window.from());
-				ps.setObject(3, window.to());
-			},
+		return jdbcTemplate.query(DEPENDENTS_TREND_SQL,
+			ps -> bindWidened(ps, names, window),
 			(rs, i) -> new TrendRow(
 				rs.getString("name"),
 				rs.getString("major"),
@@ -287,8 +323,22 @@ public class PackageQueryRepository {
 				rs.getLong("value")));
 	}
 
-	/** {@code major} 는 dependents 에만 있다. downloads 는 버전으로 쪼갤 수 없어 항상 {@code null} 이다. */
+	private static void bindWidened(java.sql.PreparedStatement ps, PackageNames names,
+		SnapshotWindow window) throws java.sql.SQLException {
+		ps.setArray(1, ps.getConnection().createArrayOf("text", names.toArray()));
+		ps.setObject(2, window.from().minusDays(WeeklyTrend.EDGE_MARGIN_DAYS));
+		ps.setObject(3, window.to().plusDays(WeeklyTrend.EDGE_MARGIN_DAYS));
+	}
+
+	/** {@code major} 는 dependents 에만 있다. */
 	public record TrendRow(String name, String major, LocalDate snapshotAt, long value) {
+	}
+
+	/**
+	 * 다운로드 한 행. {@code value} 는 {@code [previousSnapshotAt, snapshotAt)} 의 합계다.
+	 * downloads 는 버전으로 쪼갤 수 없어 major 가 없다.
+	 */
+	public record IntervalRow(String name, LocalDate snapshotAt, LocalDate previousSnapshotAt, long value) {
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -459,6 +509,93 @@ public class PackageQueryRepository {
 	}
 
 	/**
+	 * 구간별 이탈 사유 (S15P21A506-396).
+	 *
+	 * <p><b>{@code dependent_transition} 을 함께 보는 것이 이 조회의 핵심이다.</b>
+	 * 이탈 사유 표에는 <b>한 번이라도 빠진 대상만</b> 행이 있다(적재기가 {@code removals > 0}
+	 * 인 것만 넣고 DB 제약이 그것을 강제한다). 그래서 행이 없다는 사실만으로는
+	 * <b>"대상인데 한 번도 안 빠졌다"</b>(0 이 맞는 값)와 <b>"애초에 대상이 아니다"</b>
+	 * (모른다)를 가를 수 없다.
+	 *
+	 * <p>가르지 못하면 화면이 <b>대상 97,745개 중 57,201개(58.5%)</b>에 "분석 대상이
+	 * 아닙니다" 를 띄운다. 그래서 범위를 정하는 표를 {@code JOIN} 으로 두고, 이탈 사유를
+	 * {@code LEFT JOIN} 으로 얹는다 — 조회 결과에 행이 있으면 대상이고, {@code removals} 가
+	 * {@code null} 이면 대상이되 제거가 없었다는 뜻이다.
+	 *
+	 * <p>적재 범위를 그쪽 표에서 얻는 것은 적재기와 같은 규칙이다
+	 * ({@code pipeline/removal_reasons/load.py}). 두 곳이 같은 표를 보므로 어긋날 수 없다.
+	 *
+	 * <p>{@code GROUP BY} 로 접는 이유 — {@code dependent_transition} 은 {@code kind} 마다
+	 * 행이 있어 한 대상이 최대 3행이다. {@code t1}·{@code t2} 는 {@code period} 로 정해지는
+	 * 상수라 어느 행에서 읽어도 같지만, {@code LIMIT 1} 로 집으면 "정렬 없이 하나 고르기" 가
+	 * 되어 읽는 사람이 결정성을 의심하게 된다. {@code min()} 은 어느 쪽이든 같은 값이라는
+	 * 것을 코드로 말한다. 이탈 사유 쪽은 {@code (package_id, period)} 가 PK 라 애초에 한
+	 * 행이고, {@code min()} 은 그 행의 값을 그대로 돌려준다.
+	 */
+	private static final String REMOVAL_REASONS_SQL = """
+		SELECT p.name,
+		       min(t.t1) AS t1, min(t.t2) AS t2,
+		       min(r.removals)         AS removals,
+		       min(r.no_replacement)   AS no_replacement,
+		       min(r.with_replacement) AS with_replacement,
+		       min(r.dependents)       AS dependents
+		FROM package p
+		JOIN dependent_transition t
+		  ON t.package_id = p.package_id AND t.period = ?
+		LEFT JOIN dependent_removal_reason r
+		  ON r.package_id = p.package_id AND r.period = t.period
+		WHERE p.name = ANY (?)
+		GROUP BY p.name
+		ORDER BY p.name
+		""";
+
+	public List<RemovalReasonRow> findRemovalReasons(PackageNames names, String period) {
+		return jdbcTemplate.query(REMOVAL_REASONS_SQL,
+			ps -> {
+				ps.setString(1, period);
+				ps.setArray(2, ps.getConnection()
+					.createArrayOf("text", names.values().toArray()));
+			},
+			(rs, i) -> new RemovalReasonRow(
+				rs.getString("name"),
+				(Integer)rs.getObject("removals"),
+				(Integer)rs.getObject("no_replacement"),
+				(Integer)rs.getObject("with_replacement"),
+				(Integer)rs.getObject("dependents"),
+				rs.getObject("t1", LocalDateTime.class).toLocalDate(),
+				rs.getObject("t2", LocalDateTime.class).toLocalDate()));
+	}
+
+	/**
+	 * 대상이되 제거가 없었던 행은 수가 전부 {@code null} 이다. {@code getInt} 를 쓰면 0 으로
+	 * 접혀 "세어 보니 없었다" 와 "조회가 값을 못 읽었다" 가 같아지므로 박싱 타입으로 받는다.
+	 */
+	public record RemovalReasonRow(String name, Integer removals, Integer noReplacement,
+		Integer withReplacement, Integer dependents, LocalDate t1, LocalDate t2) {
+
+		/** 범위 안이고 실제로 제거가 있었는가. */
+		public boolean counted() {
+			return removals != null;
+		}
+	}
+
+	/**
+	 * 이탈 사유 회차가 적재되어 있는가.
+	 *
+	 * <p>{@link #hasAnyTransition()} 과 같은 이유로 필요하고, 여기서는 <b>더 중요하다.</b>
+	 * 유지·유입·이탈만 적재하고 이탈 사유를 안 올린 상태에서는 위 조회가 모든 대상에 대해
+	 * 행을 돌려주되 수가 전부 {@code null} 이다. 이 검사가 없으면 그것을 "아무도 안 뺐다"(0)로
+	 * 읽어, <b>적재를 안 했을 뿐인데 "이 패키지는 한 번도 버려진 적 없습니다" 를 띄운다.</b>
+	 */
+	private static final String ANY_REMOVAL_REASON_SQL =
+		"SELECT EXISTS (SELECT 1 FROM dependent_removal_reason LIMIT 1)";
+
+	public boolean hasAnyRemovalReason() {
+		return Boolean.TRUE.equals(
+			jdbcTemplate.queryForObject(ANY_REMOVAL_REASON_SQL, Boolean.class));
+	}
+
+	/**
 	 * 이름 목록으로 이름·최신 버전·설명만 가져온다.
 	 *
 	 * <p><b>{@link PackageNames} 를 받지 않는 것이 의도다.</b> 그 객체는 비교 화면의 규칙
@@ -480,11 +617,15 @@ public class PackageQueryRepository {
 	 * 동안에는 이 경로가 실행되지 않아 드러나지 않았다.
 	 *
 	 * <p><b>{@code DISTINCT ON} 이 아니라 {@code LATERAL … LIMIT 1} 인 것도 이유가 있다.</b>
-	 * §3 개요 SQL 의 {@code latest_ver} 는 {@code DISTINCT ON} 인데, 그 형태는 대상 패키지의
-	 * <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 — 패키지당 평균 176행, webpack 은 578행이다.
-	 * 개요는 이름이 최대 3개라 묻히지만 여기는 후보가 {@code SimilarPackagesResponse.LIMIT_MAX} =
-	 * 50개까지라 그 비용이 쌓인다. 50개 실측이 콜드 4.96초로 명세의 1초를 넘겼다.
-	 * {@code (package_id, ordinal DESC)} 인덱스에서 <b>패키지당 1행</b>만 꺼내면 145ms 다.
+	 * {@code DISTINCT ON} 은 대상 패키지의 <b>모든 버전 행을 읽어 정렬한 뒤</b> 첫 행만 쓴다 —
+	 * 패키지당 평균 176행, webpack 은 578행이다. 여기는 후보가
+	 * {@code SimilarPackagesResponse.LIMIT_MAX} = 50개까지라 그 비용이 쌓여, 50개 실측이
+	 * 콜드 4.96초로 명세의 1초를 넘겼다. {@code (package_id, ordinal DESC)} 인덱스에서
+	 * <b>패키지당 1행</b>만 꺼내면 145ms 다.
+	 *
+	 * <p>§3 개요 SQL 도 같은 이유로 {@code DISTINCT ON} 이었다가 바뀌었다(S15P21A506-390).
+	 * 그쪽은 이름이 최대 3개라 평균적으로는 묻혔지만, <b>버전이 수만 개인 패키지</b>에서
+	 * 같은 결함이 드러났다.
 	 *
 	 * <p><b>{@code CROSS JOIN} 이어야 한다.</b> {@code LEFT JOIN LATERAL} 로 바꾸면 {@code version}
 	 * 행이 하나도 없는 패키지가 버전·설명이 {@code null} 인 행으로 <b>결과에 새로 등장한다.</b>
@@ -534,13 +675,19 @@ public class PackageQueryRepository {
 	 *
 	 * <p>{@code idx_package_name_prefix}({@code text_pattern_ops})가 없으면 이 조회는
 	 * 순차 스캔이 된다 — 기본 collation 에서 {@code LIKE 'q%'} 는 일반 B-tree 를 타지 않는다.
+	 *
+	 * <p><b>{@code package_snapshot} 을 {@code JOIN}(inner)으로 건다.</b> {@code package} 는
+	 * deps.dev 전체 카탈로그(약 1,100만 행)라 스냅샷 없는 이름이 훨씬 많다. 스냅샷이 없으면
+	 * Dependency·Downloads·Version Share 를 낼 데이터 자체가 없으므로, 검색·직접 추가 결과에
+	 * 내보내면 사용자가 고른 뒤에야 빈 리포트로 확인하게 된다(S15P21A506-402). {@code LEFT
+	 * JOIN} 이던 시절엔 이런 이름도 그대로 나갔다.
 	 */
 	private static final String SEARCH_SQL = """
 		SELECT p.name
 		FROM package p
-		LEFT JOIN package_snapshot ps
-		       ON ps.package_id = p.package_id
-		      AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
+		JOIN package_snapshot ps
+		     ON ps.package_id = p.package_id
+		    AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
 		WHERE p.name LIKE ? ESCAPE '\\'
 		ORDER BY ps.downloads DESC NULLS LAST, p.name
 		LIMIT ?

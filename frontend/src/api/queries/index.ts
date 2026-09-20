@@ -10,13 +10,14 @@ import {
   fetchPackagesOverview,
   fetchPdfPreview,
   fetchSimilarPackages,
+  fetchTransitions,
   fetchVersionShare,
   generatePdf,
   postCommunityRefresh,
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
 import { ApiError } from '@/api/client'
-import { MAX_NAMES, type CommunityRefreshTrigger } from '@/api/types'
+import { MAX_NAMES, type CommunityRefreshTrigger, type TransitionPeriodParam } from '@/api/types'
 
 export { queryKeys }
 
@@ -196,6 +197,26 @@ export function useVersionShare(names: readonly string[], snapshotAt?: string, r
   return useQuery({
     queryKey: queryKeys.packages.versionShare(names, snapshotAt),
     queryFn: () => fetchVersionShare(names, snapshotAt),
+    enabled: ready && usable(names),
+    retry,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. 유지·유입·이탈
+ *
+ * 추이 훅과 달리 다른 조회를 기다리지 않는다 — 기준일이 필요 없고, `period` 자체가
+ * 이미 서버가 정한 세 값 중 하나라 개요 응답에 기대는 것이 없다.
+ * ------------------------------------------------------------------ */
+
+export function useTransitions(
+  names: readonly string[],
+  period: TransitionPeriodParam,
+  ready = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.packages.transitions(names, period),
+    queryFn: () => fetchTransitions(names, period),
     enabled: ready && usable(names),
     retry,
   })

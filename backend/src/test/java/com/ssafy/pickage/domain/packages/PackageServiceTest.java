@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.IntervalRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
@@ -227,10 +228,18 @@ class PackageServiceTest {
 			return List.of();
 		}
 
+		/** 다운로드는 구간 행이다. 따로 정하지 않으면 정상 주간 한 구간이다. */
+		private List<IntervalRow> intervals = ONE_INTERVAL;
+
+		private FakeRepository withIntervals(List<IntervalRow> intervals) {
+			this.intervals = intervals;
+			return this;
+		}
+
 		@Override
-		public List<TrendRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
+		public List<IntervalRow> findDownloadsTrend(PackageNames names, SnapshotWindow window) {
 			queried.add(window);
-			return rows;
+			return intervals;
 		}
 
 		@Override
@@ -386,6 +395,10 @@ class PackageServiceTest {
 	private static final List<TrendRow> ONE_ROW =
 		List.of(new TrendRow("express", null, SNAPSHOT, 100L));
 
+	/** 월요일 주간 한 구간 {@code [08-24, 08-31)} — 환산해도 값이 그대로 나오는 정상 모양. */
+	private static final List<IntervalRow> ONE_INTERVAL =
+		List.of(new IntervalRow("express", SNAPSHOT, SNAPSHOT.minusDays(7), 100L));
+
 	/**
 	 * 추이 두 개는 <b>같은 규칙</b>을 쓴다. 한 시험에서 둘 다 부른다 — 나눠 두면 한쪽만
 	 * 되돌아갔을 때 나머지 하나가 계속 초록불이라 그 사실이 가려진다.
@@ -522,8 +535,9 @@ class PackageServiceTest {
 			new TrendRow("express", "4", SNAPSHOT, 700L),
 			new TrendRow("express", "5", week1, 100L),
 			new TrendRow("express", "5", SNAPSHOT, 300L));
+		// 두 주를 다 담는 구간이어야 한다. 서비스가 조회 구간으로 월요일 격자를 자른다.
 		PackageService service = new PackageService(
-			new FakeRepository(SNAPSHOT, List.of("express"), rows));
+			new FakeRepository(SNAPSHOT, week1, List.of("express"), rows));
 
 		var res = service.getDependentsTrend(PackageNames.of(List.of("express")), null, null);
 

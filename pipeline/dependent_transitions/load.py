@@ -48,6 +48,58 @@ unresolved 를 quality 로 남기고 화면에도 찍는다. 한 건도 못 붙�
 
 그러므로 **97~98% 는 정상이고, 그보다 크게 낮으면 다른 원인을 찾아야 한다.** 이름 규칙이
 어긋났거나 `package` 가 다른 회차이거나 비어 있는 경우다.
+
+2026-09-18 운영에도 같은 회차를 게시했고 **일곱 열 × 세 구간이 로컬과 한 자리도 다르지
+않았다.** 운영 `package` 가 11,062,172행으로 로컬보다 1.9만 적은데도 미매칭이 같은 2,251개인
+것은, 그 차이가 대상 목록 밖 패키지이기 때문이다.
+
+## 운영에 게시하기 — PC 에서 돌리고 서버의 psql 만 원격으로 쓴다
+
+**서버에 들어가서 돌리는 길은 막혀 있다.** 2026-09-18 확인.
+
+* app 노드에 `duckdb` 가 없다. 이 적재기가 parquet→CSV 변환에 쓴다 (`boto3` 는 있다)
+* 배포가 올려 둔 저장소는 러너의 빌드 디렉터리 안이다 — `/srv/pickage/repo` 는
+  `/home/gitlab-runner/builds/...` 로 가는 심볼릭 링크이고 그 부모가 `drwxr-x---` 라
+  `ubuntu` 가 들어갈 수 없다. **권한을 고쳐서 뚫지 말 것** — 러너가 쓰는 경로다
+* `postgres` 는 호스트에 포트를 열지 않는다. `docker exec` 경유만 가능한데,
+  `--psql` 은 실행파일 경로 하나만 받아 `ssh … docker exec` 를 넣을 수 없다
+
+그래서 **`DOCKER_HOST=ssh://` 를 쓴다.** 로컬 도커 CLI 가 원격 데몬을 보게 하는 것이라
+`--docker-container` 경로를 그대로 쓸 수 있다. 인자가 셸이 아니라 **Docker API 의 argv
+배열**로 가므로 원격 셸이 따옴표를 다시 쪼개는 문제가 없다 — manifest JSON 을 `-v` 로
+넘기는 이 적재기에는 그 성질이 필요하다. 적재기 코드도 서버도 바꾸지 않는다.
+
+`~/.ssh/config` 에 별칭을 둔다 (도커의 ssh 전송은 기본 키를 쓰므로 여기서 지정해야 한다).
+
+    Host a506app
+        HostName j15a506.p.ssafy.io
+        User ubuntu
+        IdentityFile ~/.ssh/J15A506T.pem
+        IdentitiesOnly yes
+
+**먼저 `--verify-only` 로 돌린다.** 게시 직전까지 전부 실행한 뒤 ROLLBACK 하므로 DB 를
+바꾸지 않고 매칭률만 볼 수 있다. 그 수가 위 실측(97.7%)과 비슷하면 그때 게시한다.
+
+PowerShell 에 **한 줄로** 넣는다. 줄을 나누려면 백틱이지 `^` 가 아니다 — 아래를 그대로
+쓰는 편이 안전하다. 끝에 `--verify-only` 를 붙이면 검증만 하고 되돌린다.
+
+    cd C:\\git\\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\\.venv-bq\\Scripts\\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260917-v1 --run-dir data/dependent_transitions_load/runs/2026-08-31_dependent-transitions-20260917-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
+
+`$env:DOCKER_HOST` 는 그 창에서만 산다. 새 창에서는 다시 넣어야 하고, 빠뜨리면 로컬 도커를
+보게 되어 `pickage-app-postgres-1` 을 못 찾는다.
+
+`--run-dir` 로 이미 받아 둔 회차를 가리키면 MinIO 를 보지 않는다. 새 회차라면 그것을 빼고
+`PICKAGE_MINIO_ENV` 를 준다. 전송 CSV 는 73 MB 이고 SSH 로 흘러간다.
+
+⚠ **출력을 파일로 리다이렉트하지 말 것.** Windows 에서 인코딩이 cp949 로 정해져 한글 한
+글자에 프로세스가 죽는다. `psql.log` 는 적재기가 UTF-8 로 따로 남긴다.
+
+게시 뒤 확인할 것 — 행 수, `etl_dataset_current` 의 포인터, `etl_load_attempt` 의
+`quality_report`. 구간별 합계를 로컬과 대조하면 가장 확실하다.
+
+    DOCKER_HOST=ssh://a506app docker exec -i pickage-app-postgres-1 \\
+      psql -U pickage -d pickage -c "SELECT period, count(*), sum(retained), sum(inflow), \\
+        sum(inflow_new), sum(outflow), sum(unobserved) FROM dependent_transition GROUP BY period"
 """
 from __future__ import annotations
 

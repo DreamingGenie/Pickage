@@ -64,7 +64,7 @@ const DATA_LIMITS: CommunityDataLimits = {
   lookback_days: 180,
   max_issues: 2,
   max_comments_per_issue: 100,
-  max_messages_per_issue: 3,
+  max_messages_per_issue: 4,
   source_note: '수치는 선택한 Issue 집합의 값이며 저장소 전체나 고유 참여자 수가 아닙니다.',
 }
 
@@ -99,7 +99,15 @@ function now(): string {
 function repositoryOf(name: string): CommunityRepository {
   const pkg = BY_NAME.get(name)
   const owner = pkg?.repo_url?.match(/github\.com\/([^/]+)\//)?.[1] ?? name
-  return { owner, name, full_name: `${owner}/${name}`, scope: 'PACKAGE_SCOPED', archived: false }
+  return {
+    owner,
+    name,
+    full_name: `${owner}/${name}`,
+    scope: 'PACKAGE_SCOPED',
+    archived: false,
+    issue_count: 1234,
+    open_issue_count: 56,
+  }
 }
 
 function topic(
@@ -116,8 +124,8 @@ function topic(
     collection_status: 'COMPLETE',
     summary_status: 'SKIPPED',
     summary_ko: null,
-    flow: [],
     messages: [],
+    summary_marks: [],
     ...overrides,
   }
 }
@@ -150,7 +158,7 @@ function fixtureResult(name: string): CommunityResult | null {
           reactions_count: 2,
           summary_status: 'READY',
           summary_ko: '설정을 재적용하는 방법이 댓글에서 공유됐다.',
-          flow: [{ text: '재시작 후 로그 레벨이 초기화된다는 문제가 제기됐다.' }],
+          summary_marks: [{ start: 4, end: 12, kind: 'KEY_TERM' }],
           messages: [
             {
               author_login: 'example-user',
@@ -229,10 +237,6 @@ function fixtureResult(name: string): CommunityResult | null {
         reactions_count: 1,
         summary_status: 'READY',
         summary_ko: '작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.',
-        flow: [
-          { text: '설정 동작에 관한 질문이 제기됐다.' },
-          { text: '댓글에서 확인 방법이 제시됐다.' },
-        ],
         messages: [
           {
             author_login: 'example-user',

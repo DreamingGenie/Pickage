@@ -115,6 +115,11 @@ echo "[5/6] 배치"
 # TODO(별도 티켓): --state 로 증분 재임베딩을 쓸지. 이전 회차 산출물의
 #   text_hash_state.parquet 을 스테이징에 같이 받아 오면 된다.
 # TODO(별도 티켓): --batch-size·--query-block 을 이 노드 실측으로 고정.
+#
+# --max-rank 를 명시하지 않는다 — 기본값 100000이 항상 적용된다(S15P21A506-402).
+#   컷 기준은 package_text 의 download_rank(registry·downloads 가 실제로 수집한 고정
+#   목록 기준)이고, 그 목록 밖은 옵션을 아무리 키워도 통과하지 못한다. 이전에는 이
+#   인자를 빼먹으면 컷 자체가 꺼졌다 — 이제 그 실수가 불가능하다.
 docker compose run --rm ai-similarity \
   --package-text /work/in/package_text.parquet \
   --model-dir    /work/in/model \

@@ -3,6 +3,7 @@ import { ExternalLinkIcon } from 'lucide-react'
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
@@ -11,6 +12,7 @@ import {
   type MetricState,
   type PackageCardModel,
 } from '@/routes/report/ecosystem/model'
+import { DEPENDENTS_DELTA_TERM, DEPENDENTS_TERM } from '@/routes/report/ecosystem/terms'
 import { cn } from '@/lib/utils'
 
 /**
@@ -82,7 +84,11 @@ export function PackageCard({
   )
 
   return (
-    <div className="flex animate-in flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
+    /*
+      justify-center: 왼쪽 그래프 열이 더 길면 이 카드가 그 높이로 늘어난다(`EcosystemView` 의 그리드).
+      그때 남는 자리가 아래에만 몰리지 않도록 안의 요소를 세로 중앙에 둔다(S15P21A506-405).
+    */
+    <div className="flex animate-in flex-col justify-center gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
       {header}
 
       {model.description && (
@@ -91,7 +97,7 @@ export function PackageCard({
 
       <ObservationBadges model={model} />
 
-      {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
+      {/* 의존 수 — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
         {/*
           값이 없을 때를 위 네 타일과 **같은 모양**으로 그린다. 여기만 "—" 로 두면 같은
@@ -102,10 +108,13 @@ export function PackageCard({
           그 구간은 바로 위 조작줄이 이미 보여 주고 있다.
         */}
         {delta === null ? (
-          <MissingTile label="Dependents 증감" title="증감을 내려면 관측치가 둘 이상 필요합니다" />
+          <MissingTile
+            label={DEPENDENTS_DELTA_TERM}
+            title="증감을 내려면 관측치가 둘 이상 필요합니다"
+          />
         ) : (
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-base text-muted-foreground">Dependents 증감</span>
+            <span className="text-base text-muted-foreground">{DEPENDENTS_DELTA_TERM}</span>
             <span
               className={cn(
                 'font-mono text-lg leading-none font-semibold tabular-nums',
@@ -132,7 +141,20 @@ export function PackageCard({
 
       {/* Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다 */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <span className="text-base text-muted-foreground">Version Share</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base text-muted-foreground">Version Share</span>
+          {/*
+            안내 문단을 인라인에 상시 노출하면 카드가 길어져 옆 차트 열과 하단이
+            어긋난다. 문구 자체(조각 합계가 실제 사용처 수보다 크다는 것)는 매번
+            읽어야 하는 경고가 아니라 궁금할 때 찾아보는 설명이라 모달로 옮긴다.
+          */}
+          <InfoDialog label="Version Share 안내" title="Version Share">
+            <p>
+              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
+              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
+            </p>
+          </InfoDialog>
+        </div>
         {versionShareState.status === 'loading' ? (
           <Skeleton className="h-28 w-full rounded-xl" />
         ) : versionShareState.status === 'error' ? (
@@ -152,14 +174,8 @@ export function PackageCard({
               />
               <ShareBars groups={model.versionShare} />
             </div>
-            {/*
-              명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
-              그래서 비율만 적고 총계를 쓰지 않는다.
-            */}
-            <p className="text-base leading-relaxed text-muted-foreground">
-              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
-              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
-            </p>
+            {/* 명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
+                그 설명은 위 정보 버튼 모달로 옮겼다(비율만 적고 총계를 쓰지 않는 이유). */}
           </>
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
@@ -282,12 +298,24 @@ function VersionPicker({
             </button>
           )
         })}
+
+        {/*
+          "전 버전을 합한 값입니다 …" 문장을 여기로 옮겼다(S15P21A506-405). 버튼이 무엇을 하는지는
+          눌린 상태로 보이고, 왜 그런 값인지는 궁금할 때만 찾아보면 된다.
+        */}
+        <InfoDialog label="표시 버전 안내" title="표시 버전" className="ml-0.5">
+          <p>
+            &lsquo;전체&rsquo;는 모든 버전(major)을 합한 값입니다. 버전을 하나 이상 골라 합쳐 볼 수
+            있고, 고른 버전의 합계가 {DEPENDENTS_TERM} 그래프와 {DEPENDENTS_TERM} 증감에 반영됩니다.
+          </p>
+          <p>
+            {isAll
+              ? '지금은 전체를 보고 있습니다.'
+              : `지금은 고른 ${selected.length}개 버전을 합해 보고 있습니다.`}{' '}
+            선택은 이 패키지에만 적용되고 다른 패키지에는 영향을 주지 않습니다.
+          </p>
+        </InfoDialog>
       </div>
-      <p className="text-base leading-relaxed text-muted-foreground">
-        {isAll
-          ? '전 버전을 합한 값입니다. 여러 개를 골라 합쳐 볼 수 있습니다.'
-          : `고른 ${selected.length}개 버전을 합한 값입니다. 다른 패키지의 선택과는 무관합니다.`}
-      </p>
     </div>
   )
 }

@@ -35,16 +35,30 @@ def client():
         raise SystemExit(f'MinIO credentials not found: pipeline/minio/{name}\n'
                          'Local: copy .env.example to .env\n'
                          'Server: see pipeline/minio/README.md')
-    env = dict(line.split('=', 1) for line in path.read_text().splitlines()
+    # 인코딩을 명시한다. .env.example·.env.server.example 이 전부 한글 주석을 담은
+    # UTF-8 파일이라, 지정하지 않으면 Windows 한글 로캘(cp949)에서 UnicodeDecodeError 로
+    # 죽는다 — 파일이 아니라 읽는 쪽 로캘 문제라 재현이 그 환경에서만 된다(S15P21A506-402).
+    env = dict(line.split('=', 1) for line in path.read_text(encoding='utf-8').splitlines()
                if line and not line.startswith('#'))
     # Not MINIO_ENDPOINT: that name belongs to init-buckets.sh, which runs inside
     # the compose network and resolves http://minio:9000. This one is a host address.
     endpoint = env.get('PICKAGE_S3_ENDPOINT', 'http://localhost:9000')
+    # PICKAGE_S3_* is the name to use. MINIO_ROOT_* is the old one and still read:
+    # .env / .env.server / .env.data carry it, and repository_metrics/build.py and
+    # requirements_resolution/build.py open those same files by that name. Renaming
+    # only here would break them; the loader file uses the new name because a scoped
+    # account under a ROOT key invites reusing the root credentials (S15P21A506-385).
+    access = env.get('PICKAGE_S3_ACCESS_KEY') or env.get('MINIO_ROOT_USER')
+    secret = env.get('PICKAGE_S3_SECRET_KEY') or env.get('MINIO_ROOT_PASSWORD')
+    if not access or not secret:
+        raise SystemExit(f'MinIO credentials are empty: pipeline/minio/{name}\n'
+                         'Fill PICKAGE_S3_ACCESS_KEY and PICKAGE_S3_SECRET_KEY\n'
+                         'See pipeline/minio/README.md')
     # Printed so the destination is visible in every run log.
     print(f'PICKAGE_S3_ENDPOINT={endpoint} ({name})', flush=True)
     return boto3.client('s3', endpoint_url=endpoint,
-                        aws_access_key_id=env['MINIO_ROOT_USER'],
-                        aws_secret_access_key=env['MINIO_ROOT_PASSWORD'],
+                        aws_access_key_id=access,
+                        aws_secret_access_key=secret,
                         region_name='us-east-1',
                         config=Config(retries={'mode': 'standard', 'max_attempts': 5},
                                       max_pool_connections=16,

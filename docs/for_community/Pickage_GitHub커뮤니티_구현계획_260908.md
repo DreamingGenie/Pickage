@@ -14,7 +14,7 @@ backend/frontend가 공유할 community 상세 계약은 이 문서 하나를 �
 
 비교 대상을 확정한 사용자의 **최초 기준 패키지 하나**에 대해 GitHub 커뮤니티 현황을 제공한다.
 후보 노출 최대 3개·최초 기준만 선택·총 비교 1~3개라는 제품 결정을 바꾸지 않는다.
-community의 Issue 최대 2개·Issue별 대표 메시지 최대 3개는 비교 후보 개수와 별개다.
+community의 Issue 최대 2개·Issue별 대표 메시지 최대 4개는 비교 후보 개수와 별개다.
 
 - 기존 `/report/:reportId` 공통 shell에 세 번째 lazy tab을 추가한다. 새 최상위 route·중복 header는 만들지 않는다.
 - 기준 패키지의 저장소를 검증하고 Issue만 수집한다. PR·다른 패키지·시안의 예시 패키지로 대체하지 않는다.
@@ -22,7 +22,7 @@ community의 Issue 최대 2개·Issue별 대표 메시지 최대 3개는 비교 
 - 화면에 공개할 결과는 PostgreSQL `community_snapshot`의 최신 한 행으로 원자 게시한다.
 - raw 본문·댓글·prompt는 refresh 중 메모리에서만 사용한다. 원문 저장·이력 테이블·Redis·새 worker 서비스를 추가하지 않는다.
 - Spring → GMS 직접 호출은 이 bounded refresh에만 허용한다. 일반 분석 실행 경로까지 확대하지 않는다.
-- 저장소·작성자 식별자는 읽기 전용 텍스트다. 외부 이동·GitHub 원문 링크 버튼은 만들지 않는다.
+- 저장소·작성자 식별자는 읽기 전용 텍스트다. 외부 이동은 만들지 않는다 — **단 Issue 카드의 `GitHub에서 보기` 링크 버튼 하나만 예외**(2026-09-20 제품 책임자 결정, S15P21A506-409). 새 탭·`noopener noreferrer`, 저장소 이름과 Issue 번호로 프런트가 주소를 만든다(API 에 URL 필드 없음).
 - Issue 장기 시계열은 ecosystem Activity 확장 소유다. 여기서 배치 시계열을 구현하지 않는다.
 
 완료는 “화면이 보임”이 아니라, §11의 각 파트 산출물과 §12의 실패·경계 시험을 모두 통과한 상태다.
@@ -96,8 +96,16 @@ archived는 수집 중단 이유가 아니라 `REPOSITORY_ARCHIVED` limitation�
 
 수치는 선택된 Issue record의 `comments`, `reactions.total_count`, `state`만 사용한다.
 댓글 수는 수집한 100개나 사람이 쓴 댓글만의 수가 아니며, 반응에 comment reaction을 중복 합산하지 않는다.
-상단 issue_count/open_issue_count/comment_count/reaction_count는 **같은 topics 집합**의 합계다.
-저장소 전체 수치·고유 참여자 수·실시간 원자 스냅샷이라고 표기하지 않는다.
+`summary` 의 issue_count/open_issue_count/comment_count/reaction_count는 **같은 topics 집합**의 합계다.
+고유 참여자 수·실시간 원자 스냅샷이라고 표기하지 않는다.
+
+> **2026-09-20 (S15P21A506-413) 저장소 전체 수치**: 화면 상단 수치 4칸 중 좌우 두 칸은 요약한 Issue(최대 2건)에서 센 값이 아니라 **저장소 전체 Issue 수**와 **현재 열려 있는 Issue 전체 수**다. "분석 Issue 2건"이 분석이 부족해 보인다는 제품 책임자 판단에 따라, 위 "저장소 전체 수치라고 표기하지 않는다" 제약을 이 두 수치에 한해 푼다. 값은 `repository.issue_count`·`repository.open_issue_count` 로 내려온다(`summary` 는 그대로 topics 합계). GitHub Search API 로 `repo:{owner}/{repo} is:issue`(PR 제외)와 `is:issue is:open` 의 `total_count` 를 `per_page=1` 로 센다 — 조회 시점의 값이고 실시간 원자 스냅샷이 아니다.
+>
+> 이 값은 **보조 정보**다. 못 구하면(rate limit·통신 오류·`incomplete_results`) `null` 이고 결과 게시는 그대로 진행한다. `payload_version` 은 올리지 않는다 — 선택 키라 이전에 저장된 스냅샷에는 키가 없고 새 스냅샷은 못 구한 값을 `null` 로 쓴다. 화면은 없음과 `null` 을 같게 `—` 로 보인다(0건으로 지어내지 않는다). 핵심 수집이 끝난 뒤, **GMS 를 디스패치하기 전에 갱신 스레드에서 순차로** 조회한다 — 본 수집의 search quota(인증 30/분)를 먼저 쓰지 않고, 조회는 수백 ms 라 GMS 예산을 거의 쓰지 않는다. 갱신 한 번에 search 호출이 2회 늘어난다.
+>
+> **공용 스레드 풀에 올리지 않는다**(2026-09-20, S15P21A506-415). 처음에는 이 조회를 GMS 와 나란히 `CompletableFuture.supplyAsync`(JVM 공용 풀)로 돌렸는데, 같은 풀에서 이슈마다 GMS 응답을 최대 30초 블로킹으로 기다리는 작업이 돌고 있어 **공용 풀 워커가 5개 이상**(GMS 대기 2 + 조회 바깥 1 + 안쪽 2)이어야 동시에 돌았다. 공용 풀은 코어 − 1 개라 코어가 적은 배포 서버에서는 조회가 GMS 가 끝난 뒤에야 시작해 예산이 바닥났고, **모든 패키지의 수치가 조용히 비었다**(개발 PC 16코어에서는 재현되지 않았다). 공용 풀 크기를 2~4 로 줄이면 로컬에서도 재현되고 5 이상이면 정상이다. 그래서 블로킹 작업(GMS 대기·이슈별 댓글 수집)은 전용 실행기(`CommunityAsync`)로 옮겼다. 실패 사유는 로그에 남긴다(상태 코드·호출 제한 해제 시각·예산 소진).
+>
+> **비어 있는 스냅샷은 복구한다.** 수치가 비어 있는 채 저장된 스냅샷(조회 실패, 또는 수치를 더하기 전에 저장된 것)은 24시간 신선 창 동안 화면이 계속 `—` 이다. 그래서 수치가 한쪽이라도 비어 있고 수집한 지 30분이 지났으면 신선하지 않은 것으로 본다(`freshness: STALE`) — 화면이 다시 수집을 요청해 채운다. 열 때마다 재수집하면 GMS 요약 비용이 매번 들어 30분 간격을 둔다. 저장소를 확인하지 못한 종료 상태(repository 없음)에는 적용하지 않는다. 논의가 없어(NO_DISCUSSION_DATA) 카드가 숨겨지는 경우에도 저장소 수치는 저장된다.
 
 ### 3.3 최신 댓글 최대 100개
 
@@ -175,10 +183,6 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
   "title_ko": "설정 동작 확인",
   "summary_ko": "작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.",
   "summary_support": [{"type": "ISSUE_BODY", "id": "701"}, {"type": "COMMENT", "id": "9007199254740993"}],
-  "flow": [
-    {"text": "설정 동작에 관한 질문이 제기됐다.", "support": [{"type": "ISSUE_BODY", "id": "701"}]},
-    {"text": "댓글에서 확인 방법이 제시됐다.", "support": [{"type": "COMMENT", "id": "9007199254740993"}]}
-  ],
   "messages": [
     {"source_comment_id": "9007199254740993", "kind": "DISCUSSION", "text": "설정을 확인하는 방법을 제시했다."}
   ]
@@ -188,12 +192,17 @@ Issue당 max output 2,048 tokens이며 재생성·JSON repair 재호출은 v1에
 | 필드 | 제약 |
 |---|---|
 | issue_number | 요청 Issue number와 동일한 양의 정수 |
-| title_ko | 공백 제외 비어 있지 않음, 최대 200자; 원제목의 의미를 보존 |
-| summary_ko / summary_support | 최대 500자 / 1~101개, 중복 없음 |
-| flow | 1~4개; text 최대 200자, support 1~101개 |
-| messages | 0~3개; source_comment_id 중복 없음, text 최대 300자 |
+| title_ko | 공백 제외 비어 있지 않음, 최대 200자(모델에는 100자를 요구); 원제목의 의미를 보존 |
+| summary_ko / summary_support | 최대 500자(모델에는 400자를 요구) / 1~101개, 중복 없음 |
+| flow | **요청하지 않는다**(2026-09-20, S15P21A506-412). 스키마·프롬프트에 없고 검증하지 않는다 |
+| messages | 0~4개(2026-09-20 3→4); 입력 댓글 하나당 하나; source_comment_id 중복 없음, text 최대 300자(모델에는 200자를 요구) |
+| key_terms / key_sentences | 각각 최대 6개(최대 30자) / 최대 2개(최대 160자, 요약문의 60% 이하). **summary_ko 에서 글자 그대로 옮긴 문자열**만 인정한다 — 서버가 부분 문자열로 찾아 위치를 계산하고, 못 찾은 것·겹치는 것은 버린다(요약은 실패시키지 않는다). 모델이 준 위치는 쓰지 않는다 |
 | kind | DISCUSSION 또는 USER_SOLUTION |
 | support type/id | ISSUE_BODY 또는 COMMENT / 십진 문자열 |
+
+**길이 초과는 실패가 아니다**(2026-09-20, S15P21A506-412). 모델은 요구한 길이를 자주 넘긴다 — 발화 250자를 요구했는데 264·286·373·324자가 나왔고, 324자 하나 때문에 이슈 요약 전체가 `message text not plain/too long` 으로 탈락했다(lodash #6106). 그래서 서버가 위 상한(제목 200·요약 500·발화 300)을 넘은 글을 **마지막 완결 문장까지** 잘라 쓴다(`CommunitySummaryValidator.fit`). 문장 끝(`.`·`!`·`?`·`…` 뒤에 공백)이 앞쪽 3분의 1 안이면 마지막 공백까지 자르고 `…` 를 붙이고, 공백도 없으면 상한에서 자른다. 소수점(`3.5`)은 문장 끝이 아니다. 스키마 `maxLength` 는 쓰지 않는다 — GMS 가 받아들이지만 문장·단어 중간에서 글을 끊는다. 프롬프트는 상한보다 한참 낮게(100·400·200) 요구해 자를 일 자체를 줄인다. 강조 구간은 잘린 글을 기준으로 다시 찾으므로 잘려 나간 부분의 강조는 조용히 버려진다. 링크 처리는 이 완화와 무관하게 그대로다.
+
+**HTML 꺾쇠(`<` `>`)는 요약을 실패시키지 않고 전각(`＜` `＞`)으로 바꾼다**(2026-09-20, S15P21A506-412). 예전에는 꺾쇠가 하나라도 있으면 그 이슈의 요약 전체를 버렸다(XSS 방어). 프롬프트가 금지해도 모델은 코드 조각이 든 논의를 옮기며 꺾쇠를 써서(axios #5366) 요약이 통째로 사라졌다. 전각 문자는 HTML 에서 태그를 여는 글자가 아니라 방어는 그대로이고, 코드 조각은 `＜div＞` 처럼 읽힌다. 제목·요약·발화와 핵심어·핵심 문장에 같은 치환을 적용해 강조도 그대로 찾는다. 저장 검증기는 **원본 꺾쇠를 계속 거부**한다 — 치환을 거치지 않은 값이 저장되면 게시 검증이 막는 이중 방어다. 순서는 링크 제거 → 꺾쇠 치환 → 길이 맞춤이다.
 
 USER_SOLUTION은 댓글의 해결 방법 제시 유형이지 작성자 역할이나 채택·정답 판정이 아니다.
 Issue body를 대표 메시지로 만들지 않는다. 모델은 작성자·association·시각·수치·상태·URL을 출력하지 않는다.
@@ -221,7 +230,7 @@ MAINTAINER를 association에서 추정하지 않는다. 여러 댓글의 말을 
 추가 검증 모델 호출을 조용히 도입하지 않는다.
 
 요약 실패여도 이미 검증한 Issue 원제목·수치·시각은 게시할 수 있다.
-실패 topic은 title_ko/summary_ko=null, flow/messages=[]로 두고 원제목을 표시한다.
+실패 topic은 title_ko/summary_ko=null, messages=[]로 두고 원제목을 표시한다.
 support 목록은 생성 시 메모리 검증 후 폐기한다. 장기 저장에는 issue source ID와 선택된 대표 comment ID만 남긴다.
 따라서 모든 요약 문장의 장기 원문 재감사까지 지원한다고 주장하지 않는다.
 
@@ -345,13 +354,13 @@ Java long을 무조건 JS number로 내리지 않는다. GitHub source ID는 공
 | CommunityResponse | package_name:string, view_status:enum, freshness:nullable enum, refresh:nullable Refresh, result:nullable Result |
 | Refresh | refresh_id:nullable UUID string, status:enum, stage:nullable enum, stage_message:string, started_at:nullable timestamp, last_updated_at:timestamp, poll_after_seconds:nullable integer, retry_at:nullable timestamp, error_code:nullable enum |
 | Result | snapshot_id:UUID string, collected_at:timestamp, fresh_until:timestamp, serve_until:timestamp, data_status:enum, summary_status:enum, summary_retry_at:nullable timestamp, repository:nullable Repository, summary:Summary, topics:Topic[], limitations:Limitation[], data_limits:DataLimits |
-| Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean |
+| Repository | owner:string, name:string, full_name:string, scope:PACKAGE_SCOPED or REPOSITORY_WIDE, archived:boolean, issue_count:nullable integer(저장소 전체 Issue 수, PR 제외), open_issue_count:nullable integer(그중 열린 수) — 둘 다 이전 스냅샷에는 없어 null 로 읽는다(2026-09-20, S15P21A506-413) |
 | Summary | issue_count:integer, open_issue_count:integer, comment_count:integer, reaction_count:integer |
-| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, flow:Flow[], messages:Message[] |
-| Flow | text:string |
+| Topic | issue_number:positive integer, title_original:string, title_ko:nullable string, summary_ko:nullable string, state:OPEN or CLOSED, comments_count:integer, reactions_count:integer, created_at:timestamp, updated_at:timestamp, collection_status:enum, summary_status:enum, messages:Message[], summary_marks:SummaryMark[](이전 스냅샷에는 없어 빈 목록으로 읽는다) |
+| SummaryMark | start:integer, end:integer, kind:KEY_TERM or KEY_SENTENCE — `summary_ko` 안의 UTF-16 오프셋 `[start, end)`(Java `String`·JS 문자열과 같은 단위). 핵심어는 굵게, 핵심 문장은 형광펜(2026-09-20, S15P21A506-408) |
 | Message | author_login:nullable string, role:nullable enum, created_at:timestamp, kind:DISCUSSION or USER_SOLUTION, text:string |
 | Limitation | code:enum, message:string, issue_number:nullable positive integer |
-| DataLimits | policy_version:string, lookback_days:180 or 365, max_issues:2, max_comments_per_issue:100, max_messages_per_issue:3, source_note:string |
+| DataLimits | policy_version:string, lookback_days:180 or 365, max_issues:2, max_comments_per_issue:100, max_messages_per_issue:4, source_note:string |
 
 terminal 검증 결과에서는 repository=null, summary 수치 모두 0, topics=[]다.
 repository는 연결을 확인한 경우에만 채운다. model generated URL, package_id, author ID, source ID, support 목록은 wire에서 제외한다.
@@ -359,7 +368,9 @@ title_original은 출력할 때 200자로 제한하고 잘림을 표시한다. �
 data_limits.lookback_days는 실제 마지막 검색 기간이며 검색 전 중단이면 기본 정책 180이다.
 
 topics는 §3.2 선택 순서, messages는 원본 created_at·수치 source ID 오름차순이다.
-flow는 모델이 검증 가능한 사건 순으로 작성하되 동일 시각 인과관계를 임의로 만들지 않는다.
+> **2026-09-20 (S15P21A506-406 → 412)** `flow`(논의 흐름)는 쓰지 않는다. 화면은 406 에서 그리기를 멈췄다 — 쟁점 요약(`summary_ko`)과 같은 사건을 되풀이하는 정보라서다. 412 에서 생성도 멈췄다: GMS 프롬프트·JSON 스키마(`flow`·`flow_support`), 요약 검증기, `TopicSummary`·`TopicPayload`·`TopicResponse` 에서 걷어 냈고 API 응답에도 없다.
+>
+> **저장된 스냅샷 호환**: `payload_version` 은 2 그대로다. 올리면 운영에 저장된 스냅샷이 전부 읽히지 않는다. `summary_marks` 를 선택 키로 더한 것과 반대로, `flow` 는 **있어도 없어도 되는 키**로 다룬다 — 스냅샷 JSON 검증기는 `flow` 가 있으면 예전 모양(`[{text}]`)만 확인하고, 읽을 때(`TopicPayload` 의 `@JsonIgnoreProperties("flow")`) 값은 버린다. 새 스냅샷에는 쓰지 않는다. 다른 모르는 필드는 여전히 거부한다. 이 변경이 배포된 뒤 **이전 버전으로 되돌리면**, 이전 검증기가 `flow` 를 필수로 요구하므로 새로 저장된 스냅샷을 읽지 못하고(`CommunitySnapshotPayloadException`, 서비스가 따로 삼키지 않는다) 그 패키지의 커뮤니티 조회가 실패할 수 있다. 되돌릴 일이 생기면 새로 저장된 스냅샷부터 정리할 것.
 summary는 topics의 사실 수치 합계다. 요약 실패나 댓글 절단으로 사실 comments_count를 100으로 자르지 않는다.
 
 limitation code는 아래 목록에서만 사용하고 설명은 서버 템플릿으로 만든다.
@@ -417,7 +428,9 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "name": "community-fixture",
         "full_name": "pickage-fixture/community-fixture",
         "scope": "PACKAGE_SCOPED",
-        "archived": false
+        "archived": false,
+        "issue_count": 1234,
+        "open_issue_count": 56
       },
       "summary": {"issue_count": 1, "open_issue_count": 1, "comment_count": 2, "reaction_count": 1},
       "topics": [{
@@ -432,8 +445,8 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "updated_at": "2026-09-10T00:00:00Z",
         "collection_status": "COMPLETE",
         "summary_status": "FAILED",
-        "flow": [],
-        "messages": []
+        "messages": [],
+        "summary_marks": []
       }],
       "limitations": [
         {"code": "ROOT_PACKAGE_SCOPE_HEURISTIC", "message": "루트 패키지 연결에 기반하며 모든 Issue의 주제를 보장하지 않습니다.", "issue_number": null},
@@ -444,7 +457,7 @@ refresh=null은 추적 가능한 task/거절이 없다는 뜻이다. 재시작 �
         "lookback_days": 180,
         "max_issues": 2,
         "max_comments_per_issue": 100,
-        "max_messages_per_issue": 3,
+        "max_messages_per_issue": 4,
         "source_note": "수치는 선택한 Issue 집합의 값이며 저장소 전체나 고유 참여자 수가 아닙니다."
       }
     }

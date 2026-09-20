@@ -11,12 +11,22 @@ import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
 import {
   ALL_MAJORS,
+  DEFAULT_PERIOD_PRESET,
   stepOf,
   type EcosystemModel,
   type MajorSelection,
   type MetricKey,
   type MetricState,
+  type PeriodPresetKey,
 } from '@/routes/report/ecosystem/model'
+import { DEPENDENTS_TERM, DependentsConcept } from '@/routes/report/ecosystem/terms'
+import { TransitionsPanel } from '@/routes/report/ecosystem/transitions-panel'
+import {
+  DEFAULT_TRANSITION_PERIOD,
+  EMPTY_TRANSITIONS_MODEL,
+  type TransitionPeriod,
+  type TransitionsModel,
+} from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
 /** 지어낸 값을 그리는 자리(인트로 미리보기)의 기본값. 로딩도 실패도 없다. */
@@ -39,10 +49,17 @@ const READY_STATE: MetricState = { status: 'ready' }
  * 조회 기간은 **부모가 들고 있다.** 그것만 서버 왕복을 부르기 때문이다.
  * 구간·간격은 받은 점을 다루는 일이라 여기 안에서 끝난다.
  */
+/** 서버 왕복이 없는 no-op — 인트로 미리보기처럼 조작이 필요 없는 자리의 기본값. */
+const NOOP_PERIOD_CHANGE = () => {}
+
 export function EcosystemView({
   model,
   metricState = READY,
   versionShareState = READY_STATE,
+  transitionsModel = EMPTY_TRANSITIONS_MODEL,
+  transitionsState = READY_STATE,
+  transitionPeriod = DEFAULT_TRANSITION_PERIOD,
+  onTransitionPeriodChange = NOOP_PERIOD_CHANGE,
   compactChart = false,
   className,
 }: {
@@ -57,6 +74,16 @@ export function EcosystemView({
    * 있다(126) — 패키지마다 갈리지 않는다(응답 하나가 전체 패키지를 담는다).
    */
   versionShareState?: MetricState
+  /** 유지·유입·이탈 조회 결과(S15P21A506-391). 개요·추이와 독립된 다섯 번째 쿼리다. */
+  transitionsModel?: TransitionsModel
+  transitionsState?: MetricState
+  /**
+   * 값 자체의 정본은 `ReportPage`다(S15P21A506-394) — PDF 내보내기 다이얼로그가 "화면이
+   * 지금 보는 기간"을 읽어야 해서 이 탭보다 위로 올렸다. 다만 그 값이 바뀔 때 서버
+   * 왕복이 있는 새 요청을 쏘는 자리는 여전히 `EcosystemReportTab`이다(39행 규칙의 반대쪽).
+   */
+  transitionPeriod?: TransitionPeriod
+  onTransitionPeriodChange?: (next: TransitionPeriod) => void
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */
   compactChart?: boolean
   className?: string
@@ -79,20 +106,27 @@ export function EcosystemView({
    * 상태가 두 곳에 갈라지지 않는다.
    */
   const bounds = { start: snapshots[0] ?? '', end: snapshots[snapshots.length - 1] ?? '' }
-  const [local, setLocal] = useState<{ key: string; window: EcosystemControls['window'] }>(() => ({
+  const [local, setLocal] = useState<{
+    key: string
+    window: EcosystemControls['window']
+    presetKey: PeriodPresetKey | null
+  }>(() => ({
     key: `${bounds.start}~${bounds.end}`,
     window: bounds,
+    // 처음에는 받아 둔 전 구간을 그대로 보여 주므로 "전체 기간" 이 눌려 있다(S15P21A506-405).
+    presetKey: DEFAULT_PERIOD_PRESET,
   }))
   const [intervalKey, setIntervalKey] = useState('1w')
 
   const boundsKey = `${bounds.start}~${bounds.end}`
   const window = local.key === boundsKey ? local.window : bounds
+  const presetKey = local.key === boundsKey ? local.presetKey : DEFAULT_PERIOD_PRESET
 
-  const controls: EcosystemControls = { window, intervalKey }
+  const controls: EcosystemControls = { window, presetKey, intervalKey }
 
   function onControlsChange(next: EcosystemControls) {
     setIntervalKey(next.intervalKey)
-    setLocal({ key: boundsKey, window: next.window })
+    setLocal({ key: boundsKey, window: next.window, presetKey: next.presetKey })
   }
 
   /**
@@ -286,22 +320,31 @@ export function EcosystemView({
         자리가 한 화면에 같이 안 들어온다.** 카드에서 4.x 를 눌러 놓고 위로 스크롤해서
         확인하고 다시 내려와야 한다. 좌우로 나누면 누르는 즉시 옆에서 선이 바뀌는 것이 보인다.
 
-        차트 쪽을 `sticky` 로 붙여 둔다 — 카드가 길어져도 그래프가 화면에 남는다.
+        **두 열의 높이는 언제나 같다**(S15P21A506-405). 짧은 쪽이 늘어나 긴 쪽에 맞춘다 — 아래에
+        이유 없는 빈 공간이 생기지 않는다.
+        · 왼쪽이 길면 오른쪽 카드가 늘어나고 안의 요소는 세로 중앙에 놓인다(`PackageCard`).
+        · 오른쪽이 길면 왼쪽 열이 늘어나고, 그래프 카드 둘이 그 높이를 **똑같이 나눠** 갖는다
+          (`flex-1`). 그래프는 늘어난 만큼 함께 커진다(`MetricChart` 의 `fill`).
+        예전에는 왼쪽 열을 `sticky` 로 붙여 카드가 길어져도 그래프가 화면에 남게 했는데, 그 구조는
+        열 높이를 맞추는 것과 양립하지 않아 뺐다.
 
         좁은 화면에서는 한 줄로 무너진다. 그때는 차트가 먼저 오고 카드가 아래로 간다.
       */}
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
           <MetricChart
-            title="Dependents"
+            title={DEPENDENTS_TERM}
+            info={<DependentsConcept />}
+            infoTitle={`${DEPENDENTS_TERM}란?`}
             unit="의존 수 · 버전별 합계"
             series={windowedDependents}
             step={step}
             window={window}
             observedFrom={model.observedFrom.dependents}
-            coverageNote="이 지표의 관측 시작"
             emphasisKeys={emphasisKeys}
             height={height}
+            fill
+            className="lg:flex-1"
             state={metricState.dependents}
           />
           <MetricChart
@@ -311,9 +354,10 @@ export function EcosystemView({
             step={step}
             window={window}
             observedFrom={model.observedFrom.downloads}
-            coverageNote="이 지표의 관측 시작"
             emphasisKeys={emphasisKeys}
             height={height}
+            fill
+            className="lg:flex-1"
             state={metricState.downloads}
             /*
               Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비
@@ -344,6 +388,21 @@ export function EcosystemView({
           />
         )}
       </div>
+
+      {/*
+        그리드 아래 전체 폭 섹션이다. 위 두 칼럼과 달리 이 패널은 자체 날짜축을 가진
+        구조적으로 독립된 데이터라 sticky 칼럼의 "칩 강조가 두 차트에 동시에 걸리는"
+        관계에 안 낀다 — 강조(`emphasisKeys`)만 그대로 물려받아 패키지 식별은 일관되게 유지한다.
+      */}
+      {model.packages.length > 0 && (
+        <TransitionsPanel
+          model={transitionsModel}
+          state={transitionsState}
+          period={transitionPeriod}
+          onPeriodChange={onTransitionPeriodChange}
+          emphasisKeys={emphasisKeys}
+        />
+      )}
     </div>
   )
 }

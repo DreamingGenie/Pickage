@@ -19,6 +19,8 @@ export const SAMPLE_COMMUNITY_RESULT: CommunityResult = {
     full_name: 'pickage-fixture/community-fixture',
     scope: 'PACKAGE_SCOPED',
     archived: false,
+    issue_count: 1234,
+    open_issue_count: 56,
   },
   summary: { issue_count: 1, open_issue_count: 1, comment_count: 2, reaction_count: 1 },
   topics: [
@@ -34,9 +36,10 @@ export const SAMPLE_COMMUNITY_RESULT: CommunityResult = {
       collection_status: 'COMPLETE',
       summary_status: 'READY',
       summary_ko: '작성자가 설정 동작을 질문했고 댓글에서 확인 방법이 제시됐다.',
-      flow: [
-        { text: '설정 동작에 관한 질문이 제기됐다.' },
-        { text: '댓글에서 확인 방법이 제시됐다.' },
+      // '설정 동작' 은 핵심어, '댓글에서 확인 방법이 제시됐다' 는 핵심 문장
+      summary_marks: [
+        { start: 5, end: 10, kind: 'KEY_TERM' },
+        { start: 17, end: 33, kind: 'KEY_SENTENCE' },
       ],
       messages: [
         {
@@ -61,7 +64,7 @@ export const SAMPLE_COMMUNITY_RESULT: CommunityResult = {
     lookback_days: 180,
     max_issues: 2,
     max_comments_per_issue: 100,
-    max_messages_per_issue: 3,
+    max_messages_per_issue: 4,
     source_note: '수치는 선택한 Issue 집합의 값이며 저장소 전체나 고유 참여자 수가 아닙니다.',
   },
 }

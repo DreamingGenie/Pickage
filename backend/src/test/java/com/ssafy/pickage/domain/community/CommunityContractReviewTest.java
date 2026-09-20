@@ -77,7 +77,6 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "요약",
-                        List.of(new DiscussionStepPayload("흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",
@@ -88,8 +87,7 @@ class CommunityContractReviewTest {
                                         Instant.now(),
                                         "메시지")),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
         var result = CommunitySummaryValidator.validate(bundle, summary);
         assertEquals(SummaryStatus.READY, result.status());
         var message = result.messages().getFirst();
@@ -105,11 +103,9 @@ class CommunityContractReviewTest {
                                 new TopicSummary(
                                         summary.titleKo(),
                                         summary.summaryKo(),
-                                        summary.discussionFlow(),
                                         summary.messages(),
                                         summary.status(),
-                                        invented,
-                                        List.of(invented)))
+                                        invented))
                         .status());
     }
 
@@ -212,35 +208,38 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "자세한 내용은 https://example.com/advisory 를 참고하세요.",
-                        List.of(new DiscussionStepPayload("[공지](https://example.com)에서 확인됨")),
                         List.of(),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
 
         var result = CommunitySummaryValidator.validate(bundle, summary);
 
         assertEquals(SummaryStatus.READY, result.status());
         assertEquals("자세한 내용은 (링크 생략) 를 참고하세요.", result.summaryKo());
-        assertEquals("(링크 생략)에서 확인됨", result.discussionFlow().getFirst().text());
         assertFalse(result.summaryKo().contains("https://"));
     }
 
     @Test
-    void R05_HTML_태그는_링크_완화와_무관하게_여전히_거부된다() {
+    void R05_HTML_태그는_요약을_버리지_않고_전각으로_바꿔_태그로_읽히지_않게_한다() {
         var bundle = CommunitySummarySourceBundle.from(issue(1));
         var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
         var summary =
                 new TopicSummary(
                         "제목",
                         "<script>alert(1)</script>",
-                        List.of(new DiscussionStepPayload("흐름")),
                         List.of(),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
 
-        assertEquals(SummaryStatus.FAILED, CommunitySummaryValidator.validate(bundle, summary).status());
+        var result = CommunitySummaryValidator.validate(bundle, summary);
+
+        // S15P21A506-412 — 예전에는 여기서 요약 전체가 FAILED 였다. 이제는 꺾쇠만 전각으로 바꿔 살린다.
+        assertEquals(SummaryStatus.READY, result.status());
+        assertEquals("＜script＞alert(1)＜/script＞", result.summaryKo());
+        assertFalse(result.summaryKo().contains("<") || result.summaryKo().contains(">"));
+        // 저장 검증기의 원본 꺾쇠 거부는 그대로다 — 치환된 값은 통과한다.
+        assertTrue(CommunitySnapshotValidator.plain(result.summaryKo(), 500));
+        assertFalse(CommunitySnapshotValidator.plain("<script>", 500));
     }
 
     final InMemoryCommunitySnapshotRepository store = new InMemoryCommunitySnapshotRepository();
@@ -310,7 +309,6 @@ class CommunityContractReviewTest {
                 "COMPLETE",
                 status,
                 null,
-                List.of(),
                 List.of());
     }
 
@@ -396,11 +394,9 @@ class CommunityContractReviewTest {
         return new TopicSummary(
                 "확인된 제목",
                 "확인된 요약",
-                List.of(new DiscussionStepPayload("확인된 흐름")),
                 List.of(),
                 SummaryStatus.READY,
-                support,
-                List.of(support));
+                support);
     }
 
     @Test
