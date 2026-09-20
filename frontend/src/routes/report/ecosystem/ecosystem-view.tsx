@@ -346,7 +346,6 @@ export function EcosystemView({
             fill
             className="lg:flex-1"
             state={metricState.dependents}
-            defaultScale="index"
           />
           <MetricChart
             title="Downloads"
