@@ -32,7 +32,7 @@
 --     자동 커밋이라, 묶지 않으면 CREATE 직후 커밋되며 테이블이 바로 사라진다.
 BEGIN;
 
-TRUNCATE community_snapshot, dependent_removal_reason, dependent_transition, similar_package, package_version_snapshot, package_snapshot, version, package;
+TRUNCATE community_snapshot, dependent_removal_reason, dependent_transition, package_env, similar_package, package_version_snapshot, package_snapshot, version, package;
 
 -- ⚠ snapshot 만 TRUNCATE 가 아니라 DELETE 다 (2026-09-09, S15P21A506-289).
 --
