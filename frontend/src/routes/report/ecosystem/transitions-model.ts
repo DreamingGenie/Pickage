@@ -63,6 +63,51 @@ export interface TransitionCounts {
   /** 보조 캡션 전용. 그대로 막대로 그리면 "모든 패키지가 잘나가는" 착시가 생긴다. */
   inflowRaw: number
   inflowNew: number
+  /**
+   * `unobserved` 안을 마지막 릴리스 신선도로 쪼갠 셋 (S15P21A506-421). 셋의 합이
+   * `unobserved` 다 — **다섯 번째 범주가 아니라 한 칸의 분해**이므로 네 범주와 같은 줄에
+   * 더해 그리지 않는다.
+   *
+   * 다른 필드와 달리 `counts` 가 있어도 이것만 `null` 일 수 있다. 서버가 아직 안 실어
+   * 보내는 창(마이그레이션 배포 ~ 재적재)이 있고, 그때는 **모르는 것이지 0 이 아니다.**
+   */
+  unobservedFreshness: UnobservedFreshness | null
+}
+
+/** 마지막 대표 릴리스가 t2 에서 얼마나 떨어졌는가. 경계는 3년·5년이다. */
+export interface UnobservedFreshness {
+  /** 3년 안. */
+  recent: number
+  /** 3~5년 전. */
+  stale: number
+  /** 5년 초과 — 사실상 방치. 마지막 릴리스를 모르는 경우도 여기 들어간다. */
+  dormant: number
+}
+
+export const FRESHNESS_SEGMENTS: { key: keyof UnobservedFreshness; label: string }[] = [
+  { key: 'recent', label: '3년 안' },
+  { key: 'stale', label: '3~5년 전' },
+  { key: 'dormant', label: '5년 초과' },
+]
+
+/**
+ * 분해에서 **화면에 낼 칸만** 고른다 (S15P21A506-431).
+ *
+ * 구간마다 정의상 비는 칸이 다르다 — 관측불가는 그 구간 안에 대표 릴리스가 없다는 뜻이라
+ * 3년 구간의 `recent` 와 5년 구간의 `recent`·`stale` 은 **언제나 0** 이다. 이 0 을 칸으로
+ * 그리면 "자료가 없다" 로 읽히므로 아예 그리지 않는다.
+ *
+ * 남는 칸이 하나뿐이면 그 값이 곧 `unobserved` 라 분해가 아무 정보도 더하지 않는다
+ * (5년 구간이 늘 그렇다) — 그때는 분해 자체를 접는다. `null` 이면 당연히 빈 배열이다.
+ */
+export function freshnessSegments(
+  freshness: UnobservedFreshness | null,
+): { key: keyof UnobservedFreshness; label: string; value: number }[] {
+  if (!freshness) return []
+  const shown = FRESHNESS_SEGMENTS.map((seg) => ({ ...seg, value: freshness[seg.key] })).filter(
+    (seg) => seg.value > 0,
+  )
+  return shown.length > 1 ? shown : []
 }
 
 export interface TransitionRow {

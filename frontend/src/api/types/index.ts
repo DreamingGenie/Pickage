@@ -354,6 +354,22 @@ export interface TransitionSeriesItem {
   outflow: number | null
   /** 판정 불가(대표 릴리스가 구간 안에서 안 바뀜) — retained 에 합치면 안 된다. */
   unobserved: number | null
+  /**
+   * `unobserved` 를 그 의존자의 **마지막 대표 릴리스가 t2 에서 얼마나 떨어졌는지**로 쪼갠
+   * 셋 (S15P21A506-421). 셋의 합은 언제나 `unobserved` 이며 서버에 DB CHECK 가 걸려 있다.
+   * 다섯 번째 범주가 아니라 한 칸의 분해다 — 유지·유입·이탈과 같은 줄에 더해 그리면
+   * 합이 두 번 세어진다.
+   *
+   * **`data_status` 와 독립적으로 `null` 일 수 있다.** 마이그레이션 배포와 88만 행 재적재
+   * 사이에는 `COMPLETE` 인데 이 셋만 `null` 인 행이 정상적으로 존재한다(2026-09-21 운영에서
+   * 약 30분, 다음 스냅샷 회차마다 다시 생긴다). 그때 0 으로 그리면 "5년 넘게 방치된
+   * 의존자가 0명" 이 되어 **숫자가 맞아 보이는 거짓**이 된다.
+   */
+  unobserved_recent: number | null
+  /** 마지막 대표 릴리스가 t2 기준 3~5년 전. */
+  unobserved_stale: number | null
+  /** 5년 초과 — 사실상 방치. **마지막 릴리스를 모르는 경우도 여기로 센다.** */
+  unobserved_dormant: number | null
   data_status: TransitionDataStatusWire
 }
 

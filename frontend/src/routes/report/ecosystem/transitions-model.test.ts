@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   activityShares,
+  freshnessSegments,
   unobservedShare,
   type TransitionCounts,
   type TransitionRow,
@@ -18,6 +19,8 @@ const REACT_1Y: TransitionCounts = {
   inflowAdopted: 362,
   inflowRaw: 17039,
   inflowNew: 16677,
+  // 2026-09-21 운영 게시 뒤 실제로 내려오는 값 (S15P21A506-421). 셋의 합 = unobserved.
+  unobservedFreshness: { recent: 95662, stale: 28890, dormant: 46738 },
 }
 
 describe('activityShares', () => {
@@ -47,6 +50,7 @@ describe('activityShares', () => {
       inflowAdopted: 0,
       inflowRaw: 0,
       inflowNew: 0,
+      unobservedFreshness: null,
     }
     expect(activityShares(none)).toBeNull()
   })
@@ -71,5 +75,37 @@ describe('unobservedShare', () => {
   it('쓸 수 있는 행이 없으면 null 이다 — 경고를 띄우지 않는다', () => {
     expect(unobservedShare([row(null)])).toBeNull()
     expect(unobservedShare([])).toBeNull()
+  })
+})
+
+/**
+ * 구간마다 정의상 비는 칸이 다르다 (S15P21A506-421·431). 이 시험이 깨지면 화면이
+ * **언제나 0 인 칸을 "자료 없음" 처럼 그리거나**, 분해가 아무것도 더하지 않는 5년 구간에서
+ * `릴리스 없음` 과 같은 수를 한 번 더 그리고 있다는 뜻이다.
+ */
+describe('freshnessSegments', () => {
+  it('1년 구간은 세 칸이 모두 나온다', () => {
+    expect(freshnessSegments(REACT_1Y.unobservedFreshness).map((s) => s.key)).toEqual([
+      'recent',
+      'stale',
+      'dormant',
+    ])
+  })
+
+  /** 3년 구간의 `recent` 는 0 이다 — 그 사이에 릴리스를 냈다면 애초에 관측불가가 아니다. */
+  it('3년 구간은 0 인 3년 안 칸을 그리지 않는다', () => {
+    const segs = freshnessSegments({ recent: 0, stale: 28890, dormant: 46738 })
+    expect(segs.map((s) => s.key)).toEqual(['stale', 'dormant'])
+    expect(segs.map((s) => s.value)).toEqual([28890, 46738])
+  })
+
+  /** 5년 구간은 dormant 하나뿐이라 그 값이 곧 unobserved 다 — 분해를 접는다. */
+  it('남는 칸이 하나뿐이면 분해 자체를 접는다', () => {
+    expect(freshnessSegments({ recent: 0, stale: 0, dormant: 46738 })).toEqual([])
+  })
+
+  /** 배포와 재적재 사이의 행. 0 으로 그리면 "방치된 의존자가 0명" 이라는 거짓이 된다. */
+  it('분해를 모르면 빈 배열이다 — 0 으로 그리지 않는다', () => {
+    expect(freshnessSegments(null)).toEqual([])
   })
 })

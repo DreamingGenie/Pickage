@@ -1075,11 +1075,19 @@ export interface MockTransitionRow {
   dataStatus: 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
   /** COMPLETE·NO_DATA 일 때만 채운다 — 그 밖엔 서버처럼 값이 없다(null). */
   counts?: MockTransitionCounts
+  /**
+   * 관측불가 분해 세 값만 `null` 로 내는 행 (S15P21A506-421·431). **`data_status` 와 독립된
+   * 상태**라 `COMPLETE` 인데 셋만 없는 행이 실제로 존재한다 — 마이그레이션이 배포된 뒤
+   * 88만 행 재적재가 끝나기 전까지가 그 창이고, 스냅샷 회차마다 다시 생긴다.
+   * 화면이 그때 0 으로 그리지 않는지를 mock 만으로 확인할 수 있게 한 건 남겨 둔다.
+   */
+  freshnessMissing?: true
 }
 
 /**
  * winston — regular 는 COMPLETE(원시 inflow 와 실제 채택 수 차이가 크게 보이도록 잡았다),
- * peer 는 NO_DATA(진짜 0), optional 은 COMPLETE(작은 값).
+ * peer 는 NO_DATA(진짜 0), optional 은 COMPLETE(작은 값)이되 **관측불가 분해만 없는 행**이다
+ * (`freshnessMissing`, S15P21A506-431).
  *
  * pino — regular 만 COMPLETE, peer·optional 은 OUT_OF_SCOPE(top-100k 밖).
  *
@@ -1103,6 +1111,8 @@ export const MOCK_TRANSITIONS: Record<string, MockTransitionRow[]> = {
       kind: 'optional',
       dataStatus: 'COMPLETE',
       counts: { retained: 118, inflow: 342, inflowNew: 312, outflow: 46, unobserved: 88 },
+      // 분해 셋만 없는 행 — 화면은 이 줄에서 하위 막대를 아예 그리지 않아야 한다.
+      freshnessMissing: true,
     },
   ],
   pino: [
