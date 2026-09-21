@@ -18,21 +18,36 @@ import duckdb
 # pipeline/duckdb 는 패키지가 아니라 스크립트 폴더다 (__init__.py 없음).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_dependent_transitions import (  # noqa: E402
-    CLASSIFY_SQL, FAIL_IF_NONZERO, KINDS, REP_AT_SQL, REP_SQL, require_clean)
+    CLASSIFY_SQL, FAIL_IF_NONZERO, FRESHNESS_CUTS, KINDS, REP_AT_SQL, REP_SQL, require_clean)
 
 PERIOD = "1y"
 T1 = "2025-08-31 23:59:59"
+# 신선도 경계 — 빌더가 T2 에서 유도한 값을 그대로 쓴다. 여기 숫자를 따로 적으면 경계를
+# 옮겼을 때 시험만 통과하고 산출물이 틀린다.
+STALE = FRESHNESS_CUTS["stale"]      # 2023-08-31 23:59:59 (T2 - 3년)
+DORMANT = FRESHNESS_CUTS["dormant"]  # 2021-08-31 23:59:59 (T2 - 5년)
 
 
-def setup(decl, moved, targets=("x",), first_rel=None):
+def setup(decl, moved, targets=("x",), first_rel=None, last_rel=None,
+          period=PERIOD, t1=T1):
     """decl: (dependent, point, target, kind) · moved: (dependent, period)
 
     first_rel 을 생략하면 모든 dependent 가 **T1 보다 훨씬 전에 생긴 것**으로 본다.
     유입 세부를 시험하지 않는 케이스에서 is_new 가 끼어들지 않게 하려는 기본값이다.
+    last_rel 을 생략하면 **5년 넘게 릴리스가 없던 것**(dormant)으로 본다 — 같은 이유로
+    신선도 분해가 다른 시험에 끼어들지 않게 한다.
     """
     con = duckdb.connect()
     con.execute("CREATE TABLE periods(period VARCHAR, t1 TIMESTAMP)")
-    con.execute("INSERT INTO periods VALUES (?, ?)", [PERIOD, T1])
+    con.execute("INSERT INTO periods VALUES (?, ?)", [period, t1])
+    con.execute("CREATE TABLE cuts(stale TIMESTAMP, dormant TIMESTAMP)")
+    con.execute("INSERT INTO cuts VALUES (?, ?)", [STALE, DORMANT])
+    con.execute("CREATE TABLE last_rel(dependent VARCHAR, last_release TIMESTAMP)")
+    if last_rel is None:
+        last_rel = [(d, "2000-01-01 00:00:00")
+                    for d in dict.fromkeys(x[0] for x in (decl or []))]
+    if last_rel:
+        con.executemany("INSERT INTO last_rel VALUES (?, ?)", last_rel)
     con.execute("CREATE TABLE first_rel(dependent VARCHAR, first_release TIMESTAMP)")
     if first_rel is None:
         # dependent 당 한 줄이어야 한다. 중복이 있으면 cls_m 의 조인이 행을 복제해
@@ -191,6 +206,72 @@ class InflowSplit(unittest.TestCase):
         self.assertEqual(con.execute(
             "SELECT retained, inflow, inflow_new FROM agg WHERE period = ?"
             " AND target = 'x' AND kind = 'regular'", [PERIOD]).fetchone(), (1, 0, 0))
+
+
+class FreshnessSplit(unittest.TestCase):
+    """관측불가는 한 덩어리가 아니다 (S15P21A506-421).
+
+    **깨지면 알게 되는 것** — "잠시 쉬는 중" 과 "5년째 방치" 가 같은 칸에 들어가거나,
+    관측 가능한 행이 분해 칸에 섞이는 것. 앞은 화면이 말하려는 것 자체를 못 하게 되고,
+    뒤는 세 칸의 합이 unobserved 를 넘어 DB CHECK 에서 적재가 막힌다.
+    """
+
+    def split(self, decl, moved, last_rel):
+        con = setup(decl=decl, moved=moved, last_rel=last_rel)
+        return con.execute(
+            "SELECT unobserved, unobserved_recent, unobserved_stale, unobserved_dormant"
+            " FROM agg WHERE period = ? AND target = 'x' AND kind = 'regular'",
+            [PERIOD]).fetchone()
+
+    def unobserved(self, *names):
+        """이름마다 양 끝에 선언이 있고 구간 안에 대표가 안 바뀐 행을 만든다."""
+        return [(n, p, "x", "regular") for n in names for p in (PERIOD, "t2")]
+
+    def test_마지막_릴리스가_세_칸으로_갈린다(self):
+        self.assertEqual(
+            self.split(self.unobserved("rested", "stale", "dead"), moved=[],
+                       last_rel=[("rested", "2024-06-01 00:00:00"),   # 3년 안
+                                 ("stale", "2022-06-01 00:00:00"),    # 3~5년 전
+                                 ("dead", "2015-01-01 00:00:00")]),   # 5년 초과
+            (3, 1, 1, 1))
+
+    def test_경계값은_먼_쪽_칸에_들어간다(self):
+        """`moved` 가 `published_at > t1` 인 것과 같은 방향이다. 경계에 걸친 릴리스를
+        두 판정이 다르게 취급하면 3년 구간에서 recent 가 새어 나온다."""
+        self.assertEqual(
+            self.split(self.unobserved("on_stale", "on_dormant"), moved=[],
+                       last_rel=[("on_stale", STALE), ("on_dormant", DORMANT)]),
+            (2, 0, 1, 1))
+
+    def test_마지막_릴리스를_모르면_방치로_센다(self):
+        """있을 수 없는 입력이지만, 셋의 합이 unobserved 와 어긋나면 적재가 막힌다.
+        어느 칸에도 안 넣는 것보다 가장 보수적인 칸에 넣는 쪽이 낫다."""
+        self.assertEqual(self.split(self.unobserved("ghost"), moved=[], last_rel=[]),
+                         (1, 0, 0, 1))
+
+    def test_관측_가능한_행은_분해에_들어가지_않는다(self):
+        """유지·유입·이탈은 마지막 릴리스가 언제든 세 칸 어디에도 없어야 한다."""
+        decl = [("keep", PERIOD, "x", "regular"), ("keep", "t2", "x", "regular"),
+                ("new", "t2", "x", "regular"), ("gone", PERIOD, "x", "regular")]
+        moved = [("keep", PERIOD), ("new", PERIOD), ("gone", PERIOD)]
+        self.assertEqual(
+            self.split(decl, moved, last_rel=[(d, "2024-06-01 00:00:00")
+                                              for d in ("keep", "new", "gone")]),
+            (0, 0, 0, 0))
+
+    def test_3년_구간에서_recent_는_정의상_0_이고_검산이_그것을_본다(self):
+        """이 시험이 이 클래스의 존재 이유다. rep 에는 T2 를 넘겨 발행된 전환점이 1,208개
+        있어(README 6-5), 마지막 릴리스에 T2 컷오프를 걸지 않으면 그 패키지들이 3년 구간에서
+        '최근 3년 안' 으로 샌다. 합계는 그대로라 어떤 합계 검산에도 걸리지 않는다."""
+        from build_dependent_transitions import verify
+        decl = [("d", "3y", "x", "regular"), ("d", "t2", "x", "regular")]
+        leaked = setup(decl=decl, moved=[], period="3y", t1=STALE,
+                       last_rel=[("d", "2026-09-01 01:00:00")])  # T2 를 넘긴 발행
+        self.assertEqual(verify(leaked)["impossible_freshness"], 1)
+
+        cut = setup(decl=decl, moved=[], period="3y", t1=STALE,
+                    last_rel=[("d", "2023-01-01 00:00:00")])
+        self.assertEqual(verify(cut)["impossible_freshness"], 0)
 
 
 class Verification(unittest.TestCase):
