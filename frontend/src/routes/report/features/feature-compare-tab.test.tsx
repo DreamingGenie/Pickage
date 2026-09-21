@@ -7,16 +7,16 @@ import type {
   FeatureRunErrorCode,
   FeatureRunResponse,
   FeatureTarget,
-  PackagesOverviewResponse,
+  FeatureVersionsResponse,
   PackageEnvResponse,
   RagComparisonResult,
 } from '@/api/types'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { FeatureCompareTab } from '@/routes/report/features/feature-compare-tab'
 
-const { fetchPackagesOverview, fetchPackageEnv, startFeatureRun, fetchFeatureRun } = vi.hoisted(
+const { fetchFeatureVersions, fetchPackageEnv, startFeatureRun, fetchFeatureRun } = vi.hoisted(
   () => ({
-    fetchPackagesOverview: vi.fn(),
+    fetchFeatureVersions: vi.fn(),
     fetchPackageEnv: vi.fn(),
     startFeatureRun: vi.fn(),
     fetchFeatureRun: vi.fn(),
@@ -26,7 +26,7 @@ const { fetchPackagesOverview, fetchPackageEnv, startFeatureRun, fetchFeatureRun
 // 실제 mock 데이터·지연 대신 endpoints 경계에서 직접 목한다 — 시나리오를 결정적으로 구성한다.
 vi.mock('@/api/endpoints', () => ({
   USE_MOCK: false,
-  fetchPackagesOverview,
+  fetchFeatureVersions,
   fetchPackageEnv,
   startFeatureRun,
   fetchFeatureRun,
@@ -48,28 +48,18 @@ function renderTab(names = NAMES) {
   )
 }
 
-const LATEST: Record<string, string> = { pino: '10.3.1', winston: '3.19.0' }
+const VERSIONS: Record<string, string[]> = {
+  pino: ['10.3.1', '10.2.0', '10.1.0'],
+  winston: ['3.19.0', '3.18.3', '3.18.0'],
+}
 
-/**
- * 버전은 개요(`GET /api/packages`)의 `latest_version` 에서 온다 — 고를 수 있는 버전을 주는
- * endpoint 가 아직 없어서다. 지표 필드는 이 화면이 읽지 않으므로 null 로 둔다.
- */
-function overviewFor(names: string[]): PackagesOverviewResponse {
+/** 버전 목록. 서버처럼 최신순 최대 3개, 맨 앞이 기본값이다. */
+function versionsFor(names: string[]): FeatureVersionsResponse {
   return {
-    snapshot_at: '2026-08-31',
-    items: names.map((name) => ({
-      name,
-      repo_url: null,
-      latest_version: LATEST[name],
-      published_at: '2026-08-01T00:00:00Z',
-      description: null,
-      licenses: [],
-      is_deprecated: false,
-      downloads: null,
-      stars: null,
-      stars_delta: null,
-      open_issues: null,
-      open_issues_delta: null,
+    packages: names.map((name) => ({
+      package_name: name,
+      latest_stable: VERSIONS[name][0],
+      versions: VERSIONS[name],
     })),
     not_found: [],
   }
@@ -150,11 +140,11 @@ function failsWith(code: FeatureRunErrorCode) {
 }
 
 beforeEach(() => {
-  fetchPackagesOverview.mockReset()
+  fetchFeatureVersions.mockReset()
   fetchPackageEnv.mockReset()
   startFeatureRun.mockReset()
   fetchFeatureRun.mockReset()
-  fetchPackagesOverview.mockImplementation(async (names: string[]) => overviewFor(names))
+  fetchFeatureVersions.mockImplementation(async (names: string[]) => versionsFor(names))
   fetchPackageEnv.mockImplementation(async (targets: FeatureTarget[]) => envFor(targets))
 })
 
@@ -241,12 +231,46 @@ describe('FeatureCompareTab', () => {
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeEnabled()
   })
 
-  it('카탈로그에 이름이 하나도 없으면 고른 패키지를 적어 알리고 아무것도 부르지 않는다', async () => {
-    fetchPackagesOverview.mockResolvedValue({
-      snapshot_at: null,
-      items: [],
-      not_found: ['pino', 'winston'],
+  it('드롭다운에 서버가 준 버전이 뜨고, 바꾸면 소비 조건을 그 버전으로 다시 묻는다', async () => {
+    const user = userEvent.setup()
+    completesWith()
+    renderTab()
+
+    const picker = await screen.findByLabelText('pino')
+    expect(
+      within(picker)
+        .getAllByRole('option')
+        .map((o) => o.getAttribute('value')),
+    ).toEqual(['10.3.1', '10.2.0', '10.1.0'])
+
+    await user.selectOptions(picker, '10.2.0')
+
+    await waitFor(() =>
+      expect(fetchPackageEnv).toHaveBeenLastCalledWith([
+        { package_name: 'pino', version: '10.2.0' },
+        { package_name: 'winston', version: '3.19.0' },
+      ]),
+    )
+    // AI 비교는 저절로 돌지 않는다
+    expect(startFeatureRun).not.toHaveBeenCalled()
+  })
+
+  it('고를 버전이 없는 패키지는 그 사실을 적고 시작 버튼을 막는다', async () => {
+    fetchFeatureVersions.mockResolvedValue({
+      packages: [
+        { package_name: 'pino', latest_stable: '10.3.1', versions: ['10.3.1'] },
+        { package_name: 'winston', latest_stable: null, versions: [] },
+      ],
+      not_found: [],
     })
+    renderTab()
+
+    expect(await screen.findByText('비교할 수 있는 버전이 아직 없습니다.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '기능 비교 시작' })).toBeDisabled()
+  })
+
+  it('카탈로그에 이름이 하나도 없으면 고른 패키지를 적어 알리고 아무것도 부르지 않는다', async () => {
+    fetchFeatureVersions.mockResolvedValue({ packages: [], not_found: ['pino', 'winston'] })
     renderTab()
 
     expect(await screen.findByText(/아직 준비되지 않았습니다/)).toBeInTheDocument()
@@ -260,9 +284,9 @@ describe('FeatureCompareTab', () => {
    * 없는 이름은 버전을 정할 수 없어 비교 대상에서 빠진다.
    */
   it('일부 이름만 없으면 나머지로 계속한다', async () => {
-    fetchPackagesOverview.mockImplementation(async () => {
-      const full = overviewFor(['pino', 'winston'])
-      return { ...full, items: full.items.slice(0, 1), not_found: ['winston'] }
+    fetchFeatureVersions.mockImplementation(async () => {
+      const full = versionsFor(['pino', 'winston'])
+      return { packages: full.packages.slice(0, 1), not_found: ['winston'] }
     })
     completesWith()
     renderTab()

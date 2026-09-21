@@ -626,22 +626,6 @@ export type FeatureReasonCode =
   | 'EVIDENCE_CONFLICT'
   | 'RUNTIME_REQUIRED'
 
-/** 기능 비교가 아직 없는 조합. 클라이언트가 만든 코드이므로 서버 `ApiErrorCode` 와 섞지 않는다. */
-export const FEATURE_NOT_AVAILABLE = 'FEATURE_NOT_AVAILABLE'
-
-/** 구상안 §9.1 — 패키지별 선택 가능 버전. */
-export interface FeatureVersionOption {
-  package_name: string
-  /** 사전 배포가 아닌 가장 최근 버전. 없으면 null(`NO_STABLE_VERSION`) — 사전 배포를 자동 선택하지 않는다. */
-  latest_stable: string | null
-  /** 최신순 */
-  versions: { version: string; prerelease: boolean }[]
-}
-
-export interface FeatureVersionsResponse {
-  packages: FeatureVersionOption[]
-}
-
 /** 분석 요청·응답 모두에서 쓰는 (패키지, 정확한 버전) 쌍. */
 export interface FeatureTarget {
   package_name: string
@@ -692,6 +676,26 @@ export interface PackageEnvItemWire {
   direct_dependencies: number | null
   /** 사용자가 이미 갖고 있어야 하는 조건. direct 와 더하지 않는다 */
   peer_dependencies: number | null
+}
+
+/**
+ * `GET /api/packages/versions` — 기능 비교 버전 드롭다운 (기능-10-R02, BE S15P21A506-432).
+ *
+ * `GET /api/packages/version`(단수, major 지분)과 다른 API 다. 이쪽은 정확한 버전 문자열이다.
+ * 올라오는 버전은 **전부 소비 조건(`package_env`)이 있는 정식 버전**이라, 어느 것을 골라도
+ * 핵심 비교 요약이 채워진다.
+ */
+export interface FeatureVersionsResponse {
+  /** 요청한 순서 그대로 */
+  packages: {
+    package_name: string
+    /** 드롭다운 기본값. `versions` 의 맨 앞. 고를 버전이 없으면 null */
+    latest_stable: string | null
+    /** 최신순, 최대 3개 */
+    versions: string[]
+  }[]
+  /** `package` 에 이름 자체가 없는 것 */
+  not_found: string[]
 }
 
 export interface PackageEnvResponse {

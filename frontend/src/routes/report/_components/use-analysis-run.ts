@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
-import { useFeatureRun, usePackagesOverview, useStartFeatureRun } from '@/api/queries'
+import { useFeatureRun, useFeatureVersions, useStartFeatureRun } from '@/api/queries'
 import type { FeatureRunErrorCode, FeatureRunPhase, FeatureTarget } from '@/api/types'
 import { diffAnalyses, isEmptyChange } from '@/routes/report/features/adapter'
 import { sourceNote as ragSourceNote, toComparisonView } from '@/routes/report/features/rag-adapter'
@@ -188,37 +188,34 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
   // 곧바로 다시 그리므로 낡은 값이 화면에 나가지 않는다.
   if (state.key !== key) dispatch({ type: 'RESET', key })
 
-  const versionsQuery = usePackagesOverview(names)
+  const versionsQuery = useFeatureVersions(names)
   const start = useStartFeatureRun()
   const poll = useFeatureRun(activeRunId)
 
   /**
-   * 버전 목록 대신 **개요의 최신 버전**을 쓴다.
+   * 버전 드롭다운의 선택지 (BE S15P21A506-432).
    *
-   * 고를 수 있는 버전을 주는 endpoint 가 아직 없다(백엔드에 `/packages/env` 와
-   * `/packages/feature-comparison` 뿐이고, `/packages/version` 은 major 지분이라 정확한
-   * 버전이 아니다). 개요(`GET /api/packages`)는 `latest_version` 을 정확한 문자열로 주고
-   * 보고서가 이미 그것을 받아 두므로, 같은 조회를 재사용한다 — react-query 캐시가 같은
-   * 키라 요청이 늘지 않는다.
+   * 서버가 **소비 조건이 있는 정식 버전만** 최근 3개 준다. 그래서 어느 것을 골라도 핵심 비교
+   * 요약이 채워지고, 사전 배포 버전은 오지 않는다.
    *
-   * 그래서 지금 선택지는 패키지당 하나다. 버전 목록 endpoint 가 생기면 이 자리만 바꾸면
-   * 되고, 화면은 `PackageVersions` 만 보므로 그대로 둔다.
+   * 패키지는 있는데 고를 버전이 없으면 `latestStable` 이 null 이다 — 자동 선택을 하지 않고,
+   * 버전 카드가 "비교할 수 있는 버전이 없다" 로 적는다.
    */
   const versions = useMemo<PackageVersions[] | null>(() => {
     const data = versionsQuery.data
     if (!data) return null
-    return data.items.map((item) => ({
-      name: item.name,
-      latestStable: item.latest_version,
-      choices: [{ version: item.latest_version, prerelease: false }],
+    return data.packages.map((pkg) => ({
+      name: pkg.package_name,
+      latestStable: pkg.latest_stable,
+      choices: pkg.versions.map((version) => ({ version, prerelease: false })),
     }))
   }, [versionsQuery.data])
 
   /**
    * 고른 이름이 카탈로그에 하나도 없다. 버전을 정할 수 없으니 기능 비교 자체가 없다 —
-   * 일부만 없는 경우는 그 패키지의 칸만 비고, 나머지는 그대로 비교한다.
+   * 일부만 없는 경우는 그 패키지의 칸만 비고, 나머지는 그대로 보인다.
    */
-  const unavailable = versionsQuery.data !== undefined && versionsQuery.data.items.length === 0
+  const unavailable = versionsQuery.data !== undefined && versionsQuery.data.packages.length === 0
 
   /** 선택 = 사용자가 고른 값, 없으면 최신 안정 버전. 정식 버전이 없으면 null(자동 선택 금지). */
   const selected = useMemo(() => {

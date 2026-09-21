@@ -10,7 +10,12 @@
 
 import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
 import { mockCommunityRefresh, mockCommunityStatus } from '@/api/mock/community'
-import { mockFeatureRun, mockPackageEnv, mockStartFeatureRun } from '@/api/mock/features'
+import {
+  mockFeatureRun,
+  mockFeatureVersions,
+  mockPackageEnv,
+  mockStartFeatureRun,
+} from '@/api/mock/features'
 import {
   mockDependentsTrend,
   mockDictManifest,
@@ -33,6 +38,7 @@ import type {
   DownloadsTrendResponse,
   FeatureTarget,
   FeatureRunResponse,
+  FeatureVersionsResponse,
   PackageEnvResponse,
   PackageDictionary,
   PackageSearchResponse,
@@ -257,9 +263,15 @@ export function postCommunityRefresh(
  * 소비 조건과 AI 비교가 **다른 엔드포인트**다(기능-10-R06). 앞은 키 조회라 즉시 뜨고,
  * 뒤는 LLM 생성이 붙어 시작과 조회가 나뉜다.
  *
- * 버전 목록만 아직 endpoint 가 없다. 개요(`GET /api/packages`)의 `latest_version` 을
- * 대신 쓴다 — `routes/report/_components/use-analysis-run.ts` 주석 참고.
+ * 버전 드롭다운은 `GET /api/packages/versions`(BE S15P21A506-432)가 준다.
  * ------------------------------------------------------------------ */
+
+/** 기능 비교 버전 드롭다운. 소비 조건이 있는 최근 정식 버전만 온다(BE S15P21A506-432). */
+export function fetchFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
+  return USE_MOCK
+    ? mockFeatureVersions(names)
+    : get<FeatureVersionsResponse>('/packages/versions', { names })
+}
 
 /**
  * 버전별 소비 조건 (기능-11-R01, BE S15P21A506-130).

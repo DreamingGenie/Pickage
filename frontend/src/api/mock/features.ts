@@ -9,14 +9,14 @@
  * (기존 mock 관례).
  *
  * 개발 중 화면을 확인할 때 쓰는 이름:
- * - `pino` `winston` `bunyan` — 소비 조건이 실제 `package_env` 값으로 찬다
- * - `left-pad` — 정식 버전이 없다. 사전 배포 버전만 있어 자동 선택이 일어나지 않는다
- * - 그 외 이름 — 버전 목록은 나오고, 소비 조건은 `not_found` 로 빠진다
+ * - `pino` `winston` `bunyan` `@babel/core` — 버전 하나가 뜨고 소비 조건이 실제 `package_env` 값으로 찬다
+ * - 그 외 이름 — "패키지는 있는데 고를 버전이 없음". 시작 버튼이 막히는 모습을 본다
  */
 
 import { ApiError } from '@/api/client'
 import type {
   FeatureRunResponse,
+  FeatureVersionsResponse,
   FeatureVerdict,
   PackageEnvItemWire,
   PackageEnvResponse,
@@ -137,6 +137,20 @@ const MOCK_ENV: Record<string, PackageEnvItemWire> = {
     direct_dependencies: null,
     peer_dependencies: null,
   },
+}
+
+/**
+ * 버전 목록. 실서버처럼 **소비 조건이 있는 버전만** 올린다 — 여기서는 `MOCK_ENV` 에 있는 것.
+ * 그 밖의 이름은 "패키지는 있는데 고를 버전이 없음" 으로 돌려준다.
+ */
+export function mockFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
+  const packages = names.map((name) => {
+    const versions = Object.values(MOCK_ENV)
+      .filter((item) => item.name === name)
+      .map((item) => item.version)
+    return { package_name: name, latest_stable: versions[0] ?? null, versions }
+  })
+  return delay({ packages, not_found: [] })
 }
 
 export function mockPackageEnv(refs: readonly string[]): Promise<PackageEnvResponse> {

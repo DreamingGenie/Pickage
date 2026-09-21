@@ -13,7 +13,8 @@ import type { PackageVersions } from '@/routes/report/features/model'
  *   유지한다. 사용자가 아래 AI 영역에서 `선택한 버전으로 재분석` 을 눌러야 시작한다(구상안 §9.2).
  * - 고른 버전은 위 핵심 비교 요약(`package_env` 단순 조회)에도 그대로 쓰인다. 그쪽은 AI 실행과
  *   무관하게 즉시 갱신된다.
- * - 정식 버전이 없으면 사전 배포 버전을 대신 고르지 않는다. 사용자의 선택을 기다린다.
+ * - 선택지는 소비 조건이 있는 최근 정식 버전 3개다(BE S15P21A506-432). 하나도 없으면
+ *   자동 선택을 하지 않고 그 사실을 적는다.
  * - 이 버전은 Dependency 그래프의 major 선택과 별개의 축이다(IA §7.1).
  */
 export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
@@ -111,9 +112,7 @@ function VersionSelect({
         ))}
       </select>
       {noStable && (
-        <p className="text-base text-muted-foreground">
-          정식 버전이 없습니다. 사전 배포 버전 중에서 직접 선택해 주세요.
-        </p>
+        <p className="text-base text-muted-foreground">비교할 수 있는 버전이 아직 없습니다.</p>
       )}
       {differs && (
         <p className="text-base text-muted-foreground">

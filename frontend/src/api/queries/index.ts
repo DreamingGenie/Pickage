@@ -7,6 +7,7 @@ import {
   fetchDictionary,
   fetchDownloadsTrend,
   fetchFeatureRun,
+  fetchFeatureVersions,
   fetchPackageEnv,
   fetchPackageSearch,
   fetchPackagesOverview,
@@ -298,6 +299,21 @@ export function useCommunityRefresh() {
 /* ------------------------------------------------------------------ *
  * S15P21A506-217. 기능 비교
  * ------------------------------------------------------------------ */
+
+/**
+ * 기능 비교 버전 목록.
+ *
+ * 배치 산출물(`package_env`)에서 오므로 오래 캐시해도 된다 — 주간 적재 전에는 바뀌지 않는다.
+ */
+export function useFeatureVersions(names: readonly string[]) {
+  return useQuery({
+    queryKey: queryKeys.features.versions(names),
+    queryFn: () => fetchFeatureVersions(names),
+    enabled: usable(names),
+    staleTime: 10 * 60_000,
+    retry,
+  })
+}
 
 /**
  * 버전별 소비 조건 (기능-11-R01).
