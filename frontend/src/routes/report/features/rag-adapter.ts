@@ -15,6 +15,12 @@ import type { Verdict } from '@/routes/report/features/sample'
  * 여섯 값·`reasonCode` 여섯 종은 주지 않는다. 그 자리를 그럴듯한 값으로 채우면 화면이
  * 확인되지 않은 사유를 확인한 것처럼 적는다 — 셀 단위 상태는 `COMPLETE` 로 두고
  * `reasonCode` 는 비운다. `UNCONFIRMED` 판정 자체가 "확인 범위 표시" 라 그것으로 충분하다.
+ *
+ * <h2>근거 ID 는 옮기지 않는다</h2>
+ *
+ * 화면에서 출처 표기와 근거 Drawer 를 뺐다(기획 협의). 응답의 `evidenceIds` 는 서버 계약이라
+ * 그대로 오지만 화면 모델에는 싣지 않는다 — 쓰지 않는 값을 들고 다니면 누군가 다시 그린다.
+ * `groundedIn` 만 `generalKnowledge` 로 남긴다.
  */
 export function toComparisonView(result: RagComparisonResult): ComparisonView {
   const packages = result.packages.map((p) => ({ name: p.package, version: p.version }))
@@ -28,20 +34,11 @@ export function toComparisonView(result: RagComparisonResult): ComparisonView {
       version: cell.version,
       verdict: cell.verdict as Verdict,
       dataStatus: 'COMPLETE' as const,
-      evidenceIds: cell.evidenceIds,
-      // 근거 없이 일반 지식으로 답한 것은 화면에 그 사실을 적는다 — 구상안이 근거 연결을
-      // 요구하므로, 연결이 없다는 것 자체가 사용자가 알아야 할 정보다.
-      note:
-        cell.groundedIn === 'GENERAL_KNOWLEDGE'
-          ? (cell.note ?? '확인한 자료가 아니라 일반 지식에 근거함')
-          : cell.note,
+      generalKnowledge: cell.groundedIn === 'GENERAL_KNOWLEDGE',
+      note: cell.note,
       reasonCode: null,
     })),
   }))
-
-  const evidenceCount = new Set(
-    rows.flatMap((row) => row.cells.flatMap((cell) => cell.evidenceIds)),
-  ).size
 
   return {
     packages,
@@ -55,11 +52,9 @@ export function toComparisonView(result: RagComparisonResult): ComparisonView {
     narrative: result.narrative.map((section) => ({
       heading: section.heading,
       body: section.body,
-      evidenceIds: section.evidenceIds,
     })),
     // 표는 있는데 해설만 못 만든 경우. 표의 판정은 그대로 유효하다.
     narrativeError: result.narrativeError,
-    evidenceCount,
     analyzedAt: new Date().toISOString(),
     isExample: false,
     // 재시도로 나아질 수 있는 셀이 없다 — RAG 파이프라인에 재시도가 없어서 다시 눌러도

@@ -29,7 +29,11 @@ export interface FeatureCell {
   version: string
   verdict: Verdict
   dataStatus: FeatureDataStatus
-  evidenceIds: string[]
+  /**
+   * README 가 아니라 AI 의 일반 지식으로 답한 칸. 출처를 화면에 적지 않기로 한 뒤에도 이 표시는
+   * 남긴다 — README 에서 확인한 판정과 AI 가 짐작한 판정이 똑같아 보이면 안 된다.
+   */
+  generalKnowledge: boolean
   note: string | null
   reasonCode: FeatureReasonCode | null
 }
@@ -53,7 +57,6 @@ export interface EnvironmentRow {
 export interface NarrativeSection {
   heading: string
   body: string
-  evidenceIds: string[]
 }
 
 export interface ComparisonPackage {
@@ -72,8 +75,6 @@ export interface ComparisonView {
   rows: FeatureRow[]
   narrative: NarrativeSection[]
   narrativeError: string | null
-  /** 서버가 세어 준 값. 없으면 셀의 근거 ID 를 중복 없이 센다 */
-  evidenceCount: number
   analyzedAt: string
   /** 미리 확인해 둔 예시 결과인지. 분석 서버가 그 자리에서 만든 값이 아니다 */
   isExample: boolean
@@ -85,8 +86,6 @@ export interface ComparisonView {
 export interface ChangeSummary {
   versionChanges: { name: string; from: string; to: string }[]
   verdictChanges: { feature: string; name: string; from: Verdict; to: Verdict }[]
-  evidenceAdded: number
-  evidenceRemoved: number
 }
 
 /** 구상안 §11 — 미확인 사유. 화면에는 사유만 적고 지원/미지원으로 추정하지 않는다. */
@@ -112,39 +111,6 @@ export function cellReason(cell: FeatureCell): string | null {
   if (cell.dataStatus === 'STALE') return '자료가 오래되어 새 분석 필요'
   if (cell.dataStatus === 'COLLECTION_ERROR') return '자료 수집에 실패함'
   return null
-}
-
-/**
- * 근거 ID 하나를 사람이 읽는 출처 이름으로 바꾼다.
- *
- * RAG 의 ID 는 `express@5.2.1#3` · `express@5.2.1#meta-desc` 꼴이다. 기계에는 정확하지만
- * 화면에 그대로 적으면 사용자가 읽을 수 없다. 어느 패키지인지는 표의 열이 이미 말하므로
- * 여기서는 **README 의 어디인지**만 적는다. 원문은 눌러서 Drawer 로 본다.
- */
-export function sourceLabel(id: string): string {
-  const hash = id.lastIndexOf('#')
-  const part = hash >= 0 ? id.slice(hash + 1) : ''
-  if (part === 'meta-desc') return '패키지 소개'
-  if (part === 'meta-entry') return '불러오는 방식'
-  if (part === 'meta-install') return '설치 조건'
-  if (part.startsWith('meta-')) return '패키지 정보'
-  if (/^\d+$/.test(part)) return `README ${Number(part) + 1}번째 단락`
-  return '원문'
-}
-
-/** 근거 ID 의 패키지 이름. 스코프 패키지도 있어 `@` 를 `#` 앞에서 뒤로 찾는다. */
-export function sourcePackage(id: string): string | null {
-  const hash = id.lastIndexOf('#')
-  const at = id.lastIndexOf('@', hash >= 0 ? hash : id.length)
-  return at > 0 ? id.slice(0, at) : null
-}
-
-/** 셀 아래에 적는 출처. 여럿이면 첫 번째만 이름으로 적고 나머지는 개수로 줄인다. */
-export function evidenceLabel(cell: FeatureCell): string | null {
-  const [first, ...rest] = cell.evidenceIds
-  if (!first) return null
-  const label = sourceLabel(first)
-  return rest.length > 0 ? `${label} 외 ${rest.length}곳` : label
 }
 
 /**

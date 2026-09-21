@@ -1,29 +1,24 @@
 import { cn } from '@/lib/utils'
-import {
-  cellReason,
-  evidenceLabel,
-  type ComparisonView,
-  type FeatureCell,
-} from '@/routes/report/features/model'
-import { VERDICT_LABEL } from '@/routes/report/features/sample'
+import { cellReason, type ComparisonView, type FeatureCell } from '@/routes/report/features/model'
 import { VerdictPill } from '@/routes/report/features/verdict-pill'
 
 /**
  * 핵심 기능 비교표 (IA §9.2).
  *
- * 긴 조건 설명과 발췌는 표에 넣지 않는다 — 근거 Drawer 와 하단 해설이 맡는다. 데이터 셀
- * 전체가 Drawer 열기 대상이다. 미확인 셀에는 **왜 미확인인지**를 글자로 적는다(색만으로
- * 구분하지 않는다).
+ * 칸에는 **판정과 한 줄 설명**만 둔다. 출처 표기와 근거 Drawer 는 뺐다(기획 협의) — 칸마다
+ * 출처가 붙으면 표가 난잡해져 판정이 안 읽힌다. 미확인 칸에는 **왜 미확인인지**를 글자로
+ * 적는다(색만으로 구분하지 않는다).
+ *
+ * README 가 아니라 AI 의 일반 지식으로 답한 칸만 `일반 지식` 태그를 붙인다. 출처를 안 적어도
+ * 이 구분은 남겨야 한다 — 확인한 판정과 짐작한 판정이 똑같아 보이면 안 된다.
  */
 export function FeatureTable({
   view,
   dimmed,
-  onOpenEvidence,
 }: {
   view: ComparisonView
   /** 재분석 중 — 이전 결과를 그대로 두되 흐리게 */
   dimmed: boolean
-  onOpenEvidence: (evidenceId: string) => void
 }) {
   const count = view.rows.length
 
@@ -90,8 +85,8 @@ export function FeatureTable({
                     {row.label}
                   </th>
                   {row.cells.map((cell) => (
-                    <td key={cell.packageName} className="py-2">
-                      <Cell feature={row.label} cell={cell} onOpenEvidence={onOpenEvidence} />
+                    <td key={cell.packageName} className="py-3 pr-3">
+                      <Cell cell={cell} />
                     </td>
                   ))}
                 </tr>
@@ -111,47 +106,23 @@ export function FeatureTable({
   )
 }
 
-function Cell({
-  feature,
-  cell,
-  onOpenEvidence,
-}: {
-  feature: string
-  cell: FeatureCell
-  onOpenEvidence: (evidenceId: string) => void
-}) {
+function Cell({ cell }: { cell: FeatureCell }) {
   const reason = cellReason(cell)
-  const label = evidenceLabel(cell)
-  const evidenceId = cell.evidenceIds[0]
-
-  const body = (
-    <>
-      <VerdictPill verdict={cell.verdict} />
-      {cell.note && (
-        <span className="text-base leading-snug text-muted-foreground">{cell.note}</span>
-      )}
-      {reason && <span className="text-base leading-tight text-muted-foreground">{reason}</span>}
-      {label && (
-        <span className="text-sm text-muted-foreground underline underline-offset-2">
-          출처 · {label}
-        </span>
-      )}
-    </>
-  )
-
-  // 근거가 없는 셀은 열 것이 없다 — 버튼처럼 보이지 않게 한다
-  if (!evidenceId) {
-    return <div className="-mx-2 flex flex-col items-start gap-1 px-2 py-1.5">{body}</div>
-  }
-
   return (
-    <button
-      type="button"
-      onClick={() => onOpenEvidence(evidenceId)}
-      aria-label={`${feature} ${cell.packageName} ${VERDICT_LABEL[cell.verdict]} — 출처 열기`}
-      className="-mx-2 flex w-full flex-col items-start gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-    >
-      {body}
-    </button>
+    <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <VerdictPill verdict={cell.verdict} />
+        {cell.generalKnowledge && (
+          <span
+            title="README 에서 확인한 것이 아니라 AI 의 일반 지식으로 판단했습니다"
+            className="rounded border px-1 py-px text-xs text-muted-foreground"
+          >
+            일반 지식
+          </span>
+        )}
+      </div>
+      {cell.note && <span className="text-sm leading-snug text-muted-foreground">{cell.note}</span>}
+      {reason && <span className="text-sm leading-snug text-muted-foreground">{reason}</span>}
+    </div>
   )
 }

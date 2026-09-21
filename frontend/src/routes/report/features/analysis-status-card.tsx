@@ -37,7 +37,7 @@ export function AnalysisStatusCard({ run }: { run: FeatureAnalysis }) {
         <div className="flex items-center gap-2.5">
           <span aria-hidden className="size-2 rounded-full bg-emerald-600" />
           <h3 id="analysis-status-title" className="text-sm font-semibold">
-            분석 완료 · 출처 {view.evidenceCount}곳
+            분석 완료
           </h3>
         </div>
         {/*
@@ -117,12 +117,9 @@ function ChangesCallout({ changes, onDismiss }: { changes: ChangeSummary; onDism
       (c) => `${c.feature} · ${c.name}: ${VERDICT_LABEL[c.from]} → ${VERDICT_LABEL[c.to]}`,
     ),
   ]
-  const evidence = [
-    changes.evidenceAdded > 0 ? `근거 ${changes.evidenceAdded}건 추가` : null,
-    changes.evidenceRemoved > 0 ? `근거 ${changes.evidenceRemoved}건 제거` : null,
-  ].filter(Boolean)
-  if (evidence.length > 0) lines.push(evidence.join(' · '))
-  if (changes.verdictChanges.length === 0) lines.push('판정 변경 없음')
+  // "변경 없음" 이 아니라 "같은 이름의 기능 중에는" 이다 — RAG 가 축을 새로 정해 이름이 달라진
+  // 기능은 비교하지 않았다.
+  if (changes.verdictChanges.length === 0) lines.push('같은 기능 중 판정이 바뀐 것은 없음')
 
   return (
     <Callout

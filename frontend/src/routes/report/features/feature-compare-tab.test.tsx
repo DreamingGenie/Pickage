@@ -33,11 +33,10 @@ vi.mock('@/api/endpoints', () => ({
 }))
 
 const NAMES = ['pino', 'winston']
-const onOpenEvidence = vi.fn()
 
 function Harness({ names = NAMES }: { names?: string[] }) {
   const run = useAnalysisRun(names)
-  return <FeatureCompareTab packages={names} run={run} onOpenEvidence={onOpenEvidence} />
+  return <FeatureCompareTab packages={names} run={run} />
 }
 
 function renderTab(names = NAMES) {
@@ -155,7 +154,6 @@ beforeEach(() => {
   fetchPackageEnv.mockReset()
   startFeatureRun.mockReset()
   fetchFeatureRun.mockReset()
-  onOpenEvidence.mockReset()
   fetchPackagesOverview.mockImplementation(async (names: string[]) => overviewFor(names))
   fetchPackageEnv.mockImplementation(async (targets: FeatureTarget[]) => envFor(targets))
 })
@@ -275,7 +273,8 @@ describe('FeatureCompareTab', () => {
     )
   })
 
-  it('셀을 누르면 그 셀의 첫 근거 ID 로 근거 열기를 요청한다', async () => {
+  /** 출처 표기와 근거 Drawer 는 뺐다(기획 협의). 칸은 눌리는 버튼이 아니다. */
+  it('결과 칸은 판정만 보여 주고 출처를 열지 않는다', async () => {
     const user = userEvent.setup()
     completesWith()
     renderTab()
@@ -283,8 +282,7 @@ describe('FeatureCompareTab', () => {
     await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
     await screen.findByRole('heading', { name: '핵심 기능 비교' })
 
-    await user.click(screen.getByRole('button', { name: '구조화 JSON pino 지원 — 근거 열기' }))
-
-    expect(onOpenEvidence).toHaveBeenCalledWith('E01')
+    expect(screen.queryByRole('button', { name: /근거 열기|출처 열기/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/출처/)).not.toBeInTheDocument()
   })
 })

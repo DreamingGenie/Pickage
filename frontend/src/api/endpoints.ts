@@ -11,7 +11,6 @@
 import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
 import { mockCommunityRefresh, mockCommunityStatus } from '@/api/mock/community'
 import { mockFeatureRun, mockPackageEnv, mockStartFeatureRun } from '@/api/mock/features'
-import { patchBrokenRagResult } from '@/api/mock/preview-rag'
 import {
   mockDependentsTrend,
   mockDictManifest,
@@ -291,6 +290,4 @@ export function fetchFeatureRun(runId: string): Promise<FeatureRunResponse> {
   return USE_MOCK
     ? mockFeatureRun(runId)
     : get<FeatureRunResponse>(`/packages/feature-comparison/${encodeURIComponent(runId)}`)
-        // ⚠ 임시 — BE Jackson 버그 수정 전까지. 수정되면 이 줄과 mock/preview-rag.ts 를 지운다.
-        .then(patchBrokenRagResult)
 }

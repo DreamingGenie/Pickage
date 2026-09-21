@@ -28,17 +28,3 @@ export const paths = {
     return `${base}?${search}`
   },
 } as const
-
-/**
- * 03B 근거 드로어를 열어둔 채 리포트로 진입하는 링크.
- *
- * 비교 대상을 함께 받는다. 빠뜨리면 드로어는 열리는데 보고서가 비는 주소가 된다.
- */
-export function reportWithEvidence(
-  reportId: string,
-  evidenceId: string,
-  names?: readonly string[],
-) {
-  const url = paths.report(reportId, names)
-  return `${url}${url.includes('?') ? '&' : '?'}evidence=${encodeURIComponent(evidenceId)}`
-}

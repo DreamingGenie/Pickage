@@ -46,13 +46,7 @@ const STEPS: { phase: FeatureRunPhase; title: string; detail: string }[] = [
   { phase: 'DONE', title: '정리', detail: '결과를 표로 정리하고 있습니다' },
 ]
 
-export function AiComparisonSection({
-  run,
-  onOpenEvidence,
-}: {
-  run: FeatureAnalysis
-  onOpenEvidence: (evidenceId: string) => void
-}) {
+export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
   const running = run.status === 'RUNNING' && run.phase !== null
   const view = run.completed
   const failure = run.failure?.kind === 'RUN' ? run.failure : null
@@ -64,8 +58,7 @@ export function AiComparisonSection({
           AI 기능 비교
         </h3>
         <p className="text-base text-muted-foreground">
-          각 패키지의 README 를 AI 가 읽고 기능별로 정리합니다. 칸의 &lsquo;출처&rsquo;를 누르면
-          판단에 쓴 원문을 볼 수 있습니다.
+          각 패키지의 README 를 AI 가 읽고 기능별로 정리합니다.
         </p>
       </header>
 
@@ -96,7 +89,7 @@ export function AiComparisonSection({
       {view && (
         <>
           {!running && <AnalysisStatusCard run={run} />}
-          <FeatureTable view={view} dimmed={running} onOpenEvidence={onOpenEvidence} />
+          <FeatureTable view={view} dimmed={running} />
           {run.sourceNote && (
             <p className="text-base leading-relaxed text-muted-foreground">{run.sourceNote}</p>
           )}

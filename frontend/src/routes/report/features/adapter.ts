@@ -7,23 +7,12 @@ import type { ChangeSummary, ComparisonView } from '@/routes/report/features/mod
  * `latest_version`(`use-analysis-run.ts`)에서 온다.
  */
 
-/** 근거를 패키지와 묶어 센다 — 같은 ID 가 다른 패키지에 있으면 다른 근거다. */
-const evidenceKeys = (view: ComparisonView): Set<string> => {
-  const keys = new Set<string>()
-  for (const row of view.rows) {
-    for (const cell of row.cells) {
-      cell.evidenceIds.forEach((id) => keys.add(`${cell.packageName}:${id}`))
-    }
-  }
-  return keys
-}
-
 /**
  * 재분석 변경점 — 세션이 들고 있는 직전 완료 결과와 방금 끝난 결과를 클라이언트에서 비교한다
  * (구상안 §9.5). 서버는 완료 결과를 남기지 않으므로 새로고침하면 이 비교는 없다.
  *
- * 다루는 것: 버전 변경 · verdict 변경 · 근거 추가/제거. analyzer/ruleset 버전은 응답에
- * 아직 없어 다루지 않는다.
+ * 다루는 것: 버전 변경 · 같은 이름의 기능의 판정 변경. 출처 증감은 세지 않는다 — 근거 ID 에
+ * 버전이 들어 있어 버전을 바꾸면 전부 "바뀐 것" 으로 잡힌다.
  */
 export function diffAnalyses(prev: ComparisonView, next: ComparisonView): ChangeSummary {
   const versionChanges = next.packages.flatMap((pkg) => {
@@ -35,7 +24,9 @@ export function diffAnalyses(prev: ComparisonView, next: ComparisonView): Change
 
   const verdictChanges: ChangeSummary['verdictChanges'] = []
   for (const row of next.rows) {
-    const before = prev.rows.find((r) => r.id === row.id)
+    // 순번이 아니라 **기능 이름**으로 짝짓는다. RAG 는 비교 축을 매번 새로 정해서, 같은 순번이
+    // 다른 기능일 수 있다. 이름이 조금이라도 다르면 비교하지 않는다 — 틀린 비교보다 덜 말하는 편이 낫다.
+    const before = prev.rows.find((r) => r.label === row.label)
     if (!before) continue
     for (const cell of row.cells) {
       const old = before.cells.find((c) => c.packageName === cell.packageName)
@@ -50,22 +41,10 @@ export function diffAnalyses(prev: ComparisonView, next: ComparisonView): Change
     }
   }
 
-  const before = evidenceKeys(prev)
-  const after = evidenceKeys(next)
-  return {
-    versionChanges,
-    verdictChanges,
-    evidenceAdded: [...after].filter((k) => !before.has(k)).length,
-    evidenceRemoved: [...before].filter((k) => !after.has(k)).length,
-  }
+  return { versionChanges, verdictChanges }
 }
 
 /** 변경점이 하나도 없는지. 같은 버전을 다시 돌렸는데 결과가 같으면 카드를 띄우지 않는다. */
 export function isEmptyChange(change: ChangeSummary): boolean {
-  return (
-    change.versionChanges.length === 0 &&
-    change.verdictChanges.length === 0 &&
-    change.evidenceAdded === 0 &&
-    change.evidenceRemoved === 0
-  )
+  return change.versionChanges.length === 0 && change.verdictChanges.length === 0
 }

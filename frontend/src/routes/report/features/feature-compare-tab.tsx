@@ -21,18 +21,15 @@ import { VersionPickerCard } from '@/routes/report/features/version-picker-card'
  *
  * 그래서 분석이 도는 중에도 위 표는 흐려지지 않는다. 흐리면 "이것도 아직 확정이 아니다" 로
  * 읽히는데, 그 값들은 LLM 이 만든 것이 아니라 배포 산출물에서 기계적으로 읽은 것이다.
- *
- * 셀을 눌렀을 때 열리는 근거 Drawer 는 이 탭의 일이 아니다(`EvidenceDrawer`).
+
  */
 export function FeatureCompareTab({
   packages,
   run,
-  onOpenEvidence,
 }: {
   /** 보고서가 다루는 비교 대상. 주소의 `?names=` 에서 온다. */
   packages: readonly string[]
   run: FeatureAnalysis
-  onOpenEvidence: (evidenceId: string) => void
 }) {
   /**
    * 버전이 정해진 것만 소비 조건을 묻는다.
@@ -76,7 +73,7 @@ export function FeatureCompareTab({
         여기부터 AI 영역이다. 위와 시각적으로 갈라 둔다 — 값의 출처가 다르다는 것이 화면에서
         보여야 한다. 위는 배포 산출물에서 읽은 사실이고, 아래는 그 사실 위에 LLM 이 붙인 판정이다.
       */}
-      <AiComparisonSection run={run} onOpenEvidence={onOpenEvidence} />
+      <AiComparisonSection run={run} />
     </div>
   )
 }

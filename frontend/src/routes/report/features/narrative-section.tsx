@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { sourceLabel, sourcePackage, type ComparisonView } from '@/routes/report/features/model'
+import type { ComparisonView } from '@/routes/report/features/model'
 
 /**
  * 기능 비교 해설 (IA §9.5).
@@ -40,26 +40,15 @@ export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimme
             <div key={section.heading} className="flex flex-col gap-1.5 rounded-xl bg-muted/40 p-4">
               <h4 className="text-base font-semibold">{section.heading}</h4>
               <p className="text-base leading-relaxed">{section.body}</p>
-              {section.evidenceIds.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  출처 · {section.evidenceIds.map(narrativeSource).join(', ')}
-                </p>
-              )}
             </div>
           ))}
         </div>
       )}
 
       <p className="rounded-lg bg-muted/40 px-4 py-3 text-base leading-relaxed text-muted-foreground">
-        어느 패키지가 더 낫다고 추천하지 않습니다. 모든 문장은 README 원문에 연결되어 있고, 원문에서
-        확인하지 못한 것은 &lsquo;미확인&rsquo;으로 남깁니다.
+        어느 패키지가 더 낫다고 추천하지 않습니다. README 에서 확인하지 못한 것은
+        &lsquo;미확인&rsquo;으로 남깁니다.
       </p>
     </section>
   )
-}
-
-/** 해설은 여러 패키지를 함께 말하므로, 표와 달리 어느 패키지의 출처인지 이름을 붙인다. */
-function narrativeSource(id: string): string {
-  const pkg = sourcePackage(id)
-  return pkg ? `${pkg} ${sourceLabel(id)}` : sourceLabel(id)
 }

@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { RagComparisonResult } from '@/api/types'
 import { diffAnalyses, isEmptyChange } from '@/routes/report/features/adapter'
-import {
-  cellReason,
-  evidenceLabel,
-  sourceLabel,
-  sourcePackage,
-} from '@/routes/report/features/model'
+import { cellReason } from '@/routes/report/features/model'
 import { toComparisonView } from '@/routes/report/features/rag-adapter'
 
 /**
@@ -51,7 +46,7 @@ function result(over: Partial<RagComparisonResult> = {}): RagComparisonResult {
 }
 
 describe('toComparisonView', () => {
-  it('camelCase 응답을 화면 모델로 옮기고 근거 수를 중복 없이 센다', () => {
+  it('camelCase 응답을 화면 모델로 옮긴다', () => {
     const view = toComparisonView(result())
 
     expect(view.packages).toEqual([
@@ -59,7 +54,6 @@ describe('toComparisonView', () => {
       { name: 'winston', version: '3.19.0' },
     ])
     expect(view.rows).toHaveLength(5)
-    expect(view.evidenceCount).toBe(10)
     expect(view.limited).toBe(false)
   })
 
@@ -71,7 +65,7 @@ describe('toComparisonView', () => {
    * 근거 없이 답한 셀은 그 사실이 화면에 남아야 한다 — 구상안이 근거 연결을 요구하므로
    * 연결이 없다는 것 자체가 사용자가 알아야 할 정보다.
    */
-  it('일반 지식으로 답한 셀은 근거가 비고, 그 사실을 note 에 적는다', () => {
+  it('일반 지식으로 답한 칸은 그 사실을 표시한다 — 출처를 안 적어도 이 구분은 남긴다', () => {
     const one = result()
     one.features[0].results[0] = {
       package: 'pino',
@@ -83,8 +77,8 @@ describe('toComparisonView', () => {
     }
 
     const cell = toComparisonView(one).rows[0].cells[0]
-    expect(cell.evidenceIds).toEqual([])
-    expect(cell.note).toBe('확인한 자료가 아니라 일반 지식에 근거함')
+    expect(cell.generalKnowledge).toBe(true)
+    expect(toComparisonView(result()).rows[0].cells[0].generalKnowledge).toBe(false)
   })
 
   /** 재시도가 없는 파이프라인이라 0 이다 — 화면이 재시도 버튼을 두지 않는 근거. */
@@ -118,9 +112,25 @@ describe('diffAnalyses', () => {
     expect(change.verdictChanges).toEqual([
       { feature: '기능 1', name: 'pino', from: 'SUPPORTED', to: 'LIMITED_SUPPORT' },
     ])
-    expect(change.evidenceAdded).toBe(1)
-    expect(change.evidenceRemoved).toBe(1)
     expect(isEmptyChange(change)).toBe(false)
+  })
+
+  /**
+   * RAG 는 비교 축을 매번 새로 정한다. 순번으로 짝지으면 다른 기능끼리 비교해 놓고
+   * "판정이 바뀌었다" 고 적는다.
+   */
+  it('판정 변경은 같은 이름의 기능끼리만 본다', () => {
+    const prev = toComparisonView(result())
+    const next = result()
+    // 1번째 행의 기능이 바뀌었다 — 판정이 달라도 비교 대상이 아니다
+    next.features[0] = {
+      featureLabel: '전혀 다른 기능',
+      results: next.features[0].results.map((r) => ({ ...r, verdict: 'UNSUPPORTED' as const })),
+    }
+
+    const change = diffAnalyses(prev, toComparisonView(next))
+
+    expect(change.verdictChanges).toEqual([])
   })
 
   it('같은 결과를 다시 받으면 변경점이 없다', () => {
@@ -132,23 +142,6 @@ describe('diffAnalyses', () => {
 
 describe('셀 표기', () => {
   const base = toComparisonView(result()).rows[0].cells[0]
-
-  /** RAG 의 ID 는 기계용이라 그대로 적으면 읽을 수 없다. README 의 어디인지만 말한다. */
-  it('근거 ID 를 읽히는 출처 이름으로 바꾸고, 여럿이면 개수로 줄인다', () => {
-    const at = (ids: string[]) => evidenceLabel({ ...base, evidenceIds: ids })
-
-    expect(at(['pino@10.3.1#0'])).toBe('README 1번째 단락')
-    expect(at(['pino@10.3.1#meta-desc'])).toBe('패키지 소개')
-    expect(at(['@babel/core@7.28.4#meta-entry'])).toBe('불러오는 방식')
-    expect(at(['pino@10.3.1#3', 'pino@10.3.1#4', 'pino@10.3.1#9'])).toBe('README 4번째 단락 외 2곳')
-    expect(at([])).toBeNull()
-  })
-
-  it('스코프 패키지의 출처에서도 패키지 이름을 바르게 떼어 낸다', () => {
-    expect(sourcePackage('@babel/core@7.28.4#2')).toBe('@babel/core')
-    expect(sourcePackage('pino@10.3.1#meta-desc')).toBe('pino')
-    expect(sourceLabel('E10')).toBe('원문')
-  })
 
   it('미확인 사유는 글자로 말하고, 사유가 없으면 적지 않는다', () => {
     expect(cellReason(base)).toBeNull()
