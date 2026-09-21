@@ -143,12 +143,10 @@ function RatioDonut({
             { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
           ]}
         />
-        {/*
-          "의존자 N 중 M 판정" 만으로는 M 이 왜 N 보다 작은지 안 드러난다(릴리스 없음이 빠졌기
-          때문) — 리뷰에서 이 문장이 뭘 뜻하는지 안 읽힌다는 지적을 받아 이유를 문장에 넣었다.
-        */}
-        <p className="max-w-36 text-base text-muted-foreground/80">
-          의존자 {shares.total.toLocaleString()} 중 릴리스 없음 제외{' '}
+        {/* 두 줄 고정 — "의존자 N 중" / "M 판정". 문장으로 풀지 않는다(리뷰 지적). */}
+        <p className="text-base text-muted-foreground/80">
+          의존자 {shares.total.toLocaleString()} 중
+          <br />
           {shares.active.toLocaleString()} 판정
         </p>
       </div>
