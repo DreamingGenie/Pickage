@@ -6,7 +6,8 @@ import { MAX_NAMES, type PdfJob } from '@/api/types'
 import { REPORT_NAMES_PARAM, paths } from '@/app/routes'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UnderlineTabsList, UnderlineTabsTrigger } from '@/components/common/underline-tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { EvidenceDrawer } from '@/routes/report/_components/evidence-drawer'
 import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
@@ -231,11 +232,12 @@ export function ReportPage() {
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as ReportTab)}>
-        <TabsList>
-          <TabsTrigger value="ecosystem" onMouseEnter={prefetch.ecosystem}>
+        {/* 탭 이름 옆에 MVP·확장 같은 범위 표시를 붙이지 않는다 — 기획 시안에서 뺀 항목 */}
+        <UnderlineTabsList>
+          <UnderlineTabsTrigger value="ecosystem" onMouseEnter={prefetch.ecosystem}>
             생태계 변화
-          </TabsTrigger>
-          <TabsTrigger value="features" onMouseEnter={prefetch.features}>
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
             {run.status !== 'COMPLETED' && (
               <>
@@ -246,11 +248,11 @@ export function ReportPage() {
                 <span className="sr-only">분석 중</span>
               </>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="community" onMouseEnter={prefetch.community}>
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="community" onMouseEnter={prefetch.community}>
             GitHub 커뮤니티
-          </TabsTrigger>
-        </TabsList>
+          </UnderlineTabsTrigger>
+        </UnderlineTabsList>
 
         {/*
           세 탭 모두 방문 후에는 `forceMount` 로 마운트를 유지하고 `hidden` 으로만 감춘다

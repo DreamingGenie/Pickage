@@ -3,11 +3,17 @@ package com.ssafy.pickage.domain.report;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.ssafy.pickage.domain.community.DataStatus;
+import com.ssafy.pickage.domain.community.dto.CommunityResultResponse;
+import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
+import com.ssafy.pickage.domain.community.dto.ViewStatus;
 import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
 
@@ -89,5 +95,40 @@ class ReportPdfServiceTest {
 	@DisplayName("생태계는 고를 수 있는 구역이 아니다")
 	void ecosystemIsNotSelectable() {
 		assertThrows(BusinessException.class, () -> ReportSection.parse(List.of("ECOSYSTEM")));
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 채우지 못한 구역 (S15P21A506-414)
+	 * ------------------------------------------------------------------ */
+
+	private static CommunityStatusResponse withResult() {
+		return new CommunityStatusResponse("axios", ViewStatus.RESULT, null, null,
+			new CommunityResultResponse(null, null, null, null, DataStatus.AVAILABLE, null, null, null, null,
+				List.of(), List.of(), null));
+	}
+
+	@Test
+	@DisplayName("커뮤니티 자료가 실렸으면 채우지 못한 구역이 아니다 — 기능 심화 분석만 남는다")
+	void communityWithResultIsNotOmitted() {
+		Set<ReportSection> requested = new LinkedHashSet<>(List.of(ReportSection.COMMUNITY, ReportSection.FEATURES));
+
+		assertEquals(List.of("FEATURES"), ReportPdfService.omitted(requested, withResult()));
+	}
+
+	@Test
+	@DisplayName("커뮤니티를 골랐는데 자료가 없으면 채우지 못한 구역이다")
+	void communityWithoutResultIsOmitted() {
+		Set<ReportSection> requested = Set.of(ReportSection.COMMUNITY);
+
+		assertEquals(List.of("COMMUNITY"), ReportPdfService.omitted(requested,
+			new CommunityStatusResponse("axios", ViewStatus.IDLE, null, null, null)));
+		// 자료를 읽지 못해 상태 자체가 없을 때도 같다.
+		assertEquals(List.of("COMMUNITY"), ReportPdfService.omitted(requested, null));
+	}
+
+	@Test
+	@DisplayName("아무것도 더하지 않았으면 채우지 못한 구역도 없다")
+	void nothingRequestedNothingOmitted() {
+		assertTrue(ReportPdfService.omitted(Set.of(), null).isEmpty());
 	}
 }

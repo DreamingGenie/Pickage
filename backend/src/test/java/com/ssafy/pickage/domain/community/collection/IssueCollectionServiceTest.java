@@ -41,6 +41,80 @@ class IssueCollectionServiceTest {
         server.close();
     }
 
+    // ---- 저장소 전체 Issue 수 (S15P21A506-413)
+
+    private void countsReturn(int total, int open) {
+        server.respondDynamic(
+                "/search/issues",
+                query -> {
+                    String q = FakeHttpServer.queryParam(query, "q");
+                    int count = q != null && q.contains("is:open") ? open : total;
+                    return new FakeHttpServer.Answer(
+                            200,
+                            "{\"total_count\": " + count + ", \"incomplete_results\": false, \"items\": []}",
+                            Map.of());
+                });
+    }
+
+    @Test
+    void 저장소_전체와_열린_Issue_수를_함께_돌려준다() {
+        countsReturn(1234, 56);
+
+        var counts = service.repositoryIssueCounts("owner", "repo", BUDGET);
+
+        assertThat(counts.total()).isEqualTo(1234);
+        assertThat(counts.open()).isEqualTo(56);
+    }
+
+    @Test
+    void 두_조회_사이에_Issue가_열려_열린_수가_전체보다_크면_전체를_열린_수로_맞춘다() {
+        countsReturn(10, 11);
+
+        var counts = service.repositoryIssueCounts("owner", "repo", BUDGET);
+
+        assertThat(counts.total()).isEqualTo(11);
+        assertThat(counts.open()).isEqualTo(11);
+    }
+
+    @Test
+    void 한쪽_조회만_실패해도_예외_없이_그_값만_null이다() {
+        server.respondDynamic(
+                "/search/issues",
+                query -> {
+                    String q = FakeHttpServer.queryParam(query, "q");
+                    if (q != null && q.contains("is:open"))
+                        return new FakeHttpServer.Answer(500, "{}", Map.of());
+                    return new FakeHttpServer.Answer(
+                            200, "{\"total_count\": 77, \"incomplete_results\": false, \"items\": []}", Map.of());
+                });
+
+        var counts = service.repositoryIssueCounts("owner", "repo", BUDGET);
+
+        assertThat(counts.total()).isEqualTo(77);
+        assertThat(counts.open()).isNull();
+    }
+
+    @Test
+    void rate_limit이어도_예외를_내보내지_않고_모두_null이다() {
+        server.respond(
+                "/search/issues",
+                403,
+                "{\"message\": \"rate limit\"}",
+                Map.of("x-ratelimit-remaining", "0", "x-ratelimit-reset", "4102444800"));
+
+        var counts = service.repositoryIssueCounts("owner", "repo", BUDGET);
+
+        assertThat(counts).isEqualTo(RepositoryIssueCounts.UNKNOWN);
+    }
+
+    @Test
+    void 시간_예산이_없으면_호출하지_않고_null이다() {
+        // 서버를 응답 없이 두어도(등록 안 함) 예산이 0 이면 네트워크로 나가지 않아야 한다.
+        var counts = service.repositoryIssueCounts("owner", "repo", Duration.ZERO);
+
+        assertThat(counts).isEqualTo(RepositoryIssueCounts.UNKNOWN);
+    }
+
     private void searchReturns(int totalCount, boolean incomplete, String itemsJson) {
         try {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();

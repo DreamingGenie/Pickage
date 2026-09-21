@@ -21,6 +21,9 @@ public class CommunityRefreshOrchestrator {
     private final CommunityHighlightSummarizer summarizer;
     private final CommunitySnapshotPublisher publisher;
 
+    /** 저장소 Issue 수 조회에 쓰는 시간 상한. 보조 정보라 전체 35초 예산 중 이만큼만 쓴다. */
+    private static final Duration COUNT_BUDGET = Duration.ofSeconds(6);
+
     public CommunityRefreshOrchestrator(
             RepositoryVerificationService verification,
             IssueCollectionService collection,
@@ -82,11 +85,13 @@ public class CommunityRefreshOrchestrator {
             if (collected instanceof IssueCollectionResult.NoDiscussionData empty) {
                 empty.limitations()
                         .forEach(c -> limitations.add(CommunityPolicy.limitation(c, null)));
+                // 최근 논의가 없어도 저장소 규모는 보여 줄 수 있다.
+                var emptyCounts = repositoryCounts(v, task);
                 publish(
                         task,
                         packageId,
                         new CommunityResultPayload(
-                                repository,
+                                repository.withIssueCounts(emptyCounts.total(), emptyCounts.open()),
                                 CommunityPolicy.VERSION,
                                 empty.lookbackDays(),
                                 null,
@@ -108,6 +113,12 @@ public class CommunityRefreshOrchestrator {
                                     "SUMMARY_INPUT_LIMITED", issue.issueNumber()));
                 pending.add(new PendingTopic(issue, sources));
             }
+
+            // 저장소 전체 Issue 수(S15P21A506-413). 핵심 수집(검색 quota)이 끝난 뒤에 조회해 본 수집과 quota 를 다투지 않는다.
+            // **GMS 를 디스패치하기 전에, 이 스레드에서 순차로** 조회한다(S15P21A506-415). 예전에는 GMS 와 나란히 공용 풀에서
+            // 돌렸는데, 그 풀이 GMS 응답 대기에 다 잡히는 서버(코어가 적은 배포 서버)에서는 예산이 바닥난 뒤에야 시작해 모든 패키지의
+            // 수치가 비었다. 실패해도 null 로 흡수돼 결과 게시에는 영향이 없고, 조회는 수백 ms 라 GMS 예산을 거의 쓰지 않는다.
+            var counts = repositoryCounts(v, task);
 
             // 이슈별 GMS 호출을 동시에 디스패치한다(S15P21A506-368 후속) — 순차로 돌면 이슈1이
             // 시간을 다 쓰고 이슈2는 시작하자마자 예산이 바닥나는 문제가 실제로 재현됐다. 남은
@@ -150,7 +161,6 @@ public class CommunityRefreshOrchestrator {
                                 issue.collectionStatus().name(),
                                 summary.status().name(),
                                 summary.summaryKo(),
-                                summary.discussionFlow(),
                                 summary.messages(),
                                 summary.summaryMarks()));
             }
@@ -160,7 +170,7 @@ public class CommunityRefreshOrchestrator {
                             : null;
             var payload =
                     new CommunityResultPayload(
-                            repository,
+                            repository.withIssueCounts(counts.total(), counts.open()),
                             CommunityPolicy.VERSION,
                             success.lookbackDays(),
                             retry,
@@ -180,6 +190,29 @@ public class CommunityRefreshOrchestrator {
                             ? CommunityErrorCode.REFRESH_DEADLINE_EXCEEDED
                             : CommunityErrorCode.GITHUB_UNAVAILABLE,
                     null);
+        }
+    }
+
+    /**
+     * 저장소 전체 Issue 수와 열린 수. **실패해도 예외를 내보내지 않는다** — 수치 카드용 보조 정보라 못 구하면 {@code null} 로 두고 결과는
+     * 그대로 게시한다(S15P21A506-413). 검증기는 음수·열린 수가 전체보다 큰 값을 거부하므로 여기서 걸러 게시 실패로 번지지 않게 한다.
+     */
+    private RepositoryIssueCounts repositoryCounts(
+            RepositoryVerificationResult.Verified v, RefreshTask task) {
+        try {
+            // 조회에 쓸 수 있는 시간은 남은 예산 안에서 COUNT_BUDGET 까지다 — GitHub 가 느려도 GMS 예산을 다 잡아먹지 않는다.
+            Duration budget = task.collectionTimeLeft();
+            if (budget.compareTo(COUNT_BUDGET) > 0) budget = COUNT_BUDGET;
+            var counts = collection.repositoryIssueCounts(v.owner(), v.repo(), budget);
+            if (counts == null) return RepositoryIssueCounts.UNKNOWN;
+            Integer total = counts.total(), open = counts.open();
+            if ((total != null && total < 0) || (open != null && open < 0))
+                return RepositoryIssueCounts.UNKNOWN;
+            if (total != null && open != null && open > total) return RepositoryIssueCounts.UNKNOWN;
+            return counts;
+        } catch (RuntimeException e) {
+            log.warn("저장소 Issue 수 집계 실패: {}", e.getClass().getSimpleName());
+            return RepositoryIssueCounts.UNKNOWN;
         }
     }
 

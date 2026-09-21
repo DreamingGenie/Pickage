@@ -6,7 +6,6 @@ import com.ssafy.pickage.domain.community.collection.CollectedComment;
 import com.ssafy.pickage.domain.community.collection.CollectedIssue;
 import com.ssafy.pickage.domain.community.collection.CommentCollectionStatus;
 import com.ssafy.pickage.domain.community.dto.SummaryStatus;
-import com.ssafy.pickage.domain.community.payload.DiscussionStepPayload;
 import com.ssafy.pickage.domain.community.payload.MessagePayload;
 import com.ssafy.pickage.domain.community.payload.SummaryMarkPayload;
 
@@ -143,8 +142,8 @@ class CommunitySummaryMarksTest {
         for (var c : bundle.issue().comments())
             messages.add(new MessagePayload(c.sourceCommentId(), null, null, false, "DISCUSSION", null, "발화 " + c.sourceCommentId()));
         return new TopicSummary(
-                "제목", summaryKo, List.of(new DiscussionStepPayload("흐름")), messages, SummaryStatus.READY,
-                refs, List.of(refs), terms, sentences, List.of());
+                "제목", summaryKo, messages, SummaryStatus.READY,
+                refs, terms, sentences, List.of());
     }
 
     @Test
@@ -195,8 +194,8 @@ class CommunitySummaryMarksTest {
         messages.add(new MessagePayload("999", null, null, false, "DISCUSSION", null, "여분 발화"));
         var refs = List.of(new TopicSummary.SourceRef("ISSUE_BODY", "701"));
         var five =
-                new TopicSummary("제목", SUMMARY, List.of(new DiscussionStepPayload("흐름")), messages,
-                        SummaryStatus.READY, refs, List.of(refs));
+                new TopicSummary("제목", SUMMARY, messages,
+                        SummaryStatus.READY, refs);
         assertThat(CommunitySummaryValidator.validate(four, five).status()).isEqualTo(SummaryStatus.FAILED);
     }
 }

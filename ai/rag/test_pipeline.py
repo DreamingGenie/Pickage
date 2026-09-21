@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai.rag.pipeline import get_or_build_evidence
+from ai.rag.pipeline import get_or_build_evidence, load_document
 from ai.rag.readme_source import ReadmeSourceNotFoundError
 
 
@@ -24,7 +24,9 @@ def _write_readme(root: Path, package: str, version: str, body: str) -> None:
     shard_dir.mkdir(parents=True, exist_ok=True)
     key = package.replace("/", "__") + "@" + version
     (shard_dir / f"{key}.md").write_text(
-        f"# {package}@{version}\nsome desc\n\n## README 전문\n\n{body}\n",
+        # 설명 줄은 일부러 없다 — 설명은 `#meta-desc` 근거가 되므로(S15P21A506-420), README 청킹만
+        # 보는 이 시험들의 기대(청크 1개)를 흐리지 않게 한다. 설명 근거는 MetaEvidenceOrderTests 가 본다.
+        f"# {package}@{version}\n\n## README 전문\n\n{body}\n",
         encoding="utf-8",
     )
 
@@ -70,6 +72,111 @@ class GetOrBuildEvidenceTests(unittest.TestCase):
                     os.environ["README_SOURCE_ROOT"] = old
 
             self.assertEqual(len(chunks), 1)
+
+
+
+
+
+def _write_doc(root: Path, package: str, version: str, text: str) -> None:
+    shard = (package[1:] if package.startswith("@") else package)[0].lower()
+    (root / shard).mkdir(parents=True, exist_ok=True)
+    key = package.replace("/", "__") + "@" + version
+    (root / shard / f"{key}.md").write_text(text, encoding="utf-8")
+
+
+_FOOTER = "근거: S1 README 917 B / 산문 214자 · S2 manifest · S3 spec · 상태 LIMITED"
+
+
+class LoadDocumentTests(unittest.TestCase):
+    """load_document(): 청크와 함께 문헌 상태를 돌려준다 (S15P21A506-419)."""
+
+    def test_returns_chunks_and_the_document_status_from_the_footer(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(
+                Path(root), "js-yaml", "5.4.1",
+                "# js-yaml@5.4.1\n\n## README 전문\n\nParser.\n\n---\n" + _FOOTER,
+            )
+
+            loaded = load_document("js-yaml", "5.4.1", root=root)
+
+            self.assertEqual([c.excerpt for c in loaded.chunks], ["Parser."])
+            self.assertEqual(loaded.source.package, "js-yaml")
+            self.assertEqual(loaded.source.version, "5.4.1")
+            self.assertEqual(loaded.source.status, "LIMITED")
+            self.assertEqual(loaded.source.prose_chars, 214)
+
+    def test_readme_after_a_horizontal_rule_becomes_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(
+                Path(root), "foo", "1.0.0",
+                "# foo@1.0.0\n\n## README 전문\n\nIntro.\n\n---\n\n## API\n\nloadAll reads many.\n\n---\n" + _FOOTER,
+            )
+
+            chunks = load_document("foo", "1.0.0", root=root).chunks
+
+            self.assertTrue(any("loadAll" in c.excerpt for c in chunks))
+
+    def test_document_without_a_footer_has_an_unknown_status(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_readme(Path(root), "foo", "1.0.0", "Body.")
+
+            self.assertIsNone(load_document("foo", "1.0.0", root=root).source.status)
+
+    def test_get_or_build_evidence_still_returns_only_the_chunks(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_readme(Path(root), "foo", "1.0.0", "Body.")
+
+            chunks = get_or_build_evidence("foo", "1.0.0", root=root)
+
+            self.assertEqual([c.excerpt for c in chunks], ["Body."])
+
+    def test_missing_file_error_carries_package_and_version(self):
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(ReadmeSourceNotFoundError) as ctx:
+                load_document("ghost", "9.9.9", root=root)
+
+            self.assertEqual(ctx.exception.package, "ghost")
+            self.assertEqual(ctx.exception.version, "9.9.9")
+
+
+
+class MetaEvidenceOrderTests(unittest.TestCase):
+    """헤더 근거는 README 청크 앞에 놓이고, README 청크 번호는 그대로다 (S15P21A506-420)."""
+
+    _DOC = (
+        "# foo@1.0.0\n\nA parser\n\n"
+        "## 소비 형태 · 진입점\n\n- 명령: 없음\n- 진입점: exports 선언 없음 (단일 진입점)\n"
+        "- 모듈 형식: type=commonjs (기본값), main 있음\n- 타입 선언: 포함 — dist/index.d.ts\n\n"
+        "## 설치 조건\n\n- 파일 수: 3\n\n"
+        "## README 전문\n\nBody.\n\n---\n" + _FOOTER
+    )
+
+    def test_meta_chunks_come_first_so_a_small_budget_still_keeps_them(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", self._DOC)
+
+            ids = [c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks]
+
+            self.assertEqual(ids[:2], ["foo@1.0.0#meta-desc", "foo@1.0.0#meta-entry"])
+            self.assertEqual(ids[-1], "foo@1.0.0#0")
+
+    def test_readme_chunk_numbers_do_not_shift(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", self._DOC)
+
+            readme_ids = [
+                c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks if "#meta-" not in c.evidence_id
+            ]
+
+            self.assertEqual(readme_ids, ["foo@1.0.0#0"])
+
+    def test_a_document_without_a_header_or_description_behaves_exactly_as_before(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write_doc(Path(root), "foo", "1.0.0", "# foo@1.0.0\n\n## README 전문\n\nBody.\n")
+
+            ids = [c.evidence_id for c in load_document("foo", "1.0.0", root=root).chunks]
+
+            self.assertEqual(ids, ["foo@1.0.0#0"])
 
 
 if __name__ == "__main__":

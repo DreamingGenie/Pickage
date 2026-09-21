@@ -8,7 +8,7 @@
 | `gpu.json` | 외부 GPU 서버 (`pickage-gpu`) | `pickage-raw` · `pickage-curated` **읽기** + `pickage-mlflow-artifacts` **쓰기** |
 | `ops.json` | app 노드 api (`pickage-ops`) | `pickage-raw` 의 `_ops/weekly/` **읽기** + `manual-request.json` **쓰기** |
 | `similarity-loader.json` | app 노드 similarity-loader (`pickage-similarity-loader`) | `pickage-vectors` **읽기만**. 쓰기·삭제 없다 |
-| `api-loader.json` | app 노드 백엔드 로더 (`pickage-api-loader`) — **소비자는 아직 없다** | `pickage-curated` **읽기만**. 쓰기·삭제 없다 |
+| `api-loader.json` | app 노드 `package-env-loader` (`pickage-api-loader`) | `pickage-curated` **읽기만**. 쓰기·삭제 없다 |
 | `monitor.json` | 두 노드의 파이프라인 모니터 (`pickage-monitor`, S15P21A506-362) | 전 버킷 **목록·이벤트 구독**(`ListenBucketNotification`) + `_ops/`·`_current.json` **읽기만**. 쓰기·삭제 없고 데이터 본문도 못 읽는다 |
 
 적용 방법은 [deploy/prod/data/README.md](../../../deploy/prod/data/README.md) 의

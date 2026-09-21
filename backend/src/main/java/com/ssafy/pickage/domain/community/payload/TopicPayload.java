@@ -1,9 +1,17 @@
 package com.ssafy.pickage.domain.community.payload;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.time.Instant;
 import java.util.List;
 
-/** 커뮤니티 v2 계약. 공개 필드/내부 근거는 별도 DTO로 구분한다. */
+/**
+ * 커뮤니티 v2 계약. 공개 필드/내부 근거는 별도 DTO로 구분한다.
+ *
+ * <p>논의 흐름 `flow` 는 더 만들지도 저장하지도 않는다(S15P21A506-412). 그 전에 저장된 스냅샷에는 `flow` 키가 남아 있어서
+ * — 이 매퍼는 모르는 필드를 거부한다 — `flow` 만 골라 읽고 버린다. 다른 모르는 필드는 여전히 거부한다.
+ */
+@JsonIgnoreProperties("flow")
 public record TopicPayload(
         String sourceIssueId,
         int issueNumber,
@@ -17,7 +25,6 @@ public record TopicPayload(
         String collectionStatus,
         String summaryStatus,
         String summaryKo,
-        List<DiscussionStepPayload> flow,
         List<MessagePayload> messages,
         List<SummaryMarkPayload> summaryMarks) {
     /**
@@ -42,7 +49,6 @@ public record TopicPayload(
             String collectionStatus,
             String summaryStatus,
             String summaryKo,
-            List<DiscussionStepPayload> flow,
             List<MessagePayload> messages) {
         this(
                 sourceIssueId,
@@ -57,7 +63,6 @@ public record TopicPayload(
                 collectionStatus,
                 summaryStatus,
                 summaryKo,
-                flow,
                 messages,
                 List.of());
     }

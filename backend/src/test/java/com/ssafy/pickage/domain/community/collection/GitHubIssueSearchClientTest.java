@@ -67,6 +67,89 @@ class GitHubIssueSearchClientTest {
         assertThat(page.items().get(1).isPullRequest()).isTrue();
     }
 
+    // ---- 저장소 전체 Issue 수 (S15P21A506-413)
+
+    /** 전체 조회와 열린 조회를 쿼리 문자열로 구분해 다른 값을 준다. */
+    private void countsReturn(int total, int open) {
+        server.respondDynamic(
+                "/search/issues",
+                query -> {
+                    String q = FakeHttpServer.queryParam(query, "q");
+                    int count = q != null && q.contains("is:open") ? open : total;
+                    return new FakeHttpServer.Answer(
+                            200,
+                            "{\"total_count\": " + count + ", \"incomplete_results\": false, \"items\": []}",
+                            Map.of());
+                });
+    }
+
+    @Test
+    void 저장소_전체와_열린_Issue_수를_쿼리로_구분해_센다() {
+        countsReturn(1234, 56);
+
+        assertThat(client().countIssues("owner", "repo", false, BUDGET)).isEqualTo(1234);
+        assertThat(client().countIssues("owner", "repo", true, BUDGET)).isEqualTo(56);
+    }
+
+    @Test
+    void 카운트_쿼리는_PR을_빼고_저장소를_한정하며_한_건만_받아온다() {
+        java.util.List<String> queries = new java.util.ArrayList<>();
+        server.respondDynamic(
+                "/search/issues",
+                query -> {
+                    queries.add(query);
+                    return new FakeHttpServer.Answer(
+                            200, "{\"total_count\": 7, \"incomplete_results\": false, \"items\": []}", Map.of());
+                });
+
+        client().countIssues("acme", "widget", true, BUDGET);
+        client().countIssues("acme", "widget", false, BUDGET);
+
+        assertThat(FakeHttpServer.queryParam(queries.get(0), "q")).isEqualTo("repo:acme/widget is:issue is:open");
+        assertThat(FakeHttpServer.queryParam(queries.get(1), "q")).isEqualTo("repo:acme/widget is:issue");
+        assertThat(FakeHttpServer.queryParam(queries.get(0), "per_page")).isEqualTo("1");
+    }
+
+    @Test
+    void 결과가_불완전하면_카운트를_믿지_않고_null이다() {
+        server.respond(
+                "/search/issues",
+                200,
+                "{\"total_count\": 99, \"incomplete_results\": true, \"items\": []}",
+                Map.of());
+
+        assertThat(client().countIssues("owner", "repo", false, BUDGET)).isNull();
+    }
+
+    private void assertCountRejected(String body) {
+        server.respond("/search/issues", 200, body, Map.of());
+        assertThatThrownBy(() -> client().countIssues("owner", "repo", false, BUDGET))
+                .isInstanceOf(UpstreamFetchException.class);
+    }
+
+    @Test
+    void 카운트가_음수이면_통신_실패로_다룬다() {
+        assertCountRejected("{\"total_count\": -3, \"incomplete_results\": false}");
+    }
+
+    @Test
+    void 카운트가_숫자가_아니면_통신_실패로_다룬다() {
+        assertCountRejected("{\"total_count\": \"12\", \"incomplete_results\": false}");
+    }
+
+    @Test
+    void 카운트_응답에_incomplete_results가_없으면_통신_실패로_다룬다() {
+        assertCountRejected("{\"total_count\": 5}");
+    }
+
+    @Test
+    void 카운트_조회의_HTTP_오류는_통신_실패다() {
+        server.respond("/search/issues", 500, "{}", Map.of());
+
+        assertThatThrownBy(() -> client().countIssues("owner", "repo", false, BUDGET))
+                .isInstanceOf(UpstreamFetchException.class);
+    }
+
     @Test
     void incomplete_results를_읽는다() {
         server.respond(
