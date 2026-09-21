@@ -419,7 +419,12 @@ export function EcosystemView({
         그 이탈을 둘로 가르므로, 떨어뜨려 놓으면 둘의 관계가 안 보인다. 구간 선택기는
         위 패널 것 하나를 공유한다 — 같은 값을 바꾸는 컨트롤이 둘이면 고장처럼 보인다.
       */}
-      {model.packages.length > 0 && (
+      {/*
+        **자기 모델을 보고 판단한다.** `model.packages` 를 보면 인트로 미리보기처럼
+        이탈 사유 모델을 안 넘기는 자리에서도 빈 패널이 뜬다(service-intro-page.tsx).
+        로딩·오류는 그대로 보여 줘야 하므로 상태도 함께 본다.
+      */}
+      {(removalReasonsModel.packages.length > 0 || removalReasonsState.status !== 'ready') && (
         <RemovalReasonsPanel
           model={removalReasonsModel}
           state={removalReasonsState}

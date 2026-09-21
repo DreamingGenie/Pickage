@@ -29,11 +29,24 @@ export function RemovalBars({
   max: number
   className?: string
 }) {
-  const known = dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA'
+  /**
+   * **`counts` 가 있어야 아는 것이다.** dataStatus 만 보면, 계약이 어긋나
+   * (COMPLETE 인데 필드가 null) 어댑터가 counts 를 떨어뜨린 경우에도 `0` 을 확신에 차서
+   * 그리게 된다 — "몰라서 못 셌다" 가 "세어 보니 없었다" 로 보인다. 이 패널이 가장
+   * 경계하는 혼동이라(NO_DATA 와 구분하는 것이 완료 기준) 여기서 막는다.
+   */
+  const known = (dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA') && counts !== null
   const total = counts?.removals ?? 0
   // 막대 전체가 차지하는 폭. 0 이면 빈 트랙만 남아 "없음" 이 형태로 보인다.
   const trackPct = known && max > 0 && total > 0 ? Math.max((total / max) * 100, 2) : 0
   const noPct = total > 0 ? ((counts?.noReplacement ?? 0) / total) * 100 : 0
+  /**
+   * **한쪽만 반올림하고 다른 쪽은 100 에서 뺀다.** 둘을 각자 Math.round 하면 합이
+   * 101%(또는 99%)로 보인다 — removals=8 · no=3 · with=5 면 37.5→38, 62.5→63 이다.
+   * `no + with = removals` 는 DB CHECK 로 보장되는 값이라 화면에서 깨지면 안 된다.
+   */
+  const noPercent = total > 0 ? Math.round(noPct) : null
+  const withPercent = noPercent === null ? null : 100 - noPercent
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -82,14 +95,14 @@ export function RemovalBars({
             fill={SHARE_FILLS[0]}
             label="대체 없이 제거"
             value={counts.noReplacement}
-            total={total}
+            percent={noPercent}
             strong
           />
           <Legend
             fill={SHARE_FILLS[2]}
             label="다른 것과 함께 제거"
             value={counts.withReplacement}
-            total={total}
+            percent={withPercent}
           />
         </dl>
       ) : null}
@@ -101,6 +114,10 @@ export function RemovalBars({
         <p className="text-base text-muted-foreground">분석 대상 아님 · top-100k 밖</p>
       )}
       {dataStatus === 'NOT_COMPUTED' && <p className="text-base text-muted-foreground">준비 중</p>}
+      {/* 계약상 COMPLETE·NO_DATA 면 네 숫자가 다 와야 한다. 안 왔으면 0 으로 메우지 않고 그 사실을 말한다. */}
+      {(dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA') && !counts && (
+        <p className="text-base text-muted-foreground">값을 받지 못했습니다</p>
+      )}
 
       {/*
         `dependents` 와 `removals` 는 **단위가 다르다**(의존자 수 vs 전이 건수). 나누지 않는다 —
@@ -119,13 +136,14 @@ function Legend({
   fill,
   label,
   value,
-  total,
+  percent,
   strong,
 }: {
   fill: string
   label: string
   value: number
-  total: number
+  /** 부르는 쪽이 한 번만 계산해 넘긴다 — 각자 반올림하면 둘의 합이 100 이 안 된다. */
+  percent: number | null
   strong?: boolean
 }) {
   return (
@@ -141,11 +159,7 @@ function Legend({
         )}
       >
         {value.toLocaleString()}
-        {total > 0 && (
-          <span className="ml-1.5 text-muted-foreground">
-            {Math.round((value / total) * 100)}%
-          </span>
-        )}
+        {percent !== null && <span className="ml-1.5 text-muted-foreground">{percent}%</span>}
       </dd>
     </div>
   )
