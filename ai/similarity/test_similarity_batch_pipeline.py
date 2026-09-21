@@ -442,6 +442,25 @@ class IsPluginAdapter(unittest.TestCase):
     def test_keyword_substring_does_not_flag(self):
         self.assertFalse(sbp.is_plugin_adapter("some-tool", ["pluginless", "explaining"]))
 
+    def test_own_plugin_tag_does_not_flag_host(self):
+        # '<자기 이름>-plugin' 은 "이 패키지용 플러그인을 만들 때 쓰는 태그" — 이 패키지가 호스트라는 뜻이다.
+        self.assertFalse(sbp.is_plugin_adapter("markdown-it", ["markdown", "markdown-it-plugin"]))
+        self.assertFalse(sbp.is_plugin_adapter("heroku", ["heroku-cli-plugin"]))
+        self.assertFalse(sbp.is_plugin_adapter("vite", ["vite-plugin"]))
+
+    def test_other_packages_plugin_tag_still_flags(self):
+        # 태그가 다른 패키지를 가리키면 그 패키지에 얹히는 부속품이다.
+        self.assertTrue(sbp.is_plugin_adapter("postcss-nested", ["postcss-plugin"]))
+        self.assertTrue(sbp.is_plugin_adapter("autoprefixer", ["postcss-plugin", "plugin"]))
+
+    def test_scoped_name_is_not_exempt_from_own_tag(self):
+        # '@unocss/vite' 는 스코프를 벗기면 'vite' 지만 vite 가 아니라 vite 플러그인이다.
+        self.assertTrue(sbp.is_plugin_adapter("@unocss/vite", ["vite-plugin"]))
+        self.assertTrue(sbp.is_plugin_adapter("@unocss/webpack", ["webpack-plugin"]))
+
+    def test_own_plugin_tag_exemption_keeps_other_keywords_active(self):
+        self.assertTrue(sbp.is_plugin_adapter("markdown-it", ["markdown-it-plugin", "plugin"]))
+
 
 class IsSameFamily(unittest.TestCase):
     def test_flags_submodule_and_repackage(self):

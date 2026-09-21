@@ -386,6 +386,12 @@ def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
 
     'eslint-plugin-react', 'css-loader', 'babel-preset-env', '@sveltejs/adapter-node',
     'eslint-config-airbnb' 처럼 다른 패키지에 얹혀 동작하는 것 = 대안이 아니다.
+
+    keyword 에서 자기 이름으로 시작하는 태그('markdown-it' 의 'markdown-it-plugin',
+    'heroku' 의 'heroku-cli-plugin')는 "이 패키지용 플러그인을 만들 때 쓰는 태그"라서
+    이 패키지가 호스트라는 뜻이지 플러그인이라는 뜻이 아니다 — 판정에서 뺀다.
+    스코프 있는 이름은 이 면제를 받지 않는다: '@unocss/vite' 는 스코프를 벗기면 'vite' 지만
+    vite 가 아니라 vite 플러그인이고, 그 태그 'vite-plugin' 은 자기 이름의 태그가 아니다.
     """
     base = name.rsplit("/", 1)[-1].lower()
     parts = base.replace("_", "-").split("-")
@@ -395,8 +401,11 @@ def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
                 return True
             if p == "config" and i != len(parts) - 1:  # 'node-config'(단독) 오탐 방지
                 return True
+    own = None if name.startswith("@") else parts
     for k in keywords or []:
         toks = str(k).lower().replace("-", " ").split()
+        if own and len(toks) > len(own) and toks[: len(own)] == own:
+            continue  # 자기 이름 태그 — 호스트 표시
         if any(t in _PLUGIN_MARKERS for t in toks):
             return True
     return False
