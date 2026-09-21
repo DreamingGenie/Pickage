@@ -29,12 +29,28 @@ public record PackageRefs(List<Ref> values) {
 	public static final int MAX = 3;
 
 	/**
-	 * 이름 규칙은 {@code PackageNames.VALID} 와 같다 — 소문자·숫자·{@code - _ . ~} 와
-	 * 스코프의 {@code @ /}. 대문자를 막는 것도 같은 이유다(npm 이 2017년 이후 막았고,
-	 * 허용하면 {@code Express} 와 {@code express} 가 다른 이름으로 조회돼 둘 다 못 찾는다).
+	 * 허용 문자는 {@code PackageNames.VALID} 와 같지만 <b>대문자를 막지 않는다.</b>
+	 *
+	 * <p>저쪽이 대문자를 막는 이유는 사용자가 {@code Express} 를 쳤을 때 {@code express} 와
+	 * 다른 이름으로 조회돼 둘 다 못 찾는 것을 막으려는 것이다. 여기는 값의 출처가 다르다 —
+	 * 화면의 버전 드롭다운이 고른 {@code 이름@버전} 이고, 그 이름은 우리 {@code package}
+	 * 테이블에서 온 실제 이름이다. 사람이 손으로 치는 값이 아니다.
+	 *
+	 * <p>막아 두면 <b>대문자가 든 71건이 영영 비교되지 않는다.</b> npm 이 2017년에 막기 전에
+	 * 올라온 이름들이라 지금도 설치되고, 문헌도 깔려 있고({@code Base64}·{@code Faker}·
+	 * {@code d3-bboxCollide} 처럼 중간에 대문자가 오는 것도 있다), 검색 결과에도 뜬다.
+	 * 그런데 시작 버튼만 V004 로 거절당한다 — 사용자에게는 "왜 이 패키지만 안 되는지" 가
+	 * 화면 어디에도 없다.
+	 *
+	 * <p>{@link com.ssafy.pickage.domain.docs.DocsPath} 와 RAG 의
+	 * {@code resolve_readme_path} 가 둘 다 대소문자를 보존한다 — 리눅스가 대소문자를 가려서
+	 * 내리면 그 71건의 파일을 못 연다. 여기만 좁혀 두면 그 셋이 어긋난다.
+	 *
+	 * <p>틀린 대소문자로 물어도 잘못된 패키지를 집지 않는다. 뒤가 전부 정확 일치 조회라
+	 * ({@code package.name = ?} · 파일 경로) 없는 이름은 그냥 못 찾은 것이 된다.
 	 */
 	private static final Pattern VALID_NAME =
-		Pattern.compile("^(?:@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$");
+		Pattern.compile("^(?:@[A-Za-z0-9-~][A-Za-z0-9-._~]*/)?[A-Za-z0-9-~][A-Za-z0-9-._~]*$");
 
 	/**
 	 * 버전은 semver 를 강제하지 않는다. npm 에 {@code 1.0.0-beta.1} · {@code 4.0.0+build}
