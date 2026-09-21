@@ -22,21 +22,22 @@
 > **CSV 로 합계를 내면 전체가 아니다.** 나머지 94,996개 대상은 parquet 에만 있다.
 > 잘린 수는 `stats.json` 의 `csv_targets` 가 말한다.
 
-MinIO 에 올라가 있는 것은 **분해 이전 회차**다(2026-09-17 입고). 접속은 `pipeline/minio/README.md`
-의 터널 절차를 따른다.
+MinIO 에 **두 회차**가 있다. 접속은 `pipeline/minio/README.md` 의 터널 절차를 따른다.
 
 ```text
 pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/
-  run_id=dependent-transitions-20260917-v1/
+  run_id=dependent-transitions-20260917-v1/   분해 이전 (2026-09-17 입고)
     data/dependent_transitions.parquet   5,740,220 바이트 · 899,964행 (열 12개)
     run_manifest.json                    SHA-256 25e234ed… · 행 수
     _SUCCESS
+  run_id=dependent-transitions-20260921-v1/   분해 포함 (2026-09-21 입고) ← 운영이 읽는 회차
+    data/dependent_transitions.parquet   6,365,780 바이트 · 899,964행 (열 15개)
+    run_manifest.json                    SHA-256 da764767… · 행 수
+    _SUCCESS
 ```
 
-> **2026-09-21 재생성분은 아직 입고 전이다.** 관측불가 분해 세 열이 늘어 파일이 다르다
-> (6,365,780 바이트 · 열 15개). 입고와 운영 재적재는 S15P21A506-421 에서 **새 `run_id`** 로
-> 한다 — 같은 `run_id` 에 다른 내용을 덮으면 manifest 의 SHA-256 과 이미 적재된 회차 이력이
-> 어긋난다.
+> **옛 회차를 덮지 않고 새 `run_id` 로 올렸다.** 같은 `run_id` 에 다른 내용을 덮으면
+> manifest 의 SHA-256 과 이미 적재된 회차 이력이 어긋난다.
 
 올릴 때는 `PICKAGE_MINIO_ENV=.env.server` 를 주고 아래를 실행한다.
 
@@ -44,6 +45,12 @@ pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/
 python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
   --run-id dependent-transitions-20260921-v1
 ```
+
+**2026-09-21 운영 게시 완료.** `etl_dataset_current` 의 `dependent-transitions` 포인터가
+`dependent-transitions-2026-08-31-dependent-transitions-20260921-v1` 을 가리킨다.
+적재 879,705 / 산출 899,964행(97.7%) · 미매칭 대상 2,251개로 **09-17 회차와 같다** —
+이 수의 근거는 `pipeline/dependent_transitions/load.py` 의 문서에 있다. 운영 DB 에서
+세 구간 모두 `unobserved` 와 분해 셋의 합이 일치하는 것을 확인했다.
 
 ## 2. 열
 
