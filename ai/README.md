@@ -71,7 +71,7 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 2. **구조적 관문** (`--gate`, 기본 **on**) — 점수 조정이 아니라 통과/탈락:
    - plugin/adapter/preset/loader·비말단 config (이름·keywords) → drop
    - same-family: 우산↔하위모듈(`d3`↔`d3-axis`)·같은 포장(`lodash`↔`lodash-es`)·같은 `@scope` → drop
-   - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 안 주면 이 관문은 자동으로 꺼진다(하위 호환). manifest 의 `params.gate_drops.complement` 는 관문이 안 돌았으면 `null`, 돌았으면 걸러낸 쌍 수이고, `params.dependents_coverage` 는 이번 패키지 중 dependents 행이 있는 비율(`pool`·`with_dependents`·`ratio`)이다 — 후보 풀이 dependents 파일보다 커지면 이 비율이 내려간다
+   - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 를 안 주면 `--package-text` 와 같은 폴더의 `package_dependents.parquet` 를 찾아 쓰고, 그것도 없으면 **경고 로그를 남기고 이 관문만 건너뛴다**(배치는 계속 돈다). manifest 의 `params.gate_drops.complement` 는 관문이 안 돌았으면 `null`, 돌았으면 걸러낸 쌍 수이고, `params.dependents_coverage` 는 이번 패키지 중 dependents 행이 있는 비율(`pool`·`with_dependents`·`ratio`)이다 — 후보 풀이 dependents 파일보다 커지면 이 비율이 내려간다
 3. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
 4. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 

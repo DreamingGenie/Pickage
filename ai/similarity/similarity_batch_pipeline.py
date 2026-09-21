@@ -12,7 +12,7 @@
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
   4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived·보완재(dependents 교집합
-                      >0.3, --dependents 선택) drop (--gate, 기본 on, S15P21A506-333·173)
+                      >0.3, package_dependents.parquet 이 입력 옆에 있을 때) drop (--gate, 기본 on, S15P21A506-333·173)
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -133,6 +133,23 @@ def load_state(path: str | None) -> dict[str, dict]:
     state = {r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)} for r in tbl}
     log(f"이전 상태: {len(state)} 개 (재임베딩 생략 후보)")
     return state
+
+
+DEPENDENTS_FILENAME = "package_dependents.parquet"
+
+
+def resolve_dependents_path(explicit: str | None, package_text_path: str) -> str | None:
+    """보완재 관문이 읽을 dependents parquet 경로 (S15P21A506-173).
+
+    --dependents 로 직접 지정하면 그 경로(없어도 그대로 — 경고는 호출부가 한다). 안 줬으면
+    --package-text 와 **같은 폴더**의 `package_dependents.parquet` 을 찾는다. 배치가
+    /work/in/ 에서 입력을 읽으므로 ai-stage 가 그 파일을 옆에 복사해 두기만 하면
+    인자를 안 넘겨도 관문이 돈다. 둘 다 없으면 None.
+    """
+    if explicit:
+        return explicit
+    sibling = os.path.join(os.path.dirname(os.path.abspath(package_text_path)), DEPENDENTS_FILENAME)
+    return sibling if os.path.exists(sibling) else None
 
 
 def load_dependents(path: str | None, kind: str = "regular") -> dict[str, set[str]]:
@@ -537,7 +554,8 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
     p.add_argument("--dependents", default=None,
                    help="후보 풀 기준 package_dependents parquet (S15P21A506-173, 보완재 감점용). "
-                        "생략하면 보완재 관문이 꺼진다")
+                        f"생략하면 --package-text 와 같은 폴더의 {DEPENDENTS_FILENAME} 를 찾고, "
+                        "그것도 없으면 경고 후 보완재 관문만 건너뛴다")
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--retrieve-k", type=int, default=30,
@@ -574,7 +592,13 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
-    dependents_map = load_dependents(args.dependents)
+    dependents_path = resolve_dependents_path(args.dependents, args.package_text)
+    dependents_map = load_dependents(dependents_path)
+    if not dependents_map and args.gate:
+        log(
+            "경고: 보완재 관문 건너뜀 — dependents 데이터 없음 "
+            f"({dependents_path or '--package-text 옆 ' + DEPENDENTS_FILENAME + ' 없음'})"
+        )
     dependents_by_idx = {i: dependents_map.get(names[i]) for i in range(len(names))} if dependents_map else None
     coverage = dependents_coverage(names, dependents_map)
     if coverage:
@@ -601,7 +625,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "user_k": args.user_k,
             "gate": args.gate,
             "gate_drops": gate_drops,
-            "dependents": args.dependents,
+            "dependents": dependents_path,
             "dependents_coverage": coverage,
             "raw_text_column": args.raw_text_column,
         },

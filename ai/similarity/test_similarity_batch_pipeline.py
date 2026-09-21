@@ -616,6 +616,30 @@ class ApplyGates(unittest.TestCase):
         self.assertEqual(drops["complement"], 0)
 
 
+class ResolveDependentsPath(unittest.TestCase):
+    """S15P21A506-173: --dependents 를 안 줘도 --package-text 옆 파일이 있으면 관문이 돈다."""
+
+    def test_explicit_path_wins_even_if_missing(self):
+        self.assertEqual(sbp.resolve_dependents_path("x/dep.parquet", "in/package_text.parquet"), "x/dep.parquet")
+
+    def test_finds_sibling_next_to_package_text(self):
+        import os
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            sibling = os.path.join(d, sbp.DEPENDENTS_FILENAME)
+            open(sibling, "wb").close()
+            got = sbp.resolve_dependents_path(None, os.path.join(d, "package_text.parquet"))
+            self.assertEqual(os.path.abspath(got), os.path.abspath(sibling))
+
+    def test_none_when_no_sibling(self):
+        import os
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            self.assertIsNone(sbp.resolve_dependents_path(None, os.path.join(d, "package_text.parquet")))
+
+
 class DependentsCoverage(unittest.TestCase):
     def test_none_when_no_dependents_given(self):
         self.assertIsNone(sbp.dependents_coverage(["a", "b"], {}))
