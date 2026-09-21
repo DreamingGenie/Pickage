@@ -38,9 +38,9 @@
   "strict_from_pkgs": 311,
   "strict_to_pkgs": 237,
   "strict_adopters_of_from_pkgs": 69839,
-  "loose_pairs": 6791,
-  "loose_from_pkgs": 1606,
-  "loose_to_pkgs": 1284,
+  "loose_pairs": 6792,
+  "loose_from_pkgs": 1607,
+  "loose_to_pkgs": 1285,
   "loose_adopters_of_from_pkgs": 72893,
   "count_votes5_pm3_pairs": 3044,
   "count_votes5_pm3_from_pkgs": 805,
@@ -51,17 +51,17 @@
   "recommended_from_pkgs": 377,
   "file_bytes": {
     "migration_pairs_strict.csv": 81507,
-    "migration_pairs_all.csv": 706460,
+    "migration_pairs_all.csv": 706572,
     "migration_pairs_recommended.csv": 55521,
     "removal_stats.csv": 514560,
     "removal_by_year.csv": 1048523,
     "removal_by_period.csv": 1523302,
-    "removal_stats.parquet": 559687,
+    "removal_stats.parquet": 537874,
     "removal_by_year.parquet": 327908,
     "removal_by_period.parquet": 282968,
-    "migration_events.parquet": 4741416,
-    "migration_events.csv": 36195764,
-    "migration_pairs.duckdb": 1031548928
+    "migration_events.parquet": 4741499,
+    "migration_events.csv": 36195763,
+    "migration_pairs.duckdb": 1033121792
   },
   "input_bytes": {
     "versions_full_parquet": 4743980087,
@@ -90,5 +90,5 @@
     "OptionalDependencies"
   ],
   "reclassify_legacy": false,
-  "elapsed_sec": 588
+  "elapsed_sec": 508
 }
