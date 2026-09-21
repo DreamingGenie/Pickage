@@ -163,8 +163,12 @@ services:
       # ⚠ GET 만 부른다 (pipeline/monitor/dockerapi.py). 소켓의 의미는 위 netdata 의 같은 줄.
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/localtime:/etc/localtime:ro
+      # RAG 문헌 캐시 (../../app/compose.yaml 의 api·rag-api 가 같은 경로를 쓴다). 읽기만 —
+      # 샤드별 파일 수·크기·최근/오래된 파일을 화면에 낸다 (pipeline-monitor.yaml 의 local.paths).
+      - /srv/pickage/docs:/host/srv/pickage/docs:ro
 
     # 이 노드는 목록 집계를 안 한다(중계·컨테이너 로그뿐). 짝으로 둔다.
+    # 문헌 캐시 순회는 파일 수에 비례해 메모리를 쓰지 않는다(localfs.scan_path 의 docstring).
     mem_limit: 128m
     memswap_limit: 128m
 

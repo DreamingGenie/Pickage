@@ -60,6 +60,30 @@ class BuildReportTest(unittest.TestCase):
         self.assertEqual(report["errors"][0]["section"], "docker")
         self.assertNotIn("minio", report)
 
+    def test_local_path_with_refresh_is_scanned_on_a_schedule(self):
+        """refresh_seconds 를 둔 경로는 주기 안에서는 마지막 결과를 낸다. fresh(지금 확인)는 바로 훑는다."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "a").mkdir(); (Path(tmp) / "a" / "x@1.md").write_text("doc")
+            settings = cfg.parse({"node": "app", "minio": {"events": False, "weekly": False, "inventory": False},
+                                  "local": {"paths": [{"path": tmp, "label": "/srv/docs", "refresh_seconds": 600,
+                                                       "note": "캐시"},
+                                                      {"path": tmp, "label": "/srv/live"}]}})
+            builder = run.Builder(settings, s3=None, docker_client=None)
+            first = builder.build()["local"]["paths"]
+            self.assertEqual((first[0]["files"], first[0]["refresh_seconds"], first[0]["note"]), (1, 600, "캐시"))
+            self.assertNotIn("cached", first[0])
+            (Path(tmp) / "a" / "y@2.md").write_text("doc2")
+            second = builder.build()["local"]["paths"]
+            self.assertEqual((second[0]["files"], second[0]["cached"]), (1, True))       # 캐시 — 새 파일을 아직 모른다
+            self.assertEqual(second[0]["scanned_at"], first[0]["scanned_at"])
+            self.assertEqual(second[1]["files"], 2)                                      # refresh 0 인 경로는 매번 훑는다
+            self.assertNotIn("cached", second[1])
+            third = builder.build(fresh=True)["local"]["paths"]
+            self.assertEqual(third[0]["files"], 2)
+            self.assertNotIn("cached", third[0])
+
     def test_full_inventory_only_on_force_and_then_sticks(self):
         s3 = seeded_s3()
         settings = cfg.parse({"node": "data", "minio": {"events": False, "weekly": False}})

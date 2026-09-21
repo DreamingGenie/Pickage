@@ -19,9 +19,16 @@ class ParseTest(unittest.TestCase):
 
     def test_paths_become_specs(self):
         s = cfg.parse({"node": "data", "local": {"paths": [
-            {"path": "/host/srv/x", "label": "/srv/x"}, {"path": "/host/y"}]}})
+            {"path": "/host/srv/x", "label": "/srv/x"}, {"path": "/host/y"},
+            {"path": "/host/docs", "refresh_seconds": 600, "note": "RAG 캐시"}]}})
         self.assertEqual([(p.path, p.label) for p in s.local.paths],
-                         [("/host/srv/x", "/srv/x"), ("/host/y", "/host/y")])
+                         [("/host/srv/x", "/srv/x"), ("/host/y", "/host/y"), ("/host/docs", "/host/docs")])
+        self.assertEqual([(p.refresh_seconds, p.note) for p in s.local.paths],
+                         [(0, ""), (0, ""), (600, "RAG 캐시")])
+        with self.assertRaises(cfg.ConfigError):
+            cfg.parse({"node": "data", "local": {"paths": [{"path": "/x", "refresh": 5}]}})   # 오타는 멈춘다
+        with self.assertRaises(cfg.ConfigError):
+            cfg.parse({"node": "data", "local": {"paths": [{"path": "/x", "refresh_seconds": -1}]}})
 
     def test_unknown_key_is_an_error_not_silence(self):
         with self.assertRaises(cfg.ConfigError):

@@ -16,7 +16,7 @@ class ScanPathTest(unittest.TestCase):
         self._file("downloads-weekly/2026-09-14/raw/a.json", b"x" * 100, old)
         self._file("downloads-weekly/2026-09-21/raw/b.json", b"y" * 50, self.now - 60)
         self._file("downloads-weekly/2026-09-21/logs/downloads_weekly.log", b"line\n", self.now - 30)
-        self._file("raw/projects/snapshot=2026-09-14/p.parquet", b"z" * 10, old)
+        self._file("raw/projects/snapshot=2026-09-14/p.parquet", b"z" * 10, old + 3600)   # a.json 보다 한 시간 뒤
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -39,6 +39,21 @@ class ScanPathTest(unittest.TestCase):
         self.assertEqual(out["new"]["bytes"], 55)
         self.assertEqual(out["new"]["list"][0]["path"], "downloads-weekly/2026-09-21/logs/downloads_weekly.log")
         self.assertIsNotNone(out["disk"])
+        # 가장 오래된 것부터. 항목 표에도 '가장 오래된' 시각이 붙는다 — 캐시를 언제부터 채웠는지
+        self.assertEqual([f["path"] for f in out["oldest"][:2]],
+                         ["downloads-weekly/2026-09-14/raw/a.json", "raw/projects/snapshot=2026-09-14/p.parquet"])
+        entry = next(e for e in out["entries"] if e["name"] == "downloads-weekly")
+        self.assertLess(entry["oldest"], entry["latest"])
+
+    def test_lists_are_bounded_during_the_walk(self):
+        """20만 파일을 훑어도 목록은 max_new_files 개만 든다 — 순회 중에 잘라 낸다."""
+        out = localfs.scan_path(str(self.root), "/srv/x", now_epoch=self.now,
+                                window_hours=24, max_new_files=1, max_entries=10)
+        self.assertEqual(out["new"]["files"], 2)                     # 개수는 다 센다
+        self.assertEqual(len(out["new"]["list"]), 1)                 # 목록은 가장 최근 하나
+        self.assertEqual(out["new"]["list"][0]["path"], "downloads-weekly/2026-09-21/logs/downloads_weekly.log")
+        self.assertEqual(len(out["oldest"]), 1)
+        self.assertEqual(out["oldest"][0]["path"], "downloads-weekly/2026-09-14/raw/a.json")
 
     def test_missing_path_is_reported_not_raised(self):
         out = localfs.scan_path(str(self.root / "nope"), "/srv/nope", now_epoch=self.now,

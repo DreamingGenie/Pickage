@@ -25,10 +25,20 @@ minio:
   inventory: false          # 전체 목록 조회도 data 노드가 한다 (화면은 여기서 중계한다)
   weekly: false
 
-# 이 노드의 파이프라인 관련 로컬 경로는 named volume 뿐이라(similarity-loader-work) 훑지 않는다.
+# 이 노드의 로컬 디스크에서 파이프라인과 닿는 것은 RAG 문헌 캐시 하나다. 산출물 작업 폴더
+# (similarity-loader-work·package-env-loader-work)는 named volume 이라 훑지 않는다.
 local:
-  paths: []
+  paths:
+    # README 인계 파일 캐시 (S15P21A506-393). api 가 jsDelivr 에서 받아 여기 쓰고, rag-api 가 읽는다.
+    # 배치: <루트>/<첫 글자 샤드>/<이름(‘/’→‘__’)>@<버전>.md — 바로 아래 항목 표가 곧 샤드별 표다.
+    # 프리로드 19만 건 + 요청마다 늘어난다. 매 보고서(15초)마다 stat 20만 번을 할 이유가 없어
+    # 10분에 한 번 훑고 그 사이는 마지막 결과를 낸다("지금 확인" 은 바로 훑는다).
+    - path: /host/srv/pickage/docs
+      label: /srv/pickage/docs
+      refresh_seconds: 600
+      note: RAG README 인계 파일 캐시 — 첫 글자 샤드. api 가 채우고 rag-api 가 읽는다
   log_globs: []
+  max_entries: 40          # 샤드는 0-9·a-z·_ 라 37개까지. 전부 보인다
 
 docker:
   enabled: true

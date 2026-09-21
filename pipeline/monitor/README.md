@@ -9,7 +9,7 @@ netdata 는 CPU·메모리·디스크·컨테이너 **자원**을 본다 (`deplo
 | **방금 무엇이 올라왔나**, 어느 실행이 방금 끝났나 | 버킷 **이벤트 구독** (MinIO `ListenBucketNotification`) — 목록 조회 없음 | `minio.events` |
 | 모니터가 켜지기 전엔 무엇이 있었나, 경로별 개수·크기 | 버킷 전체 LIST — **사람이 버튼을 누를 때만** | `/api/inventory` |
 | 소비자가 지금 어느 실행을 읽나 | `_current.json` 포인터 | `minio.pointers` |
-| 로컬 디스크에 무엇이 쌓였나, 단계별 로그는 어떤가 | `/srv/pickage/ingest-work` · `logs/<step>.log` | `local` |
+| 로컬 디스크에 무엇이 쌓였나, 단계별 로그는 어떤가 | data: `/srv/pickage/ingest-work` · `logs/<step>.log` — app: RAG 문헌 캐시 `/srv/pickage/docs` (샤드별 개수·크기, 최근/가장 오래된 파일) | `local` |
 | 파이프라인 컨테이너의 상태·종료 코드·로그 꼬리 | Docker API (소켓, GET 만) | `docker` |
 
 **HTTP 서버 하나가 노드마다 뜬다.** 요청이 오면 그때 계산해서 JSON 으로 답한다 — 미리 파일로
@@ -102,7 +102,7 @@ docker compose run --rm pipeline-monitor --once | less
 | `minio.depth` · `depth_overrides` | 경로 집계 깊이. raw·curated 는 4 (스냅샷·수집일까지). 이벤트 집계도 같은 규칙 |
 | `minio.max_objects` | 전체 목록이 넘기면 멈추고 `truncated` 를 켠다 — 화면이 "잘렸다" 고 말한다 |
 | `minio.pointers` | 읽을 `_current.json` 들 (`bucket/key`) |
-| `local.paths` · `log_globs` | 훑을 호스트 경로(컨테이너 안 경로 + 사람용 라벨)와 로그 패턴 |
+| `local.paths` · `log_globs` | 훑을 호스트 경로(컨테이너 안 경로 + 사람용 라벨)와 로그 패턴. 경로마다 `refresh_seconds`(0 = 보고서마다. 파일이 수십만 개인 캐시는 600 처럼 주기를 준다 — 그 사이는 마지막 결과를 `cached: true` 로 낸다. "지금 확인" 은 바로 훑는다)와 `note`(화면 머리 한 줄) |
 | `docker.name_pattern` | 어느 컨테이너를 보나. 멈춘 것도 포함한다 — 종료 코드가 정보다. 모니터링 스택 자신은 뺀다 |
 | `docker.error_pattern` | 로그 꼬리에서 "에러 줄" 로 셀 정규식. 로컬 로그에도 같은 것을 쓴다 |
 
@@ -132,9 +132,11 @@ docker compose run --rm pipeline-monitor --once | less
                  "totals": {"created": 300, "removed": 0, "bytes": …}},
       "inventory": {"available": true, "listed_at": …, "took_seconds": 4.1},   // 마지막 전체 목록의 요약. 본문은 /api/inventory
       "inventory_enabled": true},
-  "local": {"paths": [{"label": "/srv/pickage/ingest-work", "bytes": …, "files": …, "latest": …,
-                       "entries": [{"name": "downloads-weekly", "bytes": …, "files": …, "latest": …}],
+  "local": {"paths": [{"label": "/srv/pickage/ingest-work", "note": "", "bytes": …, "files": …, "latest": …,
+                       "scanned_at": …, "scan_seconds": 0.4, "refresh_seconds": 0,           // cached: true 면 refresh 주기 안의 마지막 결과
+                       "entries": [{"name": "downloads-weekly", "bytes": …, "files": …, "latest": …, "oldest": …}],   // 바로 아래 항목별. 문헌 캐시면 샤드별
                        "new": {"window_hours": 24, "files": 120, "bytes": …, "list": [{"path": …, "bytes": …, "modified": …}]},
+                       "oldest": [{"path": …, "bytes": …, "modified": …}],                    // 가장 오래된 max_new_files 개
                        "disk": {"total": …, "used": …, "free": …}}],
             "logs": [{"path": "/srv/pickage/ingest-work/downloads-weekly/2026-09-21/logs/downloads_weekly.log",
                       "size": …, "modified": …, "tail": ["…"], "error_lines": 0}]},

@@ -73,6 +73,8 @@ class Builder:
         self.store: events.EventStore | None = None
         self.inventory_result: dict | None = None
         self.inventory_lock = threading.Lock()
+        # refresh_seconds 를 둔 경로의 마지막 스캔 — path → (monotonic, 결과). 20만 파일을 15초마다 훑지 않게.
+        self.local_scans: dict[str, tuple[float, dict]] = {}
         m = settings.minio
         if m.events and s3 is not None:
             self.store = events.EventStore(retention_hours=m.events_retention_hours, max_events=m.events_max,
@@ -136,13 +138,24 @@ class Builder:
                 self.s3, bucket=m.weekly_bucket, max_runs=m.weekly_max_runs, now=now))
         l = settings.local
         if l.paths or l.log_globs:
+            def scan(p: cfg.PathSpec) -> dict:
+                hit = self.local_scans.get(p.path)
+                if hit and not fresh and time.monotonic() - hit[0] < p.refresh_seconds:
+                    return {**hit[1], "cached": True}
+                begun = time.monotonic()
+                out = localfs.scan_path(p.path, p.label, now_epoch=now.timestamp(),
+                                        window_hours=l.new_window_hours,
+                                        max_new_files=l.max_new_files, max_entries=l.max_entries)
+                out.update({"scanned_at": now.isoformat(timespec="seconds"),
+                            "scan_seconds": round(time.monotonic() - begun, 2),
+                            "refresh_seconds": p.refresh_seconds, "note": p.note})
+                if p.refresh_seconds > 0:
+                    self.local_scans[p.path] = (time.monotonic(), out)
+                return out
+
             def local():
-                epoch = now.timestamp()
                 return {
-                    "paths": [localfs.scan_path(p.path, p.label, now_epoch=epoch,
-                                                window_hours=l.new_window_hours,
-                                                max_new_files=l.max_new_files,
-                                                max_entries=l.max_entries) for p in l.paths],
+                    "paths": [scan(p) for p in l.paths],
                     "logs": localfs.scan_logs(l.log_globs, tail=l.tail_lines,
                                               error_pattern=settings.docker.error_pattern,
                                               max_logs=l.max_logs, strip_prefix="/host"),

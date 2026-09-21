@@ -85,6 +85,11 @@
   td { padding:6px 8px 6px 0; border-bottom:1px solid var(--hair); vertical-align:top; }
   tr:last-child td { border-bottom:0; }
   th.r, td.r { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  th.sort { cursor:pointer; user-select:none; }
+  th.sort:hover { color:var(--fg); }
+  th.sort::after { content:" ↕"; opacity:.35; }
+  th.sort.asc::after { content:" ↑"; opacity:1; }
+  th.sort.desc::after { content:" ↓"; opacity:1; }
   td.name { font-weight:500; word-break:break-all; }
   tr.new td { background:var(--new); }
   td.new, .newfg { color:var(--newfg); font-weight:600; }
@@ -172,6 +177,31 @@ function pre(lines, errRe) {
   return '<pre>' + lines.map(l => errRe && errRe.test(l) ? `<span class="err">${esc(l)}</span>` : esc(l)).join('\n') + '</pre>';
 }
 const ERR_RE = /\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b/i;
+
+// ── 정렬되는 표 ─────────────────────────────────────────────────────────
+// 머리를 누르면 그 열로 정렬하고, 같은 열을 다시 누르면 방향이 뒤집힌다. 상태는 표 id 별로 남아
+// 15초 갱신에도 유지된다 — 화면은 서버 값으로 다시 그려지지만 정렬은 사람이 고른 것이다.
+const sortState = {};
+let lastDraw = null;
+function setSort(id, key) {
+  const cur = sortState[id];
+  sortState[id] = cur && cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' };
+  if (lastDraw) draw(...lastDraw);
+}
+// cols: [{key, label, type: 'str'|'num'|'time', cls, render(row) → html}]. def: {key, dir}. rowCls(row) → tr class.
+function table(id, cols, rows, def, rowCls) {
+  const st = sortState[id] || def || { key: cols[0].key, dir: 'asc' };
+  const col = cols.find(c => c.key === st.key) || cols[0];
+  const val = r => { const x = r[col.key]; return col.type === 'time' ? (Date.parse(x) || 0) : col.type === 'str' ? String(x == null ? '' : x) : (x == null ? -Infinity : +x); };
+  const sorted = rows.slice().sort((a, b) => {
+    const x = val(a), y = val(b);
+    const c = col.type === 'str' ? x.localeCompare(y, 'ko') : x - y;
+    return st.dir === 'asc' ? c : -c;
+  });
+  const head = cols.map(c => `<th class="sort ${c.cls || ''} ${st.key === c.key ? st.dir : ''}" onclick="setSort('${esc(id)}','${esc(c.key)}')" title="정렬">${esc(c.label)}</th>`).join('');
+  const body = sorted.map(r => `<tr class="${rowCls ? rowCls(r) : ''}">${cols.map(c => `<td class="${c.cls || ''}">${c.render(r)}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
 
 // 판정 누적. 한 곳에서만 올린다 — 어디서 무엇 때문에 색이 바뀌었는지 목록으로 남는다.
 const findings = [];
@@ -342,9 +372,9 @@ function renderInventory(node, minio, now) {
 }
 
 // ── 로컬 디스크 ─────────────────────────────────────────────────────────
-function renderLocal(node, local, now) {
+function renderLocal(node, section, now) {   // 인자 이름이 local 이면 전역 local(iso) 을 가린다
   if (!local) return '';
-  const paths = (local.paths || []).map(p => {
+  const paths = (section.paths || []).map((p, i) => {
     if (p.missing) { flag('warn', `${node}: ${p.label} 이 없습니다 (마운트 확인).`); return `<div class="bucket"><h3>${esc(p.label)}</h3><div class="fail">경로가 없습니다 — compose 의 마운트를 보세요.</div></div>`; }
     const d = p.disk; let disk = '';
     if (d && d.total) {
@@ -355,19 +385,37 @@ function renderLocal(node, local, now) {
         <div><div class="k">이 경로</div><div class="v">${bytes(p.bytes)}</div><div class="n">${num(p.files)} 파일 · 최근 변경 ${ago(p.latest, now)}</div></div>
         <div><div class="k">지난 ${p.new.window_hours}시간 신규</div><div class="v ${p.new.files ? 'newfg' : ''}">${num(p.new.files)} 파일</div><div class="n">${bytes(p.new.bytes)}</div></div></div>`;
     }
-    const entries = (p.entries || []).map(e => `<tr class="${Date.parse(e.latest) >= now - p.new.window_hours * 3600 * 1000 ? 'new' : ''}"><td class="name mono">${esc(e.name)}</td><td class="r">${num(e.files)}</td><td class="r">${bytes(e.bytes)}</td><td class="r">${ago(e.latest, now)}</td></tr>`).join('');
-    const fresh = (p.new.list || []).map(f => `${esc(f.modified.slice(0, 19).replace('T', ' '))}  ${bytes(f.bytes).padStart(9)}  ${esc(f.path)}`).join('\n');
-    return `<div class="bucket"><h3>${esc(p.label)}</h3>${disk}
-      <table><thead><tr><th>바로 아래</th><th class="r">파일</th><th class="r">크기</th><th class="r">최근 변경</th></tr></thead><tbody>${entries}</tbody></table>
-      ${p.new.files ? `<details><summary>지난 ${p.new.window_hours}시간에 생기거나 바뀐 파일 (최근 ${p.new.list.length}개)</summary><pre>${fresh}</pre></details>` : ''}
+    // 언제 훑었나. refresh_seconds 를 둔 경로(문헌 캐시)는 매 보고서가 아니라 주기마다 훑는다 — 그 시각을 숨기지 않는다.
+    const scanned = p.scanned_at ? `${ago(p.scanned_at, now)} 훑음 · ${p.scan_seconds ?? '—'}초 걸림${p.refresh_seconds ? ` · ${Math.round(p.refresh_seconds / 60)}분마다` : ' · 보고서마다'}` : '';
+    const isNew = t => Date.parse(t) >= now - p.new.window_hours * 3600 * 1000;
+    const id = `${node}-local-${i}`;
+    const fileCols = [
+      { key: 'modified', label: '시각', type: 'time', cls: 'r', render: f => `<span title="${esc(local(f.modified))}">${esc(f.modified.slice(0, 19).replace('T', ' '))}</span>` },
+      { key: 'bytes', label: '크기', type: 'num', cls: 'r', render: f => bytes(f.bytes) },
+      { key: 'path', label: '경로', type: 'str', cls: 'name mono', render: f => esc(f.path) },
+    ];
+    const entries = table(`${id}-entries`, [
+      { key: 'name', label: '바로 아래', type: 'str', cls: 'name mono', render: e => esc(e.name) },
+      { key: 'files', label: '파일', type: 'num', cls: 'r', render: e => num(e.files) },
+      { key: 'bytes', label: '크기', type: 'num', cls: 'r', render: e => bytes(e.bytes) },
+      { key: 'latest', label: '최근 변경', type: 'time', cls: 'r', render: e => ago(e.latest, now) },
+      { key: 'oldest', label: '가장 오래된', type: 'time', cls: 'r', render: e => ago(e.oldest, now) },
+    ], p.entries || [], { key: 'latest', dir: 'desc' }, e => isNew(e.latest) ? 'new' : '');
+    const more = p.entries_total > (p.entries || []).length ? `<div class="note">바로 아래 항목 ${num(p.entries_total)}개 중 최근 변경순 ${p.entries.length}개만 보입니다 (local.max_entries).</div>` : '';
+    const newList = p.new.files ? `<details><summary>지난 ${p.new.window_hours}시간에 생기거나 바뀐 파일 (최근 ${p.new.list.length}개)</summary>${table(`${id}-new`, fileCols, p.new.list, { key: 'modified', dir: 'desc' }, () => 'new')}</details>` : '';
+    const oldList = (p.oldest || []).length ? `<details><summary>가장 오래된 파일 ${p.oldest.length}개 — 캐시라면 비울 후보, 산출물이라면 안 지워진 옛 회차</summary>${table(`${id}-old`, fileCols, p.oldest, { key: 'modified', dir: 'asc' })}</details>` : '';
+    return `<div class="bucket"><h3>${esc(p.label)}${p.note ? `<span>${esc(p.note)}</span>` : ''}</h3>${disk}
+      ${scanned ? `<div class="note">${scanned}. 표 머리를 누르면 그 열로 정렬됩니다.</div>` : ''}
+      ${entries}${more}
+      ${newList}${oldList}
     </div>`;
   }).join('');
-  const logs = (local.logs || []).map(l => {
+  const logs = (section.logs || []).map(l => {
     if (l.error_lines) flag('warn', `${node}: 로그 ${l.path} 꼬리에 에러로 보이는 줄이 ${l.error_lines}개 있습니다.`);
     return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ` · <b class="chip warn">에러 ${l.error_lines}줄</b>` : ''}</summary>${pre(l.tail, ERR_RE)}</details>`;
   }).join('');
   return `<section class="card"><header><b>로컬 디스크 · ${esc(node)}</b><span>MinIO 에 올라가기 전의 산출물과 단계별 로그</span></header>${paths}
-    ${logs ? `<div class="bucket"><h3>단계별 로그 <span>최근 ${local.logs.length}개 · 꼬리 ${local.logs[0].tail.length}줄</span></h3>${logs}</div>` : ''}
+    ${logs ? `<div class="bucket"><h3>단계별 로그 <span>최근 ${section.logs.length}개 · 꼬리 ${section.logs[0].tail.length}줄</span></h3>${logs}</div>` : ''}
   </section>`;
 }
 
@@ -428,8 +476,24 @@ function setVerdict(cls, title, desc, items) {
   v.querySelector('.d').innerHTML = esc(desc) + (items && items.length ? '<ul>' + items.map(i => `<li>${esc(i)}</li>`).join('') + '</ul>' : '');
 }
 
-async function refreshOnce(fresh) {
+// 받아 둔 보고서로 화면을 그린다. 정렬을 바꿀 때는 서버에 다시 묻지 않고 이것만 다시 부른다.
+function draw(nodes, reports, now, elapsed) {
   findings.length = 0; worst = 'ok';
+  lastDraw = [nodes, reports, now, elapsed];
+  // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
+  const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
+  if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.');
+  document.getElementById('body').innerHTML = order.map(x => renderNode(x.n, x.r, now)).join('');
+
+  document.getElementById('updated').textContent =
+    `${new Date(now).toLocaleTimeString('ko-KR')} 기준 · ${elapsed.toFixed(1)}초 걸림 · 15초마다`;
+  const items = findings.map(f => f.text);
+  if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·컨테이너·로그에서 걸리는 것이 없습니다.', []);
+  else if (worst === 'warn') setVerdict('is-warn', '주의', '아래 항목을 보세요. 당장 장애는 아니지만 두면 커지거나, 확인이 필요한 것입니다.', items);
+  else setVerdict('is-bad', '문제', '아래 빨간 항목부터 보세요.', items);
+}
+
+async function refreshOnce(fresh) {
   const started = Date.now();
   try {
     const r = await fetch('api/nodes', { cache: 'no-store' });
@@ -455,17 +519,7 @@ async function refreshOnce(fresh) {
       } catch (e) { /* 전체 목록은 없어도 화면은 선다 */ }
     }));
     const now = Date.now();
-    // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
-    const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
-    if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.');
-    document.getElementById('body').innerHTML = order.map(x => renderNode(x.n, x.r, now)).join('');
-
-    document.getElementById('updated').textContent =
-      `${new Date().toLocaleTimeString('ko-KR')} 기준 · ${((now - started) / 1000).toFixed(1)}초 걸림 · 15초마다`;
-    const items = findings.map(f => f.text);
-    if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·컨테이너·로그에서 걸리는 것이 없습니다.', []);
-    else if (worst === 'warn') setVerdict('is-warn', '주의', '아래 항목을 보세요. 당장 장애는 아니지만 두면 커지거나, 확인이 필요한 것입니다.', items);
-    else setVerdict('is-bad', '문제', '아래 빨간 항목부터 보세요.', items);
+    draw(nodes, reports, now, (now - started) / 1000);
   } catch (e) {
     setVerdict('is-bad', '상태를 읽지 못했습니다', e.message + ' — pipeline-monitor 가 내려갔거나 SSH 터널(19998)이 끊겼을 수 있습니다.', []);
     document.getElementById('updated').textContent = '갱신 실패 · ' + new Date().toLocaleTimeString('ko-KR');

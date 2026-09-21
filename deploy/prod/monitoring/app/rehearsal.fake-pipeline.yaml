@@ -22,9 +22,11 @@ services:
       PICKAGE_S3_SECRET_KEY: ${MONITOR_S3_SECRET_KEY}
       FAKE_STEP_SECONDS: ${FAKE_STEP_SECONDS:-8}
       FAKE_INGEST_WORK: /host/srv/pickage/ingest-work
+      FAKE_DOCS: /host/srv/pickage/docs            # app 노드의 RAG 문헌 캐시 흉내 (샤드 몇 개, 틱마다 한 건)
     volumes:
       - ../../../../pipeline:/opt/work/pipeline:ro
       - fake-ingest-work:/host/srv/pickage/ingest-work
+      - fake-docs:/host/srv/pickage/docs
     entrypoint: ["python", "-m", "pipeline.monitor.fake_pipeline"]
 
   # data 역할 모니터가 가짜 산출물 디렉터리를 실제 경로처럼 본다.
@@ -32,5 +34,11 @@ services:
     volumes:
       - fake-ingest-work:/host/srv/pickage/ingest-work:ro
 
+  # app 역할 모니터가 가짜 문헌 캐시를 실제 경로처럼 본다 (운영 compose 의 /srv/pickage/docs 마운트 자리).
+  pipeline-monitor:
+    volumes:
+      - fake-docs:/host/srv/pickage/docs:ro
+
 volumes:
   fake-ingest-work:
+  fake-docs:

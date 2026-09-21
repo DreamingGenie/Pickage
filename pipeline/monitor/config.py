@@ -26,6 +26,10 @@ class ConfigError(Exception):
 class PathSpec:
     path: str          # 컨테이너 안에서 보이는 경로 (보통 /host/... 로 마운트)
     label: str         # 사람이 아는 호스트 경로. 화면에는 이것이 찍힌다
+    # 몇 초에 한 번 훑나. 0 이면 보고서마다(15초). 파일이 수십만 개인 캐시(/srv/pickage/docs)는
+    # 매 보고서마다 stat 20만 번을 할 이유가 없어 600 같은 값을 준다. "지금 확인" 은 무시하고 훑는다.
+    refresh_seconds: int = 0
+    note: str = ""     # 화면 머리에 붙는 한 줄 — 이 경로가 무엇인지 (예: RAG README 캐시, 첫 글자 샤드)
 
 
 @dataclass
@@ -120,8 +124,15 @@ def parse(raw: dict) -> Settings:
     paths = []
     for item in local_raw.pop("paths", []) or []:
         if not isinstance(item, dict) or "path" not in item:
-            raise ConfigError("local.paths 항목은 {path, label} 매핑이어야 한다")
-        paths.append(PathSpec(path=str(item["path"]), label=str(item.get("label") or item["path"])))
+            raise ConfigError("local.paths 항목은 {path, label, refresh_seconds, note} 매핑이어야 한다")
+        unknown = set(item) - set(PathSpec.__dataclass_fields__)
+        if unknown:
+            raise ConfigError(f"local.paths: 모르는 키 {sorted(unknown)}")
+        refresh = int(item.get("refresh_seconds") or 0)
+        if refresh < 0:
+            raise ConfigError("local.paths[].refresh_seconds 는 0 이상이어야 한다")
+        paths.append(PathSpec(path=str(item["path"]), label=str(item.get("label") or item["path"]),
+                              refresh_seconds=refresh, note=str(item.get("note") or "")))
     top_unknown = set(raw) - set(Settings.__dataclass_fields__)
     if top_unknown:
         raise ConfigError(f"모르는 최상위 키 {sorted(top_unknown)}")

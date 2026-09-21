@@ -7,6 +7,7 @@ MinIO 에 `_SUCCESS` 가 붙기 전의 산출물은 로컬(`/srv/pickage/ingest-
 from __future__ import annotations
 
 import glob
+import heapq
 import os
 import re
 import shutil
@@ -48,8 +49,23 @@ def _walk(root: Path):
                 continue
 
 
+def _keep(heap: list, item: tuple, cap: int) -> None:
+    """크기 cap 의 최소 힙. 넘치면 가장 작은 것을 버린다 — 순회 중 목록이 파일 수만큼 자라지 않게."""
+    if cap <= 0:
+        return
+    if len(heap) < cap:
+        heapq.heappush(heap, item)
+    else:
+        heapq.heappushpop(heap, item)
+
+
 def scan_path(path: str, label: str, *, now_epoch: float, window_hours: int,
               max_new_files: int, max_entries: int) -> dict:
+    """경로 하나를 끝까지 훑는다 — 파일 수·크기, 바로 아래 항목별 집계, 최근/가장 오래된 파일.
+
+    메모리는 파일 수에 비례하지 않는다. 바로 아래 항목(entries)은 항목 수만큼, 최근·오래된
+    목록은 각각 max_new_files 개까지만 든다 — 20만 파일짜리 캐시를 훑어도 수십 KB 다.
+    """
     root = Path(path)
     if not root.is_dir():
         return {"label": label, "missing": True}
@@ -57,27 +73,32 @@ def scan_path(path: str, label: str, *, now_epoch: float, window_hours: int,
     entries: dict[str, dict] = {}
     total_bytes = total_files = 0
     latest = None
-    new_files: list[tuple[float, str, int]] = []
+    newest: list[tuple[float, str, int]] = []    # (mtime, …) 최소 힙 → 가장 최근 N개가 남는다
+    oldest: list[tuple[float, str, int]] = []    # (-mtime, …) 최소 힙 → 가장 오래된 N개가 남는다
     new_bytes = new_count = 0
     for rel, size, mtime in _walk(root):
         total_bytes += size
         total_files += 1
         if latest is None or mtime > latest:
             latest = mtime
-        head = rel.replace(os.sep, "/").split("/", 1)[0]
-        bucket = entries.setdefault(head, {"name": head, "bytes": 0, "files": 0, "latest": None})
+        rel = rel.replace(os.sep, "/")
+        head = rel.split("/", 1)[0]
+        bucket = entries.setdefault(head, {"name": head, "bytes": 0, "files": 0, "latest": None, "oldest": None})
         bucket["bytes"] += size
         bucket["files"] += 1
         if bucket["latest"] is None or mtime > bucket["latest"]:
             bucket["latest"] = mtime
+        if bucket["oldest"] is None or mtime < bucket["oldest"]:
+            bucket["oldest"] = mtime
+        _keep(oldest, (-mtime, rel, size), max_new_files)
         if mtime >= since:
             new_count += 1
             new_bytes += size
-            new_files.append((mtime, rel.replace(os.sep, "/"), size))
-    new_files.sort(reverse=True)
+            _keep(newest, (mtime, rel, size), max_new_files)
     rows = sorted(entries.values(), key=lambda e: (e["latest"] or 0), reverse=True)
     for row in rows:
         row["latest"] = _iso(row["latest"]) if row["latest"] else None
+        row["oldest"] = _iso(row["oldest"]) if row["oldest"] else None
     return {
         "label": label,
         "bytes": total_bytes,
@@ -87,7 +108,10 @@ def scan_path(path: str, label: str, *, now_epoch: float, window_hours: int,
         "entries_total": len(rows),
         "new": {"window_hours": window_hours, "files": new_count, "bytes": new_bytes,
                 "list": [{"path": rel, "bytes": size, "modified": _iso(mtime)}
-                         for mtime, rel, size in new_files[:max_new_files]]},
+                         for mtime, rel, size in sorted(newest, key=lambda t: (-t[0], t[1]))]},   # 최근 것부터, 같으면 경로순
+        # 가장 오래된 파일 — 캐시라면 비울 후보, 산출물이라면 안 지워진 옛 회차다.
+        "oldest": [{"path": rel, "bytes": size, "modified": _iso(-neg)}
+                   for neg, rel, size in sorted(oldest, key=lambda t: (-t[0], t[1]))],            # 오래된 것부터, 같으면 경로순
         "disk": disk_usage(path),
     }
 

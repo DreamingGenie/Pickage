@@ -6,6 +6,7 @@
     pickage-raw/depsdev/v1/.../_SUCCESS            입고가 끝나면 완료 표시가 찍힌다
     pickage-raw/npm-downloads/v1/run_id=.../data/  parquet 파트가 몇 초마다 하나씩 늘어난다
     <ingest-work>/downloads-weekly/<week>/logs/    단계별 로그가 쌓인다 (가끔 WARN·ERROR 줄)
+    <docs>/<샤드>/<이름>@<버전>.md                  app 노드의 RAG 문헌 캐시 — 시작 때 수백 건, 틱마다 한 건 (FAKE_DOCS)
     stdout                                          컨테이너 로그 (이름이 pickage-weekly-run 이라 화면에 잡힌다)
 
 한 회차가 끝나면 다음 주차로 넘어가 계속 돈다. 지난 회차 셋(성공·성공·BLOCKED + 수동 요청)은
@@ -13,6 +14,7 @@
 
     FAKE_STEP_SECONDS   한 틱(파트 하나) 간격. 기본 8초
     FAKE_INGEST_WORK    로컬 산출물 루트. 기본 /host/srv/pickage/ingest-work
+    FAKE_DOCS           문헌 캐시 루트. 비우면 안 만든다
     PICKAGE_S3_*        MinIO 자격증명 (config.s3_credentials 와 같다)
 """
 from __future__ import annotations
@@ -51,6 +53,10 @@ class Fake:
         self.s3 = s3_client()
         self.work = Path(os.environ.get("FAKE_INGEST_WORK", "/host/srv/pickage/ingest-work"))
         self.tick = float(os.environ.get("FAKE_STEP_SECONDS", "8"))
+        # app 노드의 RAG 문헌 캐시(/srv/pickage/docs) 흉내. 비우면 안 만든다.
+        docs = os.environ.get("FAKE_DOCS", "")
+        self.docs = Path(docs) if docs else None
+        self.doc_n = 0
 
     # ── 저장 ──────────────────────────────────────────────────
     def put(self, bucket: str, key: str, body=b"") -> None:
@@ -63,6 +69,42 @@ class Fake:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a" if append else "w", encoding="utf-8") as handle:
             handle.write(text)
+
+    # ── 문헌 캐시 (app 노드 /srv/pickage/docs) ────────────────────
+    # 배치 규칙은 ai/rag/readme_source.py — <루트>/<첫 글자 샤드>/<이름('/'→'__')>@<버전>.md
+    DOC_NAMES = ("react", "lodash", "@types/node", "axios", "express", "vue", "typescript", "zod",
+                 "@babel/core", "eslint", "next", "chalk", "yaml", "uuid", "dayjs", "pg", "ora", "ky")
+
+    def seed_docs(self) -> None:
+        """샤드 몇 개에 문서 수백 건을 심는다. mtime 을 며칠 전으로 흩어 '가장 오래된 파일' 표가 채워지게."""
+        if self.docs is None:
+            return
+        now = time.time()
+        count = 0
+        for name in self.DOC_NAMES:
+            for minor in range(12):
+                path = self._doc_path(name, f"1.{minor}.0")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f"# {name} {minor}\n\nREADME 인계 파일 (가짜)\n" * 20, encoding="utf-8")
+                age = random.uniform(0, 40 * 86400)            # 0~40일 전
+                os.utime(path, (now - age, now - age))
+                count += 1
+        log(f"문헌 캐시 심음 {count}건 → {self.docs}")
+
+    def touch_doc(self) -> None:
+        """api 가 캐시 미스로 문헌 하나를 받아 쓰는 것을 흉내 낸다 — 틱마다 한 건."""
+        if self.docs is None:
+            return
+        self.doc_n += 1
+        name = random.choice(self.DOC_NAMES)
+        path = self._doc_path(name, f"2.{self.doc_n}.0")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# {name}\n\n방금 받은 README (가짜) #{self.doc_n}\n" * 30, encoding="utf-8")
+
+    def _doc_path(self, name: str, version: str) -> Path:
+        unscoped = name[1:] if name.startswith("@") else name
+        shard = unscoped[0].lower() if unscoped else "_"
+        return self.docs / shard / f"{name.replace('/', '__')}@{version}.md"
 
     # ── 회차 문서 ──────────────────────────────────────────────
     @staticmethod
@@ -162,6 +204,7 @@ class Fake:
                     line = f"{datetime.now(timezone.utc):%H:%M:%S} WARN 예산 8.2/26 GiB 사용"
                 self.write_local(logfile, line + "\n", append=True)
                 log(f"{name} {t + 1}/{TICKS[name]}")
+                self.touch_doc()
                 if name == "depsdev_t2":
                     self.put(RAW, f"depsdev/v1/projects/snapshot={week}/run_id=bronze-weekly-{tag}/data/part-{t:05d}.parquet",
                              os.urandom(1200))
@@ -190,6 +233,7 @@ class Fake:
         this_week = today - timedelta(days=today.weekday())
         log(f"시작 week_of={this_week} tick={self.tick}s work={self.work} endpoint={os.environ['PICKAGE_S3_ENDPOINT']}")
         self.seed_history(this_week)
+        self.seed_docs()
         week = this_week
         while True:
             self.run_week(week)
