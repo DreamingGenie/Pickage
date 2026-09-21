@@ -1,4 +1,4 @@
-import { HatchDef } from '@/components/charts/version-share'
+import { HatchDef, ShareDonut } from '@/components/charts/version-share'
 import { SHARE_FILLS } from '@/components/charts/tokens'
 import {
   activityShares,
@@ -6,6 +6,9 @@ import {
   type TransitionDataStatus,
 } from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
+
+/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널의 "값/비율" 토글이 고른다. */
+export type TransitionBarsMode = 'value' | 'ratio'
 
 type CategoryKey = 'retained' | 'inflowAdopted' | 'outflow' | 'unobserved'
 
@@ -37,15 +40,26 @@ export function TransitionBars({
   counts,
   dataStatus,
   max,
+  mode = 'value',
   className,
 }: {
   counts: TransitionCounts | null
   dataStatus: TransitionDataStatus
   /** 비교 중인 패키지 전체를 통틀어 호출자가 한 번 계산한 값 — 여기서 스케일을
-   *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. */
+   *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. `ratio` 모드에서는
+   *  쓰지 않는다(도넛은 패키지마다 자기 안에서 100%다). */
   max: number
+  mode?: TransitionBarsMode
   className?: string
 }) {
+  if (mode === 'ratio') {
+    return (
+      <div className={cn('flex flex-col gap-1.5', className)}>
+        <RatioDonut counts={counts} dataStatus={dataStatus} />
+      </div>
+    )
+  }
+
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <svg width="0" height="0" aria-hidden className="absolute">
@@ -72,31 +86,84 @@ export function TransitionBars({
           포함
         </p>
       )}
-      {counts && <ActivityLine counts={counts} />}
     </div>
   )
 }
 
 /**
- * 활동 대비 비율 한 줄 (S15P21A506-427).
+ * 활동 대비 비율 — 도넛 (S15P21A506-427, 재설계 S15P21A506-427 후속).
  *
- * 막대 길이는 **전체 대비**다 — 1년 구간이면 `릴리스 없음` 하나가 화면을 먹어 나머지 셋을 서로
- * 비교할 수 없다. 그래서 판정한 의존자를 분모로 한 비율을 한 줄 덧붙인다. 둘을 나란히 두는 것이
- * 핵심이라 토글로 감추지 않는다 — 전체 대비는 "얼마나 봤나", 활동 대비는 "본 것 중 무엇이
- * 일어났나"이고, 하나만 보이면 각각 다른 방향으로 거짓말을 한다.
+ * 막대(값 모드)는 **전체 대비**다 — 1년 구간이면 `릴리스 없음` 하나가 화면을 먹어 나머지 셋을
+ * 서로 비교할 수 없다. 그래서 판정한 의존자만 분모로 삼은 비율을 **도넛**으로 따로 보여준다.
+ * 글로 "유지 72.6% · 유입 10.4% · 이탈 17.0%" 를 늘어놓는 것보다, 세 조각이 원 하나를 나눠
+ * 가진 그림이 "본 것 중 무엇이 일어났나" 를 한눈에 전한다(리뷰에서 텍스트 줄이 안 읽힌다는
+ * 지적을 받았다).
+ *
+ * 전체 대비(막대)와 활동 대비(도넛)를 **토글로 가른다** — 막대는 "얼마나 봤나", 도넛은 "본
+ * 것 중 무엇이 일어났나" 이고, 한 화면에 억지로 같이 두면 서로 다른 분모의 숫자가 뒤섞여
+ * 더 헷갈린다.
  *
  * 분모가 `inflowAdopted`인 이유는 `activityShares` 주석에 있다.
  */
-function ActivityLine({ counts }: { counts: TransitionCounts }) {
-  const shares = activityShares(counts)
-  if (!shares) return null
-  const pct = (v: number) => `${v.toFixed(1)}%`
+function RatioDonut({
+  counts,
+  dataStatus,
+}: {
+  counts: TransitionCounts | null
+  dataStatus: TransitionDataStatus
+}) {
+  const shares = counts ? activityShares(counts) : null
+
+  if (!shares) {
+    const message =
+      dataStatus === 'OUT_OF_SCOPE'
+        ? '분석 대상 아님 · top-100k 밖'
+        : dataStatus === 'NOT_COMPUTED'
+          ? '준비 중'
+          : '판정한 의존자가 없습니다'
+    return <p className="text-base text-muted-foreground">{message}</p>
+  }
+
   return (
-    <p className="-mt-0.5 text-base text-muted-foreground/80">
-      의존자 {shares.total.toLocaleString()} 중 {shares.active.toLocaleString()} 판정 — 유지{' '}
-      {pct(shares.retainedPct)} · 유입 {pct(shares.inflowAdoptedPct)} · 이탈{' '}
-      {pct(shares.outflowPct)}
-    </p>
+    <div className="flex items-center gap-4">
+      <ShareDonut
+        size={72}
+        ariaLabel="유지·유입·이탈 활동 대비 비율"
+        groups={[
+          { label: CATEGORIES[0].label, share: shares.retainedPct / 100 },
+          { label: CATEGORIES[1].label, share: shares.inflowAdoptedPct / 100 },
+          { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
+        ]}
+      />
+      <dl className="flex min-w-0 flex-1 flex-col gap-1">
+        <RatioRow fill={CATEGORIES[0].fill} label={CATEGORIES[0].label} pct={shares.retainedPct} />
+        <RatioRow
+          fill={CATEGORIES[1].fill}
+          label={CATEGORIES[1].label}
+          pct={shares.inflowAdoptedPct}
+        />
+        <RatioRow fill={CATEGORIES[2].fill} label={CATEGORIES[2].label} pct={shares.outflowPct} />
+        <p className="mt-1 text-base text-muted-foreground/80">
+          의존자 {shares.total.toLocaleString()} 중 {shares.active.toLocaleString()} 판정
+        </p>
+      </dl>
+    </div>
+  )
+}
+
+function RatioRow({ fill, label, pct }: { fill: string; label: string; pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+        style={{ background: fill }}
+        aria-hidden
+      />
+      <dt className="text-base text-muted-foreground">{label}</dt>
+      <dd className="ml-auto font-mono text-base text-muted-foreground tabular-nums">
+        {pct.toFixed(1)}%
+      </dd>
+    </div>
   )
 }
 

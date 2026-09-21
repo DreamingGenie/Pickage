@@ -52,11 +52,27 @@ export function ShareDonut({
   size = 116,
   className,
   ariaLabel,
+  centerOverride,
+  fills,
 }: {
   groups: ShareGroup[]
   size?: number
   className?: string
   ariaLabel: string
+  /**
+   * 가운데 글자를 "가장 큰 몫"이 아니라 정해진 항목으로 고정한다.
+   *
+   * 이탈 사유 도넛이 이걸 쓴다 — "대체 없이 제거"가 이 지표의 결론이라 몫이 절반을 안 넘어도
+   * 항상 가운데에 둬야 한다(구상안 §RemovalBars). 없으면 기존처럼 가장 큰 몫을 고른다.
+   */
+  centerOverride?: { label: string; share: number }
+  /**
+   * 자리(index)별 색을 지정한다. 없으면 기존처럼 `SHARE_FILLS`를 순서대로 쓴다.
+   *
+   * 이탈 사유 도넛이 이걸 쓴다 — 두 조각뿐인데 `SHARE_FILLS[0]`·`[1]`을 그대로 쓰면 대비가
+   * 약해 범례 없이는 구분이 어렵다. 막대였을 때부터 `[0]`·`[2]`를 써 온 배색을 그대로 옮긴다.
+   */
+  fills?: string[]
 }) {
   const cx = size / 2
   const cy = size / 2
@@ -69,11 +85,11 @@ export function ShareDonut({
     return {
       ...g,
       d: donutArc(cx, cy, rOuter, rInner, start, start + g.share),
-      fill: fillOf(g.label, i),
+      fill: fills ? fills[i % fills.length] : fillOf(g.label, i),
     }
   })
 
-  const top = groups.reduce((a, b) => (b.share > a.share ? b : a), groups[0])
+  const top = centerOverride ?? groups.reduce((a, b) => (b.share > a.share ? b : a), groups[0])
 
   return (
     <svg

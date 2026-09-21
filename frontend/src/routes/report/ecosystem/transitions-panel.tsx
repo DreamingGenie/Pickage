@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
-import { TransitionBars } from '@/components/charts/transition-bars'
+import { TransitionBars, type TransitionBarsMode } from '@/components/charts/transition-bars'
 import { seriesStyle } from '@/components/charts/tokens'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { SegmentedControl } from '@/components/common/segmented-control'
@@ -50,6 +50,12 @@ export function TransitionsPanel({
   className?: string
 }) {
   const [kind, setKind] = useState<TransitionKind>('regular')
+  /**
+   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 토글이다(S15P21A506-427
+   * 후속 리뷰). 패키지마다 따로 두면 나란히 비교할 때 한쪽은 막대, 한쪽은 도넛이 되어 오히려
+   * 비교가 더 어려워진다. "조회 기간"·"의존 종류"와 같은 자리(패널 전역)에 둔다.
+   */
+  const [mode, setMode] = useState<TransitionBarsMode>('value')
 
   const rowsOf = (pkg: TransitionsModel['packages'][number]) =>
     pkg.rows.find((r) => r.kind === kind) ?? null
@@ -122,13 +128,13 @@ export function TransitionsPanel({
             <p>
               <strong>릴리스 없음</strong>은 자료를 구하지 못했다는 뜻이 아닙니다. 그 프로젝트는
               기간의 양 끝에서 이 패키지를 그대로 선언하고 있습니다. 다만 그 사이에 릴리스를 내지
-              않아, 계속 쓸지 다시 검토했는지를 판단하지 않았습니다. npm 패키지의 76.1%가 최근
-              1년간 릴리스가 없습니다.
+              않아, 계속 쓸지 다시 검토했는지를 판단하지 않았습니다. npm 패키지의 76.1%가 최근 1년간
+              릴리스가 없습니다.
             </p>
             <p>
               기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 떨어지지만 실제로 판정하는 수는
-              늘지 않습니다 — 구간이 길수록 신생 패키지가 유입으로 옮겨가 분모가 부풀기
-              때문입니다. 판정 수가 가장 많은 것은 5년이 아니라 <strong>3년</strong>입니다.
+              늘지 않습니다 — 구간이 길수록 신생 패키지가 유입으로 옮겨가 분모가 부풀기 때문입니다.
+              판정 수가 가장 많은 것은 5년이 아니라 <strong>3년</strong>입니다.
             </p>
           </InfoDialog>
         </div>
@@ -161,6 +167,19 @@ export function TransitionsPanel({
               ))}
             </dl>
           </InfoDialog>
+          {/*
+            값(막대) · 비율(도넛) — S15P21A506-427 후속. 막대는 "얼마나 봤나"(전체 대비),
+            도넛은 "본 것 중 무엇이 일어났나"(활동 대비)라 하나로 합치지 않고 토글로 가른다.
+          */}
+          <SegmentedControl
+            label="표시 방식"
+            value={mode}
+            onChange={(k) => setMode(k as TransitionBarsMode)}
+            options={[
+              { key: 'value', label: '값' },
+              { key: 'ratio', label: '비율' },
+            ]}
+          />
         </div>
       </div>
 
@@ -219,7 +238,12 @@ export function TransitionsPanel({
                     <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
                   </div>
                   {row ? (
-                    <TransitionBars counts={row.counts} dataStatus={row.dataStatus} max={max} />
+                    <TransitionBars
+                      counts={row.counts}
+                      dataStatus={row.dataStatus}
+                      max={max}
+                      mode={mode}
+                    />
                   ) : (
                     <p className="text-base text-muted-foreground">자료 없음</p>
                   )}
