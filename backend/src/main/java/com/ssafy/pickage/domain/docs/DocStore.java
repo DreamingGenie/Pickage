@@ -5,7 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Optional;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +25,17 @@ import org.springframework.stereotype.Component;
 public class DocStore {
 
 	private static final Logger log = LoggerFactory.getLogger(DocStore.class);
+
+	/**
+	 * 새로 쓴 문헌의 권한. 주인은 읽고 쓰고, 나머지는 읽기만 한다.
+	 *
+	 * <p>{@code rag-api} 가 <b>다른 사용자(uid 1000)</b>로 같은 폴더를 읽는다. 이 컨테이너는
+	 * root 로 돌고, {@code Files.createTempFile} 은 POSIX 에서 {@code 600}(주인만 읽기)으로
+	 * 만든다 — 그대로 두면 캐시 미스로 받아 쓴 버전만 rag-api 가 못 열어 {@code PermissionError}
+	 * 가 나고, 사용자에게는 "분석 서버에 연결하지 못했습니다" 로만 보였다. 문헌은 공개 README 라
+	 * 읽기를 열어도 된다.
+	 */
+	private static final Set<PosixFilePermission> READABLE = PosixFilePermissions.fromString("rw-r--r--");
 
 	private final Path root;
 
@@ -68,6 +82,7 @@ public class DocStore {
 		Path temp = Files.createTempFile(file.getParent(), ".tmp-", ".md");
 		try {
 			Files.writeString(temp, document, StandardCharsets.UTF_8);
+			makeReadable(temp);
 			Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING,
 				StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
@@ -75,6 +90,19 @@ public class DocStore {
 			throw e;
 		}
 		return allocated(document.getBytes(StandardCharsets.UTF_8).length);
+	}
+
+	/*
+	 * 다른 사용자도 읽게 한다. 이름을 바꾸기 전에 해야 한다 — 바꾼 뒤에 하면 그 사이에 읽는
+	 * 쪽이 권한 없는 파일을 만난다.
+	 *
+	 * POSIX 권한이 없는 파일시스템(윈도우 로컬 개발)에서는 건너뛴다. 거기서는 권한 문제가
+	 * 생기지 않고, 호출하면 예외가 난다.
+	 */
+	private static void makeReadable(Path file) throws IOException {
+		if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+			Files.setPosixFilePermissions(file, READABLE);
+		}
 	}
 
 	/*
