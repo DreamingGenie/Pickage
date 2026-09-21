@@ -221,12 +221,30 @@ class Fake:
         log(f"Curated 회차 심음 {done} COMPLETE · {failed} FAILED")
 
     def curated_progress(self, week: date) -> None:
-        """이번 회차의 raw 가 SUCCEEDED 가 되면 디스패처가 전처리를 시작한다 — 두 단계만 진행된 RUNNING 으로 남긴다."""
+        """이번 회차의 raw 가 SUCCEEDED 가 되면 디스패처가 전처리를 시작한다 — 두 단계만 진행된 RUNNING 으로 남긴다.
+
+        다음 주차가 시작될 때 curated_finish 가 이 회차를 COMPLETE 로 닦고 포인터를 옮긴다. 그래야 표가
+        "실행 중" 으로만 차지 않고 실제처럼 최신 하나만 돌고 나머지는 완료로 보인다.
+        """
         now = datetime.now(timezone.utc)
         self.put_curated(week, self.curated_state(week, "RUNNING", started_at=now.isoformat(timespec="seconds")),
                          {"snapshot": {"status": "COMPLETE", "attempt": 1, "finished_at": now.isoformat(timespec="seconds")},
                           "package_version": {"status": "RUNNING", "attempt": 1, "started_at": now.isoformat(timespec="seconds")}},
                          "package_version")
+        self.curated_running = week
+
+    def curated_finish(self) -> None:
+        week = getattr(self, "curated_running", None)
+        if week is None:
+            return
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        state = self.curated_state(week, "COMPLETE", started_at=now, finished_at=now)
+        self.put_curated(week, state, {s: {"status": "COMPLETE", "attempt": 1} for s in self.CURATED_STAGES}, "COMPLETE")
+        self.put(CURATED, "depsdev/v1/curated-bundle/_current.json",
+                 {"snapshot": week.isoformat(), "manifest_sha256": "e" * 64,
+                  "run_prefix": f"depsdev/v1/curated-bundle/snapshot={week}/run_id={state['run_id']}"})
+        self.put(CURATED, "_ops/preprocessing/_dispatcher/status.json", {"status": "TICK_FINISHED", "exit_code": 0})
+        self.curated_running = None
 
     # ── 이번 회차 진행 ─────────────────────────────────────────
     def run_week(self, week: date) -> None:
@@ -242,6 +260,7 @@ class Fake:
 
         flush()
         log(f"회차 시작 {week}")
+        self.curated_finish()          # 지난 주차의 Curated 전처리는 끝난 것으로
         for index, name in enumerate(STEPS):
             steps[index] = self.step(name, "RUNNING")
             flush()
