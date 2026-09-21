@@ -403,8 +403,12 @@ export function EcosystemView({
         그리드 아래 전체 폭 섹션이다. 위 두 칼럼과 달리 이 패널은 자체 날짜축을 가진
         구조적으로 독립된 데이터라 sticky 칼럼의 "칩 강조가 두 차트에 동시에 걸리는"
         관계에 안 낀다 — 강조(`emphasisKeys`)만 그대로 물려받아 패키지 식별은 일관되게 유지한다.
+
+        **자기 모델을 보고 판단한다** (S15P21A506-410). `model.packages` 를 보면 인트로
+        미리보기처럼 이 모델을 안 넘기는 자리에서도 빈 패널이 떴다(service-intro-page.tsx).
+        아래 이탈 사유 패널과 같은 조건이다 — 로딩·오류는 그대로 보여 준다.
       */}
-      {model.packages.length > 0 && (
+      {(transitionsModel.packages.length > 0 || transitionsState.status !== 'ready') && (
         <TransitionsPanel
           model={transitionsModel}
           state={transitionsState}
