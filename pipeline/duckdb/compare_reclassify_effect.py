@@ -117,7 +117,9 @@ con.execute(f"""COPY (
            legacy_pm, full_pm,
            round(legacy_a * 100, 2) AS legacy_a_pct, round(full_a * 100, 2) AS full_a_pct,
            CASE WHEN gone THEN '사라짐' WHEN demoted THEN '기준 미달' ELSE '유지' END AS 결과
-    FROM pr ORDER BY (legacy_votes - coalesce(full_votes, 0)) DESC, from_pkg)
+    -- 전순서여야 한다 (S15P21A506-395). pr 은 (from_pkg, to_pkg) 가 키이고 한 from_pkg 에
+    -- 여러 to_pkg 가 붙으므로, 차이값과 from_pkg 만으로는 동순위가 남아 실행마다 순서가 바뀐다.
+    FROM pr ORDER BY (legacy_votes - coalesce(full_votes, 0)) DESC, from_pkg, to_pkg)
 TO '{OUT}/reclassify_effect_pairs.csv' (HEADER, DELIMITER ',')""")
 
 # 3) 팀에 공유된 depsdev strict 쌍 중 영향권에 드는 것
@@ -142,7 +144,9 @@ s["most_affected"] = [
                             FROM dd JOIN rm ON rm.removed_pkg = dd.from_pkg
                             WHERE rm.legacy_removals >= 20
                             GROUP BY 1, 2, 3, 4
-                            ORDER BY 4 DESC, 2 DESC LIMIT 20""").fetchall()]
+                            -- 1(removed_pkg) 로 동순위를 깬다 (S15P21A506-395). 없으면 상위 20에
+                            -- 누가 드는지가 실행마다 바뀌어 reclassify_effect.json 이 흔들린다.
+                            ORDER BY 4 DESC, 2 DESC, 1 LIMIT 20""").fetchall()]
 
 s["elapsed_sec"] = round(time.time() - t0)
 s["note"] = ("registry 상위 10만 모집단에서 필터만 바꿔 잰 값이다. 그 밖 패키지의 "

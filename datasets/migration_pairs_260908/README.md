@@ -17,12 +17,12 @@
 | 파일 | 내용 | 행 | 크기 |
 |---|---|---:|---:|
 | `migration_pairs_strict.csv` | 필터 `lift≥5 AND votes≥12 AND publisher_months≥10 AND A≥3%` 통과 쌍. 63개 실측과 같은 기준. **모델 positive 라벨용** | 1,195 | 121 KB |
-| `migration_pairs_all.csv` | 필터 `lift≥5 AND votes≥3` 통과 쌍 전부. 열이 같으므로 원하는 기준으로 다시 걸러 쓴다 | 16,835 | 1.7 MB |
+| `migration_pairs_all.csv` | 필터 `lift≥5 AND votes≥3` 통과 쌍 전부. 열이 같으므로 원하는 기준으로 다시 걸러 쓴다 | 16,837 | 1.7 MB |
 | `migration_pairs_recommended.csv` | **권고 하한**(§6) `lift≥5 AND votes≥8 AND publisher_months≥5 AND share≥10%` 통과 쌍. 전처리 없이 바로 라벨로 쓰는 파일 | 1,167 | 122 KB |
-| `removal_stats.csv` | **X별 이탈 요약**(§7). X를 뺀 전이 총수와 그중 "대체 없이 제거"·"대체 동반 제거" 건수. `removals_total≥3`인 X만 | 47,250 | 2.6 MB |
-| `removal_by_year.csv` | X × 연도 이탈 추이(§7). 같은 X 기준 | 183,403 | 4.9 MB |
+| `removal_stats.csv` | **X별 이탈 요약**(§7). X를 뺀 전이 총수와 그중 "대체 없이 제거"·"대체 동반 제거" 건수. `removals_total≥3`인 X만 | 47,240 | 2.6 MB |
+| `removal_by_year.csv` | X × 연도 이탈 추이(§7). 같은 X 기준 | 183,365 | 4.9 MB |
 | `stats.json` | 아래 2·3절 숫자의 원본 | | |
-| `data/migration_pairs/migration_events.parquet` (git 미추적) | 제거 이벤트 원시 전부. 모델이 소비하는 최소 단위 | 657,023 | 21 MB |
+| `data/migration_pairs/migration_events.parquet` (git 미추적) | 제거 이벤트 원시 전부. 모델이 소비하는 최소 단위 | 656,975 | 21 MB |
 | `data/migration_pairs/migration_events.csv` (git 미추적) | 같은 내용 CSV | 657,023 | 119 MB |
 | `data/migration_pairs/removal_stats.parquet`, `removal_by_year.parquet` (git 미추적) | 위 두 CSV의 필터 없는 전체 | 203,336 / 351,972 | 4.5 / 2.3 MB |
 | `data/migration_pairs/removal_by_period.parquet`, `removal_by_period.csv` (git 미추적) | **X × 구간 이탈 사유**(§8). 화면이 쓰는 `1y`·`3y`·`5y` 기준. 필터 없는 전량 | 273,610 | 2.5 / 10.0 MB |
@@ -355,15 +355,92 @@ CSV의 `share_pct`는 재현 가능하도록 **lift≥5 쌍 전체**(`migration_
 `ORDER BY period, removals DESC, removed_pkg` 가 전순서라, 같은 표에서 나온 어떤 CSV 든
 바이트까지 같다. 다만 **해시를 실제로 대조한 것은 필터본이다.**
 
-**이동쌍 쪽에는 원인이 따로 있고, 이 회차에서 고치지 않았다.** `votes` 가
-`sum(1.0/len(added))` 라 **부동소수점 덧셈 순서에 따라 마지막 자리가 흔들리고**, `votes ≥ 3`
-경계에 걸친 쌍이 실행마다 들락날락한다. 같은 `events` 표에 같은 질의를 세 번 돌려
-`16,833 / 16,833 / 16,834` 가 나오는 것을 확인했다 — 입력이 한 행도 다르지 않은데 결과가
-갈린다.
+**이동쌍 쪽에는 원인이 따로 있었고, 이 회차(S15P21A506-378)에서는 고치지 않았다.** `votes` 가
+`sum(1.0/len(added))` 라 부동소수점 덧셈 순서에 따라 마지막 자리가 흔들렸다. 같은 `events`
+표에 같은 질의를 세 번 돌려 `16,833 / 16,833 / 16,834` 가 나오는 것을 확인했다.
 
-폭은 1만 6천 쌍 중 서넛이다(`loose_pairs` 16,835 ↔ 16,832). 라벨 품질을 좌우하는 수준은
-아니지만 **이동쌍 CSV 는 아직 "돌릴 때마다 같은 파일" 이 아니다.** 고치려면 `votes` 를
-정수 합으로 바꾸거나 비교 전에 자리를 끊어야 하는데, 그 열은 `share` 필터와 AI 라벨
-기준에 걸려 있어 별도로 다룬다.
+**2026-09-20 에 고쳤다 — §8-6 을 볼 것.** 위 표의 "다르다" 는 그 시점까지의 기록이다.
 
-§7·§8 의 이탈 수치는 이 문제와 무관하다. 그쪽은 `votes` 를 쓰지 않는다.
+§7·§8 의 이탈 수치는 이 문제와 무관했다. 그쪽은 `votes` 를 쓰지 않는다.
+
+### 8-6. 이동쌍이 이제 "돌릴 때마다 같은 파일" 이다 (2026-09-20, S15P21A506-395 · -399)
+
+§8-5 가 남겨 둔 비결정성을 고쳤다. **원인이 셋이었고 서로 독립이었다.** 하나를 고칠 때마다
+다음 것이 드러나서, 전수 2회 대조를 세 번 반복해 찾았다.
+
+| | 무엇이 흔들렸나 | 원인 |
+|---|---|---|
+| **① 값** | `votes`, 그래서 `votes≥3` 경계의 쌍 구성 | `sum(1.0/len(added))` 가 부동소수점 덧셈이라 더하는 순서를 탄다 |
+| **② 순서** | 내용은 같은데 행 순서 | `COPY` 의 `ORDER BY` 가 전순서가 아니라 동순위 행의 순서가 정해지지 않는다 |
+| **③ 점유율** | `share_pct` 한 칸 | `sum(votes) OVER (...)` 가 다시 부동소수점 윈도우 합이다 |
+
+**③은 ①을 고친 뒤에야 보였다.** 전수 2회 대조에서 16,837행 중 한 행의 `share_pct` 가
+`63.8` / `63.7` 로 갈렸다. `votes` 를 결정적으로 만들어도 그것을 **다시 실수로 합산하는 자리**가
+한 단계 위에 남아 있었던 것이다.
+
+#### 고친 방법
+
+**값** — 표를 `1e12` 배율의 정수로 반올림해 담고, 쌍 집계에서 한 번만 나눈다. 정수 덧셈은
+순서에 무관하다. **나눈 뒤 `round(votes, 6)` 이 반드시 붙는다** — 정수로 담으면 쌍마다
+1e-12 남짓 잔차가 남는데, 문턱(3·8·12)은 정확히 맞아떨어지는 경우가 많아 거기 걸린다.
+`1/3` 짜리 이벤트 세 개의 참값은 정확히 `1` 이지만 정수 합은 `0.999999999999` 라,
+반올림하지 않으면 `votes>=3` 에서 **일관되게 탈락**한다. 결정적이지만 틀린 답이다.
+자리수를 9 로 하면 잔차를 다 못 덮어 `recommended` 가 한 줄 빠진다(실측).
+
+**순서** — `COPY` 의 `ORDER BY` 를 전순서로 만들었다. 쌍은 `(from_pkg, to_pkg)`,
+`migration_events` 는 `(dependent, line, from_version, to_version, removed_pkg)` 가 키다.
+`removal_stats` · `removal_by_year` · `removal_by_period` 는 처음부터 키까지 들어 있었다 —
+**그래서 §8-5 에서 그 셋만 해시가 맞았던 것이다.**
+
+**점유율** — `share` 를 정수 합에서 낸다. `votes_scaled::DOUBLE / sum(votes_scaled) OVER (...)`.
+`share_pm` 은 `publisher_months` 가 정수라 처음부터 안전했다.
+
+**배포주체** (S15P21A506-399) — `source_repo` 가 맨 `https://` 나 `git+` 면 정규화 뒤 빈
+문자열이 되는데 `NOT NULL` 이라 그대로 통과해, 서로 다른 프로젝트가 `''` 하나로 뭉쳤다.
+이제 빈 값이면 패키지 이름으로 떨어진다. 이 회차에 **47건(의존자 12개)** 이 있었고 지금은
+0건이다. (티켓은 dev 회차 기준으로 0건이라 적었는데, 이 회차에는 있었다.)
+
+#### 숫자가 얼마나 바뀌었나
+
+**라벨셋은 그대로다.**
+
+| 파일 | 이전 | 지금 | 쌍 구성 변화 | 값이 바뀐 행 |
+|---|---:|---:|---|---:|
+| `migration_pairs_strict.csv` | 1,195 | 1,195 | 들어옴 0 · 빠짐 0 | 8 |
+| `migration_pairs_recommended.csv` | 1,167 | 1,167 | 들어옴 0 · 빠짐 0 | 7 |
+| `migration_pairs_all.csv` | 16,832 | **16,837** | **들어옴 5** · 빠짐 0 | 79 |
+
+`all` 에 들어온 5개는 **실행마다 들락날락하던 바로 그 경계 쌍**이다. 참 `votes` 가 정확히
+문턱이라 들어오는 것이 맞다.
+
+값이 바뀐 행은 `votes` 의 출력값이 0.1 움직였거나(`29.7→29.8` 꼴) `share_pct` 가 0.1
+움직인 것이다. **`strict` 에서 `publisher_months` 는 한 행도 바뀌지 않았다.**
+`removal_stats.csv` · `removal_by_year.csv` · `removal_by_period.csv` 는 **바이트까지 그대로다.**
+
+diff 줄 수가 커 보이는 것(`all` 2,869줄)은 대부분 **정렬이 밀린 것**이다. 정렬해서 비교하면
+163줄이다.
+
+`stats.json` 에서 움직인 항목은 여섯이고, `-395` 가 불안정하다고 지목한 바로 그 여섯이다 —
+`loose_pairs` · `loose_from_pkgs` · `loose_to_pkgs` · `loose_adopters_of_from_pkgs` ·
+`count_votes5_pm3_pairs` · `count_votes5_pm3_from_pkgs`.
+
+#### 어디까지 확인했는가
+
+**원인이 셋이라 한 번에 재면 섞인다.** 전수 실행을 여섯 번 돌려 단계별로 갈랐다.
+
+1. **1·2회차** (정렬·점유율 고치기 전) — `stats.json` 실질 수치가 전부 같았고, 쌍 CSV 는
+   해시가 달랐지만 **바이트 크기가 완전히 같았다.** → 값은 결정적이 됐고 남은 건 재정렬뿐.
+2. **정렬만 따로** — 같은 DuckDB 에 같은 질의 3회씩. 기존 `ORDER BY from_pkg, votes DESC` 는
+   세 CSV 모두 3회가 다 달랐고, `, to_pkg` 를 더하면 3회가 모두 같았다.
+3. **3·4회차** (정렬 고친 뒤) — `strict`·`recommended` 는 일치. `all` 만 **한 행의
+   `share_pct`** 가 갈렸다. 여기서 ③을 찾았다.
+4. **점유율만 따로** — 같은 DuckDB 에 3회씩. 기존 `votes/sum(votes)` 는 3회가 다 달랐고,
+   정수 합으로 바꾸면 3회가 모두 같았다.
+5. **5·6회차** (최종 코드) — **세 CSV 의 SHA-256 이 일치했다.** `stats.json` 은
+   `elapsed_sec` 과 내부 DuckDB 파일 크기만 달랐고 나머지 수치는 전부 같았다.
+
+`-399` 쪽은 산출물의 빈 `publisher` 가 **0건**임을 확인했다(이전 47건). 이벤트 656,975 ·
+의존자 174,877 로 기준선과 같다.
+
+**남은 회차** — `datasets/migration_pairs_dev_260914/`(개발용 의존)는 아직 옛 코드 산출물이다.
+`S15P21A506-422` 에서 재생성한다.
