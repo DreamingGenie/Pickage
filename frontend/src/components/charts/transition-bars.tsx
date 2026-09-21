@@ -7,7 +7,7 @@ import {
 } from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
-/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널의 "값/비율" 토글이 고른다. */
+/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패키지마다 있는 "값/비율" 토글이 고른다. */
 export type TransitionBarsMode = 'value' | 'ratio'
 
 type CategoryKey = 'retained' | 'inflowAdopted' | 'outflow' | 'unobserved'
@@ -53,11 +53,7 @@ export function TransitionBars({
   className?: string
 }) {
   if (mode === 'ratio') {
-    return (
-      <div className={cn('flex flex-col gap-1.5', className)}>
-        <RatioDonut counts={counts} dataStatus={dataStatus} />
-      </div>
-    )
+    return <RatioDonut counts={counts} dataStatus={dataStatus} className={className} />
   }
 
   return (
@@ -99,18 +95,21 @@ export function TransitionBars({
  * 가진 그림이 "본 것 중 무엇이 일어났나" 를 한눈에 전한다(리뷰에서 텍스트 줄이 안 읽힌다는
  * 지적을 받았다).
  *
- * 전체 대비(막대)와 활동 대비(도넛)를 **토글로 가른다** — 막대는 "얼마나 봤나", 도넛은 "본
- * 것 중 무엇이 일어났나" 이고, 한 화면에 억지로 같이 두면 서로 다른 분모의 숫자가 뒤섞여
- * 더 헷갈린다.
+ * 전체 대비(막대)와 활동 대비(도넛)를 **패키지마다 토글로 가른다** — 막대는 "얼마나 봤나",
+ * 도넛은 "본 것 중 무엇이 일어났나" 이고, 한 화면에 억지로 같이 두면 서로 다른 분모의 숫자가
+ * 뒤섞여 더 헷갈린다. 세로로 쌓아 도넛을 키운다 — 도넛 옆에 범례를 붙이면 칼럼 폭만 넓고
+ * 안은 빈 카드가 된다(리뷰 지적).
  *
  * 분모가 `inflowAdopted`인 이유는 `activityShares` 주석에 있다.
  */
 function RatioDonut({
   counts,
   dataStatus,
+  className,
 }: {
   counts: TransitionCounts | null
   dataStatus: TransitionDataStatus
+  className?: string
 }) {
   const shares = counts ? activityShares(counts) : null
 
@@ -121,13 +120,17 @@ function RatioDonut({
         : dataStatus === 'NOT_COMPUTED'
           ? '준비 중'
           : '판정한 의존자가 없습니다'
-    return <p className="text-base text-muted-foreground">{message}</p>
+    return (
+      <div className={cn('flex min-h-32 flex-col items-center justify-center', className)}>
+        <p className="text-base text-muted-foreground">{message}</p>
+      </div>
+    )
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className={cn('flex flex-col items-center gap-3', className)}>
       <ShareDonut
-        size={72}
+        size={104}
         ariaLabel="유지·유입·이탈 활동 대비 비율"
         groups={[
           { label: CATEGORIES[0].label, share: shares.retainedPct / 100 },
@@ -135,7 +138,7 @@ function RatioDonut({
           { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
         ]}
       />
-      <dl className="flex min-w-0 flex-1 flex-col gap-1">
+      <dl className="flex w-full max-w-64 flex-col gap-1.5">
         <RatioRow fill={CATEGORIES[0].fill} label={CATEGORIES[0].label} pct={shares.retainedPct} />
         <RatioRow
           fill={CATEGORIES[1].fill}
@@ -143,8 +146,13 @@ function RatioDonut({
           pct={shares.inflowAdoptedPct}
         />
         <RatioRow fill={CATEGORIES[2].fill} label={CATEGORIES[2].label} pct={shares.outflowPct} />
+        {/*
+          "의존자 N 중 M 판정" 만으로는 M 이 왜 N 보다 작은지 안 드러난다(릴리스 없음이 빠졌기
+          때문) — 리뷰에서 이 문장이 뭘 뜻하는지 안 읽힌다는 지적을 받아 이유를 문장에 넣었다.
+        */}
         <p className="mt-1 text-base text-muted-foreground/80">
-          의존자 {shares.total.toLocaleString()} 중 {shares.active.toLocaleString()} 판정
+          의존자 {shares.total.toLocaleString()} 중 릴리스 없음 제외{' '}
+          {shares.active.toLocaleString()} 판정
         </p>
       </dl>
     </div>

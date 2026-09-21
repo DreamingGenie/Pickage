@@ -101,7 +101,11 @@ export function RemovalReasonsPanel({
             </p>
           )}
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/*
+            `justify-center` + 고정 폭 — 3패키지면 한 줄을 꽉 채우지만, 1~2개면 그리드가 비운
+            칸만큼 오른쪽에 통째로 남던 공백을 양옆으로 고르게 돌린다(리뷰 지적).
+          */}
+          <div className="flex flex-wrap justify-center gap-5">
             {model.packages.map((pkg, i) => {
               const style = seriesStyle(i)
               const emphasized = !emphasisKeys || emphasisKeys.includes(pkg.key)
@@ -109,7 +113,8 @@ export function RemovalReasonsPanel({
                 <div
                   key={pkg.key}
                   className={cn(
-                    'flex flex-col gap-3 transition-opacity duration-150',
+                    'flex w-full flex-none flex-col items-center gap-3 transition-opacity duration-150',
+                    'sm:basis-[calc(50%-10px)] lg:basis-[calc(33.333%-14px)]',
                     !emphasized && 'opacity-40',
                   )}
                 >

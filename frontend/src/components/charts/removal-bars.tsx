@@ -14,8 +14,14 @@ import { cn } from '@/lib/utils'
  * 짧게 그려진 패키지는 마치 셋째 범주가 빠진 것처럼 보였다(리뷰에서 확인된 오해).
  *
  * 도넛은 그 자체로 "안에서 100%" 를 형태로 보장해 그 오해가 생기지 않는다. 패키지 간
- * 규모 비교(막대 길이가 하던 역할)는 위에 그대로 찍히는 "이탈 전이" 숫자가 대신한다 —
- * 굳이 도넛 크기까지 비교 용도로 쓸 필요가 없다(`Version Share` 도넛도 같은 원칙).
+ * 규모 비교(막대 길이가 하던 역할)는 필요 없다 — 이 지표에서 중요한 것은 "이 패키지가 뺀
+ * 이유의 구성" 이지 다른 패키지와의 상대 크기가 아니다.
+ *
+ * **도넛 가운데는 비율(%)이 아니라 총 이탈 건수다** — 비율은 이미 아래 범례에 있어 도넛
+ * 가운데까지 %를 반복하면 중복이다(리뷰 지적). 대신 총 이탈 건수를 가운데 크게 두고,
+ * 같은 값을 두 번(줄 하나 + 도넛 가운데) 적지 않도록 별도의 "이탈 전이" 줄은 두지 않는다.
+ * 세로로 쌓아 도넛을 키우고(가로 공백이 아니라 세로 높이를 쓴다), 패키지 간 의존자 수
+ * 비교처럼 단위가 다른 부가 정보("뺀 프로젝트 N개")는 화면을 덜 산만하게 하려고 뺐다.
  *
  * `data_status` 가 전체를 지배한다. **`NO_DATA` 를 `OUT_OF_SCOPE` 처럼 그리면 안 된다** —
  * 운영 대상의 58.5%가 `NO_DATA` 라 그걸 "분석 대상 아님" 으로 뭉개면 대부분의 패키지가
@@ -48,69 +54,53 @@ export function RemovalBars({
   const noPercent = total > 0 ? Math.round(noPct) : null
   const withPercent = noPercent === null ? null : 100 - noPercent
 
-  return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-base text-muted-foreground">이탈 전이</span>
-        <span className="font-mono text-base tabular-nums">
-          {known ? total.toLocaleString() : '—'}
-        </span>
-      </div>
-
-      {known && counts && total > 0 ? (
-        <div className="flex items-center gap-4">
-          <ShareDonut
-            size={72}
-            ariaLabel="이탈 사유 비율"
-            groups={[
-              { label: '대체 없이 제거', share: noPct / 100 },
-              { label: '다른 것과 함께 제거', share: (100 - noPct) / 100 },
-            ]}
-            fills={[SHARE_FILLS[0], SHARE_FILLS[2]]}
-            // 어느 쪽이 크든 "대체 없이 제거"가 이 지표의 결론이라 항상 가운데 둔다
-            // (도넛 기본 동작인 "가장 큰 몫"에 맡기지 않는다).
-            centerOverride={{ label: '대체 없이 제거', share: noPct / 100 }}
+  if (known && counts && total > 0) {
+    return (
+      <div className={cn('flex flex-col items-center gap-3', className)}>
+        <ShareDonut
+          size={104}
+          ariaLabel="이탈 사유 비율"
+          groups={[
+            { label: '대체 없이 제거', share: noPct / 100 },
+            { label: '다른 것과 함께 제거', share: (100 - noPct) / 100 },
+          ]}
+          fills={[SHARE_FILLS[0], SHARE_FILLS[2]]}
+          // 총 건수를 가운데에 둔다 — %는 아래 범례에 이미 있어 반복하지 않는다.
+          centerText={{ primary: total.toLocaleString(), secondary: '총 이탈' }}
+        />
+        <dl className="flex w-full max-w-64 flex-col gap-1.5">
+          {/* 대체 없이 제거가 이 지표의 결론이라 먼저·굵게 둔다. */}
+          <Legend
+            fill={SHARE_FILLS[0]}
+            label="대체 없이 제거"
+            value={counts.noReplacement}
+            percent={noPercent}
+            strong
           />
-          <dl className="flex min-w-0 flex-1 flex-col gap-1">
-            {/* 대체 없이 제거가 이 지표의 결론이라 먼저·굵게 둔다. */}
-            <Legend
-              fill={SHARE_FILLS[0]}
-              label="대체 없이 제거"
-              value={counts.noReplacement}
-              percent={noPercent}
-              strong
-            />
-            <Legend
-              fill={SHARE_FILLS[2]}
-              label="다른 것과 함께 제거"
-              value={counts.withReplacement}
-              percent={withPercent}
-            />
-          </dl>
-        </div>
-      ) : null}
+          <Legend
+            fill={SHARE_FILLS[2]}
+            label="다른 것과 함께 제거"
+            value={counts.withReplacement}
+            percent={withPercent}
+          />
+        </dl>
+      </div>
+    )
+  }
 
-      {dataStatus === 'NO_DATA' && (
-        <p className="text-base text-muted-foreground">이 기간에 뺀 프로젝트가 없습니다</p>
-      )}
-      {dataStatus === 'OUT_OF_SCOPE' && (
-        <p className="text-base text-muted-foreground">분석 대상 아님 · top-100k 밖</p>
-      )}
-      {dataStatus === 'NOT_COMPUTED' && <p className="text-base text-muted-foreground">준비 중</p>}
-      {/* 계약상 COMPLETE·NO_DATA 면 네 숫자가 다 와야 한다. 안 왔으면 0 으로 메우지 않고 그 사실을 말한다. */}
-      {(dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA') && !counts && (
-        <p className="text-base text-muted-foreground">값을 받지 못했습니다</p>
-      )}
+  const message =
+    dataStatus === 'NO_DATA'
+      ? '이 기간에 뺀 프로젝트가 없습니다'
+      : dataStatus === 'OUT_OF_SCOPE'
+        ? '분석 대상 아님 · top-100k 밖'
+        : dataStatus === 'NOT_COMPUTED'
+          ? '준비 중'
+          : // 계약상 COMPLETE·NO_DATA 면 값이 와야 한다. 안 왔으면 0 으로 메우지 않고 그 사실을 말한다.
+            '값을 받지 못했습니다'
 
-      {/*
-        `dependents` 와 `removals` 는 **단위가 다르다**(의존자 수 vs 전이 건수). 나누지 않는다 —
-        둘을 함께 보여주는 것은 "몇 번 일어났나" 와 "몇 명이 했나" 가 다르다는 것을 보이기 위해서다.
-      */}
-      {dataStatus === 'COMPLETE' && counts && (
-        <p className="-mt-0.5 text-base text-muted-foreground/80">
-          뺀 프로젝트 {counts.dependents.toLocaleString()}개가 일으킨 일입니다
-        </p>
-      )}
+  return (
+    <div className={cn('flex min-h-32 flex-col items-center justify-center', className)}>
+      <p className="text-base text-muted-foreground">{message}</p>
     </div>
   )
 }

@@ -51,11 +51,11 @@ export function TransitionsPanel({
 }) {
   const [kind, setKind] = useState<TransitionKind>('regular')
   /**
-   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 토글이다(S15P21A506-427
-   * 후속 리뷰). 패키지마다 따로 두면 나란히 비교할 때 한쪽은 막대, 한쪽은 도넛이 되어 오히려
-   * 비교가 더 어려워진다. "조회 기간"·"의존 종류"와 같은 자리(패널 전역)에 둔다.
+   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — **패키지마다** 따로 고른다(S15P21A506-427
+   * 후속 리뷰). 처음엔 패널 전역 토글로 만들었으나, 패키지별로 보고 싶은 표시 방식이 다를 수
+   * 있다는 피드백을 받아 각 패키지 카드 머리글로 옮겼다. 없는 키는 기본값 `'value'`다.
    */
-  const [mode, setMode] = useState<TransitionBarsMode>('value')
+  const [modes, setModes] = useState<Record<string, TransitionBarsMode>>({})
 
   const rowsOf = (pkg: TransitionsModel['packages'][number]) =>
     pkg.rows.find((r) => r.kind === kind) ?? null
@@ -167,19 +167,6 @@ export function TransitionsPanel({
               ))}
             </dl>
           </InfoDialog>
-          {/*
-            값(막대) · 비율(도넛) — S15P21A506-427 후속. 막대는 "얼마나 봤나"(전체 대비),
-            도넛은 "본 것 중 무엇이 일어났나"(활동 대비)라 하나로 합치지 않고 토글로 가른다.
-          */}
-          <SegmentedControl
-            label="표시 방식"
-            value={mode}
-            onChange={(k) => setMode(k as TransitionBarsMode)}
-            options={[
-              { key: 'value', label: '값' },
-              { key: 'ratio', label: '비율' },
-            ]}
-          />
         </div>
       </div>
 
@@ -209,33 +196,54 @@ export function TransitionsPanel({
             </p>
           )}
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/*
+            `justify-center` + 고정 폭 — 3패키지면 기존 grid-cols-3 처럼 한 줄을 꽉 채우지만,
+            1~2개면 그리드가 비운 칸만큼 오른쪽에 통째로 남던 공백을 양옆으로 고르게 돌린다
+            (리뷰 지적: 패키지 1~2개 비교에서 균형이 안 맞아 보였다).
+          */}
+          <div className="flex flex-wrap justify-center gap-5">
             {model.packages.map((pkg, i) => {
               const row = rowsOf(pkg)
               const style = seriesStyle(i)
               const emphasized = !emphasisKeys || emphasisKeys.includes(pkg.key)
+              const mode = modes[pkg.key] ?? 'value'
               return (
                 <div
                   key={pkg.key}
                   className={cn(
-                    'flex flex-col gap-3 transition-opacity duration-150',
+                    'flex w-full flex-none flex-col gap-3 transition-opacity duration-150',
+                    'sm:basis-[calc(50%-10px)] lg:basis-[calc(33.333%-14px)]',
                     !emphasized && 'opacity-40',
                   )}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <svg width="16" height="8" aria-hidden className="shrink-0">
-                      <line
-                        x1="0"
-                        y1="4"
-                        x2="16"
-                        y2="4"
-                        stroke={style.color}
-                        strokeWidth="2.4"
-                        strokeDasharray={style.dash}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <svg width="16" height="8" aria-hidden className="shrink-0">
+                        <line
+                          x1="0"
+                          y1="4"
+                          x2="16"
+                          y2="4"
+                          stroke={style.color}
+                          strokeWidth="2.4"
+                          strokeDasharray={style.dash}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
+                    </div>
+                    {/* 값(막대)·비율(도넛) — 이 패키지만 바꾼다. */}
+                    <SegmentedControl
+                      label={`${pkg.key} 표시 방식`}
+                      value={mode}
+                      onChange={(k) =>
+                        setModes((prev) => ({ ...prev, [pkg.key]: k as TransitionBarsMode }))
+                      }
+                      options={[
+                        { key: 'value', label: '값' },
+                        { key: 'ratio', label: '비율' },
+                      ]}
+                    />
                   </div>
                   {row ? (
                     <TransitionBars

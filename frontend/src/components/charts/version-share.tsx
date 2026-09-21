@@ -54,6 +54,7 @@ export function ShareDonut({
   ariaLabel,
   centerOverride,
   fills,
+  centerText,
 }: {
   groups: ShareGroup[]
   size?: number
@@ -73,6 +74,12 @@ export function ShareDonut({
    * 약해 범례 없이는 구분이 어렵다. 막대였을 때부터 `[0]`·`[2]`를 써 온 배색을 그대로 옮긴다.
    */
   fills?: string[]
+  /**
+   * 가운데를 비율(`share`)이 아니라 **정해진 글자 두 줄**로 채운다 — `centerOverride`와 달리
+   * 몫 계산 자체를 건너뛴다. 이탈 사유 도넛이 "대체 없이 제거 70%" 대신 "1,840 · 총 이탈"을
+   * 적을 때 쓴다(리뷰: 범례에 이미 %가 있어 가운데 %는 중복이었다).
+   */
+  centerText?: { primary: string; secondary?: string }
 }) {
   const cx = size / 2
   const cy = size / 2
@@ -113,11 +120,13 @@ export function ShareDonut({
         fill="var(--foreground)"
         style={{ fontVariantNumeric: 'tabular-nums' }}
       >
-        {Math.round(top.share * 100)}%
+        {centerText ? centerText.primary : `${Math.round(top.share * 100)}%`}
       </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="var(--muted-foreground)">
-        {top.label}
-      </text>
+      {(centerText ? centerText.secondary : top.label) && (
+        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="var(--muted-foreground)">
+          {centerText ? centerText.secondary : top.label}
+        </text>
+      )}
     </svg>
   )
 }
