@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.report.ChartGeometry.Box;
 import com.ssafy.pickage.domain.report.ChartGeometry.Domain;
 import com.ssafy.pickage.domain.report.ChartGeometry.Line;
@@ -316,6 +317,45 @@ final class ReportCharts {
 		return b.toString();
 	}
 
+	/* ------------------------------------------------------------------ *
+	 * 이탈 사유
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 이탈 사유 누적 막대 — 패키지 하나(화면 {@code RemovalBars} 와 같은 그림).
+	 *
+	 * <p>{@link #transitionBars} 처럼 범주를 나란히 두지 않는다 — {@code noReplacement +
+	 * withReplacement = removals}(DB CHECK)라 비율 하나가 이 지표의 결론이다. 대체 없이 제거를
+	 * 막대 왼쪽에 강한 색({@code SHARE_FILLS[0]})으로 먼저 둔다.
+	 *
+	 * <p>{@code NO_DATA} 는 실제 값 0 이라 빈 트랙으로 그린다({@code OUT_OF_SCOPE} 의 회색 자리와
+	 * 다르다) — 운영 대상의 58.5%가 이 상태라 여기를 틀리면 대부분의 패키지에 잘못된 문구가 붙는다.
+	 */
+	static String removalBar(RemovalReasonsResponse.Series series, double max) {
+		boolean outOfScope = RemovalReasonsResponse.OUT_OF_SCOPE.equals(series.dataStatus());
+		boolean notComputed = RemovalReasonsResponse.NOT_COMPUTED.equals(series.dataStatus());
+
+		Integer total = series.removals();
+		Integer no = series.noReplacement();
+		int totalV = !outOfScope && !notComputed && total != null ? total : 0;
+		double trackPct = !outOfScope && !notComputed && max > 0 && totalV > 0
+			? Math.max(totalV / max * 100, 2) : 0;
+		double noPct = totalV > 0 && no != null ? no * 100.0 / totalV : 0;
+
+		StringBuilder b = new StringBuilder(256);
+		b.append("<div class=\"track").append(notComputed ? " dashed" : "").append("\">");
+		if (outOfScope) {
+			b.append("<div class=\"fill ghost\" style=\"width:").append(pct(PLACEHOLDER_WIDTH)).append("%\"></div>");
+		} else if (!notComputed && trackPct > 0) {
+			b.append("<table class=\"rfill\" style=\"width:").append(pct(trackPct)).append("%\"><tbody><tr>")
+				.append("<td style=\"width:").append(pct(noPct)).append("%;background:").append(SHARE_FILLS[0]).append("\"></td>")
+				.append("<td style=\"width:").append(pct(100 - noPct)).append("%;background:").append(SHARE_FILLS[2]).append("\"></td>")
+				.append("</tr></tbody></table>");
+		}
+		b.append("</div>");
+		return b.toString();
+	}
+
 	private static String pct(double v) {
 		return String.format(Locale.ROOT, "%.1f", v);
 	}
@@ -351,6 +391,8 @@ final class ReportCharts {
 			.track.dashed { background: transparent; border: 1px dashed #94a3b8; height: 7px; }
 			.fill { height: 9px; }
 			.fill.ghost { background: #cbd5e1; }
+			table.rfill { border-collapse: collapse; height: 9px; }
+			table.rfill td { padding: 0; border: none; height: 9px; }
 			""";
 	}
 }
