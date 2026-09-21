@@ -369,6 +369,50 @@ export interface TransitionsResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * S15P21A506-396. 이탈 사유 — 대체 동반 · 대체 없음
+ *
+ * 근거: `backend/.../domain/packages/dto/RemovalReasonsResponse.java`.
+ *
+ * **위 `transitions` 와 단위가 다르다.** 구간 프리셋·기본값·기준일은 같지만
+ * (서버가 같은 표에서 t1·t2 를 가져온다) 세는 단위가 다르다 —
+ * `transitions` 는 **패키지 수**, 이쪽은 **전이 건수**다. 한 의존자가 뺐다 넣었다
+ * 다시 뺐으면 `outflow` 는 1 이고 `removals` 는 2 다. **두 응답의 수를 더하거나
+ * 나누면 안 된다.**
+ * ------------------------------------------------------------------ */
+
+export interface RemovalReasonsSeriesItem {
+  name: string
+  population: 'npm_all'
+  /** 항상 `'transitions'`. 값으로 실려 오므로 캡션에 그대로 쓴다. */
+  unit: string
+  /**
+   * `data_status` 가 행 전체를 지배한다 — COMPLETE·NO_DATA 면 네 숫자가 실수치,
+   * OUT_OF_SCOPE·NOT_COMPUTED 면 전부 `null` 이다(키는 남는다). **0 으로 바꾸지 않는다.**
+   * 대상 97,745개 중 57,201개(58.5%)가 `NO_DATA` 이므로 이걸 `OUT_OF_SCOPE` 처럼 다루면
+   * 대부분의 패키지에 "분석 대상 아님" 이 뜬다.
+   */
+  removals: number | null
+  /** 빼고 아무것도 안 넣은 전이. 어느 구간에서나 약 70%가 여기다 — 이 지표의 결론. */
+  no_replacement: number | null
+  /** 뺀 릴리스에서 다른 것을 함께 넣은 전이. **같은 자리의 대체라는 보장은 없다.** */
+  with_replacement: number | null
+  /** 뺀 적 있는 의존자 수(중복 접음). `removals` 와 단위가 달라 나누지 않는다. */
+  dependents: number | null
+  data_status: TransitionDataStatusWire
+}
+
+export interface RemovalReasonsResponse {
+  metric: 'removal_reasons'
+  period: TransitionPeriodParam
+  /** 읽을 행이 없으면 키 자체가 없다 — 서버가 구간에서 날짜를 지어내지 않는다. */
+  t1?: string
+  t2?: string
+  /** **한 패키지가 한 줄이다** — `transitions` 와 달리 `kind` 분해가 없다. */
+  series: RemovalReasonsSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
  * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +

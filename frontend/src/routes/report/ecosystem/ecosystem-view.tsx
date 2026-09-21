@@ -20,6 +20,11 @@ import {
   type PeriodPresetKey,
 } from '@/routes/report/ecosystem/model'
 import { DEPENDENTS_TERM, DependentsConcept } from '@/routes/report/ecosystem/terms'
+import { RemovalReasonsPanel } from '@/routes/report/ecosystem/removal-reasons-panel'
+import {
+  EMPTY_REMOVAL_REASONS_MODEL,
+  type RemovalReasonsModel,
+} from '@/routes/report/ecosystem/removal-reasons-model'
 import { TransitionsPanel } from '@/routes/report/ecosystem/transitions-panel'
 import {
   DEFAULT_TRANSITION_PERIOD,
@@ -58,6 +63,8 @@ export function EcosystemView({
   versionShareState = READY_STATE,
   transitionsModel = EMPTY_TRANSITIONS_MODEL,
   transitionsState = READY_STATE,
+  removalReasonsModel = EMPTY_REMOVAL_REASONS_MODEL,
+  removalReasonsState = READY_STATE,
   transitionPeriod = DEFAULT_TRANSITION_PERIOD,
   onTransitionPeriodChange = NOOP_PERIOD_CHANGE,
   compactChart = false,
@@ -77,6 +84,9 @@ export function EcosystemView({
   /** 유지·유입·이탈 조회 결과(S15P21A506-391). 개요·추이와 독립된 다섯 번째 쿼리다. */
   transitionsModel?: TransitionsModel
   transitionsState?: MetricState
+  /** 이탈 사유(S15P21A506-410). 위와 같은 `period` 를 쓰되 **단위가 다르다**(전이 건수). */
+  removalReasonsModel?: RemovalReasonsModel
+  removalReasonsState?: MetricState
   /**
    * 값 자체의 정본은 `ReportPage`다(S15P21A506-394) — PDF 내보내기 다이얼로그가 "화면이
    * 지금 보는 기간"을 읽어야 해서 이 탭보다 위로 올렸다. 다만 그 값이 바뀔 때 서버
@@ -400,6 +410,20 @@ export function EcosystemView({
           state={transitionsState}
           period={transitionPeriod}
           onPeriodChange={onTransitionPeriodChange}
+          emphasisKeys={emphasisKeys}
+        />
+      )}
+
+      {/*
+        유지·유입·이탈 **바로 아래**에 둔다. 저 패널이 "떠났다" 까지만 말하고 이 패널이
+        그 이탈을 둘로 가르므로, 떨어뜨려 놓으면 둘의 관계가 안 보인다. 구간 선택기는
+        위 패널 것 하나를 공유한다 — 같은 값을 바꾸는 컨트롤이 둘이면 고장처럼 보인다.
+      */}
+      {model.packages.length > 0 && (
+        <RemovalReasonsPanel
+          model={removalReasonsModel}
+          state={removalReasonsState}
+          period={transitionPeriod}
           emphasisKeys={emphasisKeys}
         />
       )}
