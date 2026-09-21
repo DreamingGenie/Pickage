@@ -384,9 +384,93 @@ services:
     mem_limit: 512m
     memswap_limit: 512m   # 스왑 0. 위 postgres 의 주석 참고
 
+  package-env-loader:
+    # 버전별 소비 조건 회차를 package_env 에 게시한다 (S15P21A506-366 · 기능-11-R01).
+    #
+    # ⚠ **상주가 아니다.** similarity-loader 와 달리 `_current.json` 을 따라가지 않는다 —
+    #   어떤 회차를 게시하는지 사람이 명시한다(pipeline/package_env/load.py 의 머리말).
+    #   그래서 profiles 에 넣어 `docker compose up -d` 가 띄우지 않게 한다. 배포 잡의
+    #   `up -d --wait` 도 이 서비스를 건너뛴다.
+    #
+    # 손으로 한 회차를 게시할 때:
+    #
+    #   cd /srv/pickage/repo/deploy/prod/app
+    #   docker compose --profile oneshot run --rm package-env-loader \
+    #     --collected-date 2026-09-16 --run-id package-env-20260916-v1
+    #
+    # 확인만 할 때는 위 명령 끝에 `--verify-only` 를 붙인다. 받아서 staging 까지만 하고
+    # 본 표는 건드리지 않는다.
+    #
+    # ⚠ 이 작업은 한 트랜잭션이다. 2천만 행의 FK 검사가 붙어 **한 시간 가까이 걸리고**,
+    #   중간에 끊으면 통째로 롤백된다. 배포·주간 배치와 시간이 겹치지 않게 돌릴 것.
+    #
+    # ⚠ 이미지에 코드가 없다. pipeline/Dockerfile 이 런타임만 굽고 저장소를 마운트한다 —
+    #   similarity-loader 와 같은 이미지다.
+    profiles: ["oneshot"]
+    build:
+      context: ../../../pipeline
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # ⚠ 회차와 무관한 인자는 **전부 entrypoint 에 둔다.** `run --rm` 이 command 를 통째로
+    #   덮어쓰기 때문이다 — command 에 두면 손으로 돌릴 때만 조용히 사라진다.
+    #   similarity-loader 의 --work-dir 이 같은 이유로 환경변수로 가 있다.
+    entrypoint:
+      - "python"
+      - "-m"
+      - "pipeline.package_env.load"
+      - "--psql"
+      - "psql"
+      - "--work-dir"
+      - "/var/lib/pickage/package-env"
+      - "--database"
+      - "${POSTGRES_DB}"
+      - "--db-user"
+      - "${POSTGRES_USER}"
+    volumes:
+      # ingest_raw.py 의 client() 가 ROOT 를 __file__ 기준 parents[2] 로 잡는다.
+      # 저장소가 통째로 /opt/work 에 있어야 그 계산이 맞는다.
+      - ../../..:/opt/work
+      # MinIO 자격증명. 저장소 안에 두지 않는 이유는 similarity-loader 쪽 주석과 같다 —
+      # 배포 잡의 GIT_CLEAN_FLAGS(-ffdx)가 추적되지 않는 파일을 매번 지운다.
+      #
+      # ⚠ 배포 잡에 `test -f` 가드를 두지 않는다. 이건 상주가 아니라서 파일이 없어도
+      #   사이트에 아무 일이 없고, 사람이 위 명령을 칠 때 그 자리에서 드러난다.
+      #   만드는 절차는 deploy/prod/data/README.md 의 "app 노드 백엔드 로더에 줄 계정".
+      - /srv/pickage/secrets/minio-api-loader.env:/opt/work/pipeline/minio/.env.api-loader:ro
+      # 받은 parquet 과 전송용 CSV(1.4 GB 안팎), 게시 기록이 들어간다.
+      #
+      # ⚠ **/opt/work 아래에 두지 않는다.** 저장소 바인드 안에 중첩 마운트가 되면
+      #   도커가 마운트 지점을 호스트 저장소에 root 소유로 만들고, 다음 배포의
+      #   git clean 이 그걸 지우려 든다. (similarity-loader 와 같은 함정)
+      - package-env-loader-work:/var/lib/pickage/package-env
+    environment:
+      # docker.sock 을 마운트하지 않는다 — 같은 compose 네트워크 안이라 postgres:5432 가
+      # 그대로 보이므로 --psql 로 간다. 이유는 similarity-loader 쪽 주석과 같다.
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?.env 에 POSTGRES_PASSWORD 를 채울 것}
+      # ⚠ MINIO_ROOT_* 를 재사용하지 말 것. 그것은 Spark executor 용이라 권한 폭이 다르다.
+      #   이 계정은 pickage-curated 읽기 전용이다
+      #   (pipeline/minio/policies/api-loader.json).
+      #
+      # 환경변수가 아니라 **파일 이름**이다 — client() 가 pipeline/minio/<이 값> 을 직접
+      # 열어 파싱한다. 그 자리에 위의 바인드가 붙는다.
+      PICKAGE_MINIO_ENV: .env.api-loader
+    # DuckDB 가 parquet 을 CSV 로 펴는 동안 쓰는 몫이다. load.py 의 --memory 기본값이
+    # 2GB 라 그 위에 여유를 둔다 — 상한을 2g 로 맞추면 DuckDB 가 상한에 닿기 전에
+    # 컨테이너가 먼저 OOM Kill 된다.
+    #
+    # ⚠ 이 3g 는 상주가 아니라 **돌리는 동안만** 쓴다. 그래서 postgres 2g + api 1.6g
+    #   위에 얹혀도 되지만, 주간 배치(worker② executor 5g)와 겹치면 안 된다.
+    mem_limit: 3g
+    memswap_limit: 3g   # 스왑 0. 위 postgres 의 주석 참고
+
 volumes:
   # 운영 DB. `down -v` 를 치면 여기가 사라진다 — README 의 경고를 볼 것.
   pgdata:
   # similarity-loader 의 작업 폴더. 받은 산출물과 게시 기록이 들어간다.
   # 지워도 다음 게시가 MinIO 에서 다시 받는다 — 잃는 것은 지난 게시의 기록이다.
   similarity-loader-work:
+  # package-env-loader 의 작업 폴더. 같은 성격이다 — parquet·CSV 는 다시 받을 수 있고,
+  # 잃는 것은 지난 게시의 execution_report.json 과 psql.log 다.
+  package-env-loader-work:

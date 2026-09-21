@@ -1114,15 +1114,17 @@ docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_RO
 
 마지막 `user ls` 에 **`pickage-loader` 가 없고 `pickage-similarity-loader` 가 있으면** 된다.
 
-### app 노드 백엔드 로더에 줄 계정 — 소비자는 아직 없다
+### app 노드 백엔드 로더에 줄 계정 — package-env-loader
 
 `pickage-curated` 의 Parquet 을 PostgreSQL 로 넣는 **백엔드 로더용** 계정이다.
-**그 코드는 아직 없다** ([`../../ci/README.md`](../../ci/README.md) 의 "아직 없는 것" 의
-"MinIO → PostgreSQL 로더"). 그래서 이 절은 **미리 발급해 두는 절차**다.
 
-미리 만드는 이유는 하나다. 소비자가 생기는 날 급하게 붙이면 **루트 키를 복사하거나
-`pickage-ops` 를 재사용**하게 된다. 그때는 이미 돌아가는 것이 있어서 권한을 좁히는
-작업이 뒤로 밀린다. 계정이 먼저 있으면 그 유혹이 없다.
+소비자가 생겼다. `deploy/prod/app/compose.yaml` 의 **`package-env-loader`** 서비스가
+`pipeline/package_env/load.py` 를 돌려 `package_env` 를 게시한다(S15P21A506-366). 그 서비스는
+이 계정을 **파일로** 읽는다 — 아래 3-2 를 반드시 같이 한다.
+
+⚠ 스프링 쪽 `PICKAGE_CURATED_S3_*` 는 **아직 사전 배선이다.** 그 셋을 읽는 백엔드 코드는
+없다([`../../ci/README.md`](../../ci/README.md) 의 "아직 없는 것"). 같은 계정을 두 군데에
+넣어 두는 것이고, 지금 실제로 쓰는 것은 로더 쪽뿐이다.
 
 ⚠ **`pickage-ops` 와 다른 계정이다.** 그건 `_ops/weekly/` 전용이고 `manual-request.json`
 **쓰기**가 붙어 있다. ⚠ `pickage-similarity-loader` 와도 다르다 — 그건 `pickage-vectors` 다.
@@ -1181,6 +1183,31 @@ S15P21A506-347). 소비자 코드를 쓸 때 이 이름에 맞춘다.
 Flyway 로 1분 가까이 걸린다. 배선이 들어간 첫 배포에서 어차피 한 번 뜨므로 **키를 지금
 같이 넣는 편이 재시작을 한 번으로 줄인다** — 나중에 채우면 그때 또 뜬다. 배치·트래픽이
 몰리는 시각은 피한다.
+
+**3-2. 로더가 읽을 파일을 서버에 둔다 — 이건 사전 배선이 아니라 지금 필요하다.**
+
+`package-env-loader` 는 `app.env` 가 아니라 **파일**을 읽는다(`PICKAGE_MINIO_ENV`).
+`similarity-loader` 와 같은 자리에 같은 방식으로 둔다.
+
+```bash
+# app 노드(j15a506)에서 — 여기만 data 노드가 아니다
+sudo mkdir -p /srv/pickage/secrets          # ⚠ 부모 /srv/pickage 는 건드리지 않는다 (app.env 가 있다)
+sudo cp /srv/pickage/repo/pipeline/minio/.env.api-loader.example /srv/pickage/secrets/minio-api-loader.env
+sudo chown 1000:1000 /srv/pickage/secrets/minio-api-loader.env   # 컨테이너가 uid 1000 으로 읽는다
+sudo chmod 600 /srv/pickage/secrets/minio-api-loader.env
+sudo nano /srv/pickage/secrets/minio-api-loader.env              # PICKAGE_S3_ACCESS_KEY·PICKAGE_S3_SECRET_KEY 에 위 키를 넣는다
+```
+
+⚠ 키 이름은 **`PICKAGE_S3_*`** 다. `PICKAGE_CURATED_S3_*`(위 3번, 스프링용)와 이름이
+다르다 — 읽는 쪽이 다르기 때문이다. 이 파일은 `ingest_raw.py` 의 `client()` 가 직접 연다.
+
+⚠ **저장소 안에 만들지 말 것.** 배포 잡의 `GIT_CLEAN_FLAGS: -ffdx` 가 추적되지 않는
+파일을 매번 지운다 — 2026-09-16 배포가 `similarity-loader` 에서 그렇게 깨졌다
+(S15P21A506-385).
+
+⚠ 배포 잡에 `test -f` 가드를 두지 **않았다.** `package-env-loader` 는 상주가 아니라
+`--profile oneshot` 으로 사람이 부를 때만 돈다 — 파일이 없어도 사이트에는 아무 일이 없고,
+명령을 치는 그 자리에서 드러난다.
 
 **4. 권한이 의도대로인지 확인한다.**
 
