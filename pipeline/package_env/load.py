@@ -29,13 +29,18 @@ advisory lock → staging → 이름 해석 → 전량 교체 → etl 이력. �
   - 이름이 `package` 에 없다
   - 이름은 있는데 그 버전이 `version` 에 없다
 
-둘째가 이 데이터셋에서 더 크다. **원천이 둘이기 때문이다** — `version` 은 deps.dev
-스냅샷(2026-08-31)에서 오고 이 산출물은 registry 수집(2026-09-16)에서 온다. 그 보름 사이에
-나온 버전은 registry 에는 있고 `version` 에는 없다. registry README 실측으로 두 원천의
-`(Name, Version)` 매칭률이 95.1% 이므로 **4.9% 가 빠지는 것이 정상이다.**
+둘째가 이 데이터셋에서 압도적으로 크다. **원천이 둘이기 때문이다** — `version` 은 deps.dev
+스냅샷(2026-08-31)에서 오고 이 산출물은 registry 수집(2026-09-16)에서 온다. registry 는 한
+패키지의 **전 버전**을 담고 `version` 은 스냅샷이 알던 것만 담아서, 겹치지 않는 쪽이 절반을
+넘는다. 2026-09-16 회차 실측으로 2,156만 행 중 782만 행만 붙었다(36.3%).
 
-그래서 둘을 따로 세어 quality 에 남긴다. 합쳐 세면 "이름 규칙이 어긋났다" 와 "스냅샷이
-오래됐다" 를 구분할 수 없고, 둘은 할 일이 다르다.
+**그 손실을 적재 실패로 읽으면 안 된다.** 붙지 못한 행은 `version` 에 없는 버전이고, 그
+버전은 화면의 드롭다운(기능-10-R02)에 뜨지도 않는다 — 아무도 고를 수 없는 행이다. 그래서
+품질 지표는 staged 대비가 아니라 **`version` 이 제공하는 버전 대비**로 본다. 같은 회차의
+실측이 그 기준으로 100.0% 다.
+
+그리고 못 붙은 이유 둘을 따로 세어 quality 에 남긴다. 합쳐 세면 "이름 규칙이 어긋났다" 와
+"스냅샷이 오래됐다" 를 구분할 수 없고, 둘은 할 일이 다르다 — 앞은 고쳐야 하고 뒤는 정상이다.
 """
 from __future__ import annotations
 
@@ -147,7 +152,7 @@ def pull_run(s3, collected_date: str, run_id: str, target: Path) -> Path:
     return target
 
 
-def write_transport(parquet: Path, target: Path) -> int:
+def write_transport(parquet: Path, target: Path, memory: str) -> int:
     """parquet 을 psql COPY 용 CSV 로 옮기고 행 수를 돌려준다.
 
     이스케이프·따옴표를 손으로 만들지 않고 DuckDB 에 맡긴다. 패키지 이름에 쉼표나 따옴표가
@@ -156,15 +161,24 @@ def write_transport(parquet: Path, target: Path) -> int:
 
     개수 두 열의 NULL 은 빈 칸으로 나가고 Postgres 가 정수 열의 빈 칸을 NULL 로 읽는다.
     0 으로 채우면 unpublish 된 버전이 "의존 없음" 이 되어 거짓이 된다.
+
+    **여기서 정렬하지 않는다.** 빌더가 이미 (Name, Version) 순으로 쓴 parquet 이라 읽으면
+    그 순서로 나오고, Postgres 는 입력 순서를 쓰지 않는다. 2,156만 행을 한 번 더 정렬하면
+    메모리를 그만큼 잡는데, 실제로 운영 컨테이너에서 OOM 으로 죽었다.
     """
     import duckdb
 
     con = duckdb.connect()
+    # 상한을 넘으면 옆 폴더로 흘린다. 컨테이너 메모리가 좁아도 죽지 않게 한다.
+    temp = target.parent / "duckdb-tmp"
+    temp.mkdir(exist_ok=True)
+    con.execute(f"SET memory_limit='{memory}'")
+    con.execute(f"SET temp_directory='{temp.as_posix()}'")
+    con.execute("SET preserve_insertion_order=false")
     con.execute(f"""COPY (
         SELECT Name, Version, module_format, types_bundled,
                direct_dependencies, peer_dependencies
-        FROM read_parquet('{parquet.as_posix()}')
-        ORDER BY Name, Version)
+        FROM read_parquet('{parquet.as_posix()}'))
         TO '{target.as_posix()}' (FORMAT CSV, HEADER false)""")
     rows = con.execute(
         f"SELECT count(*) FROM read_parquet('{parquet.as_posix()}')").fetchone()[0]
@@ -207,7 +221,11 @@ SELECT v.package_id, v."version",
 
 -- 못 붙은 이유를 둘로 나눠 센다. 이름이 없는 것과, 이름은 있는데 그 버전이 없는 것은
 -- 할 일이 다르다 — 앞은 이름 규칙이나 적재 대상 DB 를 의심해야 하고, 뒤는 version 이
--- 더 오래된 스냅샷이라는 뜻이라 정상일 수 있다(두 원천의 매칭률 95.1%).
+-- 더 오래된 스냅샷이라는 뜻이라 정상이다.
+--
+-- selectable_rows 가 이 표의 **진짜 분모**다. 적재한 패키지들에 대해 version 이 제공하는
+-- 버전 수이고, 화면이 고를 수 있는 것이 딱 그만큼이다. staged 대비 비율은 registry 가 전
+-- 버전을 담는 탓에 항상 낮게 나와서, 그것만 보면 정상 적재가 사고처럼 보인다.
 CREATE TEMP TABLE quality ON COMMIT DROP AS
 SELECT (SELECT count(*)                   FROM stage_env)                  AS staged_rows,
        (SELECT count(DISTINCT name)       FROM stage_env)                  AS staged_packages,
@@ -220,7 +238,10 @@ SELECT (SELECT count(*)                   FROM stage_env)                  AS st
           JOIN "package" p ON p."name" = s.name
           LEFT JOIN "version" v
             ON v.package_id = p.package_id AND v."version" = s.version
-         WHERE v.package_id IS NULL)                                       AS unknown_version_rows;
+         WHERE v.package_id IS NULL)                                       AS unknown_version_rows,
+       (SELECT count(*)                   FROM "version" v
+         WHERE EXISTS (SELECT 1 FROM resolved r WHERE r.package_id = v.package_id))
+                                                                           AS selectable_rows;
 
 -- 한 건도 못 붙으면 중단. 이름 규칙이 어긋났거나 version 이 비어 있다는 뜻이다.
 DO $$ BEGIN
@@ -307,6 +328,8 @@ def parse_args(argv=None):
     parser.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리. 주면 MinIO 를 안 본다")
     parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "data/package_env_load")
+    parser.add_argument("--memory", default="2GB",
+                        help="DuckDB 상한. 넘으면 작업 폴더의 duckdb-tmp 로 흘린다")
     parser.add_argument("--verify-only", action="store_true",
                         help="게시 직전까지 전부 실행한 뒤 ROLLBACK. DB 는 그대로 둔다")
     target = parser.add_mutually_exclusive_group(required=True)
@@ -324,6 +347,29 @@ def parse_args(argv=None):
     if not SAFE_ID.fullmatch(args.execution_id):
         parser.error("--execution-id 는 영문·숫자·밑줄·하이픈 1~200자")
     return args
+
+
+# 적재 품질을 사람이 읽는 두 줄로 요약한다.
+def report_quality(quality: dict) -> None:
+    staged, loaded = quality["staged_rows"], quality["loaded_rows"]
+    selectable = quality.get("selectable_rows") or 0
+    lost = staged - loaded
+    if lost:
+        print(f"참고: staged {staged:,}행 중 {lost:,}행이 version 에 없어 빠졌다 — "
+              f"이름 없음 {quality['unknown_name_rows']:,}행 · "
+              f"버전 없음 {quality['unknown_version_rows']:,}행", flush=True)
+        print("  registry 는 전 버전을 담고 version 은 스냅샷이 알던 것만 담는다. "
+              "빠진 행은 화면에서 고를 수 없는 버전이라 손실이 아니다", flush=True)
+    if not selectable:
+        return
+    # 이 값이 품질 판정이다. 화면이 고를 수 있는 버전 중 소비 조건이 붙은 비율.
+    coverage = loaded / selectable * 100
+    line = f"커버리지 {coverage:.1f}% ({loaded:,}/{selectable:,}) — version 이 제공하는 버전 기준"
+    if coverage < 99:
+        # 이름이 안 붙었거나 적재가 중간에 잘렸다. 스냅샷 시차로는 이 값이 떨어지지 않는다.
+        print(f"경고: {line}. 1% 넘게 비었으면 이름 해석을 의심할 것", flush=True)
+    else:
+        print(line, flush=True)
 
 
 def main(argv=None) -> int:
@@ -354,7 +400,7 @@ def main(argv=None) -> int:
     work = (args.work_dir / args.execution_id / attempt_id).resolve()
     work.mkdir(parents=True, exist_ok=False)
     transport = work / "package_env.copy.csv"
-    staged = write_transport(parquet, transport)
+    staged = write_transport(parquet, transport, args.memory)
     if staged != entry["rows"]:
         raise SystemExit(f"manifest 의 행 수와 실제가 다르다: {entry['rows']} vs {staged}")
     print(f"전송 파일 준비: {staged:,}행 ({transport.name})", flush=True)
@@ -408,14 +454,7 @@ def main(argv=None) -> int:
 
     print(json.dumps(quality, ensure_ascii=False, indent=2), flush=True)
     if quality:
-        lost = quality["staged_rows"] - quality["loaded_rows"]
-        if lost:
-            share = lost / quality["staged_rows"] * 100
-            print(f"경고: {lost:,}행({share:.1f}%)이 빠졌다 — "
-                  f"이름 없음 {quality['unknown_name_rows']:,}행 · "
-                  f"버전 없음 {quality['unknown_version_rows']:,}행", flush=True)
-            print("  버전 없음은 version 이 더 오래된 deps.dev 스냅샷이라 생기며 "
-                  "두 원천의 매칭률(95.1%)만큼이 정상이다", flush=True)
+        report_quality(quality)
     print(("검증만 하고 되돌렸다" if args.verify_only else "게시 완료") + f" — {work}", flush=True)
     return 0
 

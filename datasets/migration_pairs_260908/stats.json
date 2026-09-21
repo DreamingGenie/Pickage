@@ -38,12 +38,12 @@
   "strict_from_pkgs": 782,
   "strict_to_pkgs": 554,
   "strict_adopters_of_from_pkgs": 3565925,
-  "loose_pairs": 16832,
-  "loose_from_pkgs": 7139,
-  "loose_to_pkgs": 5923,
-  "loose_adopters_of_from_pkgs": 5182588,
-  "count_votes5_pm3_pairs": 5919,
-  "count_votes5_pm3_from_pkgs": 2449,
+  "loose_pairs": 16837,
+  "loose_from_pkgs": 7141,
+  "loose_to_pkgs": 5925,
+  "loose_adopters_of_from_pkgs": 5182590,
+  "count_votes5_pm3_pairs": 5923,
+  "count_votes5_pm3_from_pkgs": 2452,
   "count_votes12_pairs": 2491,
   "count_votes12_from_pkgs": 1172,
   "removal_stats_rows_csv": 47240,
@@ -51,17 +51,17 @@
   "recommended_from_pkgs": 1022,
   "file_bytes": {
     "migration_pairs_strict.csv": 121283,
-    "migration_pairs_all.csv": 1706577,
+    "migration_pairs_all.csv": 1707036,
     "migration_pairs_recommended.csv": 122005,
     "removal_stats.csv": 2680918,
     "removal_by_year.csv": 5134320,
     "removal_by_period.csv": 9973493,
-    "removal_stats.parquet": 4500010,
+    "removal_stats.parquet": 4068983,
     "removal_by_year.parquet": 2315229,
     "removal_by_period.parquet": 2528362,
-    "migration_events.parquet": 21879706,
-    "migration_events.csv": 118998380,
-    "migration_pairs.duckdb": 11429490688
+    "migration_events.parquet": 21865568,
+    "migration_events.csv": 118998022,
+    "migration_pairs.duckdb": 11266961408
   },
   "input_bytes": {
     "versions_full_parquet": 4743980087,
@@ -89,5 +89,5 @@
     "OptionalDependencies"
   ],
   "reclassify_legacy": false,
-  "elapsed_sec": 2545
+  "elapsed_sec": 1986
 }
