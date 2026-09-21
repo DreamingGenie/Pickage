@@ -1,5 +1,3 @@
-import { useMemo } from 'react'
-
 import { errorNotice } from '@/api/client'
 import { RemovalBars } from '@/components/charts/removal-bars'
 import { seriesStyle } from '@/components/charts/tokens'
@@ -41,14 +39,7 @@ export function RemovalReasonsPanel({
   emphasisKeys: string[] | null
   className?: string
 }) {
-  /** 비교 패키지 전체가 공유하는 스케일 — 각자 최댓값을 잡으면 막대 길이로 비교할 수 없다. */
-  const max = useMemo(
-    () => model.packages.reduce((m, p) => Math.max(m, p.counts?.removals ?? 0), 0),
-    [model.packages],
-  )
-
-  const periodLabel =
-    TRANSITION_PERIODS.find((p) => p.key === period)?.label ?? period
+  const periodLabel = TRANSITION_PERIODS.find((p) => p.key === period)?.label ?? period
   const dateLabel =
     model.t1 && model.t2
       ? `${model.t1} ~ ${model.t2}`
@@ -69,8 +60,8 @@ export function RemovalReasonsPanel({
           <h3 className="text-lg font-semibold">이탈 사유</h3>
           <InfoDialog label="이탈 사유 계산 기준 안내" title="계산 기준">
             <p>
-              위 <strong>유지 · 유입 · 이탈</strong> 과 <strong>세는 단위가 다릅니다.</strong> 저쪽은
-              프로젝트를 이름으로 센 <strong>패키지 수</strong> 이고, 이 수치는 뺀 행위를 센{' '}
+              위 <strong>유지 · 유입 · 이탈</strong> 과 <strong>세는 단위가 다릅니다.</strong>{' '}
+              저쪽은 프로젝트를 이름으로 센 <strong>패키지 수</strong> 이고, 이 수치는 뺀 행위를 센{' '}
               <strong>전이 건수</strong>({unit}) 입니다. 한 프로젝트가 뺐다가 다시 넣고 또 뺐으면
               저쪽은 1, 이쪽은 2 입니다. <strong>두 패널의 수를 더하거나 나누지 마세요.</strong>
             </p>
@@ -90,8 +81,8 @@ export function RemovalReasonsPanel({
       </div>
 
       <p className="text-base text-muted-foreground">
-        최근 <strong className="text-foreground">{periodLabel}</strong> 간 {unit === 'transitions' ? '전이 건수' : unit} 기준입니다. 위
-        패널과 같은 구간을 봅니다.
+        최근 <strong className="text-foreground">{periodLabel}</strong> 간{' '}
+        {unit === 'transitions' ? '전이 건수' : unit} 기준입니다. 위 패널과 같은 구간을 봅니다.
       </p>
 
       {state.status === 'loading' ? (
@@ -110,7 +101,11 @@ export function RemovalReasonsPanel({
             </p>
           )}
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/*
+            `justify-center` + 고정 폭 — 3패키지면 한 줄을 꽉 채우지만, 1~2개면 그리드가 비운
+            칸만큼 오른쪽에 통째로 남던 공백을 양옆으로 고르게 돌린다(리뷰 지적).
+          */}
+          <div className="flex flex-wrap justify-center gap-5">
             {model.packages.map((pkg, i) => {
               const style = seriesStyle(i)
               const emphasized = !emphasisKeys || emphasisKeys.includes(pkg.key)
@@ -118,7 +113,8 @@ export function RemovalReasonsPanel({
                 <div
                   key={pkg.key}
                   className={cn(
-                    'flex flex-col gap-3 transition-opacity duration-150',
+                    'flex w-full flex-none flex-col items-center gap-3 transition-opacity duration-150',
+                    'sm:basis-[calc(50%-10px)] lg:basis-[calc(33.333%-14px)]',
                     !emphasized && 'opacity-40',
                   )}
                 >
@@ -137,7 +133,7 @@ export function RemovalReasonsPanel({
                     </svg>
                     <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
                   </div>
-                  <RemovalBars counts={pkg.counts} dataStatus={pkg.dataStatus} max={max} />
+                  <RemovalBars counts={pkg.counts} dataStatus={pkg.dataStatus} />
                 </div>
               )
             })}

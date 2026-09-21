@@ -112,3 +112,56 @@ export const EMPTY_TRANSITIONS_MODEL: TransitionsModel = {
   packages: [],
   notFound: [],
 }
+
+/**
+ * 활동한 의존자 비율 (S15P21A506-427).
+ *
+ * **분모에 원시 `inflow` 가 아니라 `inflowAdopted` 를 쓴다.** 원시를 쓰면 유입의 94~97.5%가
+ * 신규 패키지라, 막대에서 신규를 주인공 자리에서 뺀 이유(S15P21A506-410)가 분모 쪽으로
+ * 그대로 되돌아온다. 막대가 그리는 값과 분모가 같아야 화면이 한 가지 이야기를 한다.
+ *
+ * `total` 을 같이 돌려주는 이유 — 활동 대비만 보여주면 "얼마나 봤나" 를 숨기게 된다.
+ * 전체 대비는 "얼마나 봤나", 활동 대비는 "본 것 중 무엇이 일어났나" 다. 하나만 고르면
+ * 각각 다른 방향으로 거짓말을 한다.
+ */
+export interface ActivityShares {
+  /** `retained + inflowAdopted + outflow` — 이 기간에 실제로 판정한 의존자. */
+  active: number
+  /** `active + unobserved` — 이 kind 에서 본 의존자 전체. */
+  total: number
+  retainedPct: number
+  inflowAdoptedPct: number
+  outflowPct: number
+}
+
+/** 판정한 의존자가 하나도 없으면 `null` — 0 으로 나누지 않고, 비율 줄 자체를 그리지 않는다. */
+export function activityShares(counts: TransitionCounts): ActivityShares | null {
+  const active = counts.retained + counts.inflowAdopted + counts.outflow
+  if (active <= 0) return null
+  const pct = (v: number) => (v / active) * 100
+  return {
+    active,
+    total: active + counts.unobserved,
+    retainedPct: pct(counts.retained),
+    inflowAdoptedPct: pct(counts.inflowAdopted),
+    outflowPct: pct(counts.outflow),
+  }
+}
+
+/**
+ * 지금 화면에 있는 행들을 합쳐 "릴리스 없음" 이 몇 %인지. 1년 구간 경고 문장에 쓴다.
+ *
+ * 실측 상수(85%)를 문장에 박아 두지 않는다 — 자료가 바뀌면 화면이 조용히 거짓이 된다.
+ * 값을 쓸 수 있는 행이 하나도 없으면 `null` 이고, 그때는 경고를 띄우지 않는다.
+ */
+export function unobservedShare(rows: readonly TransitionRow[]): number | null {
+  let unobserved = 0
+  let total = 0
+  for (const row of rows) {
+    if (!row.counts) continue
+    const c = row.counts
+    unobserved += c.unobserved
+    total += c.retained + c.inflowAdopted + c.outflow + c.unobserved
+  }
+  return total > 0 ? (unobserved / total) * 100 : null
+}

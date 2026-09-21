@@ -1,4 +1,4 @@
-import { HatchDef } from '@/components/charts/version-share'
+import { ShareDonut } from '@/components/charts/version-share'
 import { SHARE_FILLS } from '@/components/charts/tokens'
 import type {
   RemovalCounts,
@@ -7,26 +7,33 @@ import type {
 import { cn } from '@/lib/utils'
 
 /**
- * 이탈 사유 막대 — 패키지 하나.
+ * 이탈 사유 도넛 — 패키지 하나 (S15P21A506-410, 재설계 S15P21A506-427).
  *
- * `TransitionBars` 와 달리 **범주가 둘이고 서로 합쳐 전체가 된다**
- * (`no_replacement + with_replacement = removals`, 서버 DB CHECK). 그래서 네 개를
- * 나란히 세우지 않고 **누적 막대 하나**로 그린다 — 비율이 이 지표의 결론이기 때문이다.
+ * **누적 막대가 아니라 도넛이다.** 막대였을 때는 막대 "안"의 두 색(대체 없이/함께 제거)이
+ * 항상 100%를 채우는데도, 막대 "전체 길이"가 비교 패키지 중 최댓값 대비 상대 길이라
+ * 짧게 그려진 패키지는 마치 셋째 범주가 빠진 것처럼 보였다(리뷰에서 확인된 오해).
  *
- * `data_status` 가 행 전체를 지배한다. **`NO_DATA` 를 `OUT_OF_SCOPE` 처럼 그리면 안 된다** —
+ * 도넛은 그 자체로 "안에서 100%" 를 형태로 보장해 그 오해가 생기지 않는다. 패키지 간
+ * 규모 비교(막대 길이가 하던 역할)는 필요 없다 — 이 지표에서 중요한 것은 "이 패키지가 뺀
+ * 이유의 구성" 이지 다른 패키지와의 상대 크기가 아니다.
+ *
+ * **도넛 가운데는 비율(%)이 아니라 총 이탈 건수다** — 비율은 이미 아래 범례에 있어 도넛
+ * 가운데까지 %를 반복하면 중복이다(리뷰 지적). 대신 총 이탈 건수를 가운데 크게 두고,
+ * 같은 값을 두 번(줄 하나 + 도넛 가운데) 적지 않도록 별도의 "이탈 전이" 줄은 두지 않는다.
+ * 세로로 쌓아 도넛을 키우고(가로 공백이 아니라 세로 높이를 쓴다), 패키지 간 의존자 수
+ * 비교처럼 단위가 다른 부가 정보("뺀 프로젝트 N개")는 화면을 덜 산만하게 하려고 뺐다.
+ *
+ * `data_status` 가 전체를 지배한다. **`NO_DATA` 를 `OUT_OF_SCOPE` 처럼 그리면 안 된다** —
  * 운영 대상의 58.5%가 `NO_DATA` 라 그걸 "분석 대상 아님" 으로 뭉개면 대부분의 패키지가
  * 잘못된 문구를 달게 된다. `NO_DATA` 는 **실제 값이 0** 이고, 좋은 소식이다.
  */
 export function RemovalBars({
   counts,
   dataStatus,
-  max,
   className,
 }: {
   counts: RemovalCounts | null
   dataStatus: RemovalReasonsDataStatus
-  /** 비교 패키지 전체를 통틀어 호출자가 한 번 계산한 값 — 막대 길이를 패키지끼리 비교하려면 공유해야 한다. */
-  max: number
   className?: string
 }) {
   /**
@@ -37,59 +44,31 @@ export function RemovalBars({
    */
   const known = (dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA') && counts !== null
   const total = counts?.removals ?? 0
-  // 막대 전체가 차지하는 폭. 0 이면 빈 트랙만 남아 "없음" 이 형태로 보인다.
-  const trackPct = known && max > 0 && total > 0 ? Math.max((total / max) * 100, 2) : 0
-  const noPct = total > 0 ? ((counts?.noReplacement ?? 0) / total) * 100 : 0
+
   /**
    * **한쪽만 반올림하고 다른 쪽은 100 에서 뺀다.** 둘을 각자 Math.round 하면 합이
    * 101%(또는 99%)로 보인다 — removals=8 · no=3 · with=5 면 37.5→38, 62.5→63 이다.
    * `no + with = removals` 는 DB CHECK 로 보장되는 값이라 화면에서 깨지면 안 된다.
    */
+  const noPct = total > 0 ? ((counts?.noReplacement ?? 0) / total) * 100 : 0
   const noPercent = total > 0 ? Math.round(noPct) : null
   const withPercent = noPercent === null ? null : 100 - noPercent
 
-  return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <svg width="0" height="0" aria-hidden className="absolute">
-        <HatchDef />
-      </svg>
-
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-base text-muted-foreground">이탈 전이</span>
-        <span className="font-mono text-base tabular-nums">
-          {known ? total.toLocaleString() : '—'}
-        </span>
-      </div>
-
-      <span
-        className={cn(
-          'flex h-3 overflow-hidden rounded-sm',
-          dataStatus === 'NOT_COMPUTED' ? 'border border-dashed bg-transparent' : 'bg-muted',
-        )}
-      >
-        {dataStatus === 'OUT_OF_SCOPE' ? (
-          <svg width="100%" height="100%" viewBox="0 0 100 10" preserveAspectRatio="none">
-            {/* CSS 배경으로 SVG 패턴을 참조하면 Chrome 에서 안 그려진다 — `fill` 속성으로 직접 참조한다(ShareBars 와 같은 이유). */}
-            <rect width="40" height="10" rx="2" fill="url(#pk-hatch)" />
-          </svg>
-        ) : trackPct > 0 ? (
-          <span className="flex h-full" style={{ width: `${trackPct}%` }}>
-            <span
-              className="h-full"
-              style={{ width: `${noPct}%`, background: SHARE_FILLS[0] }}
-              aria-hidden
-            />
-            <span
-              className="h-full"
-              style={{ width: `${100 - noPct}%`, background: SHARE_FILLS[2] }}
-              aria-hidden
-            />
-          </span>
-        ) : null}
-      </span>
-
-      {known && counts ? (
-        <dl className="flex flex-col gap-1">
+  if (known && counts && total > 0) {
+    return (
+      <div className={cn('flex flex-col items-center gap-3', className)}>
+        <ShareDonut
+          size={104}
+          ariaLabel="이탈 사유 비율"
+          groups={[
+            { label: '대체 없이 제거', share: noPct / 100 },
+            { label: '다른 것과 함께 제거', share: (100 - noPct) / 100 },
+          ]}
+          fills={[SHARE_FILLS[0], SHARE_FILLS[2]]}
+          // 총 건수를 가운데에 둔다 — %는 아래 범례에 이미 있어 반복하지 않는다.
+          centerText={{ primary: total.toLocaleString(), secondary: '총 이탈' }}
+        />
+        <dl className="flex w-full max-w-64 flex-col gap-1.5">
           {/* 대체 없이 제거가 이 지표의 결론이라 먼저·굵게 둔다. */}
           <Legend
             fill={SHARE_FILLS[0]}
@@ -105,29 +84,23 @@ export function RemovalBars({
             percent={withPercent}
           />
         </dl>
-      ) : null}
+      </div>
+    )
+  }
 
-      {dataStatus === 'NO_DATA' && (
-        <p className="text-base text-muted-foreground">이 기간에 뺀 프로젝트가 없습니다</p>
-      )}
-      {dataStatus === 'OUT_OF_SCOPE' && (
-        <p className="text-base text-muted-foreground">분석 대상 아님 · top-100k 밖</p>
-      )}
-      {dataStatus === 'NOT_COMPUTED' && <p className="text-base text-muted-foreground">준비 중</p>}
-      {/* 계약상 COMPLETE·NO_DATA 면 네 숫자가 다 와야 한다. 안 왔으면 0 으로 메우지 않고 그 사실을 말한다. */}
-      {(dataStatus === 'COMPLETE' || dataStatus === 'NO_DATA') && !counts && (
-        <p className="text-base text-muted-foreground">값을 받지 못했습니다</p>
-      )}
+  const message =
+    dataStatus === 'NO_DATA'
+      ? '이 기간에 뺀 프로젝트가 없습니다'
+      : dataStatus === 'OUT_OF_SCOPE'
+        ? '분석 대상 아님 · top-100k 밖'
+        : dataStatus === 'NOT_COMPUTED'
+          ? '준비 중'
+          : // 계약상 COMPLETE·NO_DATA 면 값이 와야 한다. 안 왔으면 0 으로 메우지 않고 그 사실을 말한다.
+            '값을 받지 못했습니다'
 
-      {/*
-        `dependents` 와 `removals` 는 **단위가 다르다**(의존자 수 vs 전이 건수). 나누지 않는다 —
-        둘을 함께 보여주는 것은 "몇 번 일어났나" 와 "몇 명이 했나" 가 다르다는 것을 보이기 위해서다.
-      */}
-      {dataStatus === 'COMPLETE' && counts && (
-        <p className="-mt-0.5 text-base text-muted-foreground/80">
-          뺀 프로젝트 {counts.dependents.toLocaleString()}개가 일으킨 일입니다
-        </p>
-      )}
+  return (
+    <div className={cn('flex min-h-32 flex-col items-center justify-center', className)}>
+      <p className="text-base text-muted-foreground">{message}</p>
     </div>
   )
 }
@@ -148,7 +121,11 @@ function Legend({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: fill }} aria-hidden />
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+        style={{ background: fill }}
+        aria-hidden
+      />
       <dt className={cn('text-base', strong ? 'text-foreground' : 'text-muted-foreground')}>
         {label}
       </dt>
