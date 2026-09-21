@@ -15,7 +15,9 @@ import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
+import com.ssafy.pickage.domain.packages.TransitionPeriod;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
@@ -74,6 +76,7 @@ public class ReportHtmlRenderer {
 		trend(b, "Downloads", "주간 다운로드 · npm 공식 자료", s.downloads(), s, false);
 		versionShare(b, s.versionShare());
 		transitions(b, s.transitions());
+		removalReasons(b, s.removalReasons());
 
 		// 순서는 서버가 정한다 — 보내는 순서와 무관하게 문서 구성이 같다. 고른 구역은 채울 내용이 없어도 자리를
 		// 그린다. 빼버리면 체크한 것이 문서에서 사라져 사용자가 실패로 읽는다.
@@ -322,6 +325,107 @@ public class ReportHtmlRenderer {
 				? "원시 유입 " + group(series.inflow()) + " · 신규 " + group(series.inflowNew()) + "건 포함"
 				: null;
 		};
+	}
+
+	/**
+	 * 이탈 사유 (기능-08 · S15P21A506-396·410).
+	 *
+	 * <p>{@link #transitions} 와 <b>단위가 다르다</b> — 여기는 패키지 수가 아니라 전이 건수다.
+	 * 합치거나 나누지 않는다. 화면(`removal-reasons-panel.tsx`)과 같은 원칙을 문서에도 적용한다.
+	 *
+	 * <ul>
+	 *   <li><b>네 막대가 아니라 누적 막대 하나다.</b> {@code noReplacement + withReplacement =
+	 *       removals}(DB CHECK)이므로 비율이 이 지표의 결론이다.</li>
+	 *   <li><b>{@code NO_DATA} 를 {@code OUT_OF_SCOPE} 처럼 그리지 않는다.</b> 운영 대상의
+	 *       58.5%가 {@code NO_DATA} 라, 실제 값 0 으로 그리고 {@code OUT_OF_SCOPE} 만 회색
+	 *       자리로 그린다.</li>
+	 *   <li><b>구간 선택기를 두지 않는다.</b> 위 유지·유입·이탈과 같은 구간을 쓴다 — 캡션으로
+	 *       그 사실을 밝힌다.</li>
+	 * </ul>
+	 */
+	private void removalReasons(StringBuilder b, RemovalReasonsResponse r) {
+		heading(b, "이탈 사유");
+		b.append("<p class=\"unit\">").append(esc(removalReasonsCaption(r))).append("</p>");
+		removalBars(b, r);
+
+		b.append("<table><thead><tr><th>패키지</th>")
+			.append("<th class=\"n\">이탈 전이</th><th class=\"n\">대체 없이 제거</th>")
+			.append("<th class=\"n\">다른 것과 함께 제거</th><th class=\"n\">뺀 프로젝트</th>")
+			.append("</tr></thead><tbody>");
+
+		if (r.series().isEmpty()) {
+			b.append("<tr><td class=\"muted\" colspan=\"5\">자료 없음</td></tr>");
+		}
+		for (var series : r.series()) {
+			b.append("<tr><td class=\"mono\">").append(esc(series.name())).append("</td>");
+			transitionCount(b, series.removals());
+			transitionCount(b, series.noReplacement());
+			transitionCount(b, series.withReplacement());
+			transitionCount(b, series.dependents());
+			b.append("</tr>");
+
+			String rowNote = removalRowNote(series);
+			if (rowNote != null) {
+				b.append("<tr><td></td><td class=\"note\" colspan=\"4\">")
+					.append(esc(rowNote)).append("</td></tr>");
+			}
+		}
+		b.append("</tbody></table>");
+
+		if (!r.notFound().isEmpty()) {
+			note(b, "이탈 사유를 찾지 못한 이름: " + String.join(", ", r.notFound()));
+		}
+		note(b, "전이 건수 기준입니다 — 위 유지·유입·이탈의 패키지 수와 더하거나 나누면 안 됩니다.");
+	}
+
+	private static String removalReasonsCaption(RemovalReasonsResponse r) {
+		String range = (r.t1() == null || r.t2() == null)
+			? "적재 전 — 아직 이 구간이 계산되지 않았습니다"
+			: r.t1() + " ~ " + r.t2();
+		String population = r.series().isEmpty() ? null : r.series().getFirst().population();
+		String caption = transitionPeriodLabel(r.period()) + " · " + range;
+		return population == null ? caption : caption + " · " + transitionPopulationLabel(population);
+	}
+
+	/**
+	 * {@code data_status} 별 사유, 또는 {@code COMPLETE} 일 때 대체 없이/함께 제거의 비율.
+	 * <b>각자 반올림하지 않는다</b> — 한쪽만 반올림하고 다른 쪽은 100 에서 빼야 합이 100 이 된다
+	 * (화면 {@code RemovalBars} 와 같은 규칙).
+	 */
+	private static String removalRowNote(RemovalReasonsResponse.Series series) {
+		return switch (series.dataStatus()) {
+			case RemovalReasonsResponse.NO_DATA -> "이 기간에 뺀 프로젝트가 없습니다";
+			case RemovalReasonsResponse.OUT_OF_SCOPE -> "분석 대상 아님 · 다운로드 상위 10만 밖";
+			case RemovalReasonsResponse.NOT_COMPUTED -> "준비 중 — 아직 이 구간이 적재되지 않았습니다";
+			default -> removalPercentNote(series);
+		};
+	}
+
+	private static String removalPercentNote(RemovalReasonsResponse.Series series) {
+		Integer total = series.removals();
+		Integer no = series.noReplacement();
+		if (total == null || no == null || total <= 0) return null;
+		int noPercent = Math.round(no * 100f / total);
+		return "대체 없이 제거 " + noPercent + "% · 다른 것과 함께 제거 " + (100 - noPercent) + "%";
+	}
+
+	/**
+	 * 이탈 사유 누적 막대. 패키지마다 한 칸이다 — {@link #transitionBars} 처럼 종류(일반·동반·선택)로
+	 * 나뉘지 않는다. 원천이 {@code kind} 차원을 두지 않는다.
+	 */
+	private void removalBars(StringBuilder b, RemovalReasonsResponse r) {
+		if (r.series().isEmpty()) return;
+
+		double max = 0;
+		for (var series : r.series()) {
+			if (series.removals() != null) max = Math.max(max, series.removals());
+		}
+
+		for (var series : r.series()) {
+			b.append("<div class=\"vsblock\"><p class=\"vsname mono\">").append(esc(series.name())).append("</p>")
+				.append(ReportCharts.removalBar(series, max))
+				.append("</div>");
+		}
 	}
 
 	/**
@@ -612,6 +716,11 @@ public class ReportHtmlRenderer {
 		VersionShareResponse versionShare,
 		/** 유지·유입·이탈. 생태계와 같은 취급 — 고를 수 있는 구역이 아니라 항상 들어간다. */
 		TransitionsResponse transitions,
+		/**
+		 * 이탈 사유(S15P21A506-396·410). {@code transitions} 와 짝이라 같은 취급이다 — 고를 수 있는
+		 * 구역이 아니라 항상 들어간다. 단위가 다르니(전이 건수 vs 패키지 수) 응답도 따로 받는다.
+		 */
+		RemovalReasonsResponse removalReasons,
 		/** 더하기로 고른 구역. 생태계는 여기 없다 — 언제나 들어가므로 고를 것이 아니다. */
 		Set<ReportSection> sections,
 		/**
@@ -621,11 +730,16 @@ public class ReportHtmlRenderer {
 		CommunityStatusResponse community
 	) {
 
-		/** 커뮤니티 자료 없이 만든다(그 구역을 고르지 않은 문서). */
+		/** 읽을 행이 하나도 없을 때. period 는 캡션이 null 스위치로 죽지 않도록 기본값을 채운다. */
+		private static final RemovalReasonsResponse EMPTY_REMOVAL_REASONS = new RemovalReasonsResponse(
+			RemovalReasonsResponse.METRIC, TransitionPeriod.DEFAULT.code(), null, null, List.of(), List.of());
+
+		/** 이탈 사유·커뮤니티 자료 없이 만든다(그 구역을 고르지 않았거나 아직 안 받은 문서). */
 		public Sources(List<String> names, LocalDate from, LocalDate to, PackagesOverviewResponse overview,
 			TrendResponse downloads, TrendResponse dependents, VersionShareResponse versionShare,
 			TransitionsResponse transitions, Set<ReportSection> sections) {
-			this(names, from, to, overview, downloads, dependents, versionShare, transitions, sections, null);
+			this(names, from, to, overview, downloads, dependents, versionShare, transitions,
+				EMPTY_REMOVAL_REASONS, sections, null);
 		}
 	}
 }

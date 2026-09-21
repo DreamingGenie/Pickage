@@ -103,6 +103,7 @@ public class ReportPdfService {
 			packages.getDependentsTrend(names, request.from(), request.to()),
 			packages.getVersionShare(names, request.snapshotAt()),
 			packages.getTransitions(names, period),
+			packages.getRemovalReasons(names, period),
 			requested,
 			communityStatus);
 

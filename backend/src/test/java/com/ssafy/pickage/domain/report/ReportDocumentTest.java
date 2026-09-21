@@ -35,6 +35,7 @@ import com.ssafy.pickage.domain.community.dto.SummaryStatus;
 import com.ssafy.pickage.domain.community.dto.TopicResponse;
 import com.ssafy.pickage.domain.community.dto.ViewStatus;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
@@ -90,8 +91,12 @@ class ReportDocumentTest {
 			TransitionsResponse.Series.counted("axios", "peer", 20, 8, 2, 4, 1),
 			TransitionsResponse.Series.unknown("got", "regular", TransitionsResponse.OUT_OF_SCOPE)), List.of());
 
+		var removalReasons = RemovalReasonsResponse.of("3y", DAY.minusYears(3), DAY, List.of(
+			RemovalReasonsResponse.Series.counted("axios", 8, 3, 5, 6),
+			RemovalReasonsResponse.Series.unknown("got", RemovalReasonsResponse.OUT_OF_SCOPE)), List.of());
+
 		return new ReportHtmlRenderer.Sources(List.of("axios", "got"), null, null, overview, downloads, dependents,
-			share, transitions, sections, community);
+			share, transitions, removalReasons, sections, community);
 	}
 
 	private static long count(String html, String needle) {
@@ -224,7 +229,8 @@ class ReportDocumentTest {
 	void 조회_기간을_주었으면_그_기간을_적는다() {
 		var base = sources(Set.of(), null);
 		var given = new ReportHtmlRenderer.Sources(base.names(), DAY.minusYears(1), DAY, base.overview(),
-			base.downloads(), base.dependents(), base.versionShare(), base.transitions(), Set.of(), null);
+			base.downloads(), base.dependents(), base.versionShare(), base.transitions(),
+			base.removalReasons(), Set.of(), null);
 
 		assertThat(RENDERER.render(given)).contains(DAY.minusYears(1) + " ~ " + DAY).doesNotContain("전체 기간 ·");
 	}
@@ -256,6 +262,27 @@ class ReportDocumentTest {
 		String section = html.substring(from, html.indexOf("<th>종류</th>", from));
 		assertThat(section).contains("일반").contains("동반");
 		// got 은 분석 대상 밖이라 값 대신 자리(ghost)와 사유다.
+		assertThat(section).contains("class=\"fill ghost\"").contains("분석 대상 아님");
+	}
+
+	/**
+	 * S15P21A506-410 이 화면에 붙인 패널이 PDF 에는 반영되지 않았던 문제(S15P21A506-425) 의
+	 * 회귀 시험. 유지·유입·이탈 바로 아래, 누적 막대 하나로 그려져야 한다.
+	 */
+	@Test
+	void 이탈_사유는_유지_유입_이탈_바로_아래에_누적_막대로_그려진다() {
+		String html = RENDERER.render(sources(Set.of(), null));
+
+		int transitionsAt = html.indexOf("<h2>유지 · 유입 · 이탈</h2>");
+		int removalAt = html.indexOf("<h2>이탈 사유</h2>");
+		assertThat(removalAt).as("이탈 사유 구역이 없다").isPositive();
+		assertThat(removalAt).isGreaterThan(transitionsAt);
+
+		String section = html.substring(removalAt, html.indexOf("<h2>", removalAt + 1));
+		// axios: removals=8, noReplacement=3 → 대체 없이 37.5%→38%, 함께 62.5%→63%(각자 반올림 X)
+		assertThat(section).contains(">8<").contains(">3<").contains(">5<")
+			.contains("대체 없이 제거 38% · 다른 것과 함께 제거 62%");
+		// got 은 분석 대상 밖이라 위 유지·유입·이탈과 같은 자리(ghost)·사유를 쓴다.
 		assertThat(section).contains("class=\"fill ghost\"").contains("분석 대상 아님");
 	}
 
@@ -336,6 +363,9 @@ class ReportDocumentTest {
 				.contains("4,320건").contains("기준");
 			// 로그 눈금 설명과 그래프 눈금(예: 값에서 나온 k/M 라벨)
 			assertThat(text).contains("세로 눈금은 로그 간격입니다").containsPattern("\\d+(\\.\\d+)?[kM]");
+			// S15P21A506-425 회귀: 이탈 사유가 실제 PDF 변환을 거쳐도 살아 있어야 한다 — HTML
+			// 문자열 검사만으로는 XHTML→PDF 변환(글꼴·테이블 렌더링)에서 사라지는 걸 못 잡는다.
+			assertThat(text).contains("이탈 사유").contains("대체 없이 제거 38% · 다른 것과 함께 제거 62%");
 		}
 	}
 
@@ -349,9 +379,12 @@ class ReportDocumentTest {
 		var unknown = TransitionsResponse.of("3y", null, null,
 			List.of(TransitionsResponse.Series.unknown("consola", "regular", TransitionsResponse.NOT_COMPUTED)),
 			List.of());
+		var unknownRemovals = RemovalReasonsResponse.of("3y", null, null,
+			List.of(RemovalReasonsResponse.Series.unknown("consola", RemovalReasonsResponse.NOT_COMPUTED)),
+			List.of());
 
 		String html = RENDERER.render(new ReportHtmlRenderer.Sources(List.of("consola"), null, null, overview,
-			emptyTrend, emptyTrend, emptyShare, unknown, Set.of(ReportSection.COMMUNITY), null));
+			emptyTrend, emptyTrend, emptyShare, unknown, unknownRemovals, Set.of(ReportSection.COMMUNITY), null));
 
 		assertThat(html).contains("그래프로 그릴 자료가 없습니다").contains("자료 없음");
 		byte[] pdf = convert(html);
