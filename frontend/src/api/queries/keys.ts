@@ -29,6 +29,8 @@ export const queryKeys = {
       [...queryKeys.packages.all, 'version', sorted(names), snapshotAt ?? null] as const,
     transitions: (names: readonly string[], period?: string) =>
       [...queryKeys.packages.all, 'transitions', sorted(names), period ?? null] as const,
+    removalReasons: (names: readonly string[], period?: string) =>
+      [...queryKeys.packages.all, 'removal-reasons', sorted(names), period ?? null] as const,
     // 유사 패키지만 이름이 하나다. 정렬할 배열이 없으므로 그대로 넣는다.
     similar: (name: string, limit?: number) =>
       [...queryKeys.packages.all, 'similar', name, limit ?? null] as const,

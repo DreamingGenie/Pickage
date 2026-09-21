@@ -6,6 +6,7 @@ import {
   useDependentsTrend,
   useDownloadsTrend,
   usePackagesOverview,
+  useRemovalReasons,
   useTransitions,
   useVersionShare,
 } from '@/api/queries'
@@ -14,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
 import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
+import { toRemovalReasonsModel } from '@/routes/report/ecosystem/removal-reasons-adapter'
 import { toTransitionsModel } from '@/routes/report/ecosystem/transitions-adapter'
 import type { TransitionPeriod } from '@/routes/report/ecosystem/transitions-model'
 
@@ -80,6 +82,12 @@ export function EcosystemReportTab({
    * 반대 이유로 이 층에 둔다.
    */
   const transitions = useTransitions(names, transitionPeriod)
+  /**
+   * 이탈 사유 (S15P21A506-410). **같은 `period` 를 쓴다** — 프리셋·기본값·기준일이
+   * 같아서 화면이 선택기 하나를 두 패널에 공유한다. 그래도 조회를 나눈 것은 단위가
+   * 다르고 엔드포인트가 갈려서다 — 한쪽이 느리거나 실패해도 다른 패널은 그대로 뜬다.
+   */
+  const removalReasons = useRemovalReasons(names, transitionPeriod)
 
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
@@ -109,6 +117,7 @@ export function EcosystemReportTab({
   }
   const versionShareState = stateOf(versionShare)
   const transitionsState = stateOf(transitions)
+  const removalReasonsState = stateOf(removalReasons)
 
   const model = toEcosystemModel({
     overview: overview.data,
@@ -118,6 +127,7 @@ export function EcosystemReportTab({
     versionShare: versionShare.data,
   })
   const transitionsModel = toTransitionsModel(transitions.data, names)
+  const removalReasonsModel = toRemovalReasonsModel(removalReasons.data, names)
 
   return (
     <div className="flex flex-col gap-4">
@@ -137,6 +147,8 @@ export function EcosystemReportTab({
         versionShareState={versionShareState}
         transitionsModel={transitionsModel}
         transitionsState={transitionsState}
+        removalReasonsModel={removalReasonsModel}
+        removalReasonsState={removalReasonsState}
         transitionPeriod={transitionPeriod}
         onTransitionPeriodChange={onTransitionPeriodChange}
       />

@@ -1121,6 +1121,45 @@ export const MOCK_TRANSITIONS: Record<string, MockTransitionRow[]> = {
   ],
 }
 
+/**
+ * 이탈 사유 픽스처 (S15P21A506-396·410). `MOCK_TRANSITIONS` 와 달리 **한 패키지가 한 줄**이다.
+ *
+ * 네 `data_status` 를 전부 덮는다 — 화면이 넷을 다르게 그리는지 mock 만으로 확인할 수 있게.
+ *
+ * winston — COMPLETE(큰 값).  pino — COMPLETE(작은 값).
+ * log4js — **NO_DATA(전부 0)**. 운영에서 대상의 58.5%가 이 상태라 가장 흔한 화면이다.
+ *          0 으로 그려야 하며 "분석 대상 아님" 으로 뭉개면 안 된다.
+ * morgan — OUT_OF_SCOPE(top-100k 밖).
+ * bunyan — NOT_COMPUTED. 혼자 조회하면 `t1`·`t2` 키 자체가 없어지는 경우를 재현한다.
+ *
+ * `removals` 를 적어 두지 않는 이유 — 기간 배율을 곱하면 반올림 때문에
+ * `round(no*s) + round(with*s) != round(removals*s)` 가 될 수 있다. 서버에는
+ * `no_replacement + with_replacement = removals` DB CHECK 가 걸려 있으므로,
+ * mock 도 **두 값을 스케일한 뒤 더해서** removals 를 만든다(handlers.ts).
+ */
+export interface MockRemovalReason {
+  dataStatus: 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  /** COMPLETE·NO_DATA 일 때만 있다. `dependents <= removals` 를 지켜 둔다(DB CHECK). */
+  counts?: { noReplacement: number; withReplacement: number; dependents: number }
+}
+
+export const MOCK_REMOVAL_REASONS: Record<string, MockRemovalReason> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    counts: { noReplacement: 1290, withReplacement: 550, dependents: 1622 },
+  },
+  pino: {
+    dataStatus: 'COMPLETE',
+    counts: { noReplacement: 286, withReplacement: 126, dependents: 377 },
+  },
+  log4js: {
+    dataStatus: 'NO_DATA',
+    counts: { noReplacement: 0, withReplacement: 0, dependents: 0 },
+  },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+  bunyan: { dataStatus: 'NOT_COMPUTED' },
+}
+
 /** 기간이 길어질수록 유지·유입·이탈 절대량이 느는 정도만 흉내낸다. 값의 의미는 안 바뀐다. */
 export const TRANSITION_PERIOD_SCALE: Record<'1y' | '3y' | '5y', number> = {
   '1y': 0.4,

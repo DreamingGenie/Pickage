@@ -20,6 +20,7 @@ import {
   mockPdfPreview,
   mockSearch,
   mockSimilarPackages,
+  mockRemovalReasons,
   mockTransitions,
   mockVersionShare,
 } from '@/api/mock/handlers'
@@ -36,6 +37,7 @@ import type {
   PdfJob,
   SimilarPackagesResponse,
   TransitionPeriodParam,
+  RemovalReasonsResponse,
   TransitionsResponse,
   TrendQuery,
   VersionShareResponse,
@@ -196,6 +198,23 @@ export function fetchTransitions(
   return USE_MOCK
     ? mockTransitions(names, period)
     : get<TransitionsResponse>('/packages/transitions', { names, period })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-396·410. 이탈 사유
+ *
+ * 위와 **같은 프리셋·같은 기준일**이지만 단위가 다르다(패키지 수 vs 전이 건수).
+ * 같은 `period` 값을 그대로 보내도 되는 이유는 서버가 두 표에서 같은 `t1`·`t2` 를
+ * 꺼내기 때문이다 — 화면이 두 패널에 한 선택기를 공유하는 근거가 여기다.
+ * ------------------------------------------------------------------ */
+
+export function fetchRemovalReasons(
+  names: readonly string[],
+  period?: TransitionPeriodParam,
+): Promise<RemovalReasonsResponse> {
+  return USE_MOCK
+    ? mockRemovalReasons(names, period)
+    : get<RemovalReasonsResponse>('/packages/removal-reasons', { names, period })
 }
 
 /* ------------------------------------------------------------------ *
