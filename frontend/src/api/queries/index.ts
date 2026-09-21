@@ -6,6 +6,9 @@ import {
   fetchDictManifest,
   fetchDictionary,
   fetchDownloadsTrend,
+  fetchFeatureRun,
+  fetchFeatureVersions,
+  fetchPackageEnv,
   fetchPackageSearch,
   fetchPackagesOverview,
   fetchPdfPreview,
@@ -15,10 +18,17 @@ import {
   fetchVersionShare,
   generatePdf,
   postCommunityRefresh,
+  startFeatureRun,
 } from '@/api/endpoints'
 import { queryKeys } from '@/api/queries/keys'
 import { ApiError } from '@/api/client'
-import { MAX_NAMES, type CommunityRefreshTrigger, type TransitionPeriodParam } from '@/api/types'
+import {
+  MAX_NAMES,
+  type CommunityRefreshTrigger,
+  type FeatureRunResponse,
+  type FeatureTarget,
+  type TransitionPeriodParam,
+} from '@/api/types'
 
 export { queryKeys }
 
@@ -283,5 +293,82 @@ export function useCommunityRefresh() {
     mutationFn: ({ name, trigger }: { name: string; trigger: CommunityRefreshTrigger }) =>
       postCommunityRefresh(name, trigger),
     retry: false,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-217. 기능 비교
+ * ------------------------------------------------------------------ */
+
+/**
+ * 기능 비교 버전 목록.
+ *
+ * 배치 산출물(`package_env`)에서 오므로 오래 캐시해도 된다 — 주간 적재 전에는 바뀌지 않는다.
+ */
+export function useFeatureVersions(names: readonly string[]) {
+  return useQuery({
+    queryKey: queryKeys.features.versions(names),
+    queryFn: () => fetchFeatureVersions(names),
+    enabled: usable(names),
+    staleTime: 10 * 60_000,
+    retry,
+  })
+}
+
+/**
+ * 버전별 소비 조건 (기능-11-R01).
+ *
+ * **기능 비교를 기다리지 않는다.** 배치가 미리 접어 둔 표를 키 조회하는 것이라 즉시 뜬다 —
+ * 화면에서도 AI 영역과 분리해 위에 둔다(기능-10-R06 "완료된 항목 먼저 표시").
+ *
+ * 일부가 없어도 200 이므로 `not_found` 는 오류가 아니다. 재시도하지 않는다 — 다시 물어도
+ * 그 버전의 행이 생기지는 않는다.
+ */
+export function usePackageEnv(targets: readonly FeatureTarget[]) {
+  const refs = targets.map((t) => `${t.package_name}@${t.version}`)
+  return useQuery({
+    queryKey: queryKeys.features.env(refs),
+    queryFn: () => fetchPackageEnv(targets),
+    enabled: refs.length > 0,
+    staleTime: 10 * 60_000,
+    retry: (count, error) => (error instanceof ApiError && error.isValidation ? false : count < 1),
+  })
+}
+
+/**
+ * 기능 비교를 시작한다. 결과가 아니라 `run_id` 를 돌려준다.
+ *
+ * 자동 재시도하지 않는다 — 다시 하는 일은 사용자가 버튼으로 정한다(구상안 §9.3).
+ * 동시 실행 상한을 넘으면 서버가 V002 로 거절한다.
+ */
+export function useStartFeatureRun() {
+  return useMutation({
+    mutationFn: (targets: FeatureTarget[]) => startFeatureRun(targets),
+    retry: false,
+  })
+}
+
+/**
+ * run 상태를 폴링한다.
+ *
+ * <b>끝나면 멈춘다.</b> `RUNNING` 일 때만 다시 묻고, `COMPLETED`·`FAILED` 가 되면
+ * `refetchInterval` 이 false 가 되어 요청이 그친다 — 안 그러면 결과를 받은 뒤에도 2초마다
+ * 계속 두드린다.
+ *
+ * 실패는 200 으로 오므로 여기서 오류가 아니다. `status === 'FAILED'` 를 화면이 읽는다.
+ */
+export function useFeatureRun(runId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.features.run(runId ?? ''),
+    queryFn: () => fetchFeatureRun(runId as string),
+    enabled: runId !== null,
+    // 판정을 캐시하지 않는다(DEC-FEATURE-CACHE-20260917-01). 화면을 떠나면 잊는다.
+    gcTime: 0,
+    refetchInterval: (query) => {
+      const data = query.state.data as FeatureRunResponse | undefined
+      return data && data.status !== 'RUNNING' ? false : 2_000
+    },
+    retry: (count, error) =>
+      error instanceof ApiError && error.status === 404 ? false : count < 1,
   })
 }

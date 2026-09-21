@@ -35,7 +35,7 @@ const JOB: PdfJob = {
   omitted: [],
 }
 
-function renderDialog(onPreview = vi.fn()) {
+function renderDialog(onPreview = vi.fn(), run: AnalysisRun = RUN) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -44,7 +44,7 @@ function renderDialog(onPreview = vi.fn()) {
         onOpenChange={vi.fn()}
         packages={['axios', 'got']}
         transitionPeriod="3y"
-        run={RUN}
+        run={run}
         onPreview={onPreview}
         onGoToFeatures={vi.fn()}
       />
@@ -147,5 +147,21 @@ describe('PdfExportDialog — 완료', () => {
 
     expect(screen.queryByText(/자리와 사유만 실렸습니다/)).toBeNull()
     expect(screen.queryByText(/수집되지 않아/)).toBeNull()
+  })
+})
+
+describe('PdfExportDialog — 차단', () => {
+  it('선택한 버전이 완료 결과와 달라 재분석이 필요하면 기존 결과가 화면에 있어도 막는다', () => {
+    renderDialog(vi.fn(), { ...RUN, reanalysisRequired: true } as AnalysisRun)
+
+    expect(screen.getByText('지금은 PDF를 만들 수 없습니다')).toBeInTheDocument()
+    expect(screen.getByText(/재분석이 필요합니다/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'PDF 생성' })).toBeNull()
+  })
+
+  it('한 번도 완료되지 않았으면 기능 비교 미실행으로 막는다', () => {
+    renderDialog(vi.fn(), { ...RUN, hasCompletedOnce: false } as AnalysisRun)
+
+    expect(screen.getByText('기능 비교 분석이 아직 실행되지 않았습니다.')).toBeInTheDocument()
   })
 })

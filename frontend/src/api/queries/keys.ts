@@ -40,6 +40,16 @@ export const queryKeys = {
     // 생성은 뮤테이션이라 키가 없다. 미리보기만 캐시한다 — 같은 보고서는 내용이 안 바뀐다.
     preview: (reportId: string) => [...queryKeys.report.all, 'preview', reportId] as const,
   },
+  features: {
+    all: ['features'] as const,
+    // 결과는 캐시하지 않는다(뮤테이션). 버전 목록만 키가 있다.
+    versions: (names: readonly string[]) =>
+      [...queryKeys.features.all, 'versions', sorted(names)] as const,
+    // 소비 조건은 배치 산출물이라 캐시해도 된다 — 같은 (이름, 버전) 이면 값이 안 바뀐다.
+    env: (refs: readonly string[]) => [...queryKeys.features.all, 'env', sorted(refs)] as const,
+    // run 은 식별자로 캐시한다. 결과 자체는 캐시하지 않는다(DEC-FEATURE-CACHE-20260917-01).
+    run: (runId: string) => [...queryKeys.features.all, 'run', runId] as const,
+  },
   community: {
     all: ['community'] as const,
     // 기준 패키지 하나에 대한 조회라 이름 하나만 키에 들어간다(§316).

@@ -161,7 +161,8 @@ const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
   ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
   SNAPSHOT_CREATION_ERROR: '보고서 사본을 만드는 중 오류가 발생했습니다.',
   FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
-  VERSION_RESULT_MISMATCH: '기능 비교가 다시 실행되는 중입니다. 완료 후 다시 시도해 주세요.',
+  VERSION_RESULT_MISMATCH:
+    '기능 비교가 실행 중이거나, 선택한 버전으로 재분석이 필요합니다. 재분석이 끝난 뒤 다시 시도해 주세요.',
 }
 
 /**
@@ -170,7 +171,9 @@ const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
  */
 function blockReasonsFor(run: AnalysisRun): BlockReason[] {
   if (!run.hasCompletedOnce) return ['FEATURE_ANALYSIS_REQUIRED']
-  if (run.status === 'RUNNING') return ['VERSION_RESULT_MISMATCH']
+  // 진행 중이거나, 선택한 버전이 완료 결과와 달라 재분석이 필요하면 막는다(구상안 §9.2·§13.2).
+  // 기존 결과는 화면에 남아 있어도 "현재 선택 버전의 결과"가 아니다.
+  if (run.status === 'RUNNING' || run.reanalysisRequired) return ['VERSION_RESULT_MISMATCH']
   return []
 }
 

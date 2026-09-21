@@ -11,6 +11,12 @@
 import { API_BASE_URL, get, getRaw, getText, post } from '@/api/client'
 import { mockCommunityRefresh, mockCommunityStatus } from '@/api/mock/community'
 import {
+  mockFeatureRun,
+  mockFeatureVersions,
+  mockPackageEnv,
+  mockStartFeatureRun,
+} from '@/api/mock/features'
+import {
   mockDependentsTrend,
   mockDictManifest,
   mockDictionary,
@@ -30,6 +36,10 @@ import type {
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
+  FeatureTarget,
+  FeatureRunResponse,
+  FeatureVersionsResponse,
+  PackageEnvResponse,
   PackageDictionary,
   PackageSearchResponse,
   PackagesOverviewResponse,
@@ -245,4 +255,51 @@ export function postCommunityRefresh(
     : post<CommunityStatusResponse>('/packages/community/refresh', undefined, {
         params: { name, trigger },
       })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-217. 기능 비교 [확장] — BE S15P21A506-130 연동 완료
+ *
+ * 소비 조건과 AI 비교가 **다른 엔드포인트**다(기능-10-R06). 앞은 키 조회라 즉시 뜨고,
+ * 뒤는 LLM 생성이 붙어 시작과 조회가 나뉜다.
+ *
+ * 버전 드롭다운은 `GET /api/packages/versions`(BE S15P21A506-432)가 준다.
+ * ------------------------------------------------------------------ */
+
+/** 기능 비교 버전 드롭다운. 소비 조건이 있는 최근 정식 버전만 온다(BE S15P21A506-432). */
+export function fetchFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
+  return USE_MOCK
+    ? mockFeatureVersions(names)
+    : get<FeatureVersionsResponse>('/packages/versions', { names })
+}
+
+/**
+ * 버전별 소비 조건 (기능-11-R01, BE S15P21A506-130).
+ *
+ * 기능 비교와 **다른 엔드포인트**다. 이건 배치가 미리 접어 둔 표를 키 조회하는 것이라
+ * 즉시 뜨고, 기능 비교는 LLM 을 기다린다. 묶으면 확인된 사실까지 늦어진다.
+ *
+ * 일부가 없어도 200 이고 `not_found` 로 온다 — 완료 판단이 "확인된 정보만 표시" 다.
+ */
+export function fetchPackageEnv(targets: readonly FeatureTarget[]): Promise<PackageEnvResponse> {
+  const refs = targets.map((t) => `${t.package_name}@${t.version}`)
+  return USE_MOCK ? mockPackageEnv(refs) : get<PackageEnvResponse>('/packages/env', { refs })
+}
+
+/**
+ * 기능 비교를 시작한다. **결과를 기다리지 않는다** — LLM 생성이 붙어 nginx 60초를 넘길 수 있다.
+ * 돌려받은 `run_id` 로 아래 조회를 폴링한다.
+ */
+export function startFeatureRun(targets: readonly FeatureTarget[]): Promise<FeatureRunResponse> {
+  const refs = targets.map((t) => `${t.package_name}@${t.version}`)
+  return USE_MOCK
+    ? mockStartFeatureRun(refs)
+    : post<FeatureRunResponse>('/packages/feature-comparison', undefined, { params: { refs } })
+}
+
+/** run 상태와 결과. 실패도 200 이며 `status=FAILED` · `error_code` 로 구분한다. */
+export function fetchFeatureRun(runId: string): Promise<FeatureRunResponse> {
+  return USE_MOCK
+    ? mockFeatureRun(runId)
+    : get<FeatureRunResponse>(`/packages/feature-comparison/${encodeURIComponent(runId)}`)
 }

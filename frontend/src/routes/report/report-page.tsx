@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { UnderlineTabsList, UnderlineTabsTrigger } from '@/components/common/underline-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { EvidenceDrawer } from '@/routes/report/_components/evidence-drawer'
 import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
@@ -96,28 +95,22 @@ function useReportNames(raw: string | null): ReportNames {
 /**
  * 03A / 03B 를 담는 셸.
  *
- * 탭 상태는 로컬 state 로 둔다. 단 `?evidence=` 가 있으면 features 로 강제한다.
+ * 탭 상태는 로컬 state 로 둔다.
  *
  * 생태계 변화는 사전 집계라 즉시 뜨고, 기능 비교만 분석을 기다린다.
  * 그래서 보고서 전체를 막지 않고 03B 탭 안에서만 대기 화면을 보여준다.
  */
 export function ReportPage() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   /**
    * 비교 대상은 주소가 들고 있다. 새로고침·뒤로가기·공유 링크가 전부 같은 보고서를 연다.
    */
   const { names: packages, dropped } = useReportNames(searchParams.get(REPORT_NAMES_PARAM))
-  const evidenceId = searchParams.get('evidence')
   const { basePackage, conflict: baseConflict } = useReportBasePackage(packages)
 
-  /**
-   * 탭은 로컬 state 다. 단 `?evidence=` 가 있으면 기능 비교로 강제한다.
-   * 동기화 effect 대신 렌더에서 파생시킨다 — 상태가 두 곳에 갈라지지 않는다.
-   */
-  const [picked, setTab] = useState<ReportTab>('ecosystem')
-  const tab: ReportTab = evidenceId ? 'features' : picked
-  const run = useAnalysisRun()
+  const [tab, setTab] = useState<ReportTab>('ecosystem')
+  const run = useAnalysisRun(packages)
 
   /**
    * 한 번 방문한 탭은 언마운트하지 않는다(S15P21A506-316).
@@ -153,20 +146,6 @@ export function ReportPage() {
    */
   const [transitionPeriod, setTransitionPeriod] =
     useState<TransitionPeriod>(DEFAULT_TRANSITION_PERIOD)
-
-  function closeEvidence() {
-    const next = new URLSearchParams(searchParams)
-    next.delete('evidence')
-    setSearchParams(next, { replace: true })
-  }
-
-  function openEvidence(id: string) {
-    const next = new URLSearchParams(searchParams)
-    next.set('evidence', id)
-    setSearchParams(next)
-    // 드로어를 닫아도 기능 비교 탭에 남아 있도록 선택도 함께 옮긴다.
-    setTab('features')
-  }
 
   /*
     주소에 비교 대상이 없다. 링크가 잘렸거나 `/report/draft` 를 손으로 친 경우다.
@@ -239,7 +218,7 @@ export function ReportPage() {
           </UnderlineTabsTrigger>
           <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
-            {run.status !== 'COMPLETED' && (
+            {run.status === 'RUNNING' && (
               <>
                 <span
                   aria-hidden
@@ -280,7 +259,7 @@ export function ReportPage() {
             className={cn('pt-7', tab !== 'features' && 'hidden')}
           >
             <Suspense fallback={<TabFallback />}>
-              <FeatureCompareTab packages={packages} run={run} onOpenEvidence={openEvidence} />
+              <FeatureCompareTab packages={packages} run={run} />
             </Suspense>
           </TabsContent>
         )}
@@ -300,8 +279,6 @@ export function ReportPage() {
           </TabsContent>
         )}
       </Tabs>
-
-      <EvidenceDrawer evidenceId={evidenceId} onClose={closeEvidence} />
 
       <PdfExportDialog
         open={exporting}
