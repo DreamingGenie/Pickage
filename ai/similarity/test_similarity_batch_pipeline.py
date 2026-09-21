@@ -315,6 +315,44 @@ class LoadDependents(QuietMixin, unittest.TestCase):
         self.assertEqual(deps["webpack"], {"x", "y"})
 
 
+    def _write(self, d):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        path = os.path.join(d, "dependents.parquet")
+        pq.write_table(
+            pa.table({
+                "name": ["webpack", "webpack", "webpack-cli", "rollup", "left-pad"],
+                "kind": ["regular", "peer", "regular", "regular", "regular"],
+                "dependents": [["a", "b", "c"], ["x"], ["a", "b"], ["z"], []],
+            }),
+            path,
+        )
+        return path
+
+    def test_names_keeps_only_requested_packages(self):
+        """이번 배치 패키지가 아닌 행은 파이썬 객체로 풀기 전에 버린다(메모리)."""
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), names=["webpack", "rollup", "not-in-file"])
+        self.assertEqual(set(deps), {"webpack", "rollup"})
+        self.assertEqual(deps["webpack"], {"a", "b", "c"})
+
+    def test_names_none_keeps_every_regular_row(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d))
+        self.assertEqual(set(deps), {"webpack", "webpack-cli", "rollup", "left-pad"})
+
+    def test_names_and_kind_combine(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), kind="peer", names=["webpack", "rollup"])
+        self.assertEqual(deps, {"webpack": {"x"}})
+
+    def test_empty_dependents_row_is_kept_as_empty_set(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), names=["left-pad"])
+        self.assertEqual(deps, {"left-pad": set()})
+
+
 class EmbedCorpus(QuietMixin, unittest.TestCase):
     def test_all_rows_embedded_when_state_empty(self):
         rows = [{"name": "a"}, {"name": "b"}]

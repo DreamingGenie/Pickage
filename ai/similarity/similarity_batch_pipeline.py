@@ -206,20 +206,31 @@ def resolve_dependents_path(explicit: str | None, package_text_path: str) -> str
     return sibling if os.path.exists(sibling) else None
 
 
-def load_dependents(path: str | None, kind: str = "regular") -> dict[str, set[str]]:
+def load_dependents(
+    path: str | None, kind: str = "regular", names: Iterable[str] | None = None
+) -> dict[str, set[str]]:
     """package_dependents 류 parquet(name·kind·dependents)를 name → dependents 집합으로.
 
     데이터 팀이 후보 풀(29,310개) 기준으로 재계산해준 파일(2026-09-16, 100% 커버) 형태를
     전제한다. kind 는 기본 'regular' — 실측(웹팩↔웹팩-cli 0.903 vs 웹팩↔롤업 0.075)으로
     이 한 종류만으로도 보완재/대안 판별 신호가 뚜렷했다(S15P21A506-173). 파일이 없으면
     빈 dict — 그러면 apply_gates() 의 보완재 관문이 자동으로 꺼진다(기존 호출부 그대로 둠).
+
+    **메모리**: 배열이 크다(regular 엣지 636만, `react` 하나가 19만). 배치 컨테이너는
+    mem_limit 2g·스왑 0 이라 넘으면 바로 OOM 이므로 파이썬 객체로 풀기 **전에** arrow 에서
+    줄인다 — ① `kind` 행만 읽는다(parquet 필터, 나머지 종류는 디코딩도 안 한다)
+    ② `names` 를 주면 그 이름의 행만 남긴다(이번 배치 패키지가 아닌 행은 어차피 안 쓴다).
     """
     if not path or not os.path.exists(path):
         return {}
+    import pyarrow as pa
+    import pyarrow.compute as pc
     import pyarrow.parquet as pq
 
-    tbl = pq.read_table(path, columns=["name", "kind", "dependents"]).to_pylist()
-    deps = {r["name"]: set(r["dependents"] or []) for r in tbl if r["kind"] == kind}
+    tbl = pq.read_table(path, columns=["name", "dependents"], filters=[("kind", "=", kind)])
+    if names is not None:
+        tbl = tbl.filter(pc.is_in(tbl["name"], value_set=pa.array(list(names), type=tbl.schema.field("name").type)))
+    deps = {r["name"]: set(r["dependents"] or []) for r in tbl.to_pylist()}
     log(f"dependents({kind}): {len(deps)} 개 패키지")
     return deps
 
@@ -653,7 +664,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
     dependents_path = resolve_dependents_path(args.dependents, args.package_text)
-    dependents_map = load_dependents(dependents_path)
+    dependents_map = load_dependents(dependents_path, names=names)
     if not dependents_map and args.gate:
         log(
             "경고: 보완재 관문 건너뜀 — dependents 데이터 없음 "
