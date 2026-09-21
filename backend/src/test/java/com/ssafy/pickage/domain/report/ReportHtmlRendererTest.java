@@ -54,7 +54,7 @@ class ReportHtmlRendererTest {
 			List.of());
 
 		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
-			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5)),
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5, 2, 1, 2)),
 			List.of());
 
 		return new ReportHtmlRenderer.Sources(List.of("express"), DAY.minusWeeks(4), DAY,
@@ -166,7 +166,7 @@ class ReportHtmlRendererTest {
 		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
 		// inflow=150, inflowNew=120 → inflowAdopted=30. 표에는 150 이 아니라 30 이 메인으로 보여야 한다.
 		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
-			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5)),
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5, 2, 1, 2)),
 			List.of());
 		var sources = new ReportHtmlRenderer.Sources(
 			base.names(), base.from(), base.to(), base.overview(),

@@ -364,7 +364,8 @@ public class PackageService {
 					return TransitionsResponse.Series.unknown(name, kind, missing);
 				}
 				return TransitionsResponse.Series.counted(name, kind, row.retained(),
-					row.inflow(), row.inflowNew(), row.outflow(), row.unobserved());
+					row.inflow(), row.inflowNew(), row.outflow(), row.unobserved(),
+					row.unobservedRecent(), row.unobservedStale(), row.unobservedDormant());
 			}))
 			.toList();
 

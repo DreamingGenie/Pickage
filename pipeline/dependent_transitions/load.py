@@ -9,7 +9,7 @@
         data/dependent_transitions.parquet
 
     PICKAGE_MINIO_ENV=.env.server python -m pipeline.dependent_transitions.load \\
-      --snapshot 2026-08-31 --run-id dependent-transitions-20260917-v1 \\
+      --snapshot 2026-08-31 --run-id dependent-transitions-20260921-v1 \\
       --docker-container pickage-local-postgres-1 --database pickage --verify-only
 
 **`_current.json` 을 따라가지 않는다.** 어떤 회차를 게시하는지 사람이 명시한다 —
@@ -83,7 +83,7 @@ unresolved 를 quality 로 남기고 화면에도 찍는다. 한 건도 못 붙�
 PowerShell 에 **한 줄로** 넣는다. 줄을 나누려면 백틱이지 `^` 가 아니다 — 아래를 그대로
 쓰는 편이 안전하다. 끝에 `--verify-only` 를 붙이면 검증만 하고 되돌린다.
 
-    cd C:\\git\\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\\.venv-bq\\Scripts\\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260917-v1 --run-dir data/dependent_transitions_load/runs/2026-08-31_dependent-transitions-20260917-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
+    cd C:\\git\\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\\.venv-bq\\Scripts\\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260921-v1 --run-dir data/dependent_transitions_load/runs/2026-08-31_dependent-transitions-20260921-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
 
 `$env:DOCKER_HOST` 는 그 창에서만 산다. 새 창에서는 다시 넣어야 하고, 빠뜨리면 로컬 도커를
 보게 되어 `pickage-app-postgres-1` 을 못 찾는다.
@@ -99,7 +99,16 @@ PowerShell 에 **한 줄로** 넣는다. 줄을 나누려면 백틱이지 `^` �
 
     DOCKER_HOST=ssh://a506app docker exec -i pickage-app-postgres-1 \\
       psql -U pickage -d pickage -c "SELECT period, count(*), sum(retained), sum(inflow), \\
-        sum(inflow_new), sum(outflow), sum(unobserved) FROM dependent_transition GROUP BY period"
+        sum(inflow_new), sum(outflow), sum(unobserved), sum(unobserved_recent), \\
+        sum(unobserved_stale), sum(unobserved_dormant) FROM dependent_transition GROUP BY period"
+
+**분해를 적재하기 전에 V11 이 그 DB 에 가 있어야 한다** (S15P21A506-421). 마이그레이션이
+없으면 INSERT 가 열 이름에서 막힌다. 배포와 재적재 사이에는 세 열이 NULL 인 88만 행이
+남아 있고, 조회는 그때 "아직 모른다" 로 내려보낸다 — 0 으로 보이지 않는다.
+
+게시 뒤 `quality_report.unobserved_freshness` 로 구간별 분포를 본다. **3y 의 recent 와 5y 의
+recent·stale 은 0 이 정상이다** — 관측불가는 구간 안에 대표 릴리스가 없다는 뜻이라 그 칸이
+정의상 빈다. 반대로 1y 의 세 칸이 모두 0 이 아니어야 한다.
 """
 from __future__ import annotations
 
@@ -226,7 +235,8 @@ def write_transport(parquet: Path, target: Path) -> int:
 
     con = duckdb.connect()
     con.execute(f"""COPY (
-        SELECT target, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2
+        SELECT target, period, kind, retained, inflow, inflow_new, outflow, unobserved,
+               unobserved_recent, unobserved_stale, unobserved_dormant, t1, t2
         FROM read_parquet('{parquet.as_posix()}')
         ORDER BY period, target, kind)
         TO '{target.as_posix()}' (FORMAT CSV, HEADER false)""")
@@ -248,19 +258,26 @@ BEGIN;
 SELECT pg_advisory_xact_lock({LOCK_KEY});
 
 CREATE TEMP TABLE stage_transition (
-    target     text      NOT NULL,
-    period     text      NOT NULL,
-    kind       text      NOT NULL,
-    retained   integer   NOT NULL,
-    inflow     integer   NOT NULL,
-    inflow_new integer   NOT NULL,
-    outflow    integer   NOT NULL,
-    unobserved integer   NOT NULL,
-    t1         timestamp NOT NULL,
-    t2         timestamp NOT NULL
+    target             text      NOT NULL,
+    period             text      NOT NULL,
+    kind               text      NOT NULL,
+    retained           integer   NOT NULL,
+    inflow             integer   NOT NULL,
+    inflow_new         integer   NOT NULL,
+    outflow            integer   NOT NULL,
+    unobserved         integer   NOT NULL,
+    -- 관측불가 분해는 산출물에 **반드시 있다**(S15P21A506-421). 여기서 NOT NULL 로 받아,
+    -- 분해 없는 옛 회차를 이 적재기로 올리면 COPY 에서 바로 멈추게 한다. 본 표의 세 열이
+    -- nullable 인 것은 배포~재적재 사이의 창 때문이고, 적재되는 회차에는 해당하지 않는다.
+    unobserved_recent  integer   NOT NULL,
+    unobserved_stale   integer   NOT NULL,
+    unobserved_dormant integer   NOT NULL,
+    t1                 timestamp NOT NULL,
+    t2                 timestamp NOT NULL
 ) ON COMMIT DROP;
 
-COPY stage_transition (target, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2)
+COPY stage_transition (target, period, kind, retained, inflow, inflow_new, outflow, unobserved,
+                       unobserved_recent, unobserved_stale, unobserved_dormant, t1, t2)
 FROM STDIN WITH (FORMAT csv, ENCODING 'UTF8');
 """
     tail = f"""
@@ -268,7 +285,8 @@ FROM STDIN WITH (FORMAT csv, ENCODING 'UTF8');
 -- 이름 → package_id. package 에 없는 이름은 붙일 수 없어 빠진다 (아래 quality 로 보고).
 CREATE TEMP TABLE resolved ON COMMIT DROP AS
 SELECT p.package_id, s.period, s.kind,
-       s.retained, s.inflow, s.inflow_new, s.outflow, s.unobserved, s.t1, s.t2
+       s.retained, s.inflow, s.inflow_new, s.outflow, s.unobserved,
+       s.unobserved_recent, s.unobserved_stale, s.unobserved_dormant, s.t1, s.t2
   FROM stage_transition s
   JOIN "package" p ON p."name" = s.target;
 
@@ -279,7 +297,18 @@ SELECT (SELECT count(*)                  FROM stage_transition)            AS st
        (SELECT count(DISTINCT package_id) FROM resolved)                   AS loaded_targets,
        (SELECT count(DISTINCT s.target)  FROM stage_transition s
           LEFT JOIN "package" p ON p."name" = s.target
-         WHERE p.package_id IS NULL)                                       AS unresolved_targets;
+         WHERE p.package_id IS NULL)                                       AS unresolved_targets,
+       -- 구간별 관측불가 신선도 분포 (S15P21A506-421). 행 수만 보면 분해가 통째로 0 이어도
+       -- 정상으로 보인다 — 게시 직후 눈으로 확인할 수 있게 여기 남긴다. 3y 의 recent 와
+       -- 5y 의 recent·stale 은 **0 이 정상**이다(정의상 비는 칸, V11 의 PERIOD 제약).
+       (SELECT jsonb_object_agg(f.period, jsonb_build_object(
+                   'unobserved', f.unobserved, 'recent', f.recent,
+                   'stale', f.stale, 'dormant', f.dormant))
+          FROM (SELECT period, sum(unobserved) AS unobserved,
+                       sum(unobserved_recent)  AS recent,
+                       sum(unobserved_stale)   AS stale,
+                       sum(unobserved_dormant) AS dormant
+                  FROM resolved GROUP BY period) f)                        AS unobserved_freshness;
 
 -- 한 건도 못 붙으면 중단. 이름 규칙이 어긋났거나 package 가 비어 있다는 뜻이다.
 DO $$ BEGIN
@@ -321,8 +350,10 @@ VALUES (:'attempt_id', :'execution_id', 'PREPARING', 'VALIDATE_INPUT', :'contrac
 LOCK TABLE public."{TABLE}", public.etl_dataset_current IN SHARE ROW EXCLUSIVE MODE;
 DELETE FROM public."{TABLE}";
 INSERT INTO public."{TABLE}"
-    (package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2)
-SELECT package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved, t1, t2
+    (package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved,
+     unobserved_recent, unobserved_stale, unobserved_dormant, t1, t2)
+SELECT package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved,
+       unobserved_recent, unobserved_stale, unobserved_dormant, t1, t2
   FROM resolved;
 
 UPDATE public.etl_load_attempt
@@ -367,7 +398,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", required=True, help="원천 스냅샷 날짜 (2026-08-31)")
     parser.add_argument("--run-id", required=True,
-                        help="입고 회차 (dependent-transitions-20260917-v1)")
+                        help="입고 회차 (dependent-transitions-20260921-v1)")
     parser.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리. 주면 MinIO 를 안 본다")
     parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "data/dependent_transitions_load")
