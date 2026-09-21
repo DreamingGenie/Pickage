@@ -412,14 +412,16 @@ def apply_gates(
     plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
     GitHub 저장소가 archived 된 후보도, `dependents_by_idx` 를 주면 보완재(dependents
     교집합 > 0.3, S15P21A506-173)도 drop 한다. enabled=False 면 무변경.
+
+    `drops["complement"]` 는 항상 들어간다 — dependents 를 안 줘서 관문이 안 돌았으면 None,
+    돌았으면 걸러낸 쌍 수. manifest 에서 "0건 걸렀다" 와 "안 돌았다" 를 구분하려는 것이다.
     """
     if not enabled:
         return hits, {}
     drops = {"plugin_adapter": 0, "same_family": 0}
     if archived_by_idx is not None:
         drops["repo_archived"] = 0
-    if dependents_by_idx is not None:
-        drops["complement"] = 0
+    drops["complement"] = 0 if dependents_by_idx is not None else None
     kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
@@ -439,6 +441,27 @@ def apply_gates(
             continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
+
+
+def dependents_coverage(names: list[str], dependents_map: dict[str, set[str]]) -> dict | None:
+    """이번 배치 패키지 중 dependents 행이 있는 비율 (S15P21A506-173).
+
+    보완재 관문은 dependents 가 없는 패키지가 낀 쌍을 판단하지 못하고 통과시킨다. dependents
+    파일이 만들어진 뒤 후보 풀이 바뀌면 그런 패키지가 늘어나도 결과는 겉으로 똑같아서, 이 비율을
+    manifest 에 남겨 파일이 낡았는지 볼 수 있게 한다.
+
+    "있음" 은 파일에 그 이름의 행이 있다는 뜻이다. 의존자가 0개인 패키지도 행은 있으므로
+    센다 — 그건 결측이 아니라 "의존자 없음" 이라는 범주다. dependents 를 안 줘서
+    (dependents_map 이 비어) 관문이 안 돌면 None.
+    """
+    if not dependents_map:
+        return None
+    covered = sum(1 for n in names if n in dependents_map)
+    return {
+        "pool": len(names),
+        "with_dependents": covered,
+        "ratio": round(covered / len(names), 4) if names else 0.0,
+    }
 
 
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
@@ -553,6 +576,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
     dependents_map = load_dependents(args.dependents)
     dependents_by_idx = {i: dependents_map.get(names[i]) for i in range(len(names))} if dependents_map else None
+    coverage = dependents_coverage(names, dependents_map)
+    if coverage:
+        log(f"dependents 커버리지: {coverage['with_dependents']}/{coverage['pool']} ({coverage['ratio']:.1%})")
     hits, gate_drops = apply_gates(
         hits, names, keywords_by_idx, args.gate, archived_by_idx, dependents_by_idx
     )
@@ -576,6 +602,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "gate": args.gate,
             "gate_drops": gate_drops,
             "dependents": args.dependents,
+            "dependents_coverage": coverage,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),

@@ -601,7 +601,38 @@ class ApplyGates(unittest.TestCase):
         """dependents_by_idx 를 안 주면(옛 호출부) 아무도 complement 로 안 걸린다."""
         kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
         self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
-        self.assertNotIn("complement", drops)
+
+    def test_complement_is_none_when_gate_did_not_run(self):
+        """dependents 가 없어 관문이 안 돌았으면 0 이 아니라 None — '0건 걸렀다' 와 구분된다."""
+        _, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertIn("complement", drops)
+        self.assertIsNone(drops["complement"])
+
+    def test_complement_is_zero_when_gate_ran_but_nothing_dropped(self):
+        dependents = {0: {"a"}, 1: {"b"}, 4: {"c"}, 5: {"d"}}
+        _, drops = sbp.apply_gates(
+            self.HITS, self.NAMES, self.KW, enabled=True, dependents_by_idx=dependents
+        )
+        self.assertEqual(drops["complement"], 0)
+
+
+class DependentsCoverage(unittest.TestCase):
+    def test_none_when_no_dependents_given(self):
+        self.assertIsNone(sbp.dependents_coverage(["a", "b"], {}))
+
+    def test_counts_names_present_in_map(self):
+        cov = sbp.dependents_coverage(["a", "b", "c", "d"], {"a": {"x"}, "c": {"y"}, "zzz": {"q"}})
+        self.assertEqual(cov, {"pool": 4, "with_dependents": 2, "ratio": 0.5})
+
+    def test_empty_dependents_set_still_counts_as_covered(self):
+        """의존자 0개는 결측이 아니라 범주라 행이 있으면 센다."""
+        cov = sbp.dependents_coverage(["a", "b"], {"a": set(), "b": {"x"}})
+        self.assertEqual(cov["with_dependents"], 2)
+        self.assertEqual(cov["ratio"], 1.0)
+
+    def test_empty_pool_does_not_divide_by_zero(self):
+        cov = sbp.dependents_coverage([], {"a": {"x"}})
+        self.assertEqual(cov, {"pool": 0, "with_dependents": 0, "ratio": 0.0})
 
 
 class ParseArgs(unittest.TestCase):
