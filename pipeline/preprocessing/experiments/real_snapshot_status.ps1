@@ -40,6 +40,7 @@ function Show-Parallel([string]$RunRoot) {
         }
     }
     $last = $events | Select-Object -Last 1
+    $reused = $events | Where-Object { $_.phase -eq 'REUSED_ALL_PARTITIONS' } | Select-Object -Last 1
     $pointers = @(Get-ChildItem -LiteralPath (Join-Path $run.FullName 'partitions') -Directory -ErrorAction SilentlyContinue |
         ForEach-Object { Join-Path $_.FullName 'complete.json' } |
         Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
@@ -64,8 +65,11 @@ function Show-Parallel([string]$RunRoot) {
     }
     $progress = if ($total -gt 0) { "{0}/{1}" -f $pointers.Count, $total } else { "{0}/?" -f $pointers.Count }
     Write-Host ("  Parallel: {0} | accepted partitions: {1} | last event: {2}" -f $run.FullName, $progress, $(if ($last) { $last.phase } else { '-' }))
+    if ($reused) {
+        Write-Host ("    Reusing {0} partitions; finalization: {1} threads, {2} DuckDB memory" -f $reused.partitions, $reused.settings.threads, $reused.settings.memory_limit)
+    }
     if ($last -and $last.at_unix) { Write-Host ("    event time: {0}" -f ([DateTimeOffset]::FromUnixTimeSeconds([int64]$last.at_unix).ToLocalTime().ToString('yyyy-MM-dd HH:mm:ss zzz'))) }
-    if ($execution -and $execution.worker_settings) {
+    if (-not $reused -and $execution -and $execution.worker_settings) {
         Write-Host ("    workers: {0}, threads/worker: {1}, memory/worker: {2}, temp/worker: {3}" -f $execution.workers, $execution.worker_settings.threads, $execution.worker_settings.memory_limit, $execution.worker_settings.max_temp_size)
         if ($execution.coordinator_pid) { Write-Host ("    coordinator PID: {0}" -f $execution.coordinator_pid) }
     }

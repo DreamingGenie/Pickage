@@ -1,6 +1,6 @@
 """Explicit recovery of an unfinished baseline; original envelopes stay immutable.
 
-Only the bounded JSON reader and input validation implementation may differ.
+Reviewed reader, coordinator and final quality validation changes are recorded.
 The recovery controller is recorded separately from the original producers.
 """
 import argparse
@@ -26,14 +26,17 @@ from pipeline.preprocessing.orchestration.dependents import PREFIX as DEPENDENTS
 
 READER = 'pipeline/preprocessing/version_dependents/historical_artifact.py'
 COMPATIBILITY = 'pipeline/preprocessing/version_dependents/historical_parallel_input.py'
-RECOVERY_ID = 'bounded-input-validation-v2'
+RECOVERY_ID = 'finalization-8gb-v3'
+QUALITY = 'pipeline/preprocessing/version_dependents/historical_production_quality.py'
+COORDINATOR = 'pipeline/preprocessing/version_dependents/historical_parallel.py'
+PROOF_HELPER = 'pipeline/preprocessing/version_dependents/finalization_recovery.py'
 
 
 def contract_changes(old, new):
     if old['runtime'] != new['runtime']:
         raise ValueError('Recovery runtime differs from original execution')
     changed = sorted(k for k in set(old['files']) | set(new['files']) if old['files'].get(k) != new['files'].get(k))
-    if set(changed) - {READER, COMPATIBILITY}:
+    if set(changed) - {READER, COMPATIBILITY, QUALITY, COORDINATOR, PROOF_HELPER}:
         raise ValueError('Recovery only permits reviewed reader/input validation changes: ' + str(changed))
     return changed
 
@@ -66,6 +69,27 @@ def prepare_plan(experiment):
         with proof_path.open('xb') as stream: stream.write(proof_body)
     os.environ['PICKAGE_INPUT_RECOVERY_PROOF'] = str(proof_path)
     os.environ['PICKAGE_INPUT_RECOVERY_PROOF_SHA256'] = sha(proof_body)
+    finalization_proof = None
+    run_root = attempt / 'parallel-run'
+    parallel_plan_path = run_root / 'run_plan.json'
+    if parallel_plan_path.exists():
+        old_parallel = parallel._read_json(parallel_plan_path)
+        checkpoints = {f'partitions/{int(p):03d}/complete.json':
+            file_sha256(run_root / f'partitions/{int(p):03d}/complete.json') for p in old_parallel['partitions']}
+        from pipeline.preprocessing.version_dependents import finalization_recovery
+        final_proof = {'format': 'finalization-recovery-v1', 'run_root': str(run_root.resolve()),
+            'plan_sha256': file_sha256(parallel_plan_path), 'previous_contract': old_parallel['generation_contract'],
+            'new_contract': parallel.contract(), 'checkpoints': checkpoints,
+            'helper_sha256': file_sha256(Path(finalization_recovery.__file__))}
+        final_path = root / (RECOVERY_ID + '-finalization-proof.json')
+        final_body = json_bytes(final_proof)
+        if final_path.exists():
+            if final_path.read_bytes() != final_body: raise ValueError('Finalization proof changed')
+        else:
+            with final_path.open('xb') as stream: stream.write(final_body)
+        os.environ['PICKAGE_FINALIZATION_RECOVERY_PROOF'] = str(final_path)
+        os.environ['PICKAGE_FINALIZATION_RECOVERY_PROOF_SHA256'] = sha(final_body)
+        finalization_proof = finalization_recovery.verify(run_root, old_parallel, parallel.contract())
     checkpoints = {name: sha(required(experiment.local, BUCKET, prefix + '/stages/' + name + '.json'))
                    for name in STAGES if name != 'dependents'}
     value = {'format': 'dependents-reader-recovery-v1', 'recovery_id': RECOVERY_ID,
@@ -75,6 +99,8 @@ def prepare_plan(experiment):
         'controller_sha256': file_sha256(Path(__file__)), 'checkpoints': checkpoints,
         'prepared_dir': str(manifest_path.parent), 'prepared_manifest_sha256': file_sha256(manifest_path),
         'input_compatibility_proof': {'path': str(proof_path), 'sha256': sha(proof_body)},
+        'finalization_proof': finalization_proof,
+        'finalization_settings': {'threads': 2, 'memory_limit': '8GB', 'max_temp_size': '100GB'},
         'original_identity_sha256': file_sha256(attempt / 'identity.json'),
         'original_producer_inventory_sha256': file_sha256(root / 'source-files.json'),
         'scope': 'REUSE_VERIFIED_FIVE_STAGES_AND_PREPARED_DEPENDENTS', 'server_writes': False}
@@ -109,7 +135,7 @@ def publish_dependents(s3, request, completed, attempt, result, receipt_ref, fil
     if existing is None:
         options = request['options']
         with connection(attempt / ('recover-export-' + uuid.uuid4().hex[:8] + '.duckdb'),
-                threads=options['threads'], memory_limit=options['memory_limit'], max_temp_size='100GB') as con:
+                threads=options['threads'], memory_limit='8GB', max_temp_size='100GB') as con:
             _load_weekly_views(con, files)
             directory, schemas, quality = _materialize_stage_outputs(con, files=files, root=attempt,
                 prepared=prepared, run_result=result, snapshot=request['snapshot'], metadata=manifest['weekly_metadata'])
@@ -187,7 +213,7 @@ def recover_baseline(experiment, request):
                             or manifest['calendar'] != [{'snapshot_at': request['snapshot'], 'snapshot_timestamp': request['snapshot_timestamp']}]):
                         raise ValueError('Prepared source identity differs')
                 options = request['options']
-                settings = dict(threads=options['threads'], memory_limit=options['memory_limit'], max_temp_size='100GB')
+                settings = plan['finalization_settings']
                 with experiment.phase('baseline:dependents:VERIFY_INPUT_AND_PARALLEL_COMPUTE'):
                     run_dir = attempt / 'parallel-run'
                     result = parallel.run(prepared_dir=prepared, manifest_sha256=digest, output=run_dir,

@@ -6,6 +6,7 @@ and latest finite resolution dates after summaries from all partitions merge.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from pipeline.preprocessing.version_dependents.historical_production_sql import _KNOWN_STATUS, _event_series, _require_schema
@@ -122,6 +123,7 @@ def _source_status_series(con, n: int) -> list[dict[str, int]]:
 
 def finalize_quality_weighted(con, n: int) -> dict[str, Any]:
     """Merge source summaries globally and preserve every existing quality field."""
+    started_at = time.perf_counter()
     _calendar(n)
     _validate_sources(con, "all_source_summary", n)
     for name, schema in {
@@ -158,22 +160,31 @@ def finalize_quality_weighted(con, n: int) -> dict[str, Any]:
         LEFT JOIN target_population t USING(package_id,version)
         WHERE t.package_id IS NULL OR c.start_index<t.birth_index)""").fetchone()[0]:
         raise ValueError("count target is absent or interval begins before target birth")
-    if con.execute("""SELECT EXISTS(SELECT 1 FROM all_source_summary
-        GROUP BY source_package_id,source_version
-        HAVING count(DISTINCT birth_index)>1
-           OR count(DISTINCT coalesce(dependency_error::VARCHAR,'NULL'))>1)""").fetchone()[0]:
-        raise ValueError("source flags or birth differ across partitions")
     con.execute("""CREATE OR REPLACE TEMP TABLE _weighted_sources AS
         SELECT source_package_id,source_version,min(birth_index)::INTEGER birth_index,
                bool_or(dependency_error) AS dependency_error,
                sum(declaration_count)::BIGINT declaration_count,
                sum(never_resolved_count)::BIGINT never_resolved_count,
                min(first_any_resolved_index)::INTEGER first_any_resolved_index,
-               max(last_finite_resolved_index)::INTEGER last_finite_resolved_index
+               max(last_finite_resolved_index)::INTEGER last_finite_resolved_index,
+               min(birth_index)::INTEGER _birth_min,
+               max(birth_index)::INTEGER _birth_max,
+               bool_or(dependency_error=true) _has_error,
+               bool_or(dependency_error=false) _has_no_error,
+               bool_or(dependency_error IS NULL) _has_unknown
         FROM all_source_summary GROUP BY source_package_id,source_version""")
+    print(f"QUALITY_STAGE weighted_sources elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
+    if con.execute("""SELECT EXISTS(SELECT 1 FROM _weighted_sources
+        WHERE _birth_min<>_birth_max
+           OR (_has_error AND _has_no_error)
+           OR (_has_error AND _has_unknown)
+           OR (_has_no_error AND _has_unknown))""").fetchone()[0]:
+        raise ValueError("source flags or birth differ across partitions")
     _validate_sources(con, "_weighted_sources", n)
     source_states = _source_status_series(con, n)
+    print(f"QUALITY_STAGE source_statuses elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     declaration_states = _event_series(con, "all_status_deltas", "snapshot_index", "status", n)
+    print(f"QUALITY_STAGE declaration_statuses elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     target_birth = dict(con.execute("SELECT birth_index,count(*) FROM target_population GROUP BY birth_index").fetchall())
     source_birth = dict(con.execute("SELECT birth_index,count(*) FROM _weighted_sources GROUP BY birth_index").fetchall())
     declaration_birth = dict(con.execute("SELECT birth_index,sum(declaration_count)::BIGINT FROM _weighted_sources GROUP BY birth_index").fetchall())
@@ -222,6 +233,7 @@ def finalize_quality_weighted(con, n: int) -> dict[str, Any]:
         SELECT package_id,version,birth_index FROM target_population""")
     con.execute("CREATE OR REPLACE TEMP TABLE history_quality(snapshot_index INTEGER,quality_json VARCHAR)")
     con.executemany("INSERT INTO history_quality VALUES (?,?)", rows)
+    print(f"QUALITY_STAGE quality_rows elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     return {"partitions_merged": total_sources, "source_versions": total_sources,
             "target_versions": sum(target_birth.values()),
             "count_intervals": int(con.execute("SELECT count(*) FROM all_counts").fetchone()[0]),

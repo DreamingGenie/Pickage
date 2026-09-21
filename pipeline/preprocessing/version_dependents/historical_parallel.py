@@ -25,6 +25,7 @@ from pipeline.preprocessing.version_dependents.historical_parallel_pool import P
 from pipeline.preprocessing.version_dependents import historical_parallel_input as inputs
 from pipeline.preprocessing.version_dependents import historical_parallel_worker as worker
 from pipeline.preprocessing.version_dependents import historical_production as old
+from pipeline.preprocessing.version_dependents.finalization_recovery import verify as verify_recovery
 from pipeline.preprocessing.experiments.dependents.historical_throughput_benchmark import _resources as _windows_resources, _disk
 
 FORMAT = 'historical-parallel-cpu-v2'
@@ -358,15 +359,30 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
                 'resolver_settings': {'lookup_batch': lookup_batch, 'workspace_mib': 128},
                 'history_layout': history_layout, 'generation_contract': contract(), 'ready_for_load': False}
         plan_path = root / 'run_plan.json'
+        execution_contract = plan['generation_contract']
+        recovery_ref = None
         if plan_path.exists():
-            if _read_json(plan_path) != plan:
-                raise ValueError('Resume plan differs from original generation, input or policy')
+            saved_plan = _read_json(plan_path)
+            if saved_plan != plan:
+                if {k:v for k,v in saved_plan.items() if k != 'generation_contract'} != {k:v for k,v in plan.items() if k != 'generation_contract'}:
+                    raise ValueError('Resume input, runtime or policy changed')
+                recovery_ref = verify_recovery(root, saved_plan, execution_contract)
+                plan = saved_plan
         else:
             _publish_json(plan_path, plan)
             _publish_json(root / 'input_location.json', {'prepared_dir': str(prepared)})
-        event(root, 'COMPUTE_PARTITIONS', workers=workers)
-        receipts, reused, metrics = _compute(root, prepared, manifest, plan, per_worker, workers, runtime,
-            request_timeout, max_partitions, min_free_bytes, rss_limit_bytes, scratch_limit_bytes)
+        if recovery_ref:
+            event(root, 'VERIFY_COMPLETED_PARTITIONS', partitions=len(plan['partitions']))
+            receipts = [_accepted(root, plan, p) for p in sorted(_groups(manifest))]
+            if any(r is None for r in receipts):
+                raise ValueError('Finalization recovery requires every completed partition')
+            reused = [r['partition_id'] for r in receipts]
+            metrics = {'recovery': recovery_ref, 'reused_partitions': len(reused), 'finalization_settings': settings}
+            event(root, 'REUSED_ALL_PARTITIONS', partitions=len(reused), settings=settings)
+        else:
+            event(root, 'COMPUTE_PARTITIONS', workers=workers)
+            receipts, reused, metrics = _compute(root, prepared, manifest, plan, per_worker, workers, runtime,
+                request_timeout, max_partitions, min_free_bytes, rss_limit_bytes, scratch_limit_bytes)
         written = [r['partition_id'] for r in receipts if r['partition_id'] not in reused]
         if len(receipts) < len(plan['partitions']):
             return {'run_status': 'INCOMPLETE', 'written_partitions': written, 'reused_partitions': reused,
@@ -389,7 +405,7 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
             history = old.build_history(cache_dir=directory / 'cache', cache_sha256=cached['cache_sha256'],
                 output=directory / 'history', resume=(directory / 'history').exists(), max_snapshots=max_snapshots)
         inputs.verify_bytes(prepared, manifest_sha256)
-        if contract() != plan['generation_contract'] or old.ranked_resolver.runtime_identity('cpu') != plan['resolver_runtime']:
+        if contract() != execution_contract or old.ranked_resolver.runtime_identity('cpu') != plan['resolver_runtime']:
             raise ValueError('Generation or runtime changed during run')
         stable_history = {k: v for k, v in history.items()
                           if k not in ('written_dates', 'reused_dates', 'written_partitions', 'reused_partitions')}
@@ -397,6 +413,8 @@ def run(*, prepared_dir, manifest_sha256, output, resume=False, workers=1,
                   'partitions': receipts, 'cache': cached, 'history': stable_history, 'scope': manifest['scope'],
                   'full_selection_executed': manifest['scope'] == 'FULL_SELECTED' and history['run_status'] == 'COMPLETE',
                   'upstream_resolution_status': 'PARTIAL', 'ready_for_load': False}
+        if recovery_ref:
+            result['finalization_recovery'] = recovery_ref
         if history['run_status'] == 'COMPLETE':
             path = root / 'run_manifest.json'
             if path.exists():
@@ -417,8 +435,11 @@ def verify_run(*, run_dir, manifest_sha256, threads=4, memory_limit='16GB', max_
     if file_sha256(root / 'run_manifest.json') != manifest_sha256:
         raise ValueError('Run manifest SHA mismatch')
     result, plan = _read_json(root / 'run_manifest.json'), _read_json(root / 'run_plan.json')
+    recovery_ref = verify_recovery(root, plan, contract())
+    if result.get('finalization_recovery') != recovery_ref:
+        raise ValueError('Finalization recovery provenance mismatch')
     if (plan['format'] != FORMAT or result['format'] != FORMAT or sha256(plan) != result['plan_sha256']
-            or plan['generation_contract'] != contract() or result['run_status'] != 'COMPLETE'
+            or result['run_status'] != 'COMPLETE'
             or result['ready_for_load'] is not False or result['upstream_resolution_status'] != 'PARTIAL'):
         raise ValueError('Parallel run contract mismatch')
     prepared = _path(_read_json(root / 'input_location.json')['prepared_dir'])

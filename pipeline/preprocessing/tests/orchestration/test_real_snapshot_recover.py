@@ -43,11 +43,10 @@ class RealSnapshotRecoveryTests(unittest.TestCase):
             source_inventory = root / "source-files.json"
             source_inventory.write_bytes(b"{}")
 
-            with patch(
-                "pipeline.preprocessing.orchestration.dependents_parallel.parallel.run",
-                side_effect=RuntimeError("stop before dependents compute"),
+            with patch.object(
+                recovery.parallel, '_finalize', side_effect=RuntimeError('stop after completed partitions')
             ):
-                with self.assertRaisesRegex(RuntimeError, "stop before dependents compute"):
+                with self.assertRaisesRegex(RuntimeError, 'stop after completed partitions'):
                     runner.run(request, s3, work)
 
             local = work / request["run_id"]
@@ -62,7 +61,17 @@ class RealSnapshotRecoveryTests(unittest.TestCase):
             self.assertEqual(len(prepared), 1)
 
             experiment = _Experiment(root, s3, request)
-            result = recovery.recover_baseline(experiment, request)
+            parallel_root = local / 'dependents' / 'parallel-attempt' / 'parallel-run'
+            old_plan = (parallel_root / 'run_plan.json').read_bytes()
+            pointers = {p: p.read_bytes() for p in parallel_root.glob('partitions/*/complete.json')}
+            self.assertTrue(pointers)
+            updated_contract = copy.deepcopy(recovery.parallel.contract())
+            updated_contract['production']['weighted_quality_sha256'] = 'a' * 64
+            with patch.object(recovery.parallel, 'contract', return_value=updated_contract), patch.object(
+                recovery.parallel, '_compute', side_effect=AssertionError('worker recomputation')):
+                result = recovery.recover_baseline(experiment, request)
+            self.assertEqual((parallel_root / 'run_plan.json').read_bytes(), old_plan)
+            self.assertTrue(all(p.read_bytes() == content for p, content in pointers.items()))
 
             self.assertEqual(result["status"], "COMPLETE")
             self.assertEqual(result["recovery"]["key"], prefix + "/recoveries/" + recovery.RECOVERY_ID + ".json")

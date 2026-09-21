@@ -128,6 +128,16 @@ class WeightedQualityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "birth|flag|conflict|differ"):
             finalize_quality_weighted(self.con, N)
 
+    def test_cross_partition_null_and_boolean_flag_conflict_is_rejected(self):
+        self._partition(0, [(1, "1.0.0", 0, False, 0, "dep", "^1", 10, 0)])
+        self._partition(1, [(1, "1.0.0", 0, False, 1, "other", "*", 12, 1)])
+        self.con.execute("UPDATE p_source_summary_1 SET dependency_error=NULL")
+        self.con.execute("CREATE OR REPLACE TEMP VIEW all_counts AS SELECT * FROM p_counts_0 UNION ALL SELECT * FROM p_counts_1")
+        self.con.execute("CREATE OR REPLACE TEMP VIEW all_status_deltas AS SELECT * FROM p_status_deltas_0 UNION ALL SELECT * FROM p_status_deltas_1")
+        self.con.execute("CREATE OR REPLACE TEMP VIEW all_source_summary AS SELECT * FROM p_source_summary_0 UNION ALL SELECT * FROM p_source_summary_1")
+        with self.assertRaisesRegex(ValueError, "flag|conflict|differ"):
+            finalize_quality_weighted(self.con, N)
+
     def test_source_status_uses_global_min_max_across_partitions(self):
         self.con.execute("DELETE FROM lookup_intervals WHERE lookup_id=12")
         self.con.executemany("INSERT INTO lookup_intervals VALUES (?,?,?,?,?,?,?)", [
