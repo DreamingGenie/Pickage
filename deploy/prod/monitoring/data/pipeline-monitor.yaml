@@ -45,6 +45,11 @@ minio:
   weekly: true
   weekly_bucket: pickage-raw
   weekly_max_runs: 8
+  # raw → Curated 전처리 회차 (S15P21A506-372). 디스패처가 pickage-curated/_ops/preprocessing/<날짜>/status.json 에
+  # 남기는 상태와 curated-bundle/_current.json 포인터, 실행기의 단계별 status.json 을 읽는다. 회차당 GET 2.
+  curated: true
+  curated_bucket: pickage-curated
+  curated_max_runs: 8
   # `_current.json` 포인터들. 소비자가 지금 무엇을 읽는지가 여기 있다.
   #   코퍼스  → 유사도 배치의 입력 (deploy/prod/data/.env 의 AI_CORPUS_PREFIX)
   #   벡터    → app 노드 similarity-loader 가 보는 완료 포인터 (S15P21A506-371)

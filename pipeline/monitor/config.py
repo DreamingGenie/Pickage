@@ -49,6 +49,10 @@ class MinioSettings:
     weekly: bool = True
     weekly_bucket: str = "pickage-raw"
     weekly_max_runs: int = 8
+    # raw → Curated 전처리 회차 (S15P21A506-372 디스패처). pickage-curated/_ops/preprocessing/ 를 읽는다.
+    curated: bool = True
+    curated_bucket: str = "pickage-curated"
+    curated_max_runs: int = 8
     pointers: list[str] = field(default_factory=list)  # "bucket/key" 형태
 
 

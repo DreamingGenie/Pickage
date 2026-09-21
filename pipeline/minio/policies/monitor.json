@@ -19,6 +19,8 @@
       "Action": ["s3:GetObject"],
       "Resource": [
         "arn:aws:s3:::pickage-raw/_ops/*",
+        "arn:aws:s3:::pickage-curated/_ops/*",
+        "arn:aws:s3:::pickage-curated/depsdev/v1/curated-bundle/*/status.json",
         "arn:aws:s3:::*/_current.json"
       ]
     }

@@ -872,6 +872,7 @@ http://127.0.0.1:19999/status.html   서버 상태 (8절)
 | --- | --- | --- |
 | **판정 한 줄** | 아래 전부 | BLOCKED·실패한 회차, 죽은 컨테이너, 닿지 못한 노드, 로그의 에러 줄 — 이유가 목록으로 |
 | **주간 수집 회차** | `pickage-raw/_ops/weekly/*/run.json` · 우편함 | 회차별 상태 · 6단계 각각의 상태와 시도 횟수 · `downloads_through`(데이터 끝) · 연속 실패 · 마지막 오류 · 수동 요청 처리 여부 |
+| **Curated 전처리 회차** (S15P21A506-372) | `pickage-curated/_ops/preprocessing/*/status.json` · `_dispatcher/status.json` · `curated-bundle/_current.json` · 실행기 `status.json` | 수집 뒤 같은 타이머가 돌리는 raw → Curated 전처리. 회차별 상태(완료·실행 중·실패·차단·입력 대기) · 6단계(스냅샷 → 역의존) 각각의 상태와 시도 · 다음 재시도 시각 · 현재 완료 bundle · 디스패처가 회차를 고르기 전에 멈췼는지 |
 | **MinIO · 방금 올라온 것** | 버킷 이벤트 구독 (켜진 뒤 24시간치) | **완료 알림**(`_SUCCESS` 가 찍힌 실행), **경로별 신규**, **이벤트 흐름**(무엇이 언제 누구 손으로). 구독이 끊겼던 구간은 그렇게 표시한다 |
 | **포인터** | `_current.json` | 유사도 배치가 읽을 코퍼스, 로더가 볼 벡터 실행이 지금 무엇인가 |
 | **MinIO · 전체 목록** | 버킷 전체 LIST — **버튼을 눌렀을 때만** | 켜지기 전 것까지: 완료된 실행 전부, 경로별 객체 수·크기·최근 변경·24시간/7일 신규. 표 머리에 조회 시각이 남는다 |
@@ -905,7 +906,8 @@ http://127.0.0.1:19999/status.html   서버 상태 (8절)
 - **소켓을 하나 더 물린다.** 4절의 결정(대시보드를 밖에 열지 않으므로 직접 마운트)이
   그대로 근거다. 이 컨테이너는 Docker API 에 GET 만 부른다 (`pipeline/monitor/dockerapi.py`).
 - **MinIO 계정은 전용이고 읽기 전용이다** — `pickage-monitor`. 목록·이벤트 구독은 전 버킷, 읽기는
-  `_ops/` 와 `_current.json` 뿐. **데이터 본문은 못 읽고, 아무것도 쓰지 않는다.**
+  raw·curated 의 `_ops/`, `curated-bundle/**/status.json`, `_current.json` 뿐. **데이터 본문은 못 읽고, 아무것도 쓰지 않는다.**
+  정책 파일이 바뀌면 data 노드에서 "1. 정책을 만든다" 를 다시 돌린다 — 같은 이름이라 갈아 끼워지고 키는 그대로다.
   만드는 법은 [`../data/README.md`](../data/README.md) "파이프라인 모니터에 줄 계정".
 - 코드·API·보고서 형식은 [`pipeline/monitor/README.md`](../../../pipeline/monitor/README.md).
   이미지에는 코드가 없고 `pipeline/` 을 마운트한다 — 고치면 `git pull` 후

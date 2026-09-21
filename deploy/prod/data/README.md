@@ -1321,7 +1321,7 @@ docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
 | --- | --- |
 | 목록 | **전 버킷** — 사람이 "전체 목록 조회" 버튼을 누를 때만 쓴다 |
 | 이벤트 구독 | **전 버킷** (`s3:ListenBucketNotification`, MinIO 확장) — 평소 화면은 이것으로 "방금 올라온 것" 을 본다 |
-| 읽기 | `pickage-raw/_ops/**` 와 어느 버킷이든 `_current.json` **만** |
+| 읽기 | `pickage-raw/_ops/**` · `pickage-curated/_ops/**`(Curated 전처리 회차 상태, S15P21A506-372) · `curated-bundle/**/status.json`(단계별 상태) · 어느 버킷이든 `_current.json` **만** |
 | 쓰기 | **없다** |
 | 삭제 | **없다** |
 
@@ -1329,7 +1329,8 @@ docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
 키·크기·시각만 있고, 그것으로 "무엇이 생겼나" 는 충분히 답이 된다. 소켓까지 쥔 컨테이너에
 원본 읽기를 더 얹을 이유가 없다.
 
-**1. 정책을 만든다.**
+**1. 정책을 만든다.** 정책 파일이 바뀌었을 때(예: 2026-09-21 Curated 전처리 상태 읽기 추가)도 같은 명령이다 —
+`mc admin policy create` 는 같은 이름이 있으면 내용을 갈아 끼우고, 붙어 있는 사용자에게 바로 적용된다. 키는 그대로다.
 
 ```bash
 cd ~/S15P21A506/deploy/prod/data

@@ -86,10 +86,10 @@ class BuildReportTest(unittest.TestCase):
 
     def test_full_inventory_only_on_force_and_then_sticks(self):
         s3 = seeded_s3()
-        settings = cfg.parse({"node": "data", "minio": {"events": False, "weekly": False}})
+        settings = cfg.parse({"node": "data", "minio": {"events": False, "weekly": False, "curated": False}})
         builder = run.Builder(settings, s3=s3, docker_client=None)
         builder.build(); builder.build()
-        self.assertEqual(s3.list_calls, 0)                                   # 보고서는 목록을 안 긁는다
+        self.assertEqual(s3.list_calls, 0)                                   # 보고서는 목록을 안 긁는다 (weekly·curated 의 _ops LIST 는 끔)
         self.assertEqual(builder.full_inventory(force=False), {"available": False})
         inv = builder.full_inventory(force=True)
         self.assertTrue(inv["available"])

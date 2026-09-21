@@ -3,6 +3,7 @@
 실제 주간 회차가 남기는 흔적을 같은 모양으로 흉내 낸다:
 
     pickage-raw/_ops/weekly/<week>/run.json        단계가 하나씩 진행된다 (PENDING → RUNNING → SUCCEEDED)
+    pickage-curated/_ops/preprocessing/<week>/     Curated 전처리 회차 상태 (완료·실패·이번 주 RUNNING) + 디스패처 상태
     pickage-raw/depsdev/v1/.../_SUCCESS            입고가 끝나면 완료 표시가 찍힌다
     pickage-raw/npm-downloads/v1/run_id=.../data/  parquet 파트가 몇 초마다 하나씩 늘어난다
     <ingest-work>/downloads-weekly/<week>/logs/    단계별 로그가 쌓인다 (가끔 WARN·ERROR 줄)
@@ -175,6 +176,57 @@ class Fake:
         self.put(VECTORS, f"{vec}/_SUCCESS", b'{"manifest_sha256": "ff"}')
         self.put(VECTORS, "_current.json", {"run_path": vec, "run_id": run_id, "model": "v7"})
         log("포인터 심음 (코퍼스·벡터)")
+        self.seed_curated(this_week)
+
+    # ── Curated 전처리 회차 (S15P21A506-372 디스패처 흔적) ──────────
+    CURATED_STAGES = ("snapshot", "package_version", "downloads", "repository", "package_snapshot", "dependents")
+
+    def curated_state(self, week: date, status: str, **extra) -> dict:
+        state = {"snapshot": week.isoformat(), "run_id": f"curated-weekly-{week:%Y%m%d}", "status": status,
+                 "attempt": 1, "consecutive_failures": 0, "started_at": None, "finished_at": None,
+                 "next_retry_at": None, "error": None,
+                 "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        state.update(extra)
+        return state
+
+    def put_curated(self, week: date, state: dict, stages: dict | None, phase: str) -> None:
+        self.put(CURATED, f"_ops/preprocessing/{week}/status.json", state)
+        if stages is not None:
+            self.put(CURATED, f"depsdev/v1/curated-bundle/snapshot={week}/run_id={state['run_id']}/status.json",
+                     {"run_id": state["run_id"], "status": state["status"], "phase": phase, "stages": stages})
+
+    def seed_curated(self, this_week: date) -> None:
+        """지난 회차 둘 — 완료(포인터가 가리킨다) · 실패(downloads 에서 2회, 20분 뒤 재시도) — 와 디스패처 상태."""
+        done = this_week - timedelta(days=14)
+        failed = this_week - timedelta(days=7)
+        self.put_curated(done, self.curated_state(done, "COMPLETE", started_at=f"{done + timedelta(days=2)}T02:00:00+00:00",
+                                                  finished_at=f"{done + timedelta(days=2)}T05:10:00+00:00"),
+                         {s: {"status": "COMPLETE", "attempt": 1} for s in self.CURATED_STAGES}, "COMPLETE")
+        self.put(CURATED, "depsdev/v1/curated-bundle/_current.json",
+                 {"snapshot": done.isoformat(), "manifest_sha256": "e" * 64,
+                  "run_prefix": f"depsdev/v1/curated-bundle/snapshot={done}/run_id=curated-weekly-{done:%Y%m%d}"})
+        now = datetime.now(timezone.utc)
+        self.put_curated(failed, self.curated_state(
+            failed, "FAILED", attempt=2, consecutive_failures=2,
+            started_at=(now - timedelta(minutes=50)).isoformat(timespec="seconds"),
+            finished_at=(now - timedelta(minutes=5)).isoformat(timespec="seconds"),
+            next_retry_at=(now + timedelta(minutes=15)).isoformat(timespec="seconds"),
+            error={"type": "RuntimeError", "message": "downloads_interval: DuckDB Out of Memory Error: failed to allocate "
+                                                       "block of 262144 bytes (2.0 GiB/2.0 GiB used)"}),
+            {"snapshot": {"status": "COMPLETE", "attempt": 1, "action": "REVERIFIED"},
+             "package_version": {"status": "COMPLETE", "attempt": 1},
+             "downloads": {"status": "FAILED", "attempt": 2, "error": {"type": "RuntimeError", "message": "DuckDB Out of Memory Error"}}},
+            "downloads")
+        self.put(CURATED, "_ops/preprocessing/_dispatcher/status.json", {"status": "TICK_FINISHED", "exit_code": 1})
+        log(f"Curated 회차 심음 {done} COMPLETE · {failed} FAILED")
+
+    def curated_progress(self, week: date) -> None:
+        """이번 회차의 raw 가 SUCCEEDED 가 되면 디스패처가 전처리를 시작한다 — 두 단계만 진행된 RUNNING 으로 남긴다."""
+        now = datetime.now(timezone.utc)
+        self.put_curated(week, self.curated_state(week, "RUNNING", started_at=now.isoformat(timespec="seconds")),
+                         {"snapshot": {"status": "COMPLETE", "attempt": 1, "finished_at": now.isoformat(timespec="seconds")},
+                          "package_version": {"status": "RUNNING", "attempt": 1, "started_at": now.isoformat(timespec="seconds")}},
+                         "package_version")
 
     # ── 이번 회차 진행 ─────────────────────────────────────────
     def run_week(self, week: date) -> None:
@@ -225,6 +277,7 @@ class Fake:
             self.write_local(logfile, f"{datetime.now(timezone.utc):%H:%M:%S} INFO {name} 완료\n", append=True)
             flush()
         flush("SUCCEEDED", finished=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        self.curated_progress(week)
         log(f"회차 완료 {week} — {self.tick * 3:.0f}초 쉬고 다음 주차로")
         time.sleep(self.tick * 3)
 

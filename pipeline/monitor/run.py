@@ -25,7 +25,7 @@ import traceback
 from datetime import datetime, timezone
 
 from . import config as cfg
-from . import dockerapi, events, localfs, s3inv, server, weekly
+from . import curated, dockerapi, events, localfs, s3inv, server, weekly
 
 SCHEMA = 3
 DEFAULT_CONFIG = "/etc/pipeline-monitor.yaml"
@@ -136,6 +136,9 @@ class Builder:
         if m.weekly and self.s3 is not None:
             _section(report, "weekly", lambda: weekly.collect(
                 self.s3, bucket=m.weekly_bucket, max_runs=m.weekly_max_runs, now=now))
+        if m.curated and self.s3 is not None:
+            _section(report, "curated", lambda: curated.collect(
+                self.s3, bucket=m.curated_bucket, max_runs=m.curated_max_runs, now=now))
         l = settings.local
         if l.paths or l.log_globs:
             def scan(p: cfg.PathSpec) -> dict:

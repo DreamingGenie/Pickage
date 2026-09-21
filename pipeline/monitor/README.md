@@ -6,6 +6,7 @@ netdata 는 CPU·메모리·디스크·컨테이너 **자원**을 본다 (`deplo
 | 알고 싶은 것 | 어디서 읽나 | 보고서의 절 |
 | --- | --- | --- |
 | 주간 회차가 어디까지 갔나, 어느 단계에서 멈췄나, BLOCKED 인가 | `pickage-raw/_ops/weekly/<week>/run.json` · `manual-request.json` | `weekly` |
+| raw → Curated 전처리가 어느 회차·어느 단계까지 갔나, 실패했으면 언제 재시도하나 (S15P21A506-372) | `pickage-curated/_ops/preprocessing/<날짜>/status.json` · `_dispatcher/status.json` · `curated-bundle/_current.json` · 실행기 `status.json` | `curated` |
 | **방금 무엇이 올라왔나**, 어느 실행이 방금 끝났나 | 버킷 **이벤트 구독** (MinIO `ListenBucketNotification`) — 목록 조회 없음 | `minio.events` |
 | 모니터가 켜지기 전엔 무엇이 있었나, 경로별 개수·크기 | 버킷 전체 LIST — **사람이 버튼을 누를 때만** | `/api/inventory` |
 | 소비자가 지금 어느 실행을 읽나 | `_current.json` 포인터 | `minio.pointers` |
@@ -50,6 +51,7 @@ S3 목록 조회는 앞부분(prefix)으로만 거를 수 있다. "최근 것만
 | `s3inv.py` | 버킷 LIST → 경로 집계, `_SUCCESS` → 완료된 실행, `_current.json` 읽기 |
 | `config.py` | 노드별 YAML + 자격증명 환경변수(`PICKAGE_S3_*`). 모르는 키는 시작 거부 |
 | `weekly.py` | `_ops/weekly` 요약. 우편함 판정은 `pipeline.weekly.schedule.is_manual_pending` 을 그대로 부른다 |
+| `curated.py` | `_ops/preprocessing` 요약 — 디스패처 상태(RUNNING·COMPLETE·FAILED·BLOCKED·WAITING_INPUT, 재시도 시각)와 실행기의 6단계 상태. 판정은 디스패처가 적은 것 그대로. 그 모듈을 import 하지 않아 372 브랜치가 없는 체크아웃에서도 뜬다 |
 | `localfs.py` | 경로 스캔(크기·파일 수·24시간 신규)과 로그 꼬리 |
 | `dockerapi.py` | Docker Engine API 최소 클라이언트. 로그 프레임 demux 포함 |
 | `web/index.html` | 화면. 서버가 `/` 로 서빙한다 |
@@ -102,6 +104,7 @@ docker compose run --rm pipeline-monitor --once | less
 | `minio.depth` · `depth_overrides` | 경로 집계 깊이. raw·curated 는 4 (스냅샷·수집일까지). 이벤트 집계도 같은 규칙 |
 | `minio.max_objects` | 전체 목록이 넘기면 멈추고 `truncated` 를 켠다 — 화면이 "잘렸다" 고 말한다 |
 | `minio.pointers` | 읽을 `_current.json` 들 (`bucket/key`) |
+| `minio.curated` · `curated_bucket` · `curated_max_runs` | Curated 전처리 회차 절. data 만. 회차당 GET 2 (디스패처 상태 + 실행기 상태) |
 | `local.paths` · `log_globs` | 훑을 호스트 경로(컨테이너 안 경로 + 사람용 라벨)와 로그 패턴. 경로마다 `refresh_seconds`(0 = 보고서마다. 파일이 수십만 개인 캐시는 600 처럼 주기를 준다 — 그 사이는 마지막 결과를 `cached: true` 로 낸다. "지금 확인" 은 바로 훑는다)와 `note`(화면 머리 한 줄) |
 | `docker.name_pattern` | 어느 컨테이너를 보나. 멈춘 것도 포함한다 — 종료 코드가 정보다. 모니터링 스택 자신은 뺀다 |
 | `docker.error_pattern` | 로그 꼬리에서 "에러 줄" 로 셀 정규식. 로컬 로그에도 같은 것을 쓴다 |
@@ -120,6 +123,14 @@ docker compose run --rm pipeline-monitor --once | less
        "coverage": {"downloads_through": "2026-09-20", …}, "last_error": null,
        "manual": {"requested_at": null, "claimed_at": null, "pending": false},
        "steps": [{"step": "depsdev_t2", "status": "SUCCEEDED", "attempt_count": 1, …}, …]} ]},
+  "curated": {"listed_at": …, "bucket": "pickage-curated", "snapshots_total": 3,
+      "current": {"snapshot": "2026-09-14", "run_prefix": "depsdev/v1/curated-bundle/snapshot=…/run_id=…"},   // 완료된 최신 bundle. 없으면 null
+      "dispatcher": {"status": "TICK_FINISHED", "exit_code": 0, "error": null, "updated_at": …},              // TICK_FINISHED 가 아니면 회차를 고르기 전에 멈춘 것
+      "runs": [{"snapshot": "2026-09-21", "run_id": "curated-weekly-20260921", "status": "FAILED", "attempt": 2,
+                "consecutive_failures": 2, "started_at": …, "finished_at": …, "next_retry_at": …, "updated_at": …,
+                "error": {"type": "RuntimeError", "message": "…"}, "is_current": false, "phase": "downloads",
+                "stages": [{"stage": "snapshot", "status": "COMPLETE", "attempt": 1, "action": "REVERIFIED", …},
+                           {"stage": "downloads", "status": "FAILED", "attempt": 2, "error": {…}}]}]},
   "minio": {
       "pointers": [{"bucket": "pickage-curated", "key": "…/_current.json", "modified": …, "value": {…}}],
       "events": {"listening_since": …, "retention_hours": 24, "held": 312, "max_events": 20000,
@@ -156,7 +167,7 @@ docker compose run --rm pipeline-monitor --once | less
 
 | 무엇 | 왜 |
 | --- | --- |
-| MinIO 계정 `pickage-monitor` (`pipeline/minio/policies/monitor.json`) | **읽기 전용.** 목록·이벤트 구독은 전 버킷, 읽기는 `_ops/` 와 `_current.json` 뿐. 데이터 본문은 읽지 않는다 |
+| MinIO 계정 `pickage-monitor` (`pipeline/minio/policies/monitor.json`) | **읽기 전용.** 목록·이벤트 구독은 전 버킷, 읽기는 raw·curated 의 `_ops/`, `curated-bundle/**/status.json`, `_current.json` 뿐. 데이터 본문은 읽지 않는다 |
 | Docker 소켓 (읽기 전용 마운트, GET 만 호출) | 컨테이너 이름·종료 코드·로그. 소켓의 의미와 근거는 `deploy/prod/monitoring/README.md` 4절 — netdata 가 같은 근거로 이미 마운트한다 |
 | `/srv/pickage/ingest-work` 읽기 전용 | 로컬 산출물·단계 로그 |
 | 듣는 주소 | 인증이 없다 — netdata 와 같은 자세. 127.0.0.1(터널) 과 data 노드의 사설 IP(app 의 중계) 뿐이고, 사설 IP 의 문은 호스트 방화벽이 app 노드에만 연다 |

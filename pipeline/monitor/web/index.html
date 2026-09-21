@@ -258,6 +258,47 @@ const evRow = (e, now) => `<tr class="${(e.event || '').includes('Created') ? 'n
   <td>${esc(evName(e))}</td><td class="mono">${esc(e.principal || '')}</td></tr>`;
 const evTable = (rows, now) => `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>객체</th><th class="r">크기</th><th>무엇</th><th>누가</th></tr></thead><tbody>${rows.map(e => evRow(e, now)).join('')}</tbody></table>`;
 
+// ── Curated 전처리 회차 (raw → Curated 디스패처, S15P21A506-372) ───────────────
+// 주간 회차 표와 같은 모양. 상태는 디스패처가 적은 것을 그대로 보여 준다 — 여기서 다시 판정하지 않는다.
+const CUR_CLS = { COMPLETE: 'ok', RUNNING: 'info', FAILED: 'warn', BLOCKED: 'bad', WAITING_INPUT: '', NOT_STARTED: '', NONE: '' };
+const CUR_KO = { COMPLETE: '완료', RUNNING: '실행 중', FAILED: '실패', BLOCKED: '차단됨', WAITING_INPUT: '입력 대기', NOT_STARTED: '시작 전', NONE: '없음' };
+const STAGE_KO = { snapshot: '스냅샷', package_version: '패키지·버전', downloads: '다운로드', repository: '저장소 지표', package_snapshot: '패키지 스냅샷', dependents: '역의존' };
+function renderCurated(cur, now) {
+  if (!cur) return '';
+  const runs = cur.runs || [];
+  const disp = cur.dispatcher;
+  if (disp && disp.status !== 'TICK_FINISHED') flag('warn', `Curated 디스패처가 회차를 고르기 전에 멈췄습니다 (${disp.status}) — ${disp.error ? disp.error.message : ''}. MinIO 연결이나 baseline(_current.json) 을 봅니다.`);
+  runs.forEach(r => {
+    const failing = r.stages.find(s => s.status === 'FAILED');
+    const where = r.phase && r.phase !== 'COMPLETE' ? ` (${STAGE_KO[r.phase] || r.phase} 단계)` : failing ? ` (${STAGE_KO[failing.stage] || failing.stage} 단계)` : '';
+    if (r.status === 'BLOCKED') flag('bad', `Curated 전처리 ${r.snapshot} 가 BLOCKED${where} — 자동 재시도가 멈췄습니다. 원인을 고친 뒤 run-curated-retry.sh --retry-snapshot ${r.snapshot}.`);
+    else if (r.status === 'FAILED') flag('warn', `Curated 전처리 ${r.snapshot} 가 FAILED${where} (연속 ${r.consecutive_failures}회, 시도 ${r.attempt}회). ${r.next_retry_at ? `${ago(r.next_retry_at, now).replace(/<[^>]+>/g, '').replace(' 전', '')} 뒤 다시 시도합니다.` : ''}`);
+    else if (r.status === 'RUNNING' && r.started_at && now - Date.parse(r.started_at) > 36 * 3600 * 1000) flag('warn', `Curated 전처리 ${r.snapshot} 가 36시간 넘게 RUNNING 입니다${where}. systemd 상한(36h)에 걸려 죽었을 수 있습니다.`);
+  });
+  const stageChips = r => r.stages.length
+    ? r.stages.map(s => `<span class="chip ${CUR_CLS[s.status] || ''}" title="${esc(s.stage)} · 시도 ${s.attempt}회${s.action === 'REVERIFIED' ? ' · 지난 결과 검증해 재사용' : ''}${s.error ? ' · ' + esc(s.error.message) : ''}">${esc(STAGE_KO[s.stage] || s.stage)} ${esc(CUR_KO[s.status] || s.status || '')}</span>`).join('')
+    : `<span class="chip">${r.status === 'WAITING_INPUT' ? 'raw 회차 대기' : '실행기 상태 없음'}</span>`;
+  const rows = runs.map(r => {
+    const cls = r.status === 'BLOCKED' ? 'sick' : '';
+    const detail = [];
+    if (r.error) detail.push(`<details><summary>오류 (${esc(r.error.type || '')})</summary><pre class="err">${esc(r.error.message)}</pre></details>`);
+    return `<tr class="${cls}"><td class="name mono">${esc(r.snapshot)}${r.is_current ? ' ' + chip('현재 bundle', 'ok') : ''}<div class="note" style="margin:0">${esc(r.run_id || '')}</div></td>
+      <td>${chip(CUR_KO[r.status] || r.status, CUR_CLS[r.status])}${r.consecutive_failures ? `<div class="note" style="margin:0">연속 실패 ${r.consecutive_failures} · 시도 ${r.attempt}</div>` : r.attempt > 1 ? `<div class="note" style="margin:0">시도 ${r.attempt}</div>` : ''}</td>
+      <td>${stageChips(r)}${detail.join('')}</td>
+      <td class="r">${ago(r.started_at, now)}</td>
+      <td class="r">${r.status === 'FAILED' && r.next_retry_at ? `<span title="${esc(local(r.next_retry_at))}">재시도 ${esc(local(r.next_retry_at).slice(-8, -3))}</span>` : ago(r.finished_at, now)}</td>
+      <td class="r">${ago(r.updated_at, now)}</td></tr>`;
+  }).join('');
+  const head = `${esc(cur.bucket)}/_ops/preprocessing · ${num(cur.snapshots_total)}회차 중 최근 ${runs.length} · 읽은 시각 ${ago(cur.listed_at, now)}`;
+  const current = cur.current ? `현재 완료 bundle: <b class="mono">${esc(cur.current.snapshot)}</b>` : '<b>완료된 bundle 이 없습니다</b> — 최초 baseline 이 게시되기 전이면 디스패처는 입력 대기로 끝납니다.';
+  const dispLine = disp ? ` · 디스패처 마지막 발화 ${esc(disp.status)}${disp.exit_code != null ? ` (종료 ${disp.exit_code})` : ''}` : '';
+  return `<section class="card"><header><b>Curated 전처리 회차</b><span>${head}</span></header>
+    <div class="note">${current}${dispLine}. 주간 수집이 SUCCEEDED 가 되면 같은 타이머가 그 날짜의 전처리를 하나 고릅니다. 단계 로그는 data 노드 <span class="mono">/srv/pickage/ingest-work/orchestration/&lt;run-id&gt;/</span>.</div>
+    ${runs.length ? `<table><thead><tr><th>스냅샷</th><th>상태</th><th>단계 (6)</th><th class="r">시작</th><th class="r">끝 / 재시도</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
+                  : '<div class="note">아직 회차 기록이 없습니다.</div>'}
+  </section>`;
+}
+
 function renderEvents(node, minio, now) {
   if (!minio) return '';
   const ev = minio.events;
@@ -462,6 +503,7 @@ function renderNode(node, report, now) {
       ${errors || '<div class="note">모든 절이 정상적으로 만들어졌습니다.</div>'}</section>`;
   return header
     + renderWeekly(report.weekly, now)
+    + renderCurated(report.curated, now)
     + renderEvents(node, report.minio, now)
     + renderPointers(report.minio, now)
     + renderInventory(node, report.minio, now)
