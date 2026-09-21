@@ -199,7 +199,7 @@ class ReportHtmlRendererTest {
 
 		assertWellFormed(html);
 		assertTrue(html.contains("분석 대상 아님"));
-		// 네 범주(유지·유입·이탈·미관측) 전부 "—" 여야 한다 — 0 으로 그리면 거짓말이 된다.
+		// 네 범주(유지·유입·이탈·릴리스 없음) 전부 "—" 여야 한다 — 0 으로 그리면 거짓말이 된다.
 		assertEquals(4, html.split("<td class=\"n\">—</td>", -1).length - 1,
 			"OUT_OF_SCOPE 인 네 칸이 전부 — 로 그려지지 않았다");
 	}

@@ -13,6 +13,7 @@ import {
   TRANSITION_KIND_INFO,
   TRANSITION_KINDS,
   TRANSITION_PERIODS,
+  unobservedShare,
   type TransitionKind,
   type TransitionPeriod,
   type TransitionsModel,
@@ -76,6 +77,15 @@ export function TransitionsPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model.packages, kind])
 
+  /**
+   * 1년 경고에 쓸 실측값. 지금 고른 `kind`의 행만 합친다 — 종류를 바꾸면 비율도 달라진다.
+   * 문장에 상수를 박아 두지 않는 이유는 `unobservedShare` 주석에 있다.
+   */
+  const unobservedPct = useMemo(
+    () => unobservedShare(model.packages.flatMap((pkg) => pkg.rows.filter((r) => r.kind === kind))),
+    [model.packages, kind],
+  )
+
   const dateLabel =
     model.t1 && model.t2
       ? `${model.t1} ~ ${model.t2}`
@@ -104,6 +114,22 @@ export function TransitionsPanel({
               이름으로 센 결과라 계산 방식 자체가 다릅니다.
             </p>
             <p>devDependencies는 포함하지 않습니다.</p>
+            {/*
+              S15P21A506-427. 막대 라벨은 "릴리스 없음"이라는 사실만 짧게 말한다 — 왜 그것이
+              "모른다"와 다른지는 여기서 밝힌다. 1년 구간에서 화면의 대부분을 먹는 칸이라
+              이 설명이 없으면 우리가 자료를 못 구한 것처럼 읽힌다.
+            */}
+            <p>
+              <strong>릴리스 없음</strong>은 자료를 구하지 못했다는 뜻이 아닙니다. 그 프로젝트는
+              기간의 양 끝에서 이 패키지를 그대로 선언하고 있습니다. 다만 그 사이에 릴리스를 내지
+              않아, 계속 쓸지 다시 검토했는지를 판단하지 않았습니다. npm 패키지의 76.1%가 최근
+              1년간 릴리스가 없습니다.
+            </p>
+            <p>
+              기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 떨어지지만 실제로 판정하는 수는
+              늘지 않습니다 — 구간이 길수록 신생 패키지가 유입으로 옮겨가 분모가 부풀기
+              때문입니다. 판정 수가 가장 많은 것은 5년이 아니라 <strong>3년</strong>입니다.
+            </p>
           </InfoDialog>
         </div>
         <span className="font-mono text-base text-muted-foreground">{dateLabel}</span>
@@ -151,6 +177,16 @@ export function TransitionsPanel({
             <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
               일부 패키지의 전환 데이터를 찾지 못했습니다:{' '}
               <span className="font-mono text-foreground">{model.notFound.join(', ')}</span>
+            </p>
+          )}
+
+          {period === '1y' && unobservedPct !== null && (
+            <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
+              1년은 판정할 수 있는 의존자가 가장 적은 구간입니다 — 지금 비교에서{' '}
+              <strong className="font-medium text-foreground">
+                {unobservedPct.toFixed(1)}%가 릴리스 없음
+              </strong>
+              입니다. 기본값인 3년이 실제로 판정하는 수가 가장 많습니다.
             </p>
           )}
 

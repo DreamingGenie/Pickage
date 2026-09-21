@@ -281,7 +281,7 @@ class ReportChartsTest {
 		String html = ReportCharts.transitionBars(new Integer[] {200, 100, 50, 0}, "COMPLETE", 200);
 
 		assertWellFormed(html);
-		for (String label : List.of("유지", "유입", "이탈", "미관측")) assertThat(html).contains(">" + label + "<");
+		for (String label : List.of("유지", "유입", "이탈", "릴리스 없음")) assertThat(html).contains(">" + label + "<");
 		assertThat(html).contains("width:100.0%").contains("width:50.0%").contains("width:25.0%");
 		assertThat(html).contains(">200<").contains(">0<");
 	}

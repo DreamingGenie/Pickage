@@ -268,14 +268,21 @@ final class ReportCharts {
 	 * 유지 · 유입 · 이탈
 	 * ------------------------------------------------------------------ */
 
-	/** 네 범주. 항상 이 순서로 항상 넷 다 그린다 — 미관측을 빼면 유지율이 실제보다 높아 보인다. */
-	private static final String[] CATEGORY_LABELS = {"유지", "유입", "이탈", "미관측"};
+	/**
+	 * 네 범주. 항상 이 순서로 항상 넷 다 그린다 — 네 번째를 빼면 유지율이 실제보다 높아 보인다.
+	 *
+	 * <p>네 번째를 <b>"미관측"·"알 수 없음" 으로 부르지 않는다</b>(S15P21A506-427). 자료를 못 구한 것처럼 읽히는데,
+	 * 실제로는 기간의 양 끝에 선언이 남아 있다는 것을 알고 있다. 판단할 수 없는 이유는 의존자가 이 기간에 릴리스를
+	 * 내지 않아서다. <b>화면(frontend/src/components/charts/transition-bars.tsx)과 같은 말을 써야 한다</b> —
+	 * 같은 값을 문서와 화면이 다르게 부르면 둘이 다른 지표로 읽힌다.
+	 */
+	private static final String[] CATEGORY_LABELS = {"유지", "유입", "이탈", "릴리스 없음"};
 
 	/** 값 없는 행의 자리 폭(%). 0 폭으로 그리면 "아무도 안 쓴다" 는 거짓말이 된다. */
 	private static final double PLACEHOLDER_WIDTH = 40;
 
 	/**
-	 * 네 범주 막대. {@code values} 는 유지·유입(채택)·이탈·미관측 순이며 {@code placeholder} 이면 값이 없는 것이다.
+	 * 네 범주 막대. {@code values} 는 유지·유입(채택)·이탈·릴리스 없음 순이며 {@code placeholder} 이면 값이 없는 것이다.
 	 * {@code max} 는 비교 중인 전체 행에서 한 번 계산한 값이다 — 여기서 따로 잡으면 패키지끼리 길이를 비교할 수 없다.
 	 *
 	 * @param mode {@code COMPLETE}·{@code NO_DATA} 는 값으로, {@code OUT_OF_SCOPE} 는 옅은 자리로,
@@ -338,7 +345,7 @@ final class ReportCharts {
 			        line-height: 10px; color: #6b7280; }
 			table.bars { width: 100%; margin: 0; border-collapse: collapse; }
 			table.bars td { border: none; padding: 2px 4px 2px 0; vertical-align: middle; }
-			td.bl { width: 46px; font-size: 9pt; color: #4b5563; }
+			td.bl { width: 76px; white-space: nowrap; font-size: 9pt; color: #4b5563; }
 			td.bp { width: 54px; text-align: right; font-size: 9pt; color: #4b5563; }
 			.track { height: 9px; background: #f1f5f9; }
 			.track.dashed { background: transparent; border: 1px dashed #94a3b8; height: 7px; }

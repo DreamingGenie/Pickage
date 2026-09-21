@@ -1,20 +1,26 @@
 import { HatchDef } from '@/components/charts/version-share'
 import { SHARE_FILLS } from '@/components/charts/tokens'
-import type {
-  TransitionCounts,
-  TransitionDataStatus,
+import {
+  activityShares,
+  type TransitionCounts,
+  type TransitionDataStatus,
 } from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
 type CategoryKey = 'retained' | 'inflowAdopted' | 'outflow' | 'unobserved'
 
 /** 고정 네 범주. 항상 이 순서로, 항상 넷 다 그린다 — `unobserved`를 빼거나 `retained`에
- *  합치면 유지율이 실제보다 높게 보이는 거짓 그래프가 된다(1년 구간 기준 최대 75%p 차이). */
+ *  합치면 유지율이 실제보다 높게 보이는 거짓 그래프가 된다(1년 구간 기준 최대 75%p 차이).
+ *
+ *  `unobserved`를 **"미관측"·"알 수 없음"으로 부르지 않는다**(S15P21A506-427) — 자료를 못 구한
+ *  것처럼 읽히는데, 실제로는 기간의 양 끝에 선언이 남아 있다는 것을 알고 있다. 모르는 것은 그 사이에
+ *  계속 쓸지 다시 검토했는가 뿐이고, 판단할 수 없는 이유는 **의존자가 이 기간에 릴리스를 내지 않아서**다.
+ *  라벨 자리가 좁아 사실만 짧게 적고, 뜻은 패널의 계산 기준 모달이 맡는다. */
 const CATEGORIES: { key: CategoryKey; label: string; fill: string }[] = [
   { key: 'retained', label: '유지', fill: SHARE_FILLS[0] },
   { key: 'inflowAdopted', label: '유입', fill: SHARE_FILLS[1] },
   { key: 'outflow', label: '이탈', fill: SHARE_FILLS[2] },
-  { key: 'unobserved', label: '미관측', fill: SHARE_FILLS[3] },
+  { key: 'unobserved', label: '릴리스 없음', fill: SHARE_FILLS[3] },
 ]
 
 const PLACEHOLDER_WIDTH = 40
@@ -66,7 +72,31 @@ export function TransitionBars({
           포함
         </p>
       )}
+      {counts && <ActivityLine counts={counts} />}
     </div>
+  )
+}
+
+/**
+ * 활동 대비 비율 한 줄 (S15P21A506-427).
+ *
+ * 막대 길이는 **전체 대비**다 — 1년 구간이면 `릴리스 없음` 하나가 화면을 먹어 나머지 셋을 서로
+ * 비교할 수 없다. 그래서 판정한 의존자를 분모로 한 비율을 한 줄 덧붙인다. 둘을 나란히 두는 것이
+ * 핵심이라 토글로 감추지 않는다 — 전체 대비는 "얼마나 봤나", 활동 대비는 "본 것 중 무엇이
+ * 일어났나"이고, 하나만 보이면 각각 다른 방향으로 거짓말을 한다.
+ *
+ * 분모가 `inflowAdopted`인 이유는 `activityShares` 주석에 있다.
+ */
+function ActivityLine({ counts }: { counts: TransitionCounts }) {
+  const shares = activityShares(counts)
+  if (!shares) return null
+  const pct = (v: number) => `${v.toFixed(1)}%`
+  return (
+    <p className="-mt-0.5 text-base text-muted-foreground/80">
+      의존자 {shares.total.toLocaleString()} 중 {shares.active.toLocaleString()} 판정 — 유지{' '}
+      {pct(shares.retainedPct)} · 유입 {pct(shares.inflowAdoptedPct)} · 이탈{' '}
+      {pct(shares.outflowPct)}
+    </p>
   )
 }
 
@@ -91,8 +121,8 @@ function BarRow({
       : 0
 
   return (
-    <div className="grid grid-cols-[52px_1fr_64px] items-center gap-2">
-      <span className="text-base text-muted-foreground">{label}</span>
+    <div className="grid grid-cols-[92px_1fr_64px] items-center gap-2">
+      <span className="text-base whitespace-nowrap text-muted-foreground">{label}</span>
       <span
         className={cn(
           'h-2.5 overflow-hidden rounded-sm',

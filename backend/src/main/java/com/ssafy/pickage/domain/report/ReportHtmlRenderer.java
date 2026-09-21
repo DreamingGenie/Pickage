@@ -244,7 +244,7 @@ public class ReportHtmlRenderer {
 
 		b.append("<table><thead><tr><th>패키지</th><th>종류</th>")
 			.append("<th class=\"n\">유지</th><th class=\"n\">유입</th>")
-			.append("<th class=\"n\">이탈</th><th class=\"n\">미관측</th>")
+			.append("<th class=\"n\">이탈</th><th class=\"n\">릴리스 없음</th>")
 			.append("</tr></thead><tbody>");
 
 		if (t.series().isEmpty()) {
@@ -384,7 +384,7 @@ public class ReportHtmlRenderer {
 			|| TransitionsResponse.NOT_COMPUTED.equals(series.dataStatus());
 	}
 
-	/** 유지·유입(채택)·이탈·미관측 순. 유입은 원시가 아니라 채택 수다 — 표와 같은 기준이다. */
+	/** 유지·유입(채택)·이탈·릴리스 없음 순. 유입은 원시가 아니라 채택 수다 — 표와 같은 기준이다. */
 	private static Integer[] counts(TransitionsResponse.Series series) {
 		return new Integer[] {series.retained(), series.inflowAdopted(), series.outflow(), series.unobserved()};
 	}
