@@ -182,7 +182,8 @@ peer 열 자체는 deps.dev `requirements` 에서만 오므로 `depsdev/v1` 아�
 | `package-peers-20260915-v2` | 4 | 46,896,743 | npm 전수 peer 목록 |
 | `migration-pairs-20260909-v1` | 5 | 28,704,431 | 이동쌍(실행용 의존·npm 전수) |
 | `migration-pairs-dev-20260914-v1` | 5 | 5,870,873 | 이동쌍(개발용 의존·registry 수집분) |
-| `dependent-transitions-20260917-v1` | 3 | 5,743,139 | 유지·유입·이탈 전이 |
+| `dependent-transitions-20260921-v1` | 3 | 6,368,699 | 유지·유입·이탈 전이 — **운영이 읽는 회차**(관측불가 분해 포함, S15P21A506-421) |
+| `dependent-transitions-20260917-v1` | 3 | 5,743,139 | 유지·유입·이탈 전이 — 분해 이전 회차 |
 | `deprecated-replacement-20260914-v1` | 3 | 2,840,619 | 폐기→대체 학습쌍 |
 | `peer-similarity-20260914-v1` | 4 | 2,268,414 | 대체 후보 peer 유사도 |
 | (포인터) `_current.json` 4개 | 4 | 852 | `package-version`·`package-peers`·`peer-similarity`·`package-text` |
