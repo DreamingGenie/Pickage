@@ -28,6 +28,10 @@ ENV PYTHONUNBUFFERED=1
 # 글자에 프로세스가 죽는다. 서버에서는 무해하고, 두 환경의 동작을 같게 만든다.
 ENV PYTHONIOENCODING=utf-8
 
+# ⚠ postgresql-client 도 같이 깐다. app 노드의 similarity-loader 가 load.py 의
+#   --psql 모드로 postgres:5432 에 붙는다 (S15P21A506-371). data 노드의 수집
+#   런타임에서는 안 쓰지만 같은 이미지라 함께 들어간다 — 몇 MB 다.
+
 # ── gcloud CLI ────────────────────────────────────────────────
 #
 # gcs_sync 단계가 `gcloud storage rsync` 를 부른다. BigQuery 는 파이썬 클라이언트로
@@ -43,7 +47,7 @@ RUN apt-get update \
       "https://packages.cloud.google.com/apt cloud-sdk main" \
       > /etc/apt/sources.list.d/google-cloud-sdk.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends google-cloud-cli \
+ && apt-get install -y --no-install-recommends google-cloud-cli postgresql-client \
  && apt-get purge -y gnupg \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
@@ -62,6 +66,19 @@ RUN pip install --no-cache-dir -r /tmp/collectors-requirements.txt \
 #   root 로 쓰면 그 파일을 호스트의 ubuntu 계정이 못 지운다 — 지난 회차 정리가 거기서
 #   막힌다. 바인드 디렉터리를 uid 1000 소유로 만들어 두어야 한다(README 에 명령이 있다).
 RUN useradd --create-home --uid 1000 pickage
+
+# app 노드 similarity-loader 의 작업 폴더. 여기에 전용 named volume 이 붙는다
+# (deploy/prod/app/compose.yaml 의 similarity-loader-work).
+#
+# ⚠ **이 줄이 볼륨의 소유자를 정한다.** 도커는 빈 named volume 을 마운트할 때 이미지의
+#   그 경로 내용을 소유권까지 복사한다. 이미지에 디렉터리가 없으면 볼륨이 root 소유로
+#   생기고, 컨테이너는 uid 1000 이라 **첫 게시가 Permission denied 로 죽는다**
+#   (S15P21A506-385 가 그 증상이었다 — 그때는 저장소 안이 기본 작업 폴더였다).
+#
+# 저장소 안(<repo>/data/similar_package)을 쓰지 않는 이유: app 노드가 마운트하는 것은
+# CI 러너의 작업 디렉터리이고 그 소유자는 gitlab-runner 다. uid 1000 이 mkdir 을 못 한다.
+RUN install -d -o pickage -g pickage /var/lib/pickage/similar-package
+
 USER pickage
 
 # 저장소가 여기 마운트된다. pipeline/minio/ingest_raw.py 가 ROOT 를 __file__ 기준

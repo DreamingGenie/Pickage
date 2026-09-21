@@ -7,8 +7,6 @@
  * 난수를 쓰지 않는다. 새로고침마다 그래프가 흔들리면 화면 버그와 구분할 수 없다.
  */
 
-import { MAX_WEEKS } from '@/api/types'
-
 /** 0.5 — 모든 현재값의 기준. 실제로는 `SELECT MAX(snapshot_at) FROM snapshot`. */
 export const LATEST_SNAPSHOT = '2026-08-31'
 
@@ -22,8 +20,13 @@ export function snapshotDates(weeks: number, end = LATEST_SNAPSHOT): string[] {
   )
 }
 
-/** 전체 스냅샷 축. 조회 상한(104주)보다 넉넉히 잡아 구간 자르기가 실제로 동작하게 한다. */
-export const ALL_SNAPSHOTS = snapshotDates(MAX_WEEKS + 26)
+/**
+ * 전체 스냅샷 축.
+ *
+ * 조회 상한이 없어진 뒤에도(S15P21A506-374) 2년 반치를 유지한다 — 구간 자르기와 간격
+ * 솎아내기가 실제로 동작하는지 보려면 축이 화면보다 길어야 한다.
+ */
+export const ALL_SNAPSHOTS = snapshotDates(130)
 
 /** 결정적 흔들림. 두 주기를 겹쳐 규칙적으로 보이지 않게만 한다. */
 const wobble = (seed: number, i: number) =>
@@ -1049,4 +1052,78 @@ export function pointMetric(
   const seed = seedOf(pkg.name) + (metric === 'stars' ? 7 : 53)
   const base = latest - perWeek * weeksAgo
   return Math.max(0, Math.round(base + wobble(seed, weeksAgo) * Math.abs(perWeek) * 0.8))
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. 유지·유입·이탈 — mock 원본
+ *
+ * 값은 지어낸 것이지만 **네 가지 `data_status` 를 전부 실제로 볼 수 있게** 고른다 —
+ * mock 만 돌려서는 COMPLETE 하나만 보고 끝나기 쉬워서, 나머지 셋을 기본 비교 패키지
+ * (winston·pino·bunyan) 안에 의도적으로 흩어 둔다.
+ * ------------------------------------------------------------------ */
+
+export interface MockTransitionCounts {
+  retained: number
+  inflow: number
+  inflowNew: number
+  outflow: number
+  unobserved: number
+}
+
+export interface MockTransitionRow {
+  kind: 'regular' | 'peer' | 'optional'
+  dataStatus: 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  /** COMPLETE·NO_DATA 일 때만 채운다 — 그 밖엔 서버처럼 값이 없다(null). */
+  counts?: MockTransitionCounts
+}
+
+/**
+ * winston — regular 는 COMPLETE(원시 inflow 와 실제 채택 수 차이가 크게 보이도록 잡았다),
+ * peer 는 NO_DATA(진짜 0), optional 은 COMPLETE(작은 값).
+ *
+ * pino — regular 만 COMPLETE, peer·optional 은 OUT_OF_SCOPE(top-100k 밖).
+ *
+ * bunyan — 세 kind 전부 NOT_COMPUTED. bunyan 하나만 조회하면 응답 전체가 NOT_COMPUTED 뿐이라
+ * 서버 계약대로 `t1`·`t2` 키 자체가 없어지는 경우를 재현한다(다른 패키지와 같이 조회하면
+ * 그쪽에 COMPLETE 행이 있어 t1·t2 는 정상적으로 나간다).
+ */
+export const MOCK_TRANSITIONS: Record<string, MockTransitionRow[]> = {
+  winston: [
+    {
+      kind: 'regular',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 4180, inflow: 9840, inflowNew: 9240, outflow: 980, unobserved: 3120 },
+    },
+    {
+      kind: 'peer',
+      dataStatus: 'NO_DATA',
+      counts: { retained: 0, inflow: 0, inflowNew: 0, outflow: 0, unobserved: 0 },
+    },
+    {
+      kind: 'optional',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 118, inflow: 342, inflowNew: 312, outflow: 46, unobserved: 88 },
+    },
+  ],
+  pino: [
+    {
+      kind: 'regular',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 2610, inflow: 5120, inflowNew: 4720, outflow: 612, unobserved: 1904 },
+    },
+    { kind: 'peer', dataStatus: 'OUT_OF_SCOPE' },
+    { kind: 'optional', dataStatus: 'OUT_OF_SCOPE' },
+  ],
+  bunyan: [
+    { kind: 'regular', dataStatus: 'NOT_COMPUTED' },
+    { kind: 'peer', dataStatus: 'NOT_COMPUTED' },
+    { kind: 'optional', dataStatus: 'NOT_COMPUTED' },
+  ],
+}
+
+/** 기간이 길어질수록 유지·유입·이탈 절대량이 느는 정도만 흉내낸다. 값의 의미는 안 바뀐다. */
+export const TRANSITION_PERIOD_SCALE: Record<'1y' | '3y' | '5y', number> = {
+  '1y': 0.4,
+  '3y': 1,
+  '5y': 1.6,
 }

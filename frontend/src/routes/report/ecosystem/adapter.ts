@@ -31,10 +31,18 @@ const MAX_SLICES = 5
 /** 접힌 나머지 조각의 라벨. */
 export const OTHER_MAJOR = '기타'
 
-function toChartSeries(series: TrendSeries[]): ChartSeries[] {
-  return series.map((s) => ({
+/**
+ * 서버가 준 추이를 화면 시리즈로 옮긴다.
+ *
+ * <p>`tone` 은 **개요가 세운 순서**(= 카드 순서)에서 가져온다. 응답이 준 순서를 그대로
+ * 쓰면 안 된다 — downloads 와 dependents 는 서로 다른 엔드포인트라 순서가 같다는 보장이
+ * 없고, 그러면 같은 패키지가 두 차트에서 다른 선으로 그려진다.
+ */
+function toChartSeries(series: TrendSeries[], toneOf: Map<string, number>): ChartSeries[] {
+  return series.map((s, i) => ({
     key: s.name,
     label: s.name,
+    tone: toneOf.get(s.name) ?? i,
     // 서버는 결측 스냅샷의 행을 아예 보내지 않는다. 없는 점을 만들어 끼우지 않는다.
     points: s.points.map((p) => ({ t: p.snapshot_at, v: p.value })),
   }))
@@ -92,12 +100,15 @@ export function dependentsLineOf(
   name: string,
   majors: MajorSeries[],
   selected: MajorSelection,
+  /** 선 모양 자리. 카드와 같은 번호를 줘야 범례·차트·카드가 어긋나지 않는다 */
+  tone?: number,
 ): ChartSeries {
   const picked = selected.length === 0 ? majors : majors.filter((m) => selected.includes(m.major))
 
   return {
     key: name,
     label: selected.length === 0 ? name : `${name} ${labelOf(selected, majors)}`,
+    tone,
     points: totalOf(picked),
   }
 }
@@ -192,13 +203,15 @@ export function toEcosystemModel({
   dependents,
   versionShare,
 }: EcosystemSources): EcosystemModel {
-  const downloadsSeries = toChartSeries(downloads?.series ?? [])
+  /* 선 모양의 기준 순서. 개요가 세운 차례가 곧 카드 차례이고 기준 패키지가 0 번이다 */
+  const toneOf = new Map(overview.items.map((item, i) => [item.name, i]))
+  const downloadsSeries = toChartSeries(downloads?.series ?? [], toneOf)
 
   // §5 — dependents 는 major 별로 온다. 화면이 고른 버전에 따라 선을 만들 수 있도록
   // 쪼개진 채로 들고 있고, 기본값(TOTAL)만 미리 합쳐 둔다.
   const majorsByName = groupByPackage(dependents?.series ?? [])
-  const dependentsSeries = overview.items.map((item) =>
-    dependentsLineOf(item.name, majorsByName.get(item.name) ?? [], ALL_MAJORS),
+  const dependentsSeries = overview.items.map((item, i) =>
+    dependentsLineOf(item.name, majorsByName.get(item.name) ?? [], ALL_MAJORS, i),
   )
   const dependentsByName = new Map(dependentsSeries.map((s) => [s.key, s]))
 

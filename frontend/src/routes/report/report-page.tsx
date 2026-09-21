@@ -6,12 +6,17 @@ import { MAX_NAMES, type PdfJob } from '@/api/types'
 import { REPORT_NAMES_PARAM, paths } from '@/app/routes'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UnderlineTabsList, UnderlineTabsTrigger } from '@/components/common/underline-tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { EvidenceDrawer } from '@/routes/report/_components/evidence-drawer'
 import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { useReportBasePackage } from '@/routes/report/_components/use-report-base-package'
+import {
+  DEFAULT_TRANSITION_PERIOD,
+  type TransitionPeriod,
+} from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
 /**
@@ -139,6 +144,16 @@ export function ReportPage() {
   const [exporting, setExporting] = useState(false)
   const [preview, setPreview] = useState<PdfJob | null>(null)
 
+  /**
+   * 유지·유입·이탈 조회 구간. 원래 `EcosystemReportTab` 로컬 state였지만, PDF 내보내기
+   * 다이얼로그(아래)가 "화면이 지금 보는 기간"을 그대로 요청에 실어야 해서 여기로
+   * 끌어올렸다(S15P21A506-394) — 안 그러면 화면에서 1y·5y를 보다가 PDF를 내보내도 문서는
+   * 서버 기본값(3y)으로 조용히 달라진다. 조회를 쏘는 자리는 여전히 `EcosystemReportTab`
+   * 안이다 — 그쪽 주석 참고.
+   */
+  const [transitionPeriod, setTransitionPeriod] =
+    useState<TransitionPeriod>(DEFAULT_TRANSITION_PERIOD)
+
   function closeEvidence() {
     const next = new URLSearchParams(searchParams)
     next.delete('evidence')
@@ -217,11 +232,12 @@ export function ReportPage() {
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as ReportTab)}>
-        <TabsList>
-          <TabsTrigger value="ecosystem" onMouseEnter={prefetch.ecosystem}>
+        {/* 탭 이름 옆에 MVP·확장 같은 범위 표시를 붙이지 않는다 — 기획 시안에서 뺀 항목 */}
+        <UnderlineTabsList>
+          <UnderlineTabsTrigger value="ecosystem" onMouseEnter={prefetch.ecosystem}>
             생태계 변화
-          </TabsTrigger>
-          <TabsTrigger value="features" onMouseEnter={prefetch.features}>
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
             {run.status !== 'COMPLETED' && (
               <>
@@ -232,11 +248,11 @@ export function ReportPage() {
                 <span className="sr-only">분석 중</span>
               </>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="community" onMouseEnter={prefetch.community}>
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="community" onMouseEnter={prefetch.community}>
             GitHub 커뮤니티
-          </TabsTrigger>
-        </TabsList>
+          </UnderlineTabsTrigger>
+        </UnderlineTabsList>
 
         {/*
           세 탭 모두 방문 후에는 `forceMount` 로 마운트를 유지하고 `hidden` 으로만 감춘다
@@ -249,7 +265,11 @@ export function ReportPage() {
             className={cn('pt-7', tab !== 'ecosystem' && 'hidden')}
           >
             <Suspense fallback={<TabFallback />}>
-              <EcosystemReportTab packages={packages} />
+              <EcosystemReportTab
+                packages={packages}
+                transitionPeriod={transitionPeriod}
+                onTransitionPeriodChange={setTransitionPeriod}
+              />
             </Suspense>
           </TabsContent>
         )}
@@ -287,6 +307,7 @@ export function ReportPage() {
         open={exporting}
         onOpenChange={setExporting}
         packages={packages}
+        transitionPeriod={transitionPeriod}
         run={run}
         onGoToFeatures={() => setTab('features')}
         onPreview={(job) => {

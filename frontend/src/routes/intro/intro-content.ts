@@ -9,7 +9,7 @@
  */
 
 /** 콜드스타트 진입점. 서비스가 판정하지 않는 값이므로 이유를 붙이지 않는다. */
-export const PRESET_PACKAGES: readonly string[] = ['winston', 'express', 'moment']
+export const PRESET_PACKAGES: readonly string[] = ['express', 'yaml', 'axios']
 
 export {
   COMPARISON_PACKAGES as EXAMPLE_COMPARISON_PACKAGES,

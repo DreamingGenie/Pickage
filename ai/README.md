@@ -3,12 +3,16 @@
 기준 패키지의 `description + keywords` 임베딩으로 **유사/대체 후보 최대 3개**를 사전 계산하는 트랙.
 생성형 AI를 후보 검색·정렬에 쓰지 않는다. 서빙 요청은 PostgreSQL의 사전 계산 결과만 조회한다.
 
-설계 근거: `docs/Pickage_기능별_개발_구상안_0915.md` §3.3~3.5, §4.1, §4.2, §14.
+설계 근거: `docs/Pickage_기능별_개발_구상안_0917.md` §3.3~3.5, §4.1, §4.2, §14.
 
 > **재학습 관련 안내 (2026-09-14)**: 모델 재학습(재파인튜닝)은 최대한 지양하는 방향으로
-> 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 현재 서빙
-> 모델(v7)의 스펙과 학습 이력은 `ai/MODEL_CONTRACT.md`에 남아 있다. 아래 내용은
+> 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 서빙 모델의
+> 스펙과 학습 이력은 `ai/MODEL_CONTRACT.md`에 남아 있다. 아래 내용은
 > **이미 만들어진 모델을 유지·서빙하는 배치**(`similarity/`)에 집중한다.
+>
+> **정정 (2026-09-18)**: 실제 `@production`은 아래 설명하는 v7이 아니라 `v7-v5clean`이다
+> (2026-09-17 첫 실운영 배치에서 확인, S15P21A506-387). 스펙·학습 조건·recall은
+> `ai/MODEL_CONTRACT.md`의 "모델 — v7-v5clean" 절 참고.
 
 ## 폴더
 
@@ -54,6 +58,7 @@
 |---|---|---|
 | 1 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
 | 2 | `ai/MODEL_CONTRACT.md` v7 갱신 — **완료**, 단 EC2 CPU 실측·저장 경로 불일치는 미해결 | S15P21A506-329 |
+| 2b | `ai/MODEL_CONTRACT.md`에 실제 운영 모델(v7-v5clean) 스펙·recall·저장 경로 반영 — **완료** (2026-09-18) | S15P21A506-387 |
 | 3 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인). 51K holdout 정답 노후화 문제 있음 — 아래 "채점 게이트 설계 메모" 참고 | S15P21A506-169 |
 | 4 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) — **완료**, 2026-09-11 develop 머지 | MR !102, S15P21A506-168 |
 | 5 | `similar_packages` 로더 (방식 C의 LOAD). `pipeline/postgresql/load.py` 패턴 재사용 | 신규 |
@@ -112,7 +117,7 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 
 ## 관련 문서
 
-- `docs/Pickage_기능별_개발_구상안_0915.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
+- `docs/Pickage_기능별_개발_구상안_0917.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
 - `datasets/deprecated_replacement_260831/`, `datasets/migration_pairs_260908/`, `datasets/feature_candidates_260908/` — 학습 데이터
 - `pipeline/collectors/keywords/` — `package_text` (임베딩 입력) 수집
 - `pipeline/postgresql/` — 적재기 패턴 (방식 C 로더 참조)

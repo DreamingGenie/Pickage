@@ -4,7 +4,7 @@
 
 | 노드 | 호스트 | 디렉터리 | 무엇이 도나 |
 | --- | --- | --- | --- |
-| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · Spark worker② |
+| **`app`** | `j15a506.p.ssafy.io`<br>사설 `172.26.6.235` | [`app/`](app/) | postgres · api · **web**(nginx + 프런트 정적파일) · **rag-api**(기능 비교) · similarity-loader · Spark worker② |
 | **`data`** | `j15a506**a**.p.ssafy.io`<br>사설 `172.26.8.249` | [`data/`](data/README.md) | minio · **mlflow** · Spark master·worker① · **ai-similarity**(유사도 배치, 1회성) (이후 수집 cron) |
 
 **이 문서는 `app` 노드를 다룬다.** `data` 노드는 명령이 꽤 다르다(`--wait` 를 붙이면 안 된다,
@@ -75,7 +75,7 @@ openssl dhparam -out $LE/ssl-dhparams.pem 2048        # ⚠ 2048. 1024 로 만�
 
 ```bash
 cd deploy/prod/app
-printf 'POSTGRES_DB=pickage\nPOSTGRES_USER=pickage\nPOSTGRES_PASSWORD=rehearsal\nAPI_TAG=rehearsal\nWEB_TAG=rehearsal\n' > /tmp/rehearsal.env
+printf 'POSTGRES_DB=pickage\nPOSTGRES_USER=pickage\nPOSTGRES_PASSWORD=rehearsal\nAPI_TAG=rehearsal\nWEB_TAG=rehearsal\nRAG_TAG=rehearsal\n' > /tmp/rehearsal.env
 cat > /tmp/rehearsal.override.yaml <<'YAML'
 services:
   api:
@@ -83,6 +83,8 @@ services:
   web:
     volumes:
       - /tmp/le:/etc/letsencrypt:ro
+  rag-api:
+    volumes: !reset []        # /srv/pickage/docs 는 서버에만 있다. 없으면 도커가 빈 디렉터리를 만들어 붙인다
 YAML
 docker compose --env-file /tmp/rehearsal.env -f compose.yaml -f /tmp/rehearsal.override.yaml up -d --wait --wait-timeout 200
 ```
@@ -106,7 +108,7 @@ curl.exe -sk -o /dev/null -w '%{http_code}\n' -H "$H" https://127.0.0.1/swagger-
 
 ```bash
 docker compose --env-file /tmp/rehearsal.env -f compose.yaml -f /tmp/rehearsal.override.yaml down -v
-docker rmi pickage-api:rehearsal pickage-web:rehearsal
+docker rmi pickage-api:rehearsal pickage-web:rehearsal pickage-rag-api:rehearsal
 ```
 
 ---
@@ -151,7 +153,7 @@ sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 
 스프링은 그 말을 안 해 주기 때문에(빈 값을 문자열 그대로 넘긴다) 검사를 compose 로 앞당겼다.
 
 `.env` 는 커밋되지 않는다. **서버에 한 번 두고 계속 쓴다.** CI 는 이 파일을 만들지 않고
-`API_TAG` · `WEB_TAG` 두 줄만 갈아 끼운다.
+`API_TAG` · `WEB_TAG` · `RAG_TAG` 세 줄만 갈아 끼운다.
 
 > ⚠ **두 벌을 만들지 말 것.** 예전 체크아웃(`~/S15P21A506/deploy/prod/app/.env`)에 파일이
 > 남아 있으면, 거기서 손으로 `up` 한 날 CI 가 아는 태그와 실제로 뜬 태그가 갈린다.
@@ -166,7 +168,7 @@ sudo -u gitlab-runner grep -c '^POSTGRES_PASSWORD=.' /srv/pickage/app.env   # 1 
 | `COMMUNITY_ENABLED` | `/srv/pickage/app.env` | 필요할 때 사람이. `true`/`false` 문자열, 비밀 아님 |
 | `GMS_API_KEY` | `/srv/pickage/app.env` | **사람이 한 번**(팀 비밀 저장소에도 사본). 선택값 — 지금은 백엔드가 안 읽는다(C1 미구현, `S15P21A506-363`) |
 | `GMS_BASE_URL` · `GMS_REQUEST_PATH` · `GMS_AUTH_HEADER` · `GMS_AUTH_SCHEME` · `GMS_MODEL` | `/srv/pickage/app.env` | 필요할 때 사람이. 비밀 아님 — C1 구현 시 실제 값 재확인 |
-| `API_TAG` · `WEB_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
+| `API_TAG` · `WEB_TAG` · `RAG_TAG` | `/srv/pickage/app.env` | **배포 잡이 매번** (`sed` 로 갈아 끼운다). 비밀이 아니다 |
 
 **"env 를 바꿀 때마다 손으로 해야 하나" 의 답은 아니다.** 비밀은 한 번 정하고 안 바꾸고,
 매번 바뀌는 건 이미지 태그뿐인데 그건 배포가 알아서 한다.
@@ -382,12 +384,36 @@ git -C /srv/pickage/repo log -1 --oneline   # 지금 서버에 뜬 커밋
 ```
 
 ```bash
-docker compose ps                        # 셋 다 Up (healthy) 여야 한다
+docker compose ps                        # 다섯 다 Up. healthcheck 가 있는 셋은 (healthy)
 docker compose logs -f api               # 따라가며 보기
 docker compose logs --since 10m web      # 최근 것만
 docker compose restart api               # 앱만 다시
 docker compose down                      # 내린다. 데이터는 남는다
 ```
+
+### 죽고 있는 컨테이너가 있는지 — 이 한 줄로 본다
+
+`docker compose ps` 의 `STATUS` 는 훑다가 놓친다. `restart: unless-stopped` 가 붙은
+컨테이너는 계속 죽어도 목록에 계속 보이고, healthcheck 가 없는 것(spark-worker-2 ·
+similarity-loader)은 `(healthy)` 도 안 붙어서 정상과 구별이 안 된다.
+**2026-09-16 ~ 09-17 `similarity-loader` 가 그 상태로 하루 넘게 재시작을 반복했고 아무도 몰랐다**
+(S15P21A506-385).
+
+```bash
+docker inspect -f '{{.Name}} {{.State.Status}} 재시작 {{.RestartCount}}회' $(docker compose ps -aq)
+```
+
+**상태가 전부 `running` 이면 정상이다.** `restarting` 이 하나라도 있으면 그것이
+지금 죽고 있는 것이다 — `docker compose logs --tail 50 <서비스>` 로 이유를 본다.
+
+재시작 횟수는 **누적이라 0 이 아니어도 그 자체로는 문제가 아니다** (호스트 재부팅·
+지난 배포도 센다). 지금 죽고 있는지는 **늘어나는지**로 판단한다 — 30초 뒤 같은 명령을
+다시 쳐서 숫자가 같으면 괜찮다.
+
+> 배포 잡도 같은 것을 본다 — `up -d --wait` 뒤에 30초를 두고 재시작 횟수가 **늘었는지**
+> 확인해서 늘었으면 빨간불이다 (`.gitlab-ci.yml` 의 `deploy-app`). `--wait` 만으로는
+> 안 걸린다: healthcheck 가 없는 서비스는 "한 번 running 이 됐다" 로 통과하고,
+> 죽고 다시 뜨는 컨테이너는 그 순간을 반드시 지나간다.
 
 nginx 설정만 고쳤을 때는 **다시 빌드하지 않는다.** 설정은 마운트라 reload 로 끝난다.
 
@@ -438,7 +464,7 @@ git fetch origin && git checkout -f origin/main    # develop 을 띄우려면 or
 cd deploy/prod/app
 
 TAG=$(git rev-parse --short HEAD)
-sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/" /srv/pickage/app.env
+sed -i "s/^API_TAG=.*/API_TAG=$TAG/; s/^WEB_TAG=.*/WEB_TAG=$TAG/; s/^RAG_TAG=.*/RAG_TAG=$TAG/" /srv/pickage/app.env
 
 docker compose build
 docker compose up -d --wait --wait-timeout 300
@@ -496,7 +522,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://j15a506.p.ssafy.io/   # 200
 | 값 | 쓰는 서비스 | 고치면 다시 뜨나 |
 | --- | --- | --- |
 | `POSTGRES_*` | postgres · api | ✅ |
-| `API_TAG` · `WEB_TAG` | api · web | ✅ |
+| `API_TAG` · `WEB_TAG` · `RAG_TAG` | api · web · rag-api | ✅ |
 | `PRIVATE_IP` · `SPARK_MASTER_HOST` · `SPARK_WORKER_*` | spark-worker-2 | ✅ |
 | `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` | spark-worker-2 | ✅ |
 | `GITHUB_COMMUNITY_TOKEN` · `COMMUNITY_ENABLED` | api | ✅ (선택값이라 비워도 무방 — 그러면 커뮤니티 기능만 비활성 유지) |
@@ -569,6 +595,7 @@ docker compose logs --since 5m api | head -50
 cd /srv/pickage/repo/deploy/prod/app
 docker images pickage-api --format '{{.Tag}}\t{{.CreatedSince}}'   # 되돌아갈 곳 고르기
 docker images pickage-web --format '{{.Tag}}\t{{.CreatedSince}}'
+docker images pickage-rag-api --format '{{.Tag}}\t{{.CreatedSince}}'
 
 sed -i "s/^API_TAG=.*/API_TAG=<이전 SHA>/" /srv/pickage/app.env    # 프런트만 되돌릴 거면 WEB_TAG 만
 docker compose up -d --no-build --wait
@@ -578,8 +605,8 @@ docker compose up -d --no-build --wait
 > 그 커밋으로 다시 덮어쓴다. 되돌린 이유가 남아 있다면 **되돌리는 커밋을 MR 로 올려서**
 > 통합 브랜치 자체를 고쳐야 한다. 그 전까지는 팀에 알려 머지를 멈춘다.
 
-태그를 둘로 나눠 둔 이유가 이것이다. **API 는 멀쩡한데 화면만 깨진 배포**가 실제로 생기고,
-그때 프런트만 되돌릴 수 있다.
+태그를 셋으로 나눠 둔 이유가 이것이다. **API 는 멀쩡한데 화면만 깨진 배포**가 실제로 생기고,
+그때 프런트만 되돌릴 수 있다. rag-api 도 같다 — 기능 비교만 깨졌으면 그 줄만 되돌린다.
 
 `--no-build` 를 붙이는 이유: 이건 **이미 있는 이미지로 돌아가는 동작**이다. 빼면 compose 가
 지금 체크아웃된 소스로 그 태그를 다시 구워서, 이름만 옛날이고 내용은 새것인 이미지가 된다.
@@ -630,7 +657,7 @@ docker system prune -a         # ❌ 절대 금지
 `-a` 는 **지금 컨테이너가 안 쓰는 이미지를 전부** 지운다. 이전 SHA 태그가 여기 해당해서,
 한 번 치면 **되돌아갈 곳이 하나도 안 남는다.** 그리고 그 사실은 롤백이 필요한 순간에 알게 된다.
 
-**배포 잡이 이 정리를 대신 한다.** 매 배포 끝에 `pickage-api`·`pickage-web` 의 최근 5개
+**배포 잡이 이 정리를 대신 한다.** 매 배포 끝에 `pickage-api`·`pickage-web`·`pickage-rag-api` 의 최근 5개
 태그만 남기고 그보다 오래된 태그를 떼고, 일주일 지난 빌드 캐시와 dangling 이미지를 지운다.
 컨테이너가 쓰고 있는 이미지는 docker 가 거부하므로 **떠 있는 것은 지워지지 않는다**
 (강제하지 않는다). 무엇을 뗐는지는 잡 로그의 `[정리]` 줄에 남는다.
@@ -728,8 +755,9 @@ IP(172.19.x.x)를 광고하고 상대 호스트는 그 주소로 라우팅할 �
 | --- | --- |
 | CI 자동 배포 | 위 "배포 (손으로)" 를 사람이 실행한다. 붙으면 `main` push 로 자동이 된다. **여기 말하는 것은 배포(CD, S15P21A506-223)다** — MR 에서 도는 검증 파이프라인은 붙었고, 안내는 [`deploy/ci/README.md`](../ci/README.md) |
 | `data` 노드의 수집 cron | 없다. MLflow 는 올라갔다 ([data/README.md](data/README.md) 의 "MLflow") |
-| 유사도 결과 로더 | 없다. 아래 "유사도 결과 로더는 어디서 도나" 에서 **`app` 노드로 정했고**, 코드는 아직 없다 |
+| 유사도 결과 로더 | **붙었다** (S15P21A506-371). `app` 노드의 `similarity-loader` 가 상주하며 MinIO 완료 포인터를 보고 스스로 게시한다. 아래 "유사도 결과 로더는 어디서 도나" |
 | `batch_run_stats` 테이블 | 없다. 분산 증빙은 지금은 스모크 잡의 `EXECUTOR_HOSTS` 출력으로 한다 |
+| 모니터링 (자원·컨테이너·배치 상태) | 없다. 지금은 서버에 붙어 `docker compose ps` · `free -h` · `df -h` 를 친다. 계획은 [`monitoring/README.md`](monitoring/README.md) (S15P21A506-362) |
 
 ## 유사도 결과 로더는 어디서 도나 — `app` 노드
 
@@ -756,6 +784,83 @@ DB 에 쓰는 것은 로더뿐이고, **로더는 `app` 노드에서 돈다.**
 | 보안그룹 `app` 인바운드 5432 | **없음** |
 | `data/.env` 에 운영 DB 비밀번호 사본 | **없음** — 비밀이 한 군데에만 있다 |
 | `--psql` + TCP 경로 (덜 검증됨) | **없음** — 실측한 `--docker-container` 를 그대로 쓴다 |
+
+### 언제 부르나 — 완료 포인터 하나를 본다 (S15P21A506-371)
+
+배치가 끝난 것을 로더가 알아차릴 방법이 없었다. 그래서 산출물 쪽에도 코퍼스와
+같은 관례를 둔다 — `run-similarity-batch.sh` 의 `[6/6]` 이 회수까지 마친 뒤
+`pickage-vectors/_current.json` 을 찍는다.
+
+```
+data 노드   … → ai-collect(업로드 + _SUCCESS) → _current.json
+app  노드   similarity-loader 가 60초마다 그 객체 하나 GET
+              DB 에 게시된 것과 다르면 → load.py --run <run_path>
+```
+
+`ai-collect` 가 성공한 **뒤에만** 찍으므로, 포인터가 있다는 것은 그 회차가
+온전하다는 뜻이다. 버킷을 훑어 최신을 추측하지 않는다.
+
+**왜 push 가 아니라 폴링인가.** `data` 가 `app` 을 깨우려면 어떤 방식이든
+(SSH·HTTP·MinIO webhook) `app` 인바운드가 필요하다. 인터넷에 노출된 유일한
+노드에 실행 트리거를 여는 것은 5432 를 열지 않은 이유와 같은 것을 다른 포트로
+잃는 일이다. 새 것이 없을 때 폴링 비용은 객체 하나 GET 이라, 지연 60초를 0 으로
+만들자고 낼 값이 아니다.
+
+**중복 게시는 세 겹으로 막힌다.**
+
+| | |
+| --- | --- |
+| 포인터 대조 | `etl_dataset_current` 의 것과 같으면 아무것도 하지 않는다 |
+| `pg_advisory_xact_lock` | 동시에 두 개가 떠도 직렬화된다 |
+| `etl_load_execution` UNIQUE | `(dataset, execution_id, snapshot_at, manifest_sha256)` |
+
+`--execution-id` 를 포인터 값에서 결정적으로 만들기 때문에, 같은 산출물을 몇 번
+돌려도 같은 행에 수렴한다.
+
+**`--docker-container` 가 아니라 `--psql` 로 붙는다.** 로더가 컨테이너 안에서
+`docker exec` 를 하려면 이 노드의 `docker.sock` 을 넘겨야 하는데, 그 권한이
+5432 를 안 열어 아낀 것보다 크다. 같은 compose 네트워크 안이라 `postgres:5432`
+가 그대로 보인다 — 호스트에 포트를 여는 것이 아니라 형제 컨테이너가 네트워크로
+붙는 것이고, 위 표의 이득은 그대로 남는다.
+
+```bash
+cd /srv/pickage/repo/deploy/prod/app
+
+# 무엇이 올라와 있고 DB 에 무엇이 게시돼 있는지만 본다
+docker compose run --rm similarity-loader --once --dry-run
+
+# 한 번만 실제로 게시
+docker compose run --rm similarity-loader --once
+
+# 상주 감시
+docker compose up -d similarity-loader
+docker compose logs -f similarity-loader
+```
+
+#### 첫 기동 전에 둘 것 — 둘 다 저장소 밖이다 (S15P21A506-385)
+
+| 무엇 | 어디 | 왜 저장소 밖인가 |
+| --- | --- | --- |
+| MinIO 자격증명 | `/srv/pickage/secrets/minio-similarity-loader.env` (읽기 전용 바인드) | 배포 잡의 `GIT_CLEAN_FLAGS: -ffdx -e deploy/prod/app/.env` 가 추적되지 않는 파일을 전부 지운다. 예외는 그 `.env` 하나뿐이라 저장소 안에 만든 `.env.similarity-loader` 는 **다음 배포에 사라진다** |
+| 작업 폴더 | `similarity-loader-work` 볼륨 (`PICKAGE_SIMILAR_PACKAGE_WORK_DIR=/var/lib/pickage/similar-package`) | 마운트된 저장소는 **CI 러너의 작업 디렉터리**라 소유자가 gitlab-runner 다. uid 1000 인 컨테이너가 `<repo>/data/similar_package` 를 만들지 못한다 |
+
+**둘 다 2026-09-16 배포에서 빠져 있었다.** 자격증명이 없어 컨테이너가 재시작을
+반복했고, 채워 넣은 뒤에는 작업 폴더에서 `Permission denied` 로 게시가 전부 실패했다.
+데이터는 들어가지 않았다 — 유사도 로더는 MinIO 를 읽기만 하고 게시가 원자적이라서다.
+
+자격증명 발급·배치 절차는 [`deploy/prod/data/README.md`](data/README.md) 의
+"app 노드 similarity-loader 에 줄 계정"(정책은
+[`pipeline/minio/policies/similarity-loader.json`](../../pipeline/minio/policies/similarity-loader.json)).
+배포 잡이 `test -f /srv/pickage/secrets/minio-similarity-loader.env` 로 먼저 막으므로,
+파일이 없으면 **로더가 아니라 배포가** 이유가 분명한 자리에서 멈춘다 — 증상이
+컨테이너 로그가 아니라 잡 로그에 남는다.
+
+작업 폴더는 손댈 것이 없다. 볼륨은 compose 가 만들고 소유자는 이미지가 정한다
+(`pipeline/Dockerfile` 의 `install -d -o pickage`). 지난 게시의 기록을 보려면:
+
+```bash
+docker compose exec similarity-loader sh -c 'ls /var/lib/pickage/similar-package'
+```
 
 ### 그 대신 로더가 MinIO 를 건너서 읽는다
 

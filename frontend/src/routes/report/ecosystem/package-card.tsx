@@ -1,42 +1,36 @@
-import { ChevronDownIcon } from 'lucide-react'
+import { ExternalLinkIcon } from 'lucide-react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ObservationBadges } from '@/routes/report/ecosystem/badges'
+import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
 import {
   ALL_MAJORS,
   type MajorSelection,
   type MetricState,
   type PackageCardModel,
 } from '@/routes/report/ecosystem/model'
+import { DEPENDENTS_DELTA_TERM, DEPENDENTS_TERM } from '@/routes/report/ecosystem/terms'
 import { cn } from '@/lib/utils'
 
 /**
- * 패키지 카드.
+ * 패키지 카드 — 상세 하나 전체.
  *
- * 기본은 전부 펼침. 여러 개를 동시에 펼 수 있고, 직접 접기 전까지 닫히지 않는다.
- *
- * 접힘: 패키지 이름과 최신 버전. 그리고 그 패키지 선이 차트에서 물러난다.
- * 펼침: 뱃지 · Dependents 증감 · Version Share 상세.
- *
- * 접힘 상태에도 선 견본은 남긴다 — 그래프의 어느 선이 이 패키지인지
- * 알 수 없으면 접힌 목록이 쓸모없어진다.
+ * 카드를 세로로 쌓고 각자 접었다 펴던 구조를 버렸다. 비교 대상이 셋까지 늘 수 있어
+ * (IA §1-2) 전부 펼치면 오른쪽 열이 차트보다 훨씬 길어졌다. 지금은 위 칩 줄이 고른
+ * 하나만 `EcosystemView` 가 렌더한다 — 그래서 이 컴포넌트 안에 접힘 상태가 없다.
  */
 export function PackageCard({
   model,
   index,
-  expanded,
-  onToggle,
   selectedVersion,
   onVersionChange,
   versionShareState = { status: 'ready' },
 }: {
   model: PackageCardModel
   index: number
-  expanded: boolean
-  onToggle: () => void
   /** 구상안 §5.2 — 이 카드만의 표시 버전들. 다른 카드와 독립이다. 빈 배열이 "전체". */
   selectedVersion: MajorSelection
   onVersionChange: (next: MajorSelection) => void
@@ -47,69 +41,55 @@ export function PackageCard({
   const isBase = index === 0
   const delta = model.dependentsDelta
 
+  /*
+    머리글. 이름 아래 줄에 라이선스와 버전을 둔다 — 라이선스는 "이걸 써도 되나" 를
+    가르는 값이라 카드 맨 아래에 있으면 스크롤해야 보였다. 저장소는 주소를 그대로
+    늘어놓지 않고 아이콘 하나로 줄여 이름에서 떨어진 오른쪽 끝에 둔다.
+  */
   const header = (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <svg width="20" height="8" aria-hidden className="shrink-0">
-          <line
-            x1="0"
-            y1="4"
-            x2="20"
-            y2="4"
-            stroke={style.color}
-            strokeWidth="2.6"
-            strokeDasharray={style.dash}
-            strokeLinecap="round"
-          />
-        </svg>
-        <span className="truncate font-mono text-base font-medium">{model.key}</span>
-        {isBase && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
-            기준
-          </span>
-        )}
-        {model.isDeprecated && (
-          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
-            폐기 표시
-          </span>
-        )}
-      </div>
-      <span className="flex shrink-0 items-center gap-2">
-        <span className="font-mono text-base text-muted-foreground">v{model.latestVersion}</span>
-        <ChevronDownIcon
-          aria-hidden
-          className={cn(
-            'size-4 text-muted-foreground transition-transform duration-200',
-            expanded && 'rotate-180',
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <svg width="20" height="8" aria-hidden className="shrink-0">
+            <line
+              x1="0"
+              y1="4"
+              x2="20"
+              y2="4"
+              stroke={style.color}
+              strokeWidth="2.6"
+              strokeDasharray={style.dash}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="truncate font-mono text-base font-medium">{model.key}</span>
+          {isBase && (
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-base text-muted-foreground">
+              기준
+            </span>
           )}
-        />
-      </span>
+          {model.isDeprecated && (
+            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
+              폐기 표시
+            </span>
+          )}
+        </div>
+        <span className="pl-[30px] font-mono text-xs text-muted-foreground/60">
+          {model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'} · v
+          {model.latestVersion}
+        </span>
+      </div>
+      <RepositoryLink url={model.repoUrl} name={model.key} />
     </div>
   )
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={false}
-        className="rounded-2xl border bg-background px-6 py-5 text-left transition-colors duration-200 hover:border-foreground/30 hover:bg-muted/30"
-      >
-        {header}
-      </button>
-    )
-  }
-
-  /*
-    펼친 카드는 button 이 아니라 div 다. 안에 표시 버전 선택기가 들어가는데,
-    button 안의 button 은 HTML 이 허용하지 않고 클릭이 바깥으로 새어 카드가 접힌다.
-    접기는 머리글만 담당한다.
-  */
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]">
-      <button type="button" onClick={onToggle} aria-expanded className="text-left">
-        {header}
-      </button>
+    /*
+      justify-center: 왼쪽 그래프 열이 더 길면 이 카드가 그 높이로 늘어난다(`EcosystemView` 의 그리드).
+      그때 남는 자리가 아래에만 몰리지 않도록 안의 요소를 세로 중앙에 둔다(S15P21A506-405).
+    */
+    <div className="flex animate-in flex-col justify-center gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
+      {header}
 
       {model.description && (
         <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
@@ -117,29 +97,38 @@ export function PackageCard({
 
       <ObservationBadges model={model} />
 
-      {/* Dependents — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
+      {/* 의존 수 — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-base text-muted-foreground">Dependents 증감</span>
-          <span className="flex items-baseline gap-2">
-            <span className="font-mono text-lg leading-none font-semibold tabular-nums">
-              {delta === null
-                ? '—'
-                : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toLocaleString()}`}
-            </span>
-            <span className="text-base text-muted-foreground">
-              {delta === null ? '점이 부족합니다' : '화면에 뜬 구간'}
-            </span>
-          </span>
-        </div>
         {/*
-          311c — 표시 간격에 따라 "화면에 뜬 첫 점"이 구간 시작과 정확히 같지 않을 수 있다
-          (`sampleEvery`가 뒤에서부터 솎기 때문). 그래서 실제로 증감을 낸 두 날짜를 그대로 적는다.
+          값이 없을 때를 위 네 타일과 **같은 모양**으로 그린다. 여기만 "—" 로 두면 같은
+          카드 안에서 빈 자리 모양이 둘이 되어, 사용자가 둘을 다른 뜻으로 읽는다.
+
+          있을 때는 증감 자체가 결론이라 부호와 색을 값에 바로 붙인다 — 늘면 붉게,
+          줄면 푸르게. 날짜 구간은 적지 않는다. 이 카드는 화면에 뜬 구간을 그대로 따라가고,
+          그 구간은 바로 위 조작줄이 이미 보여 주고 있다.
         */}
-        {delta !== null && model.dependentsDeltaFrom && model.dependentsDeltaTo && (
-          <p className="-mt-1.5 font-mono text-base text-muted-foreground">
-            {model.dependentsDeltaFrom} ~ {model.dependentsDeltaTo}
-          </p>
+        {delta === null ? (
+          <MissingTile
+            label={DEPENDENTS_DELTA_TERM}
+            title="증감을 내려면 관측치가 둘 이상 필요합니다"
+          />
+        ) : (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-base text-muted-foreground">{DEPENDENTS_DELTA_TERM}</span>
+            <span
+              className={cn(
+                'font-mono text-lg leading-none font-semibold tabular-nums',
+                delta > 0
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : delta < 0
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {delta > 0 ? '+' : delta < 0 ? '−' : '±'}
+              {Math.abs(delta).toLocaleString()}
+            </span>
+          </div>
         )}
 
         <VersionPicker
@@ -152,13 +141,29 @@ export function PackageCard({
 
       {/* Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다 */}
       <div className="flex flex-col gap-3 border-t pt-5">
-        <span className="text-base text-muted-foreground">Version Share</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base text-muted-foreground">Version Share</span>
+          {/*
+            안내 문단을 인라인에 상시 노출하면 카드가 길어져 옆 차트 열과 하단이
+            어긋난다. 문구 자체(조각 합계가 실제 사용처 수보다 크다는 것)는 매번
+            읽어야 하는 경고가 아니라 궁금할 때 찾아보는 설명이라 모달로 옮긴다.
+          */}
+          <InfoDialog label="Version Share 안내" title="Version Share">
+            <p>
+              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
+              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
+            </p>
+          </InfoDialog>
+        </div>
         {versionShareState.status === 'loading' ? (
           <Skeleton className="h-28 w-full rounded-xl" />
         ) : versionShareState.status === 'error' ? (
           <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
         ) : model.versionShare.length === 0 ? (
-          <p className="text-base text-muted-foreground">이 시점의 버전 분포 자료가 없습니다.</p>
+          <EmptyPanel
+            message="버전 분포를 불러올 수 없습니다"
+            hint="이 시점에 집계된 자료가 없습니다"
+          />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-5">
@@ -169,20 +174,8 @@ export function PackageCard({
               />
               <ShareBars groups={model.versionShare} />
             </div>
-            {/*
-              명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
-              그래서 비율만 적고 총계를 쓰지 않는다.
-            */}
-            <p className="text-base leading-relaxed text-muted-foreground">
-              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
-              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
-            </p>
-            {/* 개요의 snapshotAt(카드 전체 공통 기준일)과 다른 값일 수 있어 따로 적는다 */}
-            {model.versionShareSnapshotAt && (
-              <p className="font-mono text-base text-muted-foreground">
-                기준일 {model.versionShareSnapshotAt}
-              </p>
-            )}
+            {/* 명세 §5·§6 — 조각 합계는 버전별 합산이라 실제 사용처 수보다 크다.
+                그 설명은 위 정보 버튼 모달로 옮겼다(비율만 적고 총계를 쓰지 않는 이유). */}
           </>
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
@@ -200,14 +193,31 @@ export function PackageCard({
           </p>
         )}
       </div>
-
-      {/* 라이선스·최신 릴리스는 판단 재료라 카드 맨 아래에 조용히 둔다 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-4 text-base text-muted-foreground">
-        <span>{model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'}</span>
-        <span className="font-mono">최신 릴리스 {model.publishedAt.slice(0, 10)}</span>
-        {model.repoUrl && <span className="truncate font-mono">{model.repoUrl}</span>}
-      </div>
     </div>
+  )
+}
+
+/**
+ * 저장소 바로가기.
+ *
+ * 주소를 그대로 적지 않는다 — 카드 폭에서 잘려 읽을 수도 없고, 읽을 필요도 없다.
+ *
+ * `http(s)` 로 시작하는 주소만 링크로 만든다. 수집원이 `git@…` 이나 `git+ssh://` 를
+ * 그대로 주는 경우가 있는데, 그걸 `href` 에 넣으면 눌러도 아무 일이 안 일어난다.
+ */
+function RepositoryLink({ url, name }: { url: string | null; name: string }) {
+  if (!url || !/^https?:\/\//.test(url)) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`${name} 저장소 열기`}
+      aria-label={`${name} 저장소 열기`}
+      className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+    >
+      <ExternalLinkIcon aria-hidden className="size-4" />
+    </a>
   )
 }
 
@@ -288,12 +298,24 @@ function VersionPicker({
             </button>
           )
         })}
+
+        {/*
+          "전 버전을 합한 값입니다 …" 문장을 여기로 옮겼다(S15P21A506-405). 버튼이 무엇을 하는지는
+          눌린 상태로 보이고, 왜 그런 값인지는 궁금할 때만 찾아보면 된다.
+        */}
+        <InfoDialog label="표시 버전 안내" title="표시 버전" className="ml-0.5">
+          <p>
+            &lsquo;전체&rsquo;는 모든 버전(major)을 합한 값입니다. 버전을 하나 이상 골라 합쳐 볼 수
+            있고, 고른 버전의 합계가 {DEPENDENTS_TERM} 그래프와 {DEPENDENTS_TERM} 증감에 반영됩니다.
+          </p>
+          <p>
+            {isAll
+              ? '지금은 전체를 보고 있습니다.'
+              : `지금은 고른 ${selected.length}개 버전을 합해 보고 있습니다.`}{' '}
+            선택은 이 패키지에만 적용되고 다른 패키지에는 영향을 주지 않습니다.
+          </p>
+        </InfoDialog>
       </div>
-      <p className="text-base leading-relaxed text-muted-foreground">
-        {isAll
-          ? '전 버전을 합한 값입니다. 여러 개를 골라 합쳐 볼 수 있습니다.'
-          : `고른 ${selected.length}개 버전을 합한 값입니다. 다른 패키지의 선택과는 무관합니다.`}
-      </p>
     </div>
   )
 }

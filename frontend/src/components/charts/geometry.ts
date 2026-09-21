@@ -16,6 +16,16 @@ export interface ChartSeries {
   key: string
   label: string
   points: TimePoint[]
+  /**
+   * 선 모양·색을 고르는 자리 번호 (`seriesStyle`).
+   *
+   * **배열에서의 위치가 아니라 시리즈에 붙은 값이다.** 위치로 정하면 그릴 수 없는
+   * 시리즈 하나를 걸러낸 순간 뒤의 것들이 한 칸씩 밀려, 카드·범례에 그린 선과 차트의
+   * 선이 어긋난다. 실제로 그렇게 어긋나 있었다.
+   *
+   * 값은 **최종 비교 순서**(IA 11.1)다 — 0 번이 기준 패키지.
+   */
+  tone?: number
 }
 
 export interface Box {
@@ -42,40 +52,136 @@ export function extentX(series: ChartSeries[]): Domain {
   return Number.isFinite(lo) ? [lo, hi] : [0, 1]
 }
 
-export function extentY(series: ChartSeries[]): Domain {
-  let hi = -Infinity
-  for (const s of series) {
-    for (const p of s.points) {
-      if (p.v !== null && p.v > hi) hi = p.v
-    }
-  }
-  // 0 을 항상 포함한다. 잘린 축은 변화를 과장한다.
-  return [0, Number.isFinite(hi) ? niceMax(hi) : 1]
-}
-
-/** 축 최댓값을 1·2·2.5·5 배수로 올린다. */
-export function niceMax(v: number): number {
-  if (v <= 0) return 1
-  const mag = Math.pow(10, Math.floor(Math.log10(v)))
-  const n = v / mag
-  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
-  return step * mag
-}
-
 /**
  * y축은 로그 공간에서 그린다(311a). 의존 수·다운로드 모두 몇 자릿수를 오가서, 선형 축이면
- * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 0을 포함하는
- * 도메인(`extentY`가 항상 0을 하한으로 둔다)에서 `log(0)`이 `-Infinity`가 되는 것을 피하기
- * 위해서다 — `log1p(0) = 0`이라 0이 항상 바닥에 안전하게 찍힌다.
+ * 큰 시리즈 옆에서 작은 시리즈가 바닥에 눌려 붙는다. `log1p`를 쓰는 이유는 하한이 0 일 수
+ * 있어서다 — `log(0)`은 `-Infinity`지만 `log1p(0) = 0`이라 0이 바닥에 안전하게 찍힌다.
  */
 const toLog = (v: number) => Math.log1p(Math.max(0, v))
 
+/** 도메인 양끝에 두는 여백. 선이 축선에 붙지 않을 만큼만 준다. */
+const Y_PAD = 0.08
+/** 여백이 선형 값 기준으로 이만큼을 넘지 않게 한다. */
+const Y_PAD_CLAMP = 0.15
+
+/**
+ * 절대값 y 도메인. **화면에 그리는 구간의 최솟값·최댓값에서 만든다.**
+ *
+ * 예전에는 하한을 0 으로 못 박았다("잘린 축은 변화를 과장한다"). 막대처럼 절대량을
+ * 읽는 그림에서는 맞는 원칙이지만, 여기는 <b>구간을 골라 추세를 보는 선그래프</b>다.
+ * 의존 수가 98만에서 102만으로 움직여도 도메인이 [0, 1M] 이면 선이 세로폭의 0.3% 만
+ * 쓰고 <b>일자로 보인다</b> — 실측이다. 구간을 좁히는 조작 자체가 무의미해진다.
+ *
+ * <p>대신 축 눈금이 0 에서 시작하지 않는다는 사실이 <b>눈금 라벨에 그대로 드러난다.</b>
+ * 맨 아래 라벨이 0 이 아닌 것을 읽는 사람이 본다. 축을 따로 잘랐다고 표시하지 않는 것은
+ * 그 때문이다 — 숨긴 것이 없다.
+ *
+ * <p>여백은 로그 공간에서 8% 주되 선형 값 기준 15% 로 자른다. 자르지 않으면 몇 자릿수를
+ * 오가는 시리즈에서 위쪽 여백이 폭발한다 — 최대 98만인 자료에 1.7M 눈금이 붙는다.
+ */
+export function extentY(series: ChartSeries[]): Domain {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  if (!Number.isFinite(hi) || hi <= 0) return [0, 1]
+
+  // 값이 하나뿐이면 구간이 없다. 평평한 선을 가운데 두고 위아래로 벌린다.
+  if (lo === hi) {
+    const margin = Math.max(1, hi * 0.1)
+    return [Math.max(0, hi - margin), hi + margin]
+  }
+
+  const lLo = toLog(lo)
+  const lHi = toLog(hi)
+  const pad = (lHi - lLo) * Y_PAD
+  const top = Math.min(Math.expm1(lHi + pad), hi * (1 + Y_PAD_CLAMP))
+  // 자료가 0 에 닿으면 하한도 0 이다. log1p(0) = 0 이라 바닥에 안전하게 찍힌다.
+  const bottom = lo <= 0 ? 0 : Math.max(Math.expm1(Math.max(0, lLo - pad)), lo * (1 - Y_PAD_CLAMP))
+  return [bottom, top]
+}
+
+/** 변화율 축의 기준선. 구간 첫 관측치가 여기에 놓인다. */
+export const INDEX_BASE = 100
+
+/**
+ * 변화율 축의 도메인. **0 이 아니라 100 이 기준선이다**(변화 없음 = 100%).
+ *
+ * <p>그래서 `extentY` 의 "잘린 축은 과장한다" 경고가 여기엔 적용되지 않는다. 100 언저리로
+ * 좁혀 그리는 것이 이 그래프의 정의 자체다.
+ *
+ * <p>100 은 항상 도메인에 넣는다 — 기준선이 화면 밖으로 나가면 "무엇 대비 몇 %"인지 읽을
+ * 수 없다. 데이터가 100 근처에 몰려 있어도 위아래로 최소 여유를 둔다(2%p, 그리고 실제
+ * 편차의 12%) — 값이 전부 정확히 100 인 구간 첫머리에서 도메인이 [100,100] 으로 붕괴해
+ * 선이 찌그러지는 것을 막는다.
+ */
+export function indexedExtentY(series: ChartSeries[]): Domain {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.v === null) continue
+      if (p.v < lo) lo = p.v
+      if (p.v > hi) hi = p.v
+    }
+  }
+  if (!Number.isFinite(lo)) return [90, 110]
+  lo = Math.min(lo, INDEX_BASE)
+  hi = Math.max(hi, INDEX_BASE)
+  const pad = Math.max((hi - lo) * 0.12, 2)
+  return [lo - pad, hi + pad]
+}
+
+/**
+ * 눈금 값. 로그 공간에서 고르게 나눈다 — 축이 로그이므로 화면에서도 고르게 놓인다.
+ *
+ * <p>값이 1000 미만이면 정수로 반올림하고 중복을 없앤다. 의존 수·다운로드는 정수라
+ * "0.9 · 1.5 · 2.2" 같은 눈금이 뜻을 갖지 않고, 반올림하면 같은 값이 겹치기 때문이다.
+ * 남는 눈금이 둘도 안 되면 반올림을 포기하고 원래 값을 쓴다.
+ */
 export function ticksY([lo, hi]: Domain, count = 3): number[] {
   const lLo = toLog(lo)
   const lHi = toLog(hi)
   const out: number[] = []
   for (let i = 0; i <= count; i++) out.push(Math.expm1(lLo + ((lHi - lLo) * i) / count))
+  if (hi >= 1000) return out
+  const unique = [...new Set(out.map(Math.round))]
+  return unique.length >= 2 ? unique : out
+}
+
+/** 변화율처럼 선형 공간이 맞는 축의 눈금. 로그 변환을 거치지 않는다. */
+export function ticksYLinear([lo, hi]: Domain, count = 3): number[] {
+  const out: number[] = []
+  for (let i = 0; i <= count; i++) out.push(lo + ((hi - lo) * i) / count)
   return out
+}
+
+/**
+ * y 눈금 라벨.
+ *
+ * <p>도메인이 좁으면 `compact` 로는 눈금이 겹친다 — 98만~102만 구간에서 1,000,000 과
+ * 1,013,000 이 둘 다 "1.0M" 이 된다. 그때만 단위를 축 전체로 고정하고 소수 자리를
+ * 눈금 간격에 맞춘다. 한 자릿수 넘게 벌어진 축은 눈금마다 자릿수가 달라야 읽히므로
+ * `compact` 를 그대로 쓴다.
+ *
+ */
+export function formatTick(v: number, [lo, hi]: Domain, count = 3): string {
+  const span = Math.max(Math.abs(lo), Math.abs(hi))
+  const sign = v < 0 ? '-' : ''
+  const a = Math.abs(v)
+  if (lo > 0 && hi / lo < 10) {
+    const unit = hi >= 1_000_000 ? 1_000_000 : hi >= 1_000 ? 1_000 : 1
+    const suffix = unit === 1_000_000 ? 'M' : unit === 1_000 ? 'k' : ''
+    const step = (hi - lo) / count / unit
+    const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3
+    return `${(v / unit).toFixed(decimals)}${suffix}`
+  }
+  return span === 0 ? '0' : `${sign}${compact(a)}`
 }
 
 export const scaleX = (v: number, d: Domain, b: Box) =>
@@ -90,6 +196,23 @@ export const scaleY = (v: number, d: Domain, b: Box) => {
   const lHi = toLog(d[1])
   return lHi === lLo ? b.y + b.h : b.y + b.h - ((toLog(v) - lLo) / (lHi - lLo)) * b.h
 }
+
+/**
+ * 로그 없이 그대로 선형 보간한다. 변화율 그래프에 쓴다 — 기준이 100 하나뿐이라 시리즈 간
+ * 규모차가 애초에 존재하지 않고, 자릿수를 압축할 이유도 없다.
+ */
+/**
+ * 변화율 눈금 라벨. 소수 자리는 눈금 간격에 맞춘다 — 95~115 구간에서 "95.00%" 는
+ * 읽을 것이 없고, 99.8~100.4 구간에서 "100%" 만 넷이면 눈금이 아니다.
+ */
+export function formatIndexTick(v: number, [lo, hi]: Domain, count = 3): string {
+  const step = (hi - lo) / count
+  const decimals = step >= 5 ? 0 : step >= 1 ? 1 : 2
+  return `${v.toFixed(decimals)}%`
+}
+
+export const scaleYLinear = (v: number, d: Domain, b: Box) =>
+  d[1] === d[0] ? b.y + b.h : b.y + b.h - ((v - d[0]) / (d[1] - d[0])) * b.h
 
 /**
  * 관측 공백으로 볼 간격의 기본값(일).
@@ -121,6 +244,7 @@ const broken = (prev: TimePoint | null, cur: TimePoint, maxGapDays: number) =>
  * @param maxGapDays 이 일수를 넘게 벌어진 이웃은 잇지 않는다. 화면이 스냅샷을 솎아 그릴
  *                   때는(`sampleEvery`) 정상 간격 자체가 넓어지므로 호출하는 쪽이 그 간격에
  *                   맞춰 올려 준다. 안 그러면 4주 간격 보기에서 모든 구간이 끊긴다.
+ * @param yScaleFn   기본은 로그(`scaleY`). 지수·증감 그래프는 `scaleYLinear` 를 넘긴다.
  */
 export function buildLine(
   points: TimePoint[],
@@ -128,6 +252,7 @@ export function buildLine(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   let d = ''
   let pen = false
@@ -140,7 +265,7 @@ export function buildLine(
     }
     if (broken(prev, p, maxGapDays)) pen = false
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `${pen ? 'L' : 'M'}${x} ${y}`
     pen = true
     prev = p
@@ -155,6 +280,7 @@ export function buildArea(
   yd: Domain,
   b: Box,
   maxGapDays: number = MAX_GAP_DAYS,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
 ): string {
   const base = (b.y + b.h).toFixed(2)
   let d = ''
@@ -181,7 +307,7 @@ export function buildArea(
     if (broken(prev, p, maxGapDays)) flush()
     run.push({
       x: scaleX(ms(p.t), xd, b).toFixed(2),
-      y: scaleY(p.v, yd, b).toFixed(2),
+      y: yScaleFn(p.v, yd, b).toFixed(2),
     })
     prev = p
   }
@@ -227,15 +353,51 @@ export function windowSeries(
  * 길이 0 짜리 선분에 `stroke-linecap="round"` + `vector-effect="non-scaling-stroke"`
  * 를 주면 뷰박스 왜곡과 무관하게 화면상 정원이 찍힌다.
  */
-export function buildPoints(points: TimePoint[], xd: Domain, yd: Domain, b: Box): string {
+export function buildPoints(
+  points: TimePoint[],
+  xd: Domain,
+  yd: Domain,
+  b: Box,
+  yScaleFn: (v: number, d: Domain, b: Box) => number = scaleY,
+): string {
   let d = ''
   for (const p of points) {
     if (p.v === null) continue
     const x = scaleX(ms(p.t), xd, b).toFixed(2)
-    const y = scaleY(p.v, yd, b).toFixed(2)
+    const y = yScaleFn(p.v, yd, b).toFixed(2)
     d += `M${x} ${y}L${x} ${y}`
   }
   return d
+}
+
+/**
+ * 구간의 첫 유효 관측치를 100 으로 두고 나머지를 그 대비 비율로 바꾼다(변화율 모드).
+ *
+ * <p>전 스냅샷 대비 증감(차분)을 그려 봤지만 규모가 다른 패키지를 같은 축에 올리지 못했다.
+ * 의존 수가 수백인 패키지의 주간 증감은 한 자릿수라, 수만짜리 패키지 옆에서 0 에 눌린
+ * <b>수평선</b>이 되고 그게 기준선처럼 읽혔다. 비율은 규모를 나누어 없애므로 그 문제가
+ * 구조적으로 생기지 않는다 — 둘 다 100 에서 출발한다.
+ *
+ * <p>기준값이 없거나(전부 결측) 0 이면 비율을 만들 수 없다. 지어내지 않고 그 시리즈는
+ * 통째로 결측으로 남긴다.
+ *
+ * <p><b>패키지마다 자기 구간의 첫 점을 기준으로 삼는다.</b> 관측 시작이 서로 달라도
+ * "그 시점부터 몇 % 변했나" 는 나란히 놓고 볼 수 있어야 한다.
+ */
+export function indexSeriesTo100(series: ChartSeries[]): ChartSeries[] {
+  return series.map((s) => {
+    const base = s.points.find((p) => p.v !== null)?.v ?? null
+    if (base === null || base === 0) {
+      return { ...s, points: s.points.map((p) => ({ t: p.t, v: null })) }
+    }
+    return {
+      ...s,
+      points: s.points.map((p) => ({
+        t: p.t,
+        v: p.v === null ? null : (p.v / base) * INDEX_BASE,
+      })),
+    }
+  })
 }
 
 /**

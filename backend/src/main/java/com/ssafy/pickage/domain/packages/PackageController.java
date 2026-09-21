@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
 import com.ssafy.pickage.domain.packages.dto.SimilarPackagesResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 import com.ssafy.pickage.global.response.ApiResponseBody;
@@ -75,7 +77,7 @@ public class PackageController {
 	 * 클라이언트는 x축을 인덱스가 아니라 {@code snapshot_at} 으로 잡아야 한다.
 	 */
 	@Operation(summary = "다운로드 추이",
-		description = "from 생략 시 최신 스냅샷 기준 26주, to 생략 시 최신 스냅샷. 최대 104주.")
+		description = "from 생략 시 최초 스냅샷, to 생략 시 최신 스냅샷. 기간 상한 없음.")
 	@GetMapping("/packages/downloads")
 	public ApiResponseBody<TrendResponse> getDownloadsTrend(
 		@RequestParam(name = "names", required = false) List<String> names,
@@ -145,6 +147,60 @@ public class PackageController {
 		@RequestParam(name = "limit", required = false) Integer limit
 	) {
 		return ApiResponseUtil.createSuccessResponse(service.getSimilar(SimilarQuery.of(name, limit)));
+	}
+
+	/**
+	 * 기능-08 — 유지·유입·이탈 (구상안 §12.6).
+	 *
+	 * <p><b>MVP 의 signed {@code delta} 와 다른 지표다.</b> {@code /packages/dependents} 의 증감은
+	 * 버전별 합계의 총수 차이이고, 이쪽은 dependent 를 이름으로 식별한 상태 전이다.
+	 * {@code DEC-DEPENDENCY-DELTA-20260910-01} 에 따라 {@code delta = inflow - outflow} 를
+	 * 전제하지 않는다.
+	 *
+	 * <p><b>구간은 프리셋만 받는다.</b> 임의 날짜를 허용하면 요청마다 수천만 행을 집계해야 한다.
+	 * 프리셋 밖의 값은 빈 결과가 아니라 400 이다 — 조용히 기본값으로 떨어뜨리면 화면은
+	 * 3년을 보면서 2년을 요청했다고 믿는다.
+	 *
+	 * <p>응답의 네 범주를 <b>모두</b> 화면에 내야 한다. {@code unobserved} 를 {@code retained} 에
+	 * 합치면 1년 구간 유지율이 87.2% 가 아니라 98.8% 로 보인다.
+	 */
+	@Operation(summary = "유지·유입·이탈",
+		description = "구간 양 끝의 dependent 선언 집합을 비교한다. period 는 1y·3y·5y 중 하나이며 "
+			+ "기본 3y. 한 패키지가 kind(regular·peer·optional)마다 한 줄씩 나온다. "
+			+ "계산 대상 밖이면 0 이 아니라 null 과 data_status=OUT_OF_SCOPE 로 나간다.")
+	@GetMapping("/packages/transitions")
+	public ApiResponseBody<TransitionsResponse> getTransitions(
+		@RequestParam(name = "names", required = false) List<String> names,
+		@RequestParam(name = "period", required = false) String period
+	) {
+		return ApiResponseUtil.createSuccessResponse(
+			service.getTransitions(PackageNames.of(names), TransitionPeriod.of(period)));
+	}
+
+	/**
+	 * 기능-08 — 이탈 사유. <b>위 조회와 단위가 다르다.</b>
+	 *
+	 * <p>{@code transitions} 의 {@code outflow} 는 "T1 엔 쓰고 T2 엔 안 쓰는 패키지가 몇
+	 * 개인가" 이고 여기 {@code removals} 는 "그 사이 빼는 행위가 몇 번 있었나" 다. 한
+	 * 의존자가 뺐다 넣었다 다시 뺐으면 앞은 1, 뒤는 2다. <b>두 수를 더하거나 나누면 안 된다.</b>
+	 * 그래서 응답이 따로이고 {@code unit} 을 값으로 싣는다.
+	 *
+	 * <p>구간과 기준일은 같다 — 적재기가 같은 표에서 t1·t2 를 가져오므로 한 화면에 나란히
+	 * 놓아도 어긋나지 않는다.
+	 */
+	@Operation(summary = "구간별 이탈 사유",
+		description = "X 를 뺀 전이를 대체 동반(with_replacement)과 대체 없음(no_replacement)으로 "
+			+ "가른다. period 는 1y·3y·5y 중 하나이며 기본 3y. 한 패키지가 한 줄이다(kind 없음). "
+			+ "unit=transitions — 패키지 수가 아니라 전이 건수이며 유지·유입·이탈의 수와 "
+			+ "더하거나 나누면 안 된다. 대상인데 제거가 없으면 0 과 NO_DATA, 대상 밖이면 "
+			+ "null 과 OUT_OF_SCOPE 로 나간다.")
+	@GetMapping("/packages/removal-reasons")
+	public ApiResponseBody<RemovalReasonsResponse> getRemovalReasons(
+		@RequestParam(name = "names", required = false) List<String> names,
+		@RequestParam(name = "period", required = false) String period
+	) {
+		return ApiResponseUtil.createSuccessResponse(
+			service.getRemovalReasons(PackageNames.of(names), TransitionPeriod.of(period)));
 	}
 
 	/**

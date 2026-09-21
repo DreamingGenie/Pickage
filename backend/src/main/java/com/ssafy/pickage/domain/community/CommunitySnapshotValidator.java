@@ -72,6 +72,13 @@ public final class CommunitySnapshotValidator {
             require(
                     (r.owner() + "/" + r.name()).equals(r.fullName())
                             && Set.of("PACKAGE_SCOPED", "REPOSITORY_WIDE").contains(r.scope()));
+            // 저장소 전체 Issue 수(S15P21A506-413) — 선택 필드라 null 이어도 된다. 있으면 음수가 아니고 열린 수가 전체를 넘지 않는다.
+            require(r.issueCount() == null || r.issueCount() >= 0);
+            require(r.openIssueCount() == null || r.openIssueCount() >= 0);
+            require(
+                    r.issueCount() == null
+                            || r.openIssueCount() == null
+                            || r.openIssueCount() <= r.issueCount());
         }
         Set<Integer> numbers = new HashSet<>();
         Set<String> sources = new HashSet<>();
@@ -106,22 +113,33 @@ public final class CommunitySnapshotValidator {
                     t.summaryStatus() != null
                             && Set.of("READY", "PARTIAL", "FAILED").contains(t.summaryStatus()));
             require(
-                    t.flow() != null
-                            && t.messages() != null
-                            && t.flow().size() <= 4
-                            && t.messages().size() <= 3);
+                    t.messages() != null
+                            && t.messages().size() <= CommunitySummaryValidator.MAX_MESSAGES
+                            && t.summaryMarks() != null
+                            && t.summaryMarks().size()
+                                    <= CommunitySummaryValidator.MAX_KEY_SENTENCES
+                                            + CommunitySummaryValidator.MAX_KEY_TERMS);
             if ("FAILED".equals(t.summaryStatus()))
                 require(
                         t.titleKo() == null
                                 && t.summaryKo() == null
-                                && t.flow().isEmpty()
-                                && t.messages().isEmpty());
+                                && t.messages().isEmpty()
+                                && t.summaryMarks().isEmpty());
             else {
                 require(
-                        plain(t.titleKo(), 200)
-                                && plain(t.summaryKo(), 500)
-                                && !t.flow().isEmpty());
-                for (var f : t.flow()) require(f != null && plain(f.text(), 200));
+                        plain(t.titleKo(), CommunitySummaryValidator.MAX_TITLE)
+                                && plain(t.summaryKo(), CommunitySummaryValidator.MAX_SUMMARY));
+                // 강조 구간은 요약문 범위 안의 [start, end) 여야 한다. 종류는 둘뿐이다.
+                for (var k : t.summaryMarks())
+                    require(
+                            k != null
+                                    && k.start() >= 0
+                                    && k.start() < k.end()
+                                    && k.end() <= t.summaryKo().length()
+                                    && Set.of(
+                                                    SummaryMarkPayload.KEY_TERM,
+                                                    SummaryMarkPayload.KEY_SENTENCE)
+                                            .contains(k.kind()));
             }
             Set<String> ids = new HashSet<>();
             Instant previous = null;
@@ -132,7 +150,7 @@ public final class CommunitySnapshotValidator {
                                 && decimalId(m.sourceCommentId())
                                 && ids.add(m.sourceCommentId())
                                 && m.createdAt() != null
-                                && plain(m.text(), 300));
+                                && plain(m.text(), CommunitySummaryValidator.MAX_MESSAGE_TEXT));
                 require(
                         m.kind() != null
                                 && Set.of("DISCUSSION", "USER_SOLUTION").contains(m.kind()));
@@ -191,16 +209,46 @@ public final class CommunitySnapshotValidator {
                         && p.path("topics").isArray()
                         && p.path("limitations").isArray());
         if (!p.path("repository").isNull()) {
-            keys(p.path("repository"), "owner name full_name scope archived");
-            texts(p.path("repository"), "owner name full_name scope", false);
-            require(p.path("repository").path("archived").isBoolean());
+            // `issue_count`·`open_issue_count` 는 payload_version 을 올리지 않고 더한 선택 키다(S15P21A506-413) — 이전 스냅샷에는
+            // 없고, 새 스냅샷에는 조회에 실패하면 null 로 들어간다. 있으면 null 이거나 정수여야 한다.
+            var repo = p.path("repository");
+            boolean hasIssueCount = repo.has("issue_count");
+            boolean hasOpenCount = repo.has("open_issue_count");
+            keys(
+                    repo,
+                    "owner name full_name scope archived"
+                            + (hasIssueCount ? " issue_count" : "")
+                            + (hasOpenCount ? " open_issue_count" : ""));
+            texts(repo, "owner name full_name scope", false);
+            require(repo.path("archived").isBoolean());
+            if (hasIssueCount)
+                require(repo.path("issue_count").isNull() || repo.path("issue_count").isInt());
+            if (hasOpenCount)
+                require(
+                        repo.path("open_issue_count").isNull()
+                                || repo.path("open_issue_count").isInt());
         }
         for (JsonNode t : p.path("topics")) {
+            // `summary_marks` 는 payload_version 을 올리지 않고 더한 선택 키다 — 이전 스냅샷에는 없어도 읽는다.
+            // `flow` 는 반대로 걷어 낸 키다(S15P21A506-412) — 새 스냅샷에는 없고, 그 전에 저장된 스냅샷에는 남아 있다.
+            // 둘 다 payload_version 을 올리지 않는다: 올리면 저장된 스냅샷이 전부 읽히지 않는다.
+            boolean hasMarks = t.has("summary_marks");
+            boolean hasFlow = t.has("flow");
             keys(
                     t,
                     "source_issue_id issue_number state updated_at created_at title_original"
                             + " title_ko comments_count reactions_count collection_status"
-                            + " summary_status summary_ko flow messages");
+                            + " summary_status summary_ko messages"
+                            + (hasFlow ? " flow" : "")
+                            + (hasMarks ? " summary_marks" : ""));
+            if (hasMarks) {
+                require(t.path("summary_marks").isArray());
+                for (JsonNode k : t.path("summary_marks")) {
+                    keys(k, "start end kind");
+                    texts(k, "kind", false);
+                    require(k.path("start").isInt() && k.path("end").isInt());
+                }
+            }
             texts(
                     t,
                     "source_issue_id state updated_at created_at title_original collection_status"
@@ -211,11 +259,14 @@ public final class CommunitySnapshotValidator {
                     t.path("issue_number").isInt()
                             && t.path("comments_count").isIntegralNumber()
                             && t.path("reactions_count").isIntegralNumber()
-                            && t.path("flow").isArray()
                             && t.path("messages").isArray());
-            for (JsonNode f : t.path("flow")) {
-                keys(f, "text");
-                texts(f, "text", false);
+            // 옛 스냅샷의 flow 는 읽지도 쓰지도 않지만 모양은 예전대로 확인한다 — 깨진 payload 를 받아 주지 않는다.
+            if (hasFlow) {
+                require(t.path("flow").isArray());
+                for (JsonNode f : t.path("flow")) {
+                    keys(f, "text");
+                    texts(f, "text", false);
+                }
             }
             for (JsonNode m : t.path("messages")) {
                 keys(

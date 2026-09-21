@@ -59,7 +59,7 @@ BEGIN;
 -- 여섯 테이블이 FK 로 묶여 있어 하나씩은 비울 수 없다. 한 번에 비운다.
 -- CASCADE 를 쓰지 않는 이유: 나중에 추가된 테이블까지 말없이 같이 비워 버린다.
 -- 여기 전부 적어 두면 새 테이블이 생겼을 때 이 파일이 에러로 알려 준다.
-TRUNCATE community_snapshot, similar_package, package_version_snapshot, package_snapshot, version, package;
+TRUNCATE community_snapshot, dependent_removal_reason, dependent_transition, package_env, similar_package, package_version_snapshot, package_snapshot, version, package;
 
 -- ⚠ snapshot 만 TRUNCATE 가 아니라 DELETE 다.
 --

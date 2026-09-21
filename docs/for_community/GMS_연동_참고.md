@@ -28,15 +28,27 @@
 
 **2026-09-16 추가 확인 (S15P21A506-365 구현 후 실제 클라이언트로 재검증):**
 `gpt-5.4-mini` 모델명 허용됨, 중첩 배열/객체 스키마(`summary_support`·`flow`·`messages`
-전부 array-of-object, `flow[].support`처럼 2단 중첩까지 포함)에도 strict 모드가 그대로
-동작함 — `GmsCommunitySummarizerRealNetworkTest`로 실제 GitHub 이슈 fixture 하나를 넣어
-`status=READY`, 스키마와 정확히 일치하는 응답을 확인했다(대표 메시지 kind가
-`USER_SOLUTION`으로 올바르게 분류됨).
+전부 array-of-object, 당시엔 `flow[].support`처럼 2단 중첩까지 포함)에도 strict 모드가
+그대로 동작함 — `GmsCommunitySummarizerRealNetworkTest`로 실제 GitHub 이슈 fixture
+하나를 넣어 `status=READY`, 스키마와 정확히 일치하는 응답을 확인했다(대표 메시지
+kind가 `USER_SOLUTION`으로 올바르게 분류됨).
 
-여전히 미확인: `max_output_tokens`(2048) 초과 시 `status`가 `incomplete`로 오는지와 그때의
-`output` 형태 — 실제로 이 상한에 걸리는 대형 이슈로 아직 시험하지 않음. `GmsCommunitySummarizer`는
-`completed`가 아니면 무조건 실패 처리하므로 안전하게 저하되지만(FAILED), 실제로 이 경로를
-타는지는 미확인 상태로 남는다.
+**2026-09-16 S15P21A506-373 0단계 진단**: 댓글 85개 안팎 합성 fixture(경량·중량 두
+버전, 중량은 코드블록·스택트레이스 포함 500~1200자)로 실제 GMS를 호출했는데 둘 다
+`status=READY`로 끝났다 — `max_output_tokens`(당시 2048) 초과로 `status=incomplete`가
+되는 경로가 재현되지 않았다. 요약 태스크 특성상 입력이 커져도 모델이 출력을 압축하는
+경향을 보였다(중량 fixture에서 오히려 `messages` 배열이 더 작아짐). 상세는
+`docs/for_community/specs/S15P21A506-373-step0-diagnostics.md`.
+
+**2026-09-16 S15P21A506-373 1단계 반영**: 위 0단계 진단에도 불구하고 계획대로
+`MAX_OUTPUT_TOKENS`를 2048→4096으로 상향하고(여전히 낮은 위험의 보험성 변경),
+`flow[].support` 2단 중첩을 없애 최상위 `flow_support` 평면 배열
+(`{flow_index, type, id}`)로 옮겼다 — `GmsCommunitySummarizer.schema()`/
+`toTopicSummary()` 참고. `max_output_tokens` 초과 시 실제 `status`/`output` 형태
+자체는 여전히 완전히는 미확인이다(0단계 두 fixture 모두 `completed`로 끝나
+`incomplete` 응답 형태를 직접 관찰하지 못함) — 다만 `GmsCommunitySummarizer`는
+`completed`가 아니면 무조건 실패 처리(`TopicSummary.failed()`)하므로 안전하게
+저하된다.
 
 설정 이름 6종(`GMS_API_KEY`/`GMS_BASE_URL`/`GMS_REQUEST_PATH`/`GMS_AUTH_HEADER`/
 `GMS_AUTH_SCHEME`/`GMS_MODEL`)은 `S15P21A506-363`에서 운영 compose에 이미 선택값으로
@@ -109,3 +121,29 @@ curl "https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses" \
   방식은 동일하게 적용할 가치가 있다.
 - rate limit 판정은 213·212와 다시 다른 형태일 가능성이 높다(OpenAI/GMS 고유 헤더) —
   Phase 4 착수 시 실제 오류 응답을 보고 판단한다.
+
+**2026-09-20 S15P21A506-412 — `flow`·`flow_support` 를 요청에서 뺐다**: 화면이 논의 흐름을
+그리지 않게 된 뒤(406) 출력 토큰만 쓰고, 개수 상한을 넘기면 요약 전체가 검증에서 탈락하는
+원인이었다. `GmsCommunitySummarizer` 의 프롬프트와 JSON 스키마(`properties`·`required`)에서 두
+필드를 함께 걷어 냈다 — OpenAI strict 모드는 모든 속성을 `required` 로 요구하므로 `properties` 와
+`required` 를 함께 뺐다(`GmsCommunitySummarizerTest` 가 둘이 같은지 확인한다). 실제 GMS
+(`gpt-5.4-mini`, `GmsCommunitySummarizerRealNetworkTest`)로 `status=READY`·발화 4개까지 확인했다.
+`MAX_OUTPUT_TOKENS`(4096)는 그대로 뒀다 — 줄일 수 있는지는 실측 뒤에 따로 본다.
+
+**2026-09-20 S15P21A506-412 — 길이 초과 실측과 처리**: 프롬프트에 "발화 250자 이하"라고 써도 모델은 넘긴다.
+합성 댓글로 실제 GMS 를 6번 불러 보니 `maxLength` 없이는 264·373·286자, 스키마에 `maxLength: 250`
+을 주면 GMS 가 받아들이고 3번 모두 정확히 250자였다 — 그런데 **문장·단어 중간에서 끊긴다**("…우회책을 Type").
+프롬프트 목표를 180·200으로 낮추고 상한을 260으로 둬도(길게 쓰도록 유도한 시험이라) 상한까지 갔다. 그래서 스키마
+`maxLength` 는 쓰지 않고, 서버가 넘긴 글을 마지막 완결 문장까지 자른다(`CommunitySummaryValidator.fit`, 계약은
+구현계획의 GMS 출력 계약 표 참고). 프롬프트는 제목 100·요약 400·발화 200으로 낮췄다 — 실제 요약 프롬프트로 약 40개 이슈(3회)를 돌렸을 때
+발화는 대부분 120자 안쪽(최대 140자)이었고 "요약 길이 보정" 로그는 한 번도 찍히지 않았다 — 안전망은 실호출에서는
+발동하지 않았고 단위 시험으로만 검증했다.
+
+같은 실측에서 확인한 다른 실패 두 가지(길이와 무관):
+- **본문이 빈 이슈**(expressjs/express#101): 입력에 `[ISSUE_BODY …]` 블록이 없는데 모델이 `ISSUE_BODY` 를 인용해 근거 검증에서
+  요약 전체가 탈락했다. `flow_support` 문장을 걷어 내면서 인용 지시가 "본문 + 댓글"로만 남은 탓으로 보이는 회귀였다(원래 `develop` 은
+  같은 이슈를 2/2 성공했다 — 원인은 추정이고 프롬프트를 고친 뒤 재현되지 않았다). 프롬프트에 "본문은 선택이며 블록이 있을 때만 인용, 이슈 번호 등 없는 id 는 인용하지 말 것"을 넣고, 본문이
+  비면 입력에도 그렇다고 적는다. 고친 뒤 같은 이슈 5회 중 4회 성공, 1회는 `HttpTimeoutException`(호출 지연)이었다.
+- **발화에 `<`·`>`**(axios #5366, 코드 조각이 든 논의): 프롬프트가 금지했는데도 모델이 썼고, XSS 방어 규칙(꺾쇠 거부)에 걸려
+  요약 전체가 탈락했다. 꺾쇠를 실패 사유에서 빼고 전각(`＜` `＞`)으로 바꿔 살리도록 고쳤다 — 태그로 해석되지 않아 XSS
+  방어는 그대로이고, 저장 검증기는 원본 꺾쇠를 계속 거부한다(구현계획 GMS 출력 계약 참고).

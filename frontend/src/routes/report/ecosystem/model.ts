@@ -52,24 +52,66 @@ export interface SnapshotWindow {
   end: string
 }
 
+/* ------------------------------------------------------------------ *
+ * 조회 기간 프리셋 (S15P21A506-405)
+ * ------------------------------------------------------------------ */
+
+export type PeriodPresetKey = 'all' | '6m' | '1y' | '2y' | '3y'
+
+export interface PeriodPreset {
+  key: PeriodPresetKey
+  label: string
+  /** 최신 집계일에서 거슬러 올라갈 개월 수. `null` 이면 보유한 전부다. */
+  months: number | null
+}
+
+export const PERIOD_PRESETS: readonly PeriodPreset[] = [
+  { key: 'all', label: '전체 기간', months: null },
+  { key: '6m', label: '반년', months: 6 },
+  { key: '1y', label: '1년', months: 12 },
+  { key: '2y', label: '2년', months: 24 },
+  { key: '3y', label: '3년', months: 36 },
+]
+
+/** 처음 열릴 때의 기간. 받아 둔 전 구간을 그대로 보여 준다. */
+export const DEFAULT_PERIOD_PRESET: PeriodPresetKey = 'all'
+
 /**
- * 한 번에 받아 오는 기간(주).
- *
- * **상한만큼 한 번에 받고 그 뒤로는 서버에 다시 묻지 않는다.** 구간을 좁히고 넓히는 일이
- * 전부 화면 안에서 끝난다.
- *
- * <p>처음에는 "26주 / 52주 / 104주" 버튼으로 서버 조회 범위를 바꾸고, 그와 별개로 시작·끝
- * 드롭다운이 받은 것을 자르게 했었다. 명세 §1 이 "기간만 바꾸면 추이만 다시 받으면 된다" 고
- * 한 것을 그대로 옮긴 결과였는데, **화면에서는 그 둘이 똑같이 "구간 고르기" 로 보인다.**
- * 그래서 이런 것들이 생겼다 —
- *   * 26주 상태에서 "전체" 를 눌러도 26주가 끝이다 (이름과 동작이 어긋난다)
- *   * 넓히려면 위쪽 버튼, 좁히려면 아래쪽 드롭다운이라 어디를 만질지 헷갈린다
- *   * 104주 → 26주 로 줄이면 골라 둔 구간이 초기화된다
- *
- * <p>상한이 104주인 것이 이 선택을 싸게 만든다. 패키지 3개 × 104주 = 점 312개이고,
- * 자료가 주 1회만 바뀌므로 구간을 만질 때마다 다시 받을 이유가 없다.
+ * ISO 날짜를 개월 단위로 옮긴다. 도착 달에 그 날이 없으면 그 달 마지막 날로 맞춘다 —
+ * `2026-08-31` 의 6개월 전이 `2026-02-31` 이 되어 3월로 넘어가면 반년이 반년이 아니게 된다.
  */
-export const FETCH_WEEKS = 104
+export function shiftMonths(iso: string, months: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const index = y * 12 + (m - 1) + months
+  const year = Math.floor(index / 12)
+  const month = (index % 12) + 1
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${year}-${pad(month)}-${pad(Math.min(d, lastDay))}`
+}
+
+/**
+ * 프리셋을 **실제 집계 날짜**로 풀어 구간을 만든다.
+ *
+ * 끝은 언제나 가장 최근 집계일이고, 시작은 `끝 − N개월` 이후의 첫 집계일이다. 상대 기간을 그대로
+ * 날짜로 쓰지 않는 이유는 조회 도구줄의 원칙(`ecosystem-toolbar.tsx`) 때문이다 — 화면에 뜬 시작·끝은
+ * 언제나 서버가 준 집계를 가리켜야 한다. 그래서 프리셋을 눌러도 아래 날짜 선택은 목록에 있는 값으로
+ * 바뀐다.
+ *
+ * 자료가 프리셋보다 짧으면(예: 1년치밖에 없는데 3년) 시작이 첫 집계일이라 `전체 기간` 과 같은 구간이
+ * 된다. 그때도 누른 프리셋은 눌린 채로 둔다 — 눌렀는데 다른 버튼이 켜지면 조작이 어긋나 보인다.
+ *
+ * @param snapshots 오름차순 집계 날짜. 비어 있으면 빈 구간이다.
+ */
+export function resolvePreset(key: PeriodPresetKey, snapshots: readonly string[]): SnapshotWindow {
+  if (snapshots.length === 0) return { start: '', end: '' }
+  const first = snapshots[0]
+  const end = snapshots[snapshots.length - 1]
+  const months = PERIOD_PRESETS.find((p) => p.key === key)?.months ?? null
+  if (months === null) return { start: first, end }
+  const cutoff = shiftMonths(end, -months)
+  return { start: snapshots.find((d) => d >= cutoff) ?? first, end }
+}
 
 /**
  * 스냅샷 표시 간격.

@@ -46,12 +46,15 @@ function BadgeTile({
   icon,
   value,
   label,
+  delta,
   tone = 'neutral',
   title,
 }: {
   icon: ReactNode
   value: string
   label: string
+  /** 직전 스냅샷 대비 변량. `null` 이면 첫 스냅샷이라 비교할 값이 없다 */
+  delta?: number | null
   tone?: Tone
   title?: string
 }) {
@@ -69,13 +72,16 @@ function BadgeTile({
         {icon}
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span
-          className={cn(
-            'leading-none font-semibold tabular-nums',
-            tone === 'unknown' && 'font-medium text-muted-foreground',
-          )}
-        >
-          {value}
+        <span className="flex items-baseline gap-1.5">
+          <span
+            className={cn(
+              'leading-none font-semibold tabular-nums',
+              tone === 'unknown' && 'font-medium text-muted-foreground',
+            )}
+          >
+            {value}
+          </span>
+          {tone !== 'unknown' && <DeltaMark delta={delta} />}
         </span>
         <span className="leading-snug text-muted-foreground">{label}</span>
       </span>
@@ -83,13 +89,89 @@ function BadgeTile({
   )
 }
 
-/** 증감 꼬리표. null 이면 아무것도 붙이지 않는다 — 첫 스냅샷이라 직전 값이 없는 것이다. */
-function deltaSuffix(delta: number | null): string {
-  if (delta === null || delta === 0) return ''
-  return ` · 직전 주 ${delta > 0 ? '+' : '−'}${compact(Math.abs(delta))}`
+/**
+ * 변량 표시. 값 **바로 옆**에 붙는다.
+ *
+ * <p>예전에는 라벨 뒤에 " · 직전 주 +12" 로 달았다. 값과 변량이 서로 다른 줄에 있으면
+ * 눈이 두 번 움직이고, 라벨이 길어져 좁은 타일에서 접혔다.
+ *
+ * <p>색은 **방향만** 말한다 — 오름은 붉게, 내림은 푸르게. 시세판과 같은 약속이라
+ * 설명 없이 읽힌다. 좋고 나쁨이 아니다: 미해결 이슈가 늘어도 붉게 나온다. 이 파일의
+ * 원칙대로 판정은 하지 않고 관측한 방향만 적는다.
+ *
+ * <p>색에만 기대지 않는다. 부호(`+`·`−`)가 항상 함께 나가므로 색을 못 봐도 읽힌다.
+ *
+ * <p>`null` 은 첫 스냅샷이라 **비교할 직전 값이 없다**는 뜻이다. 0 과 다르므로 아무것도
+ * 그리지 않는다. 0 은 "안 변했다" 라 그대로 적는다.
+ */
+function DeltaMark({ delta }: { delta?: number | null }) {
+  if (delta === null || delta === undefined) return null
+  const tone =
+    delta > 0
+      ? 'text-rose-600 dark:text-rose-400'
+      : delta < 0
+        ? 'text-blue-600 dark:text-blue-400'
+        : 'text-muted-foreground'
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '±'
+  return (
+    <span
+      className={cn('text-base leading-none font-medium tabular-nums', tone)}
+      title={`직전 집계 대비 ${sign}${Math.abs(delta).toLocaleString()}`}
+    >
+      {sign}
+      {compact(Math.abs(delta))}
+    </span>
+  )
 }
 
 const PENDING = '집계 대기'
+
+/**
+ * 값이 없는 자리를 채우는 안내.
+ *
+ * <p>차트나 도넛이 들어갈 **넓은 자리**에 쓴다. 한 줄짜리 값은 위 `BadgeTile` 의
+ * `tone="unknown"` 이 이미 그 일을 한다 — 같은 화면에 빈 자리 모양이 둘이면 사용자가
+ * 둘을 다른 뜻으로 읽는다.
+ *
+ * <p>테두리를 점선으로, 바탕을 반투명하게 둔다. 값이 있는 자리와 **모양으로** 구분되어야
+ * 색을 못 보는 사람도 "여기는 비었다" 를 안다(명세 0.5 — 없는 것과 못 본 것을 같은
+ * 모양으로 그리지 않는다). 글자 자체는 흐리게 하지 않는다. 읽으라고 쓴 문장이다.
+ */
+export function EmptyPanel({
+  message,
+  hint,
+  className,
+}: {
+  message: string
+  hint?: string
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/40 px-4 py-7 text-center',
+        className,
+      )}
+    >
+      <CircleAlertIcon className="size-7 text-muted-foreground/70" aria-hidden />
+      <p className="text-base leading-snug text-muted-foreground">{message}</p>
+      {hint && <p className="text-base leading-snug text-muted-foreground/70">{hint}</p>}
+    </div>
+  )
+}
+
+/** 한 줄짜리 값이 비었을 때. 위 네 타일과 같은 모양을 쓴다. */
+export function MissingTile({ label, title }: { label: string; title?: string }) {
+  return (
+    <BadgeTile
+      icon={<CircleHelpIcon className="size-[18px]" />}
+      value="값 없음"
+      label={label}
+      tone="unknown"
+      title={title}
+    />
+  )
+}
 
 export function ObservationBadges({
   model,
@@ -130,7 +212,7 @@ function DownloadsTile({ downloads }: { downloads: number | null }) {
         value={PENDING}
         label="주간 다운로드"
         tone="unknown"
-        title="패키지는 있으나 아직 스냅샷이 없습니다"
+        title="패키지는 있으나 아직 집계된 값이 없습니다"
       />
     )
   }
@@ -160,7 +242,7 @@ function StarsTile({
         value={repoUrl ? PENDING : '미확인'}
         label="저장소 별"
         tone="unknown"
-        title={repoUrl ? '아직 스냅샷이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
+        title={repoUrl ? '아직 집계된 값이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
       />
     )
   }
@@ -168,8 +250,9 @@ function StarsTile({
     <BadgeTile
       icon={<StarIcon className="size-[18px]" />}
       value={compact(stars)}
-      label={`저장소 별${deltaSuffix(delta)}`}
-      title="최신 스냅샷 기준"
+      delta={delta}
+      label="저장소 별"
+      title="가장 최근 집계 기준"
     />
   )
 }
@@ -197,7 +280,7 @@ function IssuesTile({
         value={repoUrl ? PENDING : '미확인'}
         label="열린 이슈"
         tone="unknown"
-        title={repoUrl ? '아직 스냅샷이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
+        title={repoUrl ? '아직 집계된 값이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
       />
     )
   }
@@ -216,7 +299,8 @@ function IssuesTile({
     <BadgeTile
       icon={<CircleAlertIcon className="size-[18px]" />}
       value={`${count.toLocaleString()}건`}
-      label={`열린 이슈${deltaSuffix(delta)}`}
+      delta={delta}
+      label="열린 이슈"
     />
   )
 }

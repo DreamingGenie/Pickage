@@ -15,7 +15,8 @@
       "summary_retry_at": null,
       "repository": {
         "owner": "fixture", "name": "repo", "full_name": "fixture/repo",
-        "scope": "PACKAGE_SCOPED", "archived": false
+        "scope": "PACKAGE_SCOPED", "archived": false,
+        "issue_count": 1234, "open_issue_count": 56
       },
       "summary": { "issue_count": 1, "comment_count": 2, "reaction_count": 3, "open_issue_count": 1 },
       "topics": [{
@@ -24,13 +25,14 @@
         "title_original": "Original title", "title_ko": "확인된 제목",
         "comments_count": 2, "reactions_count": 3,
         "collection_status": "COMPLETE", "summary_status": "READY",
-        "summary_ko": "확인된 요약", "flow": [{ "text": "확인된 흐름" }],
+        "summary_ko": "확인된 요약",
         "messages": [{ "author_login": "fixture", "role": "ISSUE_AUTHOR", "kind": "DISCUSSION",
-          "created_at": "2026-09-01T00:00:00Z", "text": "확인된 메시지" }]
+          "created_at": "2026-09-01T00:00:00Z", "text": "확인된 메시지" }],
+        "summary_marks": [{ "start": 0, "end": 3, "kind": "KEY_TERM" }]
       }],
       "limitations": [],
       "data_limits": { "policy_version": "github-active-v1", "lookback_days": 365,
-        "max_issues": 2, "max_comments_per_issue": 100, "max_messages_per_issue": 3,
+        "max_issues": 2, "max_comments_per_issue": 100, "max_messages_per_issue": 4,
         "source_note": "검증된 저장소의 선택된 이슈 최대 2개와 이슈별 최신 댓글 최대 100개 기준입니다." }
     }
   }

@@ -1,9 +1,10 @@
-import { CheckIcon, CircleAlertIcon, Loader2Icon } from 'lucide-react'
+import { CheckIcon, CircleAlertIcon, DownloadIcon, Loader2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
+import { pdfDownloadUrl } from '@/api/endpoints'
 import { useGeneratePdf } from '@/api/queries'
-import type { PdfJob, ReportSection } from '@/api/types'
+import type { PdfJob, ReportSection, TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -15,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
+import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
@@ -44,6 +46,7 @@ export function PdfExportDialog({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   run,
   onPreview,
   onGoToFeatures,
@@ -54,6 +57,13 @@ export function PdfExportDialog({
   from?: string
   to?: string
   snapshotAt?: string
+  /**
+   * 화면이 지금 보고 있는 유지·유입·이탈 구간. 선택 사항으로 두면 안 넘기는 실수가 조용히
+   * 통과되고, 그러면 화면에서 1y·5y를 보다가 PDF를 내보내도 서버 기본값(3y)으로 문서가
+   * 조용히 달라진다 — 공통-R08(화면과 PDF 결과가 일치해야 한다)을 어기는 상황이라 필수로
+   * 둔다(S15P21A506-394).
+   */
+  transitionPeriod: TransitionPeriodParam
   /** 기능 비교 진행 상태 — BLOCKED 판단과 재분석 시 stale COMPLETE 방지에 쓴다. */
   run: AnalysisRun
   /** 미리보기 모달을 여는 일은 부모가 한다 — 이 모달은 닫히고 그쪽이 열려야 한다. */
@@ -89,7 +99,14 @@ export function PdfExportDialog({
   }
 
   function submit() {
-    generate.mutate({ names: packages, from, to, snapshot_at: snapshotAt, sections })
+    generate.mutate({
+      names: packages,
+      from,
+      to,
+      snapshot_at: snapshotAt,
+      period: transitionPeriod,
+      sections,
+    })
   }
 
   return (
@@ -116,6 +133,7 @@ export function PdfExportDialog({
             from={from}
             to={to}
             snapshotAt={snapshotAt}
+            transitionPeriod={transitionPeriod}
             sections={sections}
             onToggle={toggle}
             onCancel={() => close(false)}
@@ -141,7 +159,7 @@ type BlockReason =
 const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
   COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
   ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
-  SNAPSHOT_CREATION_ERROR: '보고서 스냅샷 생성 중 오류가 발생했습니다.',
+  SNAPSHOT_CREATION_ERROR: '보고서 사본을 만드는 중 오류가 발생했습니다.',
   FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
   VERSION_RESULT_MISMATCH: '기능 비교가 다시 실행되는 중입니다. 완료 후 다시 시도해 주세요.',
 }
@@ -206,6 +224,7 @@ function Ready({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   sections,
   onToggle,
   onCancel,
@@ -215,6 +234,7 @@ function Ready({
   from?: string
   to?: string
   snapshotAt?: string
+  transitionPeriod: TransitionPeriodParam
   sections: ReportSection[]
   onToggle: (section: ReportSection) => void
   onCancel: () => void
@@ -231,14 +251,16 @@ function Ready({
 
       <dl className="flex flex-col divide-y rounded-lg border">
         <Row label="비교 대상" value={packages.join(' · ')} />
+        {/* 조건을 주지 않으면 화면의 기본값이다 — 전체 기간, 주 단위. 의존 수 그래프는 실제값으로 그린다. */}
         <Row
           label="생태계 조회 기간"
-          value={from && to ? `${from} ~ ${to}` : '서버 기본 구간 (최신 스냅샷 기준 26주)'}
+          value={from && to ? `${from} ~ ${to}` : '보유한 전 기간 · 매주'}
         />
-        <Row label="Version Share 기준일" value={snapshotAt ?? '최신 스냅샷'} />
+        <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
+        <Row label="유지·유입·이탈 조회 기간" value={transitionPeriodLabel(transitionPeriod)} />
         <Row
           label="포함 내용"
-          value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 자료 상태"
+          value="그래프와 수치 표 — Downloads · 의존 수(실제값) · Version Share · 유지·유입·이탈 · 자료 상태"
         />
       </dl>
 
@@ -260,7 +282,7 @@ function Ready({
         <SectionToggle
           section="COMMUNITY"
           label="커뮤니티 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note="기준 패키지의 GitHub 저장소 수치·핵심 논의·실제 논의 흐름이 실립니다. 자료가 아직 수집되지 않았다면 그 안내만 실립니다."
           checked={sections.includes('COMMUNITY')}
           onToggle={onToggle}
         />
@@ -325,6 +347,10 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="min-w-0 flex-1 font-mono">{value}</dd>
     </div>
   )
+}
+
+function transitionPeriodLabel(period: TransitionPeriodParam): string {
+  return TRANSITION_PERIODS.find((p) => p.key === period)?.label ?? period
 }
 
 /* ------------------------------------------------------------------ *
@@ -422,27 +448,46 @@ function Complete({
 
       {/*
         요청했지만 못 채운 구역. 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를
-        알 수 없다 — 문서 안에도 같은 말이 적혀 있다.
+        알 수 없다 — 문서 안에도 같은 말이 적혀 있다. 이유는 구역마다 다르다.
       */}
       {job.omitted.length > 0 && (
-        <p className="rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
-          {job.omitted.map(sectionLabel).join(' · ')} 구역은 해당 분석 기능이 아직 없어 자리와
-          사유만 실렸습니다.
-        </p>
+        <ul className="flex flex-col gap-1 rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
+          {job.omitted.map((section) => (
+            <li key={section}>{omittedNote(section)}</li>
+          ))}
+        </ul>
       )}
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           닫기
         </Button>
-        <Button onClick={onPreview}>미리보기</Button>
+        <Button variant="outline" onClick={onPreview}>
+          미리보기
+        </Button>
+        {/*
+          미리보기를 거치지 않고 바로 받는다. 버튼이 아니라 링크다 — 서버가 attachment 로 보내므로 여는 것만으로
+          저장된다(미리보기 모달의 다운로드와 같은 방식). blob 을 만들면 같은 파일을 메모리에 한 번 더 들고 있어야 한다.
+        */}
+        <Button asChild>
+          <a href={pdfDownloadUrl(job.report_id)} download={job.file_name}>
+            <DownloadIcon className="size-4" aria-hidden />
+            다운로드
+          </a>
+        </Button>
       </DialogFooter>
     </>
   )
 }
 
-function sectionLabel(section: ReportSection): string {
-  return section === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'
+/**
+ * 채우지 못한 구역의 이유. 둘은 이유가 다르다 — 기능 심화 분석은 기능이 아직 없어서, 커뮤니티 분석은 이 패키지의
+ * 자료가 아직 수집되지 않아서다(기능은 있다). 같은 말로 안내하면 커뮤니티가 "미완성 기능"으로 읽힌다.
+ */
+function omittedNote(section: ReportSection): string {
+  return section === 'COMMUNITY'
+    ? '커뮤니티 분석: 이 패키지의 GitHub 자료가 아직 수집되지 않아 안내만 실렸습니다. GitHub 커뮤니티 탭을 한 번 연 뒤 다시 만들면 채워집니다.'
+    : '기능 심화 분석: 해당 분석 기능이 아직 없어 자리와 사유만 실렸습니다.'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

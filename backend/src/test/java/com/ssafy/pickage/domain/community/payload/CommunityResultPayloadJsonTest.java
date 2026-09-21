@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import com.ssafy.pickage.domain.community.CommunitySnapshotPayloadException;
+import com.ssafy.pickage.domain.community.CommunitySnapshotValidator;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -97,6 +100,263 @@ class CommunityResultPayloadJsonTest {
         assertThat(restoredMessage.isIssueAuthor()).isEqualTo(originalMessage.isIssueAuthor());
     }
 
+    @Test
+    void 강조_구간은_summary_marks_로_저장되고_그대로_복원된다() throws Exception {
+        var topic = samplePayload().topics().getFirst();
+        var marked =
+                new TopicPayload(
+                        topic.sourceIssueId(),
+                        topic.issueNumber(),
+                        topic.state(),
+                        topic.updatedAt(),
+                        topic.createdAt(),
+                        topic.titleOriginal(),
+                        topic.titleKo(),
+                        topic.commentsCount(),
+                        topic.reactionsCount(),
+                        topic.collectionStatus(),
+                        topic.summaryStatus(),
+                        topic.summaryKo(),
+                        topic.messages(),
+                        List.of(new SummaryMarkPayload(0, 10, SummaryMarkPayload.KEY_TERM)));
+
+        String json = objectMapper.writeValueAsString(marked);
+        TopicPayload restored = objectMapper.readValue(json, TopicPayload.class);
+
+        assertThat(json).contains("\"summary_marks\"").contains("\"KEY_TERM\"");
+        assertThat(restored).isEqualTo(marked);
+    }
+
+    @Test
+    void summary_marks_가_없는_이전_스냅샷도_읽고_빈_목록이_된다() throws Exception {
+        // payload_version 2 를 올리지 않고 선택 필드로 더했으므로, 운영에 이미 저장된 스냅샷(키 없음)이 오류 없이 읽혀야 한다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).remove("summary_marks");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(restored.topics().getFirst().summaryMarks()).isEmpty();
+        CommunitySnapshotValidator.validate(restored);
+    }
+
+    @Test
+    void 새_스냅샷은_flow를_저장하지_않고_그대로_읽힌다() throws Exception {
+        String json = objectMapper.writeValueAsString(samplePayload());
+
+        assertThat(json).doesNotContain("\"flow\"");
+        var node = objectMapper.readTree(json);
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(samplePayload());
+    }
+
+    @Test
+    void flow가_남아_있는_이전_스냅샷도_읽고_flow만_버린다() throws Exception {
+        // payload_version 2 를 올리지 않고 flow 를 걷어 냈으므로, 운영에 이미 저장된 스냅샷(flow 있음)이 그대로 읽혀야 한다.
+        // 이 매퍼는 모르는 필드를 거부하는 기본 설정이라 TopicPayload 의 @JsonIgnoreProperties("flow") 가 없으면 여기서 깨진다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        var topic = (com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0);
+        topic.putArray("flow").addObject().put("text", "Node.js와 worker thread 제약을 확인했습니다.");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(samplePayload());
+        assertThat(objectMapper.writeValueAsString(restored)).doesNotContain("\"flow\"");
+    }
+
+    @Test
+    void flow가_비어_있거나_FAILED_요약에_남은_이전_스냅샷도_읽는다() throws Exception {
+        // 예전 검증기는 READY/PARTIAL 이면 flow 1개 이상, FAILED 이면 flow 빈 배열을 요구했다. 둘 다 이제는 상관없다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).putArray("flow");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunitySnapshotValidator.validate(objectMapper.treeToValue(node, CommunityResultPayload.class));
+    }
+
+    @Test
+    void 모양이_깨진_flow는_여전히_거부한다() throws Exception {
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        var topic = (com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0);
+        topic.putArray("flow").addObject().put("text", "흐름").put("support", "x");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+
+        topic.put("flow", "not-an-array");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    @Test
+    void 알_수_없는_필드는_여전히_거부한다() throws Exception {
+        // flow 만 예외다 — 다른 모르는 키까지 조용히 삼키면 payload 계약이 느슨해진다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node.path("topics").get(0)).put("surprise", "x");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> objectMapper.treeToValue(node, CommunityResultPayload.class))
+                .isInstanceOf(com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException.class);
+    }
+
+    // ---- 저장소 전체 Issue 수 (S15P21A506-413)
+
+    private static com.fasterxml.jackson.databind.node.ObjectNode repositoryNode(
+            com.fasterxml.jackson.databind.JsonNode root) {
+        return (com.fasterxml.jackson.databind.node.ObjectNode) root.path("repository");
+    }
+
+    @Test
+    void 저장소_Issue_수는_repository에_저장되고_그대로_복원된다() throws Exception {
+        var base = samplePayload();
+        var withCounts =
+                new CommunityResultPayload(
+                        base.repository().withIssueCounts(1234, 56),
+                        base.policyVersion(),
+                        base.lookbackDays(),
+                        base.summaryRetryAt(),
+                        base.topics(),
+                        base.limitations());
+
+        String json = objectMapper.writeValueAsString(withCounts);
+        var node = objectMapper.readTree(json);
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(node.path("repository").path("issue_count").asInt()).isEqualTo(1234);
+        assertThat(node.path("repository").path("open_issue_count").asInt()).isEqualTo(56);
+        CommunitySnapshotValidator.validate(restored);
+        assertThat(restored).isEqualTo(withCounts);
+    }
+
+    @Test
+    void Issue_수_키가_없는_이전_스냅샷도_읽고_null이_된다() throws Exception {
+        // payload_version 2 를 올리지 않고 선택 필드로 더했으므로, 운영에 이미 저장된 스냅샷(키 없음)이 오류 없이 읽혀야 한다.
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+        repositoryNode(node).remove("issue_count");
+        repositoryNode(node).remove("open_issue_count");
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunityResultPayload restored = objectMapper.treeToValue(node, CommunityResultPayload.class);
+
+        assertThat(restored.repository().issueCount()).isNull();
+        assertThat(restored.repository().openIssueCount()).isNull();
+        CommunitySnapshotValidator.validate(restored);
+    }
+
+    @Test
+    void 조회에_실패해_null로_저장된_Issue_수도_읽는다() throws Exception {
+        // 새 스냅샷은 못 구한 값을 "issue_count": null 로 쓴다.
+        var json = objectMapper.writeValueAsString(samplePayload());
+        assertThat(json).contains("\"issue_count\":null").contains("\"open_issue_count\":null");
+        var node = objectMapper.readTree(json);
+
+        CommunitySnapshotValidator.validateJson(node);
+        CommunitySnapshotValidator.validate(objectMapper.treeToValue(node, CommunityResultPayload.class));
+    }
+
+    @Test
+    void 모양이_틀린_Issue_수는_거부한다() throws Exception {
+        var node = objectMapper.readTree(objectMapper.writeValueAsString(samplePayload()));
+
+        repositoryNode(node).put("issue_count", "1234");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+
+        repositoryNode(node).put("issue_count", 1.5);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validateJson(node))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    @Test
+    void 음수이거나_열린_수가_전체보다_큰_Issue_수는_저장_검증에서_거부한다() {
+        var base = samplePayload();
+        for (var counts : List.of(new Integer[] {-1, 0}, new Integer[] {5, -2}, new Integer[] {5, 9})) {
+            var bad =
+                    new CommunityResultPayload(
+                            base.repository().withIssueCounts(counts[0], counts[1]),
+                            base.policyVersion(),
+                            base.lookbackDays(),
+                            base.summaryRetryAt(),
+                            base.topics(),
+                            base.limitations());
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> CommunitySnapshotValidator.validate(bad))
+                    .as("issue=%s open=%s", counts[0], counts[1])
+                    .isInstanceOf(CommunitySnapshotPayloadException.class);
+        }
+    }
+
+    @Test
+    void 요약문_범위를_벗어난_강조_구간은_저장_검증에서_거부한다() {
+        var topic = samplePayload().topics().getFirst();
+        int length = topic.summaryKo().length();
+        for (var bad :
+                List.of(
+                        new SummaryMarkPayload(-1, 3, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(3, 3, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(0, length + 1, SummaryMarkPayload.KEY_TERM),
+                        new SummaryMarkPayload(0, 3, "BOLD"))) {
+            var payload = withMarks(topic, List.of(bad));
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                            () -> CommunitySnapshotValidator.validate(payload))
+                    .as(bad.toString())
+                    .isInstanceOf(CommunitySnapshotPayloadException.class);
+        }
+        CommunitySnapshotValidator.validate(
+                withMarks(topic, List.of(new SummaryMarkPayload(0, length, SummaryMarkPayload.KEY_TERM))));
+    }
+
+    @Test
+    void 대표_발화는_4개까지_허용하고_5개부터_거부한다() {
+        var topic = samplePayload().topics().getFirst();
+        var messages = new java.util.ArrayList<MessagePayload>();
+        for (int i = 0; i < 5; i++)
+            messages.add(
+                    new MessagePayload(
+                            String.valueOf(100 + i),
+                            "user" + i,
+                            "NONE",
+                            false,
+                            "DISCUSSION",
+                            Instant.parse("2025-10-05T07:25:0" + i + "Z"),
+                            "발화 " + i));
+
+        CommunitySnapshotValidator.validate(withMessages(topic, messages.subList(0, 4)));
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> CommunitySnapshotValidator.validate(withMessages(topic, messages)))
+                .isInstanceOf(CommunitySnapshotPayloadException.class);
+    }
+
+    private static CommunityResultPayload withMarks(TopicPayload t, List<SummaryMarkPayload> marks) {
+        return single(
+                new TopicPayload(
+                        t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
+                        t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), t.messages(),
+                        marks));
+    }
+
+    private static CommunityResultPayload withMessages(TopicPayload t, List<MessagePayload> messages) {
+        return single(
+                new TopicPayload(
+                        t.sourceIssueId(), t.issueNumber(), t.state(), t.updatedAt(), t.createdAt(),
+                        t.titleOriginal(), t.titleKo(), t.commentsCount(), t.reactionsCount(),
+                        t.collectionStatus(), t.summaryStatus(), t.summaryKo(), messages,
+                        t.summaryMarks()));
+    }
+
+    private static CommunityResultPayload single(TopicPayload topic) {
+        var base = samplePayload();
+        return new CommunityResultPayload(
+                base.repository(), base.policyVersion(), base.lookbackDays(), null, List.of(topic), List.of());
+    }
+
     private static CommunityResultPayload samplePayload() {
         MessagePayload message =
                 new MessagePayload(
@@ -107,9 +367,6 @@ class CommunityResultPayloadJsonTest {
                         "DISCUSSION",
                         Instant.parse("2025-10-05T07:25:06Z"),
                         "worker thread에서 모듈을 불러오는 제약을 설명합니다.");
-
-        DiscussionStepPayload step =
-                new DiscussionStepPayload("Node.js와 worker thread 제약을 확인했습니다.");
 
         TopicPayload topic =
                 new TopicPayload(
@@ -125,7 +382,6 @@ class CommunityResultPayloadJsonTest {
                         "COMPLETE",
                         "READY",
                         "transport target의 모듈 전달과 번들러 호환성에 관한 논의입니다.",
-                        List.of(step),
                         List.of(message));
 
         RepositoryPayload repository =

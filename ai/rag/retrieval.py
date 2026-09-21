@@ -1,0 +1,65 @@
+"""근거 검색 (S15P21A506-177).
+
+"해석 B + LLM 단일 호출" 결정(readme-valiant-feather 계획 문서 참고)에 따라,
+특정 기능 질문별로 미리 검색하지 않는다 — 비교 축 자체를 178이 그 순간 정하므로
+"이 기능에 대한" 검색을 177이 미리 할 수 없다. 대신 패키지별로 판정에 쓸 만한
+근거를 폭넓게 추려 178에 한 번에 넘긴다.
+"""
+
+from __future__ import annotations
+
+from ai.rag.types import EvidenceChunk, PackageRef
+
+
+def retrieve(
+    packages: list[PackageRef],
+    evidence_pool: list[EvidenceChunk],
+    max_chars_per_package: int = 12000,
+) -> list[EvidenceChunk]:
+    """비교 대상 패키지별로 178에 넘길 근거를 추린다.
+
+    규칙:
+        - 다른 package/version의 근거가 섞이지 않게 범위를 고정한다(§7 근거 추적 원칙).
+        - verificationLevel=SUPPLEMENTARY는 후순위로 밀어 예산에서 우선순위를 낮춘다
+          (완전히 제외하지는 않음 — SEARCH_TRACE류 질문에 쓰일 수 있음).
+        - 임베딩 기반 의미 검색을 쓸지, section 이름 기반 휴리스틱으로 충분할지는
+          147의 POC 결정 사안. 이 함수 시그니처는 어느 쪽이든 그대로 유지된다.
+
+    결정 (2026-09-18, 사용자 승인): 1차 구현은 규칙 기반(문서 순서 보존 +
+    verificationLevel 우선순위)으로 간다 — 실제 recall이 안 나오면(=예산 안에 정말
+    필요한 근거가 못 들어가는 사례가 반복되면) 그때 임베딩 기반 랭킹으로 교체한다,
+    시그니처가 그대로라 교체 비용은 낮음.
+
+    **개수 대신 글자수 예산으로 자른다(2026-09-18 재결정)** — 청크 크기가 실측상
+    들쭉날쭉해서(예: @tailwindui/react 청크 하나가 72~1799자까지 차이남) "패키지당
+    N개"는 패키지마다 실제로 178에 넘어가는 분량이 불공평해진다. 청크 하나를 쪼개진
+    않는다(그건 175 책임) — 예산을 넘기는 순간 그 청크까지만 담고 멈춘다(다음 청크가
+    예산을 넘기더라도, 그 청크를 부분적으로 담지는 않음).
+
+    Args:
+        max_chars_per_package: 패키지 하나당 178에 넘길 근거 excerpt 글자수 예산.
+
+    Returns:
+        evidence_pool의 부분집합 (원본 EvidenceChunk 객체 그대로, 변형하지 않음).
+    """
+    target_names = {p.name for p in packages}
+    by_package: dict[str, list[EvidenceChunk]] = {}
+    for chunk in evidence_pool:
+        if chunk.package not in target_names:
+            continue
+        by_package.setdefault(chunk.package, []).append(chunk)
+
+    selected: list[EvidenceChunk] = []
+    for pkg in packages:
+        chunks = by_package.get(pkg.name, [])
+        primary = [c for c in chunks if c.verification_level != "SUPPLEMENTARY"]
+        supplementary = [c for c in chunks if c.verification_level == "SUPPLEMENTARY"]
+
+        budget = max_chars_per_package
+        for chunk in primary + supplementary:
+            if budget <= 0:
+                break
+            selected.append(chunk)
+            budget -= len(chunk.excerpt)
+
+    return selected

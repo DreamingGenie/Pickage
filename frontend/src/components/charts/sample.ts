@@ -2,6 +2,7 @@ import {
   ALL_SNAPSHOTS,
   BY_NAME,
   LATEST_SNAPSHOT,
+  dependentsByMajor,
   pointMetric,
   seriesOf,
   type MockPackage,
@@ -10,6 +11,7 @@ import type {
   DependentsTrendResponse,
   DownloadsTrendResponse,
   PackagesOverviewResponse,
+  TrendSeries,
   VersionShareResponse,
 } from '@/api/types'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
@@ -71,13 +73,21 @@ const downloads: DownloadsTrendResponse = {
   not_found: [],
 }
 
+/**
+ * §5 — dependents 는 major 별로 갈라져 나간다(mock/handlers.ts 의 `buildDependentsSeries` 와
+ * 같은 규칙). 여기서 `major` 없이 하나로만 냈더니 `adapter.ts`의 `groupByPackage`가
+ * "major 없는 시리즈는 쪼갤 행이 없는 패키지"로 보고 통째로 버려, 미리보기의 Dependents
+ * 카드가 항상 빈 상태로 떴다.
+ */
 const dependents: DependentsTrendResponse = {
   metric: 'dependents',
   sum_over_versions: true,
-  series: found.map((pkg) => ({
-    name: pkg.name,
-    points: seriesOf(pkg, 'dependents').filter(inWindow),
-  })),
+  series: found.flatMap((pkg): TrendSeries[] => {
+    const split = dependentsByMajor(pkg)
+      .map((r) => ({ name: pkg.name, major: r.major, points: r.points.filter(inWindow) }))
+      .filter((r) => r.points.length > 0)
+    return split.length > 0 ? split : [{ name: pkg.name, points: [] }]
+  }),
   not_found: [],
 }
 

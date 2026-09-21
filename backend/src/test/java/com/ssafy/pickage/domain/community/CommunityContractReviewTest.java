@@ -53,7 +53,8 @@ class CommunityContractReviewTest {
                         false,
                         original.createdAt(),
                         "verified comment",
-                        "456");
+                        "456",
+                        0);
         var source =
                 new CollectedIssue(
                         1,
@@ -76,7 +77,6 @@ class CommunityContractReviewTest {
                 new TopicSummary(
                         "제목",
                         "요약",
-                        List.of(new DiscussionStepPayload("흐름")),
                         List.of(
                                 new MessagePayload(
                                         "2001",
@@ -87,8 +87,7 @@ class CommunityContractReviewTest {
                                         Instant.now(),
                                         "메시지")),
                         SummaryStatus.READY,
-                        support,
-                        List.of(support));
+                        support);
         var result = CommunitySummaryValidator.validate(bundle, summary);
         assertEquals(SummaryStatus.READY, result.status());
         var message = result.messages().getFirst();
@@ -104,11 +103,9 @@ class CommunityContractReviewTest {
                                 new TopicSummary(
                                         summary.titleKo(),
                                         summary.summaryKo(),
-                                        summary.discussionFlow(),
                                         summary.messages(),
                                         summary.status(),
-                                        invented,
-                                        List.of(invented)))
+                                        invented))
                         .status());
     }
 
@@ -125,7 +122,8 @@ class CommunityContractReviewTest {
                             false,
                             original.createdAt().plusSeconds(i),
                             "😀".repeat(5000),
-                            "456"));
+                            "456",
+                            0));
         var source =
                 new CollectedIssue(
                         1,
@@ -199,6 +197,51 @@ class CommunityContractReviewTest {
             assertFalse(CommunitySnapshotValidator.plain(text, 500));
     }
 
+    @Test
+    void R05_요약에_포함된_URL은_지워지고_나머지_내용은_그대로_통과한다() {
+        // 2026-09-16 오세진 님 결정 — <,>(XSS 방어)는 그대로 거부하되, URL/마크다운 링크는
+        // "(링크 생략)"으로 지우고 나머지 텍스트는 살려서 요약 전체가 FAILED로 떨어지지
+        // 않게 한다.
+        var bundle = CommunitySummarySourceBundle.from(issue(1));
+        var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
+        var summary =
+                new TopicSummary(
+                        "제목",
+                        "자세한 내용은 https://example.com/advisory 를 참고하세요.",
+                        List.of(),
+                        SummaryStatus.READY,
+                        support);
+
+        var result = CommunitySummaryValidator.validate(bundle, summary);
+
+        assertEquals(SummaryStatus.READY, result.status());
+        assertEquals("자세한 내용은 (링크 생략) 를 참고하세요.", result.summaryKo());
+        assertFalse(result.summaryKo().contains("https://"));
+    }
+
+    @Test
+    void R05_HTML_태그는_요약을_버리지_않고_전각으로_바꿔_태그로_읽히지_않게_한다() {
+        var bundle = CommunitySummarySourceBundle.from(issue(1));
+        var support = List.of(new TopicSummary.SourceRef("ISSUE_BODY", bundle.issue().sourceIssueId()));
+        var summary =
+                new TopicSummary(
+                        "제목",
+                        "<script>alert(1)</script>",
+                        List.of(),
+                        SummaryStatus.READY,
+                        support);
+
+        var result = CommunitySummaryValidator.validate(bundle, summary);
+
+        // S15P21A506-412 — 예전에는 여기서 요약 전체가 FAILED 였다. 이제는 꺾쇠만 전각으로 바꿔 살린다.
+        assertEquals(SummaryStatus.READY, result.status());
+        assertEquals("＜script＞alert(1)＜/script＞", result.summaryKo());
+        assertFalse(result.summaryKo().contains("<") || result.summaryKo().contains(">"));
+        // 저장 검증기의 원본 꺾쇠 거부는 그대로다 — 치환된 값은 통과한다.
+        assertTrue(CommunitySnapshotValidator.plain(result.summaryKo(), 500));
+        assertFalse(CommunitySnapshotValidator.plain("<script>", 500));
+    }
+
     final InMemoryCommunitySnapshotRepository store = new InMemoryCommunitySnapshotRepository();
     final RefreshTaskRegistry registry = new RefreshTaskRegistry();
 
@@ -266,7 +309,6 @@ class CommunityContractReviewTest {
                 "COMPLETE",
                 status,
                 null,
-                List.of(),
                 List.of());
     }
 
@@ -352,11 +394,9 @@ class CommunityContractReviewTest {
         return new TopicSummary(
                 "확인된 제목",
                 "확인된 요약",
-                List.of(new DiscussionStepPayload("확인된 흐름")),
                 List.of(),
                 SummaryStatus.READY,
-                support,
-                List.of(support));
+                support);
     }
 
     @Test

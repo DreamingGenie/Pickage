@@ -4,6 +4,7 @@
 
 | 폴더 | 내용 | 생성 | 설명 |
 |---|---|---|---|
+| `dependent_transitions_260917/` | 패키지별 **유지·유입·이탈·관측 불가** — 상위 10만 대상 × `regular`/`peer`/`optional` × `1y`/`3y`/`5y`. "X 를 쓰던 사람들이 이 구간에 어떻게 움직였나"(기능-08) | `pipeline/duckdb/build_dependent_transitions.py` | 폴더 README. 본체 899,964행은 `data/dependent_transitions/*.parquet`(git 미추적), 여기 CSV 는 **상위 5,000 대상 표본**이라 합계를 내면 안 된다. **관측 불가를 유지로 세지 말 것** — 1년 구간에서 75.3%가 움직일 기회조차 없었다 |
 | `deprecated_replacement_260831/` | 폐기(deprecated) npm 패키지 → 대체 패키지 28,241쌍. CSV(공유용)·JSONL(학습용) | `pipeline/duckdb/build_deprecated_dataset.py` | 폴더 README |
 | `feature_candidates_260908/` | AI 학습 보강 변수 후보 3종(이동쌍·dependencies·peerDependencies) 표본 각 100건 | `pipeline/duckdb/build_feature_candidates.py` | 폴더 README |
 | `migration_pairs_260908/` | 마이그레이션 이동쌍 — **실행용 의존** 기준, npm 전수. strict·recommended·all 3종 + stats.json | `pipeline/duckdb/build_migration_pairs.py` | 폴더 README, 비개발자용 `migration_pairs_all_안내.md` |

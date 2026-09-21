@@ -16,8 +16,8 @@ import subprocess
 import sys
 
 from pipeline.similar_package.load import (
-    DATASET, RESULT_BUCKET, RUN_PATTERN, list_runs, psql_command, pull_run,
-    select_run, write_transport,
+    DATASET, DEFAULT_WORK_DIR, RESULT_BUCKET, RUN_PATTERN, list_runs, psql_command,
+    pull_run, select_run, write_transport,
 )
 
 try:  # Windows 콘솔 cp949 에서 한글 출력 보장
@@ -275,8 +275,9 @@ def main(argv=None) -> int:
     source = p.add_mutually_exclusive_group(required=True)
     source.add_argument("--run", help="MinIO 의 실행 경로")
     source.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리")
-    p.add_argument("--work-dir", type=Path,
-                   default=Path(__file__).resolve().parents[2] / "data/similar_package")
+    # load.py 와 같은 기본값을 쓴다 — 로더 컨테이너 안에서는 환경변수가 저장소 밖을
+    # 가리킨다 (S15P21A506-385). 여기만 저장소 안을 보면 받아 둔 산출물을 못 찾는다.
+    p.add_argument("--work-dir", type=Path, default=DEFAULT_WORK_DIR)
 
     args = parser.parse_args(argv)
     return status(args) if args.action == "status" else diff(args)
