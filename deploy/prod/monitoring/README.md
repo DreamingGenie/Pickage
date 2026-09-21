@@ -955,7 +955,7 @@ curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": 
 | 화면에 "data 노드에 닿지 못했습니다" | ufw 가 안 열렸거나 data 컨테이너가 죽었다 | data 노드에서 `docker compose ps`·`sudo ufw status numbered` |
 | data 노드 logs 에 `AccessDenied` | 계정·정책이 안 맞는다 | `../data/README.md` 의 확인 6줄을 돌린다 |
 | `docker` 절이 `Permission denied` | `.env` 의 `DOCKER_GID` 가 틀렸다 | `getent group docker` 값으로 고치고 `up -d` |
-| `docker` 절이 `client version 1.xx is too old` | 두 노드의 Docker 데몬 버전이 다르다 — data 노드가 더 새것이라 오래된 API 접두사를 거절한다 (2026-09-21 실제로 났다) | 코드가 이제 접두사 없이 부른다. 이 메시지가 보이면 그 노드의 `pipeline/` 체크아웃이 옛것이다 — `git pull` 후 `restart pipeline-monitor` |
+| `docker` 절이 `client version 1.xx is too old` | 서버 Docker 데몬이 최소 API 1.44 를 요구해 옛 코드의 `v1.41` 접두사를 거절한다 (2026-09-21 두 노드 다 났다) | 코드가 이제 접두사 없이 부른다. 이 메시지가 보이면 그 노드의 `pipeline/` 체크아웃이 옛것이다 — `git pull` 후 `restart pipeline-monitor` |
 | 버킷 표에 "목록 잘림" | `max_objects` 초과 | `pipeline-monitor.yaml` 의 값을 올린다 (메모리 상한도 같이 본다) |
 | "전체 목록 조회" 가 오래 걸린다 | 버킷을 통째로 나열한다 (객체 1,000개당 요청 하나) | 그게 맞다. 평소 화면은 이벤트라 이 비용이 없다 |
 | "방금 올라온 것" 이 비어 있다 | 구독이 안 걸렸거나(로그에 `구독 시작` 이 없다), 켜진 뒤 실제로 아무것도 안 올라왔다 | `docker compose logs pipeline-monitor` · 회차가 돌면 15초 안에 찬다 |

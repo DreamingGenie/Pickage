@@ -16,9 +16,9 @@ import socket
 from urllib.parse import urlencode
 
 # API 버전 접두사(/v1.xx)를 붙이지 않는다. 붙이면 새 데몬이 "client version is too old" 로 거절한다 —
-# data 노드 데몬은 최소 1.44 를 요구해 v1.41 이 400 을 받았다(2026-09-21, app 노드는 데몬이 더 오래돼
-# 통과했다). 접두사가 없으면 데몬이 자기 현재 버전으로 답하고, 여기서 쓰는 세 엔드포인트와
-# 읽는 필드(Names·State·Config.Labels·logs)는 모든 버전에 있다.
+# 두 노드의 데몬이 최소 1.44 를 요구해 박아 둔 v1.41 이 400 을 받았다(2026-09-21). 접두사가 없으면
+# 데몬이 자기 현재 버전으로 답하고, 여기서 쓰는 세 엔드포인트와 읽는 필드(Names·State·
+# Config.Labels·logs)는 모든 버전에 있다.
 
 
 class _UnixConnection(http.client.HTTPConnection):
