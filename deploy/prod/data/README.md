@@ -599,7 +599,7 @@ sh run-similarity-batch.sh
 | 1 | (스크립트) | `_current.json` → `run_path`(코퍼스)·`run_id`(산출물 이름) 확정 |
 | 2 | (스크립트) | MLflow `@production` → 모델 `s3://` 경로 확정 |
 | 3 | (스크립트) | 산출물 경로에 `_SUCCESS` 가 있으면 **여기서 끝** |
-| 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown` |
+| 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown`. 코퍼스·모델에 더해 `.env` 의 `AI_DEPENDENTS_PATH` 가 있으면 dependents 를 `/work/in/package_dependents.parquet` 으로 받는다(보완재 관문 입력, S15P21A506-173). 비어 있거나 못 받으면 경고만 하고 배치는 그 관문만 건너뛴다 |
 | 5 | `ai-similarity` | 배치. `/work/out/model=vN/corpus=<run>/` 에 쓴다 |
 | — | `ai-collect` | `/work/out` → MinIO, `_SUCCESS` 게시 |
 
