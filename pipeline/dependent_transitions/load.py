@@ -9,7 +9,7 @@
         data/dependent_transitions.parquet
 
     PICKAGE_MINIO_ENV=.env.server python -m pipeline.dependent_transitions.load \\
-      --snapshot 2026-08-31 --run-id dependent-transitions-20260917-v1 \\
+      --snapshot 2026-08-31 --run-id dependent-transitions-20260921-v1 \\
       --docker-container pickage-local-postgres-1 --database pickage --verify-only
 
 **`_current.json` 을 따라가지 않는다.** 어떤 회차를 게시하는지 사람이 명시한다 —
@@ -83,7 +83,7 @@ unresolved 를 quality 로 남기고 화면에도 찍는다. 한 건도 못 붙�
 PowerShell 에 **한 줄로** 넣는다. 줄을 나누려면 백틱이지 `^` 가 아니다 — 아래를 그대로
 쓰는 편이 안전하다. 끝에 `--verify-only` 를 붙이면 검증만 하고 되돌린다.
 
-    cd C:\\git\\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\\.venv-bq\\Scripts\\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260917-v1 --run-dir data/dependent_transitions_load/runs/2026-08-31_dependent-transitions-20260917-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
+    cd C:\\git\\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\\.venv-bq\\Scripts\\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260921-v1 --run-dir data/dependent_transitions_load/runs/2026-08-31_dependent-transitions-20260921-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
 
 `$env:DOCKER_HOST` 는 그 창에서만 산다. 새 창에서는 다시 넣어야 하고, 빠뜨리면 로컬 도커를
 보게 되어 `pickage-app-postgres-1` 을 못 찾는다.
@@ -398,7 +398,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", required=True, help="원천 스냅샷 날짜 (2026-08-31)")
     parser.add_argument("--run-id", required=True,
-                        help="입고 회차 (dependent-transitions-20260917-v1)")
+                        help="입고 회차 (dependent-transitions-20260921-v1)")
     parser.add_argument("--run-dir", type=Path, help="이미 받아 둔 디렉터리. 주면 MinIO 를 안 본다")
     parser.add_argument("--execution-id", help="이 게시의 식별자. 재실행 시 같은 값을 준다")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "data/dependent_transitions_load")
