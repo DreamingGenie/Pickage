@@ -29,13 +29,18 @@ advisory lock → staging → 이름 해석 → 전량 교체 → etl 이력. �
   - 이름이 `package` 에 없다
   - 이름은 있는데 그 버전이 `version` 에 없다
 
-둘째가 이 데이터셋에서 더 크다. **원천이 둘이기 때문이다** — `version` 은 deps.dev
-스냅샷(2026-08-31)에서 오고 이 산출물은 registry 수집(2026-09-16)에서 온다. 그 보름 사이에
-나온 버전은 registry 에는 있고 `version` 에는 없다. registry README 실측으로 두 원천의
-`(Name, Version)` 매칭률이 95.1% 이므로 **4.9% 가 빠지는 것이 정상이다.**
+둘째가 이 데이터셋에서 압도적으로 크다. **원천이 둘이기 때문이다** — `version` 은 deps.dev
+스냅샷(2026-08-31)에서 오고 이 산출물은 registry 수집(2026-09-16)에서 온다. registry 는 한
+패키지의 **전 버전**을 담고 `version` 은 스냅샷이 알던 것만 담아서, 겹치지 않는 쪽이 절반을
+넘는다. 2026-09-16 회차 실측으로 2,156만 행 중 782만 행만 붙었다(36.3%).
 
-그래서 둘을 따로 세어 quality 에 남긴다. 합쳐 세면 "이름 규칙이 어긋났다" 와 "스냅샷이
-오래됐다" 를 구분할 수 없고, 둘은 할 일이 다르다.
+**그 손실을 적재 실패로 읽으면 안 된다.** 붙지 못한 행은 `version` 에 없는 버전이고, 그
+버전은 화면의 드롭다운(기능-10-R02)에 뜨지도 않는다 — 아무도 고를 수 없는 행이다. 그래서
+품질 지표는 staged 대비가 아니라 **`version` 이 제공하는 버전 대비**로 본다. 같은 회차의
+실측이 그 기준으로 100.0% 다.
+
+그리고 못 붙은 이유 둘을 따로 세어 quality 에 남긴다. 합쳐 세면 "이름 규칙이 어긋났다" 와
+"스냅샷이 오래됐다" 를 구분할 수 없고, 둘은 할 일이 다르다 — 앞은 고쳐야 하고 뒤는 정상이다.
 """
 from __future__ import annotations
 
@@ -216,7 +221,11 @@ SELECT v.package_id, v."version",
 
 -- 못 붙은 이유를 둘로 나눠 센다. 이름이 없는 것과, 이름은 있는데 그 버전이 없는 것은
 -- 할 일이 다르다 — 앞은 이름 규칙이나 적재 대상 DB 를 의심해야 하고, 뒤는 version 이
--- 더 오래된 스냅샷이라는 뜻이라 정상일 수 있다(두 원천의 매칭률 95.1%).
+-- 더 오래된 스냅샷이라는 뜻이라 정상이다.
+--
+-- selectable_rows 가 이 표의 **진짜 분모**다. 적재한 패키지들에 대해 version 이 제공하는
+-- 버전 수이고, 화면이 고를 수 있는 것이 딱 그만큼이다. staged 대비 비율은 registry 가 전
+-- 버전을 담는 탓에 항상 낮게 나와서, 그것만 보면 정상 적재가 사고처럼 보인다.
 CREATE TEMP TABLE quality ON COMMIT DROP AS
 SELECT (SELECT count(*)                   FROM stage_env)                  AS staged_rows,
        (SELECT count(DISTINCT name)       FROM stage_env)                  AS staged_packages,
@@ -229,7 +238,10 @@ SELECT (SELECT count(*)                   FROM stage_env)                  AS st
           JOIN "package" p ON p."name" = s.name
           LEFT JOIN "version" v
             ON v.package_id = p.package_id AND v."version" = s.version
-         WHERE v.package_id IS NULL)                                       AS unknown_version_rows;
+         WHERE v.package_id IS NULL)                                       AS unknown_version_rows,
+       (SELECT count(*)                   FROM "version" v
+         WHERE EXISTS (SELECT 1 FROM resolved r WHERE r.package_id = v.package_id))
+                                                                           AS selectable_rows;
 
 -- 한 건도 못 붙으면 중단. 이름 규칙이 어긋났거나 version 이 비어 있다는 뜻이다.
 DO $$ BEGIN
@@ -337,6 +349,29 @@ def parse_args(argv=None):
     return args
 
 
+# 적재 품질을 사람이 읽는 두 줄로 요약한다.
+def report_quality(quality: dict) -> None:
+    staged, loaded = quality["staged_rows"], quality["loaded_rows"]
+    selectable = quality.get("selectable_rows") or 0
+    lost = staged - loaded
+    if lost:
+        print(f"참고: staged {staged:,}행 중 {lost:,}행이 version 에 없어 빠졌다 — "
+              f"이름 없음 {quality['unknown_name_rows']:,}행 · "
+              f"버전 없음 {quality['unknown_version_rows']:,}행", flush=True)
+        print("  registry 는 전 버전을 담고 version 은 스냅샷이 알던 것만 담는다. "
+              "빠진 행은 화면에서 고를 수 없는 버전이라 손실이 아니다", flush=True)
+    if not selectable:
+        return
+    # 이 값이 품질 판정이다. 화면이 고를 수 있는 버전 중 소비 조건이 붙은 비율.
+    coverage = loaded / selectable * 100
+    line = f"커버리지 {coverage:.1f}% ({loaded:,}/{selectable:,}) — version 이 제공하는 버전 기준"
+    if coverage < 99:
+        # 이름이 안 붙었거나 적재가 중간에 잘렸다. 스냅샷 시차로는 이 값이 떨어지지 않는다.
+        print(f"경고: {line}. 1% 넘게 비었으면 이름 해석을 의심할 것", flush=True)
+    else:
+        print(line, flush=True)
+
+
 def main(argv=None) -> int:
     args = parse_args(argv)
     attempt_id = uuid.uuid4().hex
@@ -419,14 +454,7 @@ def main(argv=None) -> int:
 
     print(json.dumps(quality, ensure_ascii=False, indent=2), flush=True)
     if quality:
-        lost = quality["staged_rows"] - quality["loaded_rows"]
-        if lost:
-            share = lost / quality["staged_rows"] * 100
-            print(f"경고: {lost:,}행({share:.1f}%)이 빠졌다 — "
-                  f"이름 없음 {quality['unknown_name_rows']:,}행 · "
-                  f"버전 없음 {quality['unknown_version_rows']:,}행", flush=True)
-            print("  버전 없음은 version 이 더 오래된 deps.dev 스냅샷이라 생기며 "
-                  "두 원천의 매칭률(95.1%)만큼이 정상이다", flush=True)
+        report_quality(quality)
     print(("검증만 하고 되돌렸다" if args.verify_only else "게시 완료") + f" — {work}", flush=True)
     return 0
 
