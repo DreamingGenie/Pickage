@@ -157,9 +157,13 @@ con.execute(r"""CREATE OR REPLACE TABLE seq AS
 SELECT Name, Version, published_at, deps, nonreg,
   CASE WHEN try_cast(regexp_extract(Version,'^(\d+)\.(\d+)',1) AS INT) > 0 THEN regexp_extract(Version,'^(\d+)\.(\d+)',1)
        ELSE '0.' || regexp_extract(Version,'^(\d+)\.(\d+)',2) END AS line,
+  -- 정규화 결과가 빈 문자열이면 이름으로 떨어뜨린다 (S15P21A506-399).
+  -- source_repo 가 맨 'https://' 나 'git+' 면 정규화 뒤 '' 가 되는데, NOT NULL 이라 그대로
+  -- 통과해 서로 다른 배포주체가 '' 하나로 뭉친다. -378 에서 any_value 를 min 으로 바꾼 뒤로는
+  -- 그 쓰레기값이 사전순 최솟값이라 **있으면 반드시** 골라진다.
   CASE WHEN Name LIKE '@%' THEN split_part(Name,'/',1)
-       WHEN source_repo IS NOT NULL THEN regexp_replace(lower(source_repo),'\.git$|^git\+|^https?://|^git://|^ssh://git@','','g')
-       ELSE Name END AS publisher
+       ELSE coalesce(nullif(trim(regexp_replace(lower(source_repo),'\.git$|^git\+|^https?://|^git://|^ssh://git@','','g')), ''), Name)
+       END AS publisher
 FROM rel""")
 con.execute("DROP TABLE rel")
 log("seq done")
