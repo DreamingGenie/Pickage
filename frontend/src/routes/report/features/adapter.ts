@@ -1,89 +1,13 @@
-import type {
-  FeatureCellWire,
-  FeatureComparisonResponse,
-  FeatureVersionsResponse,
-} from '@/api/types'
-import {
-  MIN_FEATURES,
-  RETRYABLE_REASONS,
-  type ChangeSummary,
-  type ComparisonView,
-  type FeatureCell,
-  type PackageVersions,
-} from '@/routes/report/features/model'
+import type { ChangeSummary, ComparisonView } from '@/routes/report/features/model'
 
 /**
- * 서버 응답 → 화면 모델. snake_case → camelCase 변환은 여기서만 한다.
- * 근거 없는 값을 채워 넣지 않는다 — 없으면 없는 채로 둔다.
+ * 재분석 전후 비교.
+ *
+ * 응답 변환은 여기 없다 — 판정표는 `rag-adapter.ts`(AI 계약), 버전은 개요의
+ * `latest_version`(`use-analysis-run.ts`)에서 온다.
  */
 
-export function adaptVersions(response: FeatureVersionsResponse): PackageVersions[] {
-  return response.packages.map((p) => ({
-    name: p.package_name,
-    latestStable: p.latest_stable,
-    choices: p.versions.map((v) => ({ version: v.version, prerelease: v.prerelease })),
-  }))
-}
-
-function adaptCell(wire: FeatureCellWire): FeatureCell {
-  return {
-    packageName: wire.package_name,
-    version: wire.version,
-    verdict: wire.verdict,
-    dataStatus: wire.data_status,
-    evidenceIds: wire.evidence_ids,
-    note: wire.note,
-    reasonCode: wire.reason_code,
-  }
-}
-
-export function adaptComparison(response: FeatureComparisonResponse): ComparisonView {
-  const packages = response.packages.map((p) => ({ name: p.package_name, version: p.version }))
-
-  const rows = response.features.map((row) => ({
-    id: row.feature_id,
-    label: row.feature_label,
-    cells: row.results.map(adaptCell),
-  }))
-
-  // 열 순서는 packages 를 따른다. 응답이 패키지 이름으로 값을 실어 주므로 이름으로 찾는다.
-  const environment = (response.environment ?? []).map((row) => ({
-    key: row.key,
-    label: row.label,
-    values: packages.map(
-      (pkg) => row.values.find((v) => v.package_name === pkg.name)?.value ?? null,
-    ),
-  }))
-
-  const evidenceIds = new Set<string>()
-  let retryableCells = 0
-  for (const row of rows) {
-    for (const cell of row.cells) {
-      cell.evidenceIds.forEach((id) => evidenceIds.add(`${cell.packageName}:${id}`))
-      if (cell.reasonCode && RETRYABLE_REASONS.has(cell.reasonCode)) retryableCells += 1
-    }
-  }
-
-  return {
-    packages,
-    dataStatus: response.data_status,
-    limited: response.comparison_state === 'COMPARISON_LIMITED' || rows.length < MIN_FEATURES,
-    environment,
-    environmentNote: response.environment_note,
-    rows,
-    narrative: response.narrative.map((n) => ({
-      heading: n.heading,
-      body: n.body,
-      evidenceIds: n.evidence_ids,
-    })),
-    narrativeError: response.narrative_error,
-    evidenceCount: response.evidence_count ?? evidenceIds.size,
-    analyzedAt: response.analyzed_at,
-    isExample: response.is_example === true,
-    retryableCells,
-  }
-}
-
+/** 근거를 패키지와 묶어 센다 — 같은 ID 가 다른 패키지에 있으면 다른 근거다. */
 const evidenceKeys = (view: ComparisonView): Set<string> => {
   const keys = new Set<string>()
   for (const row of view.rows) {

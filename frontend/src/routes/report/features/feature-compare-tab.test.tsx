@@ -3,22 +3,20 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '@/api/client'
-import {
-  FEATURE_NOT_AVAILABLE,
-  type FeatureRunErrorCode,
-  type FeatureRunResponse,
-  type FeatureTarget,
-  type FeatureVersionsResponse,
-  type PackageEnvResponse,
-  type RagComparisonResult,
+import type {
+  FeatureRunErrorCode,
+  FeatureRunResponse,
+  FeatureTarget,
+  PackagesOverviewResponse,
+  PackageEnvResponse,
+  RagComparisonResult,
 } from '@/api/types'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { FeatureCompareTab } from '@/routes/report/features/feature-compare-tab'
 
-const { fetchFeatureVersions, fetchPackageEnv, startFeatureRun, fetchFeatureRun } = vi.hoisted(
+const { fetchPackagesOverview, fetchPackageEnv, startFeatureRun, fetchFeatureRun } = vi.hoisted(
   () => ({
-    fetchFeatureVersions: vi.fn(),
+    fetchPackagesOverview: vi.fn(),
     fetchPackageEnv: vi.fn(),
     startFeatureRun: vi.fn(),
     fetchFeatureRun: vi.fn(),
@@ -28,7 +26,7 @@ const { fetchFeatureVersions, fetchPackageEnv, startFeatureRun, fetchFeatureRun 
 // 실제 mock 데이터·지연 대신 endpoints 경계에서 직접 목한다 — 시나리오를 결정적으로 구성한다.
 vi.mock('@/api/endpoints', () => ({
   USE_MOCK: false,
-  fetchFeatureVersions,
+  fetchPackagesOverview,
   fetchPackageEnv,
   startFeatureRun,
   fetchFeatureRun,
@@ -51,18 +49,30 @@ function renderTab(names = NAMES) {
   )
 }
 
-const VERSIONS: Record<string, string[]> = {
-  pino: ['10.3.1', '10.2.0'],
-  winston: ['3.19.0', '3.18.3'],
-}
+const LATEST: Record<string, string> = { pino: '10.3.1', winston: '3.19.0' }
 
-function versionsFor(names: string[]): FeatureVersionsResponse {
+/**
+ * 버전은 개요(`GET /api/packages`)의 `latest_version` 에서 온다 — 고를 수 있는 버전을 주는
+ * endpoint 가 아직 없어서다. 지표 필드는 이 화면이 읽지 않으므로 null 로 둔다.
+ */
+function overviewFor(names: string[]): PackagesOverviewResponse {
   return {
-    packages: names.map((name) => ({
-      package_name: name,
-      latest_stable: VERSIONS[name][0],
-      versions: VERSIONS[name].map((version) => ({ version, prerelease: false })),
+    snapshot_at: '2026-08-31',
+    items: names.map((name) => ({
+      name,
+      repo_url: null,
+      latest_version: LATEST[name],
+      published_at: '2026-08-01T00:00:00Z',
+      description: null,
+      licenses: [],
+      is_deprecated: false,
+      downloads: null,
+      stars: null,
+      stars_delta: null,
+      open_issues: null,
+      open_issues_delta: null,
     })),
+    not_found: [],
   }
 }
 
@@ -141,12 +151,12 @@ function failsWith(code: FeatureRunErrorCode) {
 }
 
 beforeEach(() => {
-  fetchFeatureVersions.mockReset()
+  fetchPackagesOverview.mockReset()
   fetchPackageEnv.mockReset()
   startFeatureRun.mockReset()
   fetchFeatureRun.mockReset()
   onOpenEvidence.mockReset()
-  fetchFeatureVersions.mockImplementation(async (names: string[]) => versionsFor(names))
+  fetchPackagesOverview.mockImplementation(async (names: string[]) => overviewFor(names))
   fetchPackageEnv.mockImplementation(async (targets: FeatureTarget[]) => envFor(targets))
 })
 
@@ -165,7 +175,7 @@ describe('FeatureCompareTab', () => {
 
     const summary = within(await screen.findByRole('region', { name: '핵심 비교 요약' }))
     expect(summary.getByText('CommonJS')).toBeInTheDocument()
-    expect(summary.getByText('ESM · CommonJS 둘 다')).toBeInTheDocument()
+    expect(summary.getByText('ESM + CommonJS')).toBeInTheDocument()
     // null 은 0 이 아니라 모름이다 — 0개로 적지 않는다
     expect(summary.getByText('미확인')).toBeInTheDocument()
     expect(screen.getByLabelText('pino')).toHaveValue('10.3.1')
@@ -189,7 +199,7 @@ describe('FeatureCompareTab', () => {
 
     await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
 
-    expect(await screen.findByText('분석을 시작하고 있습니다')).toBeInTheDocument()
+    expect(await screen.findByText(/README 를 모으고 있습니다/)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '핵심 기능 비교' })).not.toBeInTheDocument()
     // 확인된 사실은 생성을 기다리지 않는다 — 위 표는 그대로 보인다
     expect(screen.getByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
@@ -233,38 +243,36 @@ describe('FeatureCompareTab', () => {
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeEnabled()
   })
 
-  it('정식 버전이 없으면 사전 배포 버전을 고르지 않고 시작 버튼을 막는다', async () => {
-    const user = userEvent.setup()
-    completesWith()
-    fetchFeatureVersions.mockResolvedValue({
-      packages: [
-        {
-          package_name: 'left-pad',
-          latest_stable: null,
-          versions: [{ version: '1.4.0-beta.2', prerelease: true }],
-        },
-      ],
+  it('카탈로그에 이름이 하나도 없으면 고른 패키지를 적어 알리고 아무것도 부르지 않는다', async () => {
+    fetchPackagesOverview.mockResolvedValue({
+      snapshot_at: null,
+      items: [],
+      not_found: ['pino', 'winston'],
     })
-    renderTab(['left-pad'])
-
-    expect(await screen.findByText(/비교할 버전을 먼저 고르세요/)).toBeInTheDocument()
-    expect(startButton()).toBeDisabled()
-    expect(fetchPackageEnv).not.toHaveBeenCalled()
-
-    await user.selectOptions(screen.getByLabelText('left-pad'), '1.4.0-beta.2')
-
-    await waitFor(() => expect(startButton()).toBeEnabled())
-  })
-
-  it('이 조합의 기능 비교가 없으면 고른 패키지를 적어 알리고 아무것도 부르지 않는다', async () => {
-    fetchFeatureVersions.mockRejectedValue(
-      new ApiError(404, FEATURE_NOT_AVAILABLE, '이 조합의 기능 비교는 아직 준비되지 않았습니다.'),
-    )
     renderTab()
 
     expect(await screen.findByText(/아직 준비되지 않았습니다/)).toBeInTheDocument()
     expect(screen.getByText('pino')).toBeInTheDocument()
+    expect(fetchPackageEnv).not.toHaveBeenCalled()
     expect(startFeatureRun).not.toHaveBeenCalled()
+  })
+
+  /**
+   * 일부만 없는 경우는 전체를 막지 않는다 — 찾은 패키지의 소비 조건은 그대로 보여 준다.
+   * 없는 이름은 버전을 정할 수 없어 비교 대상에서 빠진다.
+   */
+  it('일부 이름만 없으면 나머지로 계속한다', async () => {
+    fetchPackagesOverview.mockImplementation(async () => {
+      const full = overviewFor(['pino', 'winston'])
+      return { ...full, items: full.items.slice(0, 1), not_found: ['winston'] }
+    })
+    completesWith()
+    renderTab()
+
+    expect(await screen.findByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(fetchPackageEnv).toHaveBeenCalledWith([{ package_name: 'pino', version: '10.3.1' }]),
+    )
   })
 
   it('셀을 누르면 그 셀의 첫 근거 ID 로 근거 열기를 요청한다', async () => {

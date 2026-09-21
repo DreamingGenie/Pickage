@@ -52,7 +52,7 @@ export function FeatureTable({
         </div>
         {count > 0 && (
           <p className="text-base text-muted-foreground">
-            공식 문서와 정확한 버전의 배포본에서 발견한 기능 중 핵심 {count}개를 먼저 보여줍니다.
+            선택한 버전의 README 에서 찾은 기능 {count}가지입니다.
           </p>
         )}
       </header>
@@ -102,10 +102,10 @@ export function FeatureTable({
       )}
 
       <p className="border-t pt-4 text-base leading-relaxed text-muted-foreground">
-        <strong className="font-medium text-foreground">미확인</strong>은 미지원이 아닙니다. 검색
-        실패나 문서 부재는 미확인입니다.{' '}
-        <strong className="font-medium text-foreground">미지원</strong>은 공식적인 부정 근거가 있을
-        때만 사용합니다.
+        <strong className="font-medium text-foreground">미확인</strong>은 &lsquo;기능이
+        없다&rsquo;가 아니라 README 에서 찾지 못했다는 뜻입니다.{' '}
+        <strong className="font-medium text-foreground">미지원</strong>은 README 에 지원하지
+        않는다고 적혀 있을 때만 씁니다.
       </p>
     </section>
   )
@@ -128,12 +128,12 @@ function Cell({
     <>
       <VerdictPill verdict={cell.verdict} />
       {cell.note && (
-        <span className="font-mono text-base leading-tight text-muted-foreground">{cell.note}</span>
+        <span className="text-base leading-snug text-muted-foreground">{cell.note}</span>
       )}
       {reason && <span className="text-base leading-tight text-muted-foreground">{reason}</span>}
       {label && (
-        <span className="font-mono text-base text-muted-foreground underline underline-offset-2">
-          {label}
+        <span className="text-sm text-muted-foreground underline underline-offset-2">
+          출처 · {label}
         </span>
       )}
     </>
@@ -148,7 +148,7 @@ function Cell({
     <button
       type="button"
       onClick={() => onOpenEvidence(evidenceId)}
-      aria-label={`${feature} ${cell.packageName} ${VERDICT_LABEL[cell.verdict]} — 근거 열기`}
+      aria-label={`${feature} ${cell.packageName} ${VERDICT_LABEL[cell.verdict]} — 출처 열기`}
       className="-mx-2 flex w-full flex-col items-start gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       {body}

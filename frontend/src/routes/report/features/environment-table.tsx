@@ -1,5 +1,12 @@
-import type { ComparisonPackage, EnvironmentRow } from '@/routes/report/features/model'
+import { CheckIcon, CircleQuestionMarkIcon, type LucideIcon } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
+import type {
+  ComparisonPackage,
+  EnvTone,
+  EnvValue,
+  EnvironmentRow,
+} from '@/routes/report/features/model'
 
 /**
  * 핵심 비교 요약 — 버전별 소비 조건 (기능-11-R01, IA §9.1-4).
@@ -10,8 +17,11 @@ import { cn } from '@/lib/utils'
  * 즉시 뜬다 — 그래서 이 표는 AI 영역보다 **위**에 있고, 분석이 도는 중에도 흐려지지 않는다.
  * 기능-10-R06 의 "완료된 항목 먼저 표시" 가 이 모양이다.
  *
- * 217 에서는 이 표가 기능 비교 응답 안에 있었다. 백엔드가 둘을 다른 엔드포인트로 나누면서
- * 데이터 출처만 바뀌었고, 표 자체는 그대로다.
+ * <h2>아래 기능 비교표와 같은 모양으로 그린다</h2>
+ *
+ * 칸마다 라벨을 붙여 한눈에 비교되게 한다. 다만 **색이 뜻하는 바가 다르다** — 아래는 판정
+ * (지원·미지원)이라 좋고 나쁨이 있지만, 여기는 사실이라 종류만 구분한다. 그래서 빨강을 쓰지
+ * 않고, 초록은 "타입 포함" 처럼 쓰는 사람에게 일이 줄어드는 경우에만 쓴다.
  *
  * <h2>빈 표를 그리지 않는다</h2>
  *
@@ -34,7 +44,11 @@ export function EnvironmentTable({
     return (
       <section className="flex flex-col gap-5 rounded-2xl border p-6">
         <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-        <div className="h-24 w-full animate-pulse rounded bg-muted/60" />
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-8 w-full animate-pulse rounded-md bg-muted/60" />
+          ))}
+        </div>
       </section>
     )
   }
@@ -42,13 +56,16 @@ export function EnvironmentTable({
   if (rows.length === 0) return null
 
   return (
-    <section aria-labelledby="environment-title" className="flex flex-col gap-5 rounded-2xl border p-6">
+    <section
+      aria-labelledby="environment-title"
+      className="flex flex-col gap-5 rounded-2xl border p-6"
+    >
       <header className="flex flex-col gap-1.5">
         <h3 id="environment-title" className="text-sm font-semibold">
           핵심 비교 요약
         </h3>
         <p className="text-base text-muted-foreground">
-          정확한 버전의 배포 산출물에서 확인한 소비 조건입니다.
+          npm 에 배포된 파일에서 그대로 읽은 값입니다. AI 가 판단한 내용이 아닙니다.
         </p>
       </header>
 
@@ -60,9 +77,9 @@ export function EnvironmentTable({
                 항목
               </th>
               {packages.map((pkg) => (
-                <th key={pkg.name} scope="col" className="pb-3 text-left font-mono font-normal">
-                  {pkg.name}
-                  <span className="text-muted-foreground/70">@{pkg.version}</span>
+                <th key={pkg.name} scope="col" className="pb-3 text-left font-normal">
+                  <span className="font-mono text-foreground">{pkg.name}</span>
+                  <span className="ml-1.5 font-mono">{pkg.version}</span>
                 </th>
               ))}
             </tr>
@@ -70,15 +87,15 @@ export function EnvironmentTable({
           <tbody>
             {rows.map((row) => (
               <tr key={row.key} className="border-t align-top">
-                <th scope="row" className="py-3 pr-3 text-left font-normal text-muted-foreground">
-                  {row.label}
+                <th scope="row" className="py-3 pr-3 text-left font-normal">
+                  <span className="block text-foreground">{row.label}</span>
+                  <span className="block text-sm leading-snug text-muted-foreground">
+                    {row.hint}
+                  </span>
                 </th>
                 {row.values.map((value, i) => (
-                  <td
-                    key={packages[i].name}
-                    className={cn('py-3 pr-3', value === null && 'text-muted-foreground')}
-                  >
-                    {value ?? '미확인'}
+                  <td key={packages[i].name} className="py-3 pr-3">
+                    <EnvPill value={value} />
                   </td>
                 ))}
               </tr>
@@ -91,9 +108,32 @@ export function EnvironmentTable({
 
       {/*
         실행 조건(engines)은 이 표에 없다. 기능-11-R01 의 항목이지만 수집에 포함되지 않았다 —
-        빈 행을 두면 "조건이 없다" 로 읽히므로 아예 만들지 않는다. 그 사실을 화면에 적지도
-        않는다. 없는 항목을 설명하면 사용자가 무엇을 못 봤는지 알 수 없는 채로 신경만 쓴다.
+        빈 행을 두면 "조건이 없다" 로 읽히므로 아예 만들지 않는다.
       */}
     </section>
+  )
+}
+
+const TONE: Record<EnvTone, { className: string; Icon?: LucideIcon }> = {
+  neutral: { className: 'bg-muted text-foreground' },
+  info: { className: 'bg-sky-50 text-sky-700' },
+  positive: { className: 'bg-emerald-50 text-emerald-700', Icon: CheckIcon },
+  unknown: { className: 'bg-muted text-muted-foreground', Icon: CircleQuestionMarkIcon },
+}
+
+/** 아래 기능 비교표의 `VerdictPill` 과 같은 모양. 값이 없으면 `미확인` 으로 적는다. */
+function EnvPill({ value }: { value: EnvValue | null }) {
+  const { text, tone } = value ?? { text: '미확인', tone: 'unknown' as const }
+  const { className, Icon } = TONE[tone]
+  return (
+    <span
+      className={cn(
+        'inline-flex w-fit items-center gap-1 rounded px-1.5 py-0.5 text-base font-medium',
+        className,
+      )}
+    >
+      {Icon && <Icon className="size-3" strokeWidth={2.5} aria-hidden />}
+      {text}
+    </span>
   )
 }

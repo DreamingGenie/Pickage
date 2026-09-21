@@ -1,9 +1,9 @@
-import { CheckIcon, CircleAlertIcon, RefreshCwIcon } from 'lucide-react'
+import { CircleAlertIcon, RefreshCwIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { RUN_STEPS, type FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
+import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import type { ChangeSummary } from '@/routes/report/features/model'
 import { VERDICT_LABEL } from '@/routes/report/features/sample'
 
@@ -37,37 +37,25 @@ export function AnalysisStatusCard({ run }: { run: FeatureAnalysis }) {
         <div className="flex items-center gap-2.5">
           <span aria-hidden className="size-2 rounded-full bg-emerald-600" />
           <h3 id="analysis-status-title" className="text-sm font-semibold">
-            분석 완료 · 근거 {view.evidenceCount}건 연결
+            분석 완료 · 출처 {view.evidenceCount}곳
           </h3>
         </div>
-        <span className="font-mono text-base text-muted-foreground">
-          기준일 {view.analyzedAt.slice(0, 10)}
+        {/*
+          서버가 준 자료 기준일이 아니라 이 화면이 결과를 받은 시각이다. "기준일" 로 적으면
+          자료의 날짜로 읽히므로 시각만 적는다.
+        */}
+        <span className="text-base text-muted-foreground">
+          {new Date(view.analyzedAt).toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}{' '}
+          분석
         </span>
       </header>
 
       <p className="text-base leading-relaxed text-muted-foreground">
-        {view.isExample
-          ? '미리 확인해 둔 POC 실측 결과입니다. 분석 서버가 이 자리에서 새로 만든 값이 아닙니다.'
-          : '이 결과는 선택한 정확한 버전의 자료에 고정되어 있습니다. 버전을 바꿔도 재분석을 실행하기 전까지 기존 결과를 유지합니다.'}
+        위에서 고른 버전 기준의 결과입니다. 버전을 바꾸면 다시 분석해야 반영됩니다.
       </p>
-
-      {!view.isExample && (
-        <details className="group text-base">
-          <summary className="w-fit cursor-pointer text-muted-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
-            분석 과정 보기
-          </summary>
-          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
-            {RUN_STEPS.map((step, i) => (
-              <li key={step.key} className="flex items-center gap-2 rounded-lg border px-3 py-2">
-                <CheckIcon className="size-3.5 text-emerald-600" strokeWidth={3} aria-hidden />
-                <span>
-                  {i + 1} · {step.label}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </details>
-      )}
 
       {/* 재분석이 성공한 직후 한 번. 닫으면 다시 나오지 않는다 (IA §9.3) */}
       {run.changes && <ChangesCallout changes={run.changes} onDismiss={run.dismissChanges} />}

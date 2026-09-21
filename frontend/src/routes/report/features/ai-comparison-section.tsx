@@ -1,4 +1,7 @@
+import { CheckIcon, Loader2Icon } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { FeatureRunPhase } from '@/api/types'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import { AnalysisFailure, AnalysisStatusCard } from '@/routes/report/features/analysis-status-card'
@@ -25,12 +28,23 @@ import { NarrativeSection } from '@/routes/report/features/narrative-section'
  * 교체된다(구상안 §9.3).
  */
 
-/** 서버가 말하는 실제 단계. 남은 시간은 적지 않는다 — 패키지마다 달라 틀린 약속이 된다. */
-const PHASE_LABEL: Record<FeatureRunPhase, string> = {
-  PREPARING_DOCS: '문헌을 준비하고 있습니다',
-  COMPARING: '기능을 비교하고 있습니다',
-  DONE: '마무리하고 있습니다',
-}
+/**
+ * 서버가 실제로 지나는 세 단계. 프런트가 칸을 더 쪼개 흉내 내지 않는다 — 끝나지 않은 단계를
+ * 완료로 그리게 된다. 남은 시간도 적지 않는다(패키지마다 달라 틀린 약속이 된다).
+ */
+const STEPS: { phase: FeatureRunPhase; title: string; detail: string }[] = [
+  {
+    phase: 'PREPARING_DOCS',
+    title: 'README 불러오기',
+    detail: '선택한 버전의 README 를 모으고 있습니다',
+  },
+  {
+    phase: 'COMPARING',
+    title: '기능 비교',
+    detail: 'AI 가 README 를 읽고 기능을 나란히 맞춰 보고 있습니다',
+  },
+  { phase: 'DONE', title: '정리', detail: '결과를 표로 정리하고 있습니다' },
+]
 
 export function AiComparisonSection({
   run,
@@ -50,8 +64,8 @@ export function AiComparisonSection({
           AI 기능 비교
         </h3>
         <p className="text-base text-muted-foreground">
-          위 소비 조건과 README 를 근거로 만든 판정입니다. 근거 ID 를 눌러 원문을 확인할 수
-          있습니다.
+          각 패키지의 README 를 AI 가 읽고 기능별로 정리합니다. 칸의 &lsquo;출처&rsquo;를 누르면
+          판단에 쓴 원문을 볼 수 있습니다.
         </p>
       </header>
 
@@ -60,8 +74,8 @@ export function AiComparisonSection({
         <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed p-6">
           <p className="text-base leading-relaxed text-muted-foreground">
             {run.targets
-              ? `${run.targets.map((t) => `${t.package_name}@${t.version}`).join(' · ')} 을(를) 비교합니다. 1~2분 걸립니다.`
-              : '비교할 버전을 먼저 고르세요. 정식 버전이 없는 패키지는 직접 선택해야 합니다.'}
+              ? `${run.targets.map((t) => `${t.package_name} ${t.version}`).join(', ')} 의 기능을 비교합니다. 보통 1~2분 걸립니다.`
+              : '비교할 버전을 먼저 고르세요.'}
           </p>
           <StartButton run={run} />
         </div>
@@ -115,26 +129,88 @@ function StartButton({ run }: { run: FeatureAnalysis }) {
 /**
  * 로딩.
  *
- * 진행률을 지어내지 않는다 — 서버가 주는 것은 단계 이름과 경과 초뿐이고, 없는 퍼센트를
- * 그리면 사용자가 남은 시간을 읽는다.
+ * 진행률 막대를 그리지 않는다 — 서버가 주는 것은 단계 이름과 경과 초뿐이라, 없는 퍼센트를
+ * 그리면 사용자가 거기서 남은 시간을 읽는다. 대신 **지금 몇 번째 단계인지**를 보여 준다.
+ *
+ * 아래 자리표시는 완성될 표와 같은 모양(행 × 패키지 열)이다. 완료 순간 화면이 튀지 않고,
+ * 무엇이 나올지 미리 짐작하게 한다.
  */
 function RunningCard({ run }: { run: FeatureAnalysis }) {
+  const current = Math.max(
+    0,
+    STEPS.findIndex((step) => step.phase === (run.phase ?? 'PREPARING_DOCS')),
+  )
+  const columns = Math.max(1, run.targets?.length ?? 2)
+
   return (
-    <div role="status" aria-live="polite" className="flex flex-col gap-3 rounded-2xl border p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-base font-medium">
-          {run.phase ? PHASE_LABEL[run.phase] : '분석을 시작하고 있습니다'}
-        </p>
-        <span className="font-mono text-base text-muted-foreground">{run.elapsedSec}초 경과</span>
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex flex-col gap-6 overflow-hidden rounded-2xl border p-6"
+    >
+      <ol className="grid grid-cols-3 gap-3">
+        {STEPS.map((step, i) => {
+          const state = i < current ? 'done' : i === current ? 'active' : 'todo'
+          return (
+            <li key={step.phase} className="flex flex-col gap-2">
+              <div
+                className={cn(
+                  'h-1 rounded-full transition-colors duration-500',
+                  state === 'done' && 'bg-foreground',
+                  state === 'active' && 'animate-pulse bg-foreground/60',
+                  state === 'todo' && 'bg-muted',
+                )}
+              />
+              <span
+                className={cn(
+                  'flex items-center gap-1.5 text-sm',
+                  state === 'todo' ? 'text-muted-foreground' : 'text-foreground',
+                  state === 'active' && 'font-medium',
+                )}
+              >
+                {state === 'done' && (
+                  <CheckIcon className="size-3.5" strokeWidth={2.5} aria-hidden />
+                )}
+                {state === 'active' && (
+                  <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
+                )}
+                {step.title}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-base text-foreground">{STEPS[current].detail}</p>
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {run.elapsedSec}초 지남
+          {run.elapsedSec >= 30 && ' · 보통 1~2분 걸립니다'}
+        </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-      </div>
-      {/* 결과 자리를 미리 잡아 완료 순간에 화면이 튀지 않게 한다 */}
+
+      {/* 완성될 표와 같은 모양의 자리표시. 이전 결과가 있으면 그 표가 흐리게 대신한다 */}
       {!run.completed && (
-        <div className="flex flex-col gap-2 pt-1">
-          <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-          <div className="h-24 w-full animate-pulse rounded bg-muted/60" />
+        <div aria-hidden className="flex flex-col">
+          {[0, 1, 2, 3, 4].map((row) => (
+            <div
+              key={row}
+              className="grid items-center gap-4 border-t py-3"
+              style={{ gridTemplateColumns: `minmax(8rem, 1.2fr) repeat(${columns}, 1fr)` }}
+            >
+              <div
+                className="h-3.5 animate-pulse rounded bg-muted"
+                style={{ width: `${70 - row * 7}%`, animationDelay: `${row * 120}ms` }}
+              />
+              {Array.from({ length: columns }, (_, col) => (
+                <div
+                  key={col}
+                  className="h-5 w-16 animate-pulse rounded bg-muted/70"
+                  style={{ animationDelay: `${row * 120 + col * 60}ms` }}
+                />
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>

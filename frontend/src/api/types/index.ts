@@ -604,56 +604,6 @@ export interface FeatureTarget {
   version: string
 }
 
-export interface FeatureCellWire {
-  package_name: string
-  version: string
-  verdict: FeatureVerdict
-  data_status: FeatureDataStatus
-  /** 이 셀의 판정이 기댄 근거. 비어 있을 수 있다(근거 부족은 UNCONFIRMED). */
-  evidence_ids: string[]
-  note: string | null
-  reason_code: FeatureReasonCode | null
-}
-
-export interface FeatureRowWire {
-  feature_id: string
-  feature_label: string
-  /** 요청한 패키지 순서를 따른다 */
-  results: FeatureCellWire[]
-}
-
-/** 공통 환경·설치 조건 한 행(구조화 데이터 계층). 이 계층이 없으면 응답의 `environment` 가 null 이다. */
-export interface FeatureEnvironmentRowWire {
-  key: string
-  label: string
-  /** 값이 없으면 null — 화면이 `미확인` 으로 적는다 */
-  values: { package_name: string; value: string | null }[]
-}
-
-export interface FeatureNarrativeWire {
-  heading: string
-  body: string
-  evidence_ids: string[]
-}
-
-export interface FeatureComparisonResponse {
-  data_status: FeatureDataStatus
-  /** `COMPARISON_LIMITED` — 비교 가능한 기능이 부족하다. 억지 표를 만들지 않는다(구상안 §8) */
-  comparison_state: 'COMPLETE' | 'COMPARISON_LIMITED'
-  packages: FeatureTarget[]
-  environment: FeatureEnvironmentRowWire[] | null
-  environment_note: string | null
-  features: FeatureRowWire[]
-  narrative: FeatureNarrativeWire[]
-  /** 표는 있는데 해설만 못 만든 경우의 사유. 표의 판정은 그대로 유효하다 */
-  narrative_error: string | null
-  evidence_count: number | null
-  /** ISO 8601 또는 날짜 */
-  analyzed_at: string
-  /** 미리 확인해 둔 예시 결과일 때만 true. 분석 서버가 그 자리에서 만든 값이 아니다 */
-  is_example?: boolean
-}
-
 /* ------------------------------------------------------------------ *
  * 화면 전용 타입 (서버 스펙 아님)
  * ------------------------------------------------------------------ */
@@ -714,10 +664,7 @@ export type FeatureRunPhase = 'PREPARING_DOCS' | 'COMPARING' | 'DONE'
 
 /** `VERIFICATION_FAILED` 는 재시도해도 같은 답이 나올 수 있다 — 재시도가 없는 파이프라인이다 */
 export type FeatureRunErrorCode =
-  | 'DOC_NOT_FOUND'
-  | 'VERIFICATION_FAILED'
-  | 'RAG_UNAVAILABLE'
-  | 'INTERRUPTED'
+  'DOC_NOT_FOUND' | 'VERIFICATION_FAILED' | 'RAG_UNAVAILABLE' | 'INTERRUPTED'
 
 /**
  * RAG 서버 응답 원본.

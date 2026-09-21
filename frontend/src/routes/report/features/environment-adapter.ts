@@ -1,5 +1,5 @@
 import type { PackageEnvItemWire, PackageEnvResponse } from '@/api/types'
-import type { ComparisonPackage, EnvironmentRow } from '@/routes/report/features/model'
+import type { ComparisonPackage, EnvValue, EnvironmentRow } from '@/routes/report/features/model'
 
 /**
  * `GET /api/packages/env` 응답을 핵심 비교 요약 표로 접는다 (기능-11-R01).
@@ -18,24 +18,27 @@ import type { ComparisonPackage, EnvironmentRow } from '@/routes/report/features
  * 표가 `미확인` 으로 적는다 — 0 이나 "없음" 으로 채우면 확인한 결과처럼 읽힌다.
  */
 
-/** 서버가 안 주는 항목은 행을 만들지 않는다 — 빈 행은 "조건이 없다" 로 읽힌다. */
-const MODULE_FORMAT_LABEL: Record<string, string> = {
-  CJS: 'CommonJS',
-  ESM_ONLY: 'ESM 전용',
-  // 전수의 21.0% 다. "ESM 이냐 CJS 냐" 로 이분해 적으면 다섯 중 하나가 갈 곳이 없다.
-  ESM_CJS: 'ESM · CommonJS 둘 다',
-  // unpublish 된 버전이라 선언 자체를 모른다. 미확인으로 적는다.
-  UNKNOWN: '',
-}
-
 /**
  * 모듈 방식.
  *
  * `UNKNOWN` 은 판정 실패가 아니라 **unpublish 된 버전이라 선언을 못 본 것**이다.
- * 라벨을 붙이면 다섯 번째 형식처럼 보이므로 빈 값으로 두어 `미확인` 으로 내린다.
+ * 다섯 번째 형식처럼 보이지 않게 `미확인` 으로 내린다.
+ *
+ * ESM 계열을 `positive` 로 칠하지 않는다 — 어느 쪽이 나은지는 사용자의 프로젝트가 정한다.
+ * 종류만 구분한다.
  */
-function moduleFormat(item: PackageEnvItemWire): string | null {
-  return MODULE_FORMAT_LABEL[item.module_format] || null
+function moduleFormat(item: PackageEnvItemWire): EnvValue | null {
+  switch (item.module_format) {
+    case 'CJS':
+      return { text: 'CommonJS', tone: 'neutral' }
+    case 'ESM_ONLY':
+      return { text: 'ESM 전용', tone: 'info' }
+    // 전수의 21.0% 다. "ESM 이냐 CJS 냐" 로 이분해 적으면 다섯 중 하나가 갈 곳이 없다.
+    case 'ESM_CJS':
+      return { text: 'ESM + CommonJS', tone: 'info' }
+    default:
+      return null
+  }
 }
 
 /**
@@ -44,24 +47,36 @@ function moduleFormat(item: PackageEnvItemWire): string | null {
  * **거짓을 "없음" 으로 적지 않는다.** 이 패키지 안에 없다는 뜻이고 `@types/xxx` 를 따로 깔면
  * 된다 — "타입 없음" 으로 적으면 타입스크립트에서 못 쓰는 패키지로 읽힌다.
  */
-function typesBundled(item: PackageEnvItemWire): string {
-  return item.types_bundled ? '포함' : '별도 설치 필요'
+function typesBundled(item: PackageEnvItemWire): EnvValue {
+  return item.types_bundled
+    ? { text: '포함', tone: 'positive' }
+    : { text: '별도 설치', tone: 'neutral' }
 }
 
 /**
- * 개수 표기.
+ * 직접 의존 수.
  *
  * `null` 은 0 이 아니라 **모름**이다(unpublish 된 버전은 의존 배열이 통째로 비어 있다).
- * 0 으로 적으면 "의존 없음" 이 되어 거짓이 된다.
+ * 0 은 확인된 값이라 "없음" 으로 적는다.
  */
-function count(value: number | null): string | null {
-  return value === null ? null : `${value.toLocaleString()}개`
+function directDeps(item: PackageEnvItemWire): EnvValue | null {
+  const n = item.direct_dependencies
+  if (n === null) return null
+  return { text: n === 0 ? '없음' : `${n.toLocaleString()}개`, tone: 'neutral' }
+}
+
+/** peer 의존 수. 있으면 사용자가 **먼저 깔아 둬야 하는** 것이라 톤을 달리한다. */
+function peerDeps(item: PackageEnvItemWire): EnvValue | null {
+  const n = item.peer_dependencies
+  if (n === null) return null
+  return n === 0 ? { text: '없음', tone: 'neutral' } : { text: `${n}개 필요`, tone: 'info' }
 }
 
 interface RowSpec {
   key: string
   label: string
-  value: (item: PackageEnvItemWire) => string | null
+  hint: string
+  value: (item: PackageEnvItemWire) => EnvValue | null
 }
 
 /**
@@ -71,15 +86,35 @@ interface RowSpec {
  * **실행 조건(`engines`)은 수집에 없어 행을 만들지 않는다.** 빈 행을 두면 "조건이 없다" 로
  * 읽히고, 완료 판단이 "확인된 정보만 표시" 라 없는 편이 맞다.
  *
- * 직접 의존과 peer 를 한 행으로 합치지 않는다 — 앞은 깔면 따라오는 것이고 뒤는 사용자가
- * 이미 갖고 있어야 하는 조건이다. 합치면 둘 다 못 읽는다.
+ * `hint` 는 용어를 풀어 쓴 한 줄이다. 모듈 방식·peer 같은 말을 모르는 사람도 그 행이 무엇을
+ * 묻는지 알 수 있어야 비교가 된다.
  */
 const ROWS: RowSpec[] = [
-  { key: 'module_format', label: '모듈 방식', value: moduleFormat },
-  { key: 'types_bundled', label: '타입 선언', value: typesBundled },
+  {
+    key: 'module_format',
+    label: '모듈 방식',
+    hint: 'import 와 require 중 무엇으로 불러오는지',
+    value: moduleFormat,
+  },
+  {
+    key: 'types_bundled',
+    label: '타입 선언',
+    hint: 'TypeScript 타입이 패키지에 들어 있는지',
+    value: typesBundled,
+  },
   // 전이 의존이 아니다. 라벨에서 "직접" 을 빼면 실제 설치 규모로 오해된다.
-  { key: 'direct_dependencies', label: '직접 의존', value: (i) => count(i.direct_dependencies) },
-  { key: 'peer_dependencies', label: 'peer 의존', value: (i) => count(i.peer_dependencies) },
+  {
+    key: 'direct_dependencies',
+    label: '직접 의존',
+    hint: '설치하면 함께 깔리는 패키지 수',
+    value: directDeps,
+  },
+  {
+    key: 'peer_dependencies',
+    label: 'peer 의존',
+    hint: '미리 설치해 둬야 하는 패키지 수',
+    value: peerDeps,
+  },
 ]
 
 /**
@@ -102,6 +137,7 @@ export function toEnvironmentRows(
   return ROWS.map((spec) => ({
     key: spec.key,
     label: spec.label,
+    hint: spec.hint,
     values: packages.map((pkg) => {
       const item = byKey.get(`${pkg.name}@${pkg.version}`)
       return item ? spec.value(item) : null

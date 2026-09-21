@@ -44,8 +44,10 @@ export interface FeatureRow {
 export interface EnvironmentRow {
   key: string
   label: string
+  /** 항목 이름 아래 한 줄 풀이. 용어를 몰라도 무엇을 보는 행인지 알게 한다 */
+  hint: string
   /** `packages` 순서. 값이 없으면 null → 화면이 `미확인` 으로 적는다 */
-  values: (string | null)[]
+  values: (EnvValue | null)[]
 }
 
 export interface NarrativeSection {
@@ -113,11 +115,45 @@ export function cellReason(cell: FeatureCell): string | null {
 }
 
 /**
- * 셀 아래에 적는 근거 ID 표기. `E01` 꼴이면 어느 패키지·버전의 근거인지 함께 적는다
- * (구상안 §10 — 같은 이름의 근거가 다른 버전에 있을 수 있다). 그 밖의 형식은 그대로 둔다.
+ * 근거 ID 하나를 사람이 읽는 출처 이름으로 바꾼다.
+ *
+ * RAG 의 ID 는 `express@5.2.1#3` · `express@5.2.1#meta-desc` 꼴이다. 기계에는 정확하지만
+ * 화면에 그대로 적으면 사용자가 읽을 수 없다. 어느 패키지인지는 표의 열이 이미 말하므로
+ * 여기서는 **README 의 어디인지**만 적는다. 원문은 눌러서 Drawer 로 본다.
  */
+export function sourceLabel(id: string): string {
+  const hash = id.lastIndexOf('#')
+  const part = hash >= 0 ? id.slice(hash + 1) : ''
+  if (part === 'meta-desc') return '패키지 소개'
+  if (part === 'meta-entry') return '불러오는 방식'
+  if (part === 'meta-install') return '설치 조건'
+  if (part.startsWith('meta-')) return '패키지 정보'
+  if (/^\d+$/.test(part)) return `README ${Number(part) + 1}번째 단락`
+  return '원문'
+}
+
+/** 근거 ID 의 패키지 이름. 스코프 패키지도 있어 `@` 를 `#` 앞에서 뒤로 찾는다. */
+export function sourcePackage(id: string): string | null {
+  const hash = id.lastIndexOf('#')
+  const at = id.lastIndexOf('@', hash >= 0 ? hash : id.length)
+  return at > 0 ? id.slice(0, at) : null
+}
+
+/** 셀 아래에 적는 출처. 여럿이면 첫 번째만 이름으로 적고 나머지는 개수로 줄인다. */
 export function evidenceLabel(cell: FeatureCell): string | null {
-  const id = cell.evidenceIds[0]
-  if (!id) return null
-  return /^E\d+[a-z]?$/.test(id) ? `${cell.packageName}@${cell.version} · ${id}` : id
+  const [first, ...rest] = cell.evidenceIds
+  if (!first) return null
+  const label = sourceLabel(first)
+  return rest.length > 0 ? `${label} 외 ${rest.length}곳` : label
+}
+
+/**
+ * 소비 조건 칸의 색 톤. 판정(verdict)이 아니다 — 좋고 나쁨이 아니라 **종류**를 구분한다.
+ * `unknown` 만 "값을 모른다" 는 뜻이고, 나머지는 전부 확인된 사실이다.
+ */
+export type EnvTone = 'neutral' | 'positive' | 'info' | 'unknown'
+
+export interface EnvValue {
+  text: string
+  tone: EnvTone
 }

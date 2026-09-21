@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { ComparisonView } from '@/routes/report/features/model'
+import { sourceLabel, sourcePackage, type ComparisonView } from '@/routes/report/features/model'
 
 /**
  * 기능 비교 해설 (IA §9.5).
@@ -26,8 +26,7 @@ export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimme
           기능 비교 해설
         </h3>
         <p className="text-base text-muted-foreground">
-          표의 판정을 그대로 반복하지 않고, 기능을 구성하는 방식과 확인해야 할 조건을 근거 중심으로
-          설명합니다.
+          표에서 드러나지 않는 차이와, 고를 때 확인해 볼 점을 정리했습니다.
         </p>
       </header>
 
@@ -42,8 +41,8 @@ export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimme
               <h4 className="text-base font-semibold">{section.heading}</h4>
               <p className="text-base leading-relaxed">{section.body}</p>
               {section.evidenceIds.length > 0 && (
-                <p className="font-mono text-base text-muted-foreground">
-                  근거 {section.evidenceIds.join(' · ')}
+                <p className="text-sm text-muted-foreground">
+                  출처 · {section.evidenceIds.map(narrativeSource).join(', ')}
                 </p>
               )}
             </div>
@@ -52,9 +51,15 @@ export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimme
       )}
 
       <p className="rounded-lg bg-muted/40 px-4 py-3 text-base leading-relaxed text-muted-foreground">
-        추천 · 순위 · 승자 표시는 제공하지 않습니다. 각 문장은 근거의 evidence ID와 연결되며, 근거가
-        부족하면 &lsquo;미확인&rsquo;으로 남습니다.
+        어느 패키지가 더 낫다고 추천하지 않습니다. 모든 문장은 README 원문에 연결되어 있고, 원문에서
+        확인하지 못한 것은 &lsquo;미확인&rsquo;으로 남깁니다.
       </p>
     </section>
   )
+}
+
+/** 해설은 여러 패키지를 함께 말하므로, 표와 달리 어느 패키지의 출처인지 이름을 붙인다. */
+function narrativeSource(id: string): string {
+  const pkg = sourcePackage(id)
+  return pkg ? `${pkg} ${sourceLabel(id)}` : sourceLabel(id)
 }
