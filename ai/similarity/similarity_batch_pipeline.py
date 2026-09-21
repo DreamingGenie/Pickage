@@ -14,8 +14,8 @@
                       가 실제로 수집된 고정 목록 기준이다 (S15P21A506-172, 정정 S15P21A506-402)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
-  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
-                      S15P21A506-333). 보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived·보완재(dependents 교집합
+                      >0.3, package_dependents.parquet 이 입력 옆에 있을 때) drop (--gate, 기본 on, S15P21A506-333·173)
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -187,6 +187,52 @@ def load_state(path: str | None) -> dict[str, dict]:
     state = {r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)} for r in tbl}
     log(f"이전 상태: {len(state)} 개 (재임베딩 생략 후보)")
     return state
+
+
+DEPENDENTS_FILENAME = "package_dependents.parquet"
+
+
+def resolve_dependents_path(explicit: str | None, package_text_path: str) -> str | None:
+    """보완재 관문이 읽을 dependents parquet 경로 (S15P21A506-173).
+
+    --dependents 로 직접 지정하면 그 경로(없어도 그대로 — 경고는 호출부가 한다). 안 줬으면
+    --package-text 와 **같은 폴더**의 `package_dependents.parquet` 을 찾는다. 배치가
+    /work/in/ 에서 입력을 읽으므로 ai-stage 가 그 파일을 옆에 복사해 두기만 하면
+    인자를 안 넘겨도 관문이 돈다. 둘 다 없으면 None.
+    """
+    if explicit:
+        return explicit
+    sibling = os.path.join(os.path.dirname(os.path.abspath(package_text_path)), DEPENDENTS_FILENAME)
+    return sibling if os.path.exists(sibling) else None
+
+
+def load_dependents(
+    path: str | None, kind: str = "regular", names: Iterable[str] | None = None
+) -> dict[str, set[str]]:
+    """package_dependents 류 parquet(name·kind·dependents)를 name → dependents 집합으로.
+
+    데이터 팀이 후보 풀(29,310개) 기준으로 재계산해준 파일(2026-09-16, 100% 커버) 형태를
+    전제한다. kind 는 기본 'regular' — 실측(웹팩↔웹팩-cli 0.903 vs 웹팩↔롤업 0.075)으로
+    이 한 종류만으로도 보완재/대안 판별 신호가 뚜렷했다(S15P21A506-173). 파일이 없으면
+    빈 dict — 그러면 apply_gates() 의 보완재 관문이 자동으로 꺼진다(기존 호출부 그대로 둠).
+
+    **메모리**: 배열이 크다(regular 엣지 636만, `react` 하나가 19만). 배치 컨테이너는
+    mem_limit 2g·스왑 0 이라 넘으면 바로 OOM 이므로 파이썬 객체로 풀기 **전에** arrow 에서
+    줄인다 — ① `kind` 행만 읽는다(parquet 필터, 나머지 종류는 디코딩도 안 한다)
+    ② `names` 를 주면 그 이름의 행만 남긴다(이번 배치 패키지가 아닌 행은 어차피 안 쓴다).
+    """
+    if not path or not os.path.exists(path):
+        return {}
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    tbl = pq.read_table(path, columns=["name", "dependents"], filters=[("kind", "=", kind)])
+    if names is not None:
+        tbl = tbl.filter(pc.is_in(tbl["name"], value_set=pa.array(list(names), type=tbl.schema.field("name").type)))
+    deps = {r["name"]: set(r["dependents"] or []) for r in tbl.to_pylist()}
+    log(f"dependents({kind}): {len(deps)} 개 패키지")
+    return deps
 
 
 class OnnxEmbedder:
@@ -404,24 +450,62 @@ def is_repo_archived(value) -> bool:
     return bool(value)
 
 
+def is_complement(
+    base_dependents: set[str] | None,
+    cand_dependents: set[str] | None,
+    threshold: float = 0.3,
+    min_sample: int = 20,
+) -> bool:
+    """base 와 cand 가 자주 같이 쓰이는 보완재인가 (S15P21A506-173).
+
+    dependents(그 패키지를 쓰는 다른 패키지들) 집합의 겹침 비율 = 교집합 ÷ 둘 중
+    더 작은 쪽 크기(containment). 실측(2026-09-16, 후보 풀 29,310개 기준 dependents,
+    kind=regular)으로 이 계산이 보완재(webpack↔webpack-cli 0.903, express↔body-parser
+    0.873)와 진짜 대안(webpack↔rollup 0.075)을 뚜렷하게 갈라놓는 걸 확인했다. 큰 쪽
+    기준으로 나누면(예: webpack↔webpack-cli 0.237) 신호가 뭉개져 이 방식을 안 쓴다.
+
+    둘 중 하나라도 dependents 데이터가 없으면(빈 집합 포함) 판단하지 않고 False —
+    데이터 없다고 감점하면 안 되므로 통과가 기본값이다.
+
+    `min_sample`: 둘 중 더 작은 쪽의 dependents 수가 이보다 작으면 비율이 통계적으로
+    못 미더우니 판단을 보류한다(False). 실측(테스트 알테너티브 315쌍 교차검증) 중
+    `jest`↔`@japa/runner`가 dependents 7개짜리 우연한 겹침만으로 비율 0.571까지
+    나와 진짜 대안인데 오탐 위험이 있었던 걸 보고 추가한 안전장치 — 그 315쌍 중
+    이런 표본 부족 오탐은 이 사례 하나뿐이었고, 실제 보완재들은 전부 표본이 수백~
+    수만 규모라 20으로 잡아도 재현율에 영향이 없었다.
+    """
+    if not base_dependents or not cand_dependents:
+        return False
+    if min(len(base_dependents), len(cand_dependents)) < min_sample:
+        return False
+    inter = len(base_dependents & cand_dependents)
+    ratio = inter / min(len(base_dependents), len(cand_dependents))
+    return ratio > threshold
+
+
 def apply_gates(
     hits: list[tuple[int, int, float]],
     names: list[str],
     keywords_by_idx: dict[int, list],
     enabled: bool,
     archived_by_idx: dict[int, bool] | None = None,
+    dependents_by_idx: dict[int, set[str]] | None = None,
 ) -> tuple[list[tuple[int, int, float]], dict]:
     """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
 
     plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
-    GitHub 저장소가 archived 된 후보도 drop 한다(S15P21A506-333). 보완재 감점(의존 그래프)은
-    아직 미구현. enabled=False 면 무변경.
+    GitHub 저장소가 archived 된 후보도, `dependents_by_idx` 를 주면 보완재(dependents
+    교집합 > 0.3, S15P21A506-173)도 drop 한다. enabled=False 면 무변경.
+
+    `drops["complement"]` 는 항상 들어간다 — dependents 를 안 줘서 관문이 안 돌았으면 None,
+    돌았으면 걸러낸 쌍 수. manifest 에서 "0건 걸렀다" 와 "안 돌았다" 를 구분하려는 것이다.
     """
     if not enabled:
         return hits, {}
     drops = {"plugin_adapter": 0, "same_family": 0}
     if archived_by_idx is not None:
         drops["repo_archived"] = 0
+    drops["complement"] = 0 if dependents_by_idx is not None else None
     kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
@@ -434,8 +518,34 @@ def apply_gates(
         if archived_by_idx is not None and is_repo_archived(archived_by_idx.get(cand_idx)):
             drops["repo_archived"] += 1
             continue
+        if dependents_by_idx is not None and is_complement(
+            dependents_by_idx.get(base_idx), dependents_by_idx.get(cand_idx)
+        ):
+            drops["complement"] += 1
+            continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
+
+
+def dependents_coverage(names: list[str], dependents_map: dict[str, set[str]]) -> dict | None:
+    """이번 배치 패키지 중 dependents 행이 있는 비율 (S15P21A506-173).
+
+    보완재 관문은 dependents 가 없는 패키지가 낀 쌍을 판단하지 못하고 통과시킨다. dependents
+    파일이 만들어진 뒤 후보 풀이 바뀌면 그런 패키지가 늘어나도 결과는 겉으로 똑같아서, 이 비율을
+    manifest 에 남겨 파일이 낡았는지 볼 수 있게 한다.
+
+    "있음" 은 파일에 그 이름의 행이 있다는 뜻이다. 의존자가 0개인 패키지도 행은 있으므로
+    센다 — 그건 결측이 아니라 "의존자 없음" 이라는 범주다. dependents 를 안 줘서
+    (dependents_map 이 비어) 관문이 안 돌면 None.
+    """
+    if not dependents_map:
+        return None
+    covered = sum(1 for n in names if n in dependents_map)
+    return {
+        "pool": len(names),
+        "with_dependents": covered,
+        "ratio": round(covered / len(names), 4) if names else 0.0,
+    }
 
 
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
@@ -509,6 +619,10 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--raw-text-column", default=None,
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
+    p.add_argument("--dependents", default=None,
+                   help="후보 풀 기준 package_dependents parquet (S15P21A506-173, 보완재 감점용). "
+                        f"생략하면 --package-text 와 같은 폴더의 {DEPENDENTS_FILENAME} 를 찾고, "
+                        "그것도 없으면 경고 후 보완재 관문만 건너뛴다")
     p.add_argument("--min-dependents", type=int, default=5)
     p.add_argument("--max-rank", type=int, default=100000,
                    help="package_text 의 download_rank(리포트 가능 고정 목록 기준 순위)가 이 값 "
@@ -549,7 +663,20 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
-    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate, archived_by_idx)
+    dependents_path = resolve_dependents_path(args.dependents, args.package_text)
+    dependents_map = load_dependents(dependents_path, names=names)
+    if not dependents_map and args.gate:
+        log(
+            "경고: 보완재 관문 건너뜀 — dependents 데이터 없음 "
+            f"({dependents_path or '--package-text 옆 ' + DEPENDENTS_FILENAME + ' 없음'})"
+        )
+    dependents_by_idx = {i: dependents_map.get(names[i]) for i in range(len(names))} if dependents_map else None
+    coverage = dependents_coverage(names, dependents_map)
+    if coverage:
+        log(f"dependents 커버리지: {coverage['with_dependents']}/{coverage['pool']} ({coverage['ratio']:.1%})")
+    hits, gate_drops = apply_gates(
+        hits, names, keywords_by_idx, args.gate, archived_by_idx, dependents_by_idx
+    )
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
@@ -570,6 +697,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             "user_k": args.user_k,
             "gate": args.gate,
             "gate_drops": gate_drops,
+            "dependents": dependents_path,
+            "dependents_coverage": coverage,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
