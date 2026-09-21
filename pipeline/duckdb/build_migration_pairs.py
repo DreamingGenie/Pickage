@@ -180,6 +180,9 @@ SELECT Name, Version, published_at, deps, nonreg,
   -- source_repo 가 맨 'https://' 나 'git+' 면 정규화 뒤 '' 가 되는데, NOT NULL 이라 그대로
   -- 통과해 서로 다른 배포주체가 '' 하나로 뭉친다. -378 에서 any_value 를 min 으로 바꾼 뒤로는
   -- 그 쓰레기값이 사전순 최솟값이라 **있으면 반드시** 골라진다.
+  -- trim 은 빈 값 판정에만 쓰는 게 아니라 묶음 키 자체를 바꾼다 — 앞뒤 공백만 다른 주소
+  -- 233종(versions_full 전수 실측)이 하나로 합쳐진다. 같은 저장소가 공백 때문에 둘로
+  -- 갈리던 것이라 합치는 쪽이 맞지만, publisher_months 가 올라가 경계 쌍이 들어올 수 있다.
   CASE WHEN Name LIKE '@%' THEN split_part(Name,'/',1)
        ELSE coalesce(nullif(trim(regexp_replace(lower(source_repo),'\.git$|^git\+|^https?://|^git://|^ssh://git@','','g')), ''), Name)
        END AS publisher
