@@ -85,6 +85,12 @@ public record TransitionsResponse(
 	 * @param outflow        <b>그만 씀</b> — T1 엔 있고 T2 엔 없다.
 	 * @param unobserved     <b>판정 불가</b> — 양 끝에 선언이 있는데 구간 안에 대표 릴리스가
 	 *                       바뀌지 않았다. 계속 쓰는지 뺐는지 <b>알 방법이 없다.</b>
+	 * @param unobservedRecent   {@code unobserved} 중 마지막 대표 릴리스가 {@code t2} 기준
+	 *                       <b>3년 안</b>. 셋의 합이 {@code unobserved} 다.
+	 * @param unobservedStale    그중 <b>3~5년 전</b>.
+	 * @param unobservedDormant  그중 <b>5년 초과</b> — 사실상 방치된 프로젝트다. 기본 구간(3년)
+	 *                       에서 판정 불가의 63.2% 가 여기다. "판정할 수 없다" 와 "사실상
+	 *                       죽었다" 는 받는 쪽에 전혀 다른 정보다.
 	 * @param dataStatus     {@code COMPLETE} · {@code NO_DATA} · {@code OUT_OF_SCOPE} ·
 	 *                       {@code NOT_COMPUTED}. 0 과 "모름" 을 구분하기 위한 값이다.
 	 */
@@ -99,15 +105,32 @@ public record TransitionsResponse(
 		Integer inflowAdopted,
 		Integer outflow,
 		Integer unobserved,
+		Integer unobservedRecent,
+		Integer unobservedStale,
+		Integer unobservedDormant,
 		String dataStatus
 	) {
 
-		/** 수가 들어 있는 행. {@code inflowAdopted} 는 여기서 계산한다. */
+		/**
+		 * 수가 들어 있는 행. {@code inflowAdopted} 는 여기서 계산한다.
+		 *
+		 * <p><b>분해 셋은 {@code dataStatus} 와 별개로 {@code null} 일 수 있다.</b>
+		 * {@code COMPLETE} 인데도 셋만 {@code null} 인 상태가 정상적으로 존재한다 —
+		 * 마이그레이션(배포)과 재적재 사이에는 분해를 모르는 행이 표에 남아 있기 때문이다
+		 * (S15P21A506-421 · {@code V11}). 그때 0 을 주면 "5년 넘게 방치된 의존자가 0명" 이
+		 * 되어 숫자가 맞아 보이는 거짓이 된다. 받는 쪽은 셋이 {@code null} 이면 분해를
+		 * 그리지 않는다.
+		 *
+		 * <p>셋은 <b>전부 있거나 전부 없다.</b> 일부만 채워진 행은 DB CHECK 가 막는다.
+		 */
 		public static Series counted(String name, String kind, int retained, int inflow,
-			int inflowNew, int outflow, int unobserved) {
+			int inflowNew, int outflow, int unobserved,
+			Integer unobservedRecent, Integer unobservedStale, Integer unobservedDormant) {
 			boolean empty = retained == 0 && inflow == 0 && outflow == 0 && unobserved == 0;
 			return new Series(name, kind, NPM_ALL, retained, inflow, inflowNew,
-				inflow - inflowNew, outflow, unobserved, empty ? NO_DATA : COMPLETE);
+				inflow - inflowNew, outflow, unobserved,
+				unobservedRecent, unobservedStale, unobservedDormant,
+				empty ? NO_DATA : COMPLETE);
 		}
 
 		/**
@@ -116,7 +139,8 @@ public record TransitionsResponse(
 		 * @param status {@code OUT_OF_SCOPE}(계산 대상 밖) 또는 {@code NOT_COMPUTED}(회차 미적재)
 		 */
 		public static Series unknown(String name, String kind, String status) {
-			return new Series(name, kind, NPM_ALL, null, null, null, null, null, null, status);
+			return new Series(name, kind, NPM_ALL, null, null, null, null, null, null,
+				null, null, null, status);
 		}
 	}
 }

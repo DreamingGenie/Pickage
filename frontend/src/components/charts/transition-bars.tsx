@@ -1,20 +1,29 @@
-import { HatchDef } from '@/components/charts/version-share'
+import { HatchDef, ShareDonut } from '@/components/charts/version-share'
 import { SHARE_FILLS } from '@/components/charts/tokens'
-import type {
-  TransitionCounts,
-  TransitionDataStatus,
+import {
+  activityShares,
+  type TransitionCounts,
+  type TransitionDataStatus,
 } from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
+
+/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 "값/비율" 토글이 고른다. */
+export type TransitionBarsMode = 'value' | 'ratio'
 
 type CategoryKey = 'retained' | 'inflowAdopted' | 'outflow' | 'unobserved'
 
 /** 고정 네 범주. 항상 이 순서로, 항상 넷 다 그린다 — `unobserved`를 빼거나 `retained`에
- *  합치면 유지율이 실제보다 높게 보이는 거짓 그래프가 된다(1년 구간 기준 최대 75%p 차이). */
+ *  합치면 유지율이 실제보다 높게 보이는 거짓 그래프가 된다(1년 구간 기준 최대 75%p 차이).
+ *
+ *  `unobserved`를 **"미관측"·"알 수 없음"으로 부르지 않는다**(S15P21A506-427) — 자료를 못 구한
+ *  것처럼 읽히는데, 실제로는 기간의 양 끝에 선언이 남아 있다는 것을 알고 있다. 모르는 것은 그 사이에
+ *  계속 쓸지 다시 검토했는가 뿐이고, 판단할 수 없는 이유는 **의존자가 이 기간에 릴리스를 내지 않아서**다.
+ *  라벨 자리가 좁아 사실만 짧게 적고, 뜻은 패널의 계산 기준 모달이 맡는다. */
 const CATEGORIES: { key: CategoryKey; label: string; fill: string }[] = [
   { key: 'retained', label: '유지', fill: SHARE_FILLS[0] },
   { key: 'inflowAdopted', label: '유입', fill: SHARE_FILLS[1] },
   { key: 'outflow', label: '이탈', fill: SHARE_FILLS[2] },
-  { key: 'unobserved', label: '미관측', fill: SHARE_FILLS[3] },
+  { key: 'unobserved', label: '릴리스 없음', fill: SHARE_FILLS[3] },
 ]
 
 const PLACEHOLDER_WIDTH = 40
@@ -31,15 +40,22 @@ export function TransitionBars({
   counts,
   dataStatus,
   max,
+  mode = 'value',
   className,
 }: {
   counts: TransitionCounts | null
   dataStatus: TransitionDataStatus
   /** 비교 중인 패키지 전체를 통틀어 호출자가 한 번 계산한 값 — 여기서 스케일을
-   *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. */
+   *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. `ratio` 모드에서는
+   *  쓰지 않는다(도넛은 패키지마다 자기 안에서 100%다). */
   max: number
+  mode?: TransitionBarsMode
   className?: string
 }) {
+  if (mode === 'ratio') {
+    return <RatioDonut counts={counts} dataStatus={dataStatus} className={className} />
+  }
+
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <svg width="0" height="0" aria-hidden className="absolute">
@@ -70,6 +86,99 @@ export function TransitionBars({
   )
 }
 
+/**
+ * 활동 대비 비율 — 도넛 (S15P21A506-427, 재설계 S15P21A506-427 후속).
+ *
+ * 막대(값 모드)는 **전체 대비**다 — 1년 구간이면 `릴리스 없음` 하나가 화면을 먹어 나머지 셋을
+ * 서로 비교할 수 없다. 그래서 판정한 의존자만 분모로 삼은 비율을 **도넛**으로 따로 보여준다.
+ * 글로 "유지 72.6% · 유입 10.4% · 이탈 17.0%" 를 늘어놓는 것보다, 세 조각이 원 하나를 나눠
+ * 가진 그림이 "본 것 중 무엇이 일어났나" 를 한눈에 전한다(리뷰에서 텍스트 줄이 안 읽힌다는
+ * 지적을 받았다).
+ *
+ * 전체 대비(막대)와 활동 대비(도넛)를 **패널 전체가 공유하는 토글로 가른다** — 막대는 "얼마나 봤나",
+ * 도넛은 "본 것 중 무엇이 일어났나" 이고, 한 화면에 억지로 같이 두면 서로 다른 분모의 숫자가
+ * 뒤섞여 더 헷갈린다. 세로로 쌓아 도넛을 키운다 — 도넛 옆에 범례를 붙이면 칼럼 폭만 넓고
+ * 안은 빈 카드가 된다(리뷰 지적).
+ *
+ * 분모가 `inflowAdopted`인 이유는 `activityShares` 주석에 있다.
+ */
+function RatioDonut({
+  counts,
+  dataStatus,
+  className,
+}: {
+  counts: TransitionCounts | null
+  dataStatus: TransitionDataStatus
+  className?: string
+}) {
+  const shares = counts ? activityShares(counts) : null
+
+  if (!shares) {
+    const message =
+      dataStatus === 'OUT_OF_SCOPE'
+        ? '분석 대상 아님 · top-100k 밖'
+        : dataStatus === 'NOT_COMPUTED'
+          ? '준비 중'
+          : '판정한 의존자가 없습니다'
+    return (
+      <div className={cn('flex min-h-32 flex-col items-center justify-center', className)}>
+        <p className="text-base text-muted-foreground">{message}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex flex-col items-center gap-3', className)}>
+      {/*
+        캡션을 도넛 아래가 아니라 옆에 둔다 — 아래에 두면 두 줄로 접혀 "값" 모드보다 카드가
+        눈에 띄게 길어졌다(리뷰 지적). 도넛을 살짝 왼쪽으로 밀어 생긴 옆자리를 쓴다.
+      */}
+      <div className="flex items-center gap-4">
+        <ShareDonut
+          size={104}
+          ariaLabel="유지·유입·이탈 활동 대비 비율"
+          groups={[
+            { label: CATEGORIES[0].label, share: shares.retainedPct / 100 },
+            { label: CATEGORIES[1].label, share: shares.inflowAdoptedPct / 100 },
+            { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
+          ]}
+        />
+        {/* 두 줄 고정 — "의존자 N 중" / "M 판정". 문장으로 풀지 않는다(리뷰 지적). */}
+        <p className="text-base text-muted-foreground/80">
+          의존자 {shares.total.toLocaleString()} 중
+          <br />
+          {shares.active.toLocaleString()} 판정
+        </p>
+      </div>
+      <dl className="flex w-full max-w-64 flex-col gap-1.5">
+        <RatioRow fill={CATEGORIES[0].fill} label={CATEGORIES[0].label} pct={shares.retainedPct} />
+        <RatioRow
+          fill={CATEGORIES[1].fill}
+          label={CATEGORIES[1].label}
+          pct={shares.inflowAdoptedPct}
+        />
+        <RatioRow fill={CATEGORIES[2].fill} label={CATEGORIES[2].label} pct={shares.outflowPct} />
+      </dl>
+    </div>
+  )
+}
+
+function RatioRow({ fill, label, pct }: { fill: string; label: string; pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+        style={{ background: fill }}
+        aria-hidden
+      />
+      <dt className="text-base text-muted-foreground">{label}</dt>
+      <dd className="ml-auto font-mono text-base text-muted-foreground tabular-nums">
+        {pct.toFixed(1)}%
+      </dd>
+    </div>
+  )
+}
+
 function BarRow({
   label,
   fill,
@@ -91,8 +200,8 @@ function BarRow({
       : 0
 
   return (
-    <div className="grid grid-cols-[52px_1fr_64px] items-center gap-2">
-      <span className="text-base text-muted-foreground">{label}</span>
+    <div className="grid grid-cols-[92px_1fr_64px] items-center gap-2">
+      <span className="text-base whitespace-nowrap text-muted-foreground">{label}</span>
       <span
         className={cn(
           'h-2.5 overflow-hidden rounded-sm',

@@ -12,7 +12,8 @@ MVP 의 Snapshot 총수 `delta` 와 **다른 지표다.** `delta` 는 첫·마�
       datasets/targets/rank_top100k_20260902.csv (대상 목록)
 
 출력  data/dependent_transitions<_label>/dependent_transitions.parquet
-        (period, target, kind) 1행 — 네 범주의 수. **전량은 여기에만 있다**
+        (period, target, kind) 1행 — 네 범주의 수와 관측불가 분해.
+        **전량은 여기에만 있다**
       datasets/dependent_transitions_<label 또는 260917>/
         transitions_summary.csv   같은 표를 **상위 CSV_TOP_N 개 대상만** 담은 표본
                                   (UTF-8 BOM). 잘린 수는 stats 의 csv_targets
@@ -73,6 +74,37 @@ MVP 의 Snapshot 총수 `delta` 와 **다른 지표다.** `delta` 는 첫·마�
 막대를 다섯 개로 늘리지 않고 보조 열로 둔 것은, 이미 설명이 필요한 막대(관측 불가)가
 하나 있어서다. 화면은 네 막대를 그리고 유입 막대의 세부만 곁들이면 된다.
 
+## 관측불가도 한 덩어리로 읽으면 안 된다 — 신선도 셋 (S15P21A506-421)
+
+관측불가 안에 성격이 다른 둘이 섞여 있다. **작년에도 재작년에도 릴리스를 냈는데 마침 이
+구간에만 없었다** 와 **5년째 아무것도 안 나온다(사실상 죽은 프로젝트)** 다. 같은 칸에 두면
+"이걸 쓰는 사람들이 살아 있는가" 를 판단할 수 없다. npm 전수의 33.8% 가 마지막 릴리스
+5년 초과다.
+
+그 dependent 의 **마지막 대표 릴리스가 T2 에서 얼마나 떨어져 있는지**로 가른다.
+
+    unobserved_recent   마지막 대표 릴리스가 T2 기준 3년 안
+    unobserved_stale    3~5년 전
+    unobserved_dormant  5년 초과 (마지막 릴리스를 모르는 경우도 여기로 센다)
+
+셋의 합은 언제나 `unobserved` 다. 경계는 `PERIODS` 에서 가져다 쓴다 — 같은 값을 두 번 적으면
+구간 경계와 어긋나고 그 어긋남은 합계 검산에 걸리지 않는다.
+
+**구간마다 의미 있는 칸이 다르다.** 관측불가는 (T1, T2] 안에 대표 릴리스가 없다는 뜻이고
+경계가 구간 길이와 같은 값이므로, 구간이 길수록 앞쪽 칸이 정의상 비어 버린다.
+
+    | 구간 | recent | stale | dormant |
+    |------|--------|-------|---------|
+    | 1y   | 있다 (1~3년 전) | 있다 | 있다 |
+    | 3y   | **언제나 0**   | 있다 | 있다 |
+    | 5y   | **언제나 0**   | **언제나 0** | = unobserved |
+
+`verify()` 의 `impossible_freshness` 가 그 0 을 검산한다. 5년 구간에서 분해가 아무것도
+말하지 않는 것은 결함이 아니라 정의다 — 그 구간의 관측불가는 전부 5년 초과 방치다.
+
+**이 분해는 관측불가를 줄이지 않는다.** 같은 수를 더 잘 설명할 뿐이다. 줄이려면 릴리스를
+내지 않은 프로젝트의 현재 선언(GitHub HEAD 의 package.json)을 봐야 한다.
+
 **"왜 떠났는가" 는 여기서 답하지 않는다.** X 를 빼면서 다른 것을 넣었는지(대체)와 아무것도
 안 넣었는지(그냥 제거)의 구분은 시점 두 개를 비교해서는 알 수 없다 — 그 사이 어느 릴리스에서
 뺐는지, 그때 무엇을 넣었는지를 봐야 하기 때문이다. 그것은 연속한 두 릴리스를 훑는
@@ -129,6 +161,14 @@ PERIOD_YEARS = (1, 3, 5)
 _TS_FMT = "%Y-%m-%d %H:%M:%S"
 _t2 = datetime.strptime(T2, _TS_FMT)
 PERIODS = {f"{n}y": _t2.replace(year=_t2.year - n).strftime(_TS_FMT) for n in PERIOD_YEARS}
+
+# 관측불가를 **마지막 대표 릴리스의 신선도**로 쪼갠다 (S15P21A506-421).
+#
+# 경계를 따로 적지 않고 PERIODS 에서 **가져다 쓴다.** 같은 값을 두 번 적으면 다음 스냅샷에서
+# 한쪽만 고쳐졌을 때 "3년 구간인데 최근 3년 안에 릴리스가 있는 관측불가" 처럼 존재할 수 없는
+# 칸이 생기는데, 합계는 그대로라 어떤 합계 검산에도 걸리지 않는다. 두 값이 같은 것이
+# 아래 verify() 의 impossible_freshness 가 성립하는 근거이기도 하다.
+FRESHNESS_CUTS = {"stale": PERIODS["3y"], "dormant": PERIODS["5y"]}
 # 읽을 파티션도 T2 에서 유도한다. T1 과 **같은 이유다.** 따로 적어 두면 다음 회차에서 T2 만
 # 고쳤을 때 8월 데이터를 읽으면서 11월이라고 이름 붙은 결과가 나오고, 그때 published_after_t2
 # 는 0 이라 조용하며 검산 넷은 내부 정합성만 보므로 전부 통과한다.
@@ -149,8 +189,10 @@ CSV_TOP_N = 5000
 # 입력 계약  decl(dependent, point, target, kind)  point 는 't2' 또는 구간 이름
 #            moved(dependent, period)              있으면 그 구간에 대표가 바뀐 것
 #            first_rel(dependent, first_release)   그 패키지의 첫 릴리스 발행시각
-#            periods(period, t1) · tgt(name)
-# 출력       cls_m(period, target, kind, dependent, a, b, moved) · agg(period, target, kind, 네 수)
+#            last_rel(dependent, last_release)     그 패키지의 마지막 대표 릴리스 발행시각
+#            periods(period, t1) · cuts(stale, dormant) · tgt(name)
+# 출력       cls_m(period, target, kind, dependent, a, b, moved, is_new, freshness)
+#            agg(period, target, kind, 네 수 + 관측불가 분해 셋)
 CLASSIFY_SQL = """
 CREATE OR REPLACE TABLE cls AS
 SELECT w.period, d.target, d.kind, d.dependent,
@@ -166,14 +208,30 @@ GROUP BY 1, 2, 3, 4;
 -- "다른 것을 쓰다가 갈아탄 것" 이 아니라 "새로 생긴 프로젝트가 처음부터 골랐다" 이다.
 -- 둘을 합쳐 두면 생태계 성장이 채택으로 읽힌다 — 2026-09-17 실측에서 3년 사이 새로 생긴
 -- 패키지가 174.7만(전체 407만의 43%)이라 유입의 대부분이 뒤쪽이다.
+--
+-- freshness 는 **관측불가를 셋으로 가르는 열**이다 (S15P21A506-421). 관측불가 한 덩어리에
+-- "작년에도 재작년에도 릴리스를 냈는데 마침 이 구간에만 없었다" 와 "5년째 아무것도 안
+-- 나온다" 가 함께 들어 있어, 받는 쪽이 "이걸 쓰는 사람들이 살아 있는가" 를 판단할 수 없다.
+-- npm 전수의 33.8% 가 마지막 릴리스 5년 초과다.
+--
+-- CASE 로 한 열을 만들고 아래에서 그 값으로 센다. 세 FILTER 에 부등식을 따로 쓰면 경계를
+-- 한쪽만 고쳤을 때 겹치거나 비어 두 칸에 세거나 아무 칸에도 안 세게 되고, 그래도 합계는
+-- 맞을 수 있다. CASE 는 **한 행이 정확히 한 칸**임을 구조로 보장한다.
+-- last_release 가 NULL 이면(있을 수 없다 — decl 에 있는 dependent 는 rep 에서 왔다) 비교가
+-- 전부 NULL 이라 ELSE 로 떨어져 dormant 로 센다. 어느 쪽이든 합계는 보존된다.
 CREATE OR REPLACE TABLE cls_m AS
 SELECT c.period, c.target, c.kind, c.dependent, c.a, c.b,
        (m.dependent IS NOT NULL) AS moved,
-       (f.first_release > w.t1)  AS is_new
+       (f.first_release > w.t1)  AS is_new,
+       CASE WHEN l.last_release > x.stale   THEN 'recent'
+            WHEN l.last_release > x.dormant THEN 'stale'
+            ELSE 'dormant' END AS freshness
 FROM cls c
 JOIN periods w ON w.period = c.period
+CROSS JOIN cuts x
 LEFT JOIN moved m ON m.dependent = c.dependent AND m.period = c.period
-LEFT JOIN first_rel f ON f.dependent = c.dependent;
+LEFT JOIN first_rel f ON f.dependent = c.dependent
+LEFT JOIN last_rel l ON l.dependent = c.dependent;
 
 -- 대상 × kind × 구간을 모두 만들고 없으면 0 을 넣는다. 행을 빼면 받는 쪽에서
 -- "조회 실패" 와 "dependent 가 없음" 을 구분할 수 없다 (build_package_dependents.py 와 같은 규칙).
@@ -183,7 +241,13 @@ SELECT g.period, g.name AS target, g.kind,
        count(c.dependent) FILTER (WHERE NOT c.a AND c.b)              AS inflow,
        count(c.dependent) FILTER (WHERE NOT c.a AND c.b AND c.is_new) AS inflow_new,
        count(c.dependent) FILTER (WHERE c.a AND NOT c.b)              AS outflow,
-       count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved)  AS unobserved
+       count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved)  AS unobserved,
+       count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved
+                                        AND c.freshness = 'recent')   AS unobserved_recent,
+       count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved
+                                        AND c.freshness = 'stale')    AS unobserved_stale,
+       count(c.dependent) FILTER (WHERE c.a AND c.b AND NOT c.moved
+                                        AND c.freshness = 'dormant')  AS unobserved_dormant
 FROM (SELECT t.name, k.kind, w.period
       FROM tgt t
       CROSS JOIN (SELECT unnest($kinds) AS kind) k
@@ -241,16 +305,21 @@ def parse_args(argv=None):
 
 
 def build_periods(con):
-    """구간 표. T1 을 SQL 문자열로 붙이지 않으려고 테이블로 만든다."""
+    """구간 표와 신선도 경계. 시각을 SQL 문자열로 붙이지 않으려고 테이블로 만든다."""
     con.execute("CREATE OR REPLACE TABLE periods(period VARCHAR, t1 TIMESTAMP)")
     for w, t1 in PERIODS.items():
         con.execute("INSERT INTO periods VALUES (?, ?)", [w, t1])
+    # 한 행짜리 표다. cls_m 이 CROSS JOIN 으로 붙인다.
+    con.execute("CREATE OR REPLACE TABLE cuts(stale TIMESTAMP, dormant TIMESTAMP)")
+    con.execute("INSERT INTO cuts VALUES (?, ?)",
+                [FRESHNESS_CUTS["stale"], FRESHNESS_CUTS["dormant"]])
 
 
 # 0 이 아니면 계산이 틀린 것이다. 나머지 검산 항목(비중 따위)은 판정이 아니라 관측값이라
 # 여기 넣지 않는다.
 FAIL_IF_NONZERO = ("impossible_change_without_move", "conservation_t2_mismatch",
-                   "conservation_t1_mismatch", "inflow_new_exceeds_inflow")
+                   "conservation_t1_mismatch", "inflow_new_exceeds_inflow",
+                   "impossible_freshness")
 
 
 def require_clean(checks):
@@ -303,6 +372,32 @@ def verify(con):
         SELECT period,
                round(sum(unobserved)::DOUBLE
                      / nullif(sum(retained + inflow + outflow + unobserved), 0), 4)
+        FROM agg GROUP BY 1 ORDER BY 1""").fetchall()
+
+    # 5) 관측불가 분해 — 구간마다 **정의상 비어 있어야 하는 칸**이 다르다 (S15P21A506-421).
+    #    관측불가는 (T1, T2] 안에 대표 릴리스가 없다는 뜻이고 경계가 PERIODS 와 같은 값이므로,
+    #    3y 에서는 recent 가, 5y 에서는 recent·stale 이 나올 수 없다. 0 이 아니면 last_rel 의
+    #    T2 컷오프가 빠졌거나 조인·경계 유도가 틀린 것이다. **실제로 이것이 잡는 경우가 있다** —
+    #    rep 에는 T2 를 넘겨 발행된 전환점이 1,208개 들어 있어(BigQuery 추출이 UTC 자정을 세 시간
+    #    넘겨 돌았다, README 6-5) 컷오프 없이 max 를 잡으면 그 939개 패키지가 recent 로 샌다.
+    #
+    #    합계 recent+stale+dormant = unobserved 는 여기서 세지 않는다. CASE 가 한 행을 한 칸에만
+    #    넣으므로 언제나 참이라 아무것도 잡지 못한다. 그 등식은 CSV·COPY 로 열이 어긋날 수 있는
+    #    적재 경계에서 DB CHECK 가 본다 — dependent_removal_reason 이 같은 판단을 했다.
+    #
+    #    구간 이름('3y')을 적지 않고 **표에서 유도한다.** 이름을 적으면 프리셋을 바꿨을 때
+    #    WHERE 가 아무 행도 고르지 않아 검산이 조용히 통과한다. 규칙 자체는 이름과 무관하다 —
+    #    관측불가면 마지막 대표 릴리스가 t1 이전이므로, t1 이 경계보다 앞서거나 같은 구간에서는
+    #    그 경계 뒤쪽 칸이 빌 수밖에 없다. cuts 를 CLASSIFY_SQL 과 같은 표에서 읽으므로 분류에
+    #    쓴 값과 검산에 쓴 값이 다를 수 없다.
+    v["impossible_freshness"] = con.execute("""
+        SELECT count(*) FROM agg a
+        JOIN periods w ON w.period = a.period
+        CROSS JOIN cuts x
+        WHERE (w.t1 <= x.stale   AND a.unobserved_recent > 0)
+           OR (w.t1 <= x.dormant AND a.unobserved_stale > 0)""").fetchone()[0]
+    v["unobserved_split_by_period"] = con.execute("""
+        SELECT period, sum(unobserved_recent), sum(unobserved_stale), sum(unobserved_dormant)
         FROM agg GROUP BY 1 ORDER BY 1""").fetchall()
     return v
 
@@ -409,6 +504,16 @@ WHERE r.published_at > w.t1 AND r.published_at <= TIMESTAMP '{T2}'""")
     con.execute("""CREATE OR REPLACE TABLE first_rel AS
 SELECT Name AS dependent, min(published_at) AS first_release FROM rep GROUP BY 1""")
 
+    # 관측불가를 가르는 재료 — 그 패키지가 **마지막으로** 대표를 바꾼 시각 (S15P21A506-421).
+    #
+    # **T2 컷오프가 반드시 있어야 한다.** rep 에는 T2 를 넘겨 발행된 전환점이 1,208개 들어 있다
+    # (BigQuery 추출이 UTC 자정을 세 시간 넘겨 돌았다 — README 6-5). 컷오프 없이 max 를 잡으면
+    # 그 패키지들의 마지막 릴리스가 T2 뒤로 잡혀, 구간 안에 대표가 안 바뀌었는데도 "최근 3년 안"
+    # 칸에 들어간다. 이 데이터셋의 모든 시점은 T2 에서 끊는다.
+    con.execute(f"""CREATE OR REPLACE TABLE last_rel AS
+SELECT Name AS dependent, max(published_at) AS last_release FROM rep
+WHERE published_at <= TIMESTAMP '{T2}' GROUP BY 1""")
+
     # 5) 판정·저장 ------------------------------------------------------------
     log("5/5 판정·저장")
     con.execute(CLASSIFY_SQL, {"kinds": list(KINDS)})
@@ -421,6 +526,7 @@ SELECT Name AS dependent, min(published_at) AS first_release FROM rep GROUP BY 1
     con.execute(f"""CREATE OR REPLACE TABLE out AS
 SELECT a.period, a.target, a.kind, a.retained, a.inflow, a.inflow_new,
        a.outflow, a.unobserved,
+       a.unobserved_recent, a.unobserved_stale, a.unobserved_dormant,
        w.t1, TIMESTAMP '{T2}' AS t2, t.download_rank,
        (t.download_rank IS NOT NULL) AS in_top100k
 FROM agg a JOIN periods w ON w.period = a.period JOIN tgt t ON t.name = a.target""")

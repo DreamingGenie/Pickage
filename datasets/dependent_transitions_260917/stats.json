@@ -12,7 +12,7 @@
     "optional"
   ],
   "source": "depsdev",
-  "built_at": "2026-09-17T11:10:41",
+  "built_at": "2026-09-21T13:47:25",
   "representative_releases": 45800750,
   "packages": 4065913,
   "published_after_t2": 1208,
@@ -56,8 +56,29 @@
       0.3055
     ]
   ],
+  "impossible_freshness": 0,
+  "unobserved_split_by_period": [
+    [
+      "1y",
+      3623454,
+      2411951,
+      4145978
+    ],
+    [
+      "3y",
+      0,
+      2411951,
+      4145978
+    ],
+    [
+      "5y",
+      0,
+      0,
+      4145978
+    ]
+  ],
   "csv_targets": 5000,
   "rows": 899964,
-  "file_bytes": 5740220,
-  "elapsed_sec": 151
+  "file_bytes": 6365780,
+  "elapsed_sec": 167
 }

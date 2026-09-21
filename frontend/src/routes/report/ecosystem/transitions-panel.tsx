@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
-import { TransitionBars } from '@/components/charts/transition-bars'
+import { TransitionBars, type TransitionBarsMode } from '@/components/charts/transition-bars'
 import { seriesStyle } from '@/components/charts/tokens'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { SegmentedControl } from '@/components/common/segmented-control'
@@ -13,6 +13,7 @@ import {
   TRANSITION_KIND_INFO,
   TRANSITION_KINDS,
   TRANSITION_PERIODS,
+  unobservedShare,
   type TransitionKind,
   type TransitionPeriod,
   type TransitionsModel,
@@ -49,6 +50,12 @@ export function TransitionsPanel({
   className?: string
 }) {
   const [kind, setKind] = useState<TransitionKind>('regular')
+  /**
+   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 토글이다. 패키지마다
+   * 따로 두어 봤으나 오히려 불편하다는 피드백을 받았다 — 나란히 비교하는 화면에서 한쪽만
+   * 막대고 한쪽은 도넛이면 비교가 더 어려워진다. "조회 기간"과 같은 줄, 가운데에 둔다.
+   */
+  const [mode, setMode] = useState<TransitionBarsMode>('value')
 
   const rowsOf = (pkg: TransitionsModel['packages'][number]) =>
     pkg.rows.find((r) => r.kind === kind) ?? null
@@ -75,6 +82,15 @@ export function TransitionsPanel({
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model.packages, kind])
+
+  /**
+   * 1년 경고에 쓸 실측값. 지금 고른 `kind`의 행만 합친다 — 종류를 바꾸면 비율도 달라진다.
+   * 문장에 상수를 박아 두지 않는 이유는 `unobservedShare` 주석에 있다.
+   */
+  const unobservedPct = useMemo(
+    () => unobservedShare(model.packages.flatMap((pkg) => pkg.rows.filter((r) => r.kind === kind))),
+    [model.packages, kind],
+  )
 
   const dateLabel =
     model.t1 && model.t2
@@ -104,19 +120,53 @@ export function TransitionsPanel({
               이름으로 센 결과라 계산 방식 자체가 다릅니다.
             </p>
             <p>devDependencies는 포함하지 않습니다.</p>
+            {/*
+              S15P21A506-427. 막대 라벨은 "릴리스 없음"이라는 사실만 짧게 말한다 — 왜 그것이
+              "모른다"와 다른지는 여기서 밝힌다. 1년 구간에서 화면의 대부분을 먹는 칸이라
+              이 설명이 없으면 우리가 자료를 못 구한 것처럼 읽힌다.
+            */}
+            <p>
+              <strong>릴리스 없음</strong>은 자료를 구하지 못했다는 뜻이 아닙니다. 그 프로젝트는
+              기간의 양 끝에서 이 패키지를 그대로 선언하고 있습니다. 다만 그 사이에 릴리스를 내지
+              않아, 계속 쓸지 다시 검토했는지를 판단하지 않았습니다. npm 패키지의 76.1%가 최근 1년간
+              릴리스가 없습니다.
+            </p>
+            <p>
+              기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 떨어지지만 실제로 판정하는 수는
+              늘지 않습니다 — 구간이 길수록 신생 패키지가 유입으로 옮겨가 분모가 부풀기 때문입니다.
+              판정 수가 가장 많은 것은 5년이 아니라 <strong>3년</strong>입니다.
+            </p>
           </InfoDialog>
         </div>
         <span className="font-mono text-base text-muted-foreground">{dateLabel}</span>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/*
+        3칸 그리드 — 양 끝 두 칸이 `1fr`라 가운데 칸(내용만큼만 차지)이 저절로 줄 가운데에
+        온다. 값/비율 토글을 여기 두는 이유는 "조회 기간"·"의존 종류"와 같은 줄이라 패널
+        전역 설정이라는 것이 위치로도 드러나서다.
+      */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="justify-self-start">
+          <SegmentedControl
+            label="조회 기간"
+            value={period}
+            onChange={(k) => onPeriodChange(k as TransitionPeriod)}
+            options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
+          />
+        </div>
+        {/* 값(막대)·비율(도넛) — 패널 전체에 하나. */}
         <SegmentedControl
-          label="조회 기간"
-          value={period}
-          onChange={(k) => onPeriodChange(k as TransitionPeriod)}
-          options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
+          label="표시 방식"
+          value={mode}
+          onChange={(k) => setMode(k as TransitionBarsMode)}
+          options={[
+            { key: 'value', label: '값' },
+            { key: 'ratio', label: '비율' },
+          ]}
+          className="justify-self-center"
         />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 justify-self-end">
           <SegmentedControl
             label="의존 종류"
             value={kind}
@@ -154,7 +204,22 @@ export function TransitionsPanel({
             </p>
           )}
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {period === '1y' && unobservedPct !== null && (
+            <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
+              1년은 판정할 수 있는 의존자가 가장 적은 구간입니다 — 지금 비교에서{' '}
+              <strong className="font-medium text-foreground">
+                {unobservedPct.toFixed(1)}%가 릴리스 없음
+              </strong>
+              입니다. 기본값인 3년이 실제로 판정하는 수가 가장 많습니다.
+            </p>
+          )}
+
+          {/*
+            `justify-center` + 고정 폭 — 3패키지면 기존 grid-cols-3 처럼 한 줄을 꽉 채우지만,
+            1~2개면 그리드가 비운 칸만큼 오른쪽에 통째로 남던 공백을 양옆으로 고르게 돌린다
+            (리뷰 지적: 패키지 1~2개 비교에서 균형이 안 맞아 보였다).
+          */}
+          <div className="flex flex-wrap justify-center gap-5">
             {model.packages.map((pkg, i) => {
               const row = rowsOf(pkg)
               const style = seriesStyle(i)
@@ -163,7 +228,8 @@ export function TransitionsPanel({
                 <div
                   key={pkg.key}
                   className={cn(
-                    'flex flex-col gap-3 transition-opacity duration-150',
+                    'flex w-full flex-none flex-col gap-3 transition-opacity duration-150',
+                    'sm:basis-[calc(50%-10px)] lg:basis-[calc(33.333%-14px)]',
                     !emphasized && 'opacity-40',
                   )}
                 >
@@ -183,7 +249,12 @@ export function TransitionsPanel({
                     <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
                   </div>
                   {row ? (
-                    <TransitionBars counts={row.counts} dataStatus={row.dataStatus} max={max} />
+                    <TransitionBars
+                      counts={row.counts}
+                      dataStatus={row.dataStatus}
+                      max={max}
+                      mode={mode}
+                    />
                   ) : (
                     <p className="text-base text-muted-foreground">자료 없음</p>
                   )}

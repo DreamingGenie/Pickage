@@ -1,7 +1,8 @@
 # 유지·유입·이탈 — dependent 전이
 
-작성 2026-09-17 (S15P21A506-195) · 원천 deps.dev BigQuery **2026-08-31 스냅샷** · 생성 스크립트
-`pipeline/duckdb/build_dependent_transitions.py` (153초)
+작성 2026-09-17 (S15P21A506-195) · **2026-09-21 관측불가 분해 추가 재생성**(S15P21A506-421) ·
+원천 deps.dev BigQuery **2026-08-31 스냅샷** · 생성 스크립트
+`pipeline/duckdb/build_dependent_transitions.py` (167초)
 대상 목록 `../targets/rank_top100k_20260902.csv` (10만 행, 중복 이름 4개를 접어 **99,996개**)
 
 "X 를 쓰던 사람들이 이 구간에 어떻게 움직였나". dependent 를 **이름으로 식별해** 구간 양 끝의
@@ -11,7 +12,7 @@
 
 | 파일 | 내용 | 행 |
 |---|---|---:|
-| `data/dependent_transitions/dependent_transitions.parquet` (git 미추적) | **본체.** `(period, target, kind)` 1행 · 5,740,220 바이트 | 899,964 |
+| `data/dependent_transitions/dependent_transitions.parquet` (git 미추적) | **본체.** `(period, target, kind)` 1행 · 6,365,780 바이트 | 899,964 |
 | `transitions_summary.csv` | **상위 5,000 대상만** 담은 표본 (UTF-8 BOM) | 45,000 |
 | `stats.json` | 아래 수치의 원본 · 검산 결과 | |
 
@@ -21,21 +22,27 @@
 > **CSV 로 합계를 내면 전체가 아니다.** 나머지 94,996개 대상은 parquet 에만 있다.
 > 잘린 수는 `stats.json` 의 `csv_targets` 가 말한다.
 
-parquet 은 2026-09-17 서버 MinIO 에 올렸다. 접속은 `pipeline/minio/README.md` 의 터널 절차를 따른다.
+MinIO 에 올라가 있는 것은 **분해 이전 회차**다(2026-09-17 입고). 접속은 `pipeline/minio/README.md`
+의 터널 절차를 따른다.
 
 ```text
 pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/
   run_id=dependent-transitions-20260917-v1/
-    data/dependent_transitions.parquet   5,740,220 바이트 · 899,964행
+    data/dependent_transitions.parquet   5,740,220 바이트 · 899,964행 (열 12개)
     run_manifest.json                    SHA-256 25e234ed… · 행 수
     _SUCCESS
 ```
 
-다시 올리려면 `PICKAGE_MINIO_ENV=.env.server` 를 주고 아래를 실행한다.
+> **2026-09-21 재생성분은 아직 입고 전이다.** 관측불가 분해 세 열이 늘어 파일이 다르다
+> (6,365,780 바이트 · 열 15개). 입고와 운영 재적재는 S15P21A506-421 에서 **새 `run_id`** 로
+> 한다 — 같은 `run_id` 에 다른 내용을 덮으면 manifest 의 SHA-256 과 이미 적재된 회차 이력이
+> 어긋난다.
+
+올릴 때는 `PICKAGE_MINIO_ENV=.env.server` 를 주고 아래를 실행한다.
 
 ```bash
 python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
-  --run-id dependent-transitions-20260917-v1
+  --run-id dependent-transitions-20260921-v1
 ```
 
 ## 2. 열
@@ -50,6 +57,9 @@ python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
 | `inflow_new` | 그중 **T1 때 아직 존재하지도 않던 패키지**. `inflow` 의 부분집합 |
 | `outflow` | **이탈** — T1 엔 있고 T2 엔 없다 |
 | `unobserved` | **관측 불가** — 양 끝에 선언이 있는데 대표 릴리스가 안 바뀌었다 |
+| `unobserved_recent` | 그중 마지막 대표 릴리스가 `t2` 기준 **3년 안**. 셋의 합 = `unobserved` |
+| `unobserved_stale` | 그중 **3~5년 전** |
+| `unobserved_dormant` | 그중 **5년 초과**. 마지막 릴리스를 모르는 경우도 여기로 센다 |
 | `t1` · `t2` | 구간의 두 시점. `period` 로 정해지는 상수다 |
 | `download_rank` | 상위 10만 표의 순위. 표 밖이면 NULL |
 | `in_top100k` | `download_rank IS NOT NULL` |
@@ -124,9 +134,46 @@ python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
 | `peer` | 171,750 | 519,455 | 481,586 | 13,241 | 1,190,920 |
 | `optional` | 3,965 | 20,171 | 18,209 | 860 | 20,954 |
 
+### 4-4. 관측 불가 안에도 성격이 다른 둘이 있다 (S15P21A506-421)
+
+그 dependent 의 **마지막 대표 릴리스가 `t2` 에서 얼마나 떨어져 있는지**로 가른다.
+"작년에도 재작년에도 릴리스를 냈는데 마침 이 구간에만 없었다" 와 "5년째 아무것도 안 나온다"
+를 같은 칸에 두면 "이걸 쓰는 사람들이 살아 있는가" 를 판단할 수 없다.
+
+| 구간 | 관측 불가 | 3년 안 | 3~5년 전 | **5년 초과** |
+|---|---:|---:|---:|---:|
+| `1y` | 10,181,383 | 3,623,454 (35.6%) | 2,411,951 (23.7%) | **4,145,978 (40.7%)** |
+| `3y` | 6,557,929 | 0 | 2,411,951 (36.8%) | **4,145,978 (63.2%)** |
+| `5y` | 4,145,978 | 0 | 0 | **4,145,978 (100%)** |
+
+**기본 구간(3년)의 관측 불가 셋 중 둘은 5년 넘게 릴리스가 없는 프로젝트다.** "판정할 수
+없다" 와 "사실상 죽었다" 는 사용자에게 전혀 다른 정보다.
+
+**구간마다 의미 있는 칸이 다르다.** 관측 불가는 구간 안에 대표 릴리스가 없다는 뜻이고
+신선도 경계가 구간 길이와 같은 값이라, 구간이 길수록 앞쪽 칸이 **정의상** 빈다 —
+3년 구간에서 "최근 3년 안" 은 존재할 수 없다. 5년 구간에서 분해가 아무것도 말하지 않는 것도
+결함이 아니라 정의다. `stats.json` 의 `impossible_freshness` 가 그 0 을 검산한다.
+
+세 칸의 수가 구간 사이에 똑같은 것도 같은 이유다. 5년 넘게 대표가 안 바뀐 dependent 는
+네 시점(`t2`·`1y`·`3y`·`5y`)의 대표가 모두 같은 버전이라 세 구간에서 전부 관측 불가다.
+
+`react`(`regular`) 로 보면 이렇다.
+
+| 구간 | 유지 | 전환 유입 | 이탈 | 관측 불가 | 3년 안 | 3~5년 전 | 5년 초과 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `1y` | 4,487 | 362 | 1,251 | 171,290 | 95,662 | 28,890 | 46,738 |
+| `3y` | 4,673 | 650 | 1,310 | 75,628 | 0 | 28,890 | 46,738 |
+| `5y` | 3,561 | 657 | 1,146 | 46,738 | 0 | 0 | 46,738 |
+
+**이 분해는 관측 불가를 줄이지 않는다.** 같은 수를 더 잘 설명할 뿐이다. 줄이려면 릴리스를
+내지 않은 프로젝트의 현재 선언(GitHub HEAD 의 `package.json`)을 봐야 한다.
+
+2026-09-21 재생성에서 **기존 열 12개는 899,964행 전부가 한 값도 바뀌지 않았다**
+(이전 parquet 과 양방향 `EXCEPT ALL` 로 대조, 차이 0행). 분해만 더한 것이다.
+
 ## 5. 검산
 
-`stats.json` 에 값이 있다. 넷 다 통과했다.
+`stats.json` 에 값이 있다. 다섯 다 통과했다.
 
 | 항목 | 값 | 뜻 |
 |---|---:|---|
@@ -134,9 +181,15 @@ python -m pipeline.minio.ingest_derived --dataset dependent-transitions \
 | `conservation_t2_mismatch` | **0** | 유지 + 유입 = T2 에 선언한 활성 dependent |
 | `conservation_t1_mismatch` | **0** | 유지 + 이탈 = T1 에 선언한 활성 dependent |
 | `inflow_new_exceeds_inflow` | **0** | 유입 세부가 유입을 넘지 않는다 |
+| `impossible_freshness` | **0** | 정의상 빌 수밖에 없는 칸(3y 의 3년 안, 5y 의 3년 안·3~5년 전)에 수가 들어간 행. 0 이 아니면 마지막 릴리스에 `t2` 컷오프가 빠졌거나 경계 유도가 틀린 것이다 |
 
-판정표 5칸과 유입 분할은 `pipeline/duckdb/test_build_dependent_transitions.py` 가 합성 입력으로
-지킨다(14개, 1.2초). 원천 11 GB 를 읽지 않고 빌더가 쓰는 SQL 상수를 그대로 적용한다.
+관측 불가 분해의 합(`recent + stale + dormant = unobserved`)은 **여기서 세지 않는다.**
+빌더 안에서는 `CASE` 가 한 행을 한 칸에만 넣으므로 언제나 참이라 아무것도 잡지 못한다.
+그 등식은 CSV·`COPY` 로 열이 어긋날 수 있는 **적재 경계**에서 DB CHECK 가 본다
+(마이그레이션 `V11` — 같은 티켓의 두 번째 MR. `dependent_removal_reason` 과 같은 판단이다).
+
+판정표 5칸·유입 분할·신선도 분해는 `pipeline/duckdb/test_build_dependent_transitions.py` 가
+합성 입력으로 지킨다(22개, 2.7초). 원천 11 GB 를 읽지 않고 빌더가 쓰는 SQL 상수를 그대로 적용한다.
 
 ## 6. 한계 — 쓰기 전에 읽을 것
 
@@ -189,7 +242,7 @@ dev 는 npm registry 수집분(S15P21A506-280·-366)에서 별도 회차로 낸�
 .venv-bq/Scripts/python.exe pipeline/duckdb/build_dependent_transitions.py
 ```
 
-**8스레드·40GB 로 153초.** 기본값이 `--memory 40GB` 라 RAM 이 그보다 적은 PC 에서는
+**8스레드·40GB 로 167초**(2026-09-21 재생성 기준. 분해 이전에는 153초였다). 기본값이 `--memory 40GB` 라 RAM 이 그보다 적은 PC 에서는
 `--memory` 를 실제 메모리의 60~70% 로 낮춰 준다 — 그대로 두면 DuckDB 가 디스크로 흘리지 않고
 계속 할당하다 4단계(선언 전개, 3,700만 행)에서 OOM 으로 죽는다. 대상 목록을 바꿀 때는 `--targets` 와 `--label` 을 함께 준다 — `--label` 없이 `--targets` 만
 주면 빌더가 거부한다(기본 회차 산출물을 조용히 덮어쓰는 사고를 막는다).

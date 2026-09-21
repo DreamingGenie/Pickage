@@ -456,7 +456,9 @@ public class PackageQueryRepository {
 	 */
 	private static final String TRANSITIONS_SQL = """
 		SELECT p.name, t.kind, t.retained, t.inflow, t.inflow_new,
-		       t.outflow, t.unobserved, t.t1, t.t2
+		       t.outflow, t.unobserved,
+		       t.unobserved_recent, t.unobserved_stale, t.unobserved_dormant,
+		       t.t1, t.t2
 		FROM dependent_transition t
 		JOIN package p ON p.package_id = t.package_id
 		WHERE t.period = ? AND p.name = ANY (?)
@@ -478,12 +480,20 @@ public class PackageQueryRepository {
 				rs.getInt("inflow_new"),
 				rs.getInt("outflow"),
 				rs.getInt("unobserved"),
+				// 관측불가 분해 세 열은 NULL 일 수 있다. getInt 는 NULL 을 0 으로 바꿔
+				// 놓으므로 쓰지 않는다 — 그러면 "5년 넘게 방치된 의존자가 0명" 이 되어
+				// 배포~재적재 사이에 거짓이 응답에 실린다 (S15P21A506-421 · V11).
+				rs.getObject("unobserved_recent", Integer.class),
+				rs.getObject("unobserved_stale", Integer.class),
+				rs.getObject("unobserved_dormant", Integer.class),
 				rs.getObject("t1", LocalDateTime.class).toLocalDate(),
 				rs.getObject("t2", LocalDateTime.class).toLocalDate()));
 	}
 
 	public record TransitionRow(String name, String kind, int retained, int inflow,
-		int inflowNew, int outflow, int unobserved, LocalDate t1, LocalDate t2) {
+		int inflowNew, int outflow, int unobserved,
+		Integer unobservedRecent, Integer unobservedStale, Integer unobservedDormant,
+		LocalDate t1, LocalDate t2) {
 	}
 
 	/**
