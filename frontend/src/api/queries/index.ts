@@ -12,6 +12,7 @@ import {
   fetchPackagesOverview,
   fetchPdfPreview,
   fetchSimilarPackages,
+  fetchRemovalReasons,
   fetchTransitions,
   fetchVersionShare,
   generatePdf,
@@ -226,6 +227,25 @@ export function useTransitions(
   return useQuery({
     queryKey: queryKeys.packages.transitions(names, period),
     queryFn: () => fetchTransitions(names, period),
+    enabled: ready && usable(names),
+    retry,
+  })
+}
+
+/**
+ * 이탈 사유 (S15P21A506-396·410). 위와 **같은 `period` 값을 받는다** — 프리셋도
+ * 기본값도 기준일도 같아서, 화면이 선택기 하나를 두 패널에 공유한다.
+ * 별도 쿼리인 이유는 단위가 다르고(패키지 수 vs 전이 건수) 서버 엔드포인트가 갈려서다 —
+ * 한쪽이 느리거나 실패해도 다른 쪽 패널은 그대로 뜬다.
+ */
+export function useRemovalReasons(
+  names: readonly string[],
+  period: TransitionPeriodParam,
+  ready = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.packages.removalReasons(names, period),
+    queryFn: () => fetchRemovalReasons(names, period),
     enabled: ready && usable(names),
     retry,
   })

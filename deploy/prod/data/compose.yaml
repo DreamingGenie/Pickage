@@ -301,6 +301,18 @@ services:
         mkdir -p /work/in /work/out
         mc cp --recursive "l/$$AI_CORPUS_PATH/" /work/in/
         mc cp --recursive "l/$$AI_MODEL_PATH/" /work/in/model/
+        # 보완재 관문 입력 (S15P21A506-173). 배치는 --package-text 와 같은 폴더의
+        # package_dependents.parquet 을 찾으므로 **이 이름으로** 받는다. 경로는 .env 의
+        # AI_DEPENDENTS_PATH (버킷/키 형태) — 아직 최신을 가리키는 포인터가 없어서
+        # 코퍼스·모델과 달리 .env 에 둔다.
+        # ⚠ 없거나 못 받아도 **배치를 멈추지 않는다.** 배치가 파일이 없으면 경고하고
+        #   보완재 관문만 건너뛴다. set -e 라 `||` 로 받아야 여기서 죽지 않는다.
+        if [ -n "$${AI_DEPENDENTS_PATH:-}" ]; then
+          mc cp "l/$$AI_DEPENDENTS_PATH" /work/in/package_dependents.parquet \
+            || echo "경고: dependents 를 못 받음 ($$AI_DEPENDENTS_PATH) — 보완재 관문은 건너뛴다" >&2
+        else
+          echo "경고: AI_DEPENDENTS_PATH 가 비어 있음 — 보완재 관문은 건너뛴다" >&2
+        fi
         # ⚠ 배치는 uid 1000 으로 돈다. mc 는 root 로 받으므로 넘겨주지 않으면
         #   배치가 --out 쓰기에서 Permission denied 로 죽는다.
         chown -R 1000:1000 /work

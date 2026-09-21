@@ -10,8 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 /**
  * 진행 중·끝난 기능 비교 run 을 담아 두는 곳.
  *
@@ -54,9 +52,11 @@ public class FeatureRunStore {
 		List<String> refs,
 		Instant startedAt,
 		Instant finishedAt,
-		JsonNode result,
+		/** JSON 원문. 트리가 아닌 이유는 {@link RagClient} 머리말 */
+		String result,
 		String errorCode,
-		JsonNode errorDetail
+		/** JSON 원문 */
+		String errorDetail
 	) {
 
 		public static final String RUNNING = "RUNNING";

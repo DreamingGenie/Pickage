@@ -3,7 +3,7 @@ package com.ssafy.pickage.domain.features.dto;
 import java.time.Instant;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonRawValue;
 
 /**
  * {@code POST /api/packages/feature-comparison} · {@code GET .../{runId}} 응답.
@@ -21,6 +21,11 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param errorCode  {@code FAILED} 일 때만. {@code DOC_NOT_FOUND}(그 버전의 문헌이 아직 없다)
  *                   · {@code VERIFICATION_FAILED}(생성물이 근거와 어긋나 막았다)
  *                   · {@code RAG_UNAVAILABLE}
+ *
+ * <p><b>{@code result} · {@code errorDetail} 은 JSON 원문을 그대로 싣는다({@link JsonRawValue}).</b>
+ * 트리 객체로 두면 Jackson 2 와 3 이 섞여 내용이 사라진다 — {@code RagClient} 머리말,
+ * S15P21A506-429. 원문은 {@code RagClient} 가 파싱해 확인한 뒤 다시 쓴 것이라 항상 올바른
+ * JSON 이다.
  */
 public record FeatureRunResponse(
 	String runId,
@@ -28,15 +33,15 @@ public record FeatureRunResponse(
 	String phase,
 	List<String> refs,
 	long elapsedSec,
-	JsonNode result,
+	@JsonRawValue String result,
 	String errorCode,
-	JsonNode errorDetail
+	@JsonRawValue String errorDetail
 ) {
 
 	public static FeatureRunResponse of(
 		String runId, String status, String phase, List<String> refs,
 		Instant startedAt, Instant finishedAt,
-		JsonNode result, String errorCode, JsonNode errorDetail
+		String result, String errorCode, String errorDetail
 	) {
 		Instant end = finishedAt == null ? Instant.now() : finishedAt;
 		return new FeatureRunResponse(

@@ -270,6 +270,89 @@ class LoadState(QuietMixin, unittest.TestCase):
         np.testing.assert_array_equal(state["p"]["vector"], np.array([1.0, 2.0, 3.0], dtype=np.float32))
 
 
+class LoadDependents(QuietMixin, unittest.TestCase):
+    """S15P21A506-173: package_dependents 류 parquet(name·kind·dependents) 로더."""
+
+    def test_none_path_returns_empty(self):
+        self.assertEqual(sbp.load_dependents(None), {})
+
+    def test_missing_file_returns_empty(self):
+        self.assertEqual(sbp.load_dependents("no/such/file.parquet"), {})
+
+    def test_reads_regular_kind_as_sets(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dependents.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": ["webpack", "webpack", "webpack-cli"],
+                    "kind": ["regular", "peer", "regular"],
+                    "dependents": [["a", "b", "c"], ["x"], ["a", "b"]],
+                }),
+                path,
+            )
+            deps = sbp.load_dependents(path)
+        self.assertEqual(deps["webpack"], {"a", "b", "c"})
+        self.assertEqual(deps["webpack-cli"], {"a", "b"})
+
+    def test_other_kind_can_be_selected(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dependents.parquet")
+            pq.write_table(
+                pa.table({
+                    "name": ["webpack"],
+                    "kind": ["peer"],
+                    "dependents": [["x", "y"]],
+                }),
+                path,
+            )
+            deps = sbp.load_dependents(path, kind="peer")
+        self.assertEqual(deps["webpack"], {"x", "y"})
+
+
+    def _write(self, d):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        path = os.path.join(d, "dependents.parquet")
+        pq.write_table(
+            pa.table({
+                "name": ["webpack", "webpack", "webpack-cli", "rollup", "left-pad"],
+                "kind": ["regular", "peer", "regular", "regular", "regular"],
+                "dependents": [["a", "b", "c"], ["x"], ["a", "b"], ["z"], []],
+            }),
+            path,
+        )
+        return path
+
+    def test_names_keeps_only_requested_packages(self):
+        """이번 배치 패키지가 아닌 행은 파이썬 객체로 풀기 전에 버린다(메모리)."""
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), names=["webpack", "rollup", "not-in-file"])
+        self.assertEqual(set(deps), {"webpack", "rollup"})
+        self.assertEqual(deps["webpack"], {"a", "b", "c"})
+
+    def test_names_none_keeps_every_regular_row(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d))
+        self.assertEqual(set(deps), {"webpack", "webpack-cli", "rollup", "left-pad"})
+
+    def test_names_and_kind_combine(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), kind="peer", names=["webpack", "rollup"])
+        self.assertEqual(deps, {"webpack": {"x"}})
+
+    def test_empty_dependents_row_is_kept_as_empty_set(self):
+        with tempfile.TemporaryDirectory() as d:
+            deps = sbp.load_dependents(self._write(d), names=["left-pad"])
+        self.assertEqual(deps, {"left-pad": set()})
+
+
 class EmbedCorpus(QuietMixin, unittest.TestCase):
     def test_all_rows_embedded_when_state_empty(self):
         rows = [{"name": "a"}, {"name": "b"}]
@@ -455,6 +538,63 @@ class IsRepoArchived(unittest.TestCase):
         self.assertFalse(sbp.is_repo_archived(None))
 
 
+class IsComplement(unittest.TestCase):
+    """S15P21A506-173: dependents(나를 쓰는 패키지) 집합 겹침으로 보완재를 판별.
+
+    비율은 교집합 ÷ 둘 중 더 작은 쪽 크기(containment) — 실측(2026-09-16, 후보 풀
+    29,310개 기준 dependents)으로 이 계산이 보완재(webpack↔webpack-cli 0.903,
+    express↔body-parser 0.873)와 진짜 대안(webpack↔rollup 0.075)을 뚜렷하게
+    갈라놓는 걸 확인함. 큰 쪽 기준으로 나누면(webpack↔webpack-cli 0.237) 신호가
+    뭉개져서 이 방식을 쓰지 않는다.
+    """
+
+    def test_flags_high_overlap_as_complement(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(90)}  # cand 쪽 90/90 이 base 와 겹침
+        self.assertTrue(sbp.is_complement(base, cand))
+
+    def test_does_not_flag_low_overlap(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"other{i}" for i in range(20)} | {"user0", "user1"}  # 2/20 만 겹침
+        self.assertFalse(sbp.is_complement(base, cand))
+
+    def test_missing_data_does_not_flag(self):
+        """dependents 데이터가 없는 쪽은 판단하지 않고 통과시킨다(보수적 기본값) —
+        후보 풀의 61.5%만 커버되던 시점의 실측 전제와 같음."""
+        self.assertFalse(sbp.is_complement(None, {"a", "b"}))
+        self.assertFalse(sbp.is_complement({"a", "b"}, None))
+        self.assertFalse(sbp.is_complement(set(), {"a", "b"}))
+
+    def test_threshold_is_configurable(self):
+        base = {"a", "b", "c", "d"}
+        cand = {"a", "b"}  # 비율 2/2 = 1.0
+        # min_sample 기본값(20)보다 작은 집합이라 표본 부족 판정과 섞이지 않게
+        # min_sample=1 로 threshold 자체의 동작만 분리해서 검증한다.
+        self.assertFalse(sbp.is_complement(base, cand, threshold=1.5, min_sample=1))
+        self.assertTrue(sbp.is_complement(base, cand, threshold=0.3, min_sample=1))
+
+    def test_small_sample_does_not_flag_even_with_high_ratio(self):
+        """실측(2026-09-16)에서 찾은 노이즈 사례 반영 — jest(dependents 11,228개) vs
+        @japa/runner(dependents 7개)가 우연히 4개 겹쳐 비율 0.571로 나왔지만, 표본이
+        7개뿐이라 통계적으로 못 믿을 수치다. 둘 중 작은 쪽이 min_sample 미만이면
+        비율이 아무리 높아도 판단을 보류(통과)한다."""
+        base = {f"user{i}" for i in range(11228)}
+        cand = {f"user{i}" for i in range(4)} | {"only-in-cand-1", "only-in-cand-2", "only-in-cand-3"}
+        self.assertEqual(len(cand), 7)
+        self.assertFalse(sbp.is_complement(base, cand))  # 비율 4/7=0.571 이지만 표본 부족
+
+    def test_sample_at_or_above_min_sample_is_judged_normally(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(20)}  # 정확히 min_sample 기본값(20), 비율 1.0
+        self.assertTrue(sbp.is_complement(base, cand))
+
+    def test_min_sample_is_configurable(self):
+        base = {f"user{i}" for i in range(100)}
+        cand = {f"user{i}" for i in range(7)}  # 비율 1.0 이지만 표본 7개
+        self.assertFalse(sbp.is_complement(base, cand))  # 기본 min_sample=20 이라 보류
+        self.assertTrue(sbp.is_complement(base, cand, min_sample=5))  # 낮추면 판단함
+
+
 class ApplyGates(unittest.TestCase):
     NAMES = ["moment", "dayjs", "moment-timezone", "eslint-plugin-x", "luxon", "date-fns"]
     KW = {i: [] for i in range(6)}
@@ -499,6 +639,81 @@ class ApplyGates(unittest.TestCase):
         kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
         self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
         self.assertNotIn("repo_archived", drops)
+
+    def test_drops_complement_candidate(self):
+        """S15P21A506-173: dependents 겹침이 높은 후보(보완재)를 감점(=drop)한다."""
+        dependents = {
+            0: {f"user{i}" for i in range(100)},  # moment
+            1: {f"user{i}" for i in range(90)},   # dayjs — moment 와 90% 겹침(보완재로 취급)
+            4: {"other1", "other2"},              # luxon — 겹침 거의 없음(진짜 대안)
+            5: {"other3", "other4"},              # date-fns
+        }
+        kept, drops = sbp.apply_gates(
+            self.HITS, self.NAMES, self.KW, enabled=True, dependents_by_idx=dependents
+        )
+        self.assertNotIn(1, [c for _, c, _ in kept])
+        self.assertEqual(drops["complement"], 1)
+
+    def test_no_dependents_by_idx_keeps_previous_behavior(self):
+        """dependents_by_idx 를 안 주면(옛 호출부) 아무도 complement 로 안 걸린다."""
+        kept, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertEqual([c for _, c, _ in kept], [1, 4, 5])
+
+    def test_complement_is_none_when_gate_did_not_run(self):
+        """dependents 가 없어 관문이 안 돌았으면 0 이 아니라 None — '0건 걸렀다' 와 구분된다."""
+        _, drops = sbp.apply_gates(self.HITS, self.NAMES, self.KW, enabled=True)
+        self.assertIn("complement", drops)
+        self.assertIsNone(drops["complement"])
+
+    def test_complement_is_zero_when_gate_ran_but_nothing_dropped(self):
+        dependents = {0: {"a"}, 1: {"b"}, 4: {"c"}, 5: {"d"}}
+        _, drops = sbp.apply_gates(
+            self.HITS, self.NAMES, self.KW, enabled=True, dependents_by_idx=dependents
+        )
+        self.assertEqual(drops["complement"], 0)
+
+
+class ResolveDependentsPath(unittest.TestCase):
+    """S15P21A506-173: --dependents 를 안 줘도 --package-text 옆 파일이 있으면 관문이 돈다."""
+
+    def test_explicit_path_wins_even_if_missing(self):
+        self.assertEqual(sbp.resolve_dependents_path("x/dep.parquet", "in/package_text.parquet"), "x/dep.parquet")
+
+    def test_finds_sibling_next_to_package_text(self):
+        import os
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            sibling = os.path.join(d, sbp.DEPENDENTS_FILENAME)
+            open(sibling, "wb").close()
+            got = sbp.resolve_dependents_path(None, os.path.join(d, "package_text.parquet"))
+            self.assertEqual(os.path.abspath(got), os.path.abspath(sibling))
+
+    def test_none_when_no_sibling(self):
+        import os
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            self.assertIsNone(sbp.resolve_dependents_path(None, os.path.join(d, "package_text.parquet")))
+
+
+class DependentsCoverage(unittest.TestCase):
+    def test_none_when_no_dependents_given(self):
+        self.assertIsNone(sbp.dependents_coverage(["a", "b"], {}))
+
+    def test_counts_names_present_in_map(self):
+        cov = sbp.dependents_coverage(["a", "b", "c", "d"], {"a": {"x"}, "c": {"y"}, "zzz": {"q"}})
+        self.assertEqual(cov, {"pool": 4, "with_dependents": 2, "ratio": 0.5})
+
+    def test_empty_dependents_set_still_counts_as_covered(self):
+        """의존자 0개는 결측이 아니라 범주라 행이 있으면 센다."""
+        cov = sbp.dependents_coverage(["a", "b"], {"a": set(), "b": {"x"}})
+        self.assertEqual(cov["with_dependents"], 2)
+        self.assertEqual(cov["ratio"], 1.0)
+
+    def test_empty_pool_does_not_divide_by_zero(self):
+        cov = sbp.dependents_coverage([], {"a": {"x"}})
+        self.assertEqual(cov, {"pool": 0, "with_dependents": 0, "ratio": 0.0})
 
 
 class LoadPackageText(QuietMixin, unittest.TestCase):
@@ -745,6 +960,15 @@ class ParseArgs(unittest.TestCase):
 
     def test_no_gate_turns_it_off(self):
         self.assertFalse(sbp.parse_args(self.BASE + ["--no-gate"]).gate)
+
+    def test_dependents_defaults_to_none(self):
+        """S15P21A506-173: 안 주면 보완재 관문이 자동으로 꺼진다(옛 호출부 호환)."""
+        self.assertIsNone(sbp.parse_args(self.BASE).dependents)
+
+    def test_dependents_parsed(self):
+        self.assertEqual(
+            sbp.parse_args(self.BASE + ["--dependents", "dep.parquet"]).dependents, "dep.parquet"
+        )
 
 
 class GateAllowsSuccess(unittest.TestCase):

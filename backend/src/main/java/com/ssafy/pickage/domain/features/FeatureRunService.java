@@ -11,9 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.ssafy.pickage.domain.docs.DocsCache;
 import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
@@ -102,16 +101,14 @@ public class FeatureRunService {
 			List<String> missing = ensureDocuments(refs);
 			if (!missing.isEmpty()) {
 				// rag-api 를 부를 것도 없다 — 읽을 파일이 없으니 같은 404 가 돌아온다.
-				ArrayNode detail = json.createArrayNode();
-				missing.forEach(detail::add);
-				fail(run, PHASE_DOCS, "DOC_NOT_FOUND", detail);
+				fail(run, PHASE_DOCS, "DOC_NOT_FOUND", toJson(missing));
 				return;
 			}
 			store.put(new FeatureRunStore.Run(
 				run.runId(), FeatureRunStore.Run.RUNNING, PHASE_CALLING, run.refs(),
 				run.startedAt(), null, null, null, null));
 
-			JsonNode result = rag.compare(refs.values());
+			String result = rag.compare(refs.values());
 			store.put(new FeatureRunStore.Run(
 				run.runId(), FeatureRunStore.Run.COMPLETED, PHASE_DONE, run.refs(),
 				run.startedAt(), Instant.now(), result, null, null));
@@ -150,10 +147,20 @@ public class FeatureRunService {
 	 * 실패를 기록한다. <b>어느 단계에서 멈췄는지를 인자로 받는다</b> — {@code run} 이 들고 있는
 	 * phase 는 시작할 때 값이라, 그걸 그대로 쓰면 RAG 호출에서 죽어도 "문헌 준비 중" 으로 남는다.
 	 */
-	private void fail(FeatureRunStore.Run run, String phase, String code, JsonNode detail) {
+	private void fail(FeatureRunStore.Run run, String phase, String code, String detail) {
 		store.put(new FeatureRunStore.Run(
 			run.runId(), FeatureRunStore.Run.FAILED, phase, run.refs(),
 			run.startedAt(), Instant.now(), null, code, detail));
+	}
+
+	/** 실패 사유로 싣는 목록. 응답에 원문 그대로 들어가므로 여기서 JSON 으로 만든다. */
+	private String toJson(List<String> values) {
+		try {
+			return json.writeValueAsString(values);
+		} catch (JsonProcessingException e) {
+			// 문자열 목록이라 실제로 일어나지 않는다. 일어나도 실패 기록 자체는 남긴다.
+			return null;
+		}
 	}
 
 	/** 없는 runId 는 404 다. 재시작으로 잊었을 수도 있고, 만료됐을 수도 있다. */

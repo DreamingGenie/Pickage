@@ -15,6 +15,7 @@ import {
   LATEST_SNAPSHOT,
   MOCK_DICTIONARY,
   MOCK_PACKAGES,
+  MOCK_REMOVAL_REASONS,
   MOCK_TRANSITIONS,
   TRANSITION_PERIOD_SCALE,
   dependentsByMajor,
@@ -38,6 +39,8 @@ import {
   type PackagesOverviewResponse,
   type PdfGenerateRequest,
   type PdfJob,
+  type RemovalReasonsResponse,
+  type RemovalReasonsSeriesItem,
   type SimilarPackagesResponse,
   type TransitionPeriodParam,
   type TransitionSeriesItem,
@@ -583,6 +586,69 @@ export function mockTransitions(
 
   return delay<TransitionsResponse>({
     metric: 'dependent_transitions',
+    period: resolvedPeriod,
+    ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
+    series,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * GET /packages/removal-reasons  (S15P21A506-396·410)
+ *
+ * 위 transitions 와 **같은 프리셋·같은 기준일**을 쓴다(checkPeriod·t1For 재사용) —
+ * 서버가 두 표에서 같은 t1·t2 를 꺼내므로 mock 도 같은 자리에서 만든다.
+ * 단위만 다르다: 패키지 수가 아니라 전이 건수다.
+ * ------------------------------------------------------------------ */
+
+function removalRowOf(name: string, period: TransitionPeriodParam): RemovalReasonsSeriesItem {
+  const fixture = MOCK_REMOVAL_REASONS[name]
+  const base = { name, population: 'npm_all' as const, unit: 'transitions' }
+
+  // 카탈로그에는 있지만 픽스처가 없는 채움 패키지 — 배치가 아직 안 돈 것과 같은 모양이다.
+  if (!fixture || !fixture.counts) {
+    return {
+      ...base,
+      removals: null,
+      no_replacement: null,
+      with_replacement: null,
+      dependents: null,
+      data_status: fixture?.dataStatus ?? 'NOT_COMPUTED',
+    }
+  }
+
+  // **두 값을 먼저 스케일하고 더해서 removals 를 만든다.** removals 를 따로 스케일하면
+  // 반올림 때문에 no + with != removals 가 되어 서버의 DB CHECK 를 어기는 응답이 된다.
+  const scale = TRANSITION_PERIOD_SCALE[period]
+  const noRepl = Math.round(fixture.counts.noReplacement * scale)
+  const withRepl = Math.round(fixture.counts.withReplacement * scale)
+  const removals = noRepl + withRepl
+  // dependents <= removals 도 서버 CHECK 다. 스케일 뒤에도 지켜지게 자른다.
+  const dependents = Math.min(Math.round(fixture.counts.dependents * scale), removals)
+
+  return {
+    ...base,
+    removals,
+    no_replacement: noRepl,
+    with_replacement: withRepl,
+    dependents,
+    data_status: fixture.dataStatus,
+  }
+}
+
+export function mockRemovalReasons(
+  names: readonly string[] | undefined,
+  period?: string,
+): Promise<RemovalReasonsResponse> {
+  const list = normalizeNames(names)
+  const resolvedPeriod = checkPeriod(period)
+  const { found, not_found } = split(list)
+
+  const series = found.map((pkg) => removalRowOf(pkg.name, resolvedPeriod))
+  const allNotComputed = series.length > 0 && series.every((s) => s.data_status === 'NOT_COMPUTED')
+
+  return delay<RemovalReasonsResponse>({
+    metric: 'removal_reasons',
     period: resolvedPeriod,
     ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
     series,
