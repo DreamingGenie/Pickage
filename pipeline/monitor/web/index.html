@@ -167,6 +167,14 @@ function ago(iso, now) {
             : s < 86400 * 2 ? `${(s / 3600).toFixed(s < 36000 ? 1 : 0)}시간 전` : `${Math.round(s / 86400)}일 전`;
   return `<span title="${esc(local(iso))}">${txt}</span>`;
 }
+// 미래 시각 — "N분 뒤". ago() 는 과거만 다뤄 미래를 0초로 눌러 버린다.
+function until(iso, now) {
+  if (!iso) return '—';
+  const t = Date.parse(iso); if (isNaN(t)) return esc(iso);
+  const s = Math.round((t - (now || Date.now())) / 1000);
+  if (s <= 0) return '다음 발화에';
+  return s < 60 ? `${s}초 뒤` : s < 3600 ? `${Math.round(s / 60)}분 뒤` : `${(s / 3600).toFixed(1)}시간 뒤`;
+}
 function local(iso) {
   const t = Date.parse(iso); return isNaN(t) ? iso : new Date(t).toLocaleString('ko-KR', { hour12: false });
 }
@@ -272,7 +280,7 @@ function renderCurated(cur, now) {
     const failing = r.stages.find(s => s.status === 'FAILED');
     const where = r.phase && r.phase !== 'COMPLETE' ? ` (${STAGE_KO[r.phase] || r.phase} 단계)` : failing ? ` (${STAGE_KO[failing.stage] || failing.stage} 단계)` : '';
     if (r.status === 'BLOCKED') flag('bad', `Curated 전처리 ${r.snapshot} 가 BLOCKED${where} — 자동 재시도가 멈췄습니다. 원인을 고친 뒤 run-curated-retry.sh --retry-snapshot ${r.snapshot}.`);
-    else if (r.status === 'FAILED') flag('warn', `Curated 전처리 ${r.snapshot} 가 FAILED${where} (연속 ${r.consecutive_failures}회, 시도 ${r.attempt}회). ${r.next_retry_at ? `${ago(r.next_retry_at, now).replace(/<[^>]+>/g, '').replace(' 전', '')} 뒤 다시 시도합니다.` : ''}`);
+    else if (r.status === 'FAILED') flag('warn', `Curated 전처리 ${r.snapshot} 가 FAILED${where} (연속 ${r.consecutive_failures}회, 시도 ${r.attempt}회). ${r.next_retry_at ? `${until(r.next_retry_at, now)} 다시 시도합니다.` : ''}`);
     else if (r.status === 'RUNNING' && r.started_at && now - Date.parse(r.started_at) > 36 * 3600 * 1000) flag('warn', `Curated 전처리 ${r.snapshot} 가 36시간 넘게 RUNNING 입니다${where}. systemd 상한(36h)에 걸려 죽었을 수 있습니다.`);
   });
   const stageChips = r => r.stages.length
@@ -286,7 +294,7 @@ function renderCurated(cur, now) {
       <td>${chip(CUR_KO[r.status] || r.status, CUR_CLS[r.status])}${r.consecutive_failures ? `<div class="note" style="margin:0">연속 실패 ${r.consecutive_failures} · 시도 ${r.attempt}</div>` : r.attempt > 1 ? `<div class="note" style="margin:0">시도 ${r.attempt}</div>` : ''}</td>
       <td>${stageChips(r)}${detail.join('')}</td>
       <td class="r">${ago(r.started_at, now)}</td>
-      <td class="r">${r.status === 'FAILED' && r.next_retry_at ? `<span title="${esc(local(r.next_retry_at))}">재시도 ${esc(local(r.next_retry_at).slice(-8, -3))}</span>` : ago(r.finished_at, now)}</td>
+      <td class="r">${r.status === 'FAILED' && r.next_retry_at ? `<span title="${esc(local(r.next_retry_at))}">재시도 ${until(r.next_retry_at, now)}</span>` : ago(r.finished_at, now)}</td>
       <td class="r">${ago(r.updated_at, now)}</td></tr>`;
   }).join('');
   const head = `${esc(cur.bucket)}/_ops/preprocessing · ${num(cur.snapshots_total)}회차 중 최근 ${runs.length} · 읽은 시각 ${ago(cur.listed_at, now)}`;
