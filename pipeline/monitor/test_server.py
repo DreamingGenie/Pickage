@@ -100,8 +100,25 @@ class RoutesTest(unittest.TestCase):
             status, body = _get(url + "/api/report")
             self.assertEqual(status, 500)
             self.assertIn("MinIO", body["errors"][0]["message"])
+            self.assertNotIn("unreachable", body)          # 닿았다. 보고서를 못 만든 것뿐이다
         finally:
             srv.shutdown()
+
+    def test_peer_http_error_is_relayed_not_called_unreachable(self):
+        """피어가 500/404 로 **답한** 것은 그 코드 그대로 넘긴다 — 방화벽을 뒤지게 하지 않는다."""
+        sick_srv, sick_url = _start("sick", {}, _Counter("sick", fail=True))
+        app_srv, url = _start("app", {"sick": sick_url}, _Counter("app"))
+        try:
+            status, body = _get(url + "/api/report?node=sick")
+            self.assertEqual(status, 500)
+            self.assertNotIn("unreachable", body)
+            self.assertEqual(body["fetched_via"], "app")
+            self.assertEqual(body["errors"][0]["section"], "report")
+            status, body = _get(url + "/api/inventory?node=sick")   # 그 노드는 목록을 안 한다 → 404 그대로
+            self.assertEqual((status, body["available"], body["fetched_via"]), (404, False, "app"))
+            self.assertNotIn("unreachable", body)
+        finally:
+            app_srv.shutdown(); sick_srv.shutdown()
 
     def test_inventory_local_relay_and_absent(self):
         calls = []

@@ -69,6 +69,13 @@ class EventStore:
         self.started_at = self.clock()
         self.buckets: dict[str, dict] = {}     # name → {connected, since, last_event, error, reconnects}
         self.gaps: list[dict] = []             # {bucket, from, to, error}
+        # 버킷 목록을 아직 못 받았는가 (start_listeners_when_ready). pending 이면 구독은 하나도 없다.
+        self.discovery: dict = {"pending": False, "error": None, "attempts": 0}
+
+    # ── 버킷 목록 (구독 전 단계) ─────────────────────────────────
+    def mark_discovery(self, *, pending: bool, error: str | None = None, attempts: int = 0) -> None:
+        with self.lock:
+            self.discovery = {"pending": pending, "error": error[:300] if error else None, "attempts": attempts}
 
     # ── 연결 상태 ───────────────────────────────────────────────
     def bucket_state(self, bucket: str) -> dict:
@@ -114,6 +121,7 @@ class EventStore:
             events = list(self.events)
             buckets = {name: dict(state) for name, state in self.buckets.items()}
             gaps = [dict(g) for g in self.gaps]
+            discovery = dict(self.discovery)
         created = [e for e in events if e["created"]]
         # 경로별 집계 — 목록 조회의 prefixes 표와 같은 깊이 규칙이라 같은 눈으로 읽힌다.
         prefixes: dict[tuple[str, str], dict] = {}
@@ -142,6 +150,7 @@ class EventStore:
             "retention_hours": int(self.retention.total_seconds() // 3600),
             "held": len(events),
             "max_events": self.max_events,
+            "discovery": discovery,
             "buckets": {name: {"connected": s["connected"], "since": _iso(s["since"]),
                                "last_event": _iso(s["last_event"]), "error": s["error"],
                                "reconnects": max(0, s["reconnects"]), "events": s["events"]}
@@ -210,10 +219,53 @@ def minio_stream_opener(endpoint: str, access_key: str, secret_key: str):
     return open_stream
 
 
-def start_listeners(store: EventStore, buckets: list[str], *, open_stream, log=print) -> threading.Event:
-    stop = threading.Event()
+def _spawn(store: EventStore, buckets: list[str], *, open_stream, stop: threading.Event, log) -> None:
     for bucket in buckets:
         threading.Thread(target=listen_forever, args=(store, bucket),
                          kwargs={"open_stream": open_stream, "stop": stop, "log": log},
                          name=f"events-{bucket}", daemon=True).start()
+
+
+def start_listeners(store: EventStore, buckets: list[str], *, open_stream, log=print) -> threading.Event:
+    """버킷 목록이 이미 손에 있을 때. 목록을 MinIO 에 물어야 하면 start_listeners_when_ready."""
+    stop = threading.Event()
+    _spawn(store, buckets, open_stream=open_stream, stop=stop, log=log)
+    return stop
+
+
+def start_listeners_when_ready(store: EventStore, resolve_buckets, *, open_stream, log=print,
+                               backoff_max: float = 60.0) -> threading.Event:
+    """버킷 목록을 받을 수 있을 때까지 재시도한 뒤 구독을 건다.
+
+    모니터링 스택과 운영 스택은 별개 compose 라 노드 재부팅 때 어느 쪽이 먼저 뜨는지 정해져
+    있지 않다. MinIO 가 늦으면 시작 시점의 list_buckets 한 번은 실패하고, 그 자리에서 포기하면
+    프로세스는 살아 있는데 구독은 영원히 없다 — restart 정책도 못 구한다. 그래서 스레드가
+    5→60초 backoff 로 목록을 다시 청하고, 받으면 그때 버킷마다 리스너를 띄운다.
+    기다리는 동안은 store.discovery 가 pending 이라 보고서가 "아직 구독 전" 이라고 말한다.
+    """
+    stop = threading.Event()
+
+    def resolve_then_listen():
+        backoff = min(5.0, backoff_max)
+        attempts = 0
+        while not stop.is_set():
+            attempts += 1
+            try:
+                buckets = list(resolve_buckets())
+            except Exception as error:   # MinIO 미기동·인증·네트워크 전부. 포기하지 않고 다시 묻는다
+                message = f"{type(error).__name__}: {error}"
+                store.mark_discovery(pending=True, error=message, attempts=attempts)
+                log(f"[events] 버킷 목록을 못 받아 구독을 못 건다 ({attempts}회): {message} — {backoff:.0f}초 뒤 재시도")
+                if stop.wait(backoff):
+                    return
+                backoff = min(backoff * 2, backoff_max)
+                continue
+            store.mark_discovery(pending=False, error=None, attempts=attempts)
+            if not buckets:
+                log("[events] 버킷 목록이 비어 있다 — 구독할 것이 없다 (계정이 보는 버킷이 없는가)")
+            _spawn(store, buckets, open_stream=open_stream, stop=stop, log=log)
+            return
+
+    store.mark_discovery(pending=True, attempts=0)
+    threading.Thread(target=resolve_then_listen, name="events-discover", daemon=True).start()
     return stop

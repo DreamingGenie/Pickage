@@ -236,7 +236,11 @@ function renderEvents(node, minio, now) {
   const down = buckets.filter(([, b]) => !b.connected);
   down.forEach(([name, b]) => flag('warn', `${node}: MinIO ${name} 이벤트 구독이 끊겨 있습니다 — ${b.error || ''}. 이 사이에 생긴 것은 화면에 안 옵니다.`));
   const openGaps = (ev.gaps || []).filter(g => g.to);
-  const conn = buckets.length ? `${buckets.length - down.length}/${buckets.length} 버킷 구독 중` : '구독한 버킷 없음';
+  // 버킷 목록조차 아직 못 받은 상태 (MinIO 가 모니터보다 늦게 뜨는 중). 구독은 하나도 없다 — "구독한 버킷 없음" 으로 뭉개지 않는다.
+  const disc = ev.discovery || {};
+  if (disc.pending) flag('warn', `${node}: MinIO 버킷 목록을 아직 못 받아 이벤트 구독이 걸리지 않았습니다 (${disc.attempts || 0}회 시도${disc.error ? ` — ${disc.error}` : ''}). MinIO 가 뜨면 저절로 붙습니다.`);
+  const conn = disc.pending ? '버킷 목록 대기 중 (구독 전)'
+    : buckets.length ? `${buckets.length - down.length}/${buckets.length} 버킷 구독 중` : '구독한 버킷 없음';
   const recent = ev.recent || [];
   const head = recent.slice(0, 30), rest = recent.slice(30);
   const gapsHtml = openGaps.length ? `<details><summary>끊겼던 구간 ${openGaps.length}건 — 그 사이 것은 모릅니다</summary><pre>${openGaps.map(g => `${esc(g.bucket)}  ${esc(local(g.from))} ~ ${esc(local(g.to))}  ${esc(g.error || '')}`).join('\n')}</pre></details>` : '';

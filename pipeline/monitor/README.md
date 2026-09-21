@@ -63,7 +63,7 @@ S3 목록 조회는 앞부분(prefix)으로만 거를 수 있다. "최근 것만
 | `GET /` | 화면 |
 | `GET /api/nodes` | `{"self": "app", "nodes": ["app", "data"], "peers": {...}}` |
 | `GET /api/report` | 이 노드의 보고서. `?fresh=1` 은 보고서 캐시(3초) 무시 |
-| `GET /api/report?node=data` | `peers.data` 에 `/api/report` 를 물어 그대로 넘긴다. 붙지 못하면 **502 + JSON**(`unreachable: true`, 이유) — 화면이 그 노드 자리에 이유를 띄운다 |
+| `GET /api/report?node=data` | `peers.data` 에 `/api/report` 를 물어 그대로 넘긴다. 붙지 못하면 **502 + JSON**(`unreachable: true`, 이유) — 화면이 그 노드 자리에 이유를 띄운다. 피어가 500·404 로 **답한** 경우는 그 코드와 본문을 그대로 넘긴다 (`unreachable` 없음) — 방화벽이 아니라 그 노드의 로그를 볼 일이다 |
 | `GET /api/inventory` | 마지막 전체 목록. 없으면 `{"available": false}`. **`?fresh=1` 일 때만 긁는다** (동시 요청은 한 번만 긁고 같은 결과) |
 | `GET /api/inventory?node=data` | 위를 중계. fresh 는 타임아웃이 길다 (`inventory_timeout_seconds`, 기본 600초) |
 | `GET /healthz` | `ok` |
@@ -123,6 +123,7 @@ docker compose run --rm pipeline-monitor --once | less
   "minio": {
       "pointers": [{"bucket": "pickage-curated", "key": "…/_current.json", "modified": …, "value": {…}}],
       "events": {"listening_since": …, "retention_hours": 24, "held": 312, "max_events": 20000,
+                 "discovery": {"pending": false, "error": null, "attempts": 1},   // pending 이면 버킷 목록을 아직 못 받아 구독이 하나도 없다 (MinIO 가 늦게 뜨는 중). 받을 때까지 5→60초로 재시도한다
                  "buckets": {"pickage-raw": {"connected": true, "since": …, "last_event": …, "error": null, "reconnects": 0, "events": 300}},
                  "gaps": [{"bucket": "pickage-raw", "from": …, "to": …, "error": "…"}],    // 끊겼던 구간
                  "recent": [{"time": …, "bucket": …, "key": …, "size": …, "event": "s3:ObjectCreated:Put", "principal": "pickage-ingest", "source": "172.26.8.249"}],

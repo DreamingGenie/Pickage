@@ -48,15 +48,37 @@ class ReportCache:
             return dict(self.value)
 
 
-def fetch_peer(url: str, *, fresh: bool, timeout: float, path: str = "/api/report") -> dict:
+def fetch_peer(url: str, *, fresh: bool, timeout: float, path: str = "/api/report") -> tuple[int, dict]:
+    """(상태 코드, JSON). 피어가 4xx/5xx 로 **답한** 것은 그대로 돌려준다 — 닿지 못한 것과 다르다.
+
+    둘을 섞어 502 "닿지 못했다" 로 내면 사람이 방화벽을 뒤지는데 실제 원인은 그 노드의 보고서
+    실패(500)나 꺼 둔 기능(404)이다. 닿지 못한 경우만 URLError 로 올라간다.
+    """
     target = url.rstrip("/") + path + ("?fresh=1" if fresh else "")
-    with urllib.request.urlopen(target, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(target, timeout=timeout) as response:
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        try:
+            payload = json.loads(body)
+        except ValueError:
+            payload = None
+        if not isinstance(payload, dict):
+            payload = {"error": f"{url} 이 {error.code} 로 답했다: {body[:300]}"}
+        return error.code, payload
 
 
 def peer_error(node: str, message: str) -> dict:
+    """그 노드에 **닿지 못했다.** 화면은 그 노드 자리에 이유를 띄운다."""
     return {"schema": 1, "node": node, "generated_at": None, "unreachable": True,
             "errors": [{"section": "fetch", "message": message}]}
+
+
+def report_error(node: str, message: str) -> dict:
+    """닿았는데 보고서 자체를 못 만들었다. unreachable 이 아니다 — 방화벽이 아니라 그 노드의 로그를 볼 일이다."""
+    return {"schema": 1, "node": node, "generated_at": None,
+            "errors": [{"section": "report", "message": message}]}
 
 
 def make_handler(*, node: str, cache: ReportCache, peers: dict[str, str], peer_timeout: float,
@@ -103,16 +125,16 @@ def make_handler(*, node: str, cache: ReportCache, peers: dict[str, str], peer_t
                     try:
                         return self._json(200, cache.get(fresh=fresh))
                     except Exception as error:   # 보고서 자체를 못 만든 경우도 JSON 으로 — 화면이 이유를 보여 준다
-                        return self._json(500, peer_error(node, f"{type(error).__name__}: {error}"[:500]))
+                        return self._json(500, report_error(node, f"{type(error).__name__}: {error}"[:500]))
                 if target in peers:
                     try:
-                        payload = fetch_peer(peers[target], fresh=fresh, timeout=peer_timeout)
-                        payload["fetched_via"] = node
-                        payload["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-                        return self._json(200, payload)
+                        status, payload = fetch_peer(peers[target], fresh=fresh, timeout=peer_timeout)
                     except (urllib.error.URLError, OSError, ValueError) as error:
                         return self._json(502, peer_error(
                             target, f"{peers[target]} 에 닿지 못했다: {error} — 그 노드의 컨테이너와 방화벽(ufw)을 볼 것"))
+                    payload["fetched_via"] = node
+                    payload["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                    return self._json(status, payload)   # 피어의 500·404 는 그 코드 그대로 — 닿긴 했다
                 return self._json(404, {"error": f"모르는 노드: {target}", "nodes": [node, *peers]})
             if path == "/api/inventory":
                 # 전체 목록 — 사람이 버튼을 눌렀을 때만 fresh 다. 자동 갱신은 fresh 없이 와서 마지막 결과만 받는다.
@@ -126,13 +148,15 @@ def make_handler(*, node: str, cache: ReportCache, peers: dict[str, str], peer_t
                         return self._json(500, {"available": False, "error": f"{type(error).__name__}: {error}"[:500]})
                 if target in peers:
                     try:
-                        payload = fetch_peer(peers[target], fresh=fresh, path="/api/inventory",
-                                             timeout=inventory_timeout if fresh else peer_timeout)
-                        payload["fetched_via"] = node
-                        return self._json(200, payload)
+                        status, payload = fetch_peer(peers[target], fresh=fresh, path="/api/inventory",
+                                                     timeout=inventory_timeout if fresh else peer_timeout)
                     except (urllib.error.URLError, OSError, ValueError) as error:
                         return self._json(502, {"available": False, "unreachable": True,
                                                 "error": f"{peers[target]} 에 닿지 못했다: {error}"})
+                    payload["fetched_via"] = node
+                    if status >= 400:
+                        payload.setdefault("available", False)
+                    return self._json(status, payload)
                 return self._json(404, {"available": False, "error": f"모르는 노드: {target}"})
             if path == "/healthz":
                 return self._send(200, b"ok", "text/plain")

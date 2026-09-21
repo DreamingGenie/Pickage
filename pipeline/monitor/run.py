@@ -80,12 +80,12 @@ class Builder:
             if open_stream is None and creds is not None:
                 open_stream = events.minio_stream_opener(creds.endpoint, creds.access_key, creds.secret_key)
             if open_stream is not None:
-                try:
-                    buckets = m.buckets or sorted(b["Name"] for b in (s3.list_buckets().get("Buckets") or []))
-                except Exception as error:
-                    log(f"[events] 버킷 목록을 못 받아 구독을 못 건다: {error}")
-                    buckets = []
-                events.start_listeners(self.store, buckets, open_stream=open_stream, log=log)
+                def resolve_buckets():
+                    if m.buckets:
+                        return list(m.buckets)
+                    return sorted(b["Name"] for b in (s3.list_buckets().get("Buckets") or []))
+                # MinIO 가 이 서버보다 늦게 떠도 구독이 걸리게 — 목록을 받을 때까지 재시도한다.
+                events.start_listeners_when_ready(self.store, resolve_buckets, open_stream=open_stream, log=log)
 
     # ── 전체 목록 — 버튼으로만 ──────────────────────────────────
     def full_inventory(self, *, force: bool) -> dict:

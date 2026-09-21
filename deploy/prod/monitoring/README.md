@@ -939,8 +939,9 @@ cd ~/S15P21A506 && git pull && cd deploy/prod/monitoring/app
 docker compose build pipeline-monitor
 docker compose up -d
 ss -ltn | grep 19998                          # 127.0.0.1 한 줄만
-curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": "app"\|"unreachable": true'
-# fetched_via 가 나와야 한다. unreachable 이면 data 노드의 ufw·컨테이너를 본다
+curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": "app"\|"unreachable": true\|"section": "report"'
+# fetched_via 가 나와야 한다. unreachable 이면 data 노드의 ufw·컨테이너를 본다.
+# "section": "report" 면 닿긴 했는데 data 노드가 보고서를 못 만든 것 — 그쪽 docker compose logs 를 본다
 ```
 
 **3. 브라우저** — 터널을 열고 `http://127.0.0.1:19998/`. 판정이 "정상/주의/문제" 중 하나여야
@@ -956,6 +957,7 @@ curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": 
 | 버킷 표에 "목록 잘림" | `max_objects` 초과 | `pipeline-monitor.yaml` 의 값을 올린다 (메모리 상한도 같이 본다) |
 | "전체 목록 조회" 가 오래 걸린다 | 버킷을 통째로 나열한다 (객체 1,000개당 요청 하나) | 그게 맞다. 평소 화면은 이벤트라 이 비용이 없다 |
 | "방금 올라온 것" 이 비어 있다 | 구독이 안 걸렸거나(로그에 `구독 시작` 이 없다), 켜진 뒤 실제로 아무것도 안 올라왔다 | `docker compose logs pipeline-monitor` · 회차가 돌면 15초 안에 찬다 |
+| 화면에 "버킷 목록 대기 중 (구독 전)" | MinIO 가 모니터보다 늦게 뜨는 중이거나(노드 재부팅 직후 — 두 스택은 별개 compose 라 순서가 없다) 계정에 `ListAllMyBuckets` 가 없다 | 기다린다 — 목록을 받을 때까지 5→60초로 재시도하고 받으면 저절로 붙는다. 몇 분 뒤에도 그대로면 로그의 `버킷 목록을 못 받아` 줄의 이유를 본다 |
 | 화면에 "끊겼던 구간" | MinIO 재시작·네트워크. 그 사이 것은 이벤트로 안 온다 | 전체 목록 조회 버튼으로 메운다 |
 
 ### 11.4 로컬 리허설

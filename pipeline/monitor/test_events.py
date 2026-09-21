@@ -111,5 +111,57 @@ class ListenTest(unittest.TestCase):
         self.assertFalse(store.snapshot()["buckets"]["b"]["connected"])
 
 
+class DiscoveryTest(unittest.TestCase):
+    def test_bucket_list_is_retried_until_minio_answers(self):
+        """MinIO 가 늦게 떠도 구독이 걸린다. 그동안 보고서는 '구독 전' 이라고 말한다."""
+        store = events.EventStore(clock=Clock())
+        attempts = {"n": 0}
+        listening = threading.Event()
+
+        def resolve():
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise ConnectionRefusedError("minio not up yet")
+            return ["pickage-raw"]
+
+        def open_stream(bucket):
+            def gen():
+                yield record("a")
+                listening.set()
+                threading.Event().wait()          # 붙어 있는 채로
+            return gen()
+        self.assertFalse(store.snapshot()["discovery"]["pending"])
+        stop = events.start_listeners_when_ready(store, resolve, open_stream=open_stream,
+                                                 log=lambda *_: None, backoff_max=0.01)
+        self.assertTrue(listening.wait(timeout=10))
+        snap = store.snapshot()
+        self.assertEqual(attempts["n"], 3)
+        self.assertEqual(snap["discovery"], {"pending": False, "error": None, "attempts": 3})
+        self.assertTrue(snap["buckets"]["pickage-raw"]["connected"])
+        self.assertEqual(snap["held"], 1)
+        stop.set()
+
+    def test_pending_state_carries_the_last_error(self):
+        store = events.EventStore(clock=Clock())
+        seen = threading.Event()
+
+        def resolve():
+            seen.set()
+            raise PermissionError("AccessDenied")
+        stop = events.start_listeners_when_ready(store, resolve, open_stream=None,
+                                                 log=lambda *_: None, backoff_max=60)
+        self.assertTrue(seen.wait(timeout=5))
+        for _ in range(50):                        # mark_discovery 가 seen 직후에 온다 — 잠깐 기다린다
+            disc = store.snapshot()["discovery"]
+            if disc["error"]:
+                break
+            threading.Event().wait(0.02)
+        self.assertTrue(disc["pending"])
+        self.assertIn("AccessDenied", disc["error"])
+        self.assertEqual(disc["attempts"], 1)
+        self.assertEqual(store.snapshot()["buckets"], {})
+        stop.set()
+
+
 if __name__ == "__main__":
     unittest.main()
