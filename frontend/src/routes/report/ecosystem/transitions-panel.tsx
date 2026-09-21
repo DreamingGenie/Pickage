@@ -51,11 +51,11 @@ export function TransitionsPanel({
 }) {
   const [kind, setKind] = useState<TransitionKind>('regular')
   /**
-   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — **패키지마다** 따로 고른다(S15P21A506-427
-   * 후속 리뷰). 처음엔 패널 전역 토글로 만들었으나, 패키지별로 보고 싶은 표시 방식이 다를 수
-   * 있다는 피드백을 받아 각 패키지 카드 머리글로 옮겼다. 없는 키는 기본값 `'value'`다.
+   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 토글이다. 패키지마다
+   * 따로 두어 봤으나 오히려 불편하다는 피드백을 받았다 — 나란히 비교하는 화면에서 한쪽만
+   * 막대고 한쪽은 도넛이면 비교가 더 어려워진다. "조회 기간"과 같은 줄, 가운데에 둔다.
    */
-  const [modes, setModes] = useState<Record<string, TransitionBarsMode>>({})
+  const [mode, setMode] = useState<TransitionBarsMode>('value')
 
   const rowsOf = (pkg: TransitionsModel['packages'][number]) =>
     pkg.rows.find((r) => r.kind === kind) ?? null
@@ -141,14 +141,32 @@ export function TransitionsPanel({
         <span className="font-mono text-base text-muted-foreground">{dateLabel}</span>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/*
+        3칸 그리드 — 양 끝 두 칸이 `1fr`라 가운데 칸(내용만큼만 차지)이 저절로 줄 가운데에
+        온다. 값/비율 토글을 여기 두는 이유는 "조회 기간"·"의존 종류"와 같은 줄이라 패널
+        전역 설정이라는 것이 위치로도 드러나서다.
+      */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="justify-self-start">
+          <SegmentedControl
+            label="조회 기간"
+            value={period}
+            onChange={(k) => onPeriodChange(k as TransitionPeriod)}
+            options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
+          />
+        </div>
+        {/* 값(막대)·비율(도넛) — 패널 전체에 하나. */}
         <SegmentedControl
-          label="조회 기간"
-          value={period}
-          onChange={(k) => onPeriodChange(k as TransitionPeriod)}
-          options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
+          label="표시 방식"
+          value={mode}
+          onChange={(k) => setMode(k as TransitionBarsMode)}
+          options={[
+            { key: 'value', label: '값' },
+            { key: 'ratio', label: '비율' },
+          ]}
+          className="justify-self-center"
         />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 justify-self-end">
           <SegmentedControl
             label="의존 종류"
             value={kind}
@@ -206,7 +224,6 @@ export function TransitionsPanel({
               const row = rowsOf(pkg)
               const style = seriesStyle(i)
               const emphasized = !emphasisKeys || emphasisKeys.includes(pkg.key)
-              const mode = modes[pkg.key] ?? 'value'
               return (
                 <div
                   key={pkg.key}
@@ -216,34 +233,20 @@ export function TransitionsPanel({
                     !emphasized && 'opacity-40',
                   )}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <svg width="16" height="8" aria-hidden className="shrink-0">
-                        <line
-                          x1="0"
-                          y1="4"
-                          x2="16"
-                          y2="4"
-                          stroke={style.color}
-                          strokeWidth="2.4"
-                          strokeDasharray={style.dash}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
-                    </div>
-                    {/* 값(막대)·비율(도넛) — 이 패키지만 바꾼다. */}
-                    <SegmentedControl
-                      label={`${pkg.key} 표시 방식`}
-                      value={mode}
-                      onChange={(k) =>
-                        setModes((prev) => ({ ...prev, [pkg.key]: k as TransitionBarsMode }))
-                      }
-                      options={[
-                        { key: 'value', label: '값' },
-                        { key: 'ratio', label: '비율' },
-                      ]}
-                    />
+                  <div className="flex items-center gap-1.5">
+                    <svg width="16" height="8" aria-hidden className="shrink-0">
+                      <line
+                        x1="0"
+                        y1="4"
+                        x2="16"
+                        y2="4"
+                        stroke={style.color}
+                        strokeWidth="2.4"
+                        strokeDasharray={style.dash}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
                   </div>
                   {row ? (
                     <TransitionBars

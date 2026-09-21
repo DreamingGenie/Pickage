@@ -7,7 +7,7 @@ import {
 } from '@/routes/report/ecosystem/transitions-model'
 import { cn } from '@/lib/utils'
 
-/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패키지마다 있는 "값/비율" 토글이 고른다. */
+/** 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 "값/비율" 토글이 고른다. */
 export type TransitionBarsMode = 'value' | 'ratio'
 
 type CategoryKey = 'retained' | 'inflowAdopted' | 'outflow' | 'unobserved'
@@ -95,7 +95,7 @@ export function TransitionBars({
  * 가진 그림이 "본 것 중 무엇이 일어났나" 를 한눈에 전한다(리뷰에서 텍스트 줄이 안 읽힌다는
  * 지적을 받았다).
  *
- * 전체 대비(막대)와 활동 대비(도넛)를 **패키지마다 토글로 가른다** — 막대는 "얼마나 봤나",
+ * 전체 대비(막대)와 활동 대비(도넛)를 **패널 전체가 공유하는 토글로 가른다** — 막대는 "얼마나 봤나",
  * 도넛은 "본 것 중 무엇이 일어났나" 이고, 한 화면에 억지로 같이 두면 서로 다른 분모의 숫자가
  * 뒤섞여 더 헷갈린다. 세로로 쌓아 도넛을 키운다 — 도넛 옆에 범례를 붙이면 칼럼 폭만 넓고
  * 안은 빈 카드가 된다(리뷰 지적).
@@ -129,15 +129,29 @@ function RatioDonut({
 
   return (
     <div className={cn('flex flex-col items-center gap-3', className)}>
-      <ShareDonut
-        size={104}
-        ariaLabel="유지·유입·이탈 활동 대비 비율"
-        groups={[
-          { label: CATEGORIES[0].label, share: shares.retainedPct / 100 },
-          { label: CATEGORIES[1].label, share: shares.inflowAdoptedPct / 100 },
-          { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
-        ]}
-      />
+      {/*
+        캡션을 도넛 아래가 아니라 옆에 둔다 — 아래에 두면 두 줄로 접혀 "값" 모드보다 카드가
+        눈에 띄게 길어졌다(리뷰 지적). 도넛을 살짝 왼쪽으로 밀어 생긴 옆자리를 쓴다.
+      */}
+      <div className="flex items-center gap-4">
+        <ShareDonut
+          size={104}
+          ariaLabel="유지·유입·이탈 활동 대비 비율"
+          groups={[
+            { label: CATEGORIES[0].label, share: shares.retainedPct / 100 },
+            { label: CATEGORIES[1].label, share: shares.inflowAdoptedPct / 100 },
+            { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
+          ]}
+        />
+        {/*
+          "의존자 N 중 M 판정" 만으로는 M 이 왜 N 보다 작은지 안 드러난다(릴리스 없음이 빠졌기
+          때문) — 리뷰에서 이 문장이 뭘 뜻하는지 안 읽힌다는 지적을 받아 이유를 문장에 넣었다.
+        */}
+        <p className="max-w-36 text-base text-muted-foreground/80">
+          의존자 {shares.total.toLocaleString()} 중 릴리스 없음 제외{' '}
+          {shares.active.toLocaleString()} 판정
+        </p>
+      </div>
       <dl className="flex w-full max-w-64 flex-col gap-1.5">
         <RatioRow fill={CATEGORIES[0].fill} label={CATEGORIES[0].label} pct={shares.retainedPct} />
         <RatioRow
@@ -146,14 +160,6 @@ function RatioDonut({
           pct={shares.inflowAdoptedPct}
         />
         <RatioRow fill={CATEGORIES[2].fill} label={CATEGORIES[2].label} pct={shares.outflowPct} />
-        {/*
-          "의존자 N 중 M 판정" 만으로는 M 이 왜 N 보다 작은지 안 드러난다(릴리스 없음이 빠졌기
-          때문) — 리뷰에서 이 문장이 뭘 뜻하는지 안 읽힌다는 지적을 받아 이유를 문장에 넣었다.
-        */}
-        <p className="mt-1 text-base text-muted-foreground/80">
-          의존자 {shares.total.toLocaleString()} 중 릴리스 없음 제외{' '}
-          {shares.active.toLocaleString()} 판정
-        </p>
       </dl>
     </div>
   )
