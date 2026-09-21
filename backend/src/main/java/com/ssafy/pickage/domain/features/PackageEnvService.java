@@ -8,7 +8,9 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ssafy.pickage.domain.features.dto.FeatureVersionsResponse;
 import com.ssafy.pickage.domain.features.dto.PackageEnvResponse;
+import com.ssafy.pickage.domain.packages.PackageNames;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +24,15 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class PackageEnvService {
+
+	/**
+	 * 드롭다운에 올리는 버전 수.
+	 *
+	 * <p>3 인 이유는 화면이다 — 스크롤 없이 한눈에 고를 수 있는 만큼만 둔다(기획 협의). 문헌
+	 * 프리로드가 패키지당 최신 정식 2개라, 3번째를 고르면 첫 AI 비교에서 README 를 jsDelivr 로
+	 * 받느라 몇 초 더 걸린다. 그 뒤로는 캐시에 남는다.
+	 */
+	static final int RECENT_VERSIONS = 3;
 
 	private final PackageEnvRepository repository;
 
@@ -52,5 +63,42 @@ public class PackageEnvService {
 				row.directDependencies(), row.peerDependencies()));
 		}
 		return new PackageEnvResponse(items, notFound);
+	}
+
+	/**
+	 * 패키지마다 고를 수 있는 최근 버전 (기능-10-R02).
+	 *
+	 * <p>이름이 {@code package} 에 없으면 {@code notFound}, 있는데 고를 버전이 없으면 빈 목록으로
+	 * {@code packages} 에 남긴다. 둘을 합치면 화면이 "없는 패키지" 와 "비교할 버전이 아직 없는
+	 * 패키지" 를 구분하지 못한다 — 앞은 이름을 고치면 되고 뒤는 기다려야 한다.
+	 */
+	@Transactional(readOnly = true)
+	public FeatureVersionsResponse getVersions(PackageNames names) {
+		Map<String, List<String>> versions = new LinkedHashMap<>();
+		List<String> notFound = new ArrayList<>();
+
+		for (PackageEnvRepository.VersionRow row
+			: repository.findRecentVersions(names.values(), RECENT_VERSIONS)) {
+			if (!row.known()) {
+				notFound.add(row.name());
+				continue;
+			}
+			List<String> list = versions.computeIfAbsent(row.name(), k -> new ArrayList<>());
+			if (row.version() != null) {
+				list.add(row.version());
+			}
+		}
+
+		// 저장소가 요청 순서로 주지만 여기서 다시 맞춘다 — 순서는 이 계층의 약속이다.
+		List<FeatureVersionsResponse.Item> packages = new ArrayList<>();
+		for (String name : names.values()) {
+			List<String> list = versions.get(name);
+			if (list == null) {
+				continue;
+			}
+			packages.add(new FeatureVersionsResponse.Item(
+				name, list.isEmpty() ? null : list.get(0), List.copyOf(list)));
+		}
+		return new FeatureVersionsResponse(packages, notFound);
 	}
 }

@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ssafy.pickage.domain.features.dto.FeatureRunResponse;
+import com.ssafy.pickage.domain.features.dto.FeatureVersionsResponse;
 import com.ssafy.pickage.domain.features.dto.PackageEnvResponse;
+import com.ssafy.pickage.domain.packages.PackageNames;
 import com.ssafy.pickage.global.response.ApiResponseBody;
 import com.ssafy.pickage.global.response.ApiResponseUtil;
 
@@ -38,6 +40,26 @@ public class FeatureController {
 
 	private final PackageEnvService envService;
 	private final FeatureRunService runService;
+
+	/**
+	 * 기능-10-R02 — 버전 드롭다운.
+	 *
+	 * <p>이름만 받는다({@code names}). 규칙은 다른 화면과 같다 — 최대 3개, 소문자 이름(V001 ·
+	 * V002 · V004).
+	 *
+	 * <p>돌려주는 버전은 전부 소비 조건이 있는 것이라, 어느 것을 골라도 아래 {@code /env} 가
+	 * 채워진다. 목록과 표가 같은 표({@code package_env})에서 나와야 "고를 수는 있는데 표가
+	 * 비는" 버전이 생기지 않는다.
+	 */
+	@Operation(summary = "기능 비교 버전 목록",
+		description = "패키지마다 소비 조건이 있는 최근 정식 버전 3개를 최신순으로 돌려준다. "
+			+ "패키지는 있는데 고를 버전이 없으면 versions 가 빈 배열이다.")
+	@GetMapping("/packages/versions")
+	public ApiResponseBody<FeatureVersionsResponse> getVersions(
+		@RequestParam(name = "names", required = false) List<String> names
+	) {
+		return ApiResponseUtil.createSuccessResponse(envService.getVersions(PackageNames.of(names)));
+	}
 
 	/**
 	 * 기능-11-R01 — 첫 결과 카드.
