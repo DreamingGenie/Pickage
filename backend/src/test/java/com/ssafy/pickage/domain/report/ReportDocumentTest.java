@@ -86,8 +86,8 @@ class ReportDocumentTest {
 			List.of());
 
 		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY, List.of(
-			TransitionsResponse.Series.counted("axios", "regular", 100, 150, 120, 10, 5),
-			TransitionsResponse.Series.counted("axios", "peer", 20, 8, 2, 4, 1),
+			TransitionsResponse.Series.counted("axios", "regular", 100, 150, 120, 10, 5, 2, 1, 2),
+			TransitionsResponse.Series.counted("axios", "peer", 20, 8, 2, 4, 1, 1, 0, 0),
 			TransitionsResponse.Series.unknown("got", "regular", TransitionsResponse.OUT_OF_SCOPE)), List.of());
 
 		return new ReportHtmlRenderer.Sources(List.of("axios", "got"), null, null, overview, downloads, dependents,

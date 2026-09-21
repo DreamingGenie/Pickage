@@ -1,6 +1,7 @@
 package com.ssafy.pickage.domain.packages;
 
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -101,6 +103,24 @@ class TransitionsControllerIntegrationTest {
 			T1_3Y.atTime(23, 59, 59), T2.atTime(23, 59, 59));
 	}
 
+	/**
+	 * 관측불가 분해까지 채운다 — 재적재가 끝난 정상 상태다 (S15P21A506-421).
+	 *
+	 * <p>위 {@link #seedTransition} 은 셋을 비워 둔다. 그쪽도 <b>유효한 상태다</b> —
+	 * 마이그레이션(배포)과 재적재 사이에는 분해를 모르는 행이 표에 남는다.
+	 */
+	private void seedTransitionWithSplit(int packageId, String period, String kind,
+		int retained, int inflow, int inflowNew, int outflow, int unobserved,
+		int recent, int stale, int dormant) {
+		jdbcTemplate.update("""
+			INSERT INTO dependent_transition
+			  (package_id, period, kind, retained, inflow, inflow_new, outflow, unobserved,
+			   unobserved_recent, unobserved_stale, unobserved_dormant, t1, t2)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			""", packageId, period, kind, retained, inflow, inflowNew, outflow, unobserved,
+			recent, stale, dormant, T1_3Y.atTime(23, 59, 59), T2.atTime(23, 59, 59));
+	}
+
 	@Test
 	void 네_범주와_유입_세부가_그대로_나간다() throws Exception {
 		seedPackage(1, "react");
@@ -120,6 +140,57 @@ class TransitionsControllerIntegrationTest {
 			.andExpect(jsonPath("$.data.series[0].outflow").value(1310))
 			.andExpect(jsonPath("$.data.series[0].unobserved").value(75628))
 			.andExpect(jsonPath("$.data.series[0].data_status").value("COMPLETE"));
+	}
+
+	@Test
+	void 관측불가_분해_셋이_그대로_나간다() throws Exception {
+		seedPackage(1, "react");
+		// 2026-09-21 재집계 실측값이다. 3년 구간이라 "최근 3년 안" 은 정의상 0 이고,
+		// 나머지 셋 중 둘(46,738 / 75,628)이 5년 넘게 릴리스가 없는 프로젝트다.
+		seedTransitionWithSplit(1, "3y", "regular", 4673, 112435, 111785, 1310, 75628,
+			0, 28890, 46738);
+
+		mockMvc.perform(get("/api/packages/transitions").param("names", "react").param("period", "3y"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.series[0].unobserved").value(75628))
+			.andExpect(jsonPath("$.data.series[0].unobserved_recent").value(0))
+			.andExpect(jsonPath("$.data.series[0].unobserved_stale").value(28890))
+			.andExpect(jsonPath("$.data.series[0].unobserved_dormant").value(46738))
+			.andExpect(jsonPath("$.data.series[0].data_status").value("COMPLETE"));
+	}
+
+	@Test
+	void 분해를_모르는_행은_0_이_아니라_null_로_나간다() throws Exception {
+		// 마이그레이션(배포)과 재적재 사이의 상태다. 0 을 주면 "5년 넘게 방치된 의존자가
+		// 0명" 이 되는데, 숫자가 맞아 보여서 틀린 줄 아무도 모른다. 나머지 네 범주는
+		// 그대로 있으므로 data_status 는 COMPLETE 다 — 분해만 모르는 것이다.
+		seedPackage(1, "react");
+		seedTransition(1, "3y", "regular", 4673, 112435, 111785, 1310, 75628);
+
+		mockMvc.perform(get("/api/packages/transitions").param("names", "react").param("period", "3y"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.series[0].unobserved").value(75628))
+			.andExpect(jsonPath("$.data.series[0].data_status").value("COMPLETE"))
+			.andExpect(jsonPath("$.data.series[0].unobserved_recent").value(nullValue()))
+			.andExpect(jsonPath("$.data.series[0].unobserved_stale").value(nullValue()))
+			.andExpect(jsonPath("$.data.series[0].unobserved_dormant").value(nullValue()));
+	}
+
+	@Test
+	void 어긋난_분해는_DB_가_막는다() {
+		// 적재는 CSV 를 거쳐 **열 순서로** 들어온다. 열을 잘못 짝지으면 여기서 막혀야 한다.
+		// 빌더 안에서는 이 등식이 언제나 참이라(CASE 가 한 칸만 채운다) 검산이 되지 않는다.
+		seedPackage(1, "react");
+
+		assertThrows(DataIntegrityViolationException.class, () ->
+			seedTransitionWithSplit(1, "3y", "regular", 4673, 112435, 111785, 1310, 75628,
+				0, 28890, 46737));   // 합이 1 모자란다
+
+		// 합만 보면 세 열을 서로 바꿔 넣어도 통과한다. 구간별로 비어 있어야 하는 칸이
+		// 그것을 잡는다 — 3년 구간에서 "최근 3년 안" 은 존재할 수 없다.
+		assertThrows(DataIntegrityViolationException.class, () ->
+			seedTransitionWithSplit(1, "3y", "regular", 4673, 112435, 111785, 1310, 75628,
+				46738, 28890, 0));   // recent 와 dormant 가 뒤바뀌었다
 	}
 
 	@Test
