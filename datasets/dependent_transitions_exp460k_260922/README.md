@@ -245,8 +245,10 @@ MinIO 입고는 끝났다(§1 의 경로, 원격 GET SHA `a1b94b51…` MATCH). �
 > **회차를 이미 받아 뒀으므로 19000 터널이 필요 없다.** 아래 네 명령 모두 `--run-dir` 로
 > 로컬 디렉터리를 가리킨다. 필요한 것은 `DOCKER_HOST='ssh://a506app'` 뿐이다.
 >
-> **작업 디렉터리는 worktree `C:\git\S15P21A506-454` 다.** 적재기가 `contract_sha256` 에
-> 마이그레이션 파일 목록을 넣는데, 주 트리의 `develop` 은 `f7ec805` 로 낡아 `V12` 가 없다.
+> **이 브랜치가 있는 트리에서 돌린다** (작업 당시 worktree `C:\git\S15P21A506-454`).
+> 적재기가 `contract_sha256` 에 `db/migration/V*.sql` 목록을 넣으므로, 낡은 트리에서
+> 돌리면 그 시점 develop 에 없던 마이그레이션이 빠져 etl 이력의 계약 해시가 달라진다.
+> 이 회차를 준비할 때의 트리는 `V12` 까지였다.
 >
 > **네 단계를 도는 중에는 그 트리를 rebase 하지 말 것.** `contract_sha256()` 이 적재기
 > 디렉터리의 `*.py` 와 `backend/src/main/resources/db/migration/V*.sql` **전체**를 해시하므로,
