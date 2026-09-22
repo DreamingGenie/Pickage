@@ -42,3 +42,9 @@ pipeline/repository_metrics/*.py text eol=lf
 # (이 규칙을 넣으면 Windows 작업 사본이 다음 체크아웃에서 CRLF → LF 로 바뀐다.
 #  저장소에 들어 있는 바이트는 원래부터 LF 라 diff 는 생기지 않는다.)
 .gitlab-ci.yml  text eol=lf
+
+# datasets/ 의 CSV 는 수집기·빌더가 바이트 그대로 읽고 SHA-256 으로 고정하는 기계 입력이다.
+# 저장소 blob 은 LF 인데 Windows(core.autocrlf=true) 체크아웃이 CRLF 로 바꿔 행마다 1바이트가 늘고
+# 고정 SHA 와 어긋난다(2026-09-23 rerank_100k_20260922.csv: 4,638,724 → 4,738,725 바이트, S15P21A506-455).
+# 체크아웃도 LF 로 고정해 파일 해시가 어느 OS 에서나 blob 과 같게 한다.
+datasets/**/*.csv    text eol=lf
