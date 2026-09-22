@@ -8,12 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ssafy.pickage.domain.community.CommunityService;
 import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
-import com.ssafy.pickage.domain.packages.PackageNames;
-import com.ssafy.pickage.domain.packages.PackageService;
-import com.ssafy.pickage.domain.packages.TransitionPeriod;
-import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 import com.ssafy.pickage.domain.report.dto.PdfGenerateRequest;
 import com.ssafy.pickage.domain.report.dto.PdfJobResponse;
@@ -21,7 +16,6 @@ import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * PDF 생성 (기능-14).
@@ -50,33 +44,24 @@ import lombok.extern.slf4j.Slf4j;
  * {@code NOT_COMPUTED})는 §13.2 가 이미 "차단 사유가 아니다" 라고 못 박은 화면의 결측 상태들과
  * 같은 종류라 새 {@code BLOCKED} 사유를 추가하지 않는다. 문서에 상태를 그대로 적어 화면과
  * 같은 규칙을 따른다(S15P21A506-394).
+ *
+ * <h2>조회는 {@link ReportSourcesAssembler} 와 나눠 쓴다</h2>
+ *
+ * "이름 검증 → 조회 → {@code Sources} 조립" 은 HAND-OFF Markdown({@link ReportMarkdownService})도
+ * 똑같이 밟는다(S15P21A506-466). 두 문서가 같은 재료를 보도록 그 단계를 공용 컴포넌트로 뺐다 —
+ * 이 클래스에는 PDF 만의 일(HTML 렌더 → PDF 변환 → 저장)만 남는다.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportPdfService {
 
-	private final PackageService packages;
-	private final CommunityService community;
+	private final ReportSourcesAssembler assembler;
 	private final ReportHtmlRenderer renderer;
 	private final HtmlToPdf converter;
 	private final PdfStore store;
 
 	@Transactional(readOnly = true)
 	public PdfJobResponse generate(PdfGenerateRequest request) {
-		// 이름 검증은 조회와 같은 규칙을 쓴다 — 상한·형식·중복 제거가 갈라지면
-		// 화면에서는 되는 조합이 PDF 에서만 막힌다.
-		PackageNames names = PackageNames.of(request.names());
-
-		PackagesOverviewResponse overview = packages.getOverview(names);
-
-		// 이름이 하나도 살아남지 않으면 그릴 것이 없다. 빈 문서를 내보내면
-		// 사용자는 "만들어졌다" 고 읽고 파일을 열어 보고서야 알게 된다.
-		if (overview.items().isEmpty()) {
-			throw new BusinessException(ExceptionType.REQUIRED_PARAM_MISSING,
-				"보고서를 만들 수 있는 패키지가 없습니다. 이름을 확인해 주세요.");
-		}
-
 		/*
 		 * 고른 구역 중 지금 채울 수 있는 것이 하나도 없다.
 		 *
@@ -85,59 +70,20 @@ public class ReportPdfService {
 		 */
 		Set<ReportSection> requested = ReportSection.parse(request.sections());
 
-		// period 검증은 조회(PackageController)와 같은 규칙을 쓴다 — 화면에서 되는 구간이
-		// PDF 에서만 막히면 안 된다. 유효하지 않은 값은 여기서 400 으로 끝난다.
-		TransitionPeriod period = TransitionPeriod.of(request.period());
-
-		// 커뮤니티 분석은 기준 패키지 하나만 대상이다(DEC-COMMUNITY-20260909-01). 저장된 스냅샷을 읽기만 한다 —
-		// 문서를 만드는 요청이 GitHub·GMS 수집을 일으키지 않는다.
-		CommunityStatusResponse communityStatus = requested.contains(ReportSection.COMMUNITY)
-			? communityOf(overview.items().getFirst().name())
-			: null;
-
-		// 기능 비교는 서버가 조회하지 않는다 — 요청이 실어 보낸 세션 판정을 그대로 쓴다(구상안 §14.5).
-		// FEATURES 를 고르지 않았으면 애초에 null 이라 문서는 그 구역을 그리지 않는다.
-		FeatureComparisonPayload features = requested.contains(ReportSection.FEATURES)
-			? request.features()
-			: null;
-
-		ReportHtmlRenderer.Sources sources = new ReportHtmlRenderer.Sources(
-			names.values(),
-			request.from(),
-			request.to(),
-			overview,
-			packages.getDownloadsTrend(names, request.from(), request.to()),
-			packages.getDependentsTrend(names, request.from(), request.to()),
-			packages.getVersionShare(names, request.snapshotAt()),
-			packages.getTransitions(names, period),
-			packages.getRemovalReasons(names, period),
-			requested,
-			communityStatus,
-			features);
+		ReportSourcesAssembler.Assembled assembled = assembler.assemble(
+			request.names(), request.from(), request.to(), request.snapshotAt(),
+			request.period(), requested, request.features());
 
 		// 한 번 그린 HTML 로 미리보기와 PDF 를 모두 만든다. 여기서 갈라지지 않는 것이
 		// "본 것과 받은 것이 같다" 의 전부다.
-		String html = renderer.render(sources);
+		String html = renderer.render(assembled.sources());
 		byte[] pdf = converter.convert(html);
 
 		String id = UUID.randomUUID().toString().replace("-", "");
-		PdfJobResponse meta = PdfStore.meta(id, fileName(names.values()), pdf.length,
-			omitted(requested, communityStatus, features));
+		PdfJobResponse meta = PdfStore.meta(id, fileName(assembled.sources().names()), pdf.length,
+			omitted(requested, assembled.communityStatus(), assembled.features()));
 		store.save(id, html, pdf, meta);
 		return meta;
-	}
-
-	/**
-	 * 기준 패키지의 커뮤니티 상태. <b>어떤 실패도 문서 생성을 막지 않는다</b> — 커뮤니티는 고르는 구역이라 그 자료를 못
-	 * 읽었다고 생태계 보고서까지 못 만들 이유가 없다. 못 읽었으면 {@code null} 이고 문서가 그 사실을 적는다.
-	 */
-	private CommunityStatusResponse communityOf(String baseName) {
-		try {
-			return community.getStatus(baseName);
-		} catch (RuntimeException e) {
-			log.warn("PDF 커뮤니티 구역: 저장된 자료를 읽지 못했습니다 ({})", e.getClass().getSimpleName());
-			return null;
-		}
 	}
 
 	/**
