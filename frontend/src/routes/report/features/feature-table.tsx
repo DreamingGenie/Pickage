@@ -196,7 +196,9 @@ function rowHasDetail(row: FeatureRow): boolean {
 function Cell({ cell, expanded }: { cell: FeatureCell; expanded: boolean }) {
   const reason = cellReason(cell)
   return (
-    <div className="flex flex-col items-start gap-1">
+    // items-center — 뱃지가 넓은 열 왼쪽에만 붙어 있으면 어색하다(QA 피드백). 펼친 설명
+    // 문단은 열 폭을 거의 채우므로 가운데 정렬이어도 줄글이 어색해 보이지 않는다.
+    <div className="flex flex-col items-center gap-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <VerdictPill verdict={cell.verdict} />
         {cell.generalKnowledge && (
@@ -204,7 +206,7 @@ function Cell({ cell, expanded }: { cell: FeatureCell; expanded: boolean }) {
             title="README 에서 확인한 것이 아니라 AI 의 일반 지식으로 판단했습니다"
             className="rounded border px-1 py-px text-xs text-muted-foreground"
           >
-            일반 지식
+            AI 일반 지식
           </span>
         )}
       </div>
