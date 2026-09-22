@@ -42,6 +42,11 @@ from typing import Iterable
 
 import numpy as np
 
+try:  # cp949 등 UTF-8 이 아닌 콘솔에서 log() 의 한글·특수문자(—) 출력이 죽는 것을 막는다
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # onnxruntime · transformers · pyarrow 는 무겁고 배치 실행 노드에만 설치된다.
 # 순수 로직(자격 필터·top-K·재랭킹·게이트)을 numpy 만으로 테스트할 수 있도록
 # 각 호출부에서 지연 import 한다.
