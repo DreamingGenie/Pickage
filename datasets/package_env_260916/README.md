@@ -33,7 +33,19 @@ Registry 원문에서 그대로 읽히거나 원문으로부터 기계적으로 
     PeerDependencies 길이          ->  peer_dependencies
 
 **09-16 이후 회차만 쓸 수 있다.** 형태 6열은 그 회차부터 들어갔고, 09-09 raw 에는 키 자체가
-없다. 빌더가 `DESCRIBE` 로 확인해 없으면 멈춘다.
+없다. 빌더가 `DESCRIBE` 로 확인해 없으면 멈춘다. **회차마다 확인하므로** 09-16 뒤에 09-09 를
+붙여도 뒤엣것이 조용히 NULL 로 섞이지 않는다.
+
+**회차를 여럿 줄 수 있다**(S15P21A506-452). 대상 목록을 나눠 여러 번에 걸쳐 수집했으면
+`--collected-date` 와 `--run-id` 를 같은 수만큼 반복해 적는다. 앞에서부터 짝지어진다.
+
+    python -m pipeline.duckdb.build_package_env \
+      --collected-date 2026-09-16 --run-id registry-20260916-v1 \
+      --collected-date 2026-09-22 --run-id registry-20260922-additions-v1
+
+회차가 둘 이상이면 `(Name, Version)` 이 겹치는지 보고 겹치면 멈춘다. 이 표의 PK 가
+`(package_id, version)` 이라 그냥 두면 적재에서 막히는데, 그때는 어느 회차가 겹쳤는지
+알아내기가 훨씬 번거롭다. 회차가 하나면 이 검사를 하지 않는다.
 
 ## module_format 판정
 

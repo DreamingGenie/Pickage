@@ -27,6 +27,22 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 | `start_registry_sharded.cmd` | **4분할로 시작·재시작(더블클릭).** 대상을 나눈 뒤 `collect.py` 를 샤드 수만큼 띄운다. 실행 검사는 **샤드별**이라, 하나만 죽었을 때 다시 더블클릭하면 그 하나만 이어서 띄운다. 이 RUN 의 샤드가 아닌 수집기가 돌고 있으면 아무것도 띄우지 않는다. 샤드 수·기준 run 이름은 파일 머리의 `SHARDS`·`RUN` |
 | `status_watch.cmd` | 현황 창(더블클릭). 60초 갱신, 닫아도 수집기 영향 없음 |
 | `status_watch_sharded.cmd` | 4분할 현황 창(더블클릭). 합계 진행률·완료 예상 시각 + 샤드별 상태 |
+| `start_registry_additions.cmd` | **확장 목록 추가분 36.9만 4분할 수집(S15P21A506-452).** `start_registry_sharded.cmd` 를 복사해 `RUN`·`TARGETS` 만 바꾼 것이고 로직은 같다. 회차마다 이렇게 사본을 만들고 원본은 건드리지 않는다 |
+| `status_watch_additions.cmd` | 위 회차의 현황 창(더블클릭) |
+
+## 회차 (run=2026-09-22-additions, 4분할, 진행 중)
+
+확장 목록 468,519 중 상위 10만 밖의 **추가분 368,523개**다. 대상은
+`datasets/targets/expanded_468k_additions_20260922.csv` 이고, 그 파일의 `rank` 는 468,519
+목록의 순번이라 원래 순위는 `source_rank` 열에 있다. 수집기는 `rank` 로 정렬만 하므로
+둘 중 어느 것을 순위로 보든 결과가 달라지지 않는다.
+
+샤드 4개로 92,131 / 92,131 / 92,131 / 92,130 건씩 나눴다. 이름 중복은 0건이다.
+**상위 10만과 이름이 겹치지 않는다** — 99,996 + 368,523 = 468,519 로 확장 목록과 정확히 맞는다.
+그래서 `to_parquet.py` 나 `build_package_env.py` 에 두 회차를 같이 줘도 (Name, Version) 이 겹치지 않는다.
+
+실측은 완료 후 채운다. 진행 중 관측으로는 09-16 회차보다 패키지당 문서가 작고(그쪽 739 KB,
+이쪽 280 KB 대) 버전 수도 적지만(215 대 86), 건수가 3.7배라 전송 총량은 오히려 많다.
 
 ## 실측 (run=2026-09-16, 4분할, 2026-09-16 완료)
 
@@ -95,6 +111,10 @@ ecosyste.ms 다운로드 순위 상위 10만 `datasets/targets/rank_top100k_2026
 
 # 가장 쉬운 시작·재시작: 탐색기에서 더블클릭 (이미 돌고 있으면 새로 띄우지 않음). 밤새 돌릴 때는 PC 절전을 끈다
 pipeline\collectors\registry\start_registry.cmd
+
+# ── 확장 목록 추가분 36.9만 (S15P21A506-452). 대상만 다르고 방식은 아래와 같다 ──
+pipeline\collectors\registry\start_registry_additions.cmd   # 시작 (더블클릭)
+pipeline\collectors\registry\status_watch_additions.cmd     # 현황 창 (더블클릭)
 
 # ── 4분할 수집 (S15P21A506-366). 직렬 17.9시간 → 약 4.5시간 ──
 # 대상을 4등분하고 collect.py 를 4개 띄운다. 수집기 자체는 직렬 그대로다(동시성을 넣지 않았다).
