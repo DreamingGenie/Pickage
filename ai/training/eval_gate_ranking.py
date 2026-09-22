@@ -143,6 +143,61 @@ def fmt(m):
             f"평균노출 {m['avg_shown']:.2f}  3개미만 {m['lt3_ratio']:.0%}  0개 {m['zero_ratio']:.0%}")
 
 
+# ── downloads 하한 스윕 (S15P21A506-450) ──────────────────────────────
+#
+# "TOP3에 영세 패키지가 너무 많이 잡힌다"는 반복 피드백 대응. cos 축은 기존
+# 구조적 관문(위)이 이미 상대적으로 처리하므로, 여기서는 downloads_last_month에만
+# 절대 하한을 걸어본다 — 하드 컷오프를 두 축에 동시에 걸면 후보가 비는 위험이
+# 커지므로(브레인스토밍 결정) 한 축으로 제한한다.
+
+def apply_downloads_floor(hits, names, downloads_by_idx, floor):
+    """downloads_last_month < floor 인 후보(candidate)를 hits 에서 제거한다.
+
+    floor<=0 이면 무변경(하한 없음). downloads 정보가 없는 후보(None)는 **통과시키지
+    않는다** — 데이터 없다고 관대하게 봐주면 "실제로는 영세한데 그냥 몰라서 통과"하는
+    사례를 만들 수 있어서다(구조적 관문의 보완재 판정과는 반대 방향 — 거긴 데이터
+    없으면 통과가 기본값인데, 거기는 "감점 근거 없음=감점 안 함"이고 여기는 "자격
+    근거 없음=자격 불충분"이라 취지가 다르다).
+    """
+    if floor <= 0:
+        return hits, 0
+    kept, dropped = [], 0
+    for base_idx, cand_idx, cos in hits:
+        dl = downloads_by_idx.get(cand_idx)
+        if dl is None or dl < floor:
+            dropped += 1
+            continue
+        kept.append((base_idx, cand_idx, cos))
+    return kept, dropped
+
+
+def downloads_stats(shown, downloads_by_name, floors=(10_000, 50_000, 100_000, 500_000)):
+    """설정 하나에서 실제로 노출된(top-3) 후보들의 downloads_last_month 분포.
+
+    "관문을 어떻게 바꾸면 recall/precision이 얼마나 깎이는가"만으로는 원래 문제
+    ("영세 패키지가 뽑힌다")가 실제로 나아졌는지 알 수 없어서, 선정된 후보 자체의
+    인기도 분포를 recall/precision과 나란히 본다.
+    """
+    vals = [downloads_by_name.get(c) for cands in shown.values() for c, _ in cands]
+    vals = [v for v in vals if v is not None]
+    missing = sum(1 for cands in shown.values() for c, _ in cands) - len(vals)
+    if not vals:
+        return None
+    arr = np.array(vals, dtype=np.float64)
+    out = {"n": len(arr), "missing_downloads": missing,
+           "mean": float(np.mean(arr)), "median": float(np.median(arr))}
+    for f in floors:
+        out[f"below_{f}"] = float((arr < f).mean())
+    return out
+
+
+def fmt_downloads(d):
+    if d is None:
+        return "(downloads 정보 없음)"
+    below = "  ".join(f"<{f:,} {d[f'below_{f}']:.0%}" for f in (10_000, 50_000, 100_000, 500_000) if f"below_{f}" in d)
+    return f"평균 {d['mean']:,.0f}  중앙값 {d['median']:,.0f}  {below}  (n={d['n']}, downloads결측 {d['missing_downloads']})"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", required=True)
@@ -155,6 +210,10 @@ def main():
     ap.add_argument("--retrieve-k", type=int, default=30)
     ap.add_argument("--batch-size", type=int, default=128)
     ap.add_argument("--cache", default=None, help="코퍼스 임베딩 .npy 캐시 경로")
+    ap.add_argument("--downloads-floors", default="10000,50000,100000,500000",
+                     help="쉼표 구분 downloads_last_month 하한 스윕 값(S15P21A506-450). "
+                          "각 값마다 gate(+보완재) 결과에 하한을 추가로 걸어 recall/precision/"
+                          "lt3_ratio와 선정된 downloads 분포를 나란히 잰다")
     args = ap.parse_args()
 
     if args.model != BASE_MODEL:
@@ -193,6 +252,20 @@ def main():
         gc, drops_c = sp.apply_gates(hits, names, kw_by_idx, True, dependents_by_idx=deps_by_idx)
         configs["gate+보완재"] = gc
         cov = sum(1 for n in names if n in deps) / len(names)
+
+    # downloads 하한 스윕 (S15P21A506-450) — 프로덕션과 가장 가까운 관문(보완재 있으면 그것,
+    # 없으면 plugin·같은계열) 결과 위에 downloads_last_month 하한만 추가로 건다.
+    base_key = "gate+보완재" if deps_by_idx is not None else "gate(plugin·같은계열)"
+    downloads_by_idx = {pool_idx[p["name"]]: p.get("downloads_last_month")
+                         for p in pool if p["name"] in pool_idx}
+    downloads_by_name = {p["name"]: p.get("downloads_last_month") for p in pool}
+    floors = [int(f) for f in args.downloads_floors.split(",") if f.strip()]
+    dl_drops = {}
+    for floor in floors:
+        dl_hits, dropped = apply_downloads_floor(configs[base_key], names, downloads_by_idx, floor)
+        configs[f"{base_key}+dl>={floor:,}"] = dl_hits
+        dl_drops[floor] = dropped
+
     shown = {k: shown_by_base(h, names) for k, h in configs.items()}
 
     lines = [
@@ -209,10 +282,13 @@ def main():
               f"이름만 판정 시 drop 수: {drops_name}"]
     if deps_by_idx is not None:
         lines.append(f"보완재 포함 drop 수: {drops_c}")
+    lines.append(f"downloads 하한 drop 수 (기준: {base_key}): {dl_drops}")
 
-    lines += ["", "[설정별 지표]"]
+    lines += ["", "[설정별 지표] (recall/precision/lt3_ratio + 선정된 TOP3의 downloads 분포)"]
     for k in configs:
-        lines.append(f"  {k:22} {fmt(score(gold, shown[k]))}")
+        m = score(gold, shown[k])
+        lines.append(f"  {k:28} {fmt(m)}")
+        lines.append(f"  {'':28} └ downloads: {fmt_downloads(downloads_stats(shown[k], downloads_by_name))}")
 
     lines += ["", "[참고] 예전 방식 — cos 임계값 τ 로 top-3 를 자름 (관문 없음 / 관문 있음)"]
     for tau in THRESHOLDS:
@@ -258,7 +334,8 @@ def main():
         f.write(report)
     raw = {k: {b: v for b, v in s.items()} for k, s in shown.items()}
     with open(os.path.join(args.out, f"eval_gate_{args.label}.json"), "w", encoding="utf-8") as f:
-        json.dump({"shown": raw, "gold": {f"{d}|{b}": sorted(g) for (d, b), g in gold.items()}},
+        json.dump({"shown": raw, "gold": {f"{d}|{b}": sorted(g) for (d, b), g in gold.items()},
+                   "downloads_by_name": downloads_by_name},
                   f, ensure_ascii=False)
     try:
         print(report)
