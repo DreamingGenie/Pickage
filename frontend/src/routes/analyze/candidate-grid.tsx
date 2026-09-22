@@ -6,8 +6,7 @@ import { cn } from '@/lib/utils'
 /**
  * 후보 카드 그리드 (IA 6.2 · 구상안 §4.3).
  *
- * **버전은 고르지 않는다.** 최신 버전을 적는 것은 "언제 것인지" 를 보여주는 정보이지
- * 선택지가 아니다 — 비교 버전은 보고서 안에서 카드마다 따로 고른다(구상안 §5.2).
+ * **버전은 고르지 않는다.** 카드에 버전을 적지 않는다 — 비교 버전은 보고서 안에서 따로 고른다(구상안 §5.2).
  *
  * 선택 상태를 색으로만 알리지 않는다 — `추가` / `✓ 추가됨` 글자와 `aria-pressed` 를 함께 쓴다(IA §1-13).
  *
@@ -85,13 +84,6 @@ export function CandidateGrid({
                 <span>
                   비슷한 순서{' '}
                   <span className="font-mono text-foreground tabular-nums">{c.rank}위</span>
-                </span>
-                <span aria-hidden>·</span>
-                <span>
-                  최신{' '}
-                  <span className="font-mono text-foreground tabular-nums">
-                    {c.latest_version ?? '미확인'}
-                  </span>
                 </span>
               </p>
             </button>

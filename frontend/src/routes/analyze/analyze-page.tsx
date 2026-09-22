@@ -1,11 +1,10 @@
-import { CheckIcon, Loader2Icon, PencilIcon, SearchIcon, XIcon } from 'lucide-react'
+import { Loader2Icon, SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { usePackageAutocomplete } from '@/api/autocomplete'
-import { fetchPackageSearch, postCommunityRefresh } from '@/api/endpoints'
-import { useSimilarPackages } from '@/api/queries'
-import { MAX_NAMES, SEARCH_LIMIT_MAX } from '@/api/types'
+import { fetchPackagesOverview, fetchSimilarPackages, postCommunityRefresh } from '@/api/endpoints'
+import { usePackagesOverview, useSimilarPackages } from '@/api/queries'
+import { MAX_NAMES } from '@/api/types'
 import { paths } from '@/app/routes'
 import { EmptyState } from '@/components/common/empty-state'
 import { InfoDialog } from '@/components/common/info-dialog'
@@ -14,8 +13,9 @@ import { Notice } from '@/components/common/notice'
 import { Stepper } from '@/components/common/stepper'
 import { Button } from '@/components/ui/button'
 import { CandidateGrid } from '@/routes/analyze/candidate-grid'
+import { MissingPackage, NoSimilarWarning } from '@/routes/analyze/missing-package'
 import { PackageSearch } from '@/routes/analyze/package-search'
-import { cn } from '@/lib/utils'
+import { SelectionPanel } from '@/routes/analyze/selection-panel'
 
 /** 기준 패키지를 포함한 비교 대상 수(IA §1-3). 서버의 `names` 상한과 같은 값이다. */
 const MAX_COMPARISON = MAX_NAMES
@@ -60,6 +60,17 @@ export function AnalyzePage() {
 
   const [draft, setDraft] = useState(nav?.prefill ?? restore?.[0] ?? '')
   const [extraError, setExtraError] = useState<string | null>(null)
+  /**
+   * 유사 후보(similar_package)가 없는 이름에 대한 "그래도 진행" 확인.
+   * `noDataBaseAccepted` — 경고를 보고도 기준으로 쓰겠다고 한 이름.
+   * `noDataExtra` — 직접 추가하려는데 유사 후보가 없어 확인을 기다리는 이름.
+   */
+  const [noDataBaseAccepted, setNoDataBaseAccepted] = useState<string | null>(null)
+  const [noDataExtra, setNoDataExtra] = useState<string | null>(null)
+  /** 보고서로 넘기기 직전 확인에서 자료가 없어 뺀 이름들 */
+  const [unavailable, setUnavailable] = useState<string[]>([])
+  /** 직접 찾기에서 확인했지만 없던 이름. 같은 이름으로는 다시 넣지 못하게 막는다. */
+  const [extraMissing, setExtraMissing] = useState<string | null>(null)
   const [picked, setPicked] = useState<string[]>(restore?.slice(1) ?? [])
   const [limitHit, setLimitHit] = useState(false)
   const [extraDraft, setExtraDraft] = useState('')
@@ -82,17 +93,42 @@ export function AnalyzePage() {
   }, [submitted])
 
   const similar = useSimilarPackages(submitted ?? '')
+  /*
+    기준 패키지도 보고서가 쓰는 조회(`/packages`)로 함께 확인한다. 유사 패키지 조회는 이름 목록에만
+    있으면 통과시켜서, 보고서 자료가 없는 이름이 기준으로 잡혀 보고서가 깨졌다.
+  */
+  const overview = usePackagesOverview(submitted ? [submitted] : [])
+  const hasReportData =
+    overview.data !== undefined &&
+    !overview.data.not_found.includes(submitted ?? '') &&
+    overview.data.items.some((it) => it.name === submitted)
 
-  /** 이름 자체가 없는 경우. 후보가 아직 없는 것(`NO_DATA`)과 다르다. */
+  /** 이름 자체가 없거나, 있어도 보고서 자료가 없는 경우. 후보가 아직 없는 것(`NO_DATA`)과 다르다. */
   const missing =
-    similar.data && similar.data.not_found.length > 0 ? similar.data.not_found[0] : null
+    similar.data && similar.data.not_found.length > 0
+      ? similar.data.not_found[0]
+      : submitted && overview.data && !hasReportData
+        ? submitted
+        : null
 
-  const base = submitted && similar.data && !missing ? submitted : null
+  /**
+   * 이름·자료는 있지만 유사 후보가 없다(`NO_DATA`). 막지는 않고, 비교가 빈약할 수 있다고 알린 뒤
+   * 사용자가 "그래도 진행" 을 눌러야 2단계로 넘어간다.
+   */
+  const noDataBase =
+    Boolean(submitted) &&
+    hasReportData &&
+    !missing &&
+    similar.data?.data_status === 'NO_DATA' &&
+    noDataBaseAccepted !== submitted
+
+  const base =
+    submitted && similar.data && hasReportData && !missing && !noDataBase ? submitted : null
   // isPending 만 보면 실패 후 재조회(isRefetching) 동안 스피너·비활성화가 안 걸린다 — isFetching 은 둘 다 포함
-  const checking = Boolean(submitted) && similar.isFetching
+  const checking = Boolean(submitted) && (similar.isFetching || overview.isFetching)
 
   /** 이름을 못 찾은 경우는 `MissingPackage` 가 따로 그린다. 여기는 조회 자체가 실패한 경우다. */
-  const error = !missing && similar.error ? 'SIMILAR_FAILED' : null
+  const error = !missing && (similar.error || overview.error) ? 'SIMILAR_FAILED' : null
 
   /**
    * 서버는 `limit` 만큼 주지만 화면에는 일부만 깐다.
@@ -111,6 +147,7 @@ export function AnalyzePage() {
     // 같은 이름 재확인은 상태가 안 바뀌어 react-query 가 다시 안 보낸다 — 직접 refetch (S15P21A506-332)
     if (q === submitted) {
       void similar.refetch()
+      void overview.refetch()
       return
     }
     setPicked([])
@@ -119,6 +156,7 @@ export function AnalyzePage() {
   }
 
   function resetBase() {
+    setNoDataBaseAccepted(null)
     setSubmitted(null)
     setPicked([])
     setLimitHit(false)
@@ -145,18 +183,17 @@ export function AnalyzePage() {
    * **후보 순위는 바뀌지 않는다.** 사용자가 넣은 이름은 모델이 고른 것이 아니므로
    * 목록에 끼워 넣지 않고 선택에만 더한다(구상안 §4.4 `manualSelection`).
    *
-   * 존재 확인은 검색 엔드포인트로 한다 — 접두사 검색이라 정확히 같은 이름이 결과에
-   * 들어 있는지를 본다. 앞이 같은 다른 이름(`express-session`)이 통과하면 안 된다.
-   * `SEARCH_LIMIT_MAX`(서버 상한)까지 받는다 — 상위 5개만 보면 인기순 밖으로 밀린
-   * 정상 패키지를 "없음"으로 오판할 수 있다(부재 증명이 아니다).
+   * 존재 확인은 보고서와 같은 `/packages` 조회로 한다 — 여기서 통과한 이름은 보고서에서도 자료가 있다.
    *
    * **왕복 사이 레이스 방어.** `await` 도중 기준이 바뀌거나, 같은 이름이 동시에 또
    * 들어오거나, 다른 추가로 한도가 다 찼을 수 있다 — 응답이 오면 그 시점 최신 상태로
    * 다시 확인한 뒤에만 반영한다(S15P21A506-309).
    */
-  async function addManual(name: string) {
+  async function addManual(name: string, force = false) {
     const q = name.trim()
     setExtraError(null)
+    setExtraMissing(null)
+    setNoDataExtra(null)
     if (!q) return
     if (selected.includes(q)) {
       setExtraError('이미 비교할 패키지에 들어 있어요.')
@@ -169,11 +206,23 @@ export function AnalyzePage() {
 
     const requestedFor = submitted
 
+    /*
+      보고서가 쓰는 것과 **같은 조회**(`/packages`)로 확인한다. 예전에는 이름 검색만 봤는데, 검색 목록에는
+      있어도 보고서 자료가 없는 이름이 통과해 보고서가 깨졌다. 여기서 없다고 하면 보고서에서도 없다.
+    */
     try {
-      const found = await fetchPackageSearch(q, SEARCH_LIMIT_MAX)
-      if (!found.items.includes(q)) {
-        setExtraError(`${q} 라는 패키지를 찾지 못했어요. 이름을 정확히 적었는지 확인해 주세요.`)
+      const found = await fetchPackagesOverview([q])
+      if (found.not_found.includes(q) || !found.items.some((it) => it.name === q)) {
+        setExtraMissing(q)
         return
+      }
+      // 유사 후보가 없는 패키지는 막지 않고 한 번 묻는다. "그래도 추가" 를 누르면 force 로 다시 들어온다.
+      if (!force) {
+        const similarOfExtra = await fetchSimilarPackages(q, 1)
+        if (similarOfExtra.data_status === 'NO_DATA') {
+          setNoDataExtra(q)
+          return
+        }
       }
     } catch {
       setExtraError('확인하지 못했어요. 잠시 뒤에 다시 해 주세요.')
@@ -209,6 +258,28 @@ export function AnalyzePage() {
   async function createReport() {
     if (!base) return
     setCreating(true)
+    setUnavailable([])
+
+    /*
+      보내기 전에 한 번 더 확인한다. 보고서에서 되돌아온 조합(`restore`)은 주소에서 온 이름이라 확인을
+      거치지 않았다. 자료가 없는 이름이 섞이면 넘기지 않고 빼 준 뒤 이 화면에 남는다.
+    */
+    try {
+      const checked = await fetchPackagesOverview(selected)
+      const missingNames = selected.filter(
+        (n) => checked.not_found.includes(n) || !checked.items.some((it) => it.name === n),
+      )
+      if (missingNames.length > 0) {
+        setPicked((prev) => prev.filter((n) => !missingNames.includes(n)))
+        setUnavailable(missingNames)
+        setCreating(false)
+        return
+      }
+    } catch {
+      setExtraError('확인하지 못했어요. 잠시 뒤에 다시 해 주세요.')
+      setCreating(false)
+      return
+    }
 
     // 커뮤니티 수집 선착수(ANALYSIS_CONFIRMED). 비차단 — 응답을 기다리지 않고
     // 보고서 이동을 계속한다. 실패해도 커뮤니티 탭 최초 오픈이 TAB_OPENED 로 다시
@@ -229,332 +300,228 @@ export function AnalyzePage() {
 
   return (
     <div className="flex flex-col gap-8 py-4">
-      <Stepper steps={FLOW_STEPS} currentId={base ? 'candidates' : 'input'} />
+      {/* 1 을 누르면 기준 패키지 입력으로 돌아간다(지나온 단계만 누를 수 있다) */}
+      <Stepper
+        steps={FLOW_STEPS}
+        currentId={base ? 'candidates' : 'input'}
+        onStepClick={(id) => id === 'input' && resetBase()}
+      />
 
-      {!base ? (
-        /* ① 기준 패키지 — 하나만 받는다 */
-        <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-          <header className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              비교의 기준이 될 패키지를 넣어 주세요
-            </h1>
-            <p className="text-base text-muted-foreground">
-              지금 쓰고 있거나 알아보는 중인 npm 패키지 하나면 돼요. 비슷한 후보는 저희가 찾아
-              드려요.
-            </p>
-          </header>
+      {/*
+        1·2단계가 같은 틀(왼쪽 본문 + 오른쪽 패널 자리)을 쓴다. 1단계도 처음부터 왼쪽에 붙어 있어서,
+        2단계로 넘어갈 때 본문이 옆으로 밀리지 않고 오른쪽 패널만 새로 나타난다.
+      */}
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {!base ? (
+          /* ① 기준 패키지 — 하나만 받는다 */
+          <section
+            key="input"
+            className="flex min-w-0 animate-in flex-col gap-7 duration-300 fade-in-0 slide-in-from-bottom-2"
+          >
+            <header className="flex flex-col gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">
+                비교의 기준이 될 패키지를 넣어 주세요
+              </h1>
+              <p className="text-base text-muted-foreground">
+                지금 쓰고 있거나 알아보는 중인 npm 패키지 하나면 돼요. 비슷한 후보는 저희가 찾아
+                드려요.
+              </p>
+            </header>
 
-          <div className="flex flex-col gap-3 rounded-2xl border bg-card p-6">
-            <span className="text-base font-semibold">기준 패키지</span>
-            <div className="flex items-start gap-2">
-              <PackageSearch
-                value={draft}
-                onChange={(v) => {
-                  setDraft(v)
-                  /*
+            <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+              <span className="text-base font-semibold">기준 패키지</span>
+              <div className="flex items-start gap-2">
+                <PackageSearch
+                  value={draft}
+                  onChange={(v) => {
+                    setDraft(v)
+                    /*
                     오류는 상태가 아니라 조회 결과에서 파생된다. 지우려면 "무엇을 확인했는지" 를
                     비워야 한다 — 그래야 조회가 꺼지고 문구도 함께 사라진다.
                   */
-                  if (missing) setSubmitted(null)
-                }}
-                onSubmit={verify}
-                ariaLabel="기준 npm 패키지명"
-                disabled={checking}
-                autoFocus
-                showCount
-              />
-              <Button
-                size="lg"
-                className="h-11 shrink-0"
-                disabled={!draft.trim() || checking}
-                onClick={() => verify(draft)}
-              >
-                {checking ? (
-                  <>
-                    <Loader2Icon className="size-4 animate-spin" aria-hidden />
-                    찾는 중
-                  </>
-                ) : (
-                  '패키지 확인'
-                )}
-              </Button>
-            </div>
-
-            {missing ? (
-              <MissingPackage
-                name={missing}
-                onPick={(n) => {
-                  setDraft(n)
-                  verify(n)
-                }}
-              />
-            ) : (
-              error && (
-                <Notice tone="error" title="후보를 불러오지 못했어요">
-                  잠시 뒤에 다시 확인해 주세요.
-                </Notice>
-              )
-            )}
-
-            <p className="text-sm text-muted-foreground">
-              버전은 여기서 고르지 않아요. 보고서의 기능 비교 탭에서 골라요.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-          {/* ② 후보 고르기 */}
-          <section className="flex min-w-0 flex-col gap-7">
-            <header className="flex flex-wrap items-end justify-between gap-3">
-              <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">
-                  함께 비교할 패키지를 골라 주세요
-                </h1>
-                <p className="text-base text-muted-foreground">
-                  <span className="font-mono text-foreground">{base}</span> 와 비슷한 패키지를
-                  찾았어요. 최대 {MAX_COMPARISON - 1}개를 더 고를 수 있어요.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={resetBase}>
-                <PencilIcon className="size-3.5" aria-hidden />
-                기준 바꾸기
-              </Button>
-            </header>
-
-            {/*
-              직접 찾기를 후보 위로 올렸다. 아래에 두면 원하는 패키지가 후보에 없을 때 한참 내려가야
-              찾을 수 있었다. 후보 순위는 바뀌지 않는다(IA 6.1).
-            */}
-            <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
-              <span className="text-base font-semibold">목록에 없는 패키지 직접 찾기</span>
-              <div className="flex items-start gap-2">
-                <PackageSearch
-                  value={extraDraft}
-                  onChange={(v) => {
-                    setExtraDraft(v)
-                    if (extraError) setExtraError(null)
+                    if (missing) setSubmitted(null)
                   }}
-                  onSubmit={(v) => void addManual(v)}
-                  placeholder="정확한 패키지 이름"
-                  ariaLabel="직접 추가할 패키지명"
-                  disabled={full}
-                  showCount
+                  onSubmit={verify}
+                  ariaLabel="기준 npm 패키지명"
+                  disabled={checking}
+                  autoFocus
                 />
                 <Button
-                  variant="outline"
                   size="lg"
                   className="h-11 shrink-0"
-                  disabled={!extraDraft.trim() || full}
-                  onClick={() => void addManual(extraDraft)}
+                  disabled={!draft.trim() || checking}
+                  onClick={() => verify(draft)}
                 >
-                  추가
+                  {checking ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" aria-hidden />
+                      찾는 중
+                    </>
+                  ) : (
+                    '패키지 확인'
+                  )}
                 </Button>
               </div>
-              {extraError ? (
-                <p role="alert" className="text-base text-destructive">
-                  {extraError}
-                </p>
+
+              {missing ? (
+                <MissingPackage name={missing} />
+              ) : noDataBase && submitted ? (
+                <NoSimilarWarning
+                  name={submitted}
+                  confirmLabel="그래도 기준으로 쓰기"
+                  onConfirm={() => setNoDataBaseAccepted(submitted)}
+                  onCancel={() => {
+                    setSubmitted(null)
+                    setDraft('')
+                  }}
+                />
               ) : (
-                full && (
-                  <p className="text-sm text-muted-foreground">
-                    이미 {MAX_COMPARISON}개를 골랐어요. 오른쪽에서 하나를 빼면 새로 넣을 수 있어요.
-                  </p>
+                error && (
+                  <Notice tone="error" title="후보를 불러오지 못했어요">
+                    잠시 뒤에 다시 확인해 주세요.
+                  </Notice>
                 )
               )}
             </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-xl font-semibold tracking-tight">비슷한 패키지</h2>
-                <span className="text-sm text-muted-foreground">
-                  설명이 비슷한 순서예요 · 품질 순위가 아니에요
-                </span>
-              </div>
+          </section>
+        ) : (
+          <>
+            {/* ② 후보 고르기 — 1단계 자리에서 부드럽게 바뀌어 나타난다 */}
+            <section
+              key="candidates"
+              className="flex min-w-0 animate-in flex-col gap-7 duration-300 fade-in-0 slide-in-from-bottom-2"
+            >
+              <header className="flex flex-wrap items-end justify-between gap-3">
+                <div className="flex flex-col gap-2">
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    함께 비교할 패키지를 골라 주세요
+                  </h1>
+                  <p className="text-base text-muted-foreground">
+                    <span className="font-mono text-foreground">{base}</span> 와 비슷한 패키지를
+                    찾았어요. 최대 {MAX_COMPARISON - 1}개를 더 고를 수 있어요.
+                  </p>
+                </div>
+              </header>
 
               {/*
+              직접 찾기를 후보 위로 올렸다. 아래에 두면 원하는 패키지가 후보에 없을 때 한참 내려가야
+              찾을 수 있었다. 후보 순위는 바뀌지 않는다(IA 6.1).
+            */}
+              <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+                <span className="text-base font-semibold">목록에 없는 패키지 직접 찾기</span>
+                <div className="flex items-start gap-2">
+                  <PackageSearch
+                    value={extraDraft}
+                    onChange={(v) => {
+                      setExtraDraft(v)
+                      if (extraError) setExtraError(null)
+                      if (extraMissing) setExtraMissing(null)
+                      if (noDataExtra) setNoDataExtra(null)
+                      if (unavailable.length) setUnavailable([])
+                    }}
+                    onSubmit={(v) => void addManual(v)}
+                    placeholder="정확한 패키지 이름"
+                    ariaLabel="직접 추가할 패키지명"
+                    disabled={full}
+                  />
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-11 shrink-0"
+                    disabled={!extraDraft.trim() || full || extraDraft.trim() === extraMissing}
+                    onClick={() => void addManual(extraDraft)}
+                  >
+                    추가
+                  </Button>
+                </div>
+                {unavailable.length > 0 ? (
+                  <MissingPackage name={unavailable.join(', ')} />
+                ) : extraMissing ? (
+                  <MissingPackage name={extraMissing} />
+                ) : noDataExtra ? (
+                  <NoSimilarWarning
+                    name={noDataExtra}
+                    confirmLabel="그래도 추가"
+                    onConfirm={() => void addManual(noDataExtra, true)}
+                    onCancel={() => setNoDataExtra(null)}
+                  />
+                ) : extraError ? (
+                  <p role="alert" className="text-base text-destructive">
+                    {extraError}
+                  </p>
+                ) : (
+                  full && (
+                    <p className="text-sm text-muted-foreground">
+                      이미 {MAX_COMPARISON}개를 골랐어요. 오른쪽에서 하나를 빼면 새로 넣을 수
+                      있어요.
+                    </p>
+                  )
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold tracking-tight">비슷한 패키지</h2>
+
+                {/*
                 빈 상태가 두 갈래다. **아직 계산되지 않은 것**(`NO_DATA`)과 **관련 후보가 없는 것**은
                 사용자가 할 일이 다르다. 앞은 기다리면 되고 뒤는 직접 추가해야 한다.
               */}
-              {candidates.length === 0 ? (
-                <EmptyState
-                  icon={SearchIcon}
-                  title={
-                    similar.data?.data_status === 'NO_DATA'
-                      ? '아직 비슷한 패키지를 찾는 중이에요'
-                      : '비슷한 패키지를 찾지 못했어요'
-                  }
-                  description={
-                    similar.data?.data_status === 'NO_DATA'
-                      ? '후보는 매주 새로 계산해요. 그동안은 위에서 이름으로 직접 넣을 수 있어요.'
-                      : '위에서 이름으로 직접 넣거나, 다른 기준 패키지로 시작해 보세요.'
-                  }
-                />
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
-                  {/*
+                {candidates.length === 0 ? (
+                  <EmptyState
+                    icon={SearchIcon}
+                    title={
+                      similar.data?.data_status === 'NO_DATA'
+                        ? '아직 비슷한 패키지를 찾는 중이에요'
+                        : '비슷한 패키지를 찾지 못했어요'
+                    }
+                    description={
+                      similar.data?.data_status === 'NO_DATA'
+                        ? '후보는 매주 새로 계산해요. 그동안은 위에서 이름으로 직접 넣을 수 있어요.'
+                        : '위에서 이름으로 직접 넣거나, 다른 기준 패키지로 시작해 보세요.'
+                    }
+                  />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
+                    {/*
                     모델 이름은 기본 화면에서 의미가 없다(S15P21A506-443) — 라벨만 두고
                     실제 기준 설명과 모델 버전은 InfoDialog 로 옮긴다. 모델 버전을 완전히
                     지우지 않는 이유는 이 목록의 계보이기 때문이다(스냅샷 날짜를 쓰지
                     않기로 했다) — 다음 주에 목록이 바뀌었을 때 화면이 바뀐 것인지 모델이
                     바뀐 것인지 알 수 없게 된다.
                   */}
-                  {similar.data?.model_ver && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-base text-muted-foreground">후보를 고른 기준</span>
-                      <InfoDialog label="후보를 고른 기준 안내" title="후보를 고른 기준">
-                        <p>
-                          기능이 유사한 패키지 중 하위 모듈·보완재·보관된 저장소를 제외한 인기
-                          패키지를 최대 {VISIBLE_CANDIDATES}개까지 보여줍니다.
-                        </p>
-                      </InfoDialog>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 선택 패널 — 무엇을 골랐는지 늘 보이게 오른쪽에 붙인다 */}
-          <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-            <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-lg font-semibold">비교할 패키지</h2>
-                <span className="font-mono text-base text-muted-foreground tabular-nums">
-                  {selected.length} / {MAX_COMPARISON}
-                </span>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {selected.map((n, i) => (
-                  <li
-                    key={n}
-                    className={cn(
-                      'flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2',
-                      i === 0 ? 'bg-muted/50' : 'bg-card',
+                    {similar.data?.model_ver && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base text-muted-foreground">후보를 고른 기준</span>
+                        <InfoDialog label="후보를 고른 기준 안내" title="후보를 고른 기준">
+                          <p>
+                            기능이 유사한 패키지 중 하위 모듈·보완재·보관된 저장소를 제외한 인기
+                            패키지를 최대 {VISIBLE_CANDIDATES}개까지 보여줍니다.
+                          </p>
+                        </InfoDialog>
+                      </div>
                     )}
-                  >
-                    {i === 0 && (
-                      <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-sm font-medium text-primary">
-                        기준
-                      </span>
-                    )}
-                    <span title={n} className="min-w-0 flex-1 truncate font-mono text-base">
-                      {n}
-                    </span>
-                    {i > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggle(n)}
-                        aria-label={`${n} 비교에서 빼기`}
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <XIcon className="size-4" aria-hidden />
-                      </button>
-                    )}
-                  </li>
-                ))}
-                {!full && (
-                  <li className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-                    {MAX_COMPARISON - selected.length}개 더 고를 수 있어요
-                  </li>
+                  </div>
                 )}
-              </ul>
-
-              {limitHit && (
-                <Notice tone="warn" title={`한 번에 ${MAX_COMPARISON}개까지 비교할 수 있어요`}>
-                  고른 것 중 하나를 빼면 새로 넣을 수 있어요.
-                </Notice>
-              )}
-
-              <Button
-                size="lg"
-                className="w-full"
-                disabled={creating}
-                onClick={() => void createReport()}
-              >
-                {selected.length === 1
-                  ? '기준 패키지만 보고서 보기'
-                  : `${selected.length}개로 보고서 보기`}
-              </Button>
-            </div>
-
-            {/* 방금 넣은 것 — 추가가 눈에 띄지 않는다는 의견으로 넣었다. 되돌리기로 바로 뺄 수 있다. */}
-            {lastAdded && picked.includes(lastAdded) && (
-              <div
-                role="status"
-                className="flex items-center gap-2 rounded-xl bg-tone-positive px-4 py-3 text-base text-tone-positive-foreground"
-              >
-                <CheckIcon className="size-4 shrink-0" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">
-                  <span className="font-mono font-semibold">{lastAdded}</span> 를 추가했어요
-                </span>
-                <button
-                  type="button"
-                  onClick={() => toggle(lastAdded)}
-                  className="shrink-0 font-semibold underline underline-offset-2"
-                >
-                  되돌리기
-                </button>
               </div>
-            )}
+            </section>
 
-            <p className="rounded-xl bg-brand-soft px-4 py-3 text-base leading-relaxed text-foreground/80">
-              <strong className="font-semibold text-foreground">처음이신가요?</strong> 비슷한 기능을
-              하는 패키지 2~3개를 고르면 비교가 잘 돼요. 너무 다른 패키지를 섞으면 공통 기능이 적게
-              나와요.
-            </p>
-          </aside>
-        </div>
-      )}
+            {/* 선택 패널 — 무엇을 골랐는지 늘 보이게 오른쪽에 붙인다. 2단계에서 옆으로 스며 나온다 */}
+            <SelectionPanel
+              selected={selected}
+              max={MAX_COMPARISON}
+              limitHit={limitHit}
+              creating={creating}
+              lastAdded={lastAdded && picked.includes(lastAdded) ? lastAdded : null}
+              onRemove={toggle}
+              onCreate={() => void createReport()}
+            />
+          </>
+        )}
+      </div>
 
       <LoadingOverlay open={creating} title="보고서를 준비하고 있어요" steps={CREATE_STEPS} />
     </div>
-  )
-}
-
-/**
- * 이름을 못 찾았을 때. "철자를 확인해 주세요" 로 끝내지 않고 **비슷한 이름을 내민다.**
- *
- * 따로 오타 교정 API 가 없어서 접두사 자동완성을 그대로 쓴다 — 끝 글자 하나를 뗀 앞부분으로 찾으면
- * `expres` → express 처럼 끝이 잘리거나 한 글자 틀린 경우 대부분이 걸린다. 못 찾으면 안내만 남긴다.
- */
-function MissingPackage({ name, onPick }: { name: string; onPick: (name: string) => void }) {
-  const prefix = name.length > 2 ? name.slice(0, -1) : name
-  const { suggestions } = usePackageAutocomplete(prefix)
-  const options = suggestions
-    .map((s) => s.name)
-    .filter((n) => n !== name)
-    .slice(0, 3)
-
-  return (
-    <Notice
-      tone="error"
-      title={
-        <>
-          <span className="font-mono">{name}</span> 라는 패키지는 없어요
-        </>
-      }
-    >
-      {options.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <span>혹시 이 패키지를 찾으셨나요?</span>
-          <span className="flex flex-wrap gap-2">
-            {options.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => onPick(n)}
-                className="rounded-full border bg-card px-3 py-1 font-mono text-sm text-foreground transition-colors hover:border-primary/50 hover:text-primary"
-              >
-                {n}
-              </button>
-            ))}
-          </span>
-        </div>
-      ) : (
-        '철자를 한 번 더 확인해 주세요. 앞 글자만 적으면 목록에서 고를 수 있어요.'
-      )}
-    </Notice>
   )
 }
 

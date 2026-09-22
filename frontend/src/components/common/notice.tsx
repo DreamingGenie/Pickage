@@ -36,18 +36,21 @@ export function Notice({
   tone = 'info',
   title,
   action,
+  icon,
   className,
   children,
 }: {
   tone?: NoticeTone
   title: ReactNode
+  /** 톤의 기본 아이콘 대신 쓸 아이콘 */
+  icon?: LucideIcon
   /** 다음 행동. 버튼이나 링크를 넘긴다. */
   action?: ReactNode
   className?: string
   children?: ReactNode
 }) {
   const s = STYLE[tone]
-  const Icon = s.icon
+  const Icon = icon ?? s.icon
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
