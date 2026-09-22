@@ -121,7 +121,7 @@ verify-only에 쓴 두 날짜는 같은 execution_id가 `FAILED`로 있으므로
 ## 6. 완료 확인
 
 ```powershell
-docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -X -At -c "SELECT count(*) FILTER (WHERE status='PUBLISHED'), count(*) FROM etl_load_execution WHERE dataset='package-snapshot' AND execution_id LIKE 'reload-453-downloads-468k-20260922-v1-%';" -c "SELECT snapshot_at, count(downloads) FROM package_snapshot WHERE snapshot_at IN (DATE '2026-08-31', DATE '2026-08-24', DATE '2024-09-02') GROUP BY 1 ORDER BY 1;"
+docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -X -At -c "SELECT count(*) FILTER (WHERE status='PUBLISHED'), count(*) FROM etl_load_execution WHERE dataset='package-snapshot' AND execution_id='reload-453-downloads-468k-20260922-v1-'||snapshot_at::text;" -c "SELECT snapshot_at, count(downloads) FROM package_snapshot WHERE snapshot_at IN (DATE '2026-08-31', DATE '2026-08-24', DATE '2024-09-02') GROUP BY 1 ORDER BY 1;"
 ```
 
 기대: `105 | 105`, 채움 수가 각각 97,728 → 약 46만 / 97,675 → 약 46만 / 41,820 → (2024-09-02는 벌크 API 365일 한계로 적게 는다).

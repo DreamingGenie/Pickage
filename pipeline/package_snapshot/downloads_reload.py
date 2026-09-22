@@ -399,11 +399,13 @@ def run(*, daily_root, bronze, run_id, work_dir, command, snapshots=None, start=
     chosen = sorted(set(chosen), reverse=True)  # most recent first: an interruption keeps the recent trend
     published = set()
     if skip_published:
-        # '_' is a LIKE wildcard; SAFE_ID allows it in run IDs, so escape it.
-        pattern = 'reload-453-' + run_id.replace('_', '\\_') + '-%'
+        # Rebuild each execution_id and compare for equality. A 'reload-453-<run>-%' prefix match
+        # would also claim the dates of another run whose ID extends this one ('v1' vs 'v1-retry'),
+        # because SAFE_ID allows '-' and '_' in run IDs; a wrongly skipped date is never reloaded.
+        prefix = quote('reload-453-' + run_id + '-')
         published = set(sql_json(command, "SELECT coalesce(json_agg(snapshot_at),'[]') FROM public.etl_load_execution "
-                                          "WHERE dataset='package-snapshot' AND status='PUBLISHED' AND execution_id LIKE "
-                                          f"{quote(pattern)};"))
+                                          "WHERE dataset='package-snapshot' AND status='PUBLISHED' "
+                                          f"AND execution_id={prefix}||snapshot_at::text;"))
     event('RELOAD_START', run_id=run_id, dates=len(chosen), verify_only=verify_only,
           skipping=len(published & set(chosen)))
     write_json(root / 'plan.json', {'run_id': run_id, 'bronze': bronze, 'daily_root': str(Path(daily_root).resolve()),

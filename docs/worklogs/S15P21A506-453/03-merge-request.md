@@ -72,19 +72,32 @@ $env:PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER = 'pickage-local-postgres-1'
   heap +2.5 MB. 모듈 밖 SQL로 pre-image 사본과 대조: 행 추가 0·stars/open_issues 변경 0·기존 downloads 변경 0.
   상세는 `02-runbook.md` 4절.
 
-## 자체 리뷰 결과 (base 대비 diff 인라인)
+## 자체 리뷰 결과 (base 대비 diff 인라인 + `/code-review`)
 
-`/code-review`는 돌리지 않았다. base(`develop`) 대비 diff를 직접 읽어 동작 결함·설계 결함·빠뜨린 것을 확인했고,
-발견한 결함 1건을 이 MR 안에서 고쳤다(커밋 `1f85fd3`).
+base(`develop`) 대비 diff를 직접 읽어 확인한 뒤 `/code-review`를 추가로 돌렸다. 두 리뷰에서 나온 결함은 같았고
+(새로 나온 것 없음), `--skip-published` 결함 2건을 이 MR 안에서 고쳤다.
 
-- **막는 것 (고쳤음)**: `--skip-published`의 `execution_id LIKE 'reload-453-<run>-%'`에서 run id의 `_`가
+- **막는 것 (고쳤음, 1차)**: `--skip-published`의 `execution_id LIKE 'reload-453-<run>-%'`에서 run id의 `_`가
   LIKE 한 글자 와일드카드로 해석됐다. `SAFE_ID`가 run id에 `_`를 허용하므로, 밑줄 자리만 다른 다른 run의 게시 날짜를
-  이미 끝난 것으로 보고 건너뛸 수 있었다. 패턴 생성 시 `_`를 이스케이프한다.
+  이미 끝난 것으로 보고 건너뛸 수 있었다.
+- **막는 것 (고쳤음, 2차)**: 같은 결함의 남은 절반. `_`를 이스케이프해도 패턴이 `-%`로 끝나므로, run id가 `-`를
+  포함하면 **자기 id를 접두사로 갖는 다른 run**의 게시 날짜까지 가져왔다(`v1` 이 `v1-retry`의 날짜를 건너뛴다).
+  결과는 데이터 손상이 아니라 **조용한 날짜 누락** — 105일 backfill에서 사후에 알아채기 어렵다.
+  LIKE를 버리고 `execution_id = 'reload-453-<run>-' || snapshot_at::text` 동일성 비교로 바꿨다.
+  실측: 세 건(`v1-2026-08-24`, `v1-retry-2026-08-31`, `v1_x-2026-08-17`)을 넣고 run id `v1`로 조회했을 때
+  기존 쿼리는 `["2026-08-24","2026-08-31"]`, 바뀐 쿼리는 `["2026-08-24"]`를 돌려준다. `02-runbook.md` 6절의
+  진행 확인 쿼리도 같은 이유로 동일성 비교로 고쳤다(접두사 매칭이면 진행률을 부풀려 센다).
+- **MR 노트 (고치지 않음, 의도)**: `DownloadsReloadLoader._copy_staging`은 부모 `_copy_role`의 "COPY 파일은 LF로
+  끝나야 한다" 검사를 물려받지 않는다. DuckDB `COPY TO CSV`가 항상 개행을 붙이고, 깨지더라도 조용히가 아니라
+  psql 오류로 드러나므로 그대로 둔다.
 - **MR 노트 (고치지 않음, 의도)**: `VACUUM`은 검증된 COMMIT 뒤에 돈다. 그 단계에서 실패하면 그 날짜는 이미 게시된 것이므로
   보고서 상태를 `PUBLISHED_MAINTENANCE_FAILED`로 구분해 남긴다(롤백하지 않는다).
 - **확인하고 넘긴 것**: 잠금 순서는 기존 적재기와 같다(`package`·`snapshot` SHARE → `package_snapshot`·etl SHARE ROW EXCLUSIVE).
   `_literal`을 통과하지 않는 SQL 삽입 지점은 없다(날짜는 달력 조회 결과, run id·DB 이름은 정규식 검사).
   `reverify` 경로는 UPDATE를 하지 않고 값만 대조한다. staging COPY 파일의 이름은 DuckDB에서 TSV 이스케이프한다.
+  수용 검사의 `JOIN public.package p ON p.name=i.name`이 이름 중복으로 UPDATE를 이중 적용할 수 있는지 확인했으나
+  `V1__init.sql`에 `UNIQUE ("name")`이 있어 불가능하다. `daily_partitions`가 `DATE_PART.search()`를 절대경로
+  전체에 거는 것은 `aggregate.py`와 같은 기존 방식이라 이 MR이 들여온 문제가 아니다.
 
 ## 리뷰 요청 사항
 
