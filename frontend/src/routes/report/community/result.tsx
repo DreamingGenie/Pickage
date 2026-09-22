@@ -181,6 +181,7 @@ export function CommunityResultView({
                     key={topic.issue_number}
                     topic={topic}
                     accent={issueAccent(i)}
+                    repositoryFullName={result.repository?.full_name}
                   />
                 ))}
               </div>

@@ -1,8 +1,9 @@
-import { LightbulbIcon } from 'lucide-react'
+import { ExternalLinkIcon, LightbulbIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { IssueAccent } from '@/routes/report/community/accent'
+import { githubIssueUrl } from '@/routes/report/community/summary-marks'
 import type { CommunityMessage, CommunityMessageRole, CommunityTopic } from '@/api/types'
 
 const ROLE_LABEL: Record<CommunityMessageRole, string> = {
@@ -106,20 +107,39 @@ function Bubble({ message }: { message: CommunityMessage }) {
  * 같은 사건을 이미 말하고 있어, 번호 목록이 그 내용을 한 번 더 풀어 쓸 뿐이었다. 서버도 S15P21A506-412 부터 `flow` 를
  * 만들지도 내려주지도 않는다(응답에 남아 있어도 읽지 않는다). 카드 제목도 요약 카드와 같은 말이라 다시 쓰지 않는다 — `#번호`로 잇는다.
  *
- * 원문 링크를 달지 않는다 — 확장 화면 공통 규칙(IA §1-14, 저장소·작성자 식별자는 표시 문자열로만).
+ * S15P21A506-448: 카드 머리의 `ISSUE #번호`만 원문 링크로 둔다. 작성자·저장소 식별자는 기존처럼
+ * 표시 문자열로 유지하고, 검증된 저장소 이름과 Issue 번호로 주소를 만들 수 있을 때만 링크를 그린다.
  */
 export function CommunityThreadCard({
   topic,
   accent,
+  repositoryFullName,
 }: {
   topic: CommunityTopic
   accent: IssueAccent
+  /** `owner/name`. 있으면 `ISSUE #번호`를 해당 GitHub Issue 원문으로 연결한다 */
+  repositoryFullName?: string | null
 }) {
+  const issueUrl = githubIssueUrl(repositoryFullName, topic.issue_number)
+
   return (
     <div className="flex flex-col gap-4 rounded-2xl border bg-card p-6">
-      <p
-        className={cn('border-b pb-3 text-base font-bold tracking-wide', accent.text)}
-      >{`ISSUE #${topic.issue_number}`}</p>
+      <div className={cn('border-b pb-3 text-base font-bold tracking-wide', accent.text)}>
+        {issueUrl ? (
+          <a
+            href={issueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`ISSUE #${topic.issue_number} 원문 보기 (새 탭에서 열림)`}
+            className="inline-flex items-center gap-1.5 rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            {`ISSUE #${topic.issue_number}`}
+            <ExternalLinkIcon aria-hidden className="size-4" />
+          </a>
+        ) : (
+          <span>{`ISSUE #${topic.issue_number}`}</span>
+        )}
+      </div>
       {topic.messages.length > 0 ? (
         <ul className="flex flex-col gap-4">
           {topic.messages.map((m, i) => (
