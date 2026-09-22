@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 
 import { errorNotice } from '@/api/client'
 import { useFeatureRun, useFeatureVersions, useStartFeatureRun } from '@/api/queries'
-import type { FeatureRunErrorCode, FeatureRunPhase, FeatureTarget } from '@/api/types'
+import type {
+  FeatureRunErrorCode,
+  FeatureRunPhase,
+  FeatureTarget,
+  RagComparisonResult,
+} from '@/api/types'
 import { diffAnalyses, isEmptyChange } from '@/routes/report/features/adapter'
 import { sourceNote as ragSourceNote, toComparisonView } from '@/routes/report/features/rag-adapter'
 import type { ChangeSummary, ComparisonView, PackageVersions } from '@/routes/report/features/model'
@@ -90,6 +95,12 @@ export interface AnalysisRun {
   reanalysisRequired: boolean
   /** 선택한 버전으로 새 run 시작. 성공해야만 결과 포인터가 바뀐다(구상안 9.3). */
   restart: () => void
+  /**
+   * 완료 결과의 RAG 원본(camelCase, `ai/rag/main.py` 계약). `completed`(화면 모델)는 근거 ID를
+   * 빼고 옮기지만(기획 협의), PDF 요청 payload(§13.1)는 근거 ID까지 실어야 해서 원본을 따로
+   * 들고 있는다 — `toFeaturesPdfPayload`(rag-adapter.ts)의 입력이다. 완료된 적이 없으면 `null`.
+   */
+  rawResult: RagComparisonResult | null
 }
 
 export interface FeatureFailure {
@@ -127,6 +138,8 @@ interface State {
   key: string
   picks: Record<string, string>
   completed: ComparisonView | null
+  /** RAG 원본. `completed` 와 항상 같은 run 을 가리킨다 — 둘을 따로 커밋하지 않는다. */
+  rawResult: RagComparisonResult | null
   sourceNote: string | null
   changes: ChangeSummary | null
   runId: number
@@ -137,7 +150,7 @@ type Action =
   | { type: 'RESET'; key: string }
   | { type: 'PICK'; name: string; version: string }
   | { type: 'START' }
-  | { type: 'COMMIT'; view: ComparisonView; note: string | null }
+  | { type: 'COMMIT'; view: ComparisonView; raw: RagComparisonResult; note: string | null }
   | { type: 'FAILED'; failure: FeatureFailure }
   | { type: 'DISMISS_CHANGES' }
 
@@ -145,6 +158,7 @@ const initial = (key: string): State => ({
   key,
   picks: {},
   completed: null,
+  rawResult: null,
   sourceNote: null,
   changes: null,
   runId: 0,
@@ -165,6 +179,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         completed: action.view,
+        rawResult: action.raw,
         sourceNote: action.note,
         changes: diff && !isEmptyChange(diff) ? diff : null,
         failed: null,
@@ -271,6 +286,7 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
       dispatch({
         type: 'COMMIT',
         view: toComparisonView(data.result),
+        raw: data.result,
         note: ragSourceNote(data.result),
       })
       return
@@ -327,6 +343,7 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
     runId: state.runId,
     reanalysisRequired,
     restart,
+    rawResult: state.rawResult,
     versions,
     selected,
     select,

@@ -217,6 +217,39 @@ export interface PdfGenerateRequest {
    */
   period?: TransitionPeriodParam
   sections?: ReportSection[]
+  /**
+   * `sections`에 `FEATURES`를 넣었을 때, 세션이 들고 있는 완료 기능 비교 결과(구상안
+   * §13.1·§14.5). 서버는 판정을 영속화하지 않으므로(`DEC-FEATURE-CACHE-20260917-01`)
+   * 재조회하지 않고 이 값을 그대로 문서에 옮긴다. `toFeaturesPdfPayload`(rag-adapter.ts)로
+   * 만든다. `FEATURES`를 골랐는데 생략하면(아직 분석을 실행하지 않은 경우) 서버가 그 사실을
+   * 문서와 응답(`omitted`)에 적는다.
+   */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * PDF 요청이 싣는 기능 비교 판정(백엔드 `FeatureComparisonPayload`와 짝, S15P21A506-463).
+ *
+ * <b>`RagComparisonResult`(camelCase, `ai/rag/main.py` 계약)를 그대로 보내지 않는다.</b>
+ * 이 요청의 다른 필드(`snapshot_at`·`period`)처럼 백엔드 snake_case 전략을 따라야 하는
+ * 별개의 계약이다 — `toFeaturesPdfPayload`가 그 변환을 한 곳에서 한다.
+ */
+export interface PdfFeaturesPayload {
+  packages: { package_name: string; version: string }[]
+  features: {
+    feature_label: string
+    results: {
+      package_name: string
+      version: string
+      verdict: FeatureVerdict
+      evidence_ids: string[]
+      grounded_in: 'EVIDENCE' | 'GENERAL_KNOWLEDGE'
+      note: string | null
+    }[]
+  }[]
+  narrative: { heading: string; body: string }[]
+  narrative_error: string | null
+  limited: boolean
 }
 
 export interface PdfJob {

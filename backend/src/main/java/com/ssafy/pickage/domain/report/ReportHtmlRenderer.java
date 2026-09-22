@@ -24,6 +24,7 @@ import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
 import com.ssafy.pickage.domain.report.ChartGeometry.Line;
 import com.ssafy.pickage.domain.report.ChartGeometry.Pt;
 import com.ssafy.pickage.domain.report.ReportCharts.ShareGroup;
+import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 
 /**
  * 보고서를 HTML 로 그린다. <b>미리보기와 PDF 가 이 하나를 공유한다.</b>
@@ -39,8 +40,14 @@ import com.ssafy.pickage.domain.report.ReportCharts.ShareGroup;
  *
  * <h2>⚠ 레이아웃은 아직 임시다</h2>
  *
- * 구상안 §13.4 의 아홉 구역과 분할 규칙은 아직 반영하지 않았다. 기능 비교가 없고
- * {@code ReportSnapshot} 도 확정 전이라 지금 맞춰 그려도 다시 그리게 된다.
+ * 구상안 §13.4 의 아홉 구역과 분할 규칙은 아직 반영하지 않았다. {@code ReportSnapshot} 도
+ * 확정 전이라 지금 맞춰 그려도 다시 그리게 된다.
+ *
+ * <h2>구역 순서는 생태계 → 기능 비교 → 커뮤니티다</h2>
+ *
+ * 생태계(항상 포함)는 여기서 끝나고, "더할 구역"은 이 순서로 고정한다(S15P21A506-463). 화면
+ * 탭 순서(생태계·기능 비교·커뮤니티)와 같게 둔 것 — 문서만 다른 순서면 같은 보고서를 두 번
+ * 배우는 셈이 된다.
  *
  * <h2>XHTML 로 쓴다</h2>
  *
@@ -78,13 +85,15 @@ public class ReportHtmlRenderer {
 		transitions(b, s.transitions());
 		removalReasons(b, s.removalReasons());
 
-		// 순서는 서버가 정한다 — 보내는 순서와 무관하게 문서 구성이 같다. 고른 구역은 채울 내용이 없어도 자리를
-		// 그린다. 빼버리면 체크한 것이 문서에서 사라져 사용자가 실패로 읽는다.
-		for (ReportSection section : ReportSection.values()) {
-			if (!s.sections().contains(section)) continue;
-			if (section == ReportSection.COMMUNITY) community(b, s);
-			else pending(b, section);
+		// 순서는 서버가 정한다 — 보내는 순서와 무관하게 문서 구성이 같다. 생태계 다음 기능 비교,
+		// 그다음 커뮤니티다(화면 탭 순서와 같다, S15P21A506-463) — enum 선언 순서(COMMUNITY가 먼저)와
+		// 다르므로 목록을 따로 둔다. 고른 구역은 채울 내용이 없어도 자리를 그린다. 빼버리면 체크한
+		// 것이 문서에서 사라져 사용자가 실패로 읽는다.
+		if (s.sections().contains(ReportSection.FEATURES)) {
+			if (s.features() != null) features(b, s.features());
+			else pending(b, ReportSection.FEATURES);
 		}
+		if (s.sections().contains(ReportSection.COMMUNITY)) community(b, s);
 
 		limits(b, s);
 
@@ -440,6 +449,69 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
+	 * 화면과 같은 다섯 값(구상안 §7.2). {@link com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload}
+	 * 는 이 문자열 그대로 담아 온다 — 여기서 다시 정의하지 않고 화면(`sample.ts` {@code VERDICT_LABEL})과
+	 * 같은 한글을 쓴다.
+	 */
+	private static final Map<String, String> VERDICT_LABEL = Map.of(
+		"SUPPORTED", "지원",
+		"CONDITIONALLY_SUPPORTED", "조건부",
+		"LIMITED_SUPPORT", "제한적",
+		"UNCONFIRMED", "미확인",
+		"UNSUPPORTED", "미지원");
+
+	/**
+	 * 기능 심화 분석 (기능-10~13, S15P21A506-463).
+	 *
+	 * <p>세션이 보낸 완료 판정을 그대로 표로 옮긴다 — 서버가 다시 분석하지 않는다(구상안 §14.5).
+	 * 근거 ID·출처 구분은 화면에서도 안 보이는 값이라(기획 협의, `rag-adapter.ts` 참고)
+	 * 문서에도 옮기지 않는다. AI 의 일반 지식으로만 답한 칸은 화면과 같이 표시를 남긴다 —
+	 * README 로 확인한 판정과 짐작한 판정이 문서에서 똑같아 보이면 안 된다.
+	 */
+	private void features(StringBuilder b, FeatureComparisonPayload f) {
+		heading(b, ReportSection.FEATURES.label());
+		if (f.limited()) {
+			// 억지 표를 만들지 않는다(구상안 §8) — 화면과 같은 안내를 문서에도 남긴다.
+			note(b, "직접 비교 가능한 기능이 제한적입니다.");
+		}
+
+		b.append("<table><thead><tr><th>기능</th>");
+		for (var pkg : f.packages()) {
+			b.append("<th>").append(esc(pkg.packageName())).append("</th>");
+		}
+		b.append("</tr></thead><tbody>");
+
+		if (f.features().isEmpty()) {
+			b.append("<tr><td class=\"muted\" colspan=\"")
+				.append(1 + f.packages().size()).append("\">자료 없음</td></tr>");
+		}
+		for (var row : f.features()) {
+			b.append("<tr><td>").append(esc(row.featureLabel())).append("</td>");
+			for (var cell : row.results()) {
+				b.append("<td>").append(esc(VERDICT_LABEL.getOrDefault(cell.verdict(), cell.verdict())));
+				if ("GENERAL_KNOWLEDGE".equals(cell.groundedIn())) {
+					b.append(" <span class=\"muted\">(AI 일반 지식)</span>");
+				}
+				if (cell.note() != null && !cell.note().isBlank()) {
+					b.append("<br/><span class=\"note\">").append(esc(cell.note())).append("</span>");
+				}
+				b.append("</td>");
+			}
+			b.append("</tr>");
+		}
+		b.append("</tbody></table>");
+
+		for (var section : f.narrative()) {
+			b.append("<div class=\"keep\"><p class=\"sub\">").append(esc(section.heading())).append("</p>")
+				.append("<p>").append(esc(section.body())).append("</p></div>");
+		}
+		// 표는 있는데 해설만 못 만든 경우. 표의 판정은 그대로 유효하다(rag-adapter.ts 와 같은 원칙).
+		if (f.narrativeError() != null && !f.narrativeError().isBlank()) {
+			note(b, "해설을 만들지 못했습니다: " + f.narrativeError());
+		}
+	}
+
+	/**
 	 * 유지·유입·이탈 막대. 패키지마다 일반·동반·선택 세 칸이다. <b>막대 길이는 비교 중인 모든 행에서 한 번 잡은 최댓값</b>을
 	 * 기준으로 한다 — 행마다 따로 잡으면 패키지끼리 길이를 비교할 수 없다(화면과 같다).
 	 */
@@ -727,19 +799,25 @@ public class ReportHtmlRenderer {
 		 * 기준 패키지의 커뮤니티 결과(저장된 스냅샷). {@code COMMUNITY} 를 고르지 않았으면 {@code null}. 고르고도 자료가
 		 * 없으면 상태만 담긴 응답이다 — 구역은 그 사실을 적는다(S15P21A506-414).
 		 */
-		CommunityStatusResponse community
+		CommunityStatusResponse community,
+		/**
+		 * 세션이 들고 있던 완료 기능 비교 판정(요청 payload). {@code FEATURES} 를 고르지 않았거나
+		 * 고르고도 아직 분석을 실행하지 않았으면 {@code null} — 그 구역은 {@code pending()} 자리로
+		 * 그린다(S15P21A506-463, 구상안 §13.1·§14.5).
+		 */
+		FeatureComparisonPayload features
 	) {
 
 		/** 읽을 행이 하나도 없을 때. period 는 캡션이 null 스위치로 죽지 않도록 기본값을 채운다. */
 		private static final RemovalReasonsResponse EMPTY_REMOVAL_REASONS = new RemovalReasonsResponse(
 			RemovalReasonsResponse.METRIC, TransitionPeriod.DEFAULT.code(), null, null, List.of(), List.of());
 
-		/** 이탈 사유·커뮤니티 자료 없이 만든다(그 구역을 고르지 않았거나 아직 안 받은 문서). */
+		/** 이탈 사유·커뮤니티·기능 비교 자료 없이 만든다(그 구역들을 고르지 않았거나 아직 안 받은 문서). */
 		public Sources(List<String> names, LocalDate from, LocalDate to, PackagesOverviewResponse overview,
 			TrendResponse downloads, TrendResponse dependents, VersionShareResponse versionShare,
 			TransitionsResponse transitions, Set<ReportSection> sections) {
 			this(names, from, to, overview, downloads, dependents, versionShare, transitions,
-				EMPTY_REMOVAL_REASONS, sections, null);
+				EMPTY_REMOVAL_REASONS, sections, null, null);
 		}
 	}
 }

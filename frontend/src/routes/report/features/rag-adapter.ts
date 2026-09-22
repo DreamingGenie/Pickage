@@ -1,4 +1,4 @@
-import type { RagComparisonResult } from '@/api/types'
+import type { PdfFeaturesPayload, RagComparisonResult } from '@/api/types'
 import type { ComparisonView, FeatureRow } from '@/routes/report/features/model'
 import type { Verdict } from '@/routes/report/features/sample'
 
@@ -60,6 +60,37 @@ export function toComparisonView(result: RagComparisonResult): ComparisonView {
     // 재시도로 나아질 수 있는 셀이 없다 — RAG 파이프라인에 재시도가 없어서 다시 눌러도
     // 같은 답이 나올 수 있다. 0 이면 화면이 재시도 버튼을 두지 않는다.
     retryableCells: 0,
+  }
+}
+
+/**
+ * PDF 요청 payload로 옮긴다(구상안 §13.1·§14.5, S15P21A506-463).
+ *
+ * <b>{@link toComparisonView}와 다른 목적이다.</b> 그쪽은 화면에 그릴 모양(`ComparisonView`)으로
+ * 옮기며 근거 ID를 뺀다(화면에서 출처 표기를 뺀 기획 협의). 여기는 서버가 문서에 옮겨 적을 수 있게
+ * **백엔드 계약(snake_case)**으로 옮기며, §13.1이 필수로 못 박은 evidenceId도 그대로 싣는다 — 화면에
+ * 안 보이는 값이라고 서버 payload에서도 빼면 계약을 어기게 된다.
+ */
+export function toFeaturesPdfPayload(result: RagComparisonResult): PdfFeaturesPayload {
+  return {
+    packages: result.packages.map((p) => ({ package_name: p.package, version: p.version })),
+    features: result.features.map((feature) => ({
+      feature_label: feature.featureLabel,
+      results: feature.results.map((cell) => ({
+        package_name: cell.package,
+        version: cell.version,
+        verdict: cell.verdict,
+        evidence_ids: cell.evidenceIds,
+        grounded_in: cell.groundedIn,
+        note: cell.note,
+      })),
+    })),
+    narrative: result.narrative.map((section) => ({
+      heading: section.heading,
+      body: section.body,
+    })),
+    narrative_error: result.narrativeError,
+    limited: result.dataStatus === 'COMPARISON_LIMITED',
   }
 }
 
