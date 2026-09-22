@@ -270,6 +270,41 @@ class LoadState(QuietMixin, unittest.TestCase):
         np.testing.assert_array_equal(state["p"]["vector"], np.array([1.0, 2.0, 3.0], dtype=np.float32))
 
 
+class WriteOutputStateRoundTrip(QuietMixin, unittest.TestCase):
+    """S15P21A506-457: write_output 이 쓴 text_hash_state.parquet 를 load_state 가
+    그대로 다시 읽을 수 있어야 한다 — 그래야 --state 증분 재임베딩이 실제로 동작한다.
+    """
+
+    ROWS = [
+        {"name": "a", "_text_hash": "h1"},
+        {"name": "b", "_text_hash": "h2"},
+    ]
+    VECTORS = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
+    GATE = {"status": "SKIPPED", "reason": "test"}
+    META = {"params": {}}
+
+    def test_load_state_reads_write_output_result_without_error(self):
+        """이전엔 KeyError('vector')로 여기서 죽었다 — 이제는 안 죽어야 한다."""
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        self.assertEqual(set(state), {"a", "b"})
+
+    def test_round_tripped_vector_matches_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        np.testing.assert_array_equal(state["a"]["vector"], self.VECTORS[0])
+        np.testing.assert_array_equal(state["b"]["vector"], self.VECTORS[1])
+
+    def test_round_tripped_hash_matches_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        self.assertEqual(state["a"]["hash"], "h1")
+        self.assertEqual(state["b"]["hash"], "h2")
+
+
 class LoadDependents(QuietMixin, unittest.TestCase):
     """S15P21A506-173: package_dependents 류 parquet(name·kind·dependents) 로더."""
 
