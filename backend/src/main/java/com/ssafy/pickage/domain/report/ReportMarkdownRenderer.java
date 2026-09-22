@@ -658,8 +658,13 @@ public class ReportMarkdownRenderer {
 
 	/**
 	 * 줄 맨 앞에서만 위험한 마커를 무력화한다 — {@code #}·{@code -}·{@code +}·{@code >}, 또는
-	 * {@code "1."}/{@code "1)"} 같은 순서 목록. 백슬래시를 직접 심으므로 {@link #INLINE_SPECIAL}
+	 * {@code "1. "}/{@code "1)"} 같은 순서 목록. 백슬래시를 직접 심으므로 {@link #INLINE_SPECIAL}
 	 * 루프가 다시 건드리지 않는다(이 문자들은 그 집합에 없다).
+	 *
+	 * <p><b>순서 목록 마커는 뒤에 공백(또는 줄 끝)이 와야 진짜 위험하다.</b> CommonMark 도
+	 * 마커 뒤 공백을 요구한다 — 요구하지 않으면 {@code "9.3.2"} 같은 버전 번호까지 걸려
+	 * {@code "9\.3.2"} 로 깨진다(실제로 이 버그가 있었다 — 실제 서버로 HAND-OFF를 받아
+	 * 열어 보고서야 드러났다. 표 칸 escaping 시험만으로는 못 잡는 종류다).
 	 */
 	private static String guardLeadingMarker(String raw) {
 		if (raw.isEmpty()) return raw;
@@ -669,7 +674,10 @@ public class ReportMarkdownRenderer {
 		}
 		int i = 0;
 		while (i < raw.length() && Character.isDigit(raw.charAt(i))) i++;
-		if (i > 0 && i < raw.length() && (raw.charAt(i) == '.' || raw.charAt(i) == ')')) {
+		boolean isOrderedMarker = i > 0 && i < raw.length()
+			&& (raw.charAt(i) == '.' || raw.charAt(i) == ')')
+			&& (i + 1 == raw.length() || raw.charAt(i + 1) == ' ');
+		if (isOrderedMarker) {
 			return raw.substring(0, i) + "\\" + raw.substring(i);
 		}
 		return raw;

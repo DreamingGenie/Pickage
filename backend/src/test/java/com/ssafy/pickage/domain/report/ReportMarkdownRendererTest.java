@@ -89,6 +89,8 @@ class ReportMarkdownRendererTest {
 		assertThat(md).startsWith("# Pickage 생태계 보고서");
 		assertThat(md).contains("express");
 		assertThat(md).contains("## 메타").contains("조회 기간").contains("생성 시각");
+		// 비교 대상 표의 버전 번호가 순서 목록 마커로 오인돼 이스케이프되면 안 된다(회귀).
+		assertThat(md).contains("| 5.0.0 |");
 	}
 
 	/**
@@ -428,9 +430,24 @@ class ReportMarkdownRendererTest {
 			assertThat(ReportMarkdownRenderer.mdEscape("> quote")).isEqualTo("\\> quote");
 			assertThat(ReportMarkdownRenderer.mdEscape("1. item")).isEqualTo("1\\. item");
 			assertThat(ReportMarkdownRenderer.mdEscape("1) item")).isEqualTo("1\\) item");
+			// 마커 뒤에 공백이 없으면(줄 전체가 숫자+마침표만인 경우 제외) 순서 목록이 아니다.
+			assertThat(ReportMarkdownRenderer.mdEscape("1.5")).isEqualTo("1.5");
 			// 한가운데는 그대로다.
 			assertThat(ReportMarkdownRenderer.mdEscape("js-yaml")).isEqualTo("js-yaml");
 			assertThat(ReportMarkdownRenderer.mdEscape("a # b - c")).isEqualTo("a # b - c");
+		}
+
+		/**
+		 * 실제 서버로 HAND-OFF를 받아 열어 보고서야 드러난 회귀 — 버전 번호가 전부
+		 * {@code 9\.3.2} 처럼 깨져 있었다. 표 칸 escaping 시험만으로는 못 잡았다:
+		 * {@code guardLeadingMarker} 가 "숫자+마침표"를 전부 순서 목록 마커로 오인했다.
+		 */
+		@Test
+		@DisplayName("버전 번호는 순서 목록으로 오인해 이스케이프하지 않는다 (실서버 HAND-OFF로 발견한 회귀)")
+		void doesNotEscapeVersionNumbers() {
+			assertThat(ReportMarkdownRenderer.mdEscape("9.3.2")).isEqualTo("9.3.2");
+			assertThat(ReportMarkdownRenderer.mdEscape("10.3.1")).isEqualTo("10.3.1");
+			assertThat(ReportMarkdownRenderer.mdEscape("0.1.0-beta.1")).isEqualTo("0.1.0-beta.1");
 		}
 
 		@Test
