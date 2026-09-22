@@ -54,6 +54,8 @@ docker:
   # "Connection refused" 는 정상 동작인데 log_since_hours 동안 남는다 — 한 줄로 배너를 노랗게 만들지 않게
   # 꼬리 40줄 중 3줄 이상일 때만 판정에 올린다. 정상으로 아는 줄이 계속 걸리면 아래에 적어 세지 않게 한다.
   #   예: error_ignore_pattern: "(?i)connection refused.*(9000|5432)|waiting for"
-  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b"
+  # 뒤의 한글은 이 노드 로더가 찍는 실패 문구다. similarity-loader 의 watch.py 는 실패해도 죽지 않고 "오류:" ·
+  # "게시 실패" 를 30분에 한 줄씩 남긴다 — 영어 표지만 보면 종료 코드 0 으로 살아 있는 채 계속 실패하는 것을 놓친다.
+  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b|게시 실패|오류:|경고:"
   error_ignore_pattern: ""
   error_min_lines: 3

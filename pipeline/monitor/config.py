@@ -58,7 +58,10 @@ class MinioSettings:
 
 
 # 로그 꼬리에서 "에러 줄" 로 셀 기본 정규식. 컨테이너 로그와 단계 로그가 각자 갖는다 — 성격이 다르다.
-ERROR_PATTERN = r"(?i)\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b"
+# 영어 표지 뒤의 한글은 우리 로더가 찍는 실패 문구다 — similarity-loader 의 watch.py 는 어떤 실패에도 죽지 않고
+# "오류:" · "게시 실패" 를 30분에 한 줄씩만 남기므로, 영어만 보면 살아 있으면서 계속 실패하는 것을 놓친다.
+# 맨 "실패" 는 넣지 않는다 — 수집기 진행 줄("성공 3 · 실패 0")이 매번 걸린다.
+ERROR_PATTERN = r"(?i)\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b|게시 실패|오류:|경고:"
 
 
 @dataclass

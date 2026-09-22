@@ -75,7 +75,7 @@ local:
   max_new_files: 50
   # 단계 로그의 에러 줄 기준 — 컨테이너 로그와 따로 둔다 (성격이 다르다). 수집기 자신이 ERROR 를 찍은 것이라
   # 한 줄이라도 볼 일이다. 걸리지만 정상으로 아는 줄이 생기면 error_ignore_pattern 에 적는다.
-  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b"
+  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b|게시 실패|오류:|경고:"
   error_ignore_pattern: ""
   error_min_lines: 1
 
@@ -93,6 +93,8 @@ docker:
   # 는 정상 동작인데 log_since_hours 동안 남는다 — 한 줄로 배너를 노랗게 만들지 않게 꼬리 40줄 중 3줄 이상일
   # 때만 판정에 올린다. 정상으로 아는 줄이 계속 걸리면 아래에 적어 세지 않게 한다.
   #   예: error_ignore_pattern: "(?i)connection refused.*(9000|5432)|waiting for"
-  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b"
+  # 뒤의 한글은 우리 코드가 찍는 실패 문구("게시 실패" · "오류:" · "경고:")다. 맨 "실패" 는 넣지 않는다 —
+  # 수집기 진행 줄("성공 3 · 실패 0")이 매번 걸린다.
+  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b|게시 실패|오류:|경고:"
   error_ignore_pattern: ""
   error_min_lines: 3

@@ -44,6 +44,17 @@ class SummarizeTest(unittest.TestCase):
         lines = ["INFO ok", "ERROR boom", "Traceback (most recent call last):", "killed by signal"]
         self.assertEqual(dockerapi.count_matches(lines, r"(?i)\b(error|traceback|killed)\b"), 3)
 
+    def test_default_pattern_sees_korean_failure_lines(self):
+        """similarity-loader 의 watch.py 는 죽지 않고 한글로만 실패를 남긴다 — 영어 표지만 보면 놓친다."""
+        from . import config as cfg
+        lines = ["2026-09-22T03:00:00 오류: connection reset — 1800초 뒤 다시 시도",
+                 "게시 실패  depsdev/v1/similar/2026-09-21  (load.py 종료코드 1)",
+                 "경고: 12 행이 이름 매칭에 실패해 빠졌다",
+                 "         성공 3,120 · 실패 0   버전 행 9,000",         # 수집기 진행 줄 — 걸리면 안 된다
+                 "  ! 일시 오류(시도 1): timeout. 30초 후 재시도",           # 재시도 예고 — 콜론이 없어 걸리지 않는다
+                 "게시 완료 depsdev/v1/similar/2026-09-21"]
+        self.assertEqual(dockerapi.count_matches(lines, cfg.ERROR_PATTERN), 3)
+
     def test_ignore_pattern_drops_known_noise(self):
         """재기동 직후의 Connection refused 처럼 정상으로 아는 줄은 세지 않는다."""
         lines = ["ERROR connection refused 172.26.8.249:9000", "ERROR connection refused 172.26.8.249:9000",
