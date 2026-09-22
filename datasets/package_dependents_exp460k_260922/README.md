@@ -41,9 +41,13 @@
 pickage-curated/depsdev/v1/package-dependents-exp460k/snapshot=2026-08-31/
   run_id=package-dependents-exp460k-20260922-v1/
     data/package_dependents.parquet    114,695,681 바이트 · 1,405,557행
-    run_manifest.json                  SHA-256 · 행 수 · 대상 목록
+                                       SHA-256 8e6f91f9…
+    run_manifest.json                  SHA-256 81b4ba34…
     _SUCCESS
 ```
+
+**2026-09-22 입고 완료.** 올린 뒤 객체를 통째로 다시 내려받아 해시를 대조했다(MATCH).
+이 회차는 PostgreSQL 로 가지 않는다 — 버킷에만 있고 쓰는 쪽이 직접 읽는다.
 
 기본 회차(`depsdev/v1/package-dependents/`)와 **prefix 를 나눴다.** 계산은 같고 대상 모집단만
 다른 회차이고 **둘 다 살아 있어** 받는 쪽이 하나를 골라야 하므로,

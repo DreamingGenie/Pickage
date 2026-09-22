@@ -48,9 +48,15 @@ pickage-curated/depsdev/v1/dependent-transitions/snapshot=2026-08-31/
   run_id=dependent-transitions-20260921-v1/       상위 10만 · 분해 포함
   run_id=dependent-transitions-exp460k-20260922-v1/   ← 이 회차 (확장 46.9만)
     data/dependent_transitions.parquet   18,922,201 바이트 · 4,216,671행 (열 15개)
-    run_manifest.json                    SHA-256 · 행 수 · 대상 목록
+                                         SHA-256 a1b94b51…
+    run_manifest.json                    SHA-256 7ac3cbfd… · dataset "dependent-transitions"
     _SUCCESS
 ```
+
+**2026-09-22 입고 완료.** 올린 뒤 객체를 통째로 다시 내려받아 해시를 대조했다(MATCH).
+입고기 자체도 업로드마다 GET 해 대조하므로 두 번 확인한 셈이다. 옛 회차 둘은 건드리지
+않았다. 이 데이터셋은 포인터를 쓰지 않아 `_current.json` 이 없다 — 어느 회차를 게시할지는
+`load.py` 에 사람이 명시한다.
 
 **같은 prefix 를 쓰는 이유.** `pipeline/dependent_transitions/load.py` 가 경로와 manifest 의
 `dataset` 을 상수 하나(`"dependent-transitions"`)로 고정하고, 그 이름이 `etl_dataset_current`
@@ -228,3 +234,95 @@ README §6-5 에 있다. **스냅샷 경계를 지키는 쪽은 이 데이터셋
 
 > **같은 출력 경로에 두 실행을 겹치지 말 것.** 빌더는 고정된 이름으로 `COPY` 하므로
 > 두 프로세스가 동시에 돌면 끝에서 같은 파일에 쓴다. 회차를 나누려면 `--label` 을 준다.
+
+## 8. 운영 적재 — 실행 묶음 (2026-09-22)
+
+MinIO 입고는 끝났다(§1 의 경로, 원격 GET SHA `a1b94b51…` MATCH). 남은 것은 PostgreSQL 이다.
+
+**PC 에서 돌리고 서버의 psql 만 원격으로 쓴다.** 왜 서버에 들어가서 못 도는지는
+`pipeline/dependent_transitions/load.py` 의 "운영에 게시하기" 절에 있다.
+
+> **회차를 이미 받아 뒀으므로 19000 터널이 필요 없다.** 아래 네 명령 모두 `--run-dir` 로
+> 로컬 디렉터리를 가리킨다. 필요한 것은 `DOCKER_HOST='ssh://a506app'` 뿐이다.
+>
+> **작업 디렉터리는 worktree `C:\git\S15P21A506-454` 다.** 적재기가 `contract_sha256` 에
+> 마이그레이션 파일 목록을 넣는데, 주 트리의 `develop` 은 `f7ec805` 로 낡아 `V12` 가 없다.
+>
+> ⚠ **출력을 파일로 리다이렉트하지 말 것.** Windows 에서 인코딩이 cp949 로 정해져 한글 한
+> 글자에 프로세스가 죽는다. `psql.log` 는 적재기가 UTF-8 로 따로 남긴다.
+
+각 명령은 PowerShell 에 **한 줄로** 넣는다.
+
+### 1단계 — 유지·유입·이탈 검증 (DB 를 바꾸지 않는다)
+
+```powershell
+cd C:\git\S15P21A506-454; $env:DOCKER_HOST='ssh://a506app'; C:\git\S15P21A506\.venv-bq\Scripts\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-exp460k-20260922-v1 --run-dir C:\git\S15P21A506\data\dependent_transitions_load\runs\2026-08-31_dependent-transitions-exp460k-20260922-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage --verify-only
+```
+
+기대 출력 — 끝에 `검증만 하고 되돌렸다` 가 찍힌다.
+
+| 항목 | 기대값 | 근거 |
+|---|---:|---|
+| `staged_rows` | 4,216,671 | 산출물 전량 |
+| `loaded_rows` | 약 **4,138,110** | staged − 78,561 |
+| `unresolved_targets` | 약 **8,729** | `package_dependents_exp460k` 의 `package_exists=false` 수 |
+| 매칭률 | 약 **98.1%** | 기존 회차 97.7% 보다 높다 |
+
+**95% 아래면 멈춘다.** 이름 규칙이 어긋났거나 `package` 가 다른 회차인 경우다.
+`unobserved_freshness` 는 1y 세 칸이 모두 0 이 아니고 3y 의 recent, 5y 의 recent·stale 이
+0 이어야 한다 — 정의상 그렇다(§4-4).
+
+### 2단계 — 유지·유입·이탈 게시 (전량 교체)
+
+1단계 명령에서 `--verify-only` 만 뺀다.
+
+```powershell
+cd C:\git\S15P21A506-454; $env:DOCKER_HOST='ssh://a506app'; C:\git\S15P21A506\.venv-bq\Scripts\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-exp460k-20260922-v1 --run-dir C:\git\S15P21A506\data\dependent_transitions_load\runs\2026-08-31_dependent-transitions-exp460k-20260922-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
+```
+
+끝에 `게시 완료` 가 찍힌다. 수는 1단계와 같아야 한다.
+
+**교체 전 상태 (되돌릴 때 필요하다)**
+
+```
+etl_dataset_current.dependent-transitions
+  = dependent-transitions-2026-08-31-dependent-transitions-20260921-v1   manifest 0f4a5a1c…
+etl_dataset_current.removal-reasons
+  = removal-reasons-2026-08-31-migration-pairs-20260920-v1
+dependent_transition 879,705행 · 242 MB → 약 414만 행 · 약 1.2 GB
+```
+
+전송 CSV 는 SSH 로 흘러가고 행이 4.7배라 기존 73 MB 의 4~5배(약 340 MB)다. 시간이 걸린다.
+
+### 3단계 — 이탈 사유 검증 (**빼먹지 말 것**)
+
+`pipeline/removal_reasons/load.py` 는 적재 범위를 `dependent_transition` 에서 조인해
+가져온다(`SCOPE_TABLE`). 2단계만 하고 멈추면 같은 패키지에서 유지·유입·이탈 패널은 수를
+말하고 이탈 사유 패널은 "범위 밖"을 말한다. **원천은 그대로 쓰고 재적재만 한다** —
+원천 `removal_by_period` 가 이미 X 13.2만 종을 담고 있다.
+
+```powershell
+cd C:\git\S15P21A506-454; $env:DOCKER_HOST='ssh://a506app'; C:\git\S15P21A506\.venv-bq\Scripts\python.exe -m pipeline.removal_reasons.load --snapshot 2026-08-31 --run-id migration-pairs-20260920-v1 --run-dir C:\git\S15P21A506\data\removal_reasons_load\runs\2026-08-31_migration-pairs-20260920-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage --verify-only
+```
+
+기대 — `scope_targets` 가 기존 4.3만에서 **크게 늘고** `out_of_scope_rows` 가 줄어든다.
+적재 행은 기존 9.9만보다 **많아야 한다.** 줄어들면 2단계가 반영되지 않은 것이다.
+
+### 4단계 — 이탈 사유 게시
+
+3단계 명령에서 `--verify-only` 만 뺀다.
+
+### 되돌리기
+
+전량 교체라 옛 회차는 표에 남지 않는다. 되돌리려면 **옛 `run_id` 로 다시 적재한다.**
+회차는 MinIO 에 그대로 있고 로컬에도 받아 둔 것이 있다.
+
+```powershell
+cd C:\git\S15P21A506-454; $env:DOCKER_HOST='ssh://a506app'; C:\git\S15P21A506\.venv-bq\Scripts\python.exe -m pipeline.dependent_transitions.load --snapshot 2026-08-31 --run-id dependent-transitions-20260921-v1 --run-dir C:\git\S15P21A506\data\dependent_transitions_load\runs\2026-08-31_dependent-transitions-20260921-v1 --docker-container pickage-app-postgres-1 --database pickage --db-user pickage
+```
+
+그 뒤 3·4단계를 같은 `run_id` 로 한 번 더 돌려 이탈 사유의 범위도 되돌린다 — 범위를
+`dependent_transition` 에서 읽으므로 전이를 되돌리면 자동으로 옛 범위가 나온다.
+
+`execution_id` 는 `dataset-snapshot-run_id` 로 정해지므로 되돌린 적재는 옛 행을 갱신한다.
+`etl_load_attempt` 에는 시도가 쌓여 남는다.
