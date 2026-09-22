@@ -692,6 +692,42 @@ class ApplyGates(unittest.TestCase):
         self.assertEqual(drops["complement"], 0)
 
 
+class ApplyDownloadsFloor(unittest.TestCase):
+    """S15P21A506-450: 인지도 관문."""
+
+    HITS = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+
+    def test_floor_zero_keeps_hits_unchanged(self):
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, {1: 10, 2: 20, 3: 30}, floor=0)
+        self.assertEqual(kept, self.HITS)
+        self.assertEqual(dropped, 0)
+
+    def test_drops_candidate_below_floor(self):
+        downloads = {1: 1_000_000, 2: 100, 3: 600_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_missing_downloads_data_does_not_pass(self):
+        """downloads 정보가 없는(None) 후보는 관대하게 통과시키지 않는다."""
+        downloads = {1: 1_000_000, 2: None, 3: 600_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_candidate_not_in_map_treated_as_missing(self):
+        downloads = {1: 1_000_000, 3: 600_000}  # 2 없음
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_all_pass_when_all_above_floor(self):
+        downloads = {1: 1_000_000, 2: 2_000_000, 3: 3_000_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual(kept, self.HITS)
+        self.assertEqual(dropped, 0)
+
+
 class ResolveDependentsPath(unittest.TestCase):
     """S15P21A506-173: --dependents 를 안 줘도 --package-text 옆 파일이 있으면 관문이 돈다."""
 
@@ -979,6 +1015,15 @@ class ParseArgs(unittest.TestCase):
 
     def test_no_gate_turns_it_off(self):
         self.assertFalse(sbp.parse_args(self.BASE + ["--no-gate"]).gate)
+
+    def test_downloads_floor_defaults_to_500000(self):
+        """S15P21A506-450: 실측으로 채택된 기본값."""
+        self.assertEqual(sbp.parse_args(self.BASE).downloads_floor, 500_000)
+
+    def test_downloads_floor_parsed(self):
+        self.assertEqual(
+            sbp.parse_args(self.BASE + ["--downloads-floor", "100000"]).downloads_floor, 100000
+        )
 
     def test_dependents_defaults_to_none(self):
         """S15P21A506-173: 안 주면 보완재 관문이 자동으로 꺼진다(옛 호출부 호환)."""
