@@ -1,11 +1,13 @@
 package com.ssafy.pickage.domain.packages;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -13,12 +15,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.MigrationPairRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.RemovalReasonRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TransitionRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TrendRow;
+import com.ssafy.pickage.domain.packages.dto.MigrationPairsResponse;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
@@ -456,6 +460,131 @@ public class PackageService {
 		LocalDate t2 = rows.stream().map(RemovalReasonRow::t2).findFirst().orElse(null);
 
 		return RemovalReasonsResponse.of(period.code(), t1, t2, series, existing.notFound());
+	}
+
+	/**
+	 * 확장-02 — 관측된 교체 흐름. "X 를 떠난 사람들은 어디로 갔나".
+	 *
+	 * <h2>여기서만 접는 이유 — 명세 0.7 과 어긋나 보이는 자리</h2>
+	 *
+	 * <p>"집계는 DB 에서 끝낸다" 가 이 서비스의 규칙인데, 상위 5와 {@code etc} 를 자바에서
+	 * 만든다. <b>두 규칙이 충돌해서 고른 것이다.</b> S15P21A506-211 결정 4는 하한을 한 곳에만
+	 * 두라고 요구한다 — 전체 흐름 · focus · 최대 6개 방향이 같은 값을 봐야 한다. SQL 에도
+	 * 하한을 적으면 {@link MigrationPairFilter} 와 두 벌이 되고, 한쪽만 고쳐져도 양쪽 다
+	 * 그럴듯해서 알아채지 못한다.
+	 *
+	 * <p>0.7 이 막으려던 것은 <b>같은 계산을 두 곳이 하는 것</b>인데 여기서는 한 곳뿐이다.
+	 * 그리고 옮기는 행이 수천을 넘지 않는다(표 전체가 23,140행).
+	 *
+	 * <h2>네 상태를 가르는 순서</h2>
+	 *
+	 * <ol>
+	 * <li>행이 하나라도 왔다 → 통과한 것이 있으면 {@code COMPLETE}, 없으면
+	 *     {@code INSUFFICIENT_EVIDENCE}</li>
+	 * <li>행이 없다 → 그 종류가 적재됐으면 {@code NO_DATA}(관측이 없다), 아니면
+	 *     {@code NOT_COMPUTED}(아직 안 올렸다)</li>
+	 * </ol>
+	 *
+	 * <p>둘째 줄이 {@code getRemovalReasons} 와 다르다. 그쪽은 조회가 범위 표를 조인해서
+	 * "행 없음" 이 곧 "대상 밖" 이지만, 이 표에는 범위 개념이 없다 — 이동이 관측된 패키지만
+	 * 행을 가진다. 그래서 {@code getTransitions} 처럼 적재 여부를 따로 묻는다.
+	 */
+	public MigrationPairsResponse getMigrationPairs(PackageNames names, DependencyKind kind) {
+		Existing existing = existing(names);
+		List<MigrationPairRow> rows = existing.names().isEmpty()
+			? List.of()
+			: repository.findMigrationPairs(PackageNames.of(existing.names()), kind.code());
+
+		Map<String, List<MigrationPairRow>> byName = rows.stream()
+			.collect(Collectors.groupingBy(MigrationPairRow::fromName, LinkedHashMap::new,
+				Collectors.toList()));
+
+		// 적재 여부는 **행이 하나도 없는 이름이 있을 때만** 묻는다. 한 이름이라도 행이 있으면
+		// 그 종류가 올라와 있다는 뜻이라 물을 필요가 없다. getRemovalReasons 와 같은 규칙이다.
+		boolean loaded = !rows.isEmpty()
+			|| existing.names().isEmpty()
+			|| repository.hasAnyMigrationPair(kind.code());
+
+		List<MigrationPairsResponse.Series> series = existing.names().stream()
+			.map(name -> {
+				List<MigrationPairRow> pairs = byName.get(name);
+				if (pairs == null || pairs.isEmpty()) {
+					return loaded
+						? MigrationPairsResponse.Series.of(name, null, List.of(), null, 0,
+							MigrationPairsResponse.NO_DATA)
+						: MigrationPairsResponse.Series.unknown(name,
+							MigrationPairsResponse.NOT_COMPUTED);
+				}
+				return fold(name, pairs);
+			})
+			.toList();
+
+		return MigrationPairsResponse.of(kind, series, existing.notFound());
+	}
+
+	/**
+	 * 한 패키지의 쌍을 "상위 몇 개 + 그 밖" 으로 접는다.
+	 *
+	 * <p>조회가 이미 {@code share_pm_pct} 내림차순으로 정렬해 주므로 여기서 다시 정렬하지
+	 * 않는다 — 정렬 기준이 두 곳에 있으면 갈라진다.
+	 *
+	 * <p><b>접는 칸에 필터 미달 쌍도 넣는다.</b> 그래야 상위와 {@code etc} 의 합이 이
+	 * 패키지의 관측된 이동 전부가 되어 차트가 100% 를 이룬다. 다만 몇 개가 근거 부족으로
+	 * 접혔는지는 따로 세어 준다 — 화면이 "잡음이라 접었다" 와 "여섯 번째부터라 접었다" 를
+	 * 구분해 말할 수 있어야 한다.
+	 */
+	private MigrationPairsResponse.Series fold(String name, List<MigrationPairRow> pairs) {
+		List<MigrationPairRow> passed = pairs.stream()
+			.filter(row -> MigrationPairFilter.passesDefault(row.votes(), row.publisherMonths()))
+			.toList();
+
+		List<MigrationPairRow> top = passed.stream()
+			.limit(MigrationPairFilter.TOP_DESTINATIONS)
+			.toList();
+
+		List<MigrationPairsResponse.Destination> destinations = top.stream()
+			.map(PackageService::destination)
+			.toList();
+
+		// 남은 것 = 전체 - 세운 것. 필터에 못 미친 쌍이 여기 포함된다.
+		// 도착지 이름으로 빼는 것은 PK 가 (출발, 종류, 도착이름) 이라 한 응답 안에서 이름이
+		// 곧 키이기 때문이다. 행 자체로 비교하면 BigDecimal 의 equals 가 소수 자릿수까지 보는
+		// 것에 기대게 된다.
+		Set<String> taken = top.stream().map(MigrationPairRow::toName)
+			.collect(Collectors.toSet());
+		List<MigrationPairRow> rest = pairs.stream()
+			.filter(row -> !taken.contains(row.toName()))
+			.toList();
+
+		MigrationPairsResponse.Etc etc = rest.isEmpty() ? null
+			: new MigrationPairsResponse.Etc(
+				rest.size(),
+				rest.stream().map(MigrationPairRow::sharePmPct)
+					.reduce(BigDecimal.ZERO, BigDecimal::add),
+				(int)rest.stream()
+					.filter(row -> !MigrationPairFilter.passesDefault(row.votes(),
+						row.publisherMonths()))
+					.count());
+
+		// 기준일은 그 종류의 모든 행이 같은 값이다(적재기가 원천마다 하나씩 붙인다).
+		// 그래도 서버가 상수로 적지 않고 표에서 읽는다 — 원천을 다시 뽑으면 날짜가 바뀐다.
+		LocalDate snapshotAt = pairs.get(0).snapshotAt();
+
+		String status = passed.isEmpty()
+			? MigrationPairsResponse.INSUFFICIENT_EVIDENCE
+			: MigrationPairsResponse.COMPLETE;
+
+		return MigrationPairsResponse.Series.of(name, snapshotAt, destinations, etc, pairs.size(),
+			status);
+	}
+
+	private static MigrationPairsResponse.Destination destination(MigrationPairRow row) {
+		return new MigrationPairsResponse.Destination(
+			row.toName(), row.votes(), row.coEvents(), row.publisherMonths(), row.dependents(),
+			row.lift(), row.sharePmPct(), row.sharePct(),
+			MigrationPairFilter.grade(row.votes(), row.publisherMonths(), row.aPct(),
+				row.sharePct()),
+			row.bidirectional(), row.firstSeen(), row.lastSeen());
 	}
 
 	/* ------------------------------------------------------------------ *

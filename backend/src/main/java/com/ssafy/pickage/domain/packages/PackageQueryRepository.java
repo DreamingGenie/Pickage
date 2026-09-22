@@ -739,6 +739,97 @@ public class PackageQueryRepository {
 	}
 
 	/* ------------------------------------------------------------------ *
+	 * 관측된 교체 흐름 (확장-02 · S15P21A506-424)
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * 한 종류의 이동쌍을 <b>거르지 않고</b> 전부 읽는다.
+	 *
+	 * <p><b>여기에 기본 필터를 넣지 않은 것은 의도다.</b> 하한을 SQL 에도 적으면
+	 * {@link MigrationPairFilter} 와 두 벌이 되고, 한쪽만 고쳐져도 결과가 그럴듯해서
+	 * 알아채지 못한다. S15P21A506-211 결정 4가 요구하는 "한 곳" 은 그 클래스다.
+	 *
+	 * <p>거르지 않아도 되는 것은 <b>양이 적어서다.</b> 표 전체가 23,140행이고 한 출발
+	 * 패키지의 쌍은 많아야 수백이다. 조회가 최대 6개 이름을 받으므로 옮기는 행이 수천을
+	 * 넘지 않는다. 그리고 접는 칸({@code etc})이 필터에 못 미친 쌍까지 세어야 하므로
+	 * <b>어차피 전부 필요하다.</b>
+	 *
+	 * <p>{@code dep_kind} 를 조인 조건에 두는 것은 PK {@code (from_package_id, dep_kind,
+	 * to_package_name)} 의 앞 두 칸이라 그대로 탐색이 되기 때문이다.
+	 *
+	 * <p>정렬은 {@code share_pm_pct} 내림차순이다 — 표가 아니라 조직·달 기준이라는
+	 * 결정 2를 조회 순서에도 적용한다. 동순위가 남으면 상위 5의 구성이 실행마다 흔들리므로
+	 * 이름을 2차 키로 둔다.
+	 */
+	private static final String MIGRATION_PAIRS_SQL = """
+		SELECT p.name AS from_name,
+		       m.to_package_name, m.votes, m.co_events, m.publisher_months, m.dependents,
+		       m.a_pct, m.share_pct, m.share_pm_pct, m.lift, m.bidirectional,
+		       m.first_seen, m.last_seen, m.snapshot_at
+		FROM package p
+		JOIN migration_pair m
+		  ON m.from_package_id = p.package_id AND m.dep_kind = ?
+		WHERE p.name = ANY (?)
+		ORDER BY p.name, m.share_pm_pct DESC, m.to_package_name
+		""";
+
+	public List<MigrationPairRow> findMigrationPairs(PackageNames names, String kind) {
+		return jdbcTemplate.query(MIGRATION_PAIRS_SQL,
+			ps -> {
+				ps.setString(1, kind);
+				ps.setArray(2, ps.getConnection()
+					.createArrayOf("text", names.values().toArray()));
+			},
+			(rs, i) -> new MigrationPairRow(
+				rs.getString("from_name"),
+				rs.getString("to_package_name"),
+				rs.getBigDecimal("votes"),
+				rs.getInt("co_events"),
+				rs.getInt("publisher_months"),
+				rs.getInt("dependents"),
+				rs.getBigDecimal("a_pct"),
+				rs.getBigDecimal("share_pct"),
+				rs.getBigDecimal("share_pm_pct"),
+				rs.getBigDecimal("lift"),
+				rs.getBoolean("bidirectional"),
+				rs.getObject("first_seen", LocalDate.class),
+				rs.getObject("last_seen", LocalDate.class),
+				rs.getObject("snapshot_at", LocalDate.class)));
+	}
+
+	/**
+	 * 이동쌍 한 줄. 열 이름은 {@code migration_pair} 와 같다.
+	 *
+	 * <p>여기 수는 <b>전부 {@code NOT NULL} 이라</b> 박싱 타입으로 받지 않는다 — 표의 CHECK
+	 * 가 보장한다. {@code RemovalReasonRow} 가 박싱인 것은 그쪽이 {@code LEFT JOIN} 이라
+	 * 행이 있는데 값이 없을 수 있어서이고, 이쪽은 행이 있으면 값이 있다.
+	 */
+	public record MigrationPairRow(String fromName, String toName, BigDecimal votes, int coEvents,
+		int publisherMonths, int dependents, BigDecimal aPct, BigDecimal sharePct,
+		BigDecimal sharePmPct, BigDecimal lift, boolean bidirectional, LocalDate firstSeen,
+		LocalDate lastSeen, LocalDate snapshotAt) {
+	}
+
+	/**
+	 * 이 <b>종류의</b> 회차가 적재되어 있는가.
+	 *
+	 * <p>{@link #hasAnyTransition()} 과 달리 종류를 본다. 두 종류가 한 표에 있고 서로 다른
+	 * 시점에 적재되므로, 표에 뭐라도 있는지만 보면 {@code regular} 만 올린 상태에서
+	 * {@code dev} 조회가 "이동 기록 없음"(끝난 답)으로 나간다 — 실제로는 "아직 안 올렸다" 인데.
+	 *
+	 * <p>{@code dep_kind} 가 PK 의 <b>둘째 칸</b>이라 단독 조건은 탐색이 안 되고 순차 스캔이
+	 * 된다. 표가 23,140행이라 비용이 문제가 아니고, 애초에 <b>조회 결과가 빈 이름이 있을
+	 * 때만</b> 부른다.
+	 */
+	private static final String ANY_MIGRATION_PAIR_SQL =
+		"SELECT EXISTS (SELECT 1 FROM migration_pair WHERE dep_kind = ?)";
+
+	public boolean hasAnyMigrationPair(String kind) {
+		return Boolean.TRUE.equals(
+			jdbcTemplate.queryForObject(ANY_MIGRATION_PAIR_SQL, Boolean.class, kind));
+	}
+
+	/* ------------------------------------------------------------------ *
 	 * 공통 매핑
 	 * ------------------------------------------------------------------ */
 
