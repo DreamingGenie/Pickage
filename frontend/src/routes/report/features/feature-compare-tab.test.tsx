@@ -49,11 +49,11 @@ function renderTab(names = NAMES) {
 }
 
 const VERSIONS: Record<string, string[]> = {
-  pino: ['10.3.1', '10.2.0', '10.1.0'],
-  winston: ['3.19.0', '3.18.3', '3.18.0'],
+  pino: ['10.3.1', '9.7.2', '8.5.0'],
+  winston: ['3.19.0', '2.4.5', '1.9.0'],
 }
 
-/** 버전 목록. 서버처럼 최신순 최대 3개, 맨 앞이 기본값이다. */
+/** 버전 목록. 서버처럼 major별 최신순 최대 3개, 맨 앞이 기본값이다. */
 function versionsFor(names: string[]): FeatureVersionsResponse {
   return {
     packages: names.map((name) => ({
@@ -241,13 +241,13 @@ describe('FeatureCompareTab', () => {
       within(picker)
         .getAllByRole('option')
         .map((o) => o.getAttribute('value')),
-    ).toEqual(['10.3.1', '10.2.0', '10.1.0'])
+    ).toEqual(['10.3.1', '9.7.2', '8.5.0'])
 
-    await user.selectOptions(picker, '10.2.0')
+    await user.selectOptions(picker, '9.7.2')
 
     await waitFor(() =>
       expect(fetchPackageEnv).toHaveBeenLastCalledWith([
-        { package_name: 'pino', version: '10.2.0' },
+        { package_name: 'pino', version: '9.7.2' },
         { package_name: 'winston', version: '3.19.0' },
       ]),
     )

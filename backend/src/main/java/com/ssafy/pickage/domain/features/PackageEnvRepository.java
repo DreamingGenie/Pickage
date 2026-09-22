@@ -97,6 +97,45 @@ public class PackageEnvRepository {
 			rs.getString("name"), rs.getBoolean("known"), rs.getString("version")));
 	}
 
+	/**
+	 * 패키지마다 서로 다른 major 에서 고를 수 있는 최신 버전을 {@code limit} 개까지 찾는다.
+	 * 기존 최근 버전 조회와 분리된 정책 조회다.
+	 */
+	public List<VersionRow> findMajorDiverseVersions(List<String> names, int limit) {
+		String sql = """
+			SELECT q.name, q.pos, (p.package_id IS NOT NULL) AS known, t."version"
+			  FROM unnest(?::text[]) WITH ORDINALITY AS q(name, pos)
+			  LEFT JOIN "package" p ON p."name" = q.name
+			  LEFT JOIN LATERAL (
+			        WITH candidates AS (
+			              SELECT e."version", v.ordinal, v.published_at,
+			                     substring(e."version" FROM '^[0-9]+') AS major
+			                FROM package_env e
+			                JOIN "version" v
+			                  ON v.package_id = e.package_id AND v."version" = e."version"
+			               WHERE e.package_id = p.package_id
+			                 AND e.module_format <> 'UNKNOWN'
+			                 AND strpos(e."version", '-') = 0
+			                 AND e."version" ~ '^[0-9]+(\\.|\\+|$)'
+			        ), per_major AS (
+			              SELECT DISTINCT ON (major) "version", ordinal, published_at
+			                FROM candidates
+			               ORDER BY major, ordinal DESC, published_at DESC NULLS LAST, "version" DESC
+			        )
+			        SELECT "version", ordinal, published_at
+			          FROM per_major
+			         ORDER BY ordinal DESC, published_at DESC NULLS LAST, "version" DESC
+			         LIMIT ?
+			  ) t ON true
+			 ORDER BY q.pos, t.ordinal DESC, t.published_at DESC NULLS LAST, t."version" DESC
+			""";
+		return jdbcTemplate.query(sql, ps -> {
+			ps.setArray(1, ps.getConnection().createArrayOf("text", names.toArray()));
+			ps.setInt(2, limit);
+		}, (rs, rowNum) -> new VersionRow(
+			rs.getString("name"), rs.getBoolean("known"), rs.getString("version")));
+	}
+
 	private RowMapper<Row> mapper() {
 		return (rs, rowNum) -> new Row(
 			rs.getString("name"),

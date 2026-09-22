@@ -707,7 +707,7 @@ export interface FeatureVersionsResponse {
     package_name: string
     /** 드롭다운 기본값. `versions` 의 맨 앞. 고를 버전이 없으면 null */
     latest_stable: string | null
-    /** 최신순, 최대 3개 */
+	/** 서로 다른 major에서 고른 최신순 버전, 최대 3개 */
     versions: string[]
   }[]
   /** `package` 에 이름 자체가 없는 것 */

@@ -26,13 +26,11 @@ import lombok.RequiredArgsConstructor;
 public class PackageEnvService {
 
 	/**
-	 * 드롭다운에 올리는 버전 수.
+	 * 드롭다운에 올리는 서로 다른 major 수.
 	 *
-	 * <p>3 인 이유는 화면이다 — 스크롤 없이 한눈에 고를 수 있는 만큼만 둔다(기획 협의). 문헌
-	 * 프리로드가 패키지당 최신 정식 2개라, 3번째를 고르면 첫 AI 비교에서 README 를 jsDelivr 로
-	 * 받느라 몇 초 더 걸린다. 그 뒤로는 캐시에 남는다.
+	 * <p>같은 major의 패치 버전만 나열하지 않고 주요 릴리스 차이를 보여 주기 위한 상한이다.
 	 */
-	static final int RECENT_VERSIONS = 3;
+	static final int MAX_MAJOR_CANDIDATES = 3;
 
 	private final PackageEnvRepository repository;
 
@@ -66,7 +64,7 @@ public class PackageEnvService {
 	}
 
 	/**
-	 * 패키지마다 고를 수 있는 최근 버전 (기능-10-R02).
+	 * 패키지마다 고를 수 있는 major-diverse 버전 (기능-10-R02).
 	 *
 	 * <p>이름이 {@code package} 에 없으면 {@code notFound}, 있는데 고를 버전이 없으면 빈 목록으로
 	 * {@code packages} 에 남긴다. 둘을 합치면 화면이 "없는 패키지" 와 "비교할 버전이 아직 없는
@@ -78,7 +76,7 @@ public class PackageEnvService {
 		List<String> notFound = new ArrayList<>();
 
 		for (PackageEnvRepository.VersionRow row
-			: repository.findRecentVersions(names.values(), RECENT_VERSIONS)) {
+			: repository.findMajorDiverseVersions(names.values(), MAX_MAJOR_CANDIDATES)) {
 			if (!row.known()) {
 				notFound.add(row.name());
 				continue;
