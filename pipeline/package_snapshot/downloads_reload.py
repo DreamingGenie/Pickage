@@ -428,7 +428,9 @@ def run(*, daily_root, bronze, run_id, work_dir, command, snapshots=None, start=
         previous = days[day]
         day_root = root / day
         event('SNAPSHOT_START', snapshot=day, previous=previous, completed=len(reports))
-        rows = sql_json(command, f"SELECT count(*) FROM public.package_snapshot WHERE snapshot_at={quote(day)}::date;")
+        # 일회성 세션이라 로더의 SET 이 닿지 않는다. 같은 이유로 여기서도 순차 스캔을 끈다(08-24: 196 s → BRIN).
+        rows = sql_json(command, 'SET enable_seqscan=off; '
+                                 f"SELECT count(*) FROM public.package_snapshot WHERE snapshot_at={quote(day)}::date;")
         if not rows:
             raise ValueError(f'{day} has no published rows to reload')
         recomputed = time.monotonic()
