@@ -137,13 +137,10 @@ class ReportPdfServiceTest {
 		return new FeatureComparisonPayload(
 			List.of(new FeatureComparisonPayload.PackageRef("winston", "3.19.0"),
 				new FeatureComparisonPayload.PackageRef("pino", "10.3.1")),
-			List.of(new FeatureComparisonPayload.FeatureRow("구조화 로깅", List.of(
-				new FeatureComparisonPayload.Cell("winston", "3.19.0", "SUPPORTED",
-					List.of("ev-1"), "EVIDENCE", null),
-				new FeatureComparisonPayload.Cell("pino", "10.3.1", "SUPPORTED",
-					List.of("ev-2"), "EVIDENCE", null)))),
-			List.of(new FeatureComparisonPayload.NarrativeSection("요약", "둘 다 구조화 로깅을 지원합니다.")),
-			null, false);
+			"둘 다 구조화 로깅을 지원합니다.",
+			List.of(new FeatureComparisonPayload.Difference("winston", "3.19.0", "winston 은 전송 방식을 여러 개 붙여요."),
+				new FeatureComparisonPayload.Difference("pino", "10.3.1", "pino 는 빠른 JSON 출력에 집중해요.")),
+			false);
 	}
 
 	@Test

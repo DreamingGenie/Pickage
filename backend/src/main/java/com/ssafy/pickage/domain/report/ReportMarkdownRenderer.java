@@ -322,58 +322,25 @@ public class ReportMarkdownRenderer {
 			+ "같은 조건으로 다시 만들었을 때 채워집니다.");
 	}
 
-	/**
-	 * 화면과 같은 다섯 값(구상안 §7.2). {@link ReportHtmlRenderer} 의 같은 이름 상수와 같은 값이다 —
-	 * 여기서 다시 정의하는 이유는 그쪽이 {@code private} 이라서다.
-	 */
-	private static final Map<String, String> VERDICT_LABEL = Map.of(
-		"SUPPORTED", "지원",
-		"CONDITIONALLY_SUPPORTED", "조건부",
-		"LIMITED_SUPPORT", "제한적",
-		"UNCONFIRMED", "미확인",
-		"UNSUPPORTED", "미지원");
-
+	/** 공통점 + 패키지별 차이점 (2026-09-22, 판정표 대신). 화면·PDF 와 같은 구성이다. */
 	private void features(StringBuilder b, FeatureComparisonPayload f) {
 		heading(b, ReportSection.FEATURES.label());
 		if (f.limited()) {
-			note(b, "직접 비교 가능한 기능이 제한적입니다.");
+			note(b, "자료가 부족해 일부만 설명했어요.");
+			b.append('\n'); // 목록 줄 뒤에 빈 줄이 없으면 다음 굵은 제목이 목록에 붙는다
 		}
 
-		b.append("| 기능 |");
-		for (var pkg : f.packages()) b.append(' ').append(mdCell(pkg.packageName())).append(" |");
-		b.append('\n').append("|---|");
-		f.packages().forEach(p -> b.append("---|"));
-		b.append('\n');
+		b.append("**공통점**\n\n");
+		b.append(mdQuote(f.common() == null || f.common().isBlank() ? "-" : f.common())).append('\n');
 
-		if (f.features().isEmpty()) {
-			b.append("| 자료 없음 |");
-			f.packages().forEach(p -> b.append(" |"));
-			b.append('\n');
+		b.append("**차이점**\n\n");
+		if (f.differences() == null || f.differences().isEmpty()) {
+			note(b, "자료 없음");
+			return;
 		}
-		for (var row : f.features()) {
-			b.append("| ").append(mdCell(row.featureLabel())).append(" |");
-			for (var cell : row.results()) {
-				b.append(' ').append(mdCell(VERDICT_LABEL.getOrDefault(cell.verdict(), cell.verdict())));
-				if ("GENERAL_KNOWLEDGE".equals(cell.groundedIn())) {
-					b.append(" (AI 일반 지식)");
-				}
-				if (cell.note() != null && !cell.note().isBlank()) {
-					// 셀 안 인용은 표를 깨므로 블록쿼트를 못 쓴다 — 대신 괄호로 묶어 "칸 안의
-					// 추가 설명" 임을 알리고, 이스케이프는 그대로 지킨다.
-					b.append(" — ").append(mdCell(cell.note()));
-				}
-				b.append(" |");
-			}
-			b.append('\n');
-		}
-		b.append('\n');
-
-		for (var section : f.narrative()) {
-			b.append("**").append(mdEscape(section.heading())).append("**\n\n");
-			b.append(mdQuote(section.body())).append('\n');
-		}
-		if (f.narrativeError() != null && !f.narrativeError().isBlank()) {
-			note(b, "해설을 만들지 못했습니다: " + f.narrativeError());
+		for (var d : f.differences()) {
+			b.append("- `").append(mdEscape(d.packageName())).append("` ").append(mdEscape(d.version())).append("\n\n");
+			b.append(mdQuote(d.body() == null || d.body().isBlank() ? "-" : d.body())).append('\n');
 		}
 	}
 

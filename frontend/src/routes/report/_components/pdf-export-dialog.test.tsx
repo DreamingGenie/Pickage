@@ -16,7 +16,7 @@ vi.mock('@/api/endpoints', () => ({
   pdfDownloadUrl: (id: string) => `/api/report/pdf/${id}/file`,
 }))
 
-/** 기능 비교가 한 번 끝난 상태 — 차단 사유가 없어 준비 화면이 뜬다. */
+/** 기능 비교가 한 번 끝난 상태 — 기능 심화 분석도 고를 수 있다. */
 const RUN = {
   status: 'COMPLETED',
   doneCount: 6,
@@ -108,28 +108,13 @@ describe('PdfExportDialog — 준비', () => {
    * S15P21A506-463 — 서버는 판정을 저장하지 않으므로(DEC-FEATURE-CACHE-20260917-01) 세션이
    * 들고 있는 완료 결과를 요청이 그대로 실어 보내야 한다(구상안 §13.1·§14.5).
    */
-  it('기능 심화 분석을 고르고 완료 결과가 있으면 판정을 payload 로 실어 보낸다', async () => {
+  it('기능 심화 분석을 고르고 완료 결과가 있으면 공통점·차이점을 payload 로 실어 보낸다', async () => {
     generatePdf.mockResolvedValue(JOB)
     const rawResult = {
       dataStatus: 'COMPLETE' as const,
       packages: [{ package: 'axios', version: '1.7.0' }],
-      features: [
-        {
-          featureLabel: '재시도',
-          results: [
-            {
-              package: 'axios',
-              version: '1.7.0',
-              verdict: 'SUPPORTED' as const,
-              evidenceIds: ['E1'],
-              groundedIn: 'EVIDENCE' as const,
-              note: null,
-            },
-          ],
-        },
-      ],
-      narrative: [{ heading: '요약', body: '지원합니다.', evidenceIds: [] }],
-      narrativeError: null,
+      common: '요청을 보내요.',
+      differences: [{ package: 'axios', version: '1.7.0', body: '재시도를 설정할 수 있어요.' }],
       sources: [],
     }
     renderDialog(vi.fn(), { ...RUN, rawResult } as unknown as AnalysisRun)
@@ -142,28 +127,16 @@ describe('PdfExportDialog — 준비', () => {
       sections: ['FEATURES'],
       features: {
         packages: [{ package_name: 'axios', version: '1.7.0' }],
-        features: [
-          {
-            feature_label: '재시도',
-            results: [
-              {
-                package_name: 'axios',
-                version: '1.7.0',
-                verdict: 'SUPPORTED',
-                evidence_ids: ['E1'],
-                grounded_in: 'EVIDENCE',
-                note: null,
-              },
-            ],
-          },
+        common: '요청을 보내요.',
+        differences: [
+          { package_name: 'axios', version: '1.7.0', body: '재시도를 설정할 수 있어요.' },
         ],
-        narrative: [{ heading: '요약', body: '지원합니다.' }],
         limited: false,
       },
     })
   })
 
-  it('기능 비교를 한 번도 완료하지 않았으면(=rawResult 없음) 구역을 고르기 전에 이미 막힌다', async () => {
+  it('기능 비교를 안 했으면 막지 않고, 기능 심화 분석만 고를 수 없다', async () => {
     generatePdf.mockResolvedValue(JOB)
     renderDialog(vi.fn(), {
       ...RUN,
@@ -171,9 +144,15 @@ describe('PdfExportDialog — 준비', () => {
       rawResult: null,
     } as unknown as AnalysisRun)
 
-    // BLOCKED 라 준비 화면 자체가 안 뜬다 — payload 없이 제출되는 경로 자체가 없다는 뜻이다.
-    expect(screen.getByText('지금은 PDF를 만들 수 없습니다')).toBeInTheDocument()
-    expect(generatePdf).not.toHaveBeenCalled()
+    expect(screen.queryByText('지금은 PDF를 만들 수 없습니다')).toBeNull()
+    expect(screen.getByRole('checkbox', { name: '기능 심화 분석' })).toBeDisabled()
+    expect(screen.getByText('기능 비교 탭에서 분석을 마치면 고를 수 있어요.')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'PDF 생성' }))
+
+    await waitFor(() => expect(generatePdf).toHaveBeenCalledTimes(1))
+    expect(generatePdf.mock.calls[0][0].features).toBeUndefined()
+    expect(generatePdf.mock.calls[0][0].sections).not.toContain('FEATURES')
   })
 })
 
@@ -224,18 +203,19 @@ describe('PdfExportDialog — 완료', () => {
   })
 })
 
-describe('PdfExportDialog — 차단', () => {
-  it('선택한 버전이 완료 결과와 달라 재분석이 필요하면 기존 결과가 화면에 있어도 막는다', () => {
+describe('PdfExportDialog — 기능 비교는 선행 조건이 아니다', () => {
+  it('재분석이 필요하면 막지 않고 기능 심화 분석만 고를 수 없다', () => {
     renderDialog(vi.fn(), { ...RUN, reanalysisRequired: true } as AnalysisRun)
 
-    expect(screen.getByText('지금은 PDF를 만들 수 없습니다')).toBeInTheDocument()
-    expect(screen.getByText(/재분석이 필요합니다/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'PDF 생성' })).toBeNull()
+    expect(screen.queryByText('지금은 PDF를 만들 수 없습니다')).toBeNull()
+    expect(screen.getByRole('button', { name: 'PDF 생성' })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: '기능 심화 분석' })).toBeDisabled()
   })
 
-  it('한 번도 완료되지 않았으면 기능 비교 미실행으로 막는다', () => {
-    renderDialog(vi.fn(), { ...RUN, hasCompletedOnce: false } as AnalysisRun)
+  it('분석 중이어도 막지 않는다', () => {
+    renderDialog(vi.fn(), { ...RUN, status: 'RUNNING' } as AnalysisRun)
 
-    expect(screen.getByText('기능 비교 분석이 아직 실행되지 않았습니다.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PDF 생성' })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: '기능 심화 분석' })).toBeDisabled()
   })
 })

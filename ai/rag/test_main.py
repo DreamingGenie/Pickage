@@ -16,27 +16,16 @@ from fastapi.testclient import TestClient
 from ai.rag.main import create_app
 from ai.rag.pipeline import VerificationFailedError
 from ai.rag.readme_source import ReadmeSourceNotFoundError
-from ai.rag.types import ComparisonResult, FeatureResult, FeatureRow, PackageSource
+from ai.rag.types import ComparisonResult, PackageNote, PackageSource
 
 
 def _fake_compare_ok(packages):
     return ComparisonResult(
         data_status="COMPLETE",
         packages=packages,
-        features=[
-            FeatureRow(
-                feature_label="구조화 JSON",
-                results=[
-                    FeatureResult(
-                        package=packages[0].name,
-                        version=packages[0].version,
-                        verdict="SUPPORTED",
-                        evidence_ids=["foo@1.0.0#0"],
-                        grounded_in="EVIDENCE",
-                        note="지원합니다.",
-                    )
-                ],
-            )
+        common="설정 파일을 읽어요.",
+        differences=[
+            PackageNote(package=packages[0].name, version=packages[0].version, body="파일로 설정해요.")
         ],
     )
 
@@ -54,12 +43,16 @@ class ComparePOSTTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["dataStatus"], "COMPLETE")
         self.assertEqual(body["packages"][0]["package"], "foo")
-        self.assertEqual(body["features"][0]["featureLabel"], "구조화 JSON")
-        self.assertEqual(body["features"][0]["results"][0]["verdict"], "SUPPORTED")
+        self.assertEqual(body["common"], "설정 파일을 읽어요.")
+        self.assertEqual(
+            body["differences"], [{"package": "foo", "version": "1.0.0", "body": "파일로 설정해요."}]
+        )
+        self.assertNotIn("features", body)
+        self.assertNotIn("narrative", body)
 
     def test_verification_failure_returns_502_with_violations(self):
         def fake_compare_fail(packages):
-            raise VerificationFailedError(["evidenceId not in pool"])
+            raise VerificationFailedError(["foo: 차이점 문단이 없음"])
 
         client = TestClient(create_app(compare_fn=fake_compare_fail))
 
@@ -69,7 +62,7 @@ class ComparePOSTTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 502)
-        self.assertEqual(response.json()["detail"]["violations"], ["evidenceId not in pool"])
+        self.assertEqual(response.json()["detail"]["violations"], ["foo: 차이점 문단이 없음"])
 
 
 

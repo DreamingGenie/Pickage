@@ -130,13 +130,10 @@ class ReportHtmlRendererTest {
 		return new FeatureComparisonPayload(
 			List.of(new FeatureComparisonPayload.PackageRef("winston", "3.19.0"),
 				new FeatureComparisonPayload.PackageRef("pino", "10.3.1")),
-			List.of(new FeatureComparisonPayload.FeatureRow("구조화 로깅", List.of(
-				new FeatureComparisonPayload.Cell("winston", "3.19.0", "SUPPORTED",
-					List.of("ev-1"), "EVIDENCE", null),
-				new FeatureComparisonPayload.Cell("pino", "10.3.1", "UNCONFIRMED",
-					List.of(), "GENERAL_KNOWLEDGE", "README 에 명시 없음")))),
-			List.of(new FeatureComparisonPayload.NarrativeSection("요약", "두 패키지 모두 구조화 로깅을 지원합니다.")),
-			null, false);
+			"두 패키지 모두 구조화 로깅을 지원합니다.",
+			List.of(new FeatureComparisonPayload.Difference("winston", "3.19.0", "winston 은 전송 방식을 여러 개 붙여요."),
+				new FeatureComparisonPayload.Difference("pino", "10.3.1", "pino 는 빠른 JSON 출력에 집중해요.")),
+			false);
 	}
 
 	/**
@@ -144,7 +141,7 @@ class ReportHtmlRendererTest {
 	 * (S15P21A506-463). 라벨은 화면과 같은 한글이어야 한다(구상안 §7.2).
 	 */
 	@Test
-	@DisplayName("기능 비교 payload 를 실으면 실제 판정이 채워진다")
+	@DisplayName("기능 비교 payload 를 실으면 공통점·차이점이 채워진다")
 	void rendersFeatureComparisonWhenPayloadPresent() {
 		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("winston", "desc")), List.of()));
 		var withFeatures = new ReportHtmlRenderer.Sources(
@@ -157,12 +154,12 @@ class ReportHtmlRendererTest {
 		assertWellFormed(html);
 		assertTrue(html.contains("기능 심화 분석"));
 		assertFalse(html.contains("아직 제공되지 않습니다"), "payload 가 있는데도 자리표시만 그렸다");
-		assertTrue(html.contains("구조화 로깅"));
-		assertTrue(html.contains(">지원<"), "SUPPORTED 가 화면과 같은 한글로 안 나왔다");
-		// pino 칸은 뒤에 "(AI 일반 지식)" 표시가 이어 붙으므로 닫는 태그(<)가 바로 오지 않는다.
-		assertTrue(html.contains(">미확인 <"), "UNCONFIRMED 가 화면과 같은 한글로 안 나왔다");
-		assertTrue(html.contains("AI 일반 지식"), "일반 지식으로만 답한 칸의 표시가 없다");
+		assertTrue(html.contains(">공통점<"));
 		assertTrue(html.contains("두 패키지 모두 구조화 로깅을 지원합니다"));
+		assertTrue(html.contains(">차이점<"));
+		assertTrue(html.contains("winston 은 전송 방식을 여러 개 붙여요."));
+		assertTrue(html.contains("pino 는 빠른 JSON 출력에 집중해요."));
+		assertFalse(html.contains("<table><thead><tr><th>기능</th>"), "판정표가 남아 있다");
 	}
 
 	/** 문서 순서는 생태계 → 기능 비교 → 커뮤니티다 — 화면 탭 순서와 같다(S15P21A506-463). */

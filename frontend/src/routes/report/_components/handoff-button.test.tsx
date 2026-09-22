@@ -82,9 +82,8 @@ describe('HandoffButton', () => {
     const rawResult = {
       dataStatus: 'COMPLETE',
       packages: [{ package: 'axios', version: '1.7.7' }],
-      features: [],
-      narrative: [],
-      narrativeError: null,
+      common: '요청을 보내요.',
+      differences: [{ package: 'axios', version: '1.7.7', body: '재시도를 설정할 수 있어요.' }],
       sources: [],
     }
     renderButton({ ...RUN, rawResult } as unknown as AnalysisRun)
@@ -110,22 +109,26 @@ describe('HandoffButton', () => {
     clickSpy.mockRestore()
   })
 
-  it('기능 비교를 한 번도 완료하지 않았으면 요청을 보내지 않는다', async () => {
+  it('기능 비교를 안 했어도 요청을 보내고, 기능 비교 결과만 싣지 않는다', async () => {
     const user = userEvent.setup()
-    renderButton({ ...RUN, hasCompletedOnce: false } as AnalysisRun)
+    generateHandoff.mockResolvedValue(JOB)
+    renderButton({ ...RUN, hasCompletedOnce: false, rawResult: null } as unknown as AnalysisRun)
 
     await user.click(screen.getByRole('button', { name: /HAND-OFF/ }))
 
-    expect(generateHandoff).not.toHaveBeenCalled()
+    await waitFor(() => expect(generateHandoff).toHaveBeenCalledTimes(1))
+    expect(generateHandoff.mock.calls[0][0].features).toBeUndefined()
   })
 
-  it('재분석이 필요하면(선택 버전과 완료 결과가 다름) 요청을 보내지 않는다', async () => {
+  it('재분석이 필요하면(선택 버전과 완료 결과가 다름) 지난 결과를 싣지 않는다', async () => {
     const user = userEvent.setup()
+    generateHandoff.mockResolvedValue(JOB)
     renderButton({ ...RUN, reanalysisRequired: true } as AnalysisRun)
 
     await user.click(screen.getByRole('button', { name: /HAND-OFF/ }))
 
-    expect(generateHandoff).not.toHaveBeenCalled()
+    await waitFor(() => expect(generateHandoff).toHaveBeenCalledTimes(1))
+    expect(generateHandoff.mock.calls[0][0].features).toBeUndefined()
   })
 
   it('실패하면 버튼 옆에 오류 문구를 보여준다', async () => {

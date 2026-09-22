@@ -5,8 +5,7 @@ import { cn } from '@/lib/utils'
 import type { FeatureRunPhase } from '@/api/types'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import { AnalysisFailure, AnalysisStatusCard } from '@/routes/report/features/analysis-status-card'
-import { FeatureTable } from '@/routes/report/features/feature-table'
-import { NarrativeSection } from '@/routes/report/features/narrative-section'
+import { ComparisonNarrative } from '@/routes/report/features/narrative-section'
 
 /**
  * AI 기능 비교 (BE S15P21A506-130, IA §9.2-4).
@@ -36,14 +35,14 @@ const STEPS: { phase: FeatureRunPhase; title: string; detail: string }[] = [
   {
     phase: 'PREPARING_DOCS',
     title: 'README 불러오기',
-    detail: '선택한 버전의 README 를 모으고 있습니다',
+    detail: '선택한 버전의 README 를 모으고 있어요',
   },
   {
     phase: 'COMPARING',
     title: '기능 비교',
-    detail: 'AI 가 README 를 읽고 기능을 나란히 맞춰 보고 있습니다',
+    detail: 'AI 가 README 를 읽고 공통점과 차이점을 찾고 있어요',
   },
-  { phase: 'DONE', title: '정리', detail: '결과를 표로 정리하고 있습니다' },
+  { phase: 'DONE', title: '정리', detail: '결과를 글로 정리하고 있어요' },
 ]
 
 export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
@@ -58,7 +57,7 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
           AI 기능 비교
         </h3>
         <p className="text-base text-muted-foreground">
-          각 패키지의 README 를 AI 가 읽고 기능별로 정리합니다.
+          각 패키지의 README 를 AI 가 읽고 공통점과 차이점을 정리해요.
         </p>
       </header>
 
@@ -67,8 +66,8 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
         <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed p-6">
           <p className="text-base leading-relaxed text-muted-foreground">
             {run.targets
-              ? `${run.targets.map((t) => `${t.package_name} ${t.version}`).join(', ')} 의 기능을 비교합니다. 보통 1~2분 걸립니다.`
-              : '비교할 버전을 먼저 고르세요.'}
+              ? `${run.targets.map((t) => `${t.package_name} ${t.version}`).join(', ')} 의 기능을 비교해요. 보통 1~2분 걸려요.`
+              : '비교할 버전을 먼저 골라 주세요.'}
           </p>
           <StartButton run={run} />
         </div>
@@ -94,11 +93,7 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
       {view && (
         <>
           {!running && <AnalysisStatusCard run={run} />}
-          <FeatureTable view={view} dimmed={running} />
-          {run.sourceNote && (
-            <p className="text-base leading-relaxed text-muted-foreground">{run.sourceNote}</p>
-          )}
-          <NarrativeSection view={view} dimmed={running} />
+          <ComparisonNarrative view={view} dimmed={running} note={run.sourceNote} />
         </>
       )}
     </section>
@@ -125,8 +120,8 @@ export function StartButton({ run }: { run: FeatureAnalysis }) {
  * 진행률 막대를 그리지 않는다 — 서버가 주는 것은 단계 이름과 경과 초뿐이라, 없는 퍼센트를
  * 그리면 사용자가 거기서 남은 시간을 읽는다. 대신 **지금 몇 번째 단계인지**를 보여 준다.
  *
- * 아래 자리표시는 완성될 표와 같은 모양(행 × 패키지 열)이다. 완료 순간 화면이 튀지 않고,
- * 무엇이 나올지 미리 짐작하게 한다.
+ * 아래 자리표시는 완성될 결과와 같은 모양(공통점 한 덩어리 + 패키지별 문단)이다. 완료 순간
+ * 화면이 튀지 않고, 무엇이 나올지 미리 짐작하게 한다.
  */
 function RunningCard({ run }: { run: FeatureAnalysis }) {
   const current = Math.max(
@@ -178,32 +173,38 @@ function RunningCard({ run }: { run: FeatureAnalysis }) {
         <p className="text-base text-foreground">{STEPS[current].detail}</p>
         <span className="text-sm text-muted-foreground tabular-nums">
           {run.elapsedSec}초 지남
-          {run.elapsedSec >= 30 && ' · 보통 1~2분 걸립니다'}
+          {run.elapsedSec >= 30 && ' · 보통 1~2분 걸려요'}
         </span>
       </div>
 
-      {/* 완성될 표와 같은 모양의 자리표시. 이전 결과가 있으면 그 표가 흐리게 대신한다 */}
+      {/* 완성될 결과와 같은 모양의 자리표시. 이전 결과가 있으면 그 결과가 흐리게 대신한다 */}
       {!run.completed && (
-        <div aria-hidden className="flex flex-col">
-          {[0, 1, 2, 3, 4].map((row) => (
-            <div
-              key={row}
-              className="grid items-center gap-4 border-t py-3"
-              style={{ gridTemplateColumns: `minmax(8rem, 1.2fr) repeat(${columns}, 1fr)` }}
-            >
-              <div
-                className="h-3.5 animate-pulse rounded bg-muted"
-                style={{ width: `${70 - row * 7}%`, animationDelay: `${row * 120}ms` }}
-              />
-              {Array.from({ length: columns }, (_, col) => (
-                <div
-                  key={col}
-                  className="h-5 w-16 animate-pulse rounded bg-muted/70"
-                  style={{ animationDelay: `${row * 120 + col * 60}ms` }}
-                />
-              ))}
-            </div>
-          ))}
+        <div aria-hidden className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 rounded-xl border p-4">
+            <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+            <div className="h-3.5 w-full animate-pulse rounded bg-muted/70" />
+            <div className="h-3.5 w-4/5 animate-pulse rounded bg-muted/70" />
+          </div>
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          >
+            {Array.from({ length: columns }, (_, col) => (
+              <div key={col} className="flex flex-col gap-2 rounded-xl border p-4">
+                <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+                {[0, 1, 2].map((line) => (
+                  <div
+                    key={line}
+                    className="h-3.5 animate-pulse rounded bg-muted/70"
+                    style={{
+                      width: `${95 - line * 12}%`,
+                      animationDelay: `${col * 80 + line * 120}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

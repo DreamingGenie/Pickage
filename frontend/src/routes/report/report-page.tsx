@@ -220,8 +220,8 @@ export function ReportPage() {
           </Button>
           {/*
             기능-05-R03 — 상단 우측. 보고서 어느 탭에 있든 같은 자리에 있어야 한다.
-            기능 비교를 마치기 전에는 흐리게 두되 **누를 수는 있다** — 누르면 내보내기 창이 막힌 이유와
-            "기능 비교로 이동" 을 보여 준다. 아예 막으면 왜 안 되는지 알 길이 없다.
+            기능 비교는 선행 조건이 아니다(2026-09-22) — 안 했으면 내보내기 창에서 그 구역만
+            고를 수 없다. 차단 사유가 생기면(`report-export-eligibility.ts`) 흐리게 바뀐다.
           */}
           <Button
             size="sm"
@@ -241,22 +241,6 @@ export function ReportPage() {
           <HandoffButton packages={packages} transitionPeriod={transitionPeriod} run={run} />
         </div>
       </header>
-
-      {!exportReady && (
-        <p
-          id="pdf-hint"
-          className="-mt-3 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground"
-        >
-          PDF·HAND-OFF에는 기능 비교 결과도 들어가요. 기능 비교를 마치면 내려받을 수 있어요.
-          <button
-            type="button"
-            onClick={() => setTab('features')}
-            className="font-medium text-primary underline-offset-2 hover:underline"
-          >
-            기능 비교로 가기
-          </button>
-        </p>
-      )}
 
       {/*
         주소에 상한을 넘는 이름이 있었다. 탭과 무관한 "주소" 이야기라 페이지 위에 둔다 —
@@ -278,11 +262,6 @@ export function ReportPage() {
           </UnderlineTabsTrigger>
           <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
-            {!run.hasCompletedOnce && run.status !== 'RUNNING' && (
-              <span className="ml-1.5 rounded-full bg-tone-down px-2 py-0.5 text-sm font-medium text-tone-down-foreground">
-                PDF 전에 필요
-              </span>
-            )}
             {run.status === 'RUNNING' && (
               <>
                 <span

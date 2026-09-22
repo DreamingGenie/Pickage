@@ -1,15 +1,9 @@
-import type { FeatureDataStatus, FeatureReasonCode } from '@/api/types'
-import type { Verdict } from '@/routes/report/features/sample'
-
 /**
  * 기능 비교 화면 모델 (S15P21A506-217).
  *
- * 서버 응답(`api/types` 의 `Feature*Wire`)을 그대로 쓰지 않는다. camelCase 변환과 화면이 쓰는
- * 파생값 계산은 `adapter.ts` 한 곳에서 하고, 컴포넌트는 이 파일의 타입만 본다.
+ * 서버 응답을 그대로 쓰지 않는다. 변환은 `rag-adapter.ts`·`environment-adapter.ts` 에서 하고,
+ * 컴포넌트는 이 파일의 타입만 본다.
  */
-
-/** IA §9.2 — 근거가 충분하면 5~7개. 이보다 적으면 표 상단에 제한 안내를 붙인다. */
-export const MIN_FEATURES = 5
 
 export interface VersionChoice {
   version: string
@@ -24,27 +18,6 @@ export interface PackageVersions {
   choices: VersionChoice[]
 }
 
-export interface FeatureCell {
-  packageName: string
-  version: string
-  verdict: Verdict
-  dataStatus: FeatureDataStatus
-  /**
-   * README 가 아니라 AI 의 일반 지식으로 답한 칸. 출처를 화면에 적지 않기로 한 뒤에도 이 표시는
-   * 남긴다 — README 에서 확인한 판정과 AI 가 짐작한 판정이 똑같아 보이면 안 된다.
-   */
-  generalKnowledge: boolean
-  note: string | null
-  reasonCode: FeatureReasonCode | null
-}
-
-export interface FeatureRow {
-  id: string
-  label: string
-  /** 요청한 패키지 순서 */
-  cells: FeatureCell[]
-}
-
 export interface EnvironmentRow {
   key: string
   label: string
@@ -54,8 +27,10 @@ export interface EnvironmentRow {
   values: (EnvValue | null)[]
 }
 
-export interface NarrativeSection {
-  heading: string
+/** 패키지 하나의 차이점 서술 */
+export interface PackageDifference {
+  name: string
+  version: string
   body: string
 }
 
@@ -64,53 +39,22 @@ export interface ComparisonPackage {
   version: string
 }
 
+/**
+ * AI 기능 비교 결과 — 공통점 한 덩어리와 패키지별 차이점 문단 (2026-09-22, 판정표 대신).
+ */
 export interface ComparisonView {
   packages: ComparisonPackage[]
-  dataStatus: FeatureDataStatus
-  /** 표 상단에 `직접 비교 가능한 기능이 제한적입니다` 를 붙일지 */
+  /** AI 가 자료가 부족해 제대로 서술하지 못했다고 알린 경우 */
   limited: boolean
-  /** 비어 있으면 섹션을 그리지 않는다 — 구조화 데이터 계층이 없을 수 있다(구상안 §1.4) */
-  environment: EnvironmentRow[]
-  environmentNote: string | null
-  rows: FeatureRow[]
-  narrative: NarrativeSection[]
-  narrativeError: string | null
+  common: string
+  /** `packages` 순서 */
+  differences: PackageDifference[]
   analyzedAt: string
-  /** 미리 확인해 둔 예시 결과인지. 분석 서버가 그 자리에서 만든 값이 아니다 */
-  isExample: boolean
-  /** 다시 시도하면 나아질 수 있는 셀의 수(구상안 §11). 0이면 재시도 버튼을 두지 않는다 */
-  retryableCells: number
 }
 
 /** 재분석이 끝난 뒤 한 번 보여주는 변경점(구상안 §9.5). 세션 안의 직전 완료 결과와만 비교한다. */
 export interface ChangeSummary {
   versionChanges: { name: string; from: string; to: string }[]
-  verdictChanges: { feature: string; name: string; from: Verdict; to: Verdict }[]
-}
-
-/** 구상안 §11 — 미확인 사유. 화면에는 사유만 적고 지원/미지원으로 추정하지 않는다. */
-export const REASON_LABEL: Record<FeatureReasonCode, string> = {
-  TRANSIENT_FETCH_ERROR: '일시적으로 자료를 받지 못함',
-  PARTIAL_SOURCE_FAILURE: '일부 자료를 받지 못함',
-  ANALYZER_STALE: '분석기가 갱신되어 새 분석 필요',
-  SOURCE_ABSENT: '확인한 자료에서 발견되지 않음',
-  EVIDENCE_CONFLICT: '같은 버전 근거가 충돌',
-  RUNTIME_REQUIRED: '실행 검증이 필요',
-}
-
-/** 다시 시도하면 나아질 수 있는 사유. 나머지는 재시도해도 같은 결과다(구상안 §11). */
-export const RETRYABLE_REASONS: ReadonlySet<FeatureReasonCode> = new Set([
-  'TRANSIENT_FETCH_ERROR',
-  'PARTIAL_SOURCE_FAILURE',
-])
-
-/** 셀 판정 아래에 적는 짧은 사유. 없으면 null. */
-export function cellReason(cell: FeatureCell): string | null {
-  if (cell.reasonCode) return REASON_LABEL[cell.reasonCode]
-  if (cell.dataStatus === 'CONFLICT') return REASON_LABEL.EVIDENCE_CONFLICT
-  if (cell.dataStatus === 'STALE') return '자료가 오래되어 새 분석 필요'
-  if (cell.dataStatus === 'COLLECTION_ERROR') return '자료 수집에 실패함'
-  return null
 }
 
 /**

@@ -9,40 +9,42 @@ import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
  * 뻔했다) — 그래서 한 곳으로 뺐다. PDF 모달, 헤더의 `pdfReady`, HAND-OFF 버튼 전부 이 함수
  * 하나를 부른다.
  *
- * <h2>`BLOCKED` 사유는 아직 둘뿐이다</h2>
+ * <h2>기능 비교는 선행 조건이 아니다 (2026-09-22)</h2>
  *
- * 구상안 §13.2 의 차단 사유 다섯 중 클라이언트에서 지금 실제로 판단 가능한 건
- * `FEATURE_ANALYSIS_REQUIRED`(기능 비교 미실행)·`VERSION_RESULT_MISMATCH`(재분석 중,
- * `ANALYSIS_RUNNING`과 겹쳐 판단)뿐이다. 나머지 셋(`COMPARISON_NOT_CONFIRMED`·
- * `ECOSYSTEM_RESULT_INCOMPLETE`·`SNAPSHOT_CREATION_ERROR`)은 타입에는 있지만 판단할
- * 신호가 아직 없어 항상 통과시킨다 — 신호가 생기면 이 함수 안의 조건만 채운다.
+ * 예전에는 기능 비교를 한 번도 안 돌렸거나 재분석이 필요하면 PDF·HAND-OFF 자체를 막았다.
+ * 이제는 막지 않는다 — 생태계·커뮤니티만으로도 보고서를 만들 수 있고, 기능 비교 구역은
+ * {@link featuresExportable} 가 참일 때만 체크리스트에서 고를 수 있다.
+ *
+ * 구상안 §13.2 의 남은 차단 사유 셋(`COMPARISON_NOT_CONFIRMED`·`ECOSYSTEM_RESULT_INCOMPLETE`·
+ * `SNAPSHOT_CREATION_ERROR`)은 판단할 신호가 아직 없어 늘 통과시킨다 — 신호가 생기면
+ * {@link reportExportBlockReasons} 안의 조건만 채운다.
  */
 export type BlockReason =
-  | 'COMPARISON_NOT_CONFIRMED'
-  | 'ECOSYSTEM_RESULT_INCOMPLETE'
-  | 'SNAPSHOT_CREATION_ERROR'
-  | 'FEATURE_ANALYSIS_REQUIRED'
-  | 'VERSION_RESULT_MISMATCH'
+  'COMPARISON_NOT_CONFIRMED' | 'ECOSYSTEM_RESULT_INCOMPLETE' | 'SNAPSHOT_CREATION_ERROR'
 
 export const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
   COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
   ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
   SNAPSHOT_CREATION_ERROR: '보고서 사본을 만드는 중 오류가 발생했습니다.',
-  FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
-  VERSION_RESULT_MISMATCH:
-    '기능 비교가 실행 중이거나, 선택한 버전으로 재분석이 필요합니다. 재분석이 끝난 뒤 다시 시도해 주세요.',
+}
+
+/** 지금은 판단할 신호가 있는 차단 사유가 없다 — 늘 빈 목록이다. 자세한 사유는 이 파일 상단 주석 참고. */
+export function reportExportBlockReasons(_run: AnalysisRun): BlockReason[] {
+  return []
 }
 
 /**
- * 지금 실제로 판단 가능한 두 사유만 채운다. 나머지 셋은 신호가 없어 늘 통과한다 —
- * 자세한 사유는 이 파일 상단 주석 참고.
+ * 기능 비교 결과를 보고서에 실을 수 있는지. 완료 결과가 있고, 지금 고른 버전의 결과여야 한다 —
+ * 분석 중이거나 버전을 바꿔 재분석이 필요하면 화면의 결과는 "지금 고른 버전"의 것이 아니다
+ * (구상안 §9.2).
  */
-export function reportExportBlockReasons(run: AnalysisRun): BlockReason[] {
-  if (!run.hasCompletedOnce) return ['FEATURE_ANALYSIS_REQUIRED']
-  // 진행 중이거나, 선택한 버전이 완료 결과와 달라 재분석이 필요하면 막는다(구상안 §9.2·§13.2).
-  // 기존 결과는 화면에 남아 있어도 "현재 선택 버전의 결과"가 아니다.
-  if (run.status === 'RUNNING' || run.reanalysisRequired) return ['VERSION_RESULT_MISMATCH']
-  return []
+export function featuresExportable(run: AnalysisRun): boolean {
+  return (
+    run.hasCompletedOnce &&
+    run.rawResult !== null &&
+    run.status !== 'RUNNING' &&
+    !run.reanalysisRequired
+  )
 }
 
 /** 보고서(PDF·HAND-OFF)를 지금 만들 수 있는지. `reportExportBlockReasons(run).length === 0`. */

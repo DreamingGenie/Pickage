@@ -44,8 +44,8 @@ export const RUN_STEPS = [
   { key: 'ARTIFACT_COLLECTED', label: '배포본 수집 · 무결성 검증' },
   { key: 'ENVIRONMENT_EXTRACTED', label: '환경 · 설치 조건 추출' },
   { key: 'EVIDENCE_EXTRACTED', label: '근거 추출' },
-  { key: 'ASSESSMENTS_LINKED', label: '판정 연결' },
-  { key: 'NARRATIVE_GENERATED', label: '중립 해설 생성' },
+  { key: 'ASSESSMENTS_LINKED', label: '공통점 찾기' },
+  { key: 'NARRATIVE_GENERATED', label: '차이점 정리' },
 ] as const
 
 /**
@@ -65,7 +65,7 @@ export type RunStatus = 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'UNAVAILAB
  */
 const ERROR_MESSAGE: Record<FeatureRunErrorCode, string> = {
   DOC_NOT_FOUND: '이 버전의 문헌을 아직 받지 못했습니다.',
-  VERIFICATION_FAILED: '판정의 근거를 확인하지 못해 결과를 내지 않았습니다.',
+  VERIFICATION_FAILED: '고른 패키지와 맞지 않는 결과가 나와 표시하지 않았습니다.',
   RAG_UNAVAILABLE: '분석 서버에 연결하지 못했습니다.',
   INTERRUPTED: '분석이 중간에 끊겼습니다.',
 }

@@ -28,11 +28,11 @@ from ai.rag.readme_chunker import (
 from ai.rag.readme_source import ReadmeSourceNotFoundError, resolve_readme_path
 from ai.rag.retrieval import retrieve
 from ai.rag.types import ComparisonResult, EvidenceChunk, PackageRef, PackageSource
-from ai.rag.verification import verify_evidence_ids, verify_verdicts
+from ai.rag.verification import verify_result
 
 
 class VerificationFailedError(Exception):
-    """179/180 검증 실패 시. 위반 사유 목록을 담는다."""
+    """결과 검증 실패 시. 위반 사유 목록을 담는다."""
 
     def __init__(self, violations: list[str]) -> None:
         super().__init__(f"검증 실패: {violations}")
@@ -104,7 +104,7 @@ def compare_packages(
 
     Raises:
         ReadmeSourceNotFoundError: 비교 대상 중 인계 파일이 없는 (패키지, 버전)이 있을 때.
-        VerificationFailedError: 179/180 중 하나라도 위반이 있으면.
+        VerificationFailedError: 패키지별 차이점 문단이 빠지거나 어긋나면.
     """
     evidence_pool: list[EvidenceChunk] = []
     sources: list[PackageSource] = []
@@ -118,7 +118,7 @@ def compare_packages(
     # 문헌 상태는 LLM 이 만드는 값이 아니라 파일에서 읽은 값이다 — 판정과 섞이지 않게 여기서 붙인다.
     result.sources = sources
 
-    violations = verify_evidence_ids(result, retrieved) + verify_verdicts(result)
+    violations = verify_result(result, packages)
     if violations:
         raise VerificationFailedError(violations)
 

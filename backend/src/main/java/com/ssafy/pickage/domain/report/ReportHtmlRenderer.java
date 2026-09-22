@@ -449,66 +449,34 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
-	 * 화면과 같은 다섯 값(구상안 §7.2). {@link com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload}
-	 * 는 이 문자열 그대로 담아 온다 — 여기서 다시 정의하지 않고 화면(`sample.ts` {@code VERDICT_LABEL})과
-	 * 같은 한글을 쓴다.
-	 */
-	private static final Map<String, String> VERDICT_LABEL = Map.of(
-		"SUPPORTED", "지원",
-		"CONDITIONALLY_SUPPORTED", "조건부",
-		"LIMITED_SUPPORT", "제한적",
-		"UNCONFIRMED", "미확인",
-		"UNSUPPORTED", "미지원");
-
-	/**
 	 * 기능 심화 분석 (기능-10~13, S15P21A506-463).
 	 *
-	 * <p>세션이 보낸 완료 판정을 그대로 표로 옮긴다 — 서버가 다시 분석하지 않는다(구상안 §14.5).
-	 * 근거 ID·출처 구분은 화면에서도 안 보이는 값이라(기획 협의, `rag-adapter.ts` 참고)
-	 * 문서에도 옮기지 않는다. AI 의 일반 지식으로만 답한 칸은 화면과 같이 표시를 남긴다 —
-	 * README 로 확인한 판정과 짐작한 판정이 문서에서 똑같아 보이면 안 된다.
+	 * <p>세션이 보낸 완료 결과를 그대로 옮긴다 — 서버가 다시 분석하지 않는다(구상안 §14.5).
+	 * 2026-09-22 판정표 대신 공통점 한 덩어리 + 패키지별 차이점 문단이다(화면과 같은 구성).
 	 */
 	private void features(StringBuilder b, FeatureComparisonPayload f) {
 		heading(b, ReportSection.FEATURES.label());
 		if (f.limited()) {
-			// 억지 표를 만들지 않는다(구상안 §8) — 화면과 같은 안내를 문서에도 남긴다.
-			note(b, "직접 비교 가능한 기능이 제한적입니다.");
+			note(b, "자료가 부족해 일부만 설명했어요.");
 		}
 
-		b.append("<table><thead><tr><th>기능</th>");
-		for (var pkg : f.packages()) {
-			b.append("<th>").append(esc(pkg.packageName())).append("</th>");
-		}
-		b.append("</tr></thead><tbody>");
+		b.append("<div class=\"keep\"><p class=\"sub\">공통점</p><p>")
+			.append(esc(blankToDash(f.common()))).append("</p></div>");
 
-		if (f.features().isEmpty()) {
-			b.append("<tr><td class=\"muted\" colspan=\"")
-				.append(1 + f.packages().size()).append("\">자료 없음</td></tr>");
+		b.append("<p class=\"sub\">차이점</p>");
+		if (f.differences() == null || f.differences().isEmpty()) {
+			note(b, "자료 없음");
+			return;
 		}
-		for (var row : f.features()) {
-			b.append("<tr><td>").append(esc(row.featureLabel())).append("</td>");
-			for (var cell : row.results()) {
-				b.append("<td>").append(esc(VERDICT_LABEL.getOrDefault(cell.verdict(), cell.verdict())));
-				if ("GENERAL_KNOWLEDGE".equals(cell.groundedIn())) {
-					b.append(" <span class=\"muted\">(AI 일반 지식)</span>");
-				}
-				if (cell.note() != null && !cell.note().isBlank()) {
-					b.append("<br/><span class=\"note\">").append(esc(cell.note())).append("</span>");
-				}
-				b.append("</td>");
-			}
-			b.append("</tr>");
+		for (var d : f.differences()) {
+			b.append("<div class=\"keep\"><p><strong>").append(esc(d.packageName())).append("</strong> ")
+				.append("<span class=\"muted\">").append(esc(d.version())).append("</span></p>")
+				.append("<p>").append(esc(blankToDash(d.body()))).append("</p></div>");
 		}
-		b.append("</tbody></table>");
+	}
 
-		for (var section : f.narrative()) {
-			b.append("<div class=\"keep\"><p class=\"sub\">").append(esc(section.heading())).append("</p>")
-				.append("<p>").append(esc(section.body())).append("</p></div>");
-		}
-		// 표는 있는데 해설만 못 만든 경우. 표의 판정은 그대로 유효하다(rag-adapter.ts 와 같은 원칙).
-		if (f.narrativeError() != null && !f.narrativeError().isBlank()) {
-			note(b, "해설을 만들지 못했습니다: " + f.narrativeError());
-		}
+	private static String blankToDash(String s) {
+		return s == null || s.isBlank() ? "-" : s;
 	}
 
 	/**

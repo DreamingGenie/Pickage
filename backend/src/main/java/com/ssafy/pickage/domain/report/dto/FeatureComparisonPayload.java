@@ -3,13 +3,16 @@ package com.ssafy.pickage.domain.report.dto;
 import java.util.List;
 
 /**
- * PDF 요청이 실어 보내는 기능 비교 판정 (구상안 §13.1·§14.5, S15P21A506-463).
+ * PDF 요청이 실어 보내는 기능 비교 결과 (구상안 §13.1·§14.5, S15P21A506-463).
+ *
+ * <p>2026-09-22 판정표(verdict·evidenceId)를 없애고 공통점·패키지별 차이점 서술로 바꿨다 —
+ * {@code ai/rag} 의 출력 형식 전환과 같이 간다.
  *
  * <h2>서버는 이 값을 다시 조회하지 않는다</h2>
  *
  * {@code FeatureAssessment}·{@code AnalysisRun}은 서버에 영속화하지 않는다
- * ({@code DEC-FEATURE-CACHE-20260917-01}). 화면이 세션에 들고 있는 완료 판정(verdict·
- * evidenceId 목록·narrative)을 요청이 그대로 실어 보내고, 서버는 옮겨 적기만 한다.
+ * ({@code DEC-FEATURE-CACHE-20260917-01}). 화면이 세션에 들고 있는 완료 결과(공통점·
+ * 차이점)를 요청이 그대로 실어 보내고, 서버는 옮겨 적기만 한다.
  *
  * <h2>RAG 계약을 한 벌 더 정의하는 것이 아니다</h2>
  *
@@ -21,36 +24,17 @@ import java.util.List;
  */
 public record FeatureComparisonPayload(
 	List<PackageRef> packages,
-	List<FeatureRow> features,
-	List<NarrativeSection> narrative,
-	String narrativeError,
-	/** RAG 의 {@code dataStatus == COMPARISON_LIMITED} 를 그대로 옮긴 값. 억지 표를 만들지 않는다(구상안 §8). */
+	/** 공통점 서술 */
+	String common,
+	/** 패키지별 차이점 서술. {@code packages} 순서 */
+	List<Difference> differences,
+	/** RAG 의 {@code dataStatus == COMPARISON_LIMITED} 를 그대로 옮긴 값 */
 	boolean limited
 ) {
 
 	public record PackageRef(String packageName, String version) {
 	}
 
-	public record FeatureRow(String featureLabel, List<Cell> results) {
-	}
-
-	/**
-	 * @param verdict {@code SUPPORTED} · {@code CONDITIONALLY_SUPPORTED} · {@code LIMITED_SUPPORT} ·
-	 *                {@code UNCONFIRMED} · {@code UNSUPPORTED} (구상안 §7.2)
-	 * @param evidenceIds 화면에는 안 보이지만(기획 협의) §13.1 계약이 payload 필수 항목으로 못 박았다 —
-	 *                    지금은 렌더링에 쓰지 않고 계약대로 실어만 둔다.
-	 * @param groundedIn {@code EVIDENCE} · {@code GENERAL_KNOWLEDGE}
-	 */
-	public record Cell(
-		String packageName,
-		String version,
-		String verdict,
-		List<String> evidenceIds,
-		String groundedIn,
-		String note
-	) {
-	}
-
-	public record NarrativeSection(String heading, String body) {
+	public record Difference(String packageName, String version, String body) {
 	}
 }

@@ -5,15 +5,12 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import type { ChangeSummary } from '@/routes/report/features/model'
-import { VERDICT_LABEL } from '@/routes/report/features/sample'
 
 /**
  * 분석 상태 카드 (IA §9.4, 와이어프레임 「기능 비교 분석 상태」).
  *
- * **분석 상태는 이 카드 안에서만 말한다.** 결과 표는 상태에 따라 사라지지 않는다 — 재분석이
+ * **분석 상태는 이 카드 안에서만 말한다.** 결과는 상태에 따라 사라지지 않는다 — 재분석이
  * 필요하거나 실패해도 이전 완료 결과는 그대로 남는다(구상안 §9.3).
- *
- * 오류가 나도 지원/미지원으로 추정하지 않는다. 확인하지 못한 곳만 `미확인` 이다.
  */
 export function AnalysisStatusCard({ run }: { run: FeatureAnalysis }) {
   const view = run.completed
@@ -25,7 +22,6 @@ export function AnalysisStatusCard({ run }: { run: FeatureAnalysis }) {
       ? [{ name: pkg.name, from: pkg.version, to: picked }]
       : []
   })
-  const partial = view.dataStatus === 'PARTIAL' || view.retryableCells > 0
   const rerunFailure = run.failure?.kind === 'RUN' ? run.failure : null
 
   return (
@@ -82,49 +78,17 @@ export function AnalysisStatusCard({ run }: { run: FeatureAnalysis }) {
           {rerunFailure.message}
         </Callout>
       )}
-
-      {partial && (
-        <Callout
-          tone="blue"
-          title="일부 완료 · 확인 가능한 결과 먼저 표시"
-          action={
-            view.retryableCells > 0 ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={run.restart}
-                disabled={run.status === 'RUNNING'}
-              >
-                <RefreshCwIcon className="size-3.5" aria-hidden />
-                다시 시도
-              </Button>
-            ) : undefined
-          }
-        >
-          일부 자료를 확인하지 못했습니다. 영향을 받는 셀만 &lsquo;미확인&rsquo;으로 두었습니다.
-          오류가 나도 지원/미지원으로 추정하지 않습니다.
-        </Callout>
-      )}
     </section>
   )
 }
 
 function ChangesCallout({ changes, onDismiss }: { changes: ChangeSummary; onDismiss: () => void }) {
-  const lines: string[] = [
-    ...changes.versionChanges.map((c) => `${c.name} ${c.from} → ${c.to}`),
-    ...changes.verdictChanges.map(
-      (c) => `${c.feature} · ${c.name}: ${VERDICT_LABEL[c.from]} → ${VERDICT_LABEL[c.to]}`,
-    ),
-  ]
-  // "변경 없음" 이 아니라 "같은 이름의 기능 중에는" 이다 — RAG 가 축을 새로 정해 이름이 달라진
-  // 기능은 비교하지 않았다.
-  if (changes.verdictChanges.length === 0) lines.push('같은 기능 중 판정이 바뀐 것은 없음')
+  const lines = changes.versionChanges.map((c) => `${c.name} ${c.from} → ${c.to}`)
 
   return (
     <Callout
       tone="green"
-      title="재분석 완료 · 직전 결과와 달라진 점"
+      title="재분석 완료 · 바뀐 버전"
       action={
         <Button type="button" variant="outline" size="sm" onClick={onDismiss}>
           확인

@@ -31,8 +31,8 @@ class FeatureRunResponseJsonTest {
 
 	private static final String RAG = """
 		{"dataStatus":"COMPLETE","packages":[{"package":"express","version":"5.2.1"}],\
-		"features":[{"featureLabel":"라우팅","results":[]}],"narrative":[],\
-		"narrativeError":null,"sources":[]}""";
+		"common":"라우팅을 해요.","differences":[{"package":"express","version":"5.2.1","body":"미들웨어로 이어 붙여요."}],\
+		"sources":[]}""";
 
 	private static FeatureRunResponse completed(String result) {
 		Instant t = Instant.parse("2026-09-21T00:00:00Z");
@@ -59,9 +59,8 @@ class FeatureRunResponseJsonTest {
 		String body = mapper.writeValueAsString(completed(RAG));
 
 		assertThat(body)
-			.contains("\"featureLabel\"")
-			.contains("\"narrativeError\"")
-			.doesNotContain("feature_label");
+			.contains("\"dataStatus\"")
+			.doesNotContain("data_status");
 		// 바깥 봉투는 우리 규약(snake_case)을 따른다
 		assertThat(body).contains("\"run_id\"").contains("\"elapsed_sec\":5");
 	}
