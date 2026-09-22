@@ -95,7 +95,7 @@ export function TransitionsPanel({
   const dateLabel =
     model.t1 && model.t2
       ? `${model.t1} ~ ${model.t2}`
-      : '적재 전 — 아직 이 구간이 계산되지 않았습니다'
+      : '준비 중 — 이 기간은 아직 계산하지 않았어요'
 
   return (
     <div
@@ -115,26 +115,27 @@ export function TransitionsPanel({
           */}
           <InfoDialog label="유지·유입·이탈 계산 기준 안내" title="계산 기준">
             <p>
-              {DEPENDENTS_TERM} 그래프의 증감과는 다른 기준입니다. 그쪽은 버전별 합계이고, 이 수치는{' '}
-              {model.population ? populationLabel(model.population) : '집계 대상'} 중 프로젝트를
-              이름으로 센 결과라 계산 방식 자체가 다릅니다.
+              {DEPENDENTS_TERM} 그래프의 증감과는 세는 방법이 달라요. 그쪽은 버전마다 센 값을 더한
+              것이고, 이 수치는{' '}
+              {model.population ? populationLabel(model.population) : '모은 패키지'} 중 프로젝트를
+              이름으로 하나씩 센 결과예요.
             </p>
-            <p>devDependencies는 포함하지 않습니다.</p>
+            <p>개발할 때만 쓰는 의존(devDependencies)은 세지 않아요.</p>
             {/*
               S15P21A506-427. 막대 라벨은 "릴리스 없음"이라는 사실만 짧게 말한다 — 왜 그것이
               "모른다"와 다른지는 여기서 밝힌다. 1년 구간에서 화면의 대부분을 먹는 칸이라
               이 설명이 없으면 우리가 자료를 못 구한 것처럼 읽힌다.
             */}
             <p>
-              <strong>릴리스 없음</strong>은 자료를 구하지 못했다는 뜻이 아닙니다. 그 프로젝트는
-              기간의 양 끝에서 이 패키지를 그대로 선언하고 있습니다. 다만 그 사이에 릴리스를 내지
-              않아, 계속 쓸지 다시 검토했는지를 판단하지 않았습니다. npm 패키지의 76.1%가 최근 1년간
-              릴리스가 없습니다.
+              <strong>릴리스 없음</strong>은 자료를 못 구했다는 뜻이 아니에요. 그 프로젝트는 기간의
+              처음과 끝 모두 이 패키지를 그대로 적어 두고 있어요. 다만 그 사이에 새 버전을 내지
+              않아서, 계속 쓸지 다시 생각했는지는 판단하지 않았어요. npm 패키지의 76.1%가 최근 1년
+              동안 새 버전을 내지 않았어요.
             </p>
             <p>
-              기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 떨어지지만 실제로 판정하는 수는
-              늘지 않습니다 — 구간이 길수록 신생 패키지가 유입으로 옮겨가 분모가 부풀기 때문입니다.
-              판정 수가 가장 많은 것은 5년이 아니라 <strong>3년</strong>입니다.
+              기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 줄지만, 실제로 판단할 수 있는 수가
+              늘지는 않아요 — 기간이 길수록 새로 생긴 패키지가 많이 섞이기 때문이에요. 판단할 수
+              있는 수가 가장 많은 기간은 5년이 아니라 <strong>3년</strong>이에요.
             </p>
             {/*
               S15P21A506-431. 분해 자체의 뜻과, 구간마다 비는 칸이 다른 이유. 화면에서 빈 칸은
@@ -142,16 +143,16 @@ export function TransitionsPanel({
             */}
             <p>
               <strong>릴리스 없음</strong> 아래의 <strong>3년 안 · 3~5년 전 · 5년 초과</strong>는 그
-              프로젝트가 <strong>마지막으로 릴리스를 낸 시점</strong>이 기준일에서 얼마나 떨어졌는지
-              입니다. 셋을 더하면 릴리스 없음이 됩니다 — 따로 세는 범주가 아니라 그 한 칸을 나눈
-              것입니다. 5년이 넘었다면 잠시 쉬는 것이 아니라 사실상 손을 뗀 프로젝트로 봅니다.
+              프로젝트가 <strong>마지막으로 새 버전을 낸 때</strong>가 얼마나 지났는지예요. 셋을
+              더하면 릴리스 없음이 돼요 — 따로 센 것이 아니라 그 한 칸을 나눈 거예요. 5년이 넘었다면
+              잠시 쉬는 게 아니라 사실상 손을 뗀 프로젝트로 봐요.
             </p>
             <p>
-              조회 기간에 따라 나오는 칸이 다릅니다. 3년으로 보면 <strong>3년 안</strong>은 나올 수
-              없고(그 사이에 릴리스를 냈다면 릴리스 없음이 아닙니다), 5년으로 보면 남는 칸이
-              <strong> 5년 초과</strong> 하나뿐이라 나누어 보여주지 않습니다.{' '}
-              <strong>빈 칸은 자료가 없다는 뜻이 아닙니다.</strong> 비율로 볼 때는 분모가 판정한
-              의존자뿐이라 이 분해가 나오지 않습니다 — 값으로 볼 때만 보입니다.
+              고른 기간에 따라 나오는 칸이 달라요. 3년으로 보면 <strong>3년 안</strong>은 나올 수
+              없고(그 사이에 새 버전을 냈다면 릴리스 없음이 아니니까요), 5년으로 보면 남는 칸이
+              <strong> 5년 초과</strong> 하나뿐이라 나눠 보여 드리지 않아요.{' '}
+              <strong>빈 칸은 자료가 없다는 뜻이 아니에요.</strong> 비율로 볼 때는 판단한 프로젝트만
+              세기 때문에 이 칸이 나오지 않고, 값으로 볼 때만 보여요.
             </p>
           </InfoDialog>
         </div>
@@ -216,18 +217,18 @@ export function TransitionsPanel({
         <>
           {model.notFound.length > 0 && (
             <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-              일부 패키지의 전환 데이터를 찾지 못했습니다:{' '}
+              일부 패키지는 이 자료를 찾지 못했어요:{' '}
               <span className="font-mono text-foreground">{model.notFound.join(', ')}</span>
             </p>
           )}
 
           {period === '1y' && unobservedPct !== null && (
             <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-              1년은 판정할 수 있는 의존자가 가장 적은 구간입니다 — 지금 비교에서{' '}
+              1년은 판단할 수 있는 프로젝트가 가장 적은 기간이에요 — 지금 비교에서{' '}
               <strong className="font-medium text-foreground">
                 {unobservedPct.toFixed(1)}%가 릴리스 없음
               </strong>
-              입니다. 기본값인 3년이 실제로 판정하는 수가 가장 많습니다.
+              예요. 처음 골라져 있는 3년이 판단할 수 있는 수가 가장 많아요.
             </p>
           )}
 
