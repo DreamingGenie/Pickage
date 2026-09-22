@@ -81,6 +81,12 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
    - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 를 안 주면 `--package-text` 와 같은 폴더의 `package_dependents.parquet` 를 찾아 쓰고, 그것도 없으면 **경고 로그를 남기고 이 관문만 건너뛴다**(배치는 계속 돈다). manifest 의 `params.gate_drops.complement` 는 관문이 안 돌았으면 `null`, 돌았으면 걸러낸 쌍 수이고, `params.dependents_coverage` 는 이번 패키지 중 dependents 행이 있는 비율(`pool`·`with_dependents`·`ratio`)이다 — 후보 풀이 dependents 파일보다 커지면 이 비율이 내려간다
 3. **인지도 관문** (`--downloads-floor`, 기본 **500,000**, S15P21A506-450) — `downloads_last_month`가
    이 값 미만인 후보는 drop. 정보가 없는 후보(None)도 통과 안 시킴(보수적).
+   **base 별 단계적 완화** (S15P21A506-458): 하드컷 하나만 쓰면 니치 base 에서 관문 통과 후
+   후보가 3개 미만이 되는 사례가 실측(로컬 92만 코퍼스 서브셋, rank≤10만)으로 13.4%→21.1%로
+   늘어나는 게 확인됨 — base 별로 500,000→100,000→50,000→10,000→0 순서로 3개가 채워질
+   때까지 낮춘다(`apply_downloads_floor_with_fallback()`). 끝(0)까지 가도 3개가 안 채워지면
+   있는 만큼(1~2개, 드물게 0개)만 노출한다 — 없는 후보를 만들어낼 수는 없다. manifest 의
+   `params.downloads_floor_tiers_used`에 base 가 최종적으로 어느 단계에서 멈췄는지 분포가 남는다.
 4. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
 5. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 

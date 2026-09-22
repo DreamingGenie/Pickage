@@ -728,6 +728,64 @@ class ApplyDownloadsFloor(unittest.TestCase):
         self.assertEqual(dropped, 0)
 
 
+class ApplyDownloadsFloorWithFallback(unittest.TestCase):
+    """S15P21A506-458: base 별로 3개 미만이면 하한을 단계적으로 완화한다."""
+
+    TIERS = (500_000, 100_000, 50_000, 10_000, 0)
+
+    def test_base_with_enough_at_strictest_tier_is_not_relaxed(self):
+        """모든 후보가 최상위 하한을 이미 넘으면 완화가 필요 없다."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+        downloads = {1: 1_000_000, 2: 2_000_000, 3: 3_000_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual(kept, hits)
+        self.assertEqual(tiers_used[500_000], 1)
+        self.assertEqual(sum(tiers_used.values()), 1)
+
+    def test_relaxes_to_next_tier_when_strictest_leaves_too_few(self):
+        """50만 하한이면 1개만 남지만, 5만까지 낮추면 3개가 남는 경우."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+        downloads = {1: 600_000, 2: 80_000, 3: 60_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for _, c, _ in kept}, {1, 2, 3})
+        self.assertEqual(tiers_used[50_000], 1)
+        self.assertEqual(tiers_used[500_000], 0)
+
+    def test_falls_through_to_last_tier_even_if_still_under_min_kept(self):
+        """맨 끝(0)까지 가도 3개가 안 채워지면, 그 결과라도(2개든 0개든) 그대로 쓴다."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8)]  # 애초에 구조적 관문 통과분이 2개뿐
+        downloads = {1: 5_000, 2: 3_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for _, c, _ in kept}, {1, 2})
+        self.assertEqual(tiers_used[0], 1)
+
+    def test_each_base_relaxes_independently(self):
+        hits = [
+            (0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7),  # base 0: 전부 인기 있음 -> 안 완화
+            (5, 6, 0.9), (5, 7, 0.8), (5, 8, 0.7),  # base 5: 인기 없음 -> 완화 필요
+        ]
+        downloads = {1: 1_000_000, 2: 1_000_000, 3: 1_000_000, 6: 5_000, 7: 4_000, 8: 3_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for b, c, _ in kept if b == 0}, {1, 2, 3})
+        self.assertEqual({c for b, c, _ in kept if b == 5}, {6, 7, 8})
+        self.assertEqual(tiers_used[500_000], 1)
+        self.assertEqual(tiers_used[0], 1)
+
+    def test_min_kept_is_configurable(self):
+        hits = [(0, 1, 0.9), (0, 2, 0.8)]
+        downloads = {1: 1_000_000, 2: 100}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(
+            hits, downloads, self.TIERS, min_kept=1
+        )
+        self.assertEqual([c for _, c, _ in kept], [1])
+        self.assertEqual(tiers_used[500_000], 1)
+
+    def test_empty_hits_returns_empty(self):
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback([], {}, self.TIERS)
+        self.assertEqual(kept, [])
+        self.assertEqual(sum(tiers_used.values()), 0)
+
+
 class ResolveDependentsPath(unittest.TestCase):
     """S15P21A506-173: --dependents 를 안 줘도 --package-text 옆 파일이 있으면 관문이 돈다."""
 

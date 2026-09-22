@@ -22,7 +22,12 @@
                       기획 개정된 데 따른 것 — 실측(eval_gate_ranking.py, 인지도 반영 정답지
                       기준)으로 하한 미적용 대비 recall@3 이 0.130→0.332 로 개선됨을 확인하고
                       50만을 채택함. cos 축은 절대 임계값을 안 쓰므로(DEC-RANK-20260910-01)
-                      이 하드컷은 downloads 축에만 건다
+                      이 하드컷은 downloads 축에만 건다.
+                      base 별 단계적 완화 구현 (S15P21A506-458) — 하드컷 하나만 쓰면 니치
+                      base 에서 관문 통과 후 후보가 3개 미만(0개 포함)이 되는 사례가 실측
+                      (로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 늘어나는 게 확인돼, base 별로
+                      500,000→100,000→50,000→10,000→0 순으로 3개가 채워질 때까지 완화한다
+                      (`apply_downloads_floor_with_fallback()`)
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -609,6 +614,47 @@ def apply_downloads_floor(
     return kept, dropped
 
 
+DOWNLOADS_FLOOR_TIERS = (500_000, 100_000, 50_000, 10_000, 0)
+
+
+def apply_downloads_floor_with_fallback(
+    hits: list[tuple[int, int, float]],
+    downloads_by_idx: dict[int, int | None],
+    floors: tuple[int, ...] = DOWNLOADS_FLOOR_TIERS,
+    min_kept: int = 3,
+) -> tuple[list[tuple[int, int, float]], dict[int, int]]:
+    """base 별로 `floors`(내림차순, 엄격→완화)를 순서대로 시도해 `min_kept`개 이상
+    남는 첫 단계를 쓴다 (S15P21A506-458).
+
+    `apply_downloads_floor()` 하드컷 하나만으로는 관문 통과 후 후보가 3개 미만(또는
+    0개)이 되는 base 가 실측(로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 더 늘어나는 게
+    확인됐다 — 골드셋(유명 패키지 위주) 기준 측정에서는 거의 안 보이던 문제가, 코퍼스
+    전체(대부분 비유명 패키지)에서는 무시하기 힘든 규모였다.
+
+    base 마다 독립적으로 단계를 낮춰가며 재시도한다 — 어떤 base 는 최상위 하한에서도
+    3개가 다 남고, 어떤 base 는 훨씬 낮춰야 겨우 채워진다. **끝까지(보통 0, 하한 없음)
+    가도 `min_kept` 미만이면 그 결과라도 그대로 쓴다** — 애초에 없는 후보를 만들어낼
+    수는 없다(구조적 관문을 통과한 후보 자체가 1~2개뿐인 니치 base 가 그런 경우).
+
+    돌려주는 `tiers_used`(`{floor: base 개수}`)는 관측성용 — 실제 운영에서 완화가
+    얼마나 자주, 어느 단계까지 일어나는지 manifest 로 볼 수 있게 한다.
+    """
+    by_base: dict[int, list[tuple[int, int, float]]] = {}
+    for h in hits:
+        by_base.setdefault(h[0], []).append(h)
+
+    kept: list[tuple[int, int, float]] = []
+    tiers_used = {f: 0 for f in floors}
+    for cand_hits in by_base.values():
+        for floor in floors:
+            survivors, _ = apply_downloads_floor(cand_hits, downloads_by_idx, floor)
+            if len(survivors) >= min_kept or floor == floors[-1]:
+                kept.extend(survivors)
+                tiers_used[floor] += 1
+                break
+    return kept, tiers_used
+
+
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
 
 def scoring_gate(candidates: list[dict]) -> dict:
@@ -745,15 +791,26 @@ def main(argv: Iterable[str] | None = None) -> int:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
     downloads_floor = args.downloads_floor
-    dl_dropped = None
+    downloads_floor_tiers: tuple[int, ...] | None = None
+    tiers_used: dict[int, int] | None = None
     if downloads_floor > 0:
         if rows and "downloads_last_month" not in rows[0]:
             log("경고: 인지도 관문 건너뜀 — downloads_last_month 컬럼 없음 (구버전 package_text)")
             downloads_floor = 0
         else:
+            # downloads_floor 를 최상위 단계로 하고, 그 아래 표준 단계(DOWNLOADS_FLOOR_TIERS
+            # 중 그보다 낮은 것들)로 내려가며 완화한다. 항상 0으로 끝나 최후엔 하한 없이라도
+            # 있는 후보는 다 쓴다 (S15P21A506-458 — 하드컷 하나뿐이면 니치 base 에서 후보가
+            # 3개 미만·0개가 되는 사례가 실측으로 전체의 7.7%p 늘어나는 게 확인됨).
+            downloads_floor_tiers = tuple(dict.fromkeys(
+                [downloads_floor] + [f for f in DOWNLOADS_FLOOR_TIERS if f < downloads_floor]
+            ))
             downloads_by_idx = {i: rows[i].get("downloads_last_month") for i in range(len(rows))}
-            hits, dl_dropped = apply_downloads_floor(hits, downloads_by_idx, downloads_floor)
-            log(f"인지도 관문(downloads>={downloads_floor:,}): {dl_dropped}쌍 제거 → {len(hits)} 쌍 잔여")
+            hits, tiers_used = apply_downloads_floor_with_fallback(
+                hits, downloads_by_idx, downloads_floor_tiers
+            )
+            log(f"인지도 관문(단계 {downloads_floor_tiers}): base 별 최종 단계 분포 {tiers_used} "
+                f"→ {len(hits)} 쌍 잔여")
 
     candidates = rerank(hits, names, args.user_k)
 
@@ -775,7 +832,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             "dependents": dependents_path,
             "dependents_coverage": coverage,
             "downloads_floor": downloads_floor,
-            "downloads_floor_dropped": dl_dropped,
+            "downloads_floor_tiers": downloads_floor_tiers,
+            "downloads_floor_tiers_used": tiers_used,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
