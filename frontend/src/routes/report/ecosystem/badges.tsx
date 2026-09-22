@@ -2,6 +2,9 @@ import {
   CircleAlertIcon,
   CircleHelpIcon,
   DownloadIcon,
+  MoveRightIcon,
+  TrendingDownIcon,
+  TrendingUpIcon,
   PackageCheckIcon,
   ShieldAlertIcon,
   StarIcon,
@@ -9,6 +12,16 @@ import {
 import type { ReactNode } from 'react'
 
 import { compact } from '@/components/charts/geometry'
+import {
+  DOWNLOAD_TIER_BOUNDS,
+  DOWNLOAD_TIER_LABEL,
+  TREND_LABEL,
+  downloadTierOf,
+  type DownloadTier,
+  type Trend,
+  type TrendDirection,
+} from '@/routes/report/ecosystem/insights'
+import { ToneBadge, type Tone as LabelTone } from '@/components/common/tone-badge'
 import type { PackageCardModel } from '@/routes/report/ecosystem/model'
 import { cn } from '@/lib/utils'
 
@@ -330,5 +343,111 @@ function DeprecationTile({ deprecated }: { deprecated: boolean }) {
       value="없음"
       label="최신 버전 지원 종료 표시"
     />
+  )
+}
+
+/* ── 새 카드 구성: 다운로드 수준 · 3개월 추세 · 열린 이슈 ─────────────────────── */
+
+/**
+ * 카드의 한눈 정보. 숫자를 나열하지 않고 **한마디 판단**을 앞세운다 — "높은 편", "증가".
+ * 판단 기준은 `insights.ts` 한 곳에 있다. 원래 숫자는 옆에 작게 둔다.
+ */
+export function InsightBadges({
+  model,
+  downloadsTrend,
+  dependentsTrend,
+  dependentsLabel,
+  className,
+}: {
+  model: PackageCardModel
+  downloadsTrend: Trend | null
+  dependentsTrend: Trend | null
+  /** 의존 등록 수 용어(terms.tsx) */
+  dependentsLabel: string
+  className?: string
+}) {
+  const tier = downloadTierOf(model.downloads)
+  return (
+    <div className={cn('grid grid-cols-2 gap-2.5', className)}>
+      {tier === null ? (
+        <BadgeTile
+          icon={<CircleHelpIcon className="size-[18px]" />}
+          value={PENDING}
+          label="다운로드 수준"
+          tone="unknown"
+          title="패키지는 있지만 아직 모은 값이 없어요"
+        />
+      ) : (
+        <div
+          className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3"
+          title={`주간 다운로드 ${DOWNLOAD_TIER_BOUNDS.high.toLocaleString()}회 이상이면 높은 편, ${DOWNLOAD_TIER_BOUNDS.low.toLocaleString()}회 미만이면 낮은 편이에요`}
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted">
+            <DownloadIcon className="size-[18px]" />
+          </span>
+          <span className="flex min-w-0 flex-col items-start gap-1">
+            <ToneBadge tone={TIER_TONE[tier]}>{DOWNLOAD_TIER_LABEL[tier]}</ToneBadge>
+            <span className="leading-snug text-muted-foreground">
+              주간 {compact(model.downloads as number)}회
+            </span>
+          </span>
+        </div>
+      )}
+      <IssuesTile count={model.openIssues} delta={model.openIssuesDelta} repoUrl={model.repoUrl} />
+      <div
+        className="col-span-2 flex flex-col gap-2 rounded-xl border bg-background px-3 py-3"
+        title="최근 값과 3개월 전 값을 비교해요. 10% 넘게 오르면 증가, 10% 넘게 내리면 감소예요"
+      >
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="font-semibold">추세</span>
+          <span className="text-sm text-muted-foreground">3개월 전과 비교</span>
+        </span>
+        <TrendRow label="다운로드" trend={downloadsTrend} />
+        <TrendRow label={dependentsLabel} trend={dependentsTrend} />
+      </div>
+    </div>
+  )
+}
+
+const TREND_ICON = { up: TrendingUpIcon, flat: MoveRightIcon, down: TrendingDownIcon } as const
+
+/**
+ * 라벨 색. 색은 거들 뿐이고 뜻은 글자가 말한다(IA 1-13).
+ * 늘었다·많다는 초록, 그대로·보통은 회색, 줄었다·적다는 주황 — 주황은 "나쁘다" 가 아니라 "살펴볼 만하다" 는 뜻이다.
+ */
+const TIER_TONE = { high: 'positive', mid: 'neutral', low: 'down' } as const satisfies Record<
+  DownloadTier,
+  LabelTone
+>
+const TREND_TONE = { up: 'positive', flat: 'neutral', down: 'down' } as const satisfies Record<
+  TrendDirection,
+  LabelTone
+>
+
+/** 추세 한 줄. 방향은 아이콘·글자·부호로 함께 알린다 — 색만으로 알리지 않는다(IA 1-13). */
+function TrendRow({ label, trend }: { label: string; trend: Trend | null }) {
+  if (trend === null) {
+    return (
+      <span className="flex items-center justify-between gap-2 text-muted-foreground">
+        <span>{label}</span>
+        <span className="text-sm">3개월 치 자료가 아직 없어요</span>
+      </span>
+    )
+  }
+  const Icon = TREND_ICON[trend.direction]
+  const pct = Math.round(trend.rate * 100)
+  return (
+    <span className="flex items-center justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 tabular-nums">
+        <ToneBadge tone={TREND_TONE[trend.direction]} icon={<Icon aria-hidden />}>
+          {TREND_LABEL[trend.direction]}
+        </ToneBadge>
+        <span className="text-muted-foreground">
+          {pct > 0 ? '+' : pct < 0 ? '−' : '±'}
+          {Math.abs(pct)}%
+        </span>
+      </span>
+    </span>
   )
 }

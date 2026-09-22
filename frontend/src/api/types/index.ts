@@ -137,6 +137,32 @@ export interface PackagesOverviewResponse {
   not_found: string[]
 }
 
+/**
+ * `GET /api/packages/summary` — 생태계 탭 "한눈에 보기" 요약 (실험).
+ *
+ * 조합·기준일마다 서버가 한 번만 모델을 부르고 이후엔 캐시로 답한다.
+ * `status` 가 READY 가 아니면 문장이 없고 화면은 안내문을 보여준다.
+ */
+export type EcosystemSummaryStatus = 'READY' | 'UNAVAILABLE' | 'NO_DATA' | 'FAILED'
+
+export interface EcosystemSummaryResponse {
+  status: EcosystemSummaryStatus
+  snapshot_at: string | null
+  /** 공통 기능·쓰임새 1~2문장 */
+  common?: string
+  /** 다운로드·의존 등록 수 흐름 1~2문장 */
+  ecosystem?: string
+  /** 실험용 — 캐시 응답인지 */
+  cached?: boolean
+  /** 실험용 — 토큰·크레딧 */
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    reasoning_tokens: number
+    credits: number
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * 4·5. 추이 (downloads · dependents)
  * ------------------------------------------------------------------ */

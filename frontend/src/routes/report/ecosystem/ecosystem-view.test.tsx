@@ -132,9 +132,25 @@ describe('용어와 설명 문구', () => {
     const user = userEvent.setup()
     render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
 
-    await user.click(screen.getByRole('button', { name: '표시 버전 안내' }))
+    // 카드가 패키지마다 나란히 서므로 버튼도 여럿이다 — 첫 카드(기준 패키지) 것을 연다.
+    await user.click(screen.getAllByRole('button', { name: '표시 버전 안내' })[0])
 
     const dialog = await screen.findByRole('dialog', { name: '표시 버전' })
     expect(dialog).toHaveTextContent('모든 큰 버전(major)을 합한 값이에요')
+  })
+})
+
+describe('패키지 카드', () => {
+  it('고른 패키지마다 카드를 하나씩 나란히 둔다', () => {
+    render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
+    for (const p of SAMPLE_ECOSYSTEM.packages) {
+      expect(screen.getAllByText(p.key).length).toBeGreaterThan(0)
+    }
+    expect(screen.getAllByText('추세')).toHaveLength(SAMPLE_ECOSYSTEM.packages.length)
+  })
+
+  it('맨 위에 한눈에 보기 요약 자리가 있다', () => {
+    render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
+    expect(screen.getByRole('heading', { name: '한눈에 보기' })).toBeInTheDocument()
   })
 })

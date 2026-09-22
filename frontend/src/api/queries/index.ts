@@ -11,6 +11,7 @@ import {
   fetchPackageEnv,
   fetchPackageSearch,
   fetchPackagesOverview,
+  fetchEcosystemSummary,
   fetchPdfPreview,
   fetchSimilarPackages,
   fetchMigrationPairs,
@@ -176,6 +177,21 @@ export function usePackagesOverview(names: readonly string[]) {
     queryFn: () => fetchPackagesOverview(names),
     enabled: usable(names),
     retry,
+  })
+}
+
+/**
+ * 생태계 요약. 서버가 조합·기준일마다 한 번만 모델을 부르므로 화면에서도 다시 받지 않는다.
+ * 실패해도 재시도하지 않는다 — 요약이 없으면 안내문으로 대신하고, 재시도는 크레딧만 쓴다.
+ */
+export function useEcosystemSummary(names: readonly string[]) {
+  return useQuery({
+    queryKey: queryKeys.packages.summary(names),
+    queryFn: () => fetchEcosystemSummary(names),
+    enabled: usable(names),
+    staleTime: Infinity,
+    gcTime: 60 * 60 * 1000,
+    retry: false,
   })
 }
 

@@ -9,7 +9,12 @@ import {
   type EcosystemControls,
 } from '@/routes/report/ecosystem/ecosystem-toolbar'
 import { MetricChart } from '@/routes/report/ecosystem/metric-chart'
+import { DOWNLOADS_SMOOTH_WEEKS, trendOf } from '@/routes/report/ecosystem/insights'
 import { PackageCard } from '@/routes/report/ecosystem/package-card'
+import {
+  EcosystemSummary,
+  type EcosystemSummaryState,
+} from '@/routes/report/ecosystem/summary-section'
 import {
   ALL_MAJORS,
   DEFAULT_PERIOD_PRESET,
@@ -83,6 +88,7 @@ export function EcosystemView({
   transitionPeriod = DEFAULT_TRANSITION_PERIOD,
   onTransitionPeriodChange = NOOP_PERIOD_CHANGE,
   compactChart = false,
+  summary = { kind: 'none' },
   className,
 }: {
   model: EcosystemModel
@@ -116,6 +122,8 @@ export function EcosystemView({
   onTransitionPeriodChange?: (next: TransitionPeriod) => void
   /** 인트로 미리보기처럼 좁은 자리에 넣을 때 */
   compactChart?: boolean
+  /** 맨 위 요약(LLM). 없으면 안내문 */
+  summary?: EcosystemSummaryState
   className?: string
 }) {
   /**
@@ -238,12 +246,24 @@ export function EcosystemView({
   const selected = picked.key === packageKeys ? picked.name : null
   const emphasisKeys = selected ? [selected] : null
 
-  /** 고른 것이 없으면 기준 패키지. 강조와 달리 카드는 항상 하나가 떠 있어야 한다. */
-  const shownIndex = Math.max(
-    0,
-    packages.findIndex((p) => p.key === selected),
+  /*
+    카드의 3개월 추세. 조회 기간·간격·표시 버전과 **상관없이** 전체 자료로 계산한다 — 카드 판단이
+    그래프 조작에 따라 바뀌면 같은 패키지가 "증가" 였다가 "유지" 가 된다.
+  */
+  const trends = new Map(
+    model.packages.map((p) => [
+      p.key,
+      {
+        downloads: trendOf(
+          model.series.downloads.find((s) => s.key === p.key),
+          DOWNLOADS_SMOOTH_WEEKS,
+        ),
+        dependents: trendOf(
+          dependentsLineOf(p.key, model.dependentsByMajor[p.key] ?? [], ALL_MAJORS),
+        ),
+      },
+    ]),
   )
-  const shown = packages[shownIndex]
 
   const height = compactChart ? 148 : 196
 
@@ -265,6 +285,37 @@ export function EcosystemView({
         </p>
       )}
 
+      {/* ① 요약 — 고른 패키지들이 무엇이고 어떤 흐름인지 */}
+      {packages.length > 0 && (
+        <EcosystemSummary names={packages.map((p) => p.key)} summary={summary} />
+      )}
+
+      {/*
+        ② 패키지 카드 — 고른 패키지를 모두 좌에서 우로 나란히 둔다(비교 순서 그대로, 기준이 맨 왼쪽).
+        예전에는 칩으로 고른 하나만 보여 줬는데, 나란히 봐야 비교가 된다.
+      */}
+      {packages.length > 0 && (
+        <div
+          className="grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-[repeat(var(--cols),minmax(0,1fr))]"
+          style={{ '--cols': packages.length } as React.CSSProperties}
+        >
+          {packages.map((p, i) => (
+            <PackageCard
+              key={p.key}
+              model={p}
+              index={i}
+              selectedVersion={versionByName[p.key] ?? ALL_MAJORS}
+              onVersionChange={(next) => selectVersion(p.key, next)}
+              versionShareState={versionShareState}
+              downloadsTrend={trends.get(p.key)?.downloads ?? null}
+              dependentsTrend={trends.get(p.key)?.dependents ?? null}
+              emphasized={selected === p.key}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ③ 그래프 — 조회 기간·간격, 패키지 칩(범례 겸 강조), 두 그래프 */}
       <EcosystemToolbar controls={controls} onChange={onControlsChange} snapshots={snapshots} />
 
       {/*
@@ -343,79 +394,42 @@ export function EcosystemView({
       )}
 
       {/*
-        좌: 차트 둘, 우: 패키지 카드.
-
-        차트를 세로로 쌓고 그 아래에 카드를 두면, **버전을 고르는 자리와 그 결과가 그려지는
-        자리가 한 화면에 같이 안 들어온다.** 카드에서 4.x 를 눌러 놓고 위로 스크롤해서
-        확인하고 다시 내려와야 한다. 좌우로 나누면 누르는 즉시 옆에서 선이 바뀌는 것이 보인다.
-
-        **두 열의 높이는 언제나 같다**(S15P21A506-405). 짧은 쪽이 늘어나 긴 쪽에 맞춘다 — 아래에
-        이유 없는 빈 공간이 생기지 않는다.
-        · 왼쪽이 길면 오른쪽 카드가 늘어나고 안의 요소는 세로 중앙에 놓인다(`PackageCard`).
-        · 오른쪽이 길면 왼쪽 열이 늘어나고, 그래프 카드 둘이 그 높이를 **똑같이 나눠** 갖는다
-          (`flex-1`). 그래프는 늘어난 만큼 함께 커진다(`MetricChart` 의 `fill`).
-        예전에는 왼쪽 열을 `sticky` 로 붙여 카드가 길어져도 그래프가 화면에 남게 했는데, 그 구조는
-        열 높이를 맞추는 것과 양립하지 않아 뺐다.
-
-        좁은 화면에서는 한 줄로 무너진다. 그때는 차트가 먼저 오고 카드가 아래로 간다.
+        두 그래프를 나란히 둔다. 카드는 위로 올라가 패키지마다 나란히 서 있으므로, 여기는 그래프만
+        남는다. 좁은 화면에서는 위아래로 쌓인다. 표시 버전은 여전히 각 카드에서 고르고, 고르면
+        이 의존 등록 수 그래프의 선이 바뀐다.
       */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <MetricChart
-            title={DEPENDENTS_TERM}
-            info={<DependentsConcept />}
-            infoTitle={`${DEPENDENTS_TERM}란?`}
-            unit={DEPENDENTS_CAPTION}
-            series={windowedDependents}
-            step={step}
-            window={window}
-            observedFrom={model.observedFrom.dependents}
-            emphasisKeys={emphasisKeys}
-            height={height}
-            fill
-            className="lg:flex-1"
-            state={metricState.dependents}
-          />
-          <MetricChart
-            title="Downloads"
-            unit="1주 동안 내려받은 횟수예요 · npm 공식 자료"
-            series={windowedDownloads}
-            step={step}
-            window={window}
-            observedFrom={model.observedFrom.downloads}
-            emphasisKeys={emphasisKeys}
-            height={height}
-            fill
-            className="lg:flex-1"
-            state={metricState.downloads}
-            /*
-              Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비
-              몇 %" 가 누적 총합만큼 와닿지 않고, 주간 값은 그 자체로 오르내려서 기준으로
-              잡은 첫 주가 어쩌다 높거나 낮으면 이후 전 구간이 그만큼 통째로 밀린다.
-              누적인 Dependents 에는 그 흔들림이 없다.
-            */
-            allowIndex={false}
-          />
-        </div>
-
-        {/*
-          카드는 위 칩이 가리키는 하나뿐이다. 고른 것이 없으면 기준 패키지를 보여 준다 —
-          차트는 그때 전부 같은 굵기로 그려도, 오른쪽 열까지 비워 두면 화면의 절반이
-          이유 없이 빈다.
-
-          `key` 에 패키지 이름을 준다. 탭을 바꿀 때 React 가 같은 노드를 재사용하면
-          펼침 애니메이션도, 안쪽 스크롤 위치도 이전 패키지 것을 물고 온다.
-        */}
-        {shown && (
-          <PackageCard
-            key={shown.key}
-            model={shown}
-            index={shownIndex}
-            selectedVersion={versionByName[shown.key] ?? ALL_MAJORS}
-            onVersionChange={(next) => selectVersion(shown.key, next)}
-            versionShareState={versionShareState}
-          />
-        )}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <MetricChart
+          title={DEPENDENTS_TERM}
+          info={<DependentsConcept />}
+          infoTitle={`${DEPENDENTS_TERM}란?`}
+          unit={DEPENDENTS_CAPTION}
+          series={windowedDependents}
+          step={step}
+          window={window}
+          observedFrom={model.observedFrom.dependents}
+          emphasisKeys={emphasisKeys}
+          height={height}
+          state={metricState.dependents}
+        />
+        <MetricChart
+          title="Downloads"
+          unit="1주 동안 내려받은 횟수예요 · npm 공식 자료"
+          series={windowedDownloads}
+          step={step}
+          window={window}
+          observedFrom={model.observedFrom.downloads}
+          emphasisKeys={emphasisKeys}
+          height={height}
+          state={metricState.downloads}
+          /*
+          Downloads 는 실제값 하나로 고정한다. 이미 주간 흐름값이라 "구간 시작 대비
+          몇 %" 가 누적 총합만큼 와닿지 않고, 주간 값은 그 자체로 오르내려서 기준으로
+          잡은 첫 주가 어쩌다 높거나 낮으면 이후 전 구간이 그만큼 통째로 밀린다.
+          누적인 Dependents 에는 그 흔들림이 없다.
+        */
+          allowIndex={false}
+        />
       </div>
 
       {/*
