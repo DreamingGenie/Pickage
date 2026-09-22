@@ -38,6 +38,22 @@ export interface MigrationDestination {
   votes: number
   /** 서로 다른 (발행자 × 달) 의 수. 한 조직의 일괄 변경을 걸러 내는 값이다. */
   publisherMonths: number
+  /**
+   * 이 바꿈을 <b>실제로 한 프로젝트 수</b>(중복 접음).
+   *
+   * 화면이 "얼마나 믿을 만한가" 를 말할 때 쓰는 수다. `votes` 는 가중 합이라 사람에게
+   * 뜻이 전해지지 않고, `publisherMonths` 는 사람 수가 아니라 (만든 사람 × 달) 조합이라
+   * "N명" 으로 옮겨 적으면 <b>거짓말이 된다</b> — 한 사람이 열 달에 걸쳐 하면 10이다.
+   * 이 열만이 "프로젝트 몇 곳" 으로 그대로 읽힌다.
+   */
+  dependents: number
+  /**
+   * 그 패키지를 지운 경우 중 이것을 함께 넣은 비율.
+   *
+   * `sharePmPct`(도착지들 사이의 몫)와 다르다. 이쪽은 <b>분모가 이탈 전체</b>라
+   * "지운 사람 다섯 중 하나가 이걸 골랐다" 처럼 읽힌다.
+   */
+  aPct: number
   evidence: MigrationEvidence
   /**
    * 양방향으로 관측됐다 — **같은 물건의 두 포장**일 수 있다(lodash ↔ lodash-es).
@@ -104,35 +120,41 @@ export const EVIDENCE_LABEL: Record<MigrationEvidence, string> = {
 }
 
 /**
- * 배지에 마우스를 올렸을 때 뜨는 <b>한 문장</b>.
+ * 배지에 마우스를 올렸을 때 뜨는 <b>한 문장</b> — 그 행에서 <b>실제로 관측된 수</b>다.
  *
  * <b>문턱값을 말풍선에 싣지 않는다.</b> 처음에는 "(만든 사람 × 달) 10곳 이상 · 바뀐 횟수
- * 12회 이상 …" 을 그대로 띄웠는데, 그건 <b>코드를 짜면서 확인해야 하는 값</b>이지 화면
- * 앞의 사람이 알아야 할 것이 아니다. 배지를 보고 궁금한 것은 문턱이 아니라 "이걸 얼마나
- * 믿어도 되나" 이고, 숫자를 던지면 그 답을 각자 계산하라는 말이 된다.
+ * 12회 이상 …" 을 그대로 띄웠는데, 그건 <b>코드를 짜면서 확인하는 값</b>이지 화면 앞의
+ * 사람이 알아야 할 것이 아니다. 다음에는 "여러 곳에서 오랜 기간에 걸쳐…" 로 바꿔 봤는데
+ * 이번에는 <b>추상적이어서</b> 아무 수도 전하지 못했다.
  *
- * 숫자는 버리지 않고 {@link EVIDENCE_RULE} 로 모달에만 남긴다 — 궁금한 사람은 찾아볼 수
- * 있고 화면은 가벼워진다.
+ * 셋째 판이 이것이다 — <b>그 쌍의 실제 수를 그대로 말한다.</b> 등급 낱말을 따로 변호할
+ * 필요가 없어진다. 397곳·20.8% 를 보면 "근거 강함" 이 스스로 납득되고, 41곳·3.8% 면
+ * 배지와 어긋나는 것이 눈에 보인다.
+ *
+ * 출발·도착 이름을 문장에 넣지 않는 것은 <b>조사 때문이다.</b> `moment 를`·`dayjs 를` 는
+ * 이름의 끝소리에 따라 을/를 이 갈리는데, 패키지 이름은 무엇이든 올 수 있어 규칙을 세울
+ * 수 없다. 이름은 이미 같은 줄에 있으므로 문장에서는 "이 패키지" 로 가리킨다.
  */
-export const EVIDENCE_HINT: Record<MigrationEvidence, string> = {
-  strict: '여러 곳에서 오랜 기간에 걸쳐 같은 선택이 반복됐어요',
-  recommended: '몇몇 곳에서 반복해서 보인 선택이에요',
-  loose: '한두 곳에서만 보여서 우연일 수 있어요',
+export function observationHint(dest: { dependents: number; aPct: number }): string {
+  return `이 패키지를 지운 프로젝트 ${dest.dependents.toLocaleString()}곳이 그때 함께 넣었어요 · 지운 경우의 ${dest.aPct.toFixed(1)}%`
 }
 
 /**
- * 같은 배지의 <b>판정 숫자</b>. 모달의 풀이표에서만 쓴다.
+ * 같은 배지의 <b>판정 문턱</b>. 모달의 풀이표에서만 쓴다.
  *
  * 남겨 두는 이유는 등급이 상대 순위가 아니라 <b>고정된 문턱</b>이기 때문이다 — 같은
- * 화면에 강함이 없다고 해서 1위가 강함이 되지 않는다. 그 사실은 숫자를 봐야 알 수 있다.
+ * 화면에 강함이 없다고 해서 1위가 강함이 되지 않는다.
  *
- * 값은 계산 파이프라인의 조건을 옮긴 것이다(`build_migration_pairs.py`). "널리·자주" 라는
- * 말은 모달이 표 위에서 한 번 정의한다 — 세 줄에 같은 설명을 되풀이하지 않기 위해서다.
+ * <b>단위를 문구 안에 넣는다.</b> 예전에는 "널리 10 · 자주 12번" 처럼 줄이고 표 위에서
+ * 그 두 낱말을 정의했는데, <b>용어집을 먼저 읽어야 이해되는 설명은 설명이 아니다.</b>
+ * 반복이 생기더라도 한 줄이 혼자 읽히는 쪽이 낫다.
  */
 export const EVIDENCE_RULE: Record<MigrationEvidence, string> = {
-  strict: '널리 10 · 자주 12번 · 지운 경우의 3% 이상',
-  recommended: '널리 5 · 자주 8번 · 도착지 중 몫 10% 이상',
-  loose: '위 두 기준에 못 미쳐요',
+  strict:
+    '변경이 보인 횟수 12회 이상 · 서로 다른 (만든 사람 × 달) 10가지 이상 · 그 패키지를 지운 경우의 3% 이상',
+  recommended:
+    '변경이 보인 횟수 8회 이상 · 서로 다른 (만든 사람 × 달) 5가지 이상 · 도착지 중 몫 10% 이상',
+  loose: '위 두 줄에 못 미쳐요',
 }
 
 /**
@@ -168,6 +190,9 @@ export interface MigrationDirection {
   sharePmPct: number
   evidence: MigrationEvidence
   variant: boolean
+  /** 배지 말풍선이 쓰는 두 수. 아래 막대와 **같은 문장**을 내기 위해 함께 나른다. */
+  dependents: number
+  aPct: number
 }
 
 export function crossDirections(model: MigrationModel): MigrationDirection[] {
@@ -182,6 +207,8 @@ export function crossDirections(model: MigrationModel): MigrationDirection[] {
         sharePmPct: dest.sharePmPct,
         evidence: dest.evidence,
         variant: dest.variant,
+        dependents: dest.dependents,
+        aPct: dest.aPct,
       })
     }
   }

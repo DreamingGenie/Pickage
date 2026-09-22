@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  EVIDENCE_HINT,
   EVIDENCE_LABEL,
   VARIANT_HINT,
   VARIANT_LABEL,
@@ -66,22 +65,26 @@ function Badge({
 }
 
 /**
- * 근거 배지. **말풍선에 판정 기준을 싣는다.**
+ * 근거 배지. **말풍선은 그 행에서 실제로 관측된 수다.**
  *
- * 낱말만 떠 있으면 서비스가 임의로 매긴 점수처럼 읽힌다. 실제로는 계산 파이프라인이 원래
- * 쓰던 고정 문턱이고, 그 문턱을 사람 말로 적은 것이 말풍선이다. 모달의 풀이표도 같은
- * 상수를 읽으므로 두 설명이 갈라질 수 없다.
+ * 문장을 바깥에서 받는 이유가 그것이다 — 등급마다 고정된 설명이라면 여기서 만들면
+ * 되지만, 부르는 쪽이 자기 행의 수(`observationHint`)를 넣어 준다. 낱말만 떠 있으면
+ * 서비스가 임의로 매긴 점수처럼 읽히는데, 수를 보여 주면 배지가 스스로 납득된다.
+ *
+ * 판정 문턱은 모달의 풀이표에만 있다 — 화면 앞의 사람이 각자 계산할 값이 아니다.
  */
 export function EvidenceBadge({
   evidence,
+  hint,
   className,
 }: {
   evidence: MigrationEvidence
+  hint: string
   className?: string
 }) {
   return (
     <Badge
-      hint={EVIDENCE_HINT[evidence]}
+      hint={hint}
       className={cn(
         evidence === 'strict' ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground',
         className,

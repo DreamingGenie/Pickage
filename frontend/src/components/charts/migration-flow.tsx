@@ -2,6 +2,7 @@ import { FLOW_FILLS } from '@/components/charts/tokens'
 import { EvidenceBadge, VariantBadge } from '@/routes/report/ecosystem/migration-badges'
 import {
   coveredPct,
+  observationHint,
   type MigrationDestination,
   type PackageMigration,
 } from '@/routes/report/ecosystem/migration-model'
@@ -162,7 +163,7 @@ function DestinationRow({ dest, fill }: { dest: MigrationDestination; fill: stri
         임의로 매긴 점수로 읽히고, 여기서 따로 문장을 쓰면 두 곳이 갈라진다.
       */}
       {dest.variant && <VariantBadge />}
-      <EvidenceBadge evidence={dest.evidence} />
+      <EvidenceBadge evidence={dest.evidence} hint={observationHint(dest)} />
       <dd className="ml-auto shrink-0 font-mono text-base text-foreground tabular-nums">
         {dest.sharePmPct.toFixed(1)}%
       </dd>

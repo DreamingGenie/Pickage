@@ -8,9 +8,9 @@ import type { MetricState } from '@/routes/report/ecosystem/model'
 import {
   crossDirections,
   DEPENDENCY_KINDS,
-  EVIDENCE_HINT,
   EVIDENCE_LABEL,
   EVIDENCE_RULE,
+  observationHint,
   VARIANT_HINT,
   VARIANT_LABEL,
   VARIANT_RULE,
@@ -210,50 +210,44 @@ export function MigrationPanel({
 }
 
 /**
- * 배지 넷이 무엇을 보고 붙는지. **모달에서 가장 자주 찾는 부분**이라 문단이 아니라 표로 둔다.
+ * 배지 넷의 <b>판정 문턱</b>. 모달에서 가장 자주 찾는 부분이라 문단이 아니라 표로 둔다.
  *
- * <h2>"널리 · 자주" 를 표 위에서 한 번 정의한다</h2>
+ * <h2>용어를 따로 정의하지 않는다</h2>
  *
- * 판정에 쓰는 두 수는 이름만 보면 같은 말로 읽힌다 — "몇 곳" 과 "몇 번" 이 일상에서는
- * 잘 구별되지 않는다. 세 줄에 같은 설명을 되풀이하는 대신 위에서 한 번 정의하고, 표는
- * <b>뜻 한 줄 + 숫자 한 줄</b>만 낸다.
+ * 한때 "널리 · 자주" 로 줄이고 표 위에서 그 두 낱말을 정의했는데,
+ * <b>용어집을 먼저 읽어야 이해되는 설명은 설명이 아니다.</b> 반복이 생기더라도
+ * 단위를 문구 안에 넣어 한 줄이 혼자 읽히게 한다({@link EVIDENCE_RULE}).
  *
- * 뜻은 배지 말풍선과 <b>같은 상수</b>({@link EVIDENCE_HINT})에서 온다. 숫자는 여기에만
- * 있다({@link EVIDENCE_RULE}) — 말풍선에 문턱값을 싣지 않기로 한 판단이 그것이다.
+ * 각 배지의 "뜻" 은 여기 없다. 말풍선이 <b>그 행의 실제 수</b>로 말하기 때문이다 —
+ * 등급마다 같은 문장을 되풀이하면 표가 길어지기만 하고 새로 알려 주는 것이 없다.
  */
 function EvidenceKey() {
   const rows = [
     ...(['strict', 'recommended', 'loose'] as MigrationEvidence[]).map((key) => ({
       label: EVIDENCE_LABEL[key],
-      hint: EVIDENCE_HINT[key],
       rule: EVIDENCE_RULE[key],
     })),
-    { label: VARIANT_LABEL, hint: VARIANT_HINT, rule: VARIANT_RULE },
+    { label: VARIANT_LABEL, rule: `${VARIANT_HINT} — ${VARIANT_RULE}` },
   ]
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3 text-sm">
-        <p>
-          <strong className="text-foreground">널리</strong> — 서로 다른 만든 사람과 달을 따로 세요.
-          한 회사가 한 달에 수십 개를 바꿔도 <strong>1</strong>이에요.
-        </p>
-        <p>
-          <strong className="text-foreground">자주</strong> — 같은 바꿈이 모두 몇 번 보였는지예요.
-        </p>
-        {/* 화면의 비율도 같은 "널리" 로 센다. 따로 문단을 두면 같은 말을 두 번 하게 된다. */}
-        <p>화면에 보이는 비율(%)도 이 &ldquo;널리&rdquo; 로 세요.</p>
-      </div>
-
       <dl className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <div key={row.label} className="flex flex-col gap-0.5">
             <dt className="font-medium text-foreground">{row.label}</dt>
-            <dd>{row.hint}</dd>
-            <dd className="text-sm text-muted-foreground/80">{row.rule}</dd>
+            <dd className="text-sm">{row.rule}</dd>
           </div>
         ))}
       </dl>
+      {/*
+        남기는 단서는 하나뿐이다. 용어를 정의하는 것이 아니라, 그 수를 **오해하지 않게**
+        하는 말이다 — (만든 사람 × 달) 을 "사람 수" 로 읽으면 뜻이 달라진다.
+      */}
+      <p className="text-sm text-muted-foreground/80">
+        (만든 사람 × 달) 은 같은 사람이 한 달에 여럿을 바꿔도 <strong>1</strong>로 세요. 한 회사의
+        일괄 변경이 수를 부풀리지 않게 하려는 거예요.
+      </p>
     </div>
   )
 }
@@ -288,7 +282,7 @@ function CrossDirections({ directions }: { directions: ReturnType<typeof crossDi
             <span className="font-mono text-base text-foreground tabular-nums">
               {d.sharePmPct.toFixed(1)}%
             </span>
-            <EvidenceBadge evidence={d.evidence} />
+            <EvidenceBadge evidence={d.evidence} hint={observationHint(d)} />
             {d.variant && <VariantBadge />}
           </li>
         ))}

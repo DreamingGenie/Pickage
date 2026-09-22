@@ -38,6 +38,8 @@ export function toMigrationModel(
           sharePmPct: d.share_pm_pct,
           votes: d.votes,
           publisherMonths: d.publisher_months,
+          dependents: d.dependents,
+          aPct: d.a_pct,
           evidence: evidenceOf(d.evidence),
           variant: d.variant,
           firstSeen: d.first_seen,

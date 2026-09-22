@@ -757,6 +757,7 @@ function migrationRowOf(name: string, kind: DependencyKindParam): MigrationSerie
       lift: d.lift,
       share_pm_pct: d.sharePmPct,
       share_pct: d.sharePct,
+      a_pct: d.aPct,
       evidence: d.evidence,
       variant: d.variant ?? false,
       first_seen: d.firstSeen,

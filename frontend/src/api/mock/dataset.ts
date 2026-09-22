@@ -1201,6 +1201,8 @@ export interface MockMigrationDestination {
   lift: number
   sharePmPct: number
   sharePct: number
+  /** 그 패키지를 지운 경우 중 이것을 함께 넣은 비율. 화면이 배지 옆에 그대로 적는다. */
+  aPct: number
   evidence: 'strict' | 'recommended' | 'loose'
   variant?: boolean
   firstSeen: string
@@ -1231,6 +1233,9 @@ const dest = (
   lift: Math.round(votes * 40),
   sharePmPct,
   sharePct: sharePmPct + 2.4,
+  // 실측에서 a_pct 는 share_pm_pct 보다 훨씬 크다(moment→dayjs 는 5.7% vs 20.8%).
+  // 분모가 도착지들이 아니라 이탈 전체이기 때문이다. 배수를 흉내만 낸다.
+  aPct: Math.round(sharePmPct * 3.6 * 10) / 10,
   evidence,
   firstSeen: '2019-03-11',
   lastSeen: '2026-07-28',

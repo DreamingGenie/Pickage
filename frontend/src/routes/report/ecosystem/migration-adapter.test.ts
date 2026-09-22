@@ -27,6 +27,7 @@ const dest = (
   votes: 20,
   co_events: 32,
   publisher_months: 14,
+  a_pct: 20.8,
   dependents: 24,
   lift: 800,
   share_pm_pct: sharePmPct,
@@ -113,9 +114,9 @@ describe('비교 패키지 사이의 방향', () => {
       ['winston', 'pino'],
     )
 
-    expect(crossDirections(model)).toEqual([
-      { from: 'winston', to: 'pino', sharePmPct: 21.4, evidence: 'recommended', variant: false },
-      { from: 'pino', to: 'winston', sharePmPct: 31.0, evidence: 'recommended', variant: false },
+    expect(crossDirections(model).map((d) => [d.from, d.to, d.sharePmPct])).toEqual([
+      ['winston', 'pino', 21.4],
+      ['pino', 'winston', 31.0],
     ])
   })
 

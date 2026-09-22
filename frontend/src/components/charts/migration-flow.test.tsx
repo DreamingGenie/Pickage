@@ -24,6 +24,8 @@ const dest = (name: string, sharePmPct: number): MigrationDestination => ({
   sharePmPct,
   votes: 20,
   publisherMonths: 14,
+  dependents: 397,
+  aPct: 20.8,
   evidence: 'recommended',
   variant: false,
   firstSeen: '2019-03-11',
