@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 
 import { MAX_NAMES, type PdfJob } from '@/api/types'
 import { REPORT_NAMES_PARAM, paths } from '@/app/routes'
+import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { UnderlineTabsList, UnderlineTabsTrigger } from '@/components/common/underline-tabs'
@@ -111,6 +112,8 @@ export function ReportPage() {
 
   const [tab, setTab] = useState<ReportTab>('ecosystem')
   const run = useAnalysisRun(packages)
+  /** PDF 내보내기 창의 BLOCKED 조건과 같다(`pdf-export-dialog.tsx` `blockReasonsFor`). */
+  const pdfReady = run.hasCompletedOnce && run.status !== 'RUNNING' && !run.reanalysisRequired
 
   /**
    * 한 번 방문한 탭은 언마운트하지 않는다(S15P21A506-316).
@@ -155,18 +158,18 @@ export function ReportPage() {
     return (
       <div className="flex flex-col gap-7">
         <header className="flex flex-wrap items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">분석 결과</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">비교 보고서</h1>
         </header>
-        <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
-          <p className="text-sm">주소에 비교 대상이 없습니다.</p>
-          <p className="text-base text-muted-foreground">
-            보고서 주소는 <span className="font-mono">?{REPORT_NAMES_PARAM}=</span> 에 비교 대상을
-            담습니다. 링크가 잘렸거나 주소를 직접 입력했을 수 있습니다.
-          </p>
-          <Button size="sm" onClick={() => navigate(paths.analyze)}>
-            분석 시작하기
-          </Button>
-        </div>
+        <EmptyState
+          title="어떤 패키지를 비교할지 주소에 없어요"
+          description={
+            <>
+              보고서 주소의 <span className="font-mono">?{REPORT_NAMES_PARAM}=</span> 뒤에 비교할
+              패키지가 담겨요. 링크가 잘렸을 수 있으니, 패키지를 다시 골라 주세요.
+            </>
+          }
+          actions={<Button onClick={() => navigate(paths.analyze)}>패키지 고르러 가기</Button>}
+        />
       </div>
     )
   }
@@ -174,8 +177,27 @@ export function ReportPage() {
   return (
     <div className="flex flex-col gap-7">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        {/* 비교 패키지는 각 탭의 카드·범례에 이미 나오므로 제목 아래에 또 적지 않는다 */}
-        <h1 className="text-2xl font-semibold tracking-tight">분석 결과</h1>
+        {/*
+          제목 아래에 비교 대상을 적는다. 예전에는 각 탭의 카드·범례에 나온다고 뺐는데, 공유받은 링크로
+          들어온 사람이 무엇을 비교한 보고서인지 탭을 열기 전에는 알 수 없었다.
+        */}
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-sm font-medium text-primary">비교 보고서</span>
+          <h1 className="flex flex-wrap items-baseline gap-x-2 font-mono text-2xl font-bold tracking-tight">
+            {packages.map((name, i) => (
+              <span key={name} className="flex items-baseline gap-x-2">
+                {i > 0 && (
+                  <span aria-hidden className="font-sans text-muted-foreground">
+                    ·
+                  </span>
+                )}
+                <span title={name} className="max-w-[20ch] truncate">
+                  {name}
+                </span>
+              </span>
+            ))}
+          </h1>
+        </div>
 
         {/* 되돌아가기. 확정한 선택을 그대로 들고 가서 2단계부터 다시 연다 */}
         <div className="flex items-center gap-2">
@@ -190,13 +212,39 @@ export function ReportPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze)}>
             새 분석
           </Button>
-          {/* 기능-05-R03 — 상단 우측. 보고서 어느 탭에 있든 같은 자리에 있어야 한다 */}
-          <Button size="sm" onClick={() => setExporting(true)}>
+          {/*
+            기능-05-R03 — 상단 우측. 보고서 어느 탭에 있든 같은 자리에 있어야 한다.
+            기능 비교를 마치기 전에는 흐리게 두되 **누를 수는 있다** — 누르면 내보내기 창이 막힌 이유와
+            "기능 비교로 이동" 을 보여 준다. 아예 막으면 왜 안 되는지 알 길이 없다.
+          */}
+          <Button
+            size="sm"
+            variant={pdfReady ? 'default' : 'outline'}
+            aria-describedby={pdfReady ? undefined : 'pdf-hint'}
+            className={cn(!pdfReady && 'text-muted-foreground')}
+            onClick={() => setExporting(true)}
+          >
             <FileDownIcon className="size-3.5" aria-hidden />
-            PDF 내보내기
+            PDF로 저장
           </Button>
         </div>
       </header>
+
+      {!pdfReady && (
+        <p
+          id="pdf-hint"
+          className="-mt-3 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground"
+        >
+          PDF에는 기능 비교 결과도 들어가요. 기능 비교를 마치면 PDF로 저장할 수 있어요.
+          <button
+            type="button"
+            onClick={() => setTab('features')}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            기능 비교로 가기
+          </button>
+        </p>
+      )}
 
       {/*
         주소에 상한을 넘는 이름이 있었다. 탭과 무관한 "주소" 이야기라 페이지 위에 둔다 —
@@ -205,8 +253,8 @@ export function ReportPage() {
       */}
       {dropped.length > 0 && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-          한 번에 {MAX_NAMES}개까지 비교합니다. 주소에 더 있어서{' '}
-          <span className="font-mono text-foreground">{dropped.join(', ')}</span> 는 제외했습니다.
+          한 번에 {MAX_NAMES}개까지 비교할 수 있어요. 주소에 더 있어서{' '}
+          <span className="font-mono text-foreground">{dropped.join(', ')}</span> 는 뺐어요.
         </p>
       )}
 
@@ -218,6 +266,11 @@ export function ReportPage() {
           </UnderlineTabsTrigger>
           <UnderlineTabsTrigger value="features" onMouseEnter={prefetch.features}>
             기능 비교
+            {!run.hasCompletedOnce && run.status !== 'RUNNING' && (
+              <span className="ml-1.5 rounded-full bg-tone-down px-2 py-0.5 text-sm font-medium text-tone-down-foreground">
+                PDF 전에 필요
+              </span>
+            )}
             {run.status === 'RUNNING' && (
               <>
                 <span

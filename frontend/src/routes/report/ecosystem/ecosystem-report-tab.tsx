@@ -90,7 +90,7 @@ export function EcosystemReportTab({
   const removalReasons = useRemovalReasons(names, transitionPeriod)
 
   if (names.length === 0) {
-    return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 고르세요.</p>
+    return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 골라 주세요.</p>
   }
 
   /**
@@ -193,7 +193,7 @@ function StaleNotice({ error, onRetry }: { error: unknown; onRetry: () => void }
 
   return (
     <p className="flex flex-wrap items-baseline gap-2 rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-      <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+      <span>새 자료를 받지 못해서, 마지막으로 받은 자료로 그렸어요.</span>
       {notice.retryable && (
         <button
           type="button"

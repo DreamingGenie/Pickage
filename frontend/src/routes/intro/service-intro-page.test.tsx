@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
@@ -50,54 +51,74 @@ describe('ServiceIntroPage 문구', () => {
   it('히어로 제목은 한 줄 한 문구다', () => {
     renderIntro()
     const h1 = screen.getByRole('heading', { level: 1 })
-    expect(h1).toHaveTextContent('패키지 선택에, 확인할 근거를')
+    expect(h1).toHaveTextContent('비교하고 고르는 npm 패키지')
     expect(h1.querySelector('br')).toBeNull()
   })
 
-  it('히어로 설명은 유사 후보·근거·PDF 공유를 말한다', () => {
+  it('히어로 설명은 무엇을 넣고 무엇을 받는지 말하고, 첫 화면에 예시 버튼·안내 링크를 두지 않는다', () => {
     const { container } = renderIntro()
-    const text = container.textContent ?? ''
-    expect(text).toContain(
-      '유사한 기능을 가진 패키지를 제안하고, 믿을 수 있는 근거와 함께 분석을 제공합니다.',
+    expect(container.textContent).toContain(
+      '비슷한 패키지를 찾아 쓰임새·기능·커뮤니티를 한눈에 비교하고,',
     )
-    expect(text).toContain('PDF로 다운로드 받아 팀원들과 공유하세요.')
+    expect(screen.queryByText('예시로 둘러보기')).toBeNull()
+    expect(screen.queryByText('처음이라면 이 조합부터 눌러 보세요')).toBeNull()
   })
 
-  it('1단계는 입력을 청하고 데이터가 있어야 확인된다는 경고를 예시 이미지 아래에 둔다', () => {
-    const { container } = renderIntro()
-    const text = container.textContent ?? ''
-    expect(text).toContain('고민하고 계신 패키지를 입력해 주세요')
-    expect(text).toContain('수집된 데이터가 있어야, 결과를 확인할 수 있습니다.')
+  it('따라하기는 여섯 장이고, 번호를 누르면 그 장으로 바로 간다', async () => {
+    const user = userEvent.setup()
+    renderIntro()
+    const tabs = within(screen.getByRole('tablist', { name: '사용 설명서 목차' })).getAllByRole(
+      'tab',
+    )
+    expect(tabs).toHaveLength(6)
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+
+    await user.click(tabs[3])
+    expect(tabs[3]).toHaveAttribute('aria-selected', 'true')
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('2단계는 후보 두 개까지 고른다고 말하고, 후보에 없을 때 검색하라고 안내한다', () => {
+  it('따로 낱말 풀이를 두지 않고, 장마다 무엇을 할 수 있는지 한 문장으로 말한다', () => {
     const { container } = renderIntro()
-    const text = container.textContent ?? ''
-    expect(text).toContain('비교하실 패키지를 선택하세요. 총 2개 선택하실 수 있습니다.')
-    expect(text).toContain('찾는 패키지가 후보에 없다면, 검색해서 추가하세요.')
-    // 기준 패키지는 해제할 수 없고, 후보는 전부 미선택으로 시작한다(IA 6.3).
-    expect(screen.getByText('해제 불가')).toBeInTheDocument()
-    expect(screen.getByText('1 / 3 선택됨')).toBeInTheDocument()
+    expect(container.textContent).not.toContain('화면에 나오는 말 풀이')
+    expect(container.textContent).toContain(
+      '알아보고 싶은 패키지를 검색하여 유사한 패키지를 확인해요.',
+    )
+    expect(container.textContent).toContain(
+      '패키지에 관해 어떤 이야기가 오고 가는지 엿볼 수 있어요.',
+    )
   })
 
-  it('줄은 마침표·쉼표 뒤에서만 바뀐다 — 마지막이 아닌 절은 . 또는 , 로 끝난다', () => {
+  it('의존 수를 실제 사용량처럼 부르지 않는다', () => {
     const { container } = renderIntro()
-    const clauses = [...container.querySelectorAll('[data-clause]')]
-    expect(clauses.length).toBeGreaterThan(0)
-    for (const el of clauses) {
-      const next = el.nextElementSibling
-      if (next?.hasAttribute('data-clause')) {
-        // 다음 절이 있다 = 여기가 줄바꿈 후보 자리다. 뜻이 끊기지 않는 자리(문장 부호 뒤)여야 한다.
-        expect(el.textContent, `"${el.textContent}" 뒤에서 줄이 바뀔 수 있다`).toMatch(/[.,]$/)
-      }
+    for (const banned of ['사용처', '프로젝트가 사용', '가져다 쓰는 수']) {
+      expect(container.textContent).not.toContain(banned)
     }
   })
 
-  it('예시로 둘러보기 패키지는 express · yaml · axios 다', () => {
+  it('핵심 기능 셋은 한 줄씩 차지하고, 버튼은 다른 화면으로 보내지 않고 미리보기 창을 연다', async () => {
+    const user = userEvent.setup()
     renderIntro()
-    const group = screen.getByText('예시로 둘러보기').parentElement as HTMLElement
-    const names = [...group.querySelectorAll('button')].map((b) => b.textContent)
-    expect(names).toEqual(['express', 'yaml', 'axios'])
+    const section = screen.getByRole('region', { name: 'Pickage 핵심 기능' })
+    const titles = [...section.querySelectorAll('h3')].map((h) => h.textContent)
+    expect(titles).toEqual([
+      '얼마나 쓰이고 있을까?동향을 비교해요.',
+      '무엇이 다를까?기능을 비교해요.',
+      '팀과 함께 봐야 한다면?보고서로 확인해요.',
+    ])
+    expect(within(section).queryAllByRole('link')).toHaveLength(0)
+
+    await user.click(within(section).getByRole('button', { name: '기능 비교 미리보기' }))
+    const dialog = await screen.findByRole('dialog', { name: '기능 비교 미리보기' })
+    // 설치 정보 표는 보고서의 실제 컴포넌트다
+    expect(
+      within(dialog).getByRole('region', { name: '설치하기 전에 알아 둘 것' }),
+    ).toBeInTheDocument()
+  })
+
+  it('없어진 근거 보기(Evidence Drawer)를 약속하지 않는다', () => {
+    const { container } = renderIntro()
+    expect(container.textContent).not.toContain('근거 발췌')
   })
 
   it('IA 금지 용어를 쓰지 않는다', () => {
@@ -108,13 +129,9 @@ describe('ServiceIntroPage 문구', () => {
     }
   })
 
-  it('3단계의 의존 수 증감은 아래 분석 결과 예시와 같은 값이다', () => {
-    renderIntro()
-    const values = screen
-      .getAllByText('의존 수 증감')
-      .map((label) => label.nextElementSibling?.textContent?.trim())
-    // 3단계 예시 + 예시 보고서의 기준 패키지 카드. 손으로 적은 숫자가 아니라 같은 계산이어야 한다.
-    expect(values.length).toBeGreaterThanOrEqual(2)
-    expect(new Set(values).size).toBe(1)
+  it('관측 범위와 판단 한계를 자주 묻는 질문으로 남긴다 — 후보 순서는 우열이 아니다', () => {
+    const { container } = renderIntro()
+    expect(screen.getByRole('heading', { name: '자주 묻는 질문' })).toBeInTheDocument()
+    expect(container.textContent).toContain('품질이나 우열이 아니에요')
   })
 })

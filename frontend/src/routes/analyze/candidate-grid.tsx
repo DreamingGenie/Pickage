@@ -1,4 +1,4 @@
-import { CheckIcon } from 'lucide-react'
+import { CheckIcon, PlusIcon } from 'lucide-react'
 
 import type { SimilarCandidate } from '@/api/types'
 import { cn } from '@/lib/utils'
@@ -9,7 +9,10 @@ import { cn } from '@/lib/utils'
  * **버전은 고르지 않는다.** 최신 버전을 적는 것은 "언제 것인지" 를 보여주는 정보이지
  * 선택지가 아니다 — 비교 버전은 보고서 안에서 카드마다 따로 고른다(구상안 §5.2).
  *
- * 선택 상태를 색으로만 알리지 않는다 — 체크 표시와 `aria-pressed` 를 함께 쓴다(IA §1-13).
+ * 선택 상태를 색으로만 알리지 않는다 — `추가` / `✓ 추가됨` 글자와 `aria-pressed` 를 함께 쓴다(IA §1-13).
+ *
+ * 이름이 길면(`@opentelemetry/winston-transport`) 한 줄로 자르고 전체 이름은 `title` 로 둔다 —
+ * 예전에는 긴 이름이 카드 밖으로 넘쳤다.
  *
  * 3열 고정(`sm:grid-cols-3`). 노출 후보가 3개(`VISIBLE_CANDIDATES`, IA §6.1-4)인데 2열로
  * 두면 세 번째 카드가 혼자 다음 줄에 남아 세 후보가 대등한 선택지라는 인상이 깨진다
@@ -29,33 +32,44 @@ export function CandidateGrid({
       {candidates.map((c) => {
         const on = picked.includes(c.name)
         return (
-          <li key={c.name}>
+          <li key={c.name} className="min-w-0">
             <button
               type="button"
               onClick={() => onToggle(c.name)}
               aria-pressed={on}
+              aria-label={`${c.name} ${on ? '비교에서 빼기' : '비교에 추가'}`}
               className={cn(
-                'flex h-full w-full flex-col gap-4 rounded-2xl border bg-background p-6 text-left transition-[border-color,box-shadow]',
+                'flex h-full w-full flex-col gap-3 rounded-2xl border bg-card p-5 text-left transition-[border-color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                 on
-                  ? 'border-foreground shadow-[0_2px_16px_-10px_rgba(15,23,42,0.4)]'
-                  : 'hover:border-foreground/30',
+                  ? 'border-primary shadow-[0_6px_20px_-12px_rgba(15,23,42,0.45)]'
+                  : 'hover:border-primary/40',
               )}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <span
                   title={c.name}
-                  className="min-w-0 truncate font-mono text-2xl leading-none font-bold tracking-tight"
+                  className="min-w-0 truncate font-mono text-xl leading-tight font-bold tracking-tight"
                 >
                   {c.name}
                 </span>
                 <span
                   aria-hidden
                   className={cn(
-                    'grid size-5 shrink-0 place-items-center rounded-[5px] border',
-                    on && 'border-foreground bg-foreground',
+                    'flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium',
+                    on ? 'bg-primary text-primary-foreground' : 'border text-muted-foreground',
                   )}
                 >
-                  {on && <CheckIcon className="size-3.5 text-background" strokeWidth={3} />}
+                  {on ? (
+                    <>
+                      <CheckIcon className="size-3.5" strokeWidth={3} />
+                      추가됨
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon className="size-3.5" />
+                      추가
+                    </>
+                  )}
                 </span>
               </div>
 
@@ -64,30 +78,26 @@ export function CandidateGrid({
                 "이 카드는 뭔가 빠졌다" 가 아니라 "정렬이 깨졌다" 로 보인다.
               */}
               <p className="line-clamp-3 leading-relaxed text-muted-foreground">
-                {c.description ?? '설명이 등록되어 있지 않습니다.'}
+                {c.description ?? '등록된 설명이 없어요.'}
               </p>
 
-              <dl className="mt-auto flex flex-col gap-2 border-t pt-4">
-                <Row label="유사도 순위">
-                  <span className="font-mono tabular-nums">{c.rank}위</span>
-                </Row>
-                <Row label="최신 버전">
-                  <span className="font-mono tabular-nums">{c.latest_version ?? '미확인'}</span>
-                </Row>
-              </dl>
+              <p className="mt-auto flex flex-wrap gap-x-2 border-t pt-3 text-sm text-muted-foreground">
+                <span>
+                  비슷한 순서{' '}
+                  <span className="font-mono text-foreground tabular-nums">{c.rank}위</span>
+                </span>
+                <span aria-hidden>·</span>
+                <span>
+                  최신{' '}
+                  <span className="font-mono text-foreground tabular-nums">
+                    {c.latest_version ?? '미확인'}
+                  </span>
+                </span>
+              </p>
             </button>
           </li>
         )
       })}
     </ul>
-  )
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
-    </div>
   )
 }
