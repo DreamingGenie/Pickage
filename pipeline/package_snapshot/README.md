@@ -101,6 +101,42 @@ PUBLISHED 실행은 현재 검증 코드 해시가 달라도 입력·서비스 �
 API에서 재구성 여부를 표시하고 저장소가 바뀐 두 시점의 증감 계산을 막는 작업은
 [백엔드 인계 메모](../../docs/worklogs/S15P21A506-288/12-backend-history-handoff.md)에 남겼다. 백엔드 구현은 후속 작업이다.
 
+## 게시된 기준일의 downloads 재적재 (S15P21A506-453)
+
+`python -m pipeline.package_snapshot.downloads_reload --help`는 **이미 게시된 기준일의 `downloads`만** 다시 계산해
+값이 바뀌는 행만 UPDATE 한다. 위의 두 적재 경로(관측·재구성)와 그 계약은 건드리지 않는다.
+
+왜 별도 경로인가. 운영 `package_snapshot` 646M행은 S15P21A506-341에서 pg_dump로 옮겨져 **etl 이력이 없고**,
+288 재구성의 입력(repository-metrics 후보·snapshot-candidate)은 남아 있지 않다. 그래서 게시된 행 자체가
+모집단·`stars`·`open_issues`의 정본이고, 이 모듈은 그 셋을 절대 대입하지 않는다.
+
+- **모집단**: 그 날짜의 기존 행. 행을 더하거나 지우지 않는다.
+- **P**: `public.snapshot`의 `LAG(snapshot_at)`. 백엔드 `DOWNLOADS_TREND_SQL`과 같은 정의다.
+- **downloads 규칙**: `pipeline/downloads_interval/aggregate.py`의 `[P,S)` 집계 문장을 그대로 쓴다 —
+  `imputed_gap`·NULL 제외 유효값 합, 유효 일수 0이면 NULL, 실제 0은 0.
+- **적용 전 검사(회귀 검사)**: 기존 `downloads IS NOT NULL` 행의 재계산값이 현재 값과 **전부** 같아야 한다.
+  하나라도 다르거나 일별 데이터가 없으면 그 날짜는 UPDATE 없이 실패로 끝난다(`recomputed downloads differ ...`).
+- **UPDATE**: `downloads IS DISTINCT FROM 재계산값`인 행만. 트랜잭션 안에서 행 수와
+  `(package_id, stars, open_issues)` 지문이 전후 동일함을 확인하고 COMMIT 한다. 이후 `VACUUM`(FULL 아님).
+- **이력**: 날짜별 `etl_load_execution('reload-453-<run-id>-<S>')`에 Bronze run·구간·일별 파일 SHA·정책을 남기고,
+  attempt `quality_report`에 채움 수 전후·변경 행 수·불변 대조 결과를 남긴다. `etl_dataset_current`의
+  `package-snapshot` 포인터는 가장 늦은 기준일을 가리킨다.
+- **`--verify-only`**: UPDATE까지 실행하고 ROLLBACK. attempt는 `FAILED / VERIFY_ONLY`로 남고
+  같은 실행 ID로 다시 돌리면 이어서 게시한다. 같은 실행 ID를 게시 후 다시 돌리면 값만 대조하는 `REVERIFIED`다.
+- 순서는 **최근 기준일부터**다. 중단되면 `--skip-published`로 이어서 돈다.
+
+```powershell
+python -m pipeline.package_snapshot.downloads_reload `
+  --daily-root <합본 일별 parquet 루트> `
+  --bronze-run-id <npm-downloads Bronze run> --bronze-manifest-sha256 <그 manifest SHA> `
+  --run-id <재적재 run> --from 2024-09-02 --to 2026-08-31 `
+  --docker-container <PostgreSQL 컨테이너> --database <DB> --db-user <사용자> --verify-only
+```
+
+`--daily-root`는 `downloads/date=YYYY-MM-DD/*.parquet`와 `downloads_status.parquet`를 가진 디렉터리다
+(`pipeline/collectors/downloads/to_parquet.py`의 `--out`). 실제 명령·기대 출력·복구 절차는
+[운영 실행 기록](../../docs/worklogs/S15P21A506-453/02-runbook.md)에 있다.
+
 ## 검증과 기록
 
 ```powershell
@@ -110,6 +146,7 @@ python -m unittest pipeline.package_snapshot.test_postgres -v
 python -m unittest pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_history_postgres -v
 python -m unittest pipeline.package_snapshot.test_contract pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume -v
 python -m unittest pipeline.package_snapshot.test_history_contract scripts.test_source_evidence -v
+python -m unittest pipeline.package_snapshot.test_downloads_reload -v
 ```
 
 DB 테스트는 `pickage_288_test_<UUID>`라는 새 격리 DB를 만들고 종료 시 해당 DB만 삭제한다.
