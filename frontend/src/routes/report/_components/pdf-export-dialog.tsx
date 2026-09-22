@@ -15,8 +15,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  BLOCK_REASON_LABEL,
+  reportExportBlockReasons,
+  type BlockReason,
+} from '@/routes/report/_components/report-export-eligibility'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
+import { toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
@@ -25,13 +31,10 @@ import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
  * `BLOCKED`, 생성 시작 후 실패는 `FAILED`(구상안 §13.2·13.3). 창을 따로 띄우면 진행 중에
  * 뒤 화면이 바뀌고, 돌아왔을 때 무엇을 만들던 중이었는지 다시 알려줘야 한다.
  *
- * <h2>`BLOCKED` 사유는 아직 둘뿐이다</h2>
+ * <h2>`BLOCKED` 조건은 `report-export-eligibility.ts`에 있다</h2>
  *
- * 구상안 §13.2 의 차단 사유 다섯 중 클라이언트에서 지금 실제로 판단 가능한 건
- * `FEATURE_ANALYSIS_REQUIRED`(기능 비교 미실행)·`VERSION_RESULT_MISMATCH`(재분석 중,
- * `ANALYSIS_RUNNING`과 겹쳐 판단)뿐이다. 나머지 셋(`COMPARISON_NOT_CONFIRMED`·
- * `ECOSYSTEM_RESULT_INCOMPLETE`·`SNAPSHOT_CREATION_ERROR`)은 타입에는 있지만 판단할
- * 신호가 아직 없어 항상 통과시킨다 — 신호가 생기면 `blockReasonsFor` 안의 조건만 채운다.
+ * PDF·HAND-OFF(S15P21A506-467) 버튼이 같은 조건을 쓴다 — 자세한 설명(다섯 사유 중 왜 둘만
+ * 실제로 판단하는지)은 그 파일 주석을 본다. 여기서 다시 정의하지 않는다.
  *
  * <h2>진행 표시는 있는 신호만 쓴다</h2>
  *
@@ -74,7 +77,7 @@ export function PdfExportDialog({
   const [sections, setSections] = useState<ReportSection[]>([])
   const generate = useGeneratePdf()
   const job = generate.data
-  const blockReasons = blockReasonsFor(run)
+  const blockReasons = reportExportBlockReasons(run)
   const blocked = blockReasons.length > 0
 
   // 재분석이 새로 시작되면 이전 COMPLETE 파일을 더는 "지금 선택 버전 결과"로 보여주지
@@ -106,6 +109,13 @@ export function PdfExportDialog({
       snapshot_at: snapshotAt,
       period: transitionPeriod,
       sections,
+      // 서버는 판정을 저장하지 않는다(DEC-FEATURE-CACHE-20260917-01) — 세션이 들고 있는 완료
+      // 결과를 요청에 실어 보낸다(구상안 §13.1·§14.5). 아직 분석을 실행하지 않았으면
+      // rawResult가 없어 생략되고, 서버가 그 사실을 문서와 omitted로 알린다.
+      features:
+        sections.includes('FEATURES') && run.rawResult
+          ? toFeaturesPdfPayload(run.rawResult)
+          : undefined,
     })
   }
 
@@ -148,34 +158,6 @@ export function PdfExportDialog({
 /* ------------------------------------------------------------------ *
  * BLOCKED — 적격성 실패 (구상안 §13.2)
  * ------------------------------------------------------------------ */
-
-type BlockReason =
-  | 'COMPARISON_NOT_CONFIRMED'
-  | 'ECOSYSTEM_RESULT_INCOMPLETE'
-  | 'SNAPSHOT_CREATION_ERROR'
-  | 'FEATURE_ANALYSIS_REQUIRED'
-  | 'VERSION_RESULT_MISMATCH'
-
-const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
-  COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
-  ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
-  SNAPSHOT_CREATION_ERROR: '보고서 사본을 만드는 중 오류가 발생했습니다.',
-  FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
-  VERSION_RESULT_MISMATCH:
-    '기능 비교가 실행 중이거나, 선택한 버전으로 재분석이 필요합니다. 재분석이 끝난 뒤 다시 시도해 주세요.',
-}
-
-/**
- * 지금 실제로 판단 가능한 두 사유만 채운다. 나머지 셋은 신호가 없어 늘 통과한다 —
- * 자세한 사유는 이 파일 상단 주석 참고.
- */
-function blockReasonsFor(run: AnalysisRun): BlockReason[] {
-  if (!run.hasCompletedOnce) return ['FEATURE_ANALYSIS_REQUIRED']
-  // 진행 중이거나, 선택한 버전이 완료 결과와 달라 재분석이 필요하면 막는다(구상안 §9.2·§13.2).
-  // 기존 결과는 화면에 남아 있어도 "현재 선택 버전의 결과"가 아니다.
-  if (run.status === 'RUNNING' || run.reanalysisRequired) return ['VERSION_RESULT_MISMATCH']
-  return []
-}
 
 function Blocked({
   reasons,
@@ -292,7 +274,7 @@ function Ready({
         <SectionToggle
           section="FEATURES"
           label="기능 심화 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note="완료된 기능 비교 결과가 실립니다. 아직 분석을 실행하지 않았다면 구역 자리와 사유만 실립니다."
           checked={sections.includes('FEATURES')}
           onToggle={onToggle}
         />
@@ -490,7 +472,7 @@ function Complete({
 function omittedNote(section: ReportSection): string {
   return section === 'COMMUNITY'
     ? '커뮤니티 분석: 이 패키지의 GitHub 자료가 아직 수집되지 않아 안내만 실렸습니다. GitHub 커뮤니티 탭을 한 번 연 뒤 다시 만들면 채워집니다.'
-    : '기능 심화 분석: 해당 분석 기능이 아직 없어 자리와 사유만 실렸습니다.'
+    : '기능 심화 분석: 이 비교의 기능 비교를 아직 실행하지 않아 자리와 사유만 실렸습니다. 기능 비교 탭에서 분석을 완료한 뒤 다시 만들면 채워집니다.'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

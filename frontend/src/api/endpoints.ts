@@ -21,11 +21,13 @@ import {
   mockDictManifest,
   mockDictionary,
   mockDownloadsTrend,
+  mockGenerateHandoff,
   mockGeneratePdf,
   mockPackagesOverview,
   mockPdfPreview,
   mockSearch,
   mockSimilarPackages,
+  mockMigrationPairs,
   mockRemovalReasons,
   mockTransitions,
   mockVersionShare,
@@ -33,6 +35,7 @@ import {
 import type {
   CommunityRefreshTrigger,
   CommunityStatusResponse,
+  DependencyKindParam,
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
@@ -40,6 +43,9 @@ import type {
   FeatureTarget,
   FeatureRunResponse,
   FeatureVersionsResponse,
+  MarkdownGenerateRequest,
+  MarkdownJob,
+  MigrationPairsResponse,
   PackageEnvResponse,
   PackageDictionary,
   PackageSearchResponse,
@@ -169,6 +175,24 @@ export function pdfDownloadUrl(reportId: string): string {
 }
 
 /* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `generatePdf`와 같은 자리의 함수다 — 조건만 보내고 서버가 다시 조회한다(공통-R08).
+ * 미리보기가 없으므로(`.md`는 텍스트라 그냥 열어 보면 된다) `fetchPdfPreview`에 대응하는
+ * 함수는 없다.
+ */
+export function generateHandoff(request: MarkdownGenerateRequest): Promise<MarkdownJob> {
+  return USE_MOCK ? mockGenerateHandoff(request) : post<MarkdownJob>('/report/markdown', request)
+}
+
+/** `pdfDownloadUrl`과 같은 이유·같은 방식 — `fetch` 없이 주소만 돌려주고 앵커가 연다. */
+export function markdownDownloadUrl(reportId: string): string {
+  return `${API_BASE_URL}/report/markdown/${reportId}/file`
+}
+
+/* ------------------------------------------------------------------ *
  * 기능-03 · UC4. 유사 패키지
  * ------------------------------------------------------------------ */
 
@@ -235,6 +259,23 @@ export function fetchRemovalReasons(
   return USE_MOCK
     ? mockRemovalReasons(names, period)
     : get<RemovalReasonsResponse>('/packages/removal-reasons', { names, period })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-424. 관측된 교체 흐름 — 어디로 갔나
+ *
+ * 위 둘과 달리 **`period` 를 받지 않는다.** 연속한 릴리스를 전부 훑은 결과라 구간이라는
+ * 축이 없다. 대신 `kind` 로 원천을 고르는데, 두 값은 모집단이 다른 별개의 실행이라
+ * 한 요청이 한 종류만 받는다 — 섞이면 비교할 수 없는 수가 한 분포에 들어간다.
+ * ------------------------------------------------------------------ */
+
+export function fetchMigrationPairs(
+  names: readonly string[],
+  kind?: DependencyKindParam,
+): Promise<MigrationPairsResponse> {
+  return USE_MOCK
+    ? mockMigrationPairs(names, kind)
+    : get<MigrationPairsResponse>('/packages/migration-pairs', { names, kind })
 }
 
 /* ------------------------------------------------------------------ *

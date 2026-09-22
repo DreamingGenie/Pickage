@@ -14,6 +14,7 @@ import com.ssafy.pickage.domain.community.DataStatus;
 import com.ssafy.pickage.domain.community.dto.CommunityResultResponse;
 import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
 import com.ssafy.pickage.domain.community.dto.ViewStatus;
+import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
 
@@ -108,11 +109,11 @@ class ReportPdfServiceTest {
 	}
 
 	@Test
-	@DisplayName("커뮤니티 자료가 실렸으면 채우지 못한 구역이 아니다 — 기능 심화 분석만 남는다")
+	@DisplayName("커뮤니티 자료가 실렸는데 기능 비교 payload 가 없으면 기능 비교만 남는다")
 	void communityWithResultIsNotOmitted() {
 		Set<ReportSection> requested = new LinkedHashSet<>(List.of(ReportSection.COMMUNITY, ReportSection.FEATURES));
 
-		assertEquals(List.of("FEATURES"), ReportPdfService.omitted(requested, withResult()));
+		assertEquals(List.of("FEATURES"), ReportPdfService.omitted(requested, withResult(), null));
 	}
 
 	@Test
@@ -121,14 +122,43 @@ class ReportPdfServiceTest {
 		Set<ReportSection> requested = Set.of(ReportSection.COMMUNITY);
 
 		assertEquals(List.of("COMMUNITY"), ReportPdfService.omitted(requested,
-			new CommunityStatusResponse("axios", ViewStatus.IDLE, null, null, null)));
+			new CommunityStatusResponse("axios", ViewStatus.IDLE, null, null, null), null));
 		// 자료를 읽지 못해 상태 자체가 없을 때도 같다.
-		assertEquals(List.of("COMMUNITY"), ReportPdfService.omitted(requested, null));
+		assertEquals(List.of("COMMUNITY"), ReportPdfService.omitted(requested, null, null));
 	}
 
 	@Test
 	@DisplayName("아무것도 더하지 않았으면 채우지 못한 구역도 없다")
 	void nothingRequestedNothingOmitted() {
-		assertTrue(ReportPdfService.omitted(Set.of(), null).isEmpty());
+		assertTrue(ReportPdfService.omitted(Set.of(), null, null).isEmpty());
+	}
+
+	private static FeatureComparisonPayload featuresPayload() {
+		return new FeatureComparisonPayload(
+			List.of(new FeatureComparisonPayload.PackageRef("winston", "3.19.0"),
+				new FeatureComparisonPayload.PackageRef("pino", "10.3.1")),
+			List.of(new FeatureComparisonPayload.FeatureRow("구조화 로깅", List.of(
+				new FeatureComparisonPayload.Cell("winston", "3.19.0", "SUPPORTED",
+					List.of("ev-1"), "EVIDENCE", null),
+				new FeatureComparisonPayload.Cell("pino", "10.3.1", "SUPPORTED",
+					List.of("ev-2"), "EVIDENCE", null)))),
+			List.of(new FeatureComparisonPayload.NarrativeSection("요약", "둘 다 구조화 로깅을 지원합니다.")),
+			null, false);
+	}
+
+	@Test
+	@DisplayName("기능 비교 payload 를 실어 보냈으면 채우지 못한 구역이 아니다")
+	void featuresWithPayloadIsNotOmitted() {
+		Set<ReportSection> requested = Set.of(ReportSection.FEATURES);
+
+		assertTrue(ReportPdfService.omitted(requested, null, featuresPayload()).isEmpty());
+	}
+
+	@Test
+	@DisplayName("기능 비교를 골랐는데 payload 가 없으면(아직 분석 전) 채우지 못한 구역이다")
+	void featuresWithoutPayloadIsOmitted() {
+		Set<ReportSection> requested = Set.of(ReportSection.FEATURES);
+
+		assertEquals(List.of("FEATURES"), ReportPdfService.omitted(requested, null, null));
 	}
 }

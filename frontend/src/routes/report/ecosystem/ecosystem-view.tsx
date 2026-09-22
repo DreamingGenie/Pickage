@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import type { DependencyKindParam } from '@/api/types'
 import { windowSeries } from '@/components/charts/geometry'
 import { seriesStyle } from '@/components/charts/tokens'
 import { deltaOf, dependentsLineOf } from '@/routes/report/ecosystem/adapter'
@@ -29,6 +30,12 @@ import {
   DEPENDENTS_TERM,
   DependentsConcept,
 } from '@/routes/report/ecosystem/terms'
+import {
+  DEFAULT_KIND,
+  EMPTY_MIGRATION_MODEL,
+  type MigrationModel,
+} from '@/routes/report/ecosystem/migration-model'
+import { MigrationPanel } from '@/routes/report/ecosystem/migration-panel'
 import { RemovalReasonsPanel } from '@/routes/report/ecosystem/removal-reasons-panel'
 import {
   EMPTY_REMOVAL_REASONS_MODEL,
@@ -74,6 +81,10 @@ export function EcosystemView({
   transitionsState = READY_STATE,
   removalReasonsModel = EMPTY_REMOVAL_REASONS_MODEL,
   removalReasonsState = READY_STATE,
+  migrationModel = EMPTY_MIGRATION_MODEL,
+  migrationState = READY_STATE,
+  migrationKind = DEFAULT_KIND,
+  onMigrationKindChange = () => {},
   transitionPeriod = DEFAULT_TRANSITION_PERIOD,
   onTransitionPeriodChange = NOOP_PERIOD_CHANGE,
   compactChart = false,
@@ -97,6 +108,11 @@ export function EcosystemView({
   /** 이탈 사유(S15P21A506-410). 위와 같은 `period` 를 쓰되 **단위가 다르다**(전이 건수). */
   removalReasonsModel?: RemovalReasonsModel
   removalReasonsState?: MetricState
+  migrationModel?: MigrationModel
+  migrationState?: MetricState
+  /** 구간이 아니라 **의존 종류**다. 위 두 패널의 `period` 와 값을 공유하지 않는다. */
+  migrationKind?: DependencyKindParam
+  onMigrationKindChange?: (next: DependencyKindParam) => void
   /**
    * 값 자체의 정본은 `ReportPage`다(S15P21A506-394) — PDF 내보내기 다이얼로그가 "화면이
    * 지금 보는 기간"을 읽어야 해서 이 탭보다 위로 올렸다. 다만 그 값이 바뀔 때 서버
@@ -450,6 +466,25 @@ export function EcosystemView({
           model={removalReasonsModel}
           state={removalReasonsState}
           period={transitionPeriod}
+          emphasisKeys={emphasisKeys}
+        />
+      )}
+
+      {/*
+        이탈 사유 **바로 아래**에 둔다. 위 패널이 "대체를 동반했나" 까지 말하고 이 패널이
+        그 대체에 이름을 붙이므로, 순서가 곧 질문의 순서다 — 얼마나 떠났나 → 대체를
+        동반했나 → 어디로 갔나.
+
+        **선택기를 공유하지 않는다.** 위 둘은 구간(1y·3y·5y)을 고르고 이쪽은 의존 종류를
+        고른다. 값을 공유하면 한쪽을 바꿀 때 다른 쪽이 딸려 가는데, 고르는 것이 아예 달라
+        사용자는 그것을 고장으로 읽는다.
+      */}
+      {(migrationModel.packages.length > 0 || migrationState.status !== 'ready') && (
+        <MigrationPanel
+          model={migrationModel}
+          state={migrationState}
+          kind={migrationKind}
+          onKindChange={onMigrationKindChange}
           emphasisKeys={emphasisKeys}
         />
       )}

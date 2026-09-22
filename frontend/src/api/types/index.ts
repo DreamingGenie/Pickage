@@ -243,6 +243,39 @@ export interface PdfGenerateRequest {
    */
   period?: TransitionPeriodParam
   sections?: ReportSection[]
+  /**
+   * `sections`에 `FEATURES`를 넣었을 때, 세션이 들고 있는 완료 기능 비교 결과(구상안
+   * §13.1·§14.5). 서버는 판정을 영속화하지 않으므로(`DEC-FEATURE-CACHE-20260917-01`)
+   * 재조회하지 않고 이 값을 그대로 문서에 옮긴다. `toFeaturesPdfPayload`(rag-adapter.ts)로
+   * 만든다. `FEATURES`를 골랐는데 생략하면(아직 분석을 실행하지 않은 경우) 서버가 그 사실을
+   * 문서와 응답(`omitted`)에 적는다.
+   */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * PDF 요청이 싣는 기능 비교 판정(백엔드 `FeatureComparisonPayload`와 짝, S15P21A506-463).
+ *
+ * <b>`RagComparisonResult`(camelCase, `ai/rag/main.py` 계약)를 그대로 보내지 않는다.</b>
+ * 이 요청의 다른 필드(`snapshot_at`·`period`)처럼 백엔드 snake_case 전략을 따라야 하는
+ * 별개의 계약이다 — `toFeaturesPdfPayload`가 그 변환을 한 곳에서 한다.
+ */
+export interface PdfFeaturesPayload {
+  packages: { package_name: string; version: string }[]
+  features: {
+    feature_label: string
+    results: {
+      package_name: string
+      version: string
+      verdict: FeatureVerdict
+      evidence_ids: string[]
+      grounded_in: 'EVIDENCE' | 'GENERAL_KNOWLEDGE'
+      note: string | null
+    }[]
+  }[]
+  narrative: { heading: string; body: string }[]
+  narrative_error: string | null
+  limited: boolean
 }
 
 export interface PdfJob {
@@ -259,6 +292,37 @@ export interface PdfJob {
    * 요청했지만 문서에 못 채운 구역. **오류가 아니라** 그 분석 기능이 아직 없는 것이다.
    * 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를 알 수 없다.
    */
+  omitted: ReportSection[]
+}
+
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `PdfGenerateRequest` 와 거의 같지만 **`sections` 가 없다** — HAND-OFF 는 항상 커뮤니티·기능
+ * 심화 분석 전부를 시도한다(구역 선택 UI를 두지 않는다는 기획 결정). agent 가 읽을 파일이라
+ * 인쇄 분량 걱정이 없고, 판단에 쓸 정보는 많을수록 낫다.
+ */
+export interface MarkdownGenerateRequest {
+  names: string[]
+  from?: string
+  to?: string
+  snapshot_at?: string
+  period?: TransitionPeriodParam
+  /** `PdfGenerateRequest.features` 와 같은 뜻·같은 변환(`toFeaturesPdfPayload`)을 쓴다. */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * `PdfJob` 과 같은 모양이되 `status` 가 없다 — Markdown 은 미리보기가 없어(텍스트라 그냥 열어
+ * 보면 된다) PDF 처럼 미래 비동기 전환을 대비해 상태를 미리 읽어 둘 필요가 아직 없다.
+ */
+export interface MarkdownJob {
+  report_id: string
+  file_name: string
+  bytes: number
+  created_at: string
   omitted: ReportSection[]
 }
 
@@ -451,6 +515,83 @@ export interface RemovalReasonsResponse {
   t2?: string
   /** **한 패키지가 한 줄이다** — `transitions` 와 달리 `kind` 분해가 없다. */
   series: RemovalReasonsSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-424. 관측된 교체 흐름 — 어디로 갔나
+ *
+ * 근거: `backend/.../domain/packages/dto/MigrationPairsResponse.java`.
+ *
+ * **위 둘과 또 단위가 다르다.** `transitions` 는 패키지 수, `removal_reasons` 는
+ * 전이 건수, 이쪽은 **가중 표(votes)** 다. 셋을 더하거나 비율을 내면 안 된다.
+ *
+ * **구간(period)이 없다.** 시점 두 개를 비교하는 것이 아니라 연속한 릴리스를 전부 훑은
+ * 것이라 "몇 년치" 라는 축이 성립하지 않는다. 대신 `kind` 로 원천을 고른다.
+ * ------------------------------------------------------------------ */
+
+/** 어느 의존 칸에서 관측했나. 두 값은 **모집단이 다른 별개의 실행**이다. */
+export type DependencyKindParam = 'regular' | 'dev'
+
+export const DEFAULT_DEPENDENCY_KIND: DependencyKindParam = 'regular'
+
+export type MigrationDataStatusWire =
+  'COMPLETE' | 'INSUFFICIENT_EVIDENCE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface MigrationDestinationWire {
+  name: string
+  /** 가중 표. 정수가 아니다(소수 한 자리). */
+  votes: number
+  co_events: number
+  publisher_months: number
+  dependents: number
+  /** 모집단 대비 배수. **다른 `kind` 와 절댓값을 비교하지 말 것** — 분모가 그 실행의 전이 수다. */
+  lift: number
+  /** 점유율. 분모는 표가 아니라 (발행자 × 달) 의 수다. **합이 100 이 아니다** — 아래 참고. */
+  share_pm_pct: number
+  /** 표 기준 점유율. 등급 판정의 입력이라 함께 오지만 **화면에 쓰지 않는다.** */
+  share_pct: number
+  /**
+   * 그 패키지를 뺀 전이 중 이것을 함께 넣은 비율. **`share_pm_pct` 와 분모가 다르다** —
+   * 이쪽은 이탈 전체가 분모라 "뺀 사람 다섯 중 하나가 이걸 골랐다" 로 읽힌다.
+   */
+  a_pct: number
+  /** `strict` · `recommended` · `loose`. 행을 지우는 대신 붙이는 배지다. */
+  evidence: string
+  /** 양방향 관측. **같은 물건의 두 포장**일 수 있다(lodash ↔ lodash-es). 지우지 말고 구분만 한다. */
+  variant: boolean
+  first_seen: string
+  last_seen: string
+}
+
+/** 상위 밖을 접은 칸. 이름을 세우지 않는 이유는 꼬리의 82%가 일회성 추가라서다. */
+export interface MigrationEtcWire {
+  pairs: number
+  share_pm_pct: number
+  /** 그중 기본 필터에 못 미친 수. "근거가 약해 접었다" 를 말할 근거. */
+  below_filter: number
+}
+
+export interface MigrationSeriesItem {
+  name: string
+  /** 이 종류의 기준일. `kind` 마다 다르다(regular 08-31 · dev 09-16). 읽을 행이 없으면 null. */
+  snapshot_at: string | null
+  /** 항상 `'publisher_months'`. 점유율 분모가 표가 아니라는 표시다. 값으로 오므로 캡션에 쓴다. */
+  share_basis: string
+  /** 기본 필터를 통과한 상위 5개. `INSUFFICIENT_EVIDENCE` 면 빈 배열이다. */
+  destinations: MigrationDestinationWire[]
+  /** 접을 것이 없으면 null. */
+  etc: MigrationEtcWire | null
+  /** 필터 전 관측된 쌍의 수. 세어 보지 않은 상태면 null. */
+  observed_pairs: number | null
+  data_status: MigrationDataStatusWire
+}
+
+export interface MigrationPairsResponse {
+  metric: 'migration_pairs'
+  /** 요청이 생략했으면 서버가 적용한 기본값(regular)을 그대로 돌려준다. */
+  kind: DependencyKindParam
+  series: MigrationSeriesItem[]
   not_found: string[]
 }
 

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ssafy.pickage.domain.packages.dto.MigrationPairsResponse;
 import com.ssafy.pickage.domain.packages.dto.PackageSearchResponse;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
 import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
@@ -201,6 +202,38 @@ public class PackageController {
 	) {
 		return ApiResponseUtil.createSuccessResponse(
 			service.getRemovalReasons(PackageNames.of(names), TransitionPeriod.of(period)));
+	}
+
+	/**
+	 * 확장-02 — 관측된 교체 흐름 (S15P21A506-424 · 계약은 S15P21A506-211).
+	 *
+	 * <p><b>위 두 조회와 묻는 것이 다르다.</b> {@code transitions} 는 "몇 개가 떠났나",
+	 * {@code removal-reasons} 는 "대체를 동반했나", 이쪽은 <b>"어디로 갔나"</b> 다.
+	 * {@code removal-reasons} 의 {@code withReplacement} 에는 도착지 이름이 없다.
+	 *
+	 * <p><b>구간({@code period})을 받지 않는다.</b> 이 계산은 시점 두 개를 비교하는 것이
+	 * 아니라 연속한 릴리스를 전부 훑은 것이라 구간이라는 축이 없다. 대신 {@code kind} 로
+	 * 원천을 고르고, 응답이 그 원천의 {@code snapshotAt} 을 싣는다.
+	 *
+	 * <p>원인·추천으로 단정하지 않는다. 선의 굵기는 관측 건수이고, 같은 물건의 다른 포장
+	 * (lodash ↔ lodash-es)은 지우지 않고 {@code variant} 로 표시만 한다.
+	 */
+	@Operation(summary = "관측된 교체 흐름 (도착지 분포)",
+		description = "X 를 뺀 릴리스가 무엇을 함께 넣었는지를 도착지 분포로 답한다. kind 는 "
+			+ "regular·dev 중 하나이며 기본 regular — 모집단이 달라 두 종류의 수를 더하거나 "
+			+ "lift 절댓값을 비교하면 안 된다. 기본 필터(votes>=5 AND publisher_months>=3)를 "
+			+ "통과한 상위 5개를 세우고 나머지는 etc 로 접는다. 점유율 분모는 표가 아니라 "
+			+ "조직·달 수(share_basis=publisher_months)이며 한 응답의 합이 100 이 아니다. "
+			+ "쌍은 있으나 전부 필터 미달이면 INSUFFICIENT_EVIDENCE, 관측이 없으면 NO_DATA, "
+			+ "available_package 에 없으면 OUT_OF_SCOPE, 그 종류를 아직 안 올렸으면 "
+			+ "NOT_COMPUTED 로 나간다.")
+	@GetMapping("/packages/migration-pairs")
+	public ApiResponseBody<MigrationPairsResponse> getMigrationPairs(
+		@RequestParam(name = "names", required = false) List<String> names,
+		@RequestParam(name = "kind", required = false) String kind
+	) {
+		return ApiResponseUtil.createSuccessResponse(
+			service.getMigrationPairs(PackageNames.of(names), DependencyKind.of(kind)));
 	}
 
 	/**

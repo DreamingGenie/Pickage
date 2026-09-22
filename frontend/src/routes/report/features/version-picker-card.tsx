@@ -2,6 +2,7 @@ import { useId } from 'react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
+import { StartButton } from '@/routes/report/features/ai-comparison-section'
 import type { PackageVersions } from '@/routes/report/features/model'
 
 /**
@@ -16,6 +17,14 @@ import type { PackageVersions } from '@/routes/report/features/model'
  * - 선택지는 소비 조건이 있는 서로 다른 major의 최신 정식 버전 최대 3개다. 하나도 없으면
  *   자동 선택을 하지 않고 그 사실을 적는다.
  * - 이 버전은 Dependency 그래프의 major 선택과 별개의 축이다(IA §7.1).
+ *
+ * <h2>재분석 버튼은 완료된 뒤에만, 오른쪽에 (QA 피드백, S15P21A506-465 후속)</h2>
+ *
+ * 첫 실행 버튼(`기능 비교 시작`)은 여전히 아래 AI 영역에 있다 — "보통 1~2분 걸립니다" 같은
+ * 안내문과 붙어 있어야 하는 문구다. 하지만 **재분석** 버튼은 다르다: 한 번 완료된 뒤에는
+ * 결과·해설표까지 다 그려진 카드 맨 아래에 있었는데, 그러면 여기서 버전을 바꾸고 나서 그
+ * 버튼을 누르려면 페이지 전체를 오갔다. 버전을 바꾸는 자리 바로 옆에 두면 그 왕복이 없다 —
+ * 이 카드가 AI 실행의 진입점이 아니라 **AI 실행이 쓰는 입력값의 주인**이라는 점은 그대로다.
  */
 export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
   const running = run.status === 'RUNNING'
@@ -26,41 +35,43 @@ export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
       aria-labelledby="version-picker-title"
       className="flex flex-col gap-5 rounded-2xl border p-6"
     >
-      <header className="flex flex-col gap-1.5">
-        <h3 id="version-picker-title" className="text-sm font-semibold">
-          어느 버전끼리 비교할까요?
-        </h3>
-        <p className="text-base text-muted-foreground">
-          최신 정식 버전이 먼저 골라져 있어요. 지금 쓰는 버전이 있다면 바꿔 보세요. 생태계 변화의
-          표시 버전과는 따로 움직여요.
-        </p>
-      </header>
+      {/* items-center — 오른쪽 재분석 버튼을 왼쪽 블록(제목+드롭다운) 높이의 중앙에 맞춘다 */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-1 flex-col gap-5">
+          <header className="flex flex-col gap-1.5">
+            <h3 id="version-picker-title" className="text-sm font-semibold">
+              어느 버전끼리 비교할까요?
+            </h3>
+            <p className="text-base text-muted-foreground">
+              최신 정식 버전이 먼저 골라져 있어요. 지금 쓰는 버전이 있다면 바꿔 보세요. 생태계
+              변화의 표시 버전과는 따로 움직여요.
+            </p>
+          </header>
 
-      <div className="flex flex-wrap items-start gap-4">
-        {run.versions ? (
-          run.versions.map((pkg) => {
-            const done = completed?.packages.find((p) => p.name === pkg.name)?.version
-            return (
-              <VersionSelect
-                key={pkg.name}
-                pkg={pkg}
-                value={run.selected[pkg.name] ?? ''}
-                disabled={running}
-                completedVersion={done}
-                onChange={(version) => run.select(pkg.name, version)}
-              />
-            )
-          })
-        ) : (
-          // 버전 목록을 받는 동안 자리를 잡는다
-          <Skeleton aria-hidden className="h-9 w-56" />
-        )}
+          <div className="flex flex-wrap items-start gap-4">
+            {run.versions ? (
+              run.versions.map((pkg) => {
+                const done = completed?.packages.find((p) => p.name === pkg.name)?.version
+                return (
+                  <VersionSelect
+                    key={pkg.name}
+                    pkg={pkg}
+                    value={run.selected[pkg.name] ?? ''}
+                    disabled={running}
+                    completedVersion={done}
+                    onChange={(version) => run.select(pkg.name, version)}
+                  />
+                )
+              })
+            ) : (
+              // 버전 목록을 받는 동안 자리를 잡는다
+              <Skeleton aria-hidden className="h-9 w-56" />
+            )}
+          </div>
+        </div>
 
-        {/*
-          분석 시작 버튼은 여기 없다. 아래 AI 영역이 그 실행의 주인이라 버튼도 거기 둔다 —
-          버전 선택은 위 핵심 비교 요약(단순 조회)에도 쓰이므로 이 카드가 AI 실행을
-          대표하면 두 영역이 한 덩어리로 읽힌다.
-        */}
+        {/* 완료된 뒤에만 — 첫 실행 버튼은 아래 AI 영역의 안내문과 붙어 있어야 한다 */}
+        {completed && !running && <StartButton run={run} />}
       </div>
     </section>
   )

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { USE_MOCK } from '@/api/endpoints'
@@ -6,17 +6,20 @@ import {
   useDependentsTrend,
   useDownloadsTrend,
   useEcosystemSummary,
+  useMigrationPairs,
   usePackagesOverview,
   useRemovalReasons,
   useTransitions,
   useVersionShare,
 } from '@/api/queries'
-import { MAX_NAMES } from '@/api/types'
+import { MAX_NAMES, type DependencyKindParam } from '@/api/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
 import type { EcosystemSummaryState } from '@/routes/report/ecosystem/summary-section'
 import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
+import { toMigrationModel } from '@/routes/report/ecosystem/migration-adapter'
+import { DEFAULT_KIND } from '@/routes/report/ecosystem/migration-model'
 import { toRemovalReasonsModel } from '@/routes/report/ecosystem/removal-reasons-adapter'
 import { toTransitionsModel } from '@/routes/report/ecosystem/transitions-adapter'
 import type { TransitionPeriod } from '@/routes/report/ecosystem/transitions-model'
@@ -99,6 +102,17 @@ export function EcosystemReportTab({
    */
   const removalReasons = useRemovalReasons(names, transitionPeriod)
 
+  /**
+   * 관측된 교체 흐름 (S15P21A506-424). **구간이 아니라 종류를 받는다.**
+   *
+   * `transitionPeriod` 와 달리 이 값은 **이 탭이 들고 있다.** 위 값이 `ReportPage` 로 올라간
+   * 이유는 PDF 내보내기 다이얼로그가 "화면이 지금 보는 기간" 을 요청에 실어야 해서인데
+   * (S15P21A506-394), 교체 흐름은 아직 PDF 에 들어가지 않는다. 쓰는 곳이 없는데 미리
+   * 올리면, 올린 이유를 아무도 설명할 수 없는 상태로 남는다. PDF 에 넣을 때 함께 올린다.
+   */
+  const [migrationKind, setMigrationKind] = useState<DependencyKindParam>(DEFAULT_KIND)
+  const migration = useMigrationPairs(names, migrationKind)
+
   if (names.length === 0) {
     return <p className="text-sm text-muted-foreground">비교할 패키지를 먼저 골라 주세요.</p>
   }
@@ -128,6 +142,7 @@ export function EcosystemReportTab({
   const versionShareState = stateOf(versionShare)
   const transitionsState = stateOf(transitions)
   const removalReasonsState = stateOf(removalReasons)
+  const migrationState = stateOf(migration)
 
   const model = toEcosystemModel({
     overview: overview.data,
@@ -138,6 +153,7 @@ export function EcosystemReportTab({
   })
   const transitionsModel = toTransitionsModel(transitions.data, names)
   const removalReasonsModel = toRemovalReasonsModel(removalReasons.data, names)
+  const migrationModel = toMigrationModel(migration.data, names)
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,6 +175,10 @@ export function EcosystemReportTab({
         transitionsState={transitionsState}
         removalReasonsModel={removalReasonsModel}
         removalReasonsState={removalReasonsState}
+        migrationModel={migrationModel}
+        migrationState={migrationState}
+        migrationKind={migrationKind}
+        onMigrationKindChange={setMigrationKind}
         transitionPeriod={transitionPeriod}
         onTransitionPeriodChange={onTransitionPeriodChange}
         summary={summary}

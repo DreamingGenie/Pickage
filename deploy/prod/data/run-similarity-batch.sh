@@ -116,6 +116,17 @@ echo "[5/6] 배치"
 #   text_hash_state.parquet 을 스테이징에 같이 받아 오면 된다.
 # TODO(별도 티켓): --batch-size·--query-block 을 이 노드 실측으로 고정.
 #
+# dependents 관문(자격 필터, 기본 min_dependents=5, S15P21A506-168)을 끄고 싶으면
+# (예: 후보가 너무 적게 나오는 문제 대응) 아래 ai-similarity 호출에
+# --min-dependents 0 을 추가한다. 옵션은 similarity_batch_pipeline.py 의
+# load_package_text()·qualify() 양쪽에 그대로 전달되므로 이 한 줄만 추가하면 된다 —
+# 코드 수정은 필요 없다 (S15P21A506-464).
+#
+# ⚠ 0 으로 낮춰도 dependent_packages_count 가 아예 없는(None) 후보는 계속 제외된다.
+#   load_package_text() 의 parquet pushdown 필터와 qualify() 둘 다 null 을 안 받는다
+#   (S15P21A506-382, 의도적으로 규칙을 중복시켰다). 이건 "임계값 5"와는 별개인
+#   보수적 처리라 --min-dependents 로는 안 풀린다 — 필요해지면 코드(두 곳 다) 수정 필요.
+#
 # --max-rank 를 명시하지 않는다 — 기본값 100000이 항상 적용된다(S15P21A506-402).
 #   컷 기준은 package_text 의 download_rank(registry·downloads 가 실제로 수집한 고정
 #   목록 기준)이고, 그 목록 밖은 옵션을 아무리 키워도 통과하지 못한다. 이전에는 이
