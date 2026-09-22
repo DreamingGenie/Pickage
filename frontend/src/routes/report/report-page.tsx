@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { UnderlineTabsList, UnderlineTabsTrigger } from '@/components/common/underline-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
+import { HandoffButton } from '@/routes/report/_components/handoff-button'
 import { PdfExportDialog } from '@/routes/report/_components/pdf-export-dialog'
 import { PdfPreviewDialog } from '@/routes/report/_components/pdf-preview-dialog'
+import { reportExportReady } from '@/routes/report/_components/report-export-eligibility'
 import { useAnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { useReportBasePackage } from '@/routes/report/_components/use-report-base-package'
 import {
@@ -112,8 +114,12 @@ export function ReportPage() {
 
   const [tab, setTab] = useState<ReportTab>('ecosystem')
   const run = useAnalysisRun(packages)
-  /** PDF 내보내기 창의 BLOCKED 조건과 같다(`pdf-export-dialog.tsx` `blockReasonsFor`). */
-  const pdfReady = run.hasCompletedOnce && run.status !== 'RUNNING' && !run.reanalysisRequired
+  /**
+   * PDF·HAND-OFF 버튼이 같이 쓰는 조건(`report-export-eligibility.ts`). 예전엔 이 파일이
+   * `pdf-export-dialog.tsx`의 `blockReasonsFor`와 같은 조건을 손으로 다시 적고 있었는데,
+   * HAND-OFF(S15P21A506-467)가 같은 조건을 또 필요로 하면서 그 중복을 없앴다.
+   */
+  const exportReady = reportExportReady(run)
 
   /**
    * 한 번 방문한 탭은 언마운트하지 않는다(S15P21A506-316).
@@ -219,23 +225,29 @@ export function ReportPage() {
           */}
           <Button
             size="sm"
-            variant={pdfReady ? 'default' : 'outline'}
-            aria-describedby={pdfReady ? undefined : 'pdf-hint'}
-            className={cn(!pdfReady && 'text-muted-foreground')}
+            variant={exportReady ? 'default' : 'outline'}
+            aria-describedby={exportReady ? undefined : 'pdf-hint'}
+            className={cn(!exportReady && 'text-muted-foreground')}
             onClick={() => setExporting(true)}
           >
             <FileDownIcon className="size-3.5" aria-hidden />
             PDF로 저장
           </Button>
+          {/*
+            HAND-OFF(S15P21A506-467) — PDF 옆. 같은 자격 조건, 모달은 없다(선택할 구역이
+            없어서 확인 화면이 필요 없다). 준비 전에도 눌리는 것까지 PDF 버튼과 같다 —
+            이유는 바로 아래 공용 안내 문구가 보여준다.
+          */}
+          <HandoffButton packages={packages} transitionPeriod={transitionPeriod} run={run} />
         </div>
       </header>
 
-      {!pdfReady && (
+      {!exportReady && (
         <p
           id="pdf-hint"
           className="-mt-3 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground"
         >
-          PDF에는 기능 비교 결과도 들어가요. 기능 비교를 마치면 PDF로 저장할 수 있어요.
+          PDF·HAND-OFF에는 기능 비교 결과도 들어가요. 기능 비교를 마치면 내려받을 수 있어요.
           <button
             type="button"
             onClick={() => setTab('features')}

@@ -270,6 +270,37 @@ export interface PdfJob {
 }
 
 /* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `PdfGenerateRequest` 와 거의 같지만 **`sections` 가 없다** — HAND-OFF 는 항상 커뮤니티·기능
+ * 심화 분석 전부를 시도한다(구역 선택 UI를 두지 않는다는 기획 결정). agent 가 읽을 파일이라
+ * 인쇄 분량 걱정이 없고, 판단에 쓸 정보는 많을수록 낫다.
+ */
+export interface MarkdownGenerateRequest {
+  names: string[]
+  from?: string
+  to?: string
+  snapshot_at?: string
+  period?: TransitionPeriodParam
+  /** `PdfGenerateRequest.features` 와 같은 뜻·같은 변환(`toFeaturesPdfPayload`)을 쓴다. */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * `PdfJob` 과 같은 모양이되 `status` 가 없다 — Markdown 은 미리보기가 없어(텍스트라 그냥 열어
+ * 보면 된다) PDF 처럼 미래 비동기 전환을 대비해 상태를 미리 읽어 둘 필요가 아직 없다.
+ */
+export interface MarkdownJob {
+  report_id: string
+  file_name: string
+  bytes: number
+  created_at: string
+  omitted: ReportSection[]
+}
+
+/* ------------------------------------------------------------------ *
  * 기능-03 · UC4 유사 패키지
  * ------------------------------------------------------------------ */
 
@@ -817,7 +848,7 @@ export interface FeatureVersionsResponse {
     package_name: string
     /** 드롭다운 기본값. `versions` 의 맨 앞. 고를 버전이 없으면 null */
     latest_stable: string | null
-	/** 서로 다른 major에서 고른 최신순 버전, 최대 3개 */
+    /** 서로 다른 major에서 고른 최신순 버전, 최대 3개 */
     versions: string[]
   }[]
   /** `package` 에 이름 자체가 없는 것 */

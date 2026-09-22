@@ -21,6 +21,7 @@ import {
   mockDictManifest,
   mockDictionary,
   mockDownloadsTrend,
+  mockGenerateHandoff,
   mockGeneratePdf,
   mockPackagesOverview,
   mockPdfPreview,
@@ -41,6 +42,8 @@ import type {
   FeatureTarget,
   FeatureRunResponse,
   FeatureVersionsResponse,
+  MarkdownGenerateRequest,
+  MarkdownJob,
   MigrationPairsResponse,
   PackageEnvResponse,
   PackageDictionary,
@@ -159,6 +162,24 @@ export function fetchPdfPreview(reportId: string): Promise<string> {
  */
 export function pdfDownloadUrl(reportId: string): string {
   return `${API_BASE_URL}/report/pdf/${reportId}/file`
+}
+
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `generatePdf`와 같은 자리의 함수다 — 조건만 보내고 서버가 다시 조회한다(공통-R08).
+ * 미리보기가 없으므로(`.md`는 텍스트라 그냥 열어 보면 된다) `fetchPdfPreview`에 대응하는
+ * 함수는 없다.
+ */
+export function generateHandoff(request: MarkdownGenerateRequest): Promise<MarkdownJob> {
+  return USE_MOCK ? mockGenerateHandoff(request) : post<MarkdownJob>('/report/markdown', request)
+}
+
+/** `pdfDownloadUrl`과 같은 이유·같은 방식 — `fetch` 없이 주소만 돌려주고 앵커가 연다. */
+export function markdownDownloadUrl(reportId: string): string {
+  return `${API_BASE_URL}/report/markdown/${reportId}/file`
 }
 
 /* ------------------------------------------------------------------ *

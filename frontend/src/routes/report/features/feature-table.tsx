@@ -135,7 +135,9 @@ export function FeatureTable({
                   기능
                 </th>
                 {view.packages.map((pkg) => (
-                  <th key={pkg.name} scope="col" className="pb-3 text-left font-normal">
+                  // text-center — 판정 뱃지가 칸 가운데로 온 뒤(QA 피드백) 위 헤더만 왼쪽에
+                  // 남아 있으면 안 맞아 보인다. "기능" 열 머리글은 행 라벨이라 그대로 왼쪽.
+                  <th key={pkg.name} scope="col" className="pb-3 text-center font-normal">
                     <span className="font-mono text-foreground">{pkg.name}</span>
                     <span className="ml-1.5 font-mono">{pkg.version}</span>
                   </th>
@@ -150,7 +152,13 @@ export function FeatureTable({
                   <tr key={row.id} className="border-t align-top">
                     <th scope="row" className="py-3 pr-3 text-left align-top font-normal">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{row.label}</span>
+                        {/*
+                          break-keep(word-break: keep-all) — 좁은 기능명 열에서 줄바꿈이
+                          음절 단위(예: "로그"가 "로"/"그"로 분리)로 일어나던 문제(QA 피드백).
+                          한글은 기본적으로 음절 사이 어디서나 줄바꿈이 허용되는데, keep-all은
+                          공백(단어 경계)에서만 줄바꿈하게 한다.
+                        */}
+                        <span className="font-medium break-keep text-foreground">{row.label}</span>
                         {hasDetail && (
                           <button
                             type="button"
@@ -196,7 +204,9 @@ function rowHasDetail(row: FeatureRow): boolean {
 function Cell({ cell, expanded }: { cell: FeatureCell; expanded: boolean }) {
   const reason = cellReason(cell)
   return (
-    <div className="flex flex-col items-start gap-1">
+    // items-center — 뱃지가 넓은 열 왼쪽에만 붙어 있으면 어색하다(QA 피드백). 펼친 설명
+    // 문단은 열 폭을 거의 채우므로 가운데 정렬이어도 줄글이 어색해 보이지 않는다.
+    <div className="flex flex-col items-center gap-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <VerdictPill verdict={cell.verdict} />
         {cell.generalKnowledge && (
@@ -204,7 +214,7 @@ function Cell({ cell, expanded }: { cell: FeatureCell; expanded: boolean }) {
             title="README 에서 확인한 것이 아니라 AI 의 일반 지식으로 판단했습니다"
             className="rounded border px-1 py-px text-xs text-muted-foreground"
           >
-            일반 지식
+            AI 일반 지식
           </span>
         )}
       </div>
