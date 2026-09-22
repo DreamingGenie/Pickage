@@ -528,6 +528,9 @@ function transitionRowsOf(name: string, period: TransitionPeriodParam): Transiti
       inflow_adopted: null,
       outflow: null,
       unobserved: null,
+      unobserved_recent: null,
+      unobserved_stale: null,
+      unobserved_dormant: null,
       data_status: 'NOT_COMPUTED',
     }))
   }
@@ -545,6 +548,9 @@ function transitionRowsOf(name: string, period: TransitionPeriodParam): Transiti
         inflow_adopted: null,
         outflow: null,
         unobserved: null,
+        unobserved_recent: null,
+        unobserved_stale: null,
+        unobserved_dormant: null,
         data_status: row.dataStatus,
       }
     }
@@ -564,9 +570,45 @@ function transitionRowsOf(name: string, period: TransitionPeriodParam): Transiti
       inflow_adopted: inflow - inflowNew,
       outflow,
       unobserved,
+      ...freshnessOf(unobserved, period, row.freshnessMissing),
       data_status: row.dataStatus,
     }
   })
+}
+
+/**
+ * 관측불가 분해 (S15P21A506-421). 구간마다 **정의상 비는 칸이 다르다** — 관측불가는 그
+ * 구간 안에 대표 릴리스가 없다는 뜻이므로, 3년으로 보면 `recent`(3년 안)가 나올 수 없고
+ * 5년으로 보면 `dormant` 만 남는다. mock 이 이 규칙을 어기면 화면이 실제로는 볼 수 없는
+ * 모양을 연습하게 된다.
+ *
+ * 비율은 2026-09-21 운영 실측에서 가져왔다(1y recent 34.3% · stale 24.2%, 3y stale 36.8%).
+ * **`dormant` 는 나머지로 구한다** — 반올림 때문에 셋의 합이 `unobserved` 에서 1 벌어지면
+ * 서버 DB CHECK 를 어기는 응답이 되고, 화면 어댑터가 합을 다시 세어 분해를 버린다.
+ */
+const FRESHNESS_SPLIT: Record<TransitionPeriodParam, { recent: number; stale: number }> = {
+  '1y': { recent: 0.343, stale: 0.242 },
+  '3y': { recent: 0, stale: 0.368 },
+  '5y': { recent: 0, stale: 0 },
+}
+
+function freshnessOf(
+  unobserved: number,
+  period: TransitionPeriodParam,
+  missing?: true,
+): Pick<TransitionSeriesItem, 'unobserved_recent' | 'unobserved_stale' | 'unobserved_dormant'> {
+  // 마이그레이션 배포 ~ 재적재 사이의 행. COMPLETE 인데 분해만 없다.
+  if (missing) {
+    return { unobserved_recent: null, unobserved_stale: null, unobserved_dormant: null }
+  }
+  const split = FRESHNESS_SPLIT[period]
+  const recent = Math.round(unobserved * split.recent)
+  const stale = Math.round(unobserved * split.stale)
+  return {
+    unobserved_recent: recent,
+    unobserved_stale: stale,
+    unobserved_dormant: unobserved - recent - stale,
+  }
 }
 
 export function mockTransitions(

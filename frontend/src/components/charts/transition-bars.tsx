@@ -1,7 +1,10 @@
+import { Fragment } from 'react'
+
 import { HatchDef, ShareDonut } from '@/components/charts/version-share'
 import { SHARE_FILLS } from '@/components/charts/tokens'
 import {
   activityShares,
+  freshnessSegments,
   type TransitionCounts,
   type TransitionDataStatus,
 } from '@/routes/report/ecosystem/transitions-model'
@@ -27,6 +30,9 @@ const CATEGORIES: { key: CategoryKey; label: string; fill: string }[] = [
 ]
 
 const PLACEHOLDER_WIDTH = 40
+
+/** 값이 0 이 아닌데 막대가 안 보이는 것을 막는 바닥값(%). 하위 줄에는 쓰지 않는다. */
+const MIN_BAR_WIDTH = 2
 
 /**
  * 유지·유입·이탈 네 범주 막대 — 패키지 하나 × kind 하나.
@@ -62,14 +68,27 @@ export function TransitionBars({
         <HatchDef />
       </svg>
       {CATEGORIES.map((cat) => (
-        <BarRow
-          key={cat.key}
-          label={cat.label}
-          fill={cat.fill}
-          value={counts ? counts[cat.key] : null}
-          dataStatus={dataStatus}
-          max={max}
-        />
+        <Fragment key={cat.key}>
+          <BarRow
+            label={cat.label}
+            fill={cat.fill}
+            value={counts ? counts[cat.key] : null}
+            dataStatus={dataStatus}
+            max={max}
+          />
+          {cat.key === 'unobserved' &&
+            freshnessSegments(counts?.unobservedFreshness ?? null).map((seg) => (
+              <BarRow
+                key={seg.key}
+                label={seg.label}
+                fill={cat.fill}
+                value={seg.value}
+                dataStatus={dataStatus}
+                max={max}
+                sub
+              />
+            ))}
+        </Fragment>
       ))}
       {dataStatus === 'NO_DATA' && <p className="text-base text-muted-foreground">의존자 없음</p>}
       {dataStatus === 'OUT_OF_SCOPE' && (
@@ -179,32 +198,54 @@ function RatioRow({ fill, label, pct }: { fill: string; label: string; pct: numb
   )
 }
 
+/**
+ * 한 줄 막대. `sub` 는 바로 위 범주를 쪼갠 줄이다 (S15P21A506-431) — 들여쓰고 가늘게 그려
+ * **다섯 번째 범주가 아니라 한 칸의 분해**라는 것이 형태로 보이게 한다. 같은 `max` 스케일을
+ * 쓰므로 하위 줄들의 길이를 더하면 위 줄의 길이가 되고, **위 줄을 넘는 일은 없다.**
+ */
 function BarRow({
   label,
   fill,
   value,
   dataStatus,
   max,
+  sub = false,
 }: {
   label: string
   fill: string
   value: number | null
   dataStatus: TransitionDataStatus
   max: number
+  sub?: boolean
 }) {
   const isPlaceholder = dataStatus === 'OUT_OF_SCOPE' || dataStatus === 'NOT_COMPUTED'
+  /**
+   * 값이 있는데 막대가 사라지지 않도록 최소 폭을 준다. **하위 줄에는 주지 않는다** — 순위가
+   * 크게 차이 나는 패키지를 나란히 놓으면 작은 쪽은 부모도 하위도 전부 이 바닥값에 걸려,
+   * 하위 둘을 더한 길이가 부모보다 길어진다(부모 2% · 하위 2%+2%). 그러면 분해가 아니라
+   * 더 큰 별도 범주로 보인다. 하위는 정확한 비율로만 그리고, 수는 오른쪽에 그대로 찍힌다.
+   */
+  const minWidth = sub ? 0 : MIN_BAR_WIDTH
   const width = isPlaceholder
     ? PLACEHOLDER_WIDTH
     : value !== null && max > 0
-      ? Math.max((value / max) * 100, value > 0 ? 2 : 0)
+      ? Math.max((value / max) * 100, value > 0 ? minWidth : 0)
       : 0
 
   return (
-    <div className="grid grid-cols-[92px_1fr_64px] items-center gap-2">
-      <span className="text-base whitespace-nowrap text-muted-foreground">{label}</span>
+    <div className={cn('grid grid-cols-[92px_1fr_64px] items-center gap-2', sub && '-mt-0.5')}>
       <span
         className={cn(
-          'h-2.5 overflow-hidden rounded-sm',
+          'text-base whitespace-nowrap text-muted-foreground',
+          sub && 'pl-3 text-muted-foreground/70',
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          'overflow-hidden rounded-sm',
+          sub ? 'h-1.5' : 'h-2.5',
           dataStatus === 'NOT_COMPUTED' ? 'border border-dashed bg-transparent' : 'bg-muted',
         )}
       >
@@ -220,12 +261,17 @@ function BarRow({
           </svg>
         ) : dataStatus !== 'NOT_COMPUTED' ? (
           <span
-            className="block h-full rounded-sm"
+            className={cn('block h-full rounded-sm', sub && 'opacity-60')}
             style={{ width: `${width}%`, background: fill }}
           />
         ) : null}
       </span>
-      <span className="text-right font-mono text-base text-muted-foreground tabular-nums">
+      <span
+        className={cn(
+          'text-right font-mono text-base tabular-nums',
+          sub ? 'text-muted-foreground/70' : 'text-muted-foreground',
+        )}
+      >
         {isPlaceholder ? '—' : (value ?? 0).toLocaleString()}
       </span>
     </div>
