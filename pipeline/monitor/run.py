@@ -160,8 +160,11 @@ class Builder:
                 return {
                     "paths": [scan(p) for p in l.paths],
                     "logs": localfs.scan_logs(l.log_globs, tail=l.tail_lines,
-                                              error_pattern=settings.docker.error_pattern,
+                                              error_pattern=l.error_pattern, error_ignore_pattern=l.error_ignore_pattern,
                                               max_logs=l.max_logs, strip_prefix="/host"),
+                    # 화면이 같은 기준으로 색을 칠하고 임계 이상일 때만 판정에 올린다
+                    "error_pattern": l.error_pattern, "error_ignore_pattern": l.error_ignore_pattern,
+                    "error_min_lines": l.error_min_lines,
                 }
             _section(report, "local", local)
         d = settings.docker
@@ -169,6 +172,7 @@ class Builder:
             _section(report, "docker", lambda: dockerapi.collect(
                 self.docker_client, name_pattern=d.name_pattern, log_tail=d.log_tail,
                 log_since_hours=d.log_since_hours, error_pattern=d.error_pattern,
+                error_ignore_pattern=d.error_ignore_pattern, error_min_lines=d.error_min_lines,
                 now_epoch=int(now.timestamp())))
         report["took_seconds"] = round(time.monotonic() - started, 2)
         log(f"보고서 node={settings.node} took={report['took_seconds']}s errors={len(report['errors'])}"

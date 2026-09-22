@@ -137,9 +137,10 @@ def tail_lines(path: Path, count: int, *, chunk: int = 65536) -> list[str]:
 
 
 def scan_logs(globs: list[str], *, tail: int, error_pattern: str, max_logs: int,
-              strip_prefix: str = "") -> list[dict]:
-    """패턴에 걸리는 로그 파일 중 최근 것부터 max_logs 개. 각각 꼬리와 에러 줄 수."""
+              strip_prefix: str = "", error_ignore_pattern: str = "") -> list[dict]:
+    """패턴에 걸리는 로그 파일 중 최근 것부터 max_logs 개. 각각 꼬리와 에러 줄 수(무시 패턴에 걸린 줄은 빼고)."""
     regex = re.compile(error_pattern)
+    skip = re.compile(error_ignore_pattern) if error_ignore_pattern else None
     found = []
     for pattern in globs:
         for match in glob.glob(pattern):
@@ -157,5 +158,6 @@ def scan_logs(globs: list[str], *, tail: int, error_pattern: str, max_logs: int,
         if strip_prefix and shown.startswith(strip_prefix):
             shown = shown[len(strip_prefix):]
         rows.append({"path": shown, "size": size, "modified": _iso(mtime),
-                     "tail": lines, "error_lines": sum(1 for l in lines if regex.search(l))})
+                     "tail": lines,
+                     "error_lines": sum(1 for l in lines if regex.search(l) and not (skip and skip.search(l)))})
     return rows

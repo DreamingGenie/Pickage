@@ -44,6 +44,13 @@ class SummarizeTest(unittest.TestCase):
         lines = ["INFO ok", "ERROR boom", "Traceback (most recent call last):", "killed by signal"]
         self.assertEqual(dockerapi.count_matches(lines, r"(?i)\b(error|traceback|killed)\b"), 3)
 
+    def test_ignore_pattern_drops_known_noise(self):
+        """재기동 직후의 Connection refused 처럼 정상으로 아는 줄은 세지 않는다."""
+        lines = ["ERROR connection refused 172.26.8.249:9000", "ERROR connection refused 172.26.8.249:9000",
+                 "ERROR disk full", "INFO ok"]
+        self.assertEqual(dockerapi.count_matches(lines, r"(?i)error"), 3)
+        self.assertEqual(dockerapi.count_matches(lines, r"(?i)error", r"(?i)connection refused.*9000"), 1)
+
 
 class CollectTest(unittest.TestCase):
     def setUp(self):
@@ -70,6 +77,8 @@ class CollectTest(unittest.TestCase):
         weekly = out["containers"][1]
         self.assertEqual(weekly["exit_code"], 1)
         self.assertEqual(weekly["log"]["error_lines"], 1)
+        # 기준(패턴·무시·임계)이 보고서에 실린다 — 화면이 같은 기준으로 칠하고 판정한다
+        self.assertEqual((out["error_pattern"], out["error_ignore_pattern"], out["error_min_lines"]), (r"(?i)error", "", 3))
         # TTY 여부가 로그 호출에 그대로 전달된다 — 틀리면 헤더 바이트가 글자로 섞인다
         self.assertEqual([c["tty"] for c in self.client.log_calls], [False, True])
         self.assertEqual(self.client.log_calls[0]["since"], 1_000_000 - 6 * 3600)

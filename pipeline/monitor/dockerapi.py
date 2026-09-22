@@ -124,14 +124,21 @@ def _iso_or_none(value):
     return value
 
 
-def count_matches(lines: list[str], pattern: str) -> int:
+def count_matches(lines: list[str], pattern: str, ignore: str = "") -> int:
+    """pattern 에 걸리되 ignore 에는 안 걸리는 줄 수. ignore 는 정상으로 아는 줄(재기동 직후 Connection refused 등)을 뺀다."""
     regex = re.compile(pattern)
-    return sum(1 for line in lines if regex.search(line))
+    skip = re.compile(ignore) if ignore else None
+    return sum(1 for line in lines if regex.search(line) and not (skip and skip.search(line)))
 
 
 def collect(client: DockerClient, *, name_pattern: str, log_tail: int,
-            log_since_hours: int, error_pattern: str, now_epoch: int) -> dict:
-    """이름이 패턴에 걸리는 컨테이너 전부(멈춘 것 포함)와 각자의 로그 꼬리."""
+            log_since_hours: int, error_pattern: str, now_epoch: int,
+            error_ignore_pattern: str = "", error_min_lines: int = 3) -> dict:
+    """이름이 패턴에 걸리는 컨테이너 전부(멈춘 것 포함)와 각자의 로그 꼬리.
+
+    에러 줄 수와 함께 기준(패턴·무시 패턴·임계)을 보고서에 싣는다 — 화면이 같은 기준으로 줄에 색을 칠하고
+    임계 이상일 때만 판정에 올린다. 여기서 판정하지 않는다.
+    """
     regex = re.compile(name_pattern)
     since = now_epoch - log_since_hours * 3600
     rows = []
@@ -143,10 +150,12 @@ def collect(client: DockerClient, *, name_pattern: str, log_tail: int,
         row = summarize(item, detail)
         try:
             lines = client.logs(item["Id"], tail=log_tail, since=since, tty=row["tty"])
-            row["log"] = {"lines": lines, "error_lines": count_matches(lines, error_pattern),
+            row["log"] = {"lines": lines, "error_lines": count_matches(lines, error_pattern, error_ignore_pattern),
                           "since_hours": log_since_hours, "tail": log_tail}
         except Exception as error:   # 로그 하나가 안 읽혀도 목록은 남긴다
             row["log"] = {"lines": [], "error_lines": 0, "error": str(error)}
         rows.append(row)
     rows.sort(key=lambda r: r["name"])
-    return {"containers": rows, "matched": len(rows)}
+    return {"containers": rows, "matched": len(rows),
+            "error_pattern": error_pattern, "error_ignore_pattern": error_ignore_pattern,
+            "error_min_lines": error_min_lines}

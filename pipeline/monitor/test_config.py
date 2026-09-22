@@ -16,6 +16,13 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(s.minio.events_retention_hours, 24)
         self.assertEqual(s.inventory_timeout_seconds, 600)
         self.assertEqual(s.local.paths, [])
+        # 에러 줄 기준은 로그 종류별 — 컨테이너 3줄, 단계 로그 1줄
+        self.assertEqual((s.docker.error_min_lines, s.local.error_min_lines), (3, 1))
+        self.assertEqual(s.local.error_pattern, s.docker.error_pattern)
+        with self.assertRaises(cfg.ConfigError):
+            cfg.parse({**MINIMAL, "docker": {"error_ignore_pattern": "("}})          # 깨진 정규식은 시작 때 멈춘다
+        with self.assertRaises(cfg.ConfigError):
+            cfg.parse({**MINIMAL, "local": {"error_min_lines": -1}})
 
     def test_paths_become_specs(self):
         s = cfg.parse({"node": "data", "local": {"paths": [

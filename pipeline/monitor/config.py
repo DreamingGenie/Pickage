@@ -57,6 +57,10 @@ class MinioSettings:
     pointers: list[str] = field(default_factory=list)  # "bucket/key" 형태
 
 
+# 로그 꼬리에서 "에러 줄" 로 셀 기본 정규식. 컨테이너 로그와 단계 로그가 각자 갖는다 — 성격이 다르다.
+ERROR_PATTERN = r"(?i)\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b"
+
+
 @dataclass
 class LocalSettings:
     paths: list[PathSpec] = field(default_factory=list)
@@ -66,6 +70,10 @@ class LocalSettings:
     new_window_hours: int = 24
     max_new_files: int = 50
     max_entries: int = 40
+    # 단계 로그(수집기 자신의 출력)의 에러 줄 기준. 수집기가 ERROR 를 찍으면 한 줄이라도 볼 일이라 기본 1.
+    error_pattern: str = ERROR_PATTERN
+    error_ignore_pattern: str = ""          # 걸렸어도 세지 않을 줄 (비우면 없음)
+    error_min_lines: int = 1                # 이 줄 수 이상일 때만 판정(주의)에 올린다. 0 이면 올리지 않는다
 
 
 @dataclass
@@ -75,7 +83,12 @@ class DockerSettings:
     name_pattern: str = r"pickage|minio|spark|mlflow"
     log_tail: int = 40
     log_since_hours: int = 6
-    error_pattern: str = r"(?i)\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b"
+    # 컨테이너 stdout 의 에러 줄 기준. 재기동 직후 api·spark 가 postgres·MinIO 를 기다리며 남기는
+    # "Connection refused" 처럼 정상 동작이 걸리는 줄이 있어 한 줄로는 올리지 않는다 — 기본 3.
+    # 늘 노란 화면은 사람이 무시하게 만든다 (모니터링 스택을 name_pattern 에서 뺀 것과 같은 이유).
+    error_pattern: str = ERROR_PATTERN
+    error_ignore_pattern: str = ""          # 정상으로 아는 줄을 뺀다. 예: "(?i)connection refused.*(5432|9000)"
+    error_min_lines: int = 3
 
 
 @dataclass
@@ -164,8 +177,19 @@ def parse(raw: dict) -> Settings:
     for key in settings.minio.pointers:
         if "/" not in key:
             raise ConfigError(f"minio.pointers 항목은 'bucket/key' 형태여야 한다: {key}")
-    re.compile(settings.docker.name_pattern)
-    re.compile(settings.docker.error_pattern)
+    # 정규식은 시작 때 검사한다 — 보고서 한복판에서 re.error 로 죽으면 어느 줄이 틀렸는지 한참 찾는다.
+    checks = [("docker.name_pattern", settings.docker.name_pattern)]
+    for section, obj in (("docker", settings.docker), ("local", settings.local)):
+        checks += [(f"{section}.error_pattern", obj.error_pattern), (f"{section}.error_ignore_pattern", obj.error_ignore_pattern)]
+        if obj.error_min_lines < 0:
+            raise ConfigError(f"{section}.error_min_lines 는 0 이상이어야 한다")
+    for name, value in checks:
+        if not value:
+            continue
+        try:
+            re.compile(value)
+        except re.error as error:
+            raise ConfigError(f"{name} 정규식이 잘못됐다: {error}") from error
     return settings
 
 

@@ -107,7 +107,8 @@ docker compose run --rm pipeline-monitor --once | less
 | `minio.curated` · `curated_bucket` · `curated_max_runs` | Curated 전처리 회차 절. data 만. 회차당 GET 2 (디스패처 상태 + 실행기 상태) |
 | `local.paths` · `log_globs` | 훑을 호스트 경로(컨테이너 안 경로 + 사람용 라벨)와 로그 패턴. 경로마다 `refresh_seconds`(0 = 보고서마다. 파일이 수십만 개인 캐시는 600 처럼 주기를 준다 — 그 사이는 마지막 결과를 `cached: true` 로 낸다. "지금 확인" 은 바로 훑는다)와 `note`(화면 머리 한 줄) |
 | `docker.name_pattern` | 어느 컨테이너를 보나. 멈춘 것도 포함한다 — 종료 코드가 정보다. 모니터링 스택 자신은 뺀다 |
-| `docker.error_pattern` | 로그 꼬리에서 "에러 줄" 로 셀 정규식. 로컬 로그에도 같은 것을 쓴다 |
+| `docker.error_pattern` · `error_ignore_pattern` · `error_min_lines` | 컨테이너 로그 꼬리에서 "에러 줄" 로 셀 정규식, 걸려도 세지 않을 줄(재기동 직후 `Connection refused` 등), 판정에 올릴 최소 줄 수(기본 3 — 한 줄로 배너를 노랗게 만들지 않는다). 기준은 보고서에 실려 화면이 같은 것으로 칠한다 |
+| `local.error_pattern` · `error_ignore_pattern` · `error_min_lines` | 단계 로그(수집기 자신의 출력)용. 컨테이너 로그와 성격이 달라 따로 둔다 — 기본 임계 1 |
 
 ## 보고서 형식 (`schema: 3`)
 

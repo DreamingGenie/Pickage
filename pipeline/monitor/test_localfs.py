@@ -81,6 +81,9 @@ class TailTest(unittest.TestCase):
                                      max_logs=5, strip_prefix=str(root).replace(os.sep, "/"))
             self.assertEqual([r["path"] for r in rows], ["/w2/s.log", "/w1/s.log"])
             self.assertEqual(rows[1]["error_lines"], 1)
+            rows = localfs.scan_logs([str(root / "*" / "*.log")], tail=5, error_pattern=r"ERROR",
+                                     error_ignore_pattern=r"ERROR one", max_logs=5)
+            self.assertEqual(rows[1]["error_lines"], 0)                    # 무시 패턴에 걸린 줄은 세지 않는다
 
 
 if __name__ == "__main__":

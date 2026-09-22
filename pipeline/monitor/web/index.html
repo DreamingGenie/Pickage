@@ -327,11 +327,22 @@ const num = n => n == null ? '—' : Number(n).toLocaleString('ko-KR');
 // 상태 표지. 색·기호·글자가 같이 간다 (CSS 의 .st-*::before 가 ✓ ! ✕ ▶ 를 붙인다).
 //   ok 정상(강조) · done 정상(회색 — 지난 단계 성공처럼 눈에 안 띄어도 되는 것) · warn 주의 · bad 문제 · info 진행 중 · muted 해당 없음
 const chip = (text, cls, title) => `<span class="st${cls ? ' st-' + cls : ''}"${title ? ` title="${esc(title)}"` : ''}>${esc(text)}</span>`;
-function pre(lines, errRe) {
+// 로그 꼬리. 에러 줄은 서버가 준 패턴으로 칠하고(서버가 센 것과 같은 줄), 무시 패턴에 걸린 줄은 칠하지 않는다.
+function pre(lines, errRe, skipRe) {
   if (!lines || !lines.length) return '<pre>(없음)</pre>';
-  return '<pre>' + lines.map(l => errRe && errRe.test(l) ? `<span class="err">${esc(l)}</span>` : esc(l)).join('\n') + '</pre>';
+  const hit = l => errRe && errRe.test(l) && !(skipRe && skipRe.test(l));
+  return '<pre>' + lines.map(l => hit(l) ? `<span class="err">${esc(l)}</span>` : esc(l)).join('\n') + '</pre>';
 }
+// 서버의 파이썬 정규식을 JS 로 — (?i) 접두는 플래그로 옮긴다. 못 만들면 기본값.
 const ERR_RE = /\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b/i;
+function reFrom(pattern, fallback = null) {
+  if (!pattern) return fallback;
+  try { const ci = pattern.startsWith('(?i)'); return new RegExp(ci ? pattern.slice(4) : pattern, ci ? 'i' : ''); }
+  catch (e) { return fallback; }
+}
+// 에러 줄 표지 — 임계 이상이면 주의(판정에 올라간다), 미만이면 회색으로 세어만 둔다. 0 이면 없음.
+const errChip = (n, min) => !n ? '' : n >= min && min > 0 ? chip(`에러 ${n}줄`, 'warn', `기준 ${min}줄 이상 — 판정에 올라갑니다`)
+  : chip(`에러로 보이는 ${n}줄`, 'done', min > 0 ? `기준 ${min}줄 미만 — 판정에 올리지 않습니다` : '판정에 올리지 않게 설정돼 있습니다 (error_min_lines: 0)');
 
 // ── 정렬되는 표 ─────────────────────────────────────────────────────────
 // 머리를 누르면 그 열로 정렬하고, 같은 열을 다시 누르면 방향이 뒤집힌다. 상태는 표 id 별로 남아
@@ -694,9 +705,12 @@ function renderLocal(node, section, now) {
       ${newList}${oldList}
     </div>`;
   }).join('');
+  // 단계 로그의 에러 줄 — 서버가 준 패턴·무시 패턴·임계로. 수집기 자신의 출력이라 기본 임계는 1줄이다.
+  const errRe = reFrom(section.error_pattern, ERR_RE), skipRe = reFrom(section.error_ignore_pattern);
+  const minL = section.error_min_lines == null ? 1 : section.error_min_lines;
   const logs = (section.logs || []).map(l => {
-    if (l.error_lines) flag('warn', `${node}: 로그 ${l.path} 꼬리에 에러로 보이는 줄이 ${l.error_lines}개 있습니다.`);
-    return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ` · ${chip(`에러 ${l.error_lines}줄`, 'warn')}` : ''}</summary>${pre(l.tail, ERR_RE)}</details>`;
+    if (l.error_lines && minL > 0 && l.error_lines >= minL) flag('warn', `${node}: 단계 로그 ${l.path} 꼬리에 에러로 보이는 줄이 ${l.error_lines}개 있습니다 (기준 ${minL}줄).`);
+    return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ' · ' + errChip(l.error_lines, minL) : ''}</summary>${pre(l.tail, errRe, skipRe)}</details>`;
   }).join('');
   const body = `${paths}
     ${logs ? `<div class="bucket"><h3>단계별 로그 <span>최근 ${section.logs.length}개 · 꼬리 ${section.logs[0].tail.length}줄</span></h3>${logs}</div>` : ''}`;
@@ -709,6 +723,10 @@ function renderDocker(node, docker, now) {
   if (!docker) return '';
   const mark = findings.length;
   let running = 0, sickCount = 0;
+  // 컨테이너 로그의 에러 줄 — 서버가 준 패턴·무시 패턴·임계. 재기동 직후 "Connection refused" 같은 정상 줄이 걸려
+  // 한 줄로 배너를 노랗게 만들지 않게 기본 임계는 3줄이다 (모니터링 스택을 name_pattern 에서 뺀 것과 같은 이유).
+  const errRe = reFrom(docker.error_pattern, ERR_RE), skipRe = reFrom(docker.error_ignore_pattern);
+  const minL = docker.error_min_lines == null ? 3 : docker.error_min_lines;
   const rows = (docker.containers || []).map(c => {
     // state 를 먼저 본다. paused · created · dead 도 ExitCode 는 0 이라 종료 코드로 가르면 "끝남 (0)" = 정상으로 새어 나간다.
     //   running / restarting / paused / created / removing / exited / dead — Docker State.Status 의 일곱 값
@@ -726,10 +744,10 @@ function renderDocker(node, docker, now) {
     if (c.oom_killed) { sick = true; flag('bad', `${node}: ${c.name} 가 OOM 으로 죽었습니다 — mem_limit 을 보세요.`); }
     if (c.health === 'unhealthy') flag('bad', `${node}: ${c.name} healthcheck 실패.`);
     const log = c.log || {};
-    if (log.error_lines) flag('warn', `${node}: ${c.name} 로그 꼬리에 에러로 보이는 줄이 ${log.error_lines}개 있습니다.`);
+    if (log.error_lines && minL > 0 && log.error_lines >= minL) flag('warn', `${node}: ${c.name} 로그 꼬리(${log.since_hours}시간)에 에러로 보이는 줄이 ${log.error_lines}개 있습니다 (기준 ${minL}줄). 재기동 직후의 대기 메시지면 error_ignore_pattern 에 적습니다.`);
     if (sick || c.oom_killed || c.health === 'unhealthy') sickCount++;
     const logHtml = log.error ? `<div class="fail">로그 못 읽음 — ${esc(log.error)}</div>`
-      : `<details><summary>최근 ${log.since_hours}시간 · 꼬리 ${(log.lines || []).length}줄${log.error_lines ? ` · ${chip(`에러 ${log.error_lines}줄`, 'warn')}` : ''}</summary>${pre(log.lines, ERR_RE)}</details>`;
+      : `<details><summary>최근 ${log.since_hours}시간 · 꼬리 ${(log.lines || []).length}줄${log.error_lines ? ' · ' + errChip(log.error_lines, minL) : ''}</summary>${pre(log.lines, errRe, skipRe)}</details>`;
     return `<tr class="${sick ? 'sick' : ''}"><td class="name mono">${esc(c.name)}<div class="cap">${esc(c.image)}</div></td>
       <td><div class="steps">${st}${c.oom_killed ? chip('OOM', 'bad') : ''}</div><div class="cap">${esc(c.status || '')}</div></td>
       <td class="r ${c.restart_count ? 'newfg' : ''}">${c.restart_count || 0}</td>
@@ -742,7 +760,7 @@ function renderDocker(node, docker, now) {
     : empty('걸리는 컨테이너가 없습니다.');
   return card(`${node}-docker`, `컨테이너·로그 · ${esc(node)}`,
     `${total}개 중 실행 중 <b>${running}</b>${sickCount ? ` · 이상 <b style="color:var(--bad)">${sickCount}</b>` : ''} · 멈춘 것 포함, 모니터링 스택 자신은 제외`,
-    body, { mark, help: '"끝남 (0)" 은 <b>exited 상태에 종료 코드 0</b> 인 것만이고 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 같은 종료 코드 0 이라도 <b>일시 중지(paused)</b>·<b>시작 안 됨(created)</b>·<b>죽음(dead)</b> 은 따로 표시되고 판정에 올라옵니다. 0 이 아닌 종료 코드·OOM·재시작 반복·healthcheck 실패도 판정 대상입니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다 — 늘어나는지를 보세요. 로그의 빨간 줄은 error·exception·oom 같은 단어가 있는 줄입니다.' });
+    body, { mark, help: `"끝남 (0)" 은 <b>exited 상태에 종료 코드 0</b> 인 것만이고 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 같은 종료 코드 0 이라도 <b>일시 중지(paused)</b>·<b>시작 안 됨(created)</b>·<b>죽음(dead)</b> 은 따로 표시되고 판정에 올라옵니다. 0 이 아닌 종료 코드·OOM·재시작 반복·healthcheck 실패도 판정 대상입니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다 — 늘어나는지를 보세요. 로그의 빨간 줄은 <code>${esc(docker.error_pattern || '')}</code> 에 걸리는 줄이고, <b>꼬리 ${(docker.containers || [])[0] ? (docker.containers[0].log || {}).tail || 40 : 40}줄 중 ${minL}줄 이상</b>일 때만 판정에 올립니다 — 재기동 직후 postgres·MinIO 를 기다리는 "Connection refused" 처럼 정상 동작이 걸리는 줄 한두 개로 배너를 노랗게 만들지 않기 위해서입니다. 그런 줄이 계속 걸리면 <code>error_ignore_pattern</code> 에 적어 세지 않게 합니다${docker.error_ignore_pattern ? ` (지금: <code>${esc(docker.error_ignore_pattern)}</code>)` : ''}.` });
 }
 
 // ── 노드 하나 ───────────────────────────────────────────────────────────
