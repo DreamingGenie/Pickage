@@ -181,7 +181,15 @@ def inspect_source(root: Path, source_run: str,
     daily_files = [p for p, role in selected if role == "daily_parquet"]
 
     pre_state = {p.resolve(): (p.stat().st_size, _digest(p)) for p, _ in selected}
-    con = duckdb.connect(database=":memory:", config={"threads": 4, "memory_limit": "4GB"})
+    # 기본 4GB/4스레드는 상위 10만(일별 7천만 행) 기준이다. 확장 46.9만(3.3억 행)은 4GB 에서
+    # 품질 검사 조인이 OOM 으로 죽어(2026-09-22, S15P21A506-453) 환경 변수로만 올릴 수 있게 했다.
+    # 값을 주지 않으면 동작은 이전과 같다. temp_directory 를 주면 한도를 넘는 중간 결과를 디스크로 흘린다.
+    config = {"threads": int(os.environ.get("PICKAGE_DOWNLOADS_DUCKDB_THREADS", "4")),
+              "memory_limit": os.environ.get("PICKAGE_DOWNLOADS_DUCKDB_MEMORY", "4GB")}
+    temp_dir = os.environ.get("PICKAGE_DOWNLOADS_DUCKDB_TEMP")
+    if temp_dir:
+        config["temp_directory"] = temp_dir
+    con = duckdb.connect(database=":memory:", config=config)
     try:
         csv_sql = "read_csv_auto(?, header=true)"
         csv_schema = _schema(con, f"SELECT * FROM {csv_sql}", [str(target)])
