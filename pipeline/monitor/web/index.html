@@ -341,7 +341,8 @@ let lastDraw = null;
 function setSort(id, key) {
   const cur = sortState[id];
   sortState[id] = cur && cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' };
-  if (lastDraw) draw(...lastDraw);
+  // fetch 의 try/catch 밖이다 — 여기서 던지면 화면이 낡은 채로 굳는다. 콘솔에 남기고 다음 갱신에 맡긴다.
+  if (lastDraw) { try { draw(...lastDraw); } catch (e) { console.error('정렬 뒤 다시 그리기 실패', e); } }
 }
 // cols: [{key, label, type: 'str'|'num'|'time', cls, render(row) → html}]. def: {key, dir}. rowCls(row) → tr class.
 function table(id, cols, rows, def, rowCls) {
@@ -617,7 +618,9 @@ function renderInventory(node, minio, now) {
 }
 
 // ── 로컬 디스크 ─────────────────────────────────────────────────────────
-function renderLocal(node, section, now) {   // 인자 이름이 local 이면 전역 local(iso) 을 가린다
+function renderLocal(node, section, now) {
+  // 인자 이름을 local 로 두면 전역 local(iso) 을 가려 안의 시각 포맷이 깨지고, 가드가 함수를 검사해 늘 참이 된다. 그래서 section.
+  // section 이 없는 경우 둘: 서버의 local 절이 실패해 None 이거나(errors 에 이유가 있다), 그 노드에 훑을 경로가 없어 키 자체가 없다.
   if (!section) return '';
   const mark = findings.length;
   const paths = (section.paths || []).map((p, i) => {
@@ -791,15 +794,27 @@ function renderNode(node, report, now) {
   const cached = report.cached ? ' · 캐시' : '';
   const errors = (report.errors || []).map(e => { flag('warn', `${node}: 보고서의 ${e.section} 절이 실패했습니다 — ${e.message}`); return `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`; }).join('');
   findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
+  // 절 하나를 그리다 예외가 나도 다른 절은 산다 — 그 자리에 실패 카드가 서고 판정에 올라간다.
+  // 서버가 "한 절이 죽어도 나머지는 만든다" 를 지키는데 화면이 통째로 날아가면 그 약속이 여기서 깨진다.
+  const safe = (tab, title, fn) => {
+    try { return fn(); }
+    catch (e) {
+      console.error(`[${node}-${tab}] 그리기 실패`, e);
+      const at = findings.length;
+      flag('warn', `${node}: "${title}" 절을 화면에 그리지 못했습니다 — ${e.message}. 서버 보고서는 정상일 수 있습니다 (브라우저 콘솔).`);
+      return card(`${node}-${tab}`, title, chip('화면 그리기 실패', 'warn'),
+        `<div class="fail">${esc(e.message)}</div><details><summary>스택</summary><pre>${esc(e.stack || '')}</pre></details>`, { mark: at });
+    }
+  };
   const cards = [
-    ['weekly', renderWeekly(node, report.weekly, now)],
-    ['curated', renderCurated(node, report.curated, now)],
-    ['events', renderEvents(node, report.minio, now)],
-    ['prefixes', renderPrefixes(node, report.minio, now)],
-    ['pointers', renderPointers(node, report.minio, now)],
-    ['inventory', renderInventory(node, report.minio, now)],
-    ['local', renderLocal(node, report.local, now)],
-    ['docker', renderDocker(node, report.docker, now)],
+    ['weekly', safe('weekly', '주간 수집 회차', () => renderWeekly(node, report.weekly, now))],
+    ['curated', safe('curated', 'Curated 전처리 회차', () => renderCurated(node, report.curated, now))],
+    ['events', safe('events', 'MinIO · 방금 올라온 것', () => renderEvents(node, report.minio, now))],
+    ['prefixes', safe('prefixes', 'MinIO · 경로별 신규', () => renderPrefixes(node, report.minio, now))],
+    ['pointers', safe('pointers', 'MinIO · 포인터 (_current.json)', () => renderPointers(node, report.minio, now))],
+    ['inventory', safe('inventory', 'MinIO · 전체 목록', () => renderInventory(node, report.minio, now))],
+    ['local', safe('local', `로컬 디스크 · ${node}`, () => renderLocal(node, report.local, now))],
+    ['docker', safe('docker', `컨테이너·로그 · ${node}`, () => renderDocker(node, report.docker, now))],
   ].filter(([, html]) => html).map(([tab, html]) => ({ tab, html }));
   const mine = findings.slice(mark);
   const bad = mine.some(f => f.level === 'bad'), warn = mine.some(f => f.level === 'warn');
@@ -876,7 +891,13 @@ async function refreshOnce(fresh) {
       } catch (e) { /* 전체 목록은 없어도 화면은 선다 */ }
     }));
     const now = Date.now();
-    draw(nodes, reports, now, (now - started) / 1000);
+    // 읽기(fetch)와 그리기(draw)의 실패는 다른 곳을 봐야 한다. 그리기 실패는 터널 탓이 아니다 — 브라우저 콘솔이다.
+    try { draw(nodes, reports, now, (now - started) / 1000); }
+    catch (e) {
+      console.error('화면 그리기 실패', e);
+      setVerdict('is-bad', '화면을 그리지 못했습니다', e.message + ' — 서버 보고서는 받았습니다. 브라우저 콘솔의 스택을 보세요 (web/index.html 의 결함).', [{ level: 'bad', text: e.message }]);
+      document.getElementById('updated').textContent = '그리기 실패 · ' + new Date().toLocaleTimeString('ko-KR');
+    }
   } catch (e) {
     setVerdict('is-bad', '상태를 읽지 못했습니다', e.message + ' — pipeline-monitor 가 내려갔거나 SSH 터널(19998)이 끊겼을 수 있습니다.', [{ level: 'bad', text: e.message }]);
     document.getElementById('updated').textContent = '갱신 실패 · ' + new Date().toLocaleTimeString('ko-KR');
