@@ -392,6 +392,19 @@ function renderWeekly(node, weekly, now) {
   if (!weekly) return '';
   const mark = findings.length;
   const runs = weekly.runs || [];
+  // 이번 주 회차가 아예 없다 — 창이 열렸는데 run.json 도 우편함도 없으면 타이머가 안 돈 것이다. 지난주 성공만
+  // 남아 있어 초록으로 보이던 유일한 고장. 6시간 안이면 주의(잠깐 늦을 수 있다), 넘으면 문제.
+  const ex = weekly.expected;
+  let missingRow = '';
+  if (ex && ex.missing) {
+    const late = now - Date.parse(ex.window_open_at);
+    const level = late > 6 * 3600 * 1000 ? 'bad' : 'warn';
+    flag(level, `이번 주(${ex.week_of}) 수집 회차가 시작조차 안 했습니다 — 창이 ${ago(ex.window_open_at, now).replace(/<[^>]+>/g, '')} 열렸는데 _ops/weekly 에 그 주 객체가 없습니다. 타이머가 멎었거나 실행기가 begin() 전에 죽은 것입니다. data 노드에서 systemctl list-timers pickage-weekly.timer.`);
+    missingRow = `<tr class="sick"><td class="name mono">${esc(ex.week_of)}</td>
+      <td>${chip('시작 안 함', level)}</td>
+      <td><div class="steps">${chip('회차 객체 없음', 'muted')}</div><div class="cap">창 열림 ${ago(ex.window_open_at, now)} · run.json 도 우편함도 없다</div></td>
+      <td class="mono">—</td><td class="r">—</td></tr>`;
+  }
   if (runs.length) {
     const latest = runs[0];
     if (latest.status === 'BLOCKED') flag('bad', `주간 회차 ${latest.week_of} 가 BLOCKED — 연속 ${latest.consecutive_failures}회 실패로 자동 재시도가 멈췄습니다. 수동 실행 요청이 필요합니다.`);
@@ -417,12 +430,13 @@ function renderWeekly(node, weekly, now) {
       <td class="mono">${esc(cov.downloads_through || '—')}</td>
       <td class="r">${ago(r.updated_at || r.finished_at || r.started_at, now)}</td></tr>`;
   }).join('');
-  const body = runs.length
-    ? `<table><thead><tr><th>회차 (week_of)</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th>데이터 끝 (downloads_through)</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
+  const body = (runs.length || missingRow)
+    ? `<table><thead><tr><th>회차 (week_of)</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th>데이터 끝 (downloads_through)</th><th class="r">갱신</th></tr></thead><tbody>${missingRow}${rows}</tbody></table>`
     : empty('회차 객체가 하나도 없습니다. 타이머가 아직 한 번도 돌지 않았거나 _ops/weekly 를 못 읽는 것입니다.');
+  const nextLine = ex && !ex.window_open ? ` · 이번 주(${esc(ex.week_of)}) 창은 <span title="${esc(local(ex.window_open_at))}">${until(ex.window_open_at, now)}</span> 열림` : '';
   return card(`${node}-weekly`, '주간 수집 회차',
-    `<span class="mono">pickage-raw/_ops/weekly</span> · ${weekly.weeks_total}주 중 최근 ${runs.length}주 · 읽음 ${ago(weekly.listed_at, now)}`,
-    body, { mark, help: '가장 최근 <b>성공</b> 회차의 "데이터 끝" 이 지금 서비스가 가진 다운로드 데이터의 끝입니다. 단계는 depsdev_t2 → gcs_sync → downloads_weekly → downloads_parquet → bronze_depsdev → bronze_downloads 순서이고, 회색 ✓ 는 끝난 단계, 색이 든 것만 봐야 할 단계입니다. ×N 은 시도 횟수. 단계 로그 전문은 아래 로컬 디스크 절의 <code>logs/&lt;step&gt;.log</code>.' });
+    `<span class="mono">pickage-raw/_ops/weekly</span> · ${weekly.weeks_total}주 중 최근 ${runs.length}주 · 읽음 ${ago(weekly.listed_at, now)}${nextLine}`,
+    body, { mark, help: '가장 최근 <b>성공</b> 회차의 "데이터 끝" 이 지금 서비스가 가진 다운로드 데이터의 끝입니다. 단계는 depsdev_t2 → gcs_sync → downloads_weekly → downloads_parquet → bronze_depsdev → bronze_downloads 순서이고, 회색 ✓ 는 끝난 단계, 색이 든 것만 봐야 할 단계입니다. ×N 은 시도 횟수. 이번 주 수집 창(화요일 10:00 KST)이 열렸는데 그 주 객체가 하나도 없으면 "시작 안 함" 행이 맨 위에 서고 — 6시간 안은 주의, 넘으면 문제 — 그것이 "실패" 보다 흔한 고장인 "아무 일도 안 일어남" 입니다. 단계 로그 전문은 로컬 디스크 탭의 <code>logs/&lt;step&gt;.log</code>.' });
 }
 
 // ── MinIO · 이벤트 (기본) ────────────────────────────────────────────────

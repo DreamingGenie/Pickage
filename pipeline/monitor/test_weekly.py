@@ -56,6 +56,25 @@ class CollectTest(unittest.TestCase):
         self.assertEqual([r["week_of"] for r in out["runs"]], ["2026-09-21", "2026-09-14"])
         self.assertTrue(out["runs"][1]["manual"]["pending"])
         self.assertEqual(s3.list_calls, 2)
+        # NOW 는 화요일 12:00 KST — 이번 주(09-21) 창이 열렸고 회차 객체가 있으니 missing 이 아니다
+        self.assertEqual(out["expected"], {"week_of": "2026-09-21", "window_open_at": "2026-09-22T01:00:00+00:00",
+                                           "window_open": True, "present": True, "missing": False})
+
+    def test_missing_current_week_is_named_when_window_is_open(self):
+        """타이머가 안 돌아 이번 주 객체가 아예 없으면 — 지난주 SUCCEEDED 만 있어 초록으로 보이던 것을 잡는다."""
+        s3 = FakeS3()
+        s3.add(RAW, "_ops/weekly/2026-09-14/run.json", run_doc("2026-09-14", "SUCCEEDED"))
+        out = weekly.collect(s3, bucket=RAW, max_runs=8, now=NOW)
+        self.assertEqual([r["week_of"] for r in out["runs"]], ["2026-09-14"])
+        self.assertTrue(out["expected"]["missing"])
+        # 창이 아직 안 열렸으면(월요일) 없는 게 정상이다
+        monday = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+        out = weekly.collect(s3, bucket=RAW, max_runs=8, now=monday)
+        self.assertEqual((out["expected"]["window_open"], out["expected"]["missing"]), (False, False))
+        # 우편함만 있어도 "객체가 있다" — 다음 발화가 집어 가는지는 is_manual_pending 이 본다
+        s3.add(RAW, "_ops/weekly/2026-09-21/manual-request.json", {"requested_at": "2026-09-22T02:00:00+00:00"})
+        out = weekly.collect(s3, bucket=RAW, max_runs=8, now=NOW)
+        self.assertEqual((out["expected"]["present"], out["expected"]["missing"]), (True, False))
 
 
 if __name__ == "__main__":

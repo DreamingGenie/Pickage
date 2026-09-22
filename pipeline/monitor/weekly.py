@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from pipeline.weekly.schedule import is_manual_pending
+from pipeline.weekly.schedule import current_week_of, is_manual_pending, window_open, window_open_at
 from pipeline.weekly.state import ObjectStore, manual_key, run_key
 
 ERROR_SHOWN = 600       # 화면에 싣는 실패 메시지 길이. 전문은 run.json 과 단계 로그에 있다
@@ -71,5 +71,18 @@ def collect(s3, *, bucket: str, max_runs: int, now: datetime) -> dict:
         document = store.get(run_key(week))
         manual = store.get(manual_key(week)) if week in with_manual else None
         runs.append(summarize(week, document, manual))
+    # 이번 주 회차가 "아예 시작 안 한" 것을 본다. run.json 은 실행기가 begin() 할 때 생기므로 타이머가
+    # 멎었거나 begin() 전에 죽었으면 이번 주 객체가 아예 없고, runs[0] 은 지난주 SUCCEEDED 그대로다 —
+    # 그러면 화면은 계속 초록이고 downloads_through 만 조용히 낡는다. 주간 배치에서 제일 흔한 고장은
+    # "실패" 가 아니라 "아무 일도 안 일어남" 이다. 판정 규칙은 새로 만들지 않고 실행기의 창 함수를 그대로 쓴다.
+    this_week = current_week_of(now)
+    opened = window_open(this_week, now)
+    expected = {
+        "week_of": this_week.isoformat(),
+        "window_open_at": window_open_at(this_week).astimezone(timezone.utc).isoformat(timespec="seconds"),
+        "window_open": opened,
+        "present": this_week in weeks,           # run.json 이든 우편함이든 그 주 객체가 하나라도 있는가
+        "missing": opened and this_week not in weeks,
+    }
     return {"listed_at": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
-            "bucket": bucket, "weeks_total": len(weeks), "runs": runs}
+            "bucket": bucket, "weeks_total": len(weeks), "expected": expected, "runs": runs}
