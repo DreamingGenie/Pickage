@@ -10,8 +10,10 @@ import {
   DEPENDENCY_KINDS,
   EVIDENCE_HINT,
   EVIDENCE_LABEL,
+  EVIDENCE_RULE,
   VARIANT_HINT,
   VARIANT_LABEL,
+  VARIANT_RULE,
   type MigrationEvidence,
   type MigrationModel,
 } from '@/routes/report/ecosystem/migration-model'
@@ -84,14 +86,15 @@ export function MigrationPanel({
               실행용·개발용 차이는 여기 적지 않는다 — 선택기 옆에 늘 떠 있다. 화면에 이미
               있는 말을 모달이 되풀이하면 읽을 것이 두 배로 보인다.
             */}
-            <InfoDialog label="교체 흐름 계산 기준 안내" title="계산 기준">
+            <InfoDialog
+              label="교체 흐름 계산 기준 안내"
+              title="계산 기준"
+              /* 표가 들어가서 기본 폭(sm)에서는 한 줄이 두세 단어마다 끊긴다. */
+              contentClassName="sm:max-w-lg"
+            >
               <EvidenceKey />
               <p>
                 <strong>옮기라는 추천이 아니에요.</strong> 실제로 그렇게 했다는 기록이에요.
-              </p>
-              <p>
-                비율의 분모는 <strong>바꾼 횟수가 아니라 서로 다른 (만든 사람 × 달)</strong> 수예요.
-                한 회사가 한 달에 수십 개를 바꿔도 1로 세요.
               </p>
               <p>
                 <strong>막대가 100%를 다 채우지 않아요.</strong> 근거가 약한 이동은 뺐고, 남는
@@ -207,29 +210,51 @@ export function MigrationPanel({
 }
 
 /**
- * 배지 세 개와 "변종" 이 무엇을 보고 붙는지. **모달 안에서 가장 자주 찾는 부분**이라
- * 문단이 아니라 표로 둔다 — 문장으로 풀면 세 기준이 섞여 읽힌다.
+ * 배지 넷이 무엇을 보고 붙는지. **모달에서 가장 자주 찾는 부분**이라 문단이 아니라 표로 둔다.
  *
- * 값은 {@link EVIDENCE_HINT} 한 곳에서 온다. 배지의 툴팁과 같은 문장이라 두 곳이 갈라질 수 없다.
+ * <h2>"널리 · 자주" 를 표 위에서 한 번 정의한다</h2>
+ *
+ * 판정에 쓰는 두 수는 이름만 보면 같은 말로 읽힌다 — "몇 곳" 과 "몇 번" 이 일상에서는
+ * 잘 구별되지 않는다. 세 줄에 같은 설명을 되풀이하는 대신 위에서 한 번 정의하고, 표는
+ * <b>뜻 한 줄 + 숫자 한 줄</b>만 낸다.
+ *
+ * 뜻은 배지 말풍선과 <b>같은 상수</b>({@link EVIDENCE_HINT})에서 온다. 숫자는 여기에만
+ * 있다({@link EVIDENCE_RULE}) — 말풍선에 문턱값을 싣지 않기로 한 판단이 그것이다.
  */
 function EvidenceKey() {
-  const rows: { label: string; hint: string }[] = [
+  const rows = [
     ...(['strict', 'recommended', 'loose'] as MigrationEvidence[]).map((key) => ({
       label: EVIDENCE_LABEL[key],
       hint: EVIDENCE_HINT[key],
+      rule: EVIDENCE_RULE[key],
     })),
-    { label: VARIANT_LABEL, hint: VARIANT_HINT },
+    { label: VARIANT_LABEL, hint: VARIANT_HINT, rule: VARIANT_RULE },
   ]
 
   return (
-    <dl className="flex flex-col gap-2 rounded-lg border p-3">
-      {rows.map((row) => (
-        <div key={row.label} className="flex flex-col gap-0.5">
-          <dt className="font-medium text-foreground">{row.label}</dt>
-          <dd className="text-sm">{row.hint}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3 text-sm">
+        <p>
+          <strong className="text-foreground">널리</strong> — 서로 다른 만든 사람과 달을 따로 세요.
+          한 회사가 한 달에 수십 개를 바꿔도 <strong>1</strong>이에요.
+        </p>
+        <p>
+          <strong className="text-foreground">자주</strong> — 같은 바꿈이 모두 몇 번 보였는지예요.
+        </p>
+        {/* 화면의 비율도 같은 "널리" 로 센다. 따로 문단을 두면 같은 말을 두 번 하게 된다. */}
+        <p>화면에 보이는 비율(%)도 이 &ldquo;널리&rdquo; 로 세요.</p>
+      </div>
+
+      <dl className="flex flex-col gap-2.5">
+        {rows.map((row) => (
+          <div key={row.label} className="flex flex-col gap-0.5">
+            <dt className="font-medium text-foreground">{row.label}</dt>
+            <dd>{row.hint}</dd>
+            <dd className="text-sm text-muted-foreground/80">{row.rule}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }
 
