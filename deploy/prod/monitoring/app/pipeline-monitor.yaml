@@ -1,0 +1,61 @@
+# 파이프라인 모니터 설정 — `app` 노드 (j15a506).
+#
+# 커밋되는 파일이다. 자격증명은 여기 없다 (.env 의 MONITOR_S3_*).
+# 키 목록과 기본값은 pipeline/monitor/config.py — 모르는 키를 적으면 시작하지 않는다.
+#
+# 이 노드는 **자기 컨테이너만 보고, 화면의 입구를 맡는다.** MinIO 목록·주간 회차는 `data`
+# 노드의 같은 서버가 만들고, 여기서 사설망으로 받아 중계한다 (peers). 사람은 이 노드에만
+# 터널을 연다 — netdata 와 같다.
+node: app
+
+# ⚠ 127.0.0.1 만. 이 노드는 인터넷에 노출된 유일한 노드다. 로그 꼬리가 들어 있는 화면이라
+#   netdata 와 같은 자세로 터널로만 본다 (deploy/prod/monitoring/README.md 5절·11절).
+listen:
+  - 127.0.0.1:19998
+
+# data 노드의 같은 서버. 그 노드의 사설 IP 다 — similarity-loader 가 MinIO 에 붙는 것과 같은 길.
+peers:
+  data: http://172.26.8.249:19998
+peer_timeout_seconds: 25
+
+cache_seconds: 3
+
+minio:
+  events: false             # data 노드가 구독한다. 여기서 또 걸면 같은 이벤트를 사설망으로 두 번 받는다
+  inventory: false          # 전체 목록 조회도 data 노드가 한다 (화면은 여기서 중계한다)
+  weekly: false
+  curated: false            # 같은 이유 — data 노드가 읽고 여기서 중계한다
+
+# 이 노드의 로컬 디스크에서 파이프라인과 닿는 것은 RAG 문헌 캐시 하나다. 산출물 작업 폴더
+# (similarity-loader-work·package-env-loader-work)는 named volume 이라 훑지 않는다.
+local:
+  paths:
+    # README 인계 파일 캐시 (S15P21A506-393). api 가 jsDelivr 에서 받아 여기 쓰고, rag-api 가 읽는다.
+    # 배치: <루트>/<첫 글자 샤드>/<이름(‘/’→‘__’)>@<버전>.md — 바로 아래 항목 표가 곧 샤드별 표다.
+    # 프리로드 19만 건 + 요청마다 늘어난다. 매 보고서(15초)마다 stat 20만 번을 할 이유가 없어
+    # 10분에 한 번 훑고 그 사이는 마지막 결과를 낸다("지금 확인" 은 바로 훑는다).
+    - path: /host/srv/pickage/docs
+      label: /srv/pickage/docs
+      refresh_seconds: 600
+      note: RAG README 인계 파일 캐시 — 첫 글자 샤드. api 가 채우고 rag-api 가 읽는다
+  log_globs: []
+  max_entries: 40          # 샤드는 0-9·a-z·_ 라 37개까지. 전부 보인다
+
+docker:
+  enabled: true
+  # 운영 스택(pickage-app-*: api·web·rag-api·postgres·spark-worker-2·similarity-loader).
+  # 모니터링 스택 자신(pickage-monitoring-*)은 뺀다 — netdata 기동 로그에 "error" 가 상시 섞여
+  # 있어서(무해한 CLAIM·plugin 메시지) 넣으면 화면이 늘 노란불이 된다. 8.2 의 스왑 임계값과
+  # 같은 이유다: 늘 노란 화면은 사람이 무시하게 만든다. 그 스택은 docker compose ps 로 본다.
+  name_pattern: "^pickage-(?!monitoring-)"
+  log_tail: 40
+  log_since_hours: 6
+  # 컨테이너 stdout 의 에러 줄 기준. 재기동 직후 api 가 postgres 를, spark-worker-2 가 MinIO 를 기다리며 남기는
+  # "Connection refused" 는 정상 동작인데 log_since_hours 동안 남는다 — 한 줄로 배너를 노랗게 만들지 않게
+  # 꼬리 40줄 중 3줄 이상일 때만 판정에 올린다. 정상으로 아는 줄이 계속 걸리면 아래에 적어 세지 않게 한다.
+  #   예: error_ignore_pattern: "(?i)connection refused.*(9000|5432)|waiting for"
+  # 뒤의 한글은 이 노드 로더가 찍는 실패 문구다. similarity-loader 의 watch.py 는 실패해도 죽지 않고 "오류:" ·
+  # "게시 실패" 를 30분에 한 줄씩 남긴다 — 영어 표지만 보면 종료 코드 0 으로 살아 있는 채 계속 실패하는 것을 놓친다.
+  error_pattern: "(?i)\\b(error|exception|traceback|fatal|oom|killed|denied|refused)\\b|게시 실패|오류:|경고:"
+  error_ignore_pattern: ""
+  error_min_lines: 3

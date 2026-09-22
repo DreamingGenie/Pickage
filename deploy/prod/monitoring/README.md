@@ -78,8 +78,13 @@ Netdata 는 `/api/v1/allmetrics?format=prometheus` 로 **Prometheus 형식을 �
 deploy/prod/monitoring/
 ├── README.md               ← 이 문서
 ├── app/    parent   compose.yaml · netdata.conf · status.html · stream.conf.example · .env.example
+│                    pipeline-monitor.yaml                          ← 11절 (데이터 흐름)
 └── data/   child    compose.yaml · netdata.conf · stream.conf.example · .env.example
+                     systemdunits.conf · pipeline-monitor.yaml      ← 11절
 ```
+
+11절의 `pipeline-monitor` 컨테이너도 이 두 compose 안에 있다 — netdata 와 같은 스택,
+같은 프로젝트 이름이다. 코드는 [`pipeline/monitor/`](../../../pipeline/monitor/).
 
 compose 프로젝트 이름도 가른다 — `pickage-monitoring-app` · `pickage-monitoring-data`.
 **운영 스택(`pickage-app`·`pickage-data`)과도 다른 이름이다.** 같으면
@@ -597,6 +602,7 @@ journalctl -u pickage-weekly.service -n 50        # 지난 회차 로그
 
 | 누가 | 무엇을 | 어떻게 |
 | --- | --- | --- |
+| 데이터를 기다리는 사람 | "데이터가 어디까지 왔나 · 무엇이 새로 생겼나" | 같은 터널의 `http://127.0.0.1:19998/` — **11절** |
 | **누구나** | "지금 괜찮은가" | `scripts\open-monitoring.bat` **더블클릭** → `/status.html` |
 | 원인을 찾는 사람 | "그때 무슨 일이 있었나" | 같은 창에서 netdata 대시보드로 |
 
@@ -830,3 +836,197 @@ cd ~/S15P21A506/deploy/prod/monitoring/<노드> && docker compose down -v   # �
 | 이미지 digest 고정 | 태그만 / digest 까지 | **digest 까지** — 첫 pull 후 compose 에 적는다 |
 | `data` 노드 착수 시점 | Phase 1 과 동시 / Phase 4 | **Phase 4** — 먼저 한 노드에서 비용을 잰다 |
 | 배치 메트릭 이름 | 문서상 이름 그대로 / 서버에서 확인 | **서버에서 확인** — 로컬에 systemd 가 없어 검증 못 했다 |
+
+---
+
+
+---
+
+## 11. 데이터 흐름 — "무엇이 어디까지 왔나" (S15P21A506-362, 2026-09-20)
+
+1~10절은 **자원**(CPU·메모리·디스크·컨테이너)을 본다. 이 절은 그 다음 질문이다 —
+**주간 회차가 어디까지 갔나, MinIO 에 무엇이 새로 생겼나, 로컬 디스크에 무엇이 쌓였나,
+파이프라인 컨테이너는 무슨 로그를 남겼나.** 지금까지는 서버에 들어가 `mc cat`·`journalctl`·
+`docker logs` 를 손으로 치는 것이 유일한 방법이었다 ([`../data/README.md`](../data/README.md)
+"지금 어디까지 왔나").
+
+**물으면 그때 계산한다.** 미리 만들어 둔 보고서를 보여 주는 것이 아니다 — 회차가 도는 동안
+"지금 어디까지 받았나" 를 묻는 사람에게 5분 전 값은 답이 아니다. 화면은 15초마다 다시
+묻고, **지금 확인** 버튼은 서버 캐시까지 비우고 다시 만든다.
+
+**MinIO 는 버킷 이벤트 구독으로 본다.** 서버가 켜진 뒤 생긴 객체가 실시간으로 흘러 들어와
+24시간 동안 메모리에 남는다 — 목록 조회가 없어 갱신 비용이 0 에 가깝다. 버킷을 통째로 나열하는
+**전체 목록 조회**는 그 절 안의 버튼을 눌렀을 때만 하고, 그 결과는 다음에 누를 때까지 그대로 둔다.
+"모니터가 켜지기 전 상태는 그 버튼으로" 가 화면에 적혀 있다.
+
+### 11.1 무엇이 보이나
+
+`scripts\open-monitoring.bat` 이 여는 같은 터널에 포트 하나가 더 얹혀 있다.
+
+```
+http://127.0.0.1:19998/              ← 데이터 흐름 (이 절)
+http://127.0.0.1:19999/status.html   서버 상태 (8절)
+```
+
+| 절 | 재료 | 답하는 것 |
+| --- | --- | --- |
+| **판정 한 줄** | 아래 전부 | BLOCKED·실패한 회차, 죽은 컨테이너, 닿지 못한 노드, 로그의 에러 줄 — 이유가 목록으로 |
+| **주간 수집 회차** | `pickage-raw/_ops/weekly/*/run.json` · 우편함 | 회차별 상태 · 6단계 각각의 상태와 시도 횟수 · `downloads_through`(데이터 끝) · 연속 실패 · 마지막 오류 · 수동 요청 처리 여부 |
+| **Curated 전처리 회차** (S15P21A506-372) | `pickage-curated/_ops/preprocessing/*/status.json` · `_dispatcher/status.json` · `curated-bundle/_current.json` · 실행기 `status.json` | 수집 뒤 같은 타이머가 돌리는 raw → Curated 전처리. 회차별 상태(완료·실행 중·실패·차단·입력 대기) · 6단계(스냅샷 → 역의존) 각각의 상태와 시도 · 다음 재시도 시각 · 현재 완료 bundle · 디스패처가 회차를 고르기 전에 멈췼는지 |
+| **MinIO · 방금 올라온 것** | 버킷 이벤트 구독 (켜진 뒤 24시간치) | **완료 알림**(`_SUCCESS` 가 찍힌 실행), **경로별 신규**, **이벤트 흐름**(무엇이 언제 누구 손으로). 구독이 끊겼던 구간은 그렇게 표시한다 |
+| **포인터** | `_current.json` | 유사도 배치가 읽을 코퍼스, 로더가 볼 벡터 실행이 지금 무엇인가 |
+| **MinIO · 전체 목록** | 버킷 전체 LIST — **버튼을 눌렀을 때만** | 켜지기 전 것까지: 완료된 실행 전부, 경로별 객체 수·크기·최근 변경·24시간/7일 신규. 표 머리에 조회 시각이 남는다 |
+| **로컬 디스크 · data** | `/srv/pickage/ingest-work` | `_SUCCESS` 가 붙기 전 산출물이 여기 있다 — 회차가 도는 23시간 동안 "어디까지 받았나". 파티션 여유, 24시간 신규 파일, **단계별 로그 꼬리**(`logs/<step>.log`) |
+| **로컬 디스크 · app** | `/srv/pickage/docs` (RAG README 인계 파일 캐시, S15P21A506-393) | 첫 글자 샤드별 파일 수·크기·최근/가장 오래된 시각, 24시간 신규 파일, 가장 오래된 파일. 표 머리를 눌러 정렬한다. 파일이 20만 건이라 **10분마다** 훑고 그 사이는 마지막 결과다(`refresh_seconds`) — 훑은 시각이 표 위에 찍힌다 |
+| **컨테이너·로그 · 노드별** | Docker API | 운영 스택 컨테이너 전부(멈춘 것 포함) — 상태·종료 코드·OOM·재시작 횟수·healthcheck·**로그 꼬리 40줄**과 그중 에러로 보이는 줄 수 |
+
+**모르는 것을 정상이라고 말하지 않는다** (8.2 와 같은 태도). 한 절이 실패하면 그 자리에
+실패 메시지가 뜨고, 한 노드에 닿지 못하면 그 노드 자리에 이유가 뜬다 — 나머지는 그대로 보인다.
+
+### 11.2 어떻게 도나
+
+```
+사람 ──터널 19998──▶ app 노드 pipeline-monitor ──사설망 19998──▶ data 노드 pipeline-monitor
+                      · 이 노드 컨테이너·로그                      · MinIO LIST · _ops/weekly · 포인터
+                      · data 의 답을 그대로 중계                     · /srv/pickage/ingest-work · 단계 로그
+                      · 화면(/) 서빙                                 · 이 노드 컨테이너·로그
+```
+
+- **컨테이너 하나가 노드마다 하나.** `app/compose.yaml`·`data/compose.yaml` 의 `pipeline-monitor`.
+  netdata 와 같은 스택이라 `docker compose up -d` 한 번에 같이 뜬다. HTTP 서버이고,
+  `/api/report` 를 받으면 그때 계산한다 (`pipeline/monitor/server.py`).
+- **MinIO 는 두 층이다.** 이벤트 구독(`pipeline/monitor/events.py`, 버킷당 연결 하나, 끊기면
+  재연결하고 빈 구간을 기록)이 평소 화면을 채우고, 전체 목록(`s3inv.py`, 객체 1,000개당 요청 하나)은
+  `/api/inventory?fresh=1` 로 **사람이 누를 때만** 돈다. 자동 갱신은 절대 목록을 긁지 않는다.
+- **캐시는 보고서 3초 하나다** (탭 둘·연타를 한 번 계산으로). `?fresh=1`(지금 확인 버튼)은 무시한다.
+- **노드 사이에 포트 하나를 연다** — data 노드의 사설 IP 19998, 출처 app 노드만. Phase 4 의
+  netdata 스트리밍과 같은 모양이고 방향만 반대다. 인터넷에서 닿는 문은 여전히 80·443·22 뿐이다.
+- **듣는 주소는 설정이 혼자 정한다** (`pipeline-monitor.yaml` 의 `listen`). host 네트워크라
+  `ports:` 가 없고, 0.0.0.0 을 적지 않는다 — netdata.conf 의 `bind to` 와 같은 한 줄이다.
+- **소켓을 하나 더 물린다.** 4절의 결정(대시보드를 밖에 열지 않으므로 직접 마운트)이
+  그대로 근거다. 이 컨테이너는 Docker API 에 GET 만 부른다 (`pipeline/monitor/dockerapi.py`).
+- **MinIO 계정은 전용이고 읽기 전용이다** — `pickage-monitor`. 목록·이벤트 구독은 전 버킷, 읽기는
+  raw·curated 의 `_ops/`, `curated-bundle/**/status.json`, `_current.json` 뿐. **데이터 본문은 못 읽고, 아무것도 쓰지 않는다.**
+  정책 파일이 바뀌면 data 노드에서 "1. 정책을 만든다" 를 다시 돌린다 — 같은 이름이라 갈아 끼워지고 키는 그대로다.
+  만드는 법은 [`../data/README.md`](../data/README.md) "파이프라인 모니터에 줄 계정".
+- 코드·API·보고서 형식은 [`pipeline/monitor/README.md`](../../../pipeline/monitor/README.md).
+  이미지에는 코드가 없고 `pipeline/` 을 마운트한다 — 고치면 `git pull` 후
+  `docker compose restart pipeline-monitor` 로 끝난다. 화면(`web/index.html`)도 같다.
+
+### 11.3 올리기 — data 먼저, app 다음
+
+**0. 계정** — `data` 노드 MinIO 에서 `pickage-monitor` 를 만든다 (위 링크). 키 하나를 두 노드가 쓴다.
+
+**1. `data` 노드**
+
+```bash
+sudo ufw allow from 172.26.6.235 to any port 19998 proto tcp \
+  comment 'pipeline-monitor app->data (S15P21A506-362)'      # app 노드의 사설 IP 에서만
+```
+
+```bash
+cd ~/S15P21A506 && git pull && cd deploy/prod/monitoring/data
+# .env 에 세 줄을 더한다 — .env.example 의 MONITOR_S3_* 를 보고 채운다
+docker compose build pipeline-monitor        # 처음 한 번. 의존성이 바뀔 때만 다시
+docker compose up -d
+ss -ltn | grep 19998                          # 127.0.0.1 과 172.26.8.249 두 줄. ⚠ 0.0.0.0 이면 즉시 되돌린다
+curl -s http://127.0.0.1:19998/api/report | grep -o '"errors": \[[^]]*\]' | head -1   # "errors": [] 이어야 한다
+docker compose logs pipeline-monitor | grep '구독 시작' | wc -l                         # 5 (버킷 수). 0 이면 계정에 ListenBucketNotification 이 없다
+```
+
+**2. `app` 노드**
+
+```bash
+cd ~/S15P21A506 && git pull && cd deploy/prod/monitoring/app
+# .env 에 MONITOR_S3_* 세 줄
+docker compose build pipeline-monitor
+docker compose up -d
+ss -ltn | grep 19998                          # 127.0.0.1 한 줄만
+curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": "app"\|"unreachable": true\|"section": "report"'
+# fetched_via 가 나와야 한다. unreachable 이면 data 노드의 ufw·컨테이너를 본다.
+# "section": "report" 면 닿긴 했는데 data 노드가 보고서를 못 만든 것 — 그쪽 docker compose logs 를 본다
+```
+
+**3. 브라우저** — 터널을 열고 `http://127.0.0.1:19998/`. 판정이 "정상/주의/문제" 중 하나여야
+한다. "상태를 읽지 못했습니다" 면 터널에 19998 이 빠진 것이다 (`scripts/open-monitoring.*` 최신인가).
+
+#### 자주 걸리는 것
+
+| 증상 | 원인 | 조치 |
+| --- | --- | --- |
+| 화면에 "data 노드에 닿지 못했습니다" | ufw 가 안 열렸거나 data 컨테이너가 죽었다 | data 노드에서 `docker compose ps`·`sudo ufw status numbered` |
+| data 노드 logs 에 `AccessDenied` | 계정·정책이 안 맞는다 | `../data/README.md` 의 확인 6줄을 돌린다 |
+| `docker` 절이 `Permission denied` | `.env` 의 `DOCKER_GID` 가 틀렸다 | `getent group docker` 값으로 고치고 `up -d` |
+| `docker` 절이 `client version 1.xx is too old` | 서버 Docker 데몬이 최소 API 1.44 를 요구해 옛 코드의 `v1.41` 접두사를 거절한다 (2026-09-21 두 노드 다 났다) | 코드가 이제 접두사 없이 부른다. 이 메시지가 보이면 그 노드의 `pipeline/` 체크아웃이 옛것이다 — `git pull` 후 `restart pipeline-monitor` |
+| 버킷 표에 "목록 잘림" | `max_objects`(15만) 초과 | `pipeline-monitor.yaml` 의 값을 올리고 **compose 의 `mem_limit` 도 같이** — +10만 객체마다 +26 MiB (객체당 262 B 실측). 스왑 0 이라 상한을 넘기면 잘림 표시 대신 OOM Kill 이다 |
+| "전체 목록 조회" 가 오래 걸린다 | 버킷을 통째로 나열한다 (객체 1,000개당 요청 하나) | 그게 맞다. 평소 화면은 이벤트라 이 비용이 없다 |
+| "방금 올라온 것" 이 비어 있다 | 구독이 안 걸렸거나(로그에 `구독 시작` 이 없다), 켜진 뒤 실제로 아무것도 안 올라왔다 | `docker compose logs pipeline-monitor` · 회차가 돌면 15초 안에 찬다 |
+| 화면에 "버킷 목록 대기 중 (구독 전)" | MinIO 가 모니터보다 늦게 뜨는 중이거나(노드 재부팅 직후 — 두 스택은 별개 compose 라 순서가 없다) 계정에 `ListAllMyBuckets` 가 없다 | 기다린다 — 목록을 받을 때까지 5→60초로 재시도하고 받으면 저절로 붙는다. 몇 분 뒤에도 그대로면 로그의 `버킷 목록을 못 받아` 줄의 이유를 본다 |
+| 화면에 "끊겼던 구간" | MinIO 재시작·네트워크. 그 사이 것은 이벤트로 안 온다 | 전체 목록 조회 버튼으로 메운다 |
+
+### 11.4 로컬 리허설
+
+Phase 0.5 와 같은 방식이다. 루트 compose 의 로컬 MinIO 를 상대로 돌리고, data 노드 역할은
+같은 이미지를 data 설정으로 한 번 더 띄워 흉내 낸다 (override 안에 있다).
+
+```bash
+# 1. 로컬 MinIO (pipeline/minio/.env 가 있어야 한다)
+docker compose --profile data up -d minio minio-init
+# 2. 모니터링 리허설 — .env 에 DOCKER_GID=0 과 MONITOR_S3_* (로컬 루트 키, 엔드포인트는 http://host.docker.internal:9000)
+cd deploy/prod/monitoring/app
+MSYS_NO_PATHCONV=1 docker compose -f compose.yaml -f rehearsal.override.yaml -p pickage-monitoring-rehearsal up -d --build
+# 3.
+curl -s 'http://127.0.0.1:19998/api/report?node=data' | head -c 300     # fetched_via 가 보여야 한다
+```
+
+#### ✔ 리허설 결과 (2026-09-20, Docker Desktop · MinIO 로컬 최신)
+
+| 확인한 것 | 결과 |
+| --- | --- |
+| 중계 | app 서버가 data 서버(`peers`)에 물어 그대로 넘긴다. `fetched_via: app`. 왕복 0.14초 |
+| 캐시 | 두 번째 요청은 `cached: true`. `?fresh=1` 은 다시 계산 — 버튼을 누르면 두 노드 로그에 `fresh` 가 찍힌다 |
+| 이벤트 구독 | 5 버킷 모두 `구독 시작`. 가짜 회차가 올리는 parquet 파트가 다음 갱신(15초)에 "이벤트 흐름" 에 찍히고, `_SUCCESS` 는 "완료 알림" 에 뜬다. 올린 계정 이름이 같이 나온다 |
+| 전체 목록 | 자동 갱신은 `available: false` 만 받고 LIST 요청이 0 이다. 버튼(`?fresh=1`)을 누른 뒤에만 표가 채워지고 조회 시각이 머리에 남는다 |
+| 닿지 못할 때 | 502 + JSON(`unreachable`, 이유). 화면은 그 노드 자리에 이유를 띄우고 나머지는 그린다 |
+| 화면 | `/` 200. 판정·회차·완료 실행·포인터·버킷·컨테이너 절이 전부 채워졌고 "app 가 중계" 가 찍힌다 |
+| docker 절 | `DOCKER_GID=0` 으로 소켓 읽기·로그 demux·종료 코드(`minio-init` = 끝남 0)가 맞게 나왔다 |
+| 비용 | 유휴 약 40 MiB, 요청 하나에 0.1~0.2초(로컬 객체 수십 개 기준). 서버(수만 객체)에서는 LIST 순간에 더 든다 — 첫 하루 `docker stats` 로 재고 `mem_limit` 을 조정한다 |
+
+**여기서 걸린 것 둘.** ① 처음 패턴 `^pickage-` 는 모니터링 스택 자신도 잡았고, netdata 의
+기동 로그에 "error" 단어가 상시 섞여 있어 **화면이 늘 "주의"** 였다 — `name_pattern` 을
+`^pickage-(?!monitoring-)` 로 바꿔 뺐다(늘 노란 화면은 사람이 무시하게 만든다). ② 리허설의
+두 컨테이너는 netdata 와 같은 기본 bridge 라 **compose 서비스 이름이 안 풀린다** — data 역할
+컨테이너를 127.0.0.1:19997 로 뚫고 `host.docker.internal:19997` 로 중계하게 했다. 운영은
+사설 IP 라 이 문제가 없다.
+
+**서버에서 처음 확인되는 것**: `/srv/pickage/ingest-work` 스캔(로컬에는 그 경로가 없어
+"missing" 으로만 확인했다), 사설 IP 바인딩과 ufw, `pickage-monitor` 정책이 실제 MinIO
+버전(RELEASE.2025-04-22)에서 같은 뜻으로 먹는지, 수만 객체 LIST 의 소요 시간.
+
+끝나면 지운다 — 리허설 데이터고 내 PC 다.
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose -f compose.yaml -f rehearsal.override.yaml -p pickage-monitoring-rehearsal down -v
+rm .env stream.conf netdata.rehearsal.conf
+```
+
+### 11.5 되돌리기
+
+9절과 같다 — 같은 compose 프로젝트라 `docker compose down -v` 에 같이 내려간다.
+ufw 규칙과 `pickage-monitor` 계정은 따로 걷는다:
+
+```bash
+sudo ufw status numbered && sudo ufw delete <번호>                 # data 노드
+mc admin user remove l pickage-monitor && mc admin policy remove l pickage-monitor
+```
+
+### 11.6 하지 않은 것
+
+| | 왜 |
+| --- | --- |
+| 알림 발송 | Phase 3 과 같은 보류. 판정이 화면 맨 위에 뜨고, 채널이 정해지면 같은 판정을 보내면 된다 |
+| MinIO Prometheus 메트릭을 netdata 에 붙이기 (버킷별 용량 **추이**) | 버킷 단위까지만 나와서 "어느 경로에 무엇이" 는 못 답한다. 추이가 필요해지면 `go.d/prometheus.conf` 에 `mc admin prometheus generate` 토큰으로 붙인다 — 컨테이너 추가 없음 |
+| 이벤트를 디스크에 남기기 | 서버 재시작 뒤엔 그 전 이벤트가 없다. 지금은 "켜지기 전은 전체 목록 버튼" 으로 충분하다고 봤다. 이력이 필요해지면 고리 버퍼를 파일로 내리면 된다 |
+| journald(systemd 유닛 로그) | 컨테이너에서 읽으려면 `journalctl` 과 `/var/log/journal` 마운트가 든다. 회차의 실제 출력은 `logs/<step>.log` 에 있어 그쪽을 보여 준다 |
+| 데이터 본문 검사(행 수·스키마) | 입고기가 `run_manifest.json`·`_SUCCESS` 로 이미 한다. 여기서는 그 표시를 읽는다 |
+| 인증 | netdata 와 같은 자세 — 터널과 방화벽이 문이다. 밖에 열게 되는 날(5절 A) 같이 다시 본다 |

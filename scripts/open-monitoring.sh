@@ -16,7 +16,8 @@
 set -e
 
 TARGET="${1:-${PICKAGE_SSH_TARGET:-ubuntu@j15a506.p.ssafy.io}}"
-PORT=19999
+PORT=19999          # netdata — "지금 어때" (status.html)
+PIPE=19998          # pipeline-monitor — "데이터가 어디까지 왔나" (11절). 같은 ssh 에 같이 태운다
 URL="http://127.0.0.1:${PORT}/status.html"
 
 command -v ssh >/dev/null 2>&1 || { echo "ssh 를 찾을 수 없습니다." >&2; exit 1; }
@@ -53,12 +54,13 @@ echo
 echo "  - 잠시 뒤 브라우저가 열립니다. 처음 몇 초는 빨간 화면일 수 있는데,"
 echo "    연결되면 저절로 바뀝니다."
 echo "  - 다 보셨으면 Ctrl+C 를 누르세요. 그래야 터널이 끊깁니다."
+echo "  - 데이터가 어디까지 왔는지는 같은 터널의 http://127.0.0.1:${PIPE}/ 에서 봅니다."
 echo
 
 open_browser
 
 if [ -n "$PICKAGE_SSH_KEY" ]; then
-  exec ssh -N -L "127.0.0.1:${PORT}:127.0.0.1:${PORT}" -i "$PICKAGE_SSH_KEY" "$TARGET"
+  exec ssh -N -L "127.0.0.1:${PORT}:127.0.0.1:${PORT}" -L "127.0.0.1:${PIPE}:127.0.0.1:${PIPE}" -i "$PICKAGE_SSH_KEY" "$TARGET"
 else
-  exec ssh -N -L "127.0.0.1:${PORT}:127.0.0.1:${PORT}" "$TARGET"
+  exec ssh -N -L "127.0.0.1:${PORT}:127.0.0.1:${PORT}" -L "127.0.0.1:${PIPE}:127.0.0.1:${PIPE}" "$TARGET"
 fi
