@@ -12,7 +12,10 @@
 | `package_dependents_260915/` | 패키지별 **dependents(의존자) 이름 목록** — 상위 10만 대상 × `regular`/`peer`/`optional`. 보완재 감점 관문(S15P21A506-173)용 | `pipeline/duckdb/build_package_dependents.py` | 폴더 README. 배열 본체는 `data/package_dependents/*.parquet`(git 미추적), 여기엔 수만 담은 요약 CSV. **devDependencies가 원천에 없어 개발 도구는 과소 계상된다** |
 | `package_dependents_candidate_pool_260916/` | 같은 계산의 **AI 후보 풀 29,310개** 대상 회차. 그중 11,297개(38.5%)가 상위 10만 밖이라 위 폴더로는 답할 수 없어 따로 냈다 | `build_package_dependents.py --targets … --label candidate_pool_260916` | 폴더 README. 열 구성은 위와 같고 **차이는 대상 목록뿐**. 겹치는 54,039행의 값이 위 회차와 전부 일치함을 확인했다. 순위 밖 패키지는 `download_rank`·`ecosystems_dependent_count`가 NULL |
 | `peer_similarity_260914/` | 대체 후보 **peer 의존 유사도** — 쌍 1행(양쪽 peer 목록·교집합·Jaccard·판정) 53,155 + 패키지 1행 57,820. "A가 B를 대체할 수 있나"의 호환성 특징. `--scope all` 로 만든 npm 전수 peer 목록(81.4만/53.2만)은 Parquet 만 있고 여기엔 집계 JSON 만 있다(폴더 README §6) | `pipeline/duckdb/build_peer_similarity.py` | 폴더 README. **`peer_jaccard` 의 NULL 을 0 으로 채우지 말 것** — 쌍의 60%가 비교 불가이고 그건 유사도 0이 아니다. **전수는 그대로 쓰지 말 것** — 23.9%가 릴리스 1개짜리다. 2026-09-15 정정으로 가짜 노드 219,299행을 뺐다(폴더 README §6-2) |
-| `targets/rank_top100k_20260902.csv` | ecosyste.ms 다운로드 순위 상위 10만 (downloads 수집 대상 목록) | ecosyste.ms 목록 API 100페이지 (`pipeline/collectors/downloads/README.md`) | — |
+| `targets/rank_top100k_20260902.csv` | ecosyste.ms 다운로드 순위 상위 10만. **2026-09-22 이전 모든 수집·파생의 대상** | ecosyste.ms 목록 API 100페이지 (`pipeline/collectors/downloads/README.md`) | `targets/README.md` |
+| `targets/candidate_pool_260916.csv` | AI 파트가 준 유사 패키지 후보 풀 29,310개 (`name` 한 열) | AI 파트 제공 | `targets/README.md` |
+| **`targets/expanded_468k_20260922.csv`** | **확장 대상 정본 468,519개** — 상위 10만 ∪ 순위 100만 내 비스코프 전부 ∪ AI 후보 풀. 2026-09-22 이후 파생·AI 배치·이력 재적재의 대상 | `package_text_2026-09-08.parquet` + 위 두 파일의 합집합 (S15P21A506-451) | `targets/README.md` §3 — 선정 규칙, **스코프 롱테일 431,715개를 왜 뺐는지**, `rank`를 새로 매긴 이유. **BOM 없음(수집기 입력)** |
+| `targets/expanded_468k_additions_20260922.csv` | 정본 − 상위 10만 = 368,523개. **수집기 전용** — downloads run `2026-09-22-additions`, registry 재수집 입력 | 위 정본에서 `rank_top100k` 이름을 뺀 것 | `targets/README.md` §3-6. 파생 빌더에는 이 파일이 아니라 정본을 준다 |
 
 규칙
 
