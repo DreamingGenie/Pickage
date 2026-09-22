@@ -259,22 +259,25 @@ def build(targets: list[Path], out: Path, memory: str) -> int:
             'module_type': 'VARCHAR', 'types': 'VARCHAR', 'exports': 'VARCHAR'
         }})""")
 
-    con.execute(f"CREATE VIEW judged AS {JUDGE}")
-    con.execute(f"""COPY (SELECT * FROM judged ORDER BY Name, Version)
-                    TO '{out.as_posix()}' (FORMAT PARQUET, COMPRESSION zstd)""")
-
     # 회차를 여럿 읽었을 때만 본다. 한 회차 안에서는 수집기 체크포인트의 PK 가 패키지
     # 이름이라 겹칠 수 없어서, 회차가 하나면 2,000만 행 GROUP BY 를 공짜로 하지 않는다.
-    # 정렬해 쓴 parquet 을 다시 읽는다 — judged 를 한 번 더 판정하는 것보다 싸다.
+    #
+    # **쓰기 전에 본다.** parquet 을 먼저 쓰고 검사하면, 겹쳤을 때 --out 자리에 실패한
+    # 산출물이 성공한 것과 구분되지 않는 채로 남는다. 판정 전 raw 를 보는 것이라 JUDGE 를
+    # 한 번 더 돌리지도 않는다 — Name·Version 두 열만 읽으면 되니 원본을 한 번 더 훑는
+    # 값만 든다.
     if len(targets) > 1:
-        dups = con.execute(f"""SELECT count(*) FROM (
-            SELECT 1 FROM read_parquet('{out.as_posix()}')
-            GROUP BY Name, Version HAVING count(*) > 1)""").fetchone()[0]
+        dups = con.execute("""SELECT count(*) FROM (
+            SELECT 1 FROM raw GROUP BY Name, Version HAVING count(*) > 1)""").fetchone()[0]
         if dups:
             raise SystemExit(
                 f'(Name, Version) 이 {dups:,} 쌍 겹친다. 회차 둘이 같은 패키지를 담고 있다 — '
                 'package_env 의 PK 가 (package_id, version) 이라 적재에서 막힌다. '
                 '회차 선택을 확인할 것')
+
+    con.execute(f"CREATE VIEW judged AS {JUDGE}")
+    con.execute(f"""COPY (SELECT * FROM judged ORDER BY Name, Version)
+                    TO '{out.as_posix()}' (FORMAT PARQUET, COMPRESSION zstd)""")
 
     rows = con.execute('SELECT count(*) FROM judged').fetchone()[0]
     # 표시일 뿐이라 여기서 죽지 않게 한다. --out 을 리포 밖으로 줄 수도 있다.
@@ -320,6 +323,12 @@ def parse_args(argv=None):
                      f'--run-id 가 {len(args.run_id)}개다. 같은 수여야 짝이 맞는다')
     if not args.raw and not args.collected_date:
         parser.error('--collected-date 와 --run-id 짝, 또는 --raw 중 하나는 있어야 한다')
+    # 둘을 같이 주면 main 이 --raw 를 먼저 보고 날짜·회차를 버린다. 그러면 지정한 회차를
+    # MinIO 에서 받아 온 줄 알지만 실제로는 손으로 적은 폴더가 표가 된다 — 회차가 소리 없이
+    # 바뀌는 것이라 위의 짝 검증과 같은 이유로 막는다.
+    if args.raw and args.collected_date:
+        parser.error('--raw 와 --collected-date/--run-id 는 같이 줄 수 없다. '
+                     '--raw 를 주면 MinIO 를 보지 않아 회차 지정이 무시된다')
     return args
 
 
