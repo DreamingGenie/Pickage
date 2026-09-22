@@ -173,27 +173,10 @@ def fmt(m):
 # 구조적 관문(위)이 이미 상대적으로 처리하므로, 여기서는 downloads_last_month에만
 # 절대 하한을 걸어본다 — 하드 컷오프를 두 축에 동시에 걸면 후보가 비는 위험이
 # 커지므로(브레인스토밍 결정) 한 축으로 제한한다.
-
-def apply_downloads_floor(hits, names, downloads_by_idx, floor):
-    """downloads_last_month < floor 인 후보(candidate)를 hits 에서 제거한다.
-
-    floor<=0 이면 무변경(하한 없음). downloads 정보가 없는 후보(None)는 **통과시키지
-    않는다** — 데이터 없다고 관대하게 봐주면 "실제로는 영세한데 그냥 몰라서 통과"하는
-    사례를 만들 수 있어서다(구조적 관문의 보완재 판정과는 반대 방향 — 거긴 데이터
-    없으면 통과가 기본값인데, 거기는 "감점 근거 없음=감점 안 함"이고 여기는 "자격
-    근거 없음=자격 불충분"이라 취지가 다르다).
-    """
-    if floor <= 0:
-        return hits, 0
-    kept, dropped = [], 0
-    for base_idx, cand_idx, cos in hits:
-        dl = downloads_by_idx.get(cand_idx)
-        if dl is None or dl < floor:
-            dropped += 1
-            continue
-        kept.append((base_idx, cand_idx, cos))
-    return kept, dropped
-
+#
+# apply_downloads_floor() 자체는 ai/similarity/similarity_batch_pipeline.py 의
+# 정본을 그대로 import 한다(복사 아님, 위 apply_gates/rerank 와 같은 원칙) — 이 배치가
+# 실제로 채택한 하한(500,000)도 그 정본에 반영돼 있다.
 
 def downloads_stats(shown, downloads_by_name, floors=(10_000, 50_000, 100_000, 500_000)):
     """설정 하나에서 실제로 노출된(top-3) 후보들의 downloads_last_month 분포.
@@ -287,7 +270,7 @@ def main():
     dl_drops = {}
     config_floor = {k: 0 for k in configs}  # 각 설정이 어느 downloads 하한에 대응하는지 (매칭 골드용)
     for floor in floors:
-        dl_hits, dropped = apply_downloads_floor(configs[base_key], names, downloads_by_idx, floor)
+        dl_hits, dropped = sp.apply_downloads_floor(configs[base_key], downloads_by_idx, floor)
         key = f"{base_key}+dl>={floor:,}"
         configs[key] = dl_hits
         config_floor[key] = floor
