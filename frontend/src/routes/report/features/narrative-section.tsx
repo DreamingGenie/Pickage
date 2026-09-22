@@ -5,10 +5,15 @@ import type { ComparisonView } from '@/routes/report/features/model'
  * 기능 비교 해설 (IA §9.5).
  *
  * 표의 판정을 그대로 반복하지 않고, 기능을 구성하는 방식과 확인해야 할 조건을 근거 중심으로
- * 설명한다. **추천·순위·승자를 매기지 않는다** — 하단 고지가 그것을 밝힌다.
+ * 설명한다. **추천·순위·승자를 매기지 않는다**(IA §1-12) — 실제로 순위·승자를 매기는 문구를
+ * 만들지 않는 것으로 지킨다.
  *
  * 표는 있는데 해설만 못 만든 경우(`narrativeError`)는 표의 판정과 근거가 그대로 유효하므로
  * 이 섹션만 실패로 알린다. 해설이 없다는 이유로 표를 물리지 않는다.
+ *
+ * 하단에 "추천하지 않는다" 는 상시 고지를 뒀었으나, 글이 줄어 화면이 압축된 지금은 매 카드마다
+ * 반복해 읽을 만큼의 정보가 아니라 QA 피드백으로 뺐다(S15P21A506-465 후속) — 실제로 추천·순위
+ * 문구를 만들지 않는 것이 규칙을 지키는 것이지, 문구로 고지하는 것이 규칙 자체는 아니다.
  */
 export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimmed: boolean }) {
   if (view.narrative.length === 0 && !view.narrativeError) return null
@@ -44,11 +49,6 @@ export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimme
           ))}
         </div>
       )}
-
-      <p className="rounded-lg bg-muted/40 px-4 py-3 text-base leading-relaxed text-muted-foreground">
-        어느 패키지가 더 낫다고 추천하지 않습니다. README 에서 확인하지 못한 것은
-        &lsquo;미확인&rsquo;으로 남깁니다.
-      </p>
     </section>
   )
 }

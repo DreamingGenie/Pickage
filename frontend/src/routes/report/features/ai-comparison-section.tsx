@@ -85,7 +85,12 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
         />
       )}
 
-      {/* 결과가 있다. 재분석 실패·재분석 필요는 상태 카드가 위에 얹어서 말한다(IA §9.4) */}
+      {/*
+        결과가 있다. 재분석 실패·재분석 필요는 상태 카드가 위에 얹어서 말한다(IA §9.4).
+        재분석 버튼은 여기 없다 — `VersionPickerCard` 로 옮겼다(QA 피드백, S15P21A506-465
+        후속). 결과·해설까지 다 본 뒤 버전을 바꾸려면 이 카드 맨 아래까지 스크롤한 다음
+        다시 맨 위 드롭다운으로 올라가야 했다. 트리거를 그 드롭다운 옆에 두면 그 왕복이 없다.
+      */}
       {view && (
         <>
           {!running && <AnalysisStatusCard run={run} />}
@@ -94,11 +99,6 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
             <p className="text-base leading-relaxed text-muted-foreground">{run.sourceNote}</p>
           )}
           <NarrativeSection view={view} dimmed={running} />
-          {!running && (
-            <div>
-              <StartButton run={run} />
-            </div>
-          )}
         </>
       )}
     </section>
@@ -106,7 +106,7 @@ export function AiComparisonSection({ run }: { run: FeatureAnalysis }) {
 }
 
 /** 시작·재분석 버튼. 버전이 다 정해지기 전에는 누를 수 없다 — 서버가 V004 로 거절한다. */
-function StartButton({ run }: { run: FeatureAnalysis }) {
+export function StartButton({ run }: { run: FeatureAnalysis }) {
   return (
     <Button
       type="button"

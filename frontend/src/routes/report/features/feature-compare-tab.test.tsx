@@ -134,6 +134,24 @@ function completesWith(result = ragResult(TARGETS)) {
   fetchFeatureRun.mockResolvedValue(runResponse({ status: 'COMPLETED', phase: 'DONE', result }))
 }
 
+/** `ragResult`와 같은 모양이되 첫 기능의 pino 칸에 설명을 채운다 — 펼치기 시험용. */
+function ragResultWithNote(targets: FeatureTarget[]): RagComparisonResult {
+  const base = ragResult(targets)
+  const [first, ...rest] = base.features
+  return {
+    ...base,
+    features: [
+      {
+        ...first,
+        results: first.results.map((r) =>
+          r.package === 'pino' ? { ...r, note: '설명 텍스트입니다.' } : r,
+        ),
+      },
+      ...rest,
+    ],
+  }
+}
+
 function failsWith(code: FeatureRunErrorCode) {
   startFeatureRun.mockResolvedValue(runResponse())
   fetchFeatureRun.mockResolvedValue(runResponse({ status: 'FAILED', error_code: code }))
@@ -310,5 +328,40 @@ describe('FeatureCompareTab', () => {
 
     expect(screen.queryByRole('button', { name: /근거 열기|출처 열기/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/출처/)).not.toBeInTheDocument()
+  })
+
+  /**
+   * 뱃지는 항상 보이고 설명은 기본적으로 접혀 있다(S15P21A506-465). 펼치는 것은 칸이 아니라
+   * 기능명(행 머리글)이다 — 위 시험의 "칸은 버튼이 아니다" 결정은 그대로 유지된다.
+   */
+  it('설명은 기본적으로 접혀 있고, 기능명을 누르면 그 행만 펼쳐진다', async () => {
+    const user = userEvent.setup()
+    completesWith(ragResultWithNote(TARGETS))
+    renderTab()
+
+    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
+    await screen.findByRole('heading', { name: '핵심 기능 비교' })
+
+    const noteText = '설명 텍스트입니다.'
+    // 뱃지(판정)는 항상 보인다
+    expect(screen.getAllByText('지원').length).toBeGreaterThan(0)
+    // 설명은 접혀 있다
+    expect(screen.queryByText(noteText)).not.toBeInTheDocument()
+
+    // 설명이 없는 기능(예: Child logger)은 토글 자체가 없다 — 접을 것이 없으니 평문이다
+    expect(screen.queryByRole('button', { name: /Child logger/ })).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('button', { name: /구조화 JSON/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(noteText)).toBeInTheDocument()
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(noteText)).not.toBeInTheDocument()
   })
 })

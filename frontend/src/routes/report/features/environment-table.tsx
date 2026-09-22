@@ -1,5 +1,6 @@
 import { CheckIcon, CircleQuestionMarkIcon, type LucideIcon } from 'lucide-react'
 
+import { InfoDialog } from '@/components/common/info-dialog'
 import { cn } from '@/lib/utils'
 import type {
   ComparisonPackage,
@@ -27,6 +28,11 @@ import type {
  *
  * 한 건도 못 찾으면 섹션 자체를 그리지 않는다 — 빈 표를 두면 확인한 것이 없다는 사실이
  * 확인 결과처럼 읽힌다. 값이 없는 **칸만** `미확인` 으로 적는다.
+ *
+ * <h2>출처 설명은 ⓘ 모달로 (QA 피드백, S15P21A506-465 후속)</h2>
+ *
+ * "npm 에 올라온 파일에서 그대로 읽었어요" 는 매번 읽는 경고가 아니라 궁금할 때 찾아보는
+ * 설명이라 제목 옆 `InfoDialog` 로 옮겼다(핵심 기능 비교표와 같은 패턴).
  */
 export function EnvironmentTable({
   packages,
@@ -61,12 +67,14 @@ export function EnvironmentTable({
       className="flex flex-col gap-5 rounded-2xl border p-6"
     >
       <header className="flex flex-col gap-1.5">
-        <h3 id="environment-title" className="text-sm font-semibold">
-          설치하기 전에 알아 둘 것
-        </h3>
-        <p className="text-base text-muted-foreground">
-          npm 에 올라온 파일에서 그대로 읽었어요. AI 가 판단한 내용이 아니에요.
-        </p>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <h3 id="environment-title" className="text-sm font-semibold">
+            설치하기 전에 알아 둘 것
+          </h3>
+          <InfoDialog label="설치하기 전에 알아 둘 것 안내" title="설치하기 전에 알아 둘 것">
+            <p>npm 에 올라온 파일에서 그대로 읽었어요. AI 가 판단한 내용이 아니에요.</p>
+          </InfoDialog>
+        </div>
       </header>
 
       <div className="overflow-x-auto">
