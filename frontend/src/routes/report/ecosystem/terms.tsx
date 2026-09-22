@@ -10,8 +10,10 @@ import type { ReactNode } from 'react'
  * 실제 프로젝트 수보다 크고, 의존을 **선언**한 횟수이지 실제 설치·사용량이 아니다(기획서 §2, IA 8B).
  * 그 말들은 둘 다로 읽히게 만든다. 더 쉬운 말로 바꾸려면 **여기 상수만** 고치면 화면 전체가 따라온다.
  */
-export const DEPENDENTS_TERM = '의존 수'
-export const DEPENDENTS_DELTA_TERM = '의존 수 증감'
+export const DEPENDENTS_TERM = '의존 등록 수'
+export const DEPENDENTS_DELTA_TERM = '의존 등록 수 증감'
+/** 그래프 제목 밑에 늘 보이는 한 줄 풀이. 모달을 열지 않아도 무엇을 센 값인지 알게 한다. */
+export const DEPENDENTS_CAPTION = '다른 패키지가 이 패키지를 필요하다고 적어 둔 횟수예요'
 
 /**
  * "의존 수" 가 무엇인지 설명하는 모달 본문. 영어 표기는 여기서만 밝힌다 — 검색해 보려는 사람을
@@ -21,17 +23,18 @@ export function DependentsConcept(): ReactNode {
   return (
     <>
       <p>
-        다른 패키지가 자신의 <span className="font-mono">package.json</span>에 이 패키지를 의존
-        목록으로 직접 적어 둔 횟수입니다. 영어로는 Dependents라고 합니다. 간접 의존은 세지 않습니다.
+        다른 패키지가 자기 <span className="font-mono">package.json</span>에 이 패키지를 필요한
+        패키지로 직접 적어 둔 횟수예요. 영어로는 Dependents라고 해요. 다른 패키지를 거쳐 딸려 오는
+        경우(간접 의존)는 세지 않아요.
       </p>
       <p>
-        많을수록 더 많은 패키지가 이 패키지를 바탕으로 만들어졌다는 뜻이지만, 좋고 나쁨을 가리는
-        점수는 아닙니다.
+        많을수록 이 패키지를 바탕으로 만든 패키지가 많다는 뜻이지만, 좋고 나쁨을 가리는 점수는
+        아니에요.
       </p>
       <p>
-        버전별로 세어 더한 값이라 한 프로젝트가 여러 버전에 걸리면 여러 번 셉니다. 그래서 실제
-        프로젝트 수보다 클 수 있고, 실제 설치·사용량도 아닙니다. 늘고 있는지, 줄고 있는지 흐름을
-        읽는 데 알맞습니다.
+        버전마다 따로 세어 더한 값이라 한 프로젝트가 여러 버전에 걸리면 여러 번 세요. 그래서 실제
+        프로젝트 수보다 클 수 있고, 설치 횟수도 아니에요. 늘고 있는지 줄고 있는지 흐름을 볼 때
+        알맞아요.
       </p>
     </>
   )

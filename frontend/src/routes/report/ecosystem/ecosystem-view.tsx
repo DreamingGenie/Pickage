@@ -19,7 +19,11 @@ import {
   type MetricState,
   type PeriodPresetKey,
 } from '@/routes/report/ecosystem/model'
-import { DEPENDENTS_TERM, DependentsConcept } from '@/routes/report/ecosystem/terms'
+import {
+  DEPENDENTS_CAPTION,
+  DEPENDENTS_TERM,
+  DependentsConcept,
+} from '@/routes/report/ecosystem/terms'
 import { RemovalReasonsPanel } from '@/routes/report/ecosystem/removal-reasons-panel'
 import {
   EMPTY_REMOVAL_REASONS_MODEL,
@@ -239,10 +243,9 @@ export function EcosystemView({
       */}
       {model.notFound.length > 0 && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-          찾지 못한 패키지:{' '}
-          <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> — 이름을
-          확인해 주세요.
-          {model.packages.length > 0 && ' 나머지는 그대로 표시했습니다.'}
+          <span className="font-mono text-foreground">{model.notFound.join(', ')}</span> 는 찾지
+          못했어요. 이름을 확인해 주세요.
+          {model.packages.length > 0 && ' 나머지 패키지는 그대로 보여 드려요.'}
         </p>
       )}
 
@@ -346,7 +349,7 @@ export function EcosystemView({
             title={DEPENDENTS_TERM}
             info={<DependentsConcept />}
             infoTitle={`${DEPENDENTS_TERM}란?`}
-            unit="의존 수 · 버전별 합계"
+            unit={DEPENDENTS_CAPTION}
             series={windowedDependents}
             step={step}
             window={window}
@@ -359,7 +362,7 @@ export function EcosystemView({
           />
           <MetricChart
             title="Downloads"
-            unit="주간 · npm 공식 자료"
+            unit="1주 동안 내려받은 횟수예요 · npm 공식 자료"
             series={windowedDownloads}
             step={step}
             window={window}
