@@ -1170,6 +1170,126 @@ export const MOCK_REMOVAL_REASONS: Record<string, MockRemovalReason> = {
   bunyan: { dataStatus: 'NOT_COMPUTED' },
 }
 
+/**
+ * 관측된 교체 흐름 픽스처 (S15P21A506-424).
+ *
+ * 다섯 `data_status` 를 전부 덮는다 — 화면이 다섯을 다르게 그리는지 mock 만으로 확인할 수
+ * 있게. 기본 비교 3개(winston·pino·bunyan)에 COMPLETE 둘과 NOT_COMPUTED 하나가 들어간다.
+ *
+ * **점유율 합이 100 이 아니도록 일부러 만들어 두었다.** 실측이 그렇다 — `share_pm_pct` 의
+ * 분모는 빌더가 `lift>=5` 인 쌍 전체로 잡는데 표에는 loose(`votes>=3`)만 적재되므로, 출발
+ * 패키지의 79.7%가 합 99.5% 에 못 미치고 중앙값이 25.7% 다. mock 이 100 을 채우면 화면이
+ * 정규화해도 티가 안 나서, **실제 데이터를 붙이는 날 조용히 네 배 부풀려진다.**
+ *
+ * winston — COMPLETE(5개 + 그 밖). 상위 5가 55.5%, 그 밖 8.3% → 합 63.8%.
+ * pino    — COMPLETE(2개, 접을 것 없음 → `etc` 는 null).
+ * bunyan  — NOT_COMPUTED. 그 종류의 회차를 아직 안 올렸다.
+ * log4js  — INSUFFICIENT_EVIDENCE. **쌍은 있는데 전부 근거 미달이라 `destinations` 가 비고
+ *           `etc` 에만 들어 있다.** NO_DATA 와 문구가 반대라 반드시 갈라야 한다.
+ * loglevel— NO_DATA. 자료는 있는데 이동이 관측되지 않았다.
+ * morgan  — OUT_OF_SCOPE. `available_package` 에 없다 — 기다려도 안 온다.
+ */
+export interface MockMigrationDestination {
+  name: string
+  votes: number
+  coEvents: number
+  publisherMonths: number
+  dependents: number
+  lift: number
+  sharePmPct: number
+  sharePct: number
+  evidence: 'strict' | 'recommended' | 'loose'
+  variant?: boolean
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface MockMigrationPairs {
+  dataStatus: 'COMPLETE' | 'INSUFFICIENT_EVIDENCE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  destinations?: MockMigrationDestination[]
+  etc?: { pairs: number; sharePmPct: number; belowFilter: number }
+  /** 필터 전 관측된 쌍의 수. COMPLETE·INSUFFICIENT·NO_DATA 일 때만 값이 있다. */
+  observedPairs?: number
+}
+
+const dest = (
+  name: string,
+  votes: number,
+  publisherMonths: number,
+  sharePmPct: number,
+  evidence: 'strict' | 'recommended' | 'loose',
+  extra: Partial<MockMigrationDestination> = {},
+): MockMigrationDestination => ({
+  name,
+  votes,
+  coEvents: Math.round(votes * 1.6),
+  publisherMonths,
+  dependents: Math.round(votes * 1.2),
+  lift: Math.round(votes * 40),
+  sharePmPct,
+  sharePct: sharePmPct + 2.4,
+  evidence,
+  firstSeen: '2019-03-11',
+  lastSeen: '2026-07-28',
+  ...extra,
+})
+
+/** 실행용 의존 기준(deps.dev 전수, 기준일 2026-08-31). */
+export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    observedPairs: 7,
+    destinations: [
+      dest('pino', 38.5, 26, 21.4, 'strict'),
+      dest('bunyan', 24.0, 17, 14.8, 'recommended'),
+      dest('consola', 15.5, 11, 9.1, 'recommended'),
+      dest('loglevel', 9.5, 7, 6.2, 'loose'),
+      dest('winston-daily-rotate-file', 6.5, 5, 4.0, 'loose', { variant: true }),
+    ],
+    etc: { pairs: 2, sharePmPct: 8.3, belowFilter: 2 },
+  },
+  pino: {
+    dataStatus: 'COMPLETE',
+    observedPairs: 2,
+    destinations: [
+      dest('winston', 20.5, 14, 31.0, 'recommended'),
+      dest('pino-pretty', 8.0, 6, 12.5, 'loose', { variant: true }),
+    ],
+  },
+  bunyan: { dataStatus: 'NOT_COMPUTED' },
+  log4js: {
+    dataStatus: 'INSUFFICIENT_EVIDENCE',
+    observedPairs: 3,
+    etc: { pairs: 3, sharePmPct: 11.9, belowFilter: 3 },
+  },
+  loglevel: { dataStatus: 'NO_DATA', observedPairs: 0 },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+}
+
+/**
+ * 개발용 의존 기준(npm registry 상위 10만, 기준일 2026-09-16).
+ *
+ * **같은 패키지라도 도착지가 다르다.** 종류를 바꿨을 때 화면이 실제로 다른 것을 그리는지,
+ * 기준일 캡션이 함께 바뀌는지 mock 으로 확인하려는 것이다. 여기 없는 이름은
+ * `NOT_COMPUTED` 로 떨어진다 — 운영에서도 dev 회차는 아직 적재 전이다.
+ */
+export const MOCK_MIGRATION_PAIRS_DEV: Record<string, MockMigrationPairs> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    observedPairs: 4,
+    destinations: [dest('pino', 12.0, 9, 18.2, 'recommended'), dest('debug', 7.5, 6, 9.4, 'loose')],
+    etc: { pairs: 2, sharePmPct: 5.1, belowFilter: 1 },
+  },
+  pino: { dataStatus: 'NO_DATA', observedPairs: 0 },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+}
+
+/** 종류마다 기준일이 다르다. 16일 차이가 화면 캡션에 그대로 드러나야 한다. */
+export const MOCK_MIGRATION_SNAPSHOT: Record<'regular' | 'dev', string> = {
+  regular: '2026-08-31',
+  dev: '2026-09-16',
+}
+
 /** 기간이 길어질수록 유지·유입·이탈 절대량이 느는 정도만 흉내낸다. 값의 의미는 안 바뀐다. */
 export const TRANSITION_PERIOD_SCALE: Record<'1y' | '3y' | '5y', number> = {
   '1y': 0.4,
