@@ -684,10 +684,19 @@ def write_output(
     out_dir: str,
     candidates: list[dict],
     rows: list[dict],
+    vectors: "np.ndarray",
     gate: dict,
     meta: dict,
     allow_gate_skip: bool,
 ) -> None:
+    """산출물 3종 + `text_hash_state.parquet`(다음 실행의 `--state` 입력)을 쓴다.
+
+    `vectors[i]` 는 `rows[i]` 의 임베딩과 같은 순서여야 한다(호출부가 보장 — `embed_corpus()`
+    반환값을 그대로 넘긴다). **`vector` 컬럼을 반드시 같이 써야 `load_state()`가 다음 실행에서
+    재사용할 수 있다** — 예전엔 `name`·`text_hash`만 쓰고 있어서 `load_state()`가
+    `KeyError: 'vector'`로 죽었다(S15P21A506-457, `--state`가 한 번도 실제로 동작한 적
+    없었을 가능성이 있는 원인).
+    """
     os.makedirs(out_dir, exist_ok=True)
 
     import pyarrow as pa
@@ -695,7 +704,10 @@ def write_output(
 
     pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
     pq.write_table(
-        pa.Table.from_pylist([{"name": r["name"], "text_hash": r["_text_hash"]} for r in rows]),
+        pa.Table.from_pylist([
+            {"name": r["name"], "text_hash": r["_text_hash"], "vector": vectors[i].tolist()}
+            for i, r in enumerate(rows)
+        ]),
         os.path.join(out_dir, "text_hash_state.parquet"),
     )
 
@@ -706,8 +718,8 @@ def write_output(
         "base_packages": len({c["base_package"] for c in candidates}),
         "scoring_gate": gate,
     }
-    json.dump(manifest, open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=2)
+    with open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
 
     if gate_allows_success(gate, allow_gate_skip):
         open(os.path.join(out_dir, "_SUCCESS"), "w").close()
@@ -838,7 +850,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         },
         "elapsed_sec": round(time.time() - t0, 1),
     }
-    write_output(args.out, candidates, rows, gate, meta, args.allow_gate_skip)
+    write_output(args.out, candidates, rows, vectors, gate, meta, args.allow_gate_skip)
     log(f"완료 — {meta['elapsed_sec']}s")
     return 0
 
