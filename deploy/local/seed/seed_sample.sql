@@ -28,7 +28,7 @@
 -- 2026-09-09: V2 에서 similar_package 가 생겨 목록에 추가했다.
 -- 이 파일이 의도대로 동작한 사례다 — 빠져 있는 동안 TRUNCATE 가 FK 오류로 멈춰서
 -- "새 테이블이 생겼다" 는 사실이 조용히 지나가지 않았다.
-TRUNCATE community_snapshot, dependent_removal_reason, dependent_transition, package_env, similar_package, package_version_snapshot, package_snapshot, version, package;
+TRUNCATE community_snapshot, dependent_removal_reason, dependent_transition, package_env, similar_package, package_version_snapshot, package_snapshot, available_package, version, package;
 
 -- ⚠ snapshot 만 TRUNCATE 가 아니라 DELETE 다 (2026-09-09, S15P21A506-289).
 --
