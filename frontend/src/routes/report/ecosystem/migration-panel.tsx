@@ -8,9 +8,14 @@ import type { MetricState } from '@/routes/report/ecosystem/model'
 import {
   crossDirections,
   DEPENDENCY_KINDS,
+  EVIDENCE_HINT,
   EVIDENCE_LABEL,
+  VARIANT_HINT,
+  type MigrationEvidence,
   type MigrationModel,
 } from '@/routes/report/ecosystem/migration-model'
+import { EvidenceBadge, VariantBadge } from '@/routes/report/ecosystem/migration-badges'
+import { MIGRATION_CAPTION, MIGRATION_TERM } from '@/routes/report/ecosystem/terms'
 import { cn } from '@/lib/utils'
 
 /**
@@ -58,7 +63,6 @@ export function MigrationPanel({
    */
   const snapshot = model.packages.find((p) => p.snapshotAt)?.snapshotAt ?? null
   const directions = crossDirections(model)
-  const shareBasis = model.packages[0]?.shareBasis ?? 'publisher_months'
 
   return (
     <div
@@ -69,34 +73,32 @@ export function MigrationPanel({
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-lg font-semibold">어디로 옮겨 갔나</h3>
-          <InfoDialog label="교체 흐름 계산 기준 안내" title="계산 기준">
-            <p>
-              어떤 패키지를 <strong>빼면서 같은 버전에 새로 넣은 것</strong>을 모아 도착지별로 센
-              거예요. 바로 위 <strong>이탈 사유</strong> 의 &ldquo;다른 것과 함께 제거&rdquo; 에
-              이름을 붙인 것이라고 보면 돼요.
-            </p>
-            <p>
-              <strong>옮기라는 추천이 아니에요.</strong> 사람들이 실제로 그렇게 했다는 기록일
-              뿐이고, 왜 그랬는지는 이 자료로 알 수 없어요.
-            </p>
-            <p>
-              비율의 분모는 <strong>바꾼 횟수가 아니라 서로 다른 (만든 사람 × 달)</strong> 의
-              수예요({shareBasis}). 한 회사가 자기 패키지 수십 개를 한 달에 한꺼번에 바꿔도 1로
-              세요.
-            </p>
-            <p>
-              <strong>막대가 100%를 다 채우지 않아요.</strong> 근거가 약한 이동(같은 달, 같은 만든
-              사람에서 한 번만 보인 것)은 집계에서 뺐거든요. 남는 자리는 빗금으로 그려 두고 비율을
-              100으로 늘리지 않아요 — 늘리면 각 도착지가 실제보다 훨씬 커 보여요.
-            </p>
-            <p>
-              <strong>실행용과 개발용은 따로 봐야 해요.</strong> 센 대상이 아예 달라서(npm 전체 vs
-              다운로드 상위 10만) 두 수를 더하거나 크기를 비교할 수 없어요. 고른 쪽에 따라 기준일도
-              달라져요.
-            </p>
-          </InfoDialog>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold">{MIGRATION_TERM}</h3>
+            {/*
+              **배지 풀이를 맨 위에 둔다.** 이 모달을 여는 가장 잦은 이유가 "근거 강함이
+              무슨 뜻이지" 라서다. 나머지 두 줄은 그 아래 주의사항이다.
+
+              실행용·개발용 차이는 여기 적지 않는다 — 선택기 옆에 늘 떠 있다. 화면에 이미
+              있는 말을 모달이 되풀이하면 읽을 것이 두 배로 보인다.
+            */}
+            <InfoDialog label="교체 흐름 계산 기준 안내" title="계산 기준">
+              <EvidenceKey />
+              <p>
+                <strong>옮기라는 추천이 아니에요.</strong> 실제로 그렇게 했다는 기록이에요.
+              </p>
+              <p>
+                비율의 분모는 <strong>바꾼 횟수가 아니라 서로 다른 (만든 사람 × 달)</strong> 수예요.
+                한 회사가 한 달에 수십 개를 바꿔도 1로 세요.
+              </p>
+              <p>
+                <strong>막대가 100%를 다 채우지 않아요.</strong> 근거가 약한 이동은 뺐고, 남는
+                자리가 빗금이에요.
+              </p>
+            </InfoDialog>
+          </div>
+          <p className="text-base text-muted-foreground">{MIGRATION_CAPTION}</p>
         </div>
         <span className="font-mono text-base text-muted-foreground">
           {snapshot ?? '준비 중 — 이 기준은 아직 적재하지 않았어요'}
@@ -155,9 +157,16 @@ export function MigrationPanel({
               return (
                 <div
                   key={pkg.key}
+                  /*
+                    **열 폭에 매직 넘버를 두지 않는다.** 형제 패널은
+                    `sm:basis-[calc(50%-10px)]` 처럼 칸 수와 `gap-5` 를 손으로 빼서 쓰는데,
+                    간격을 바꾸면 그 수를 같이 고쳐야 하는 것을 아무도 기억하지 못한다.
+                    고정 폭(`sm:w-72`)에 `justify-center` 를 더하면 몇 개가 들어오든 스스로
+                    줄바꿈하고, 1~2개일 때 남는 자리도 양옆으로 고르게 나뉜다.
+                  */
                   className={cn(
                     'flex w-full flex-none flex-col items-center gap-3 transition-opacity duration-150',
-                    'sm:basis-[calc(50%-10px)] lg:basis-[calc(33.333%-14px)]',
+                    'sm:w-72',
                     !emphasized && 'opacity-40',
                   )}
                 >
@@ -189,6 +198,33 @@ export function MigrationPanel({
 }
 
 /**
+ * 배지 세 개와 "변종" 이 무엇을 보고 붙는지. **모달 안에서 가장 자주 찾는 부분**이라
+ * 문단이 아니라 표로 둔다 — 문장으로 풀면 세 기준이 섞여 읽힌다.
+ *
+ * 값은 {@link EVIDENCE_HINT} 한 곳에서 온다. 배지의 툴팁과 같은 문장이라 두 곳이 갈라질 수 없다.
+ */
+function EvidenceKey() {
+  const rows: { label: string; hint: string }[] = [
+    ...(['strict', 'recommended', 'loose'] as MigrationEvidence[]).map((key) => ({
+      label: EVIDENCE_LABEL[key],
+      hint: EVIDENCE_HINT[key],
+    })),
+    { label: '변종', hint: VARIANT_HINT },
+  ]
+
+  return (
+    <dl className="flex flex-col gap-2 rounded-lg border p-3">
+      {rows.map((row) => (
+        <div key={row.label} className="flex flex-col gap-0.5">
+          <dt className="font-medium text-foreground">{row.label}</dt>
+          <dd className="text-sm">{row.hint}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/**
  * 비교 중인 패키지끼리의 이동 — 기획의 "최대 6개 방향"(S15P21A506-136).
  *
  * 아래 패키지별 막대에도 같은 값이 들어 있지만, 거기서는 <b>어느 도착지가 지금 비교 중인
@@ -202,28 +238,24 @@ function CrossDirections({ directions }: { directions: ReturnType<typeof crossDi
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-dashed p-4">
       <p className="text-base text-muted-foreground">비교 중인 패키지끼리 오간 이동</p>
-      <ul className="flex flex-col gap-1.5">
+      {/*
+        **한 방향이 한 덩어리로 묶여 줄바꿈된다.** 예전에는 한 줄을 가로로 꽉 채우고 비율만
+        `ml-auto` 로 오른쪽 끝에 붙였는데, 넓은 화면에서 이름과 비율이 손가락 두 뼘쯤 떨어져
+        어느 줄의 값인지 눈으로 되짚어야 했다. 비율은 이름 바로 옆에 있어야 읽힌다.
+      */}
+      <ul className="flex flex-wrap gap-x-6 gap-y-2">
         {directions.map((d) => (
-          <li key={`${d.from}->${d.to}`} className="flex items-center gap-2">
-            <span className="truncate font-mono text-base text-foreground">{d.from}</span>
+          <li key={`${d.from}->${d.to}`} className="flex items-center gap-1.5">
+            <span className="font-mono text-base text-foreground">{d.from}</span>
             <span aria-label="에서" className="shrink-0 text-muted-foreground">
               →
             </span>
-            <span className="truncate font-mono text-base text-foreground">{d.to}</span>
-            {d.variant && (
-              <span
-                className="shrink-0 rounded border px-1 text-xs text-muted-foreground"
-                title="양방향으로 관측됐어요. 같은 물건의 다른 포장일 수 있어요"
-              >
-                변종
-              </span>
-            )}
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {EVIDENCE_LABEL[d.evidence]}
-            </span>
-            <span className="ml-auto shrink-0 font-mono text-base tabular-nums">
+            <span className="font-mono text-base text-foreground">{d.to}</span>
+            <span className="font-mono text-base text-foreground tabular-nums">
               {d.sharePmPct.toFixed(1)}%
             </span>
+            <EvidenceBadge evidence={d.evidence} />
+            {d.variant && <VariantBadge />}
           </li>
         ))}
       </ul>

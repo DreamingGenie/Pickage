@@ -1,19 +1,11 @@
+import { FLOW_FILLS } from '@/components/charts/tokens'
+import { EvidenceBadge, VariantBadge } from '@/routes/report/ecosystem/migration-badges'
 import {
   coveredPct,
-  EVIDENCE_LABEL,
   type MigrationDestination,
   type PackageMigration,
 } from '@/routes/report/ecosystem/migration-model'
 import { cn } from '@/lib/utils'
-
-/**
- * 도착지 다섯 칸 + 접은 칸까지 **여섯 단계가 겹치지 않는** 회색 계단.
- *
- * `SHARE_FILLS` 를 그대로 쓰지 않는 이유는 그쪽이 네 칸짜리라, 다섯째 도착지에서 색이
- * 처음으로 되돌아가기 때문이다. 막대만 보면 같은 색 조각이 둘이라 하나로 읽힌다 —
- * 범례에 비율이 있어도 막대의 모양이 먼저 눈에 들어온다.
- */
-const FLOW_FILLS = ['#0F172A', '#334155', '#64748B', '#94A3B8', '#CBD5E1']
 
 /**
  * 교체 흐름 막대 — 패키지 하나 (S15P21A506-424).
@@ -166,25 +158,11 @@ function DestinationRow({ dest, fill }: { dest: MigrationDestination; fill: stri
       />
       <dt className="truncate font-mono text-base text-foreground">{dest.name}</dt>
       {/*
-        변종은 **지우지 않고 표시만 다르게 한다**(S15P21A506-211 결정 4 ③).
-        lodash ↔ lodash-es 처럼 같은 물건의 다른 포장이면 "옮겨 갔다" 로 읽으면 안 된다.
+        배지 둘 다 **모달의 풀이표와 같은 문장**을 툴팁으로 단다. 낱말만 떠 있으면 서비스가
+        임의로 매긴 점수로 읽히고, 여기서 따로 문장을 쓰면 두 곳이 갈라진다.
       */}
-      {dest.variant && (
-        <span
-          className="shrink-0 rounded border px-1 text-xs text-muted-foreground"
-          title="양방향으로 관측됐어요. 같은 물건의 다른 포장일 수 있어요"
-        >
-          변종
-        </span>
-      )}
-      <span
-        className={cn(
-          'shrink-0 rounded px-1 text-xs',
-          dest.evidence === 'strict' ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground',
-        )}
-      >
-        {EVIDENCE_LABEL[dest.evidence]}
-      </span>
+      {dest.variant && <VariantBadge />}
+      <EvidenceBadge evidence={dest.evidence} />
       <dd className="ml-auto shrink-0 font-mono text-base text-foreground tabular-nums">
         {dest.sharePmPct.toFixed(1)}%
       </dd>
