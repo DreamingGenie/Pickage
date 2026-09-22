@@ -62,10 +62,10 @@ export function EnvironmentTable({
     >
       <header className="flex flex-col gap-1.5">
         <h3 id="environment-title" className="text-sm font-semibold">
-          핵심 비교 요약
+          설치하기 전에 알아 둘 것
         </h3>
         <p className="text-base text-muted-foreground">
-          npm 에 배포된 파일에서 그대로 읽은 값입니다. AI 가 판단한 내용이 아닙니다.
+          npm 에 올라온 파일에서 그대로 읽었어요. AI 가 판단한 내용이 아니에요.
         </p>
       </header>
 
@@ -123,7 +123,7 @@ const TONE: Record<EnvTone, { className: string; Icon?: LucideIcon }> = {
 
 /** 아래 기능 비교표의 `VerdictPill` 과 같은 모양. 값이 없으면 `미확인` 으로 적는다. */
 function EnvPill({ value }: { value: EnvValue | null }) {
-  const { text, tone } = value ?? { text: '미확인', tone: 'unknown' as const }
+  const { text, tone } = value ?? { text: '알 수 없음', tone: 'unknown' as const }
   const { className, Icon } = TONE[tone]
   return (
     <span

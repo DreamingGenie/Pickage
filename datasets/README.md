@@ -18,6 +18,7 @@
 | `targets/candidate_pool_260916.csv` | AI 파트가 준 유사 패키지 후보 풀 29,310개 (`name` 한 열) | AI 파트 제공 | `targets/README.md` |
 | **`targets/expanded_468k_20260922.csv`** | **확장 대상 정본 468,519개** — 상위 10만 ∪ 순위 100만 내 비스코프 전부 ∪ AI 후보 풀. 2026-09-22 이후 파생·AI 배치·이력 재적재의 대상 | `package_text_2026-09-08.parquet` + 위 두 파일의 합집합 (S15P21A506-451) | `targets/README.md` §3 — 선정 규칙, **스코프 롱테일 431,715개를 왜 뺐는지**, `rank`를 새로 매긴 이유. **BOM 없음(수집기 입력)** |
 | `targets/expanded_468k_additions_20260922.csv` | 정본 − 상위 10만 = 368,523개. **수집기 전용** — downloads run `2026-09-22-additions`, registry 재수집 입력 | 위 정본에서 `rank_top100k` 이름을 뺀 것 | `targets/README.md` §3-6. 파생 빌더에는 이 파일이 아니라 정본을 준다 |
+| **`targets/rerank_100k_20260922.csv`** | **재정렬 10만** — AI 후보 풀 ∪ 분야별 상위 5 ∪ 의존자 50+ ∪ 월 100만+ 유지, 나머지를 다운로드 순으로 채움. 크기가 기존 10만과 같아 **`package_version_snapshot`(의존 수 추이) 전용 대상** | 위 확장 목록과 같은 모집단에서 규칙 5개 (S15P21A506-451·455) | `targets/README.md` §7 — 규칙, 확장 46.9만과 겹치지 않는 8,283개, 기존 10만에서 빠지는 28,151개 |
 
 규칙
 

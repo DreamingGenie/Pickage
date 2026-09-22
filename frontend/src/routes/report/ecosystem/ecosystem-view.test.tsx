@@ -4,6 +4,11 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SAMPLE_ECOSYSTEM } from '@/components/charts/sample'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
+import {
+  DEPENDENTS_CAPTION,
+  DEPENDENTS_DELTA_TERM,
+  DEPENDENTS_TERM,
+} from '@/routes/report/ecosystem/terms'
 import { resolvePreset } from '@/routes/report/ecosystem/model'
 
 /**
@@ -92,33 +97,35 @@ describe('조회 기간 프리셋', () => {
 })
 
 describe('용어와 설명 문구', () => {
-  it('화면에 Dependents 라는 영어 표기를 쓰지 않고 "의존 수" 로 쓴다', () => {
+  it('화면에 Dependents 라는 영어 표기를 쓰지 않고 terms 의 한국어 용어로 쓴다', () => {
     const { container } = render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
     expect(container.textContent).not.toMatch(/Dependents/)
-    expect(container.textContent).toContain('의존 수')
-    expect(container.textContent).toContain('의존 수 증감')
+    expect(container.textContent).toContain(DEPENDENTS_TERM)
+    expect(container.textContent).toContain(DEPENDENTS_DELTA_TERM)
+    // 무엇을 센 값인지는 모달을 열지 않아도 제목 밑에 한 줄로 보인다.
+    expect(container.textContent).toContain(DEPENDENTS_CAPTION)
   })
 
   it('상시 노출하던 설명 문구는 화면에 없다', () => {
     const { container } = render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
     const text = container.textContent ?? ''
     expect(text).not.toContain('전 버전을 합한 값입니다')
-    expect(text).not.toContain('devDependencies는 포함하지 않습니다')
-    expect(text).not.toContain('그래프의 증감과는 다른 기준')
+    expect(text).not.toContain('devDependencies)은 세지 않아요')
+    expect(text).not.toContain('그래프의 증감과는 세는 방법이 달라요')
     expect(text).not.toContain('그 뒤만 그렸습니다')
   })
 
-  it('의존 수 ⓘ 를 누르면 개념 설명 모달이 열리고, 직접 세지 않는 것과 한계를 밝힌다', async () => {
+  it('의존 등록 수 ⓘ 를 누르면 개념 설명 모달이 열리고, 직접 세지 않는 것과 한계를 밝힌다', async () => {
     const user = userEvent.setup()
     render(<EcosystemView model={SAMPLE_ECOSYSTEM} />)
 
-    await user.click(screen.getByRole('button', { name: '의존 수 안내' }))
+    await user.click(screen.getByRole('button', { name: `${DEPENDENTS_TERM} 안내` }))
 
-    const dialog = await screen.findByRole('dialog', { name: '의존 수란?' })
+    const dialog = await screen.findByRole('dialog', { name: `${DEPENDENTS_TERM}란?` })
     expect(dialog).toHaveTextContent('package.json')
-    expect(dialog).toHaveTextContent('간접 의존은 세지 않습니다')
+    expect(dialog).toHaveTextContent('간접 의존)는 세지 않아요')
     // 실제 프로젝트 수·설치량으로 읽히지 않게 한다(기획서 §2, IA 8B).
-    expect(dialog).toHaveTextContent('실제 설치·사용량도 아닙니다')
+    expect(dialog).toHaveTextContent('설치 횟수도 아니에요')
   })
 
   it('표시 버전 ⓘ 모달에 이전에 화면에 있던 설명이 들어 있다', async () => {
@@ -128,6 +135,6 @@ describe('용어와 설명 문구', () => {
     await user.click(screen.getByRole('button', { name: '표시 버전 안내' }))
 
     const dialog = await screen.findByRole('dialog', { name: '표시 버전' })
-    expect(dialog).toHaveTextContent('모든 버전(major)을 합한 값입니다')
+    expect(dialog).toHaveTextContent('모든 큰 버전(major)을 합한 값이에요')
   })
 })

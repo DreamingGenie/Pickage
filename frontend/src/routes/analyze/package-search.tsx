@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { usePackageAutocomplete } from '@/api/autocomplete'
 import { cn } from '@/lib/utils'
 
+const MAX_PACKAGE_SEARCH_LENGTH = 300
+
 /**
  * 패키지명 검색창.
  *
@@ -22,7 +24,7 @@ export function PackageSearch({
   value,
   onChange,
   onSubmit,
-  placeholder = '패키지명 하나 (예: winston)',
+  placeholder = '패키지 이름 (예: winston)',
   ariaLabel,
   disabled = false,
   autoFocus = false,
@@ -31,6 +33,7 @@ export function PackageSearch({
   icon = true,
   invalid = false,
   describedBy,
+  showCount = false,
 }: {
   value: string
   onChange: (v: string) => void
@@ -49,6 +52,8 @@ export function PackageSearch({
   invalid?: boolean
   /** 오류 문구 요소 id. `aria-describedby` 로 연결한다. */
   describedBy?: string
+  /** 입력창 아래에 글자 수(`N / 300자`)를 보여 준다. 길이 제한이 있다는 걸 미리 알린다. */
+  showCount?: boolean
 }) {
   const listId = useId()
   const [open, setOpen] = useState(false)
@@ -119,6 +124,7 @@ export function PackageSearch({
       )}
       <input
         value={value}
+        maxLength={MAX_PACKAGE_SEARCH_LENGTH}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
@@ -136,6 +142,8 @@ export function PackageSearch({
         aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
+        spellCheck={false}
+        autoComplete="off"
         className={cn(
           'h-11 w-full rounded-lg border border-input bg-background pr-3 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50',
           icon ? 'pl-10' : 'pl-4',
@@ -157,8 +165,8 @@ export function PackageSearch({
                   '찾는 중…'
                 ) : (
                   <>
-                    <span className="font-mono">{query}</span> 로 시작하는 패키지를 찾지 못했습니다.
-                    Enter 로 그대로 확인해 볼 수 있습니다.
+                    <span className="font-mono">{query}</span> 로 시작하는 패키지가 목록에 없어요.
+                    Enter 를 누르면 이 이름 그대로 확인해 볼게요.
                   </>
                 )}
               </li>
@@ -197,6 +205,11 @@ export function PackageSearch({
             </p>
           )}
         </div>
+      )}
+      {showCount && (
+        <p className="mt-1.5 text-right text-sm text-muted-foreground tabular-nums">
+          {value.length} / {MAX_PACKAGE_SEARCH_LENGTH}자
+        </p>
       )}
     </div>
   )

@@ -30,12 +30,12 @@ import type { ComparisonPackage, EnvValue, EnvironmentRow } from '@/routes/repor
 function moduleFormat(item: PackageEnvItemWire): EnvValue | null {
   switch (item.module_format) {
     case 'CJS':
-      return { text: 'CommonJS', tone: 'neutral' }
+      return { text: 'require (CommonJS)', tone: 'neutral' }
     case 'ESM_ONLY':
-      return { text: 'ESM 전용', tone: 'info' }
+      return { text: 'import 만 (ESM)', tone: 'info' }
     // 전수의 21.0% 다. "ESM 이냐 CJS 냐" 로 이분해 적으면 다섯 중 하나가 갈 곳이 없다.
     case 'ESM_CJS':
-      return { text: 'ESM + CommonJS', tone: 'info' }
+      return { text: 'import · require 둘 다', tone: 'info' }
     default:
       return null
   }
@@ -49,8 +49,8 @@ function moduleFormat(item: PackageEnvItemWire): EnvValue | null {
  */
 function typesBundled(item: PackageEnvItemWire): EnvValue {
   return item.types_bundled
-    ? { text: '포함', tone: 'positive' }
-    : { text: '별도 설치', tone: 'neutral' }
+    ? { text: '들어 있어요', tone: 'positive' }
+    : { text: '@types 따로 설치', tone: 'neutral' }
 }
 
 /**
@@ -62,14 +62,14 @@ function typesBundled(item: PackageEnvItemWire): EnvValue {
 function directDeps(item: PackageEnvItemWire): EnvValue | null {
   const n = item.direct_dependencies
   if (n === null) return null
-  return { text: n === 0 ? '없음' : `${n.toLocaleString()}개`, tone: 'neutral' }
+  return { text: n === 0 ? '없어요' : `${n.toLocaleString()}개`, tone: 'neutral' }
 }
 
 /** peer 의존 수. 있으면 사용자가 **먼저 깔아 둬야 하는** 것이라 톤을 달리한다. */
 function peerDeps(item: PackageEnvItemWire): EnvValue | null {
   const n = item.peer_dependencies
   if (n === null) return null
-  return n === 0 ? { text: '없음', tone: 'neutral' } : { text: `${n}개 필요`, tone: 'info' }
+  return n === 0 ? { text: '없어요', tone: 'neutral' } : { text: `${n}개 필요`, tone: 'info' }
 }
 
 interface RowSpec {
@@ -92,27 +92,27 @@ interface RowSpec {
 const ROWS: RowSpec[] = [
   {
     key: 'module_format',
-    label: '모듈 방식',
-    hint: 'import 와 require 중 무엇으로 불러오는지',
+    label: '불러오는 방식',
+    hint: 'import 와 require 중 무엇을 쓰는지',
     value: moduleFormat,
   },
   {
     key: 'types_bundled',
-    label: '타입 선언',
-    hint: 'TypeScript 타입이 패키지에 들어 있는지',
+    label: 'TypeScript 타입',
+    hint: '타입을 따로 설치하지 않아도 되는지',
     value: typesBundled,
   },
   // 전이 의존이 아니다. 라벨에서 "직접" 을 빼면 실제 설치 규모로 오해된다.
   {
     key: 'direct_dependencies',
-    label: '직접 의존',
-    hint: '설치하면 함께 깔리는 패키지 수',
+    label: '함께 설치되는 패키지',
+    hint: '설치할 때 바로 딸려 오는 것만 셌어요',
     value: directDeps,
   },
   {
     key: 'peer_dependencies',
-    label: 'peer 의존',
-    hint: '미리 설치해 둬야 하는 패키지 수',
+    label: '미리 깔아 둬야 하는 것',
+    hint: 'peer 의존 · 없으면 설치할 때 경고가 나요',
     value: peerDeps,
   },
 ]
@@ -154,5 +154,5 @@ export function toEnvironmentRows(
  */
 export function environmentNote(response: PackageEnvResponse | undefined): string | null {
   if (!response || response.not_found.length === 0) return null
-  return `${response.not_found.join(', ')} 의 소비 조건 자료가 아직 없습니다.`
+  return `${response.not_found.join(', ')} 는 설치 정보를 아직 모으지 못했어요.`
 }

@@ -116,7 +116,7 @@ function DeltaMark({ delta }: { delta?: number | null }) {
   return (
     <span
       className={cn('text-base leading-none font-medium tabular-nums', tone)}
-      title={`직전 집계 대비 ${sign}${Math.abs(delta).toLocaleString()}`}
+      title={`지난번에 모은 값보다 ${sign}${Math.abs(delta).toLocaleString()}`}
     >
       {sign}
       {compact(Math.abs(delta))}
@@ -124,7 +124,7 @@ function DeltaMark({ delta }: { delta?: number | null }) {
   )
 }
 
-const PENDING = '집계 대기'
+const PENDING = '모으는 중'
 
 /**
  * 값이 없는 자리를 채우는 안내.
@@ -212,7 +212,7 @@ function DownloadsTile({ downloads }: { downloads: number | null }) {
         value={PENDING}
         label="주간 다운로드"
         tone="unknown"
-        title="패키지는 있으나 아직 집계된 값이 없습니다"
+        title="패키지는 있지만 아직 모은 값이 없어요"
       />
     )
   }
@@ -221,7 +221,7 @@ function DownloadsTile({ downloads }: { downloads: number | null }) {
       icon={<DownloadIcon className="size-[18px]" />}
       value={compact(downloads)}
       label="주간 다운로드"
-      title="직전 7일 합계 · npm 공식 자료"
+      title="최근 7일 동안 내려받은 횟수 · npm 공식 자료"
     />
   )
 }
@@ -239,10 +239,10 @@ function StarsTile({
     return (
       <BadgeTile
         icon={<CircleHelpIcon className="size-[18px]" />}
-        value={repoUrl ? PENDING : '미확인'}
+        value={repoUrl ? PENDING : '알 수 없음'}
         label="저장소 별"
         tone="unknown"
-        title={repoUrl ? '아직 집계된 값이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
+        title={repoUrl ? '아직 모은 값이 없어요' : '저장소 주소가 없어서 알 수 없어요'}
       />
     )
   }
@@ -252,7 +252,7 @@ function StarsTile({
       value={compact(stars)}
       delta={delta}
       label="저장소 별"
-      title="가장 최근 집계 기준"
+      title="가장 최근에 모은 값이에요"
     />
   )
 }
@@ -277,10 +277,10 @@ function IssuesTile({
     return (
       <BadgeTile
         icon={<CircleHelpIcon className="size-[18px]" />}
-        value={repoUrl ? PENDING : '미확인'}
+        value={repoUrl ? PENDING : '알 수 없음'}
         label="열린 이슈"
         tone="unknown"
-        title={repoUrl ? '아직 집계된 값이 없습니다' : '저장소 주소가 없어 관측할 수 없습니다'}
+        title={repoUrl ? '아직 모은 값이 없어요' : '저장소 주소가 없어서 알 수 없어요'}
       />
     )
   }
@@ -291,7 +291,7 @@ function IssuesTile({
         value="0건"
         label="열린 이슈"
         tone="unknown"
-        title="열린 이슈가 없다는 관측이며, 문제가 있다는 뜻이 아닙니다"
+        title="지금 열려 있는 이슈가 없다는 뜻이에요. 문제가 있다는 뜻은 아니에요"
       />
     )
   }
@@ -318,9 +318,9 @@ function DeprecationTile({ deprecated }: { deprecated: boolean }) {
       <BadgeTile
         icon={<ShieldAlertIcon className="size-[18px]" />}
         value="있음"
-        label="최신 버전 폐기 표시"
+        label="최신 버전 지원 종료 표시"
         tone="notable"
-        title="표시가 붙은 시점은 알 수 없습니다"
+        title="만든 사람이 최신 버전에 '더 이상 쓰지 말라(deprecated)'고 표시했어요. 언제 붙였는지는 알 수 없어요"
       />
     )
   }
@@ -328,7 +328,7 @@ function DeprecationTile({ deprecated }: { deprecated: boolean }) {
     <BadgeTile
       icon={<PackageCheckIcon className="size-[18px]" />}
       value="없음"
-      label="최신 버전 폐기 표시"
+      label="최신 버전 지원 종료 표시"
     />
   )
 }
