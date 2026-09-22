@@ -100,8 +100,9 @@ public record MigrationPairsResponse(
 	 * @param destinations  상위 {@code TOP_DESTINATIONS} 개. 기본 필터를 통과한 것만,
 	 *                      점유율 내림차순.
 	 * @param etc           그 밖 전부를 접은 한 칸. <b>기본 필터에 못 미친 쌍도 여기 들어간다</b>
-	 *                      — 그래야 {@code destinations + etc} 가 이 패키지의 관측된 이동
-	 *                      전부가 되어 차트가 100% 를 이룬다. {@code null} 이면 접을 것이 없다.
+	 *                      — 그래야 {@code destinations + etc} 가 이 표가 가진 것 전부가 된다.
+	 *                      {@code null} 이면 접을 것이 없다. <b>합이 100% 는 아니다</b> —
+	 *                      {@link Destination#sharePmPct()} 설명을 볼 것.
 	 * @param observedPairs 이 패키지에서 관측된 이동쌍 수(필터 전). 0 이면 {@link #NO_DATA}.
 	 * @param dataStatus    {@code COMPLETE} · {@code INSUFFICIENT_EVIDENCE} · {@code NO_DATA} ·
 	 *                      {@code NOT_COMPUTED}.
@@ -140,7 +141,13 @@ public record MigrationPairsResponse(
 	 * (출발 55개, 점유율 100% 인 것 포함). 표에 FK 를 걸지 않은 것이 같은 이유다(V13 머리말).
 	 * 화면은 이름으로 그리고, 상세로 갈 수 있는지는 별도 조회로 판단한다.
 	 *
-	 * @param sharePmPct  점유율. 분모는 {@link #SHARE_BASIS} 다.
+	 * @param sharePmPct  점유율. 분모는 {@link #SHARE_BASIS} 이고, <b>한 응답 안의 값을 모두
+	 *                    더해도 100 이 되지 않는다.</b> 분모가 빌더의 {@code lift>=5} 쌍
+	 *                    전체인데 표에는 loose({@code votes>=3})만 적재되기 때문이다 —
+	 *                    출발 패키지의 79.7% 가 99.5% 에 못 미치고 중앙값은 25.7% 다.
+	 *                    빠진 몫은 "조직·달 3개 미만의 일회성 이동" 이고 적재하지 않는 것이
+	 *                    결정 1이다. <b>화면은 이 값을 그대로 쓰고 100 으로 정규화하지
+	 *                    않는다.</b> 남는 자리는 "근거가 약해 집계에서 뺀 이동" 으로 둔다.
 	 * @param sharePct    표 기준 점유율. <b>라벨 필터용으로만 남긴 값이고 화면에 쓰지
 	 *                    않는다</b>(S15P21A506-136 §3). 등급 판정의 입력이라 함께 낸다.
 	 * @param evidence    {@code strict} · {@code recommended} · {@code loose}. 행을 지우는

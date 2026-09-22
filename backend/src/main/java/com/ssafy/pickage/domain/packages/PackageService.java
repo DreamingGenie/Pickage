@@ -489,6 +489,7 @@ public class PackageService {
 	 * "행 없음" 이 곧 "대상 밖" 이지만, 이 표에는 범위 개념이 없다 — 이동이 관측된 패키지만
 	 * 행을 가진다. 그래서 {@code getTransitions} 처럼 적재 여부를 따로 묻는다.
 	 */
+	@Transactional(readOnly = true)
 	public MigrationPairsResponse getMigrationPairs(PackageNames names, DependencyKind kind) {
 		Existing existing = existing(names);
 		List<MigrationPairRow> rows = existing.names().isEmpty()
@@ -528,10 +529,16 @@ public class PackageService {
 	 * <p>조회가 이미 {@code share_pm_pct} 내림차순으로 정렬해 주므로 여기서 다시 정렬하지
 	 * 않는다 — 정렬 기준이 두 곳에 있으면 갈라진다.
 	 *
-	 * <p><b>접는 칸에 필터 미달 쌍도 넣는다.</b> 그래야 상위와 {@code etc} 의 합이 이
-	 * 패키지의 관측된 이동 전부가 되어 차트가 100% 를 이룬다. 다만 몇 개가 근거 부족으로
-	 * 접혔는지는 따로 세어 준다 — 화면이 "잡음이라 접었다" 와 "여섯 번째부터라 접었다" 를
-	 * 구분해 말할 수 있어야 한다.
+	 * <p><b>접는 칸에 필터 미달 쌍도 넣는다.</b> 그래야 상위와 {@code etc} 의 합이 <b>이 표가
+	 * 가진 것 전부</b>가 된다. 몇 개가 근거 부족으로 접혔는지는 따로 세어 준다 — 화면이
+	 * "잡음이라 접었다" 와 "여섯 번째부터라 접었다" 를 구분해 말할 수 있어야 한다.
+	 *
+	 * <p><b>그래도 합은 100% 가 아니다.</b> {@code share_pm_pct} 의 분모는 빌더가
+	 * {@code lift>=5} 인 쌍 <b>전체</b>로 잡았는데 표에는 loose({@code votes>=3})만 적재되기
+	 * 때문이다. 실측하면 출발 패키지 7,141개 중 5,688개(79.7%)가 99.5% 에 못 미치고
+	 * <b>중앙값이 25.7%</b> 다. 빠진 몫은 "서로 다른 조직·달이 3개 미만인 일회성 이동" 이고,
+	 * 그것을 적재하지 않는 것이 결정 1이다. <b>화면이 이 합을 100 으로 정규화하면 모든
+	 * 도착지의 점유율이 네 배 가까이 부풀려진다.</b>
 	 */
 	private MigrationPairsResponse.Series fold(String name, List<MigrationPairRow> pairs) {
 		List<MigrationPairRow> passed = pairs.stream()
