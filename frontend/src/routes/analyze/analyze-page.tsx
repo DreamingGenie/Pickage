@@ -6,6 +6,7 @@ import { fetchPackageSearch, postCommunityRefresh } from '@/api/endpoints'
 import { useSimilarPackages } from '@/api/queries'
 import { MAX_NAMES, SEARCH_LIMIT_MAX } from '@/api/types'
 import { paths } from '@/app/routes'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
 import { Button } from '@/components/ui/button'
 import { CandidateGrid } from '@/routes/analyze/candidate-grid'
@@ -326,14 +327,25 @@ export function AnalyzePage() {
                   <div className="flex flex-col gap-3">
                     <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
                     {/*
-                      모델 버전이 이 목록의 계보다(스냅샷 날짜를 쓰지 않기로 했다).
-                      어느 모델이 고른 것인지 적어 두지 않으면, 다음 주에 목록이 바뀌었을 때
-                      화면이 바뀐 것인지 모델이 바뀐 것인지 알 수 없다.
+                      모델 이름은 기본 화면에서 의미가 없다(S15P21A506-443) — 라벨만 두고
+                      실제 기준 설명과 모델 버전은 InfoDialog 로 옮긴다. 모델 버전을 완전히
+                      지우지 않는 이유는 이 목록의 계보이기 때문이다(스냅샷 날짜를 쓰지
+                      않기로 했다) — 다음 주에 목록이 바뀌었을 때 화면이 바뀐 것인지 모델이
+                      바뀐 것인지 알 수 없게 된다.
                     */}
                     {similar.data?.model_ver && (
-                      <p className="font-mono text-base text-muted-foreground">
-                        판정 모델 {similar.data.model_ver}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base text-muted-foreground">
+                          후보를 고른 기준
+                        </span>
+                        <InfoDialog label="후보를 고른 기준 안내" title="후보를 고른 기준">
+                          <p>
+                            기능이 유사한 패키지 중 하위 모듈·보완재·보관된 저장소를 제외한
+                            인기 패키지를 최대 {VISIBLE_CANDIDATES}개까지 보여줍니다.
+                          </p>
+                          <p className="font-mono text-sm">모델 버전 {similar.data.model_ver}</p>
+                        </InfoDialog>
+                      </div>
                     )}
                   </div>
                 )}
