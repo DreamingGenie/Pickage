@@ -343,7 +343,6 @@ export function AnalyzePage() {
                             기능이 유사한 패키지 중 하위 모듈·보완재·보관된 저장소를 제외한
                             인기 패키지를 최대 {VISIBLE_CANDIDATES}개까지 보여줍니다.
                           </p>
-                          <p className="font-mono text-sm">모델 버전 {similar.data.model_ver}</p>
                         </InfoDialog>
                       </div>
                     )}
