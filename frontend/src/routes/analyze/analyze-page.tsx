@@ -8,6 +8,7 @@ import { useSimilarPackages } from '@/api/queries'
 import { MAX_NAMES, SEARCH_LIMIT_MAX } from '@/api/types'
 import { paths } from '@/app/routes'
 import { EmptyState } from '@/components/common/empty-state'
+import { InfoDialog } from '@/components/common/info-dialog'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
 import { Notice } from '@/components/common/notice'
 import { Stepper } from '@/components/common/stepper'
@@ -373,7 +374,6 @@ export function AnalyzePage() {
               {/*
                 빈 상태가 두 갈래다. **아직 계산되지 않은 것**(`NO_DATA`)과 **관련 후보가 없는 것**은
                 사용자가 할 일이 다르다. 앞은 기다리면 되고 뒤는 직접 추가해야 한다.
-                "판정 모델" 표시는 사용자에게 뜻이 없어 걷어냈다(모델 버전은 응답에 그대로 남는다).
               */}
               {candidates.length === 0 ? (
                 <EmptyState
@@ -390,7 +390,27 @@ export function AnalyzePage() {
                   }
                 />
               ) : (
-                <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
+                <div className="flex flex-col gap-3">
+                  <CandidateGrid candidates={candidates} picked={picked} onToggle={toggle} />
+                  {/*
+                    모델 이름은 기본 화면에서 의미가 없다(S15P21A506-443) — 라벨만 두고
+                    실제 기준 설명과 모델 버전은 InfoDialog 로 옮긴다. 모델 버전을 완전히
+                    지우지 않는 이유는 이 목록의 계보이기 때문이다(스냅샷 날짜를 쓰지
+                    않기로 했다) — 다음 주에 목록이 바뀌었을 때 화면이 바뀐 것인지 모델이
+                    바뀐 것인지 알 수 없게 된다.
+                  */}
+                  {similar.data?.model_ver && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base text-muted-foreground">후보를 고른 기준</span>
+                      <InfoDialog label="후보를 고른 기준 안내" title="후보를 고른 기준">
+                        <p>
+                          기능이 유사한 패키지 중 하위 모듈·보완재·보관된 저장소를 제외한 인기
+                          패키지를 최대 {VISIBLE_CANDIDATES}개까지 보여줍니다.
+                        </p>
+                      </InfoDialog>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </section>
