@@ -71,12 +71,12 @@ describe('PdfExportDialog — 준비', () => {
     expect(community.closest('label')).not.toHaveTextContent('아직 제공되지 않습니다')
   })
 
-  it('기능 심화 분석은 완료 결과가 실린다고 안내하고, 미실행 시 대체 문구도 함께 적는다', () => {
+  it('기능 비교를 마쳤으면 기능 심화 분석에 공통점·차이점이 실린다고 안내한다', () => {
     renderDialog()
 
-    const label = screen.getByRole('checkbox', { name: '기능 심화 분석' }).closest('label')
-    expect(label).toHaveTextContent('완료된 기능 비교 결과가 실립니다')
-    expect(label).toHaveTextContent('아직 분석을 실행하지 않았다면')
+    const checkbox = screen.getByRole('checkbox', { name: '기능 심화 분석' })
+    expect(checkbox).toBeEnabled()
+    expect(checkbox.closest('label')).toHaveTextContent('기능 비교의 공통점·차이점이 실려요.')
   })
 
   it('조건을 주지 않은 조회 기간은 기본값(보유한 전 기간·매주)으로 적고, 그래프와 수치 표가 실린다고 알린다', () => {
