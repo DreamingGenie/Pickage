@@ -399,9 +399,11 @@ def run(*, daily_root, bronze, run_id, work_dir, command, snapshots=None, start=
     chosen = sorted(set(chosen), reverse=True)  # most recent first: an interruption keeps the recent trend
     published = set()
     if skip_published:
+        # '_' is a LIKE wildcard; SAFE_ID allows it in run IDs, so escape it.
+        pattern = 'reload-453-' + run_id.replace('_', '\\_') + '-%'
         published = set(sql_json(command, "SELECT coalesce(json_agg(snapshot_at),'[]') FROM public.etl_load_execution "
                                           "WHERE dataset='package-snapshot' AND status='PUBLISHED' AND execution_id LIKE "
-                                          f"{quote('reload-453-' + run_id + '-%')};"))
+                                          f"{quote(pattern)};"))
     event('RELOAD_START', run_id=run_id, dates=len(chosen), verify_only=verify_only,
           skipping=len(published & set(chosen)))
     write_json(root / 'plan.json', {'run_id': run_id, 'bronze': bronze, 'daily_root': str(Path(daily_root).resolve()),

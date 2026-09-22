@@ -43,7 +43,17 @@ cd C:\git\S15P21A506; $env:DOCKER_HOST='ssh://a506app'; .\.venv-bq\Scripts\pytho
 - 실패 `recomputed downloads differ from published values: mismatched=N missing_from_staging=M`이면
   **그 날짜는 변경 없이 끝났다.** 합본 parquet이 기존 10만의 일별 값을 그대로 담지 않은 것이므로 컨트롤 타워에 보고하고 멈춘다.
 
+기대 수치의 근거: 확장 목록 46.9만 중 **8,738개는 Curated 스냅샷에 없는 이름**이라 UPDATE 대상 행이 없다(컨트롤 타워 집계).
+그래서 `acceptance.staging_unmatched`는 최소 8,738이고, 여기에 그 날짜에 행이 없는 이름(모집단 밖·배포일 이후)이 더해진다.
+"갱신 0인 패키지" 수를 해석할 때 이 값을 기대치로 쓴다.
+
 verify-only 뒤 DB에는 `etl_load_execution` 2건이 `FAILED`, attempt가 `FAILED / VERIFY_ONLY`로 남는다. 서비스 행은 그대로다.
+
+**verify-only와 실제 실행 사이에 코드를 바꾸거나 rebase 하지 않는다.** 모듈의 `contract_sha256`은
+`downloads_reload.py`와 `downloads_interval/aggregate.py` 두 파일의 해시다(마이그레이션은 포함하지 않는다).
+같은 실행 ID의 `FAILED` 등록에 다른 해시로 오면 `execution_id already exists with different input or contract`로 거부된다.
+실행 시점의 해시는 `data/package_snapshot/downloads_reload/<run-id>/plan.json`의 `contract_sha256`에 있다.
+**고정 기대값으로 여기 적지 말고, 실행 시점 값을 Jira -453 코멘트에 기록한다.**
 
 ```powershell
 docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -X -At -c "SELECT execution_id,status,error_message FROM etl_load_execution WHERE dataset='package-snapshot' ORDER BY created_at;"
