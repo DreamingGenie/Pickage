@@ -21,6 +21,8 @@ export const queryKeys = {
       [...queryKeys.packages.all, 'search', q, limit ?? null] as const,
     overview: (names: readonly string[]) =>
       [...queryKeys.packages.all, 'overview', sorted(names)] as const,
+    summary: (names: readonly string[]) =>
+      [...queryKeys.packages.all, 'summary', sorted(names)] as const,
     downloads: (names: readonly string[], from?: string, to?: string) =>
       [...queryKeys.packages.all, 'downloads', sorted(names), from ?? null, to ?? null] as const,
     dependents: (names: readonly string[], from?: string, to?: string) =>

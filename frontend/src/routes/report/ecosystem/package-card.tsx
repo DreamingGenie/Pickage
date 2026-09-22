@@ -1,11 +1,13 @@
-import { ArrowUpRightIcon } from 'lucide-react'
+import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
 import { ShareBars, ShareDonut } from '@/components/charts/version-share'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyPanel, MissingTile, ObservationBadges } from '@/routes/report/ecosystem/badges'
+import { EmptyPanel, InsightBadges, MissingTile } from '@/routes/report/ecosystem/badges'
+import type { Trend } from '@/routes/report/ecosystem/insights'
 import {
   ALL_MAJORS,
   type MajorSelection,
@@ -28,6 +30,9 @@ export function PackageCard({
   selectedVersion,
   onVersionChange,
   versionShareState = { status: 'ready' },
+  downloadsTrend = null,
+  dependentsTrend = null,
+  emphasized = false,
 }: {
   model: PackageCardModel
   index: number
@@ -36,6 +41,11 @@ export function PackageCard({
   onVersionChange: (next: MajorSelection) => void
   /** Version Share 조회의 처지(126) — 응답 하나가 전체 카드를 담으므로 카드마다 갈리지 않는다. */
   versionShareState?: MetricState
+  /** 3개월 추세(`insights.ts`). 계산은 부르는 쪽이 한다 — 시리즈를 들고 있는 곳이 거기다 */
+  downloadsTrend?: Trend | null
+  dependentsTrend?: Trend | null
+  /** 위 칩에서 이 패키지를 골랐을 때 */
+  emphasized?: boolean
 }) {
   const style = seriesStyle(index)
   const isBase = index === 0
@@ -68,18 +78,13 @@ export function PackageCard({
               기준
             </span>
           )}
-          {model.isDeprecated && (
-            <span className="shrink-0 rounded bg-tone-down px-1.5 py-0.5 text-base text-tone-down-foreground">
-              지원 종료
-            </span>
-          )}
         </div>
         <span className="pl-[30px] font-mono text-xs text-muted-foreground/60">
           {model.licenses.length ? model.licenses.join(' · ') : '라이선스 정보 없음'} · v
           {model.latestVersion}
         </span>
       </div>
-      <RepositoryLink url={model.repoUrl} name={model.key} />
+      <GithubLink url={model.repoUrl} name={model.key} />
     </div>
   )
 
@@ -88,12 +93,15 @@ export function PackageCard({
       justify-center: 왼쪽 그래프 열이 더 길면 이 카드가 그 높이로 늘어난다(`EcosystemView` 의 그리드).
       그때 남는 자리가 아래에만 몰리지 않도록 안의 요소를 세로 중앙에 둔다(S15P21A506-405).
     */
-    <div className="flex animate-in flex-col justify-center gap-6 rounded-2xl border border-foreground/40 bg-background p-6 text-left shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)] duration-200 fade-in-0 slide-in-from-top-1">
+    <div
+      className={cn(
+        'flex h-full min-w-0 flex-col gap-6 rounded-2xl border bg-card p-6 text-left transition-[border-color,box-shadow] duration-200',
+        emphasized && 'border-foreground/50 shadow-[0_4px_24px_-12px_rgba(15,23,42,0.35)]',
+      )}
+    >
       {header}
 
-      {model.description && (
-        <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
-      )}
+      {/* 설명(description)은 싣지 않는다 — 영어 원문이 길게 늘어져 카드가 제각각 길어졌다. 맨 위 요약이 그 일을 한다. */}
 
       {/* "최신 버전 폐기 표시" 가 무슨 뜻인지 모르겠다는 의견 — 배지만 두지 않고 뜻을 풀어 준다 */}
       {model.isDeprecated && (
@@ -108,7 +116,12 @@ export function PackageCard({
         </div>
       )}
 
-      <ObservationBadges model={model} />
+      <InsightBadges
+        model={model}
+        downloadsTrend={downloadsTrend}
+        dependentsTrend={dependentsTrend}
+        dependentsLabel={DEPENDENTS_TERM}
+      />
 
       {/* 의존 수 — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
       <div className="flex flex-col gap-3 border-t pt-5">
@@ -152,8 +165,12 @@ export function PackageCard({
         />
       </div>
 
-      {/* Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다 */}
-      <div className="flex flex-col gap-3 border-t pt-5">
+      {/*
+        Version Share — 126: "이 시점 자료 없음"과 "조회 실패"를 다른 문구로 분리한다.
+        `mt-auto`: 카드들이 같은 높이로 늘어날 때(지원 종료 안내가 있는 카드 등) 이 칸을 바닥에 붙여
+        나란한 카드의 마지막 칸 위치를 맞춘다.
+      */}
+      <div className="mt-auto flex flex-col gap-3 border-t pt-5">
         <div className="flex items-center gap-1.5">
           <span className="text-base text-muted-foreground">Version Share</span>
           {/*
@@ -212,14 +229,13 @@ export function PackageCard({
 }
 
 /**
- * 저장소 바로가기.
- *
- * 주소를 그대로 적지 않는다 — 카드 폭에서 잘려 읽을 수도 없고, 읽을 필요도 없다.
+ * 저장소 바로가기 — GitHub 아이콘 버튼.
  *
  * `http(s)` 로 시작하는 주소만 링크로 만든다. 수집원이 `git@…` 이나 `git+ssh://` 를
  * 그대로 주는 경우가 있는데, 그걸 `href` 에 넣으면 눌러도 아무 일이 안 일어난다.
+ * 아이콘만 두는 대신 이름(aria-label·title)으로 무엇이 열리는지 알린다.
  */
-function RepositoryLink({ url, name }: { url: string | null; name: string }) {
+function GithubLink({ url, name }: { url: string | null; name: string }) {
   if (!url || !/^https?:\/\//.test(url)) return null
   return (
     <a
@@ -227,11 +243,13 @@ function RepositoryLink({ url, name }: { url: string | null; name: string }) {
       target="_blank"
       rel="noreferrer noopener"
       aria-label={`${name} 소스 코드 보기 (새 탭)`}
-      className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+      title="GitHub에서 소스 코드 보기"
+      className="grid size-9 shrink-0 place-items-center rounded-full border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
     >
-      {/* 아이콘만 두면 누르면 무엇이 열리는지 알 수 없다 — 글자와 바깥으로 나가는 화살표를 함께 둔다 */}
-      <ArrowUpRightIcon aria-hidden className="size-4" />
-      소스 코드 보기
+      {/* lucide 1.x 에는 브랜드 아이콘이 없어 GitHub 마크를 직접 그린다 */}
+      <svg viewBox="0 0 16 16" aria-hidden className="size-5" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+      </svg>
     </a>
   )
 }
@@ -239,19 +257,13 @@ function RepositoryLink({ url, name }: { url: string | null; name: string }) {
 /**
  * 표시 버전 선택기 (구상안 §5.2). **여러 개를 고를 수 있고, 고른 것을 합한다.**
  *
- * **이 카드의 Dependents 선만 바꾼다.** 다른 카드도, 버전 분포도, 기능 비교도 건드리지 않는다.
- * 서버에 다시 묻지도 않는다 — major 별 시리즈를 이미 다 받아 두었다.
+ * 버튼을 늘어놓지 않고 **한 줄짜리 드롭다운**으로 둔다. 버튼으로 늘어놓으면 major 가 많은 패키지만
+ * 줄이 접혀 카드 높이가 제각각이 됐다. 목록은 카드 위에 떠서 열리므로 카드 높이를 바꾸지 않는다.
  *
- * "전체" 는 **모두 끄는 버튼**이지 다른 버전들과 나란한 선택지가 아니다. 같은 줄에 두면
- * "전체 + 4.x" 를 동시에 누를 수 있어 보이는데, 그건 뜻이 없는 상태다.
- *
- * 마지막 하나를 끄면 자동으로 전체로 돌아간다 — 아무것도 안 고른 빈 그래프는 조작 실수이지
- * 보고 싶은 화면이 아니다.
- *
- * 고를 것이 없으면(자료 없음, 또는 major 가 하나뿐) 선택기를 그리지 않는다.
- * 누를 수 없는 버튼 한 개는 조작할 수 있다는 잘못된 신호를 준다.
- *
- * 선택 상태를 색으로만 알리지 않는다 — `aria-pressed` 와 테두리를 함께 쓴다.
+ * 이 카드의 의존 등록 수 선만 바꾼다. 서버에 다시 묻지 않는다 — major 별 시리즈를 이미 다 받아 두었다.
+ * "전체" 는 모두 끄는 자리다. 마지막 하나를 끄면 자동으로 전체로 돌아간다.
+ * 고를 것이 없으면(자료 없음, 또는 major 가 하나뿐) 그리지 않는다.
+ * 선택 상태는 체크 표시와 `aria-checked` 로 함께 알린다 — 색만으로 알리지 않는다.
  */
 function VersionPicker({
   majors,
@@ -264,9 +276,34 @@ function VersionPicker({
   onChange: (next: MajorSelection) => void
   label: string
 }) {
+  const [open, setOpen] = useState(false)
+  const boxRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   if (majors.length < 2) return null
 
   const isAll = selected.length === 0
+  const summary = isAll
+    ? '전체'
+    : majors
+        .filter((m) => selected.includes(m))
+        .map((m) => `${m}.x`)
+        .join(', ')
 
   function toggle(major: string) {
     const next = selected.includes(major)
@@ -276,49 +313,10 @@ function VersionPicker({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          aria-pressed={isAll}
-          onClick={() => onChange(ALL_MAJORS)}
-          className={cn(
-            'rounded-md border px-2 py-1 text-base transition-colors duration-150',
-            isAll
-              ? 'border-foreground/50 bg-foreground/[0.06] font-medium text-foreground'
-              : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
-          )}
-        >
-          전체
-        </button>
-
-        <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
-
-        {majors.map((m) => {
-          const active = selected.includes(m)
-          return (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={active}
-              onClick={() => toggle(m)}
-              className={cn(
-                'rounded-md border px-2 py-1 font-mono text-base transition-colors duration-150',
-                active
-                  ? 'border-foreground/50 bg-foreground/[0.06] font-medium text-foreground'
-                  : 'text-muted-foreground hover:border-foreground/30 hover:text-foreground',
-              )}
-            >
-              {m}.x
-            </button>
-          )
-        })}
-
-        {/*
-          "전 버전을 합한 값입니다 …" 문장을 여기로 옮겼다(S15P21A506-405). 버튼이 무엇을 하는지는
-          눌린 상태로 보이고, 왜 그런 값인지는 궁금할 때만 찾아보면 된다.
-        */}
-        <InfoDialog label="표시 버전 안내" title="표시 버전" className="ml-0.5">
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-1 text-base text-muted-foreground">
+        표시 버전
+        <InfoDialog label="표시 버전 안내" title="표시 버전">
           <p>
             &lsquo;전체&rsquo;는 모든 큰 버전(major)을 합한 값이에요. 4.x 처럼 하나 이상 골라 합쳐
             볼 수 있고, 고른 버전의 합계가 {DEPENDENTS_TERM} 그래프와 {DEPENDENTS_TERM} 증감에
@@ -331,6 +329,59 @@ function VersionPicker({
             이 선택은 이 패키지에만 적용되고, 다른 패키지에는 영향을 주지 않아요.
           </p>
         </InfoDialog>
+      </span>
+
+      <div ref={boxRef} className="relative min-w-0">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`${label}: ${summary}`}
+          onClick={() => setOpen((v) => !v)}
+          className="flex max-w-[12rem] items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 font-mono text-base transition-colors hover:border-foreground/40"
+        >
+          <span className="truncate">{summary}</span>
+          <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        {open && (
+          <ul
+            role="menu"
+            aria-label={label}
+            className="absolute top-full right-0 z-30 mt-1.5 max-h-64 min-w-[9rem] overflow-y-auto rounded-xl border bg-card p-1 shadow-lg"
+          >
+            {[{ key: 'all', text: '전체', on: isAll, act: () => onChange(ALL_MAJORS) }]
+              .concat(
+                majors.map((m) => ({
+                  key: m,
+                  text: `${m}.x`,
+                  on: selected.includes(m),
+                  act: () => toggle(m),
+                })),
+              )
+              .map((o) => (
+                <li key={o.key} role="none">
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={o.on}
+                    onClick={o.act}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-mono text-base hover:bg-muted"
+                  >
+                    <span
+                      className={cn(
+                        'grid size-4 shrink-0 place-items-center rounded-[4px] border',
+                        o.on && 'border-foreground bg-foreground text-background',
+                      )}
+                    >
+                      {o.on && <CheckIcon className="size-3" strokeWidth={3} />}
+                    </span>
+                    {o.text}
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
       </div>
     </div>
   )

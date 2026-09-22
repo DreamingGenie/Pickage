@@ -15,11 +15,7 @@ import {
  */
 export type RemovalReasonsPeriod = TransitionPeriod
 
-export type RemovalReasonsDataStatus =
-  | 'COMPLETE'
-  | 'NO_DATA'
-  | 'OUT_OF_SCOPE'
-  | 'NOT_COMPUTED'
+export type RemovalReasonsDataStatus = 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
 
 /**
  * **단위가 `transitions` 와 다르다.** 여기 넷은 전부 "전이 건수"이고

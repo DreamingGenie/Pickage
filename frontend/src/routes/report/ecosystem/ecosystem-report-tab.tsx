@@ -5,6 +5,7 @@ import { USE_MOCK } from '@/api/endpoints'
 import {
   useDependentsTrend,
   useDownloadsTrend,
+  useEcosystemSummary,
   usePackagesOverview,
   useRemovalReasons,
   useTransitions,
@@ -14,6 +15,7 @@ import { MAX_NAMES } from '@/api/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toEcosystemModel } from '@/routes/report/ecosystem/adapter'
 import { EcosystemView } from '@/routes/report/ecosystem/ecosystem-view'
+import type { EcosystemSummaryState } from '@/routes/report/ecosystem/summary-section'
 import type { MetricKey, MetricState } from '@/routes/report/ecosystem/model'
 import { toRemovalReasonsModel } from '@/routes/report/ecosystem/removal-reasons-adapter'
 import { toTransitionsModel } from '@/routes/report/ecosystem/transitions-adapter'
@@ -48,6 +50,14 @@ export function EcosystemReportTab({
   const names = useMemo(() => [...new Set(packages)].slice(0, MAX_NAMES), [packages])
 
   const overview = usePackagesOverview(names)
+  const summaryQuery = useEcosystemSummary(names)
+  const summary = useMemo<EcosystemSummaryState>(() => {
+    if (summaryQuery.isPending) return { kind: 'loading' }
+    const d = summaryQuery.data
+    return d?.status === 'READY' && d.common && d.ecosystem
+      ? { kind: 'ready', common: d.common, ecosystem: d.ecosystem }
+      : { kind: 'none' }
+  }, [summaryQuery.isPending, summaryQuery.data])
 
   /**
    * **보유한 전 구간을 한 번에 받는다.** `from`·`to` 를 생략하면 서버가 최초 스냅샷부터
@@ -151,6 +161,7 @@ export function EcosystemReportTab({
         removalReasonsState={removalReasonsState}
         transitionPeriod={transitionPeriod}
         onTransitionPeriodChange={onTransitionPeriodChange}
+        summary={summary}
       />
     </div>
   )

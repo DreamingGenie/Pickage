@@ -36,6 +36,7 @@ import type {
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
+  EcosystemSummaryResponse,
   FeatureTarget,
   FeatureRunResponse,
   FeatureVersionsResponse,
@@ -93,6 +94,15 @@ export function fetchPackagesOverview(names: readonly string[]): Promise<Package
   return USE_MOCK
     ? mockPackagesOverview(names)
     : get<PackagesOverviewResponse>('/packages', { names })
+}
+
+/**
+ * 생태계 요약 (실험). mock 에서는 준비 중 상태를 돌려준다 — 지어낸 요약을 보이지 않는다.
+ */
+export function fetchEcosystemSummary(names: readonly string[]): Promise<EcosystemSummaryResponse> {
+  return USE_MOCK
+    ? Promise.resolve({ status: 'UNAVAILABLE', snapshot_at: null })
+    : get<EcosystemSummaryResponse>('/packages/summary', { names })
 }
 
 /* ------------------------------------------------------------------ *
