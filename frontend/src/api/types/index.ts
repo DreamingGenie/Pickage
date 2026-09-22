@@ -462,6 +462,83 @@ export interface RemovalReasonsResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * S15P21A506-424. 관측된 교체 흐름 — 어디로 갔나
+ *
+ * 근거: `backend/.../domain/packages/dto/MigrationPairsResponse.java`.
+ *
+ * **위 둘과 또 단위가 다르다.** `transitions` 는 패키지 수, `removal_reasons` 는
+ * 전이 건수, 이쪽은 **가중 표(votes)** 다. 셋을 더하거나 비율을 내면 안 된다.
+ *
+ * **구간(period)이 없다.** 시점 두 개를 비교하는 것이 아니라 연속한 릴리스를 전부 훑은
+ * 것이라 "몇 년치" 라는 축이 성립하지 않는다. 대신 `kind` 로 원천을 고른다.
+ * ------------------------------------------------------------------ */
+
+/** 어느 의존 칸에서 관측했나. 두 값은 **모집단이 다른 별개의 실행**이다. */
+export type DependencyKindParam = 'regular' | 'dev'
+
+export const DEFAULT_DEPENDENCY_KIND: DependencyKindParam = 'regular'
+
+export type MigrationDataStatusWire =
+  'COMPLETE' | 'INSUFFICIENT_EVIDENCE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface MigrationDestinationWire {
+  name: string
+  /** 가중 표. 정수가 아니다(소수 한 자리). */
+  votes: number
+  co_events: number
+  publisher_months: number
+  dependents: number
+  /** 모집단 대비 배수. **다른 `kind` 와 절댓값을 비교하지 말 것** — 분모가 그 실행의 전이 수다. */
+  lift: number
+  /** 점유율. 분모는 표가 아니라 (발행자 × 달) 의 수다. **합이 100 이 아니다** — 아래 참고. */
+  share_pm_pct: number
+  /** 표 기준 점유율. 등급 판정의 입력이라 함께 오지만 **화면에 쓰지 않는다.** */
+  share_pct: number
+  /**
+   * 그 패키지를 뺀 전이 중 이것을 함께 넣은 비율. **`share_pm_pct` 와 분모가 다르다** —
+   * 이쪽은 이탈 전체가 분모라 "뺀 사람 다섯 중 하나가 이걸 골랐다" 로 읽힌다.
+   */
+  a_pct: number
+  /** `strict` · `recommended` · `loose`. 행을 지우는 대신 붙이는 배지다. */
+  evidence: string
+  /** 양방향 관측. **같은 물건의 두 포장**일 수 있다(lodash ↔ lodash-es). 지우지 말고 구분만 한다. */
+  variant: boolean
+  first_seen: string
+  last_seen: string
+}
+
+/** 상위 밖을 접은 칸. 이름을 세우지 않는 이유는 꼬리의 82%가 일회성 추가라서다. */
+export interface MigrationEtcWire {
+  pairs: number
+  share_pm_pct: number
+  /** 그중 기본 필터에 못 미친 수. "근거가 약해 접었다" 를 말할 근거. */
+  below_filter: number
+}
+
+export interface MigrationSeriesItem {
+  name: string
+  /** 이 종류의 기준일. `kind` 마다 다르다(regular 08-31 · dev 09-16). 읽을 행이 없으면 null. */
+  snapshot_at: string | null
+  /** 항상 `'publisher_months'`. 점유율 분모가 표가 아니라는 표시다. 값으로 오므로 캡션에 쓴다. */
+  share_basis: string
+  /** 기본 필터를 통과한 상위 5개. `INSUFFICIENT_EVIDENCE` 면 빈 배열이다. */
+  destinations: MigrationDestinationWire[]
+  /** 접을 것이 없으면 null. */
+  etc: MigrationEtcWire | null
+  /** 필터 전 관측된 쌍의 수. 세어 보지 않은 상태면 null. */
+  observed_pairs: number | null
+  data_status: MigrationDataStatusWire
+}
+
+export interface MigrationPairsResponse {
+  metric: 'migration_pairs'
+  /** 요청이 생략했으면 서버가 적용한 기본값(regular)을 그대로 돌려준다. */
+  kind: DependencyKindParam
+  series: MigrationSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
  * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +

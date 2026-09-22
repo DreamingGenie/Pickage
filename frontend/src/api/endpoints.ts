@@ -26,6 +26,7 @@ import {
   mockPdfPreview,
   mockSearch,
   mockSimilarPackages,
+  mockMigrationPairs,
   mockRemovalReasons,
   mockTransitions,
   mockVersionShare,
@@ -33,12 +34,14 @@ import {
 import type {
   CommunityRefreshTrigger,
   CommunityStatusResponse,
+  DependencyKindParam,
   DependentsTrendResponse,
   DictManifest,
   DownloadsTrendResponse,
   FeatureTarget,
   FeatureRunResponse,
   FeatureVersionsResponse,
+  MigrationPairsResponse,
   PackageEnvResponse,
   PackageDictionary,
   PackageSearchResponse,
@@ -225,6 +228,23 @@ export function fetchRemovalReasons(
   return USE_MOCK
     ? mockRemovalReasons(names, period)
     : get<RemovalReasonsResponse>('/packages/removal-reasons', { names, period })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-424. 관측된 교체 흐름 — 어디로 갔나
+ *
+ * 위 둘과 달리 **`period` 를 받지 않는다.** 연속한 릴리스를 전부 훑은 결과라 구간이라는
+ * 축이 없다. 대신 `kind` 로 원천을 고르는데, 두 값은 모집단이 다른 별개의 실행이라
+ * 한 요청이 한 종류만 받는다 — 섞이면 비교할 수 없는 수가 한 분포에 들어간다.
+ * ------------------------------------------------------------------ */
+
+export function fetchMigrationPairs(
+  names: readonly string[],
+  kind?: DependencyKindParam,
+): Promise<MigrationPairsResponse> {
+  return USE_MOCK
+    ? mockMigrationPairs(names, kind)
+    : get<MigrationPairsResponse>('/packages/migration-pairs', { names, kind })
 }
 
 /* ------------------------------------------------------------------ *

@@ -31,6 +31,10 @@ export const queryKeys = {
       [...queryKeys.packages.all, 'transitions', sorted(names), period ?? null] as const,
     removalReasons: (names: readonly string[], period?: string) =>
       [...queryKeys.packages.all, 'removal-reasons', sorted(names), period ?? null] as const,
+    // 구간이 아니라 **종류**가 키에 들어간다. 두 값은 모집단이 다른 별개의 실행이라
+    // 같은 이름이어도 캐시를 공유하면 안 된다.
+    migrationPairs: (names: readonly string[], kind?: string) =>
+      [...queryKeys.packages.all, 'migration-pairs', sorted(names), kind ?? null] as const,
     // 유사 패키지만 이름이 하나다. 정렬할 배열이 없으므로 그대로 넣는다.
     similar: (name: string, limit?: number) =>
       [...queryKeys.packages.all, 'similar', name, limit ?? null] as const,
