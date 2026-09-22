@@ -25,7 +25,7 @@ import traceback
 from datetime import datetime, timezone
 
 from . import config as cfg
-from . import curated, dockerapi, events, localfs, s3inv, server, weekly
+from . import curated, dockerapi, events, localfs, s3inv, server, verdict, weekly
 
 SCHEMA = 3
 DEFAULT_CONFIG = "/etc/pipeline-monitor.yaml"
@@ -174,6 +174,8 @@ class Builder:
                 log_since_hours=d.log_since_hours, error_pattern=d.error_pattern,
                 error_ignore_pattern=d.error_ignore_pattern, error_min_lines=d.error_min_lines,
                 now_epoch=int(now.timestamp())))
+        # 판정 — 절들을 다 만든 뒤 순수 함수로. 화면은 이 목록을 그대로 보여 준다 (규칙·시계가 한 곳에 있다).
+        _section(report, "findings", lambda: verdict.evaluate(report, now=now))
         report["took_seconds"] = round(time.monotonic() - started, 2)
         log(f"보고서 node={settings.node} took={report['took_seconds']}s errors={len(report['errors'])}"
             + (" fresh" if fresh else ""))

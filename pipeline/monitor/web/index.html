@@ -370,20 +370,35 @@ function table(id, cols, rows, def, rowCls) {
   return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-// 판정 누적. 한 곳에서만 올린다 — 어디서 무엇 때문에 색이 바뀌었는지 목록으로 남는다.
-// card() 가 자기 절을 그리는 동안 쌓인 항목에 절 id 를 붙여, 판정 목록에서 그 절로 바로 갈 수 있게 한다.
+// 판정 목록. **규칙은 서버(pipeline/monitor/verdict.py)에 있다** — 보고서의 findings 를 그대로 받아 쌓는다.
+// 화면이 스스로 flag() 하는 것은 화면에서만 아는 것 셋뿐이다: 절을 그리다 난 예외, 전체 목록(버튼으로 따로 받는다)의 잘림·실패,
+// data 보고서가 하나도 없다는 것. 규칙을 여기 더 넣지 않는다 — 시험이 없고 브라우저 시계로 재게 된다.
 const findings = [];
 let worst = 'ok';
-function flag(level, text) {
-  findings.push({ level, text });
+function flag(level, text, kind = 'client', section = null, ref = null) {
+  findings.push({ level, kind, text, section, ref });
   if (level === 'bad') worst = 'bad'; else if (level === 'warn' && worst !== 'bad') worst = 'warn';
 }
+// 서버 판정을 받아들인다. 절 이름(어느 탭·어느 노드)을 붙여 목록에서 그 절로 갈 수 있게 한다.
+const TAB_LABEL = Object.fromEntries([['weekly', '주간 수집 회차'], ['curated', 'Curated 전처리 회차'], ['events', 'MinIO · 방금 올라온 것'],
+  ['prefixes', 'MinIO · 경로별 신규'], ['pointers', 'MinIO · 포인터'], ['inventory', 'MinIO · 전체 목록'], ['local', '로컬 디스크'], ['docker', '컨테이너·로그']]);
+function adopt(node, serverFindings) {
+  (serverFindings || []).forEach(f => {
+    const tab = tabOf(f.section);
+    findings.push({ ...f, sectionTitle: tab ? `${TAB_LABEL[tab] || tab} · ${node}` : node });
+    if (f.level === 'bad') worst = 'bad'; else if (f.level === 'warn' && worst !== 'bad') worst = 'warn';
+  });
+}
+// 행에 색을 칠할 때 — (절 id, ref) 로 그 행에 걸린 판정을 찾는다. 규칙을 다시 계산하지 않는다.
+const forRef = (section, ref) => findings.filter(f => f.section === section && f.ref === ref);
+const levelOf = (section, ref) => { const fs = forRef(section, ref); return fs.some(f => f.level === 'bad') ? 'bad' : fs.length ? 'warn' : null; };
+const hasKind = (section, ref, kind) => forRef(section, ref).some(f => f.kind === kind);
 
 // 절 카드 하나. 제목 옆에 이 절의 상태 배지(문제 N · 주의 N · 정상)가 붙고, 설명은 접힌 "읽는 법" 으로 내려간다.
-//   mark: 이 절을 그리기 시작할 때의 findings.length — 그 뒤에 쌓인 것이 이 절의 것이다.
+//   mark: 이 절을 그리기 시작할 때의 findings.length — 그 뒤에 쌓인 절 없는 항목(화면 자체 flag)이 이 절의 것이다.
 function card(id, title, meta, body, { mark = findings.length, help = '', extra = '' } = {}) {
-  const mine = findings.slice(mark);
-  mine.forEach(f => { if (!f.section) { f.section = id; f.sectionTitle = title; } });
+  findings.slice(mark).forEach(f => { if (!f.section) { f.section = id; f.sectionTitle = title; } });
+  const mine = findings.filter(f => f.section === id);
   const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
   const badge = bad ? chip(`문제 ${bad}`, 'bad') : warn ? chip(`주의 ${warn}`, 'warn') : chip('정상', 'done');
   return `<section class="card ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="${esc(id)}">
@@ -403,38 +418,20 @@ function renderWeekly(node, weekly, now) {
   if (!weekly) return '';
   const mark = findings.length;
   const runs = weekly.runs || [];
-  // 이번 주 회차가 아예 없다 — 창이 열렸는데 run.json 도 우편함도 없으면 타이머가 안 돈 것이다. 지난주 성공만
-  // 남아 있어 초록으로 보이던 유일한 고장. 6시간 안이면 주의(잠깐 늦을 수 있다), 넘으면 문제.
+  const sec = `${node}-weekly`;
+  // 이번 주 회차가 아예 없다 — 판정(주의/문제)은 서버가 했다. 여기서는 그 행을 맨 위에 세운다.
   const ex = weekly.expected;
   let missingRow = '';
   if (ex && ex.missing) {
-    const late = now - Date.parse(ex.window_open_at);
-    const level = late > 6 * 3600 * 1000 ? 'bad' : 'warn';
-    flag(level, `이번 주(${ex.week_of}) 수집 회차가 시작조차 안 했습니다 — 창이 ${ago(ex.window_open_at, now).replace(/<[^>]+>/g, '')} 열렸는데 _ops/weekly 에 그 주 객체가 없습니다. 타이머가 멎었거나 실행기가 begin() 전에 죽은 것입니다. data 노드에서 systemctl list-timers pickage-weekly.timer.`);
+    const level = levelOf(sec, `expected:${ex.week_of}`) || 'warn';
     missingRow = `<tr class="sick"><td class="name mono">${esc(ex.week_of)}</td>
       <td>${chip('시작 안 함', level)}</td>
       <td><div class="steps">${chip('회차 객체 없음', 'muted')}</div><div class="cap">창 열림 ${ago(ex.window_open_at, now)} · run.json 도 우편함도 없다</div></td>
       <td class="mono">—</td><td class="r">—</td></tr>`;
   }
-  // 모든 회차를 본다 — 최신 회차만 보면 지난 주가 BLOCKED 인 채 남은 것이 배너에 안 올라온다.
-  // 타이머는 이번 주만 판정하므로 지난 회차의 BLOCKED·FAILED 는 수동 요청 외에는 되살릴 길이 없다
-  // (pipeline.weekly.state.pending_manual_weeks 의 docstring). 그래서 지난 주 BLOCKED 에 수동 요청까지 없으면 가장 급한 문제다.
-  const staleH = weekly.stale_running_hours || 26;   // 실행기의 STALE_RUNNING. 서버가 같은 값을 준다
-  const staleOf = r => r.status === 'RUNNING' && r.started_at && now - Date.parse(r.started_at) > staleH * 3600 * 1000;
-  runs.forEach((r, i) => {
-    const latest = i === 0, pending = r.manual && r.manual.pending;
-    if (r.status === 'BLOCKED') {
-      if (pending) flag('warn', `${r.week_of} 가 BLOCKED 이고 수동 실행 요청이 걸려 있습니다 — 다음 발화(최대 10분)가 집어 갑니다.`);
-      else if (latest) flag('bad', `주간 회차 ${r.week_of} 가 BLOCKED — 연속 ${r.consecutive_failures}회 실패로 자동 재시도가 멈췄습니다. 수동 실행 요청이 필요합니다.`);
-      else flag('bad', `지난 회차 ${r.week_of} 가 BLOCKED 인 채 수동 요청도 없습니다 — 타이머는 이번 주만 보므로 이 회차를 되살릴 길은 수동 실행 요청뿐입니다. npm 다운로드는 18개월 상한이라 오래 둘수록 다시 받을 수 없게 됩니다.`);
-    } else if (r.status === 'FAILED') {
-      if (latest) flag('warn', `주간 회차 ${r.week_of} 가 FAILED (연속 ${r.consecutive_failures}회). 10분 뒤 타이머가 다시 시도합니다.`);
-      else flag('warn', `지난 회차 ${r.week_of} 가 FAILED 로 남았습니다 — 타이머는 이번 주만 보므로 자동 재시도가 없습니다.${pending ? ' 수동 요청이 걸려 있어 다음 발화가 집어 갑니다.' : ' 수동 실행 요청이 필요합니다.'}`);
-    } else if (staleOf(r)) {
-      flag('warn', `${r.week_of} 가 ${Math.round((now - Date.parse(r.started_at)) / 3600000)}시간 넘게 RUNNING 입니다 — 실행기가 죽은 것으로 보는 기준(${staleH}시간)을 넘었습니다. 다음 발화가 이어받거나, systemd 상한에 걸려 죽었을 수 있습니다. 로컬 디스크 탭의 단계 로그를 봅니다.`);
-    }
-    if (pending && r.status !== 'BLOCKED' && r.status !== 'FAILED') flag('warn', `${r.week_of} 수동 실행 요청이 아직 처리되지 않았습니다 (최대 10분).`);
-  });
+  // 행의 색·칩은 서버 판정을 찾아 칠한다 — 규칙(오래된 RUNNING 의 기준 등)은 verdict.py 에만 있다.
+  const staleOf = r => hasKind(sec, r.week_of, 'weekly-stale');
+  const staleH = weekly.stale_running_hours || 26;
   const rows = runs.map(r => {
     const steps = (r.steps || []).map(s => chip(`${s.step} ${STATUS_KO[s.status] || s.status}${s.attempt_count > 1 ? ' ×' + s.attempt_count : ''}`, STEP_CLS[s.status],
                                                 s.error_message ? s.error_message.slice(0, 200) : '')).join('');
@@ -484,24 +481,18 @@ function renderCurated(node, cur, now) {
   const mark = findings.length;
   const runs = cur.runs || [];
   const disp = cur.dispatcher;
-  if (disp && disp.status !== 'TICK_FINISHED') flag('warn', `Curated 디스패처가 회차를 고르기 전에 멈췄습니다 (${disp.status}) — ${disp.error ? disp.error.message : ''}. MinIO 연결이나 baseline(_current.json) 을 봅니다.`);
-  runs.forEach(r => {
-    const failing = r.stages.find(s => s.status === 'FAILED');
-    const where = r.phase && r.phase !== 'COMPLETE' ? ` (${STAGE_KO[r.phase] || r.phase} 단계)` : failing ? ` (${STAGE_KO[failing.stage] || failing.stage} 단계)` : '';
-    if (r.status === 'BLOCKED') flag('bad', `Curated 전처리 ${r.snapshot} 가 BLOCKED${where} — 자동 재시도가 멈췄습니다. 원인을 고친 뒤 run-curated-retry.sh --retry-snapshot ${r.snapshot}.`);
-    else if (r.status === 'FAILED') flag('warn', `Curated 전처리 ${r.snapshot} 가 FAILED${where} (연속 ${r.consecutive_failures}회, 시도 ${r.attempt}회). ${r.next_retry_at ? `${until(r.next_retry_at, now)} 다시 시도합니다.` : ''}`);
-    else if (r.status === 'RUNNING' && r.started_at && now - Date.parse(r.started_at) > 36 * 3600 * 1000) flag('warn', `Curated 전처리 ${r.snapshot} 가 36시간 넘게 RUNNING 입니다${where}. systemd 상한(36h)에 걸려 죽었을 수 있습니다.`);
-  });
+  const sec = `${node}-curated`;   // 판정은 서버가 했다 — 행 색은 levelOf 로 찾는다
   const stageChips = r => r.stages.length
     ? r.stages.map(s => chip(`${STAGE_KO[s.stage] || s.stage} ${CUR_KO[s.status] || s.status || ''}${s.attempt > 1 ? ' ×' + s.attempt : ''}`, STAGE_CLS[s.status],
                              `${s.stage} · 시도 ${s.attempt}회${s.action === 'REVERIFIED' ? ' · 지난 결과 검증해 재사용' : ''}${s.error ? ' · ' + s.error.message : ''}`)).join('')
     : chip(r.status === 'WAITING_INPUT' ? 'raw 회차 대기' : '실행기 상태 없음', 'muted');
   const rows = runs.map(r => {
-    const cls = r.status === 'BLOCKED' ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
+    const lv = levelOf(sec, r.snapshot), stale = hasKind(sec, r.snapshot, 'curated-stale');
+    const cls = lv === 'bad' || stale ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
     const detail = [];
     if (r.error) detail.push(`<details><summary>오류 (${esc(r.error.type || '')})</summary><pre class="err">${esc(r.error.message)}</pre></details>`);
     return `<tr class="${cls}"><td class="name mono">${esc(r.snapshot)}${r.is_current ? ' ' + chip('현재 bundle', 'ok') : ''}<div class="cap">${esc(r.run_id || '')}</div></td>
-      <td>${chip(CUR_KO[r.status] || r.status, CUR_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회 · 시도 ${r.attempt}회</div>` : r.attempt > 1 ? `<div class="cap">시도 ${r.attempt}회</div>` : ''}</td>
+      <td>${stale ? chip('실행 중 · 36h 초과', 'warn') : chip(CUR_KO[r.status] || r.status, CUR_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회 · 시도 ${r.attempt}회</div>` : r.attempt > 1 ? `<div class="cap">시도 ${r.attempt}회</div>` : ''}</td>
       <td><div class="steps">${stageChips(r)}</div>${detail.join('')}</td>
       <td class="r">${ago(r.started_at, now)}</td>
       <td class="r">${r.status === 'FAILED' && r.next_retry_at ? `<span class="newfg" title="${esc(local(r.next_retry_at))}">재시도 ${until(r.next_retry_at, now)}</span>` : ago(r.finished_at, now)}</td>
@@ -523,12 +514,10 @@ function renderEvents(node, minio, now) {
   if (!ev) return '';
   const mark = findings.length;
   const buckets = Object.entries(ev.buckets || {});
-  const down = buckets.filter(([, b]) => !b.connected);
-  down.forEach(([name, b]) => flag('warn', `${node}: MinIO ${name} 이벤트 구독이 끊겨 있습니다 — ${b.error || ''}. 이 사이에 생긴 것은 화면에 안 옵니다.`));
+  const down = buckets.filter(([, b]) => !b.connected);          // 판정(주의)은 서버가 했다 — 여기서는 표지만
   const openGaps = (ev.gaps || []).filter(g => g.to);
   // 버킷 목록조차 아직 못 받은 상태 (MinIO 가 모니터보다 늦게 뜨는 중). 구독은 하나도 없다 — "구독한 버킷 없음" 으로 뭉개지 않는다.
   const disc = ev.discovery || {};
-  if (disc.pending) flag('warn', `${node}: MinIO 버킷 목록을 아직 못 받아 이벤트 구독이 걸리지 않았습니다 (${disc.attempts || 0}회 시도${disc.error ? ` — ${disc.error}` : ''}). MinIO 가 뜨면 저절로 붙습니다.`);
   const conn = disc.pending ? '버킷 목록 대기 중 (구독 전)'
     : buckets.length ? `${buckets.length - down.length}/${buckets.length} 버킷 구독 중` : '구독한 버킷 없음';
   const recent = ev.recent || [];
@@ -540,7 +529,6 @@ function renderEvents(node, minio, now) {
   // 고리 버퍼가 한도에 닿으면 오래된 것부터 조용히 버려진다 — 그러면 아래 숫자가 전부 실제보다 적다. 인벤토리의 "목록 잘림" 과 같은 잣대.
   const full = ev.full || (ev.held >= ev.max_events);
   const coverage = ev.oldest ? `${ago(ev.oldest, now).replace(/<[^>]+>/g, '').replace(' 전', '')}치` : `${ev.retention_hours}시간치`;
-  if (full) flag('warn', `${node}: MinIO 이벤트 버퍼가 한도(${num(ev.max_events)}건)에 닿아 오래된 것은 버려졌습니다${ev.dropped ? ` (지금까지 ${num(ev.dropped)}건)` : ''} — 지금 남은 것은 ${coverage}뿐이라 이 절의 개수·크기가 실제보다 적습니다. 백필 중이면 정상이고, 전체 개수는 "MinIO 전체 목록" 탭으로 봅니다. 계속 그러면 events_max 를 올립니다.`);
   const fullChip = full ? chip('보관 한도', 'warn', `한도 ${num(ev.max_events)}건에 닿아 오래된 것은 버려졌습니다 (${num(ev.dropped || 0)}건)`) : '';
   const kpis = `<div class="kv">
       <div><div class="k">완료 알림 (_SUCCESS)</div><div class="v ${completed.length ? 'newfg' : ''}">${num(completed.length)}<small>건</small></div><div class="n">${full ? `남은 ${coverage} 안에서` : `켜진 뒤 ${ev.retention_hours}시간치`}</div></div>
@@ -631,8 +619,8 @@ function renderInventory(node, minio, now) {
   const runRow = r => `<tr class="${Date.parse(r.completed_at) >= now - 86400 * 1000 ? 'new' : ''}"><td class="r">${ago(r.completed_at, now)}</td><td class="mono">${esc(r.bucket)}</td><td class="name mono">${esc(r.prefix)}</td><td class="r">${num(r.objects)}</td><td class="r">${bytes(r.bytes)}</td></tr>`;
   const runTable = rows => `<table><thead><tr><th class="r">완료</th><th>버킷</th><th>실행 경로 (_SUCCESS 가 찍힌 곳)</th><th class="r">객체</th><th class="r">크기</th></tr></thead><tbody>${rows.map(runRow).join('')}</tbody></table>`;
   const cards = (inv.buckets || []).map(b => {
-    if (b.error) { flag('warn', `MinIO 버킷 ${b.name} 전체 목록을 못 받았습니다 — ${b.error}`); return `<div class="bucket"><h3>${esc(b.name)}</h3><div class="fail">목록 실패 — ${esc(b.error)}</div></div>`; }
-    if (b.truncated) flag('warn', `MinIO 버킷 ${b.name} 전체 목록이 max_objects 에서 잘렸습니다. 아래 숫자가 전체가 아닙니다.`);
+    if (b.error) { flag('warn', `MinIO 버킷 ${b.name} 전체 목록을 못 받았습니다 — ${b.error}`, 'inventory', `${node}-inventory`, b.name); return `<div class="bucket"><h3>${esc(b.name)}</h3><div class="fail">목록 실패 — ${esc(b.error)}</div></div>`; }
+    if (b.truncated) flag('warn', `MinIO 버킷 ${b.name} 전체 목록이 max_objects 에서 잘렸습니다. 아래 숫자가 전체가 아닙니다.`, 'inventory', `${node}-inventory`, b.name);
     const prefixes = (b.prefixes || []).slice().sort((x, y) => (Date.parse(y.latest) || 0) - (Date.parse(x.latest) || 0));
     const rows = prefixes.map(p => {
       const fresh = p.new && p.new.objects > 0;
@@ -669,13 +657,13 @@ function renderLocal(node, section, now) {
   // section 이 없는 경우 둘: 서버의 local 절이 실패해 None 이거나(errors 에 이유가 있다), 그 노드에 훑을 경로가 없어 키 자체가 없다.
   if (!section) return '';
   const mark = findings.length;
+  const sec = `${node}-local`;
   const paths = (section.paths || []).map((p, i) => {
-    if (p.missing) { flag('warn', `${node}: ${p.label} 이 없습니다 (마운트 확인).`); return `<div class="bucket"><h3>${esc(p.label)}</h3><div class="fail">경로가 없습니다 — compose 의 마운트를 보세요.</div></div>`; }
+    if (p.missing) return `<div class="bucket"><h3>${esc(p.label)}</h3><div class="fail">경로가 없습니다 — compose 의 마운트를 보세요.</div></div>`;
     const d = p.disk; let disk = '';
     if (d && d.total) {
       const usedPct = d.used / d.total * 100; const free = 100 - usedPct;
-      const lv = free < 10 ? 'bad' : free < 20 ? 'warn' : '';
-      if (lv) flag(lv, `${node}: ${p.label} 이 있는 파티션의 남은 공간이 ${Math.round(free)}% 입니다.`);
+      const lv = hasKind(sec, p.label, 'disk-free') ? (levelOf(sec, p.label) || '') : '';   // 임계(10%·20%)는 verdict.py 에만 있다
       disk = `<div class="kv"><div><div class="k">파티션 남음</div><div class="v" style="${lv ? `color:var(--${lv})` : ''}">${Math.round(free)}<small>%</small></div><div class="bar ${lv}"><i style="width:${usedPct}%"></i></div><div class="n">${bytes(d.used)} 사용 · 전체 ${bytes(d.total)}</div></div>
         <div><div class="k">이 경로</div><div class="v">${bytes(p.bytes)}</div><div class="n">${num(p.files)} 파일 · 최근 변경 ${ago(p.latest, now)}</div></div>
         <div><div class="k">지난 ${p.new.window_hours}시간 신규</div><div class="v ${p.new.files ? 'newfg' : ''}">${p.new.files ? '+' : ''}${num(p.new.files)}<small>파일</small></div><div class="n">${bytes(p.new.bytes)}</div></div></div>`;
@@ -709,7 +697,6 @@ function renderLocal(node, section, now) {
   const errRe = reFrom(section.error_pattern, ERR_RE), skipRe = reFrom(section.error_ignore_pattern);
   const minL = section.error_min_lines == null ? 1 : section.error_min_lines;
   const logs = (section.logs || []).map(l => {
-    if (l.error_lines && minL > 0 && l.error_lines >= minL) flag('warn', `${node}: 단계 로그 ${l.path} 꼬리에 에러로 보이는 줄이 ${l.error_lines}개 있습니다 (기준 ${minL}줄).`);
     return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ' · ' + errChip(l.error_lines, minL) : ''}</summary>${pre(l.tail, errRe, skipRe)}</details>`;
   }).join('');
   const body = `${paths}
@@ -730,22 +717,21 @@ function renderDocker(node, docker, now) {
   const rows = (docker.containers || []).map(c => {
     // state 를 먼저 본다. paused · created · dead 도 ExitCode 는 0 이라 종료 코드로 가르면 "끝남 (0)" = 정상으로 새어 나간다.
     //   running / restarting / paused / created / removing / exited / dead — Docker State.Status 의 일곱 값
+    // 판정(문제·주의·문구)은 서버가 했다. 여기서는 상태에 맞는 칩과, 그 행에 걸린 판정이 있으면 붉은 표시만.
     const up = c.state === 'running';
-    let sick = false, st;
-    if (c.state === 'restarting') { sick = true; st = chip('재시작 반복', 'bad'); flag('bad', `${node}: ${c.name} 가 계속 재시작하고 있습니다.`); }
-    else if (c.state === 'paused') { sick = true; st = chip('일시 중지', 'bad'); flag('bad', `${node}: ${c.name} 가 docker pause 로 멈춰 있습니다 — 살아 있는 것처럼 보이지만 아무 일도 하지 않습니다. docker unpause.`); }
-    else if (c.state === 'dead') { sick = true; st = chip('죽음 (dead)', 'bad'); flag('bad', `${node}: ${c.name} 가 dead 상태입니다 — 데몬이 정리하지 못한 컨테이너. docker rm 뒤 다시 up.`); }
-    else if (c.state === 'created') { sick = true; st = chip('시작 안 됨', 'warn'); flag('warn', `${node}: ${c.name} 가 만들어졌지만 시작되지 않았습니다 — compose up 이 중간에 실패했거나 의존 컨테이너를 기다리다 멈춘 것. docker compose up -d 를 다시.`); }
+    let st;
+    if (c.state === 'restarting') st = chip('재시작 반복', 'bad');
+    else if (c.state === 'paused') st = chip('일시 중지', 'bad');
+    else if (c.state === 'dead') st = chip('죽음 (dead)', 'bad');
+    else if (c.state === 'created') st = chip('시작 안 됨', 'warn');
     else if (c.state === 'removing') st = chip('지우는 중', 'muted');
     else if (up) { running++; st = chip(c.health === 'unhealthy' ? '비정상' : c.health === 'healthy' ? '실행 중 · 건강' : '실행 중', c.health === 'unhealthy' ? 'bad' : 'ok'); }
     else if (c.state === 'exited' && c.exit_code === 0) st = chip('끝남 (0)', 'done');
-    else if (c.state === 'exited') { sick = true; st = chip(`끝남 (${c.exit_code})`, 'warn'); flag('warn', `${node}: ${c.name} 가 종료 코드 ${c.exit_code} 로 끝났습니다 (${ago(c.finished_at, now).replace(/<[^>]+>/g, '')}).`); }
-    else { sick = true; st = chip(`상태 ${c.state || '?'}`, 'warn'); flag('warn', `${node}: ${c.name} 의 상태가 "${c.state}" 입니다 — 화면이 모르는 값. docker inspect 로 봅니다.`); }
-    if (c.oom_killed) { sick = true; flag('bad', `${node}: ${c.name} 가 OOM 으로 죽었습니다 — mem_limit 을 보세요.`); }
-    if (c.health === 'unhealthy') flag('bad', `${node}: ${c.name} healthcheck 실패.`);
+    else if (c.state === 'exited') st = chip(`끝남 (${c.exit_code})`, 'warn');
+    else st = chip(`상태 ${c.state || '?'}`, 'warn');
+    const sick = forRef(`${node}-docker`, c.name).some(f => f.kind !== 'log-error');   // 로그 줄만 걸린 컨테이너는 아픈 게 아니다
+    if (sick) sickCount++;
     const log = c.log || {};
-    if (log.error_lines && minL > 0 && log.error_lines >= minL) flag('warn', `${node}: ${c.name} 로그 꼬리(${log.since_hours}시간)에 에러로 보이는 줄이 ${log.error_lines}개 있습니다 (기준 ${minL}줄). 재기동 직후의 대기 메시지면 error_ignore_pattern 에 적습니다.`);
-    if (sick || c.oom_killed || c.health === 'unhealthy') sickCount++;
     const logHtml = log.error ? `<div class="fail">로그 못 읽음 — ${esc(log.error)}</div>`
       : `<details><summary>최근 ${log.since_hours}시간 · 꼬리 ${(log.lines || []).length}줄${log.error_lines ? ' · ' + errChip(log.error_lines, minL) : ''}</summary>${pre(log.lines, errRe, skipRe)}</details>`;
     return `<tr class="${sick ? 'sick' : ''}"><td class="name mono">${esc(c.name)}<div class="cap">${esc(c.image)}</div></td>
@@ -832,7 +818,26 @@ function patch(container, html) {
 
 // 판정 항목 한 줄 — 심각도 표지 + 글자(누르면 그 절로) + 어느 절인지
 const findingItem = f => `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}" onclick="return goTo('${esc(f.section)}')">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`;
-const findingList = items => `<ul class="flist">${items.length ? [...items.filter(f => f.level === 'bad'), ...items.filter(f => f.level === 'warn')].map(findingItem).join('') : '<li class="none">걸리는 것이 없습니다.</li>'}</ul>`;
+// 목록 — 문제가 먼저, 같은 수준 안에서 같은 종류(kind)가 3건 이상이면 한 줄로 묶어 접는다.
+// 로그 에러 줄 경고가 여럿 떠도 진짜 빨간 항목이 그 사이에 묻히지 않게.
+const KIND_KO = { 'log-error': '로그 꼬리의 에러 줄', container: '컨테이너 상태', 'container-oom': 'OOM', 'container-health': 'healthcheck 실패',
+  'disk-free': '파티션 여유', 'disk-missing': '경로 없음', 'events-disconnected': '이벤트 구독 끊김', 'weekly-blocked': '주간 회차 BLOCKED',
+  'weekly-failed': '주간 회차 FAILED', 'curated-failed': 'Curated 전처리 FAILED', report: '보고서 절 실패', client: '화면' };
+function findingList(items) {
+  if (!items.length) return '<ul class="flist"><li class="none">걸리는 것이 없습니다.</li></ul>';
+  const out = [];
+  for (const level of ['bad', 'warn']) {
+    const mine = items.filter(f => f.level === level);
+    const byKind = new Map();
+    mine.forEach(f => { const k = f.kind || 'client'; if (!byKind.has(k)) byKind.set(k, []); byKind.get(k).push(f); });
+    byKind.forEach((fs, kind) => {
+      if (fs.length < 3) { fs.forEach(f => out.push(findingItem(f))); return; }
+      const first = fs[0];
+      out.push(`<li>${chip(level === 'bad' ? '문제' : '주의', level)}<span><details><summary>${esc(KIND_KO[kind] || kind)} ${fs.length}건${first.sectionTitle ? ` <span class="where">→ ${esc(first.sectionTitle.replace(/ · .*$/, ''))} 등</span>` : ''}</summary><ul class="flist">${fs.map(findingItem).join('')}</ul></details></span></li>`);
+    });
+  }
+  return `<ul class="flist">${out.join('')}</ul>`;
+}
 // 문제·주의 태그 — 있는 것만, 둘 다 있으면 둘 다. 없으면 정상.
 const badges = items => {
   const bad = items.filter(f => f.level === 'bad').length, warn = items.filter(f => f.level === 'warn').length;
@@ -840,20 +845,34 @@ const badges = items => {
 };
 const nodeOf = id => !id ? null : id.startsWith('node-') ? id.slice(5) : id.slice(0, id.lastIndexOf('-'));
 
+// 시각의 기준은 그 보고서를 만든 서버 시계다. 브라우저 시계가 어긋나도 "3분 전" 이 거짓말이 되지 않게 —
+// generated_at 에, 받은 뒤 흐른 시간(브라우저에서 잰 차이만)을 더한다. 정렬로 다시 그릴 때도 그만큼만 늙는다.
+function serverNow(report, fallback) {
+  const made = Date.parse(report.generated_at);
+  if (isNaN(made) || !report._received) return fallback;
+  return made + (Date.now() - report._received);
+}
+
 // 노드 하나 → 노드 줄(누르면 그 노드의 판정 항목) + 절 카드들(탭별). 어느 노드의 절인지는 카드 제목과 id 에 있다.
-function renderNode(node, report, now) {
+function renderNode(node, report, browserNow) {
   const mark = findings.length;
   if (report.unreachable) {
-    flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`);
-    findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
+    flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`, 'client', `node-${node}`);
+    findings.slice(mark).forEach(f => { f.sectionTitle = node; });
     const mine = findings.slice(mark);
     return { strip: `<details class="nodebar has-warn" id="node-${esc(node)}"><summary><span class="name">${esc(node)}</span>${badges(mine)}</summary>
         <div class="body"><div class="fail">${esc((report.errors || [{}])[0].message || '')}</div>${findingList(mine)}</div></details>`, cards: [] };
   }
+  const now = serverNow(report, browserNow);
+  // 서버가 정한 판정을 받아들인다. 절 실패(errors)도 그 안에 들어 있다 — 여기서 다시 flag 하지 않는다.
+  adopt(node, report.findings);
+  if (report.findings == null && (report.errors || []).some(e => e.section === 'findings')) {
+    flag('warn', `${node}: 판정 절(findings) 자체가 실패했습니다 — 아래 카드는 그려지지만 판정 목록이 비어 있습니다. 서버 로그를 봅니다.`, 'report', `node-${node}`);
+  }
   const via = report.fetched_via ? ` · ${esc(report.fetched_via)} 가 중계` : '';
   const cached = report.cached ? ' · 캐시' : '';
-  const errors = (report.errors || []).map(e => { flag('warn', `${node}: 보고서의 ${e.section} 절이 실패했습니다 — ${e.message}`); return `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`; }).join('');
-  findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
+  const errors = (report.errors || []).map(e => `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`).join('');
+  findings.slice(mark).forEach(f => { if (!f.sectionTitle) f.sectionTitle = node; });
   // 절 하나를 그리다 예외가 나도 다른 절은 산다 — 그 자리에 실패 카드가 서고 판정에 올라간다.
   // 서버가 "한 절이 죽어도 나머지는 만든다" 를 지키는데 화면이 통째로 날아가면 그 약속이 여기서 깨진다.
   const safe = (tab, title, fn) => {
@@ -861,7 +880,7 @@ function renderNode(node, report, now) {
     catch (e) {
       console.error(`[${node}-${tab}] 그리기 실패`, e);
       const at = findings.length;
-      flag('warn', `${node}: "${title}" 절을 화면에 그리지 못했습니다 — ${e.message}. 서버 보고서는 정상일 수 있습니다 (브라우저 콘솔).`);
+      flag('warn', `${node}: "${title}" 절을 화면에 그리지 못했습니다 — ${e.message}. 서버 보고서는 정상일 수 있습니다 (브라우저 콘솔).`, 'render', `${node}-${tab}`);
       return card(`${node}-${tab}`, title, chip('화면 그리기 실패', 'warn'),
         `<div class="fail">${esc(e.message)}</div><details><summary>스택</summary><pre>${esc(e.stack || '')}</pre></details>`, { mark: at });
     }
@@ -878,9 +897,11 @@ function renderNode(node, report, now) {
   ].filter(([, html]) => html).map(([tab, html]) => ({ tab, html }));
   const mine = findings.slice(mark);
   const bad = mine.some(f => f.level === 'bad'), warn = mine.some(f => f.level === 'warn');
+  const skew = report._received ? Math.round((Date.parse(report.generated_at) - report._received) / 1000) : 0;
+  const skewNote = Math.abs(skew) > 60 ? ` · <b style="color:var(--warn)">서버·브라우저 시계 차이 ${skew > 0 ? '+' : ''}${skew}초</b>` : '';
   const strip = `<details class="nodebar ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="node-${esc(node)}">
       <summary><span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badges(mine)}
-        <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}</span></summary>
+        <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}${skewNote}</span></summary>
       <div class="body">${errors}${findingList(mine)}</div></details>`;
   return { strip, cards };
 }
@@ -908,7 +929,7 @@ function draw(nodes, reports, now, elapsed) {
   lastDraw = [nodes, reports, now, elapsed];
   // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
   const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
-  if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.');
+  if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.', 'client');
   const strips = [], byTab = Object.fromEntries(TABS.map(([k]) => [k, []]));
   order.forEach(x => { const out = renderNode(x.n, x.r, now); strips.push(out.strip); out.cards.forEach(c => byTab[c.tab].push(c.html)); });
   patch(document.getElementById('nodes'), strips.join(''));
@@ -936,6 +957,7 @@ async function refreshOnce(fresh) {
       try {
         const res = await fetch(`api/report?node=${encodeURIComponent(node)}${fresh ? '&fresh=1' : ''}`, { cache: 'no-store' });
         const body = await res.json();
+        body._received = Date.now();   // 서버 시각(generated_at)을 기준으로 상대시각을 재기 위해 — serverNow()
         return body.node ? body : { node, unreachable: true, errors: [{ section: 'fetch', message: `${res.status}` }] };
       } catch (e) {
         return { node, unreachable: true, errors: [{ section: 'fetch', message: e.message }] };

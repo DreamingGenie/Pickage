@@ -51,6 +51,7 @@ S3 목록 조회는 앞부분(prefix)으로만 거를 수 있다. "최근 것만
 | `s3inv.py` | 버킷 LIST → 경로 집계, `_SUCCESS` → 완료된 실행, `_current.json` 읽기 |
 | `config.py` | 노드별 YAML + 자격증명 환경변수(`PICKAGE_S3_*`). 모르는 키는 시작 거부 |
 | `weekly.py` | `_ops/weekly` 요약. 우편함 판정은 `pipeline.weekly.schedule.is_manual_pending` 을 그대로 부른다 |
+| `verdict.py` | **판정 규칙** — 보고서 → findings(문제·주의 목록, 절 id·행 ref·문장). 순수 함수라 시험이 붙고(`test_verdict.py`), 서버 시계로 재고, 실행기 상수(STALE_RUNNING)를 보고서에서 그대로 쓴다. 화면은 이 목록을 보여 주기만 한다 — 화면이 스스로 판정하는 것은 전체 목록 잘림·그리기 실패·data 보고서 없음 셋뿐 |
 | `curated.py` | `_ops/preprocessing` 요약 — 디스패처 상태(RUNNING·COMPLETE·FAILED·BLOCKED·WAITING_INPUT, 재시도 시각)와 실행기의 6단계 상태. 판정은 디스패처가 적은 것 그대로. 그 모듈을 import 하지 않아 372 브랜치가 없는 체크아웃에서도 뜬다 |
 | `localfs.py` | 경로 스캔(크기·파일 수·24시간 신규)과 로그 꼬리 |
 | `dockerapi.py` | Docker Engine API 최소 클라이언트. 로그 프레임 demux 포함 |
@@ -118,7 +119,11 @@ docker compose run --rm pipeline-monitor --once | less
   "generated_at": "2026-09-21T03:00:00+00:00", "took_seconds": 0.2,
   "cached": true,                       // 보고서 캐시에서 왔을 때만
   "errors": [ {"section": "docker", "message": "PermissionError: …"} ],   // 비어 있어야 정상
-  "timings": {"minio": 0.01, "weekly": 0.1, "local": 0.05, "docker": 0.1},
+  "timings": {"minio": 0.01, "weekly": 0.1, "local": 0.05, "docker": 0.1, "findings": 0.0},
+  // 판정 — verdict.py 가 위 절들을 읽어 만든다. 문제(bad)가 먼저. 화면은 이것을 그대로 보여 주고 ref 로 행에 색을 칠한다.
+  "findings": [{"level": "bad", "kind": "weekly-blocked", "section": "data-weekly", "ref": "2026-09-14",
+                "text": "지난 회차 2026-09-14 가 BLOCKED 인 채 수동 요청도 없습니다 — …"},
+               {"level": "warn", "kind": "log-error", "section": "data-docker", "ref": "pickage-data-minio-1", "text": "…"}],
   "weekly": {"listed_at": …, "weeks_total": 3,
       // 이번 주 회차가 "아예 시작 안 한" 것을 잡는다 — 창(화요일 10:00 KST)이 열렸는데 그 주 객체가 하나도 없으면 missing.
       // 판정 규칙은 pipeline.weekly.schedule 의 current_week_of · window_open 을 그대로 쓴다.
