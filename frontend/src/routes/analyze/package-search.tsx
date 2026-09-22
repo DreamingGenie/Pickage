@@ -33,7 +33,6 @@ export function PackageSearch({
   icon = true,
   invalid = false,
   describedBy,
-  showCount = false,
 }: {
   value: string
   onChange: (v: string) => void
@@ -52,8 +51,6 @@ export function PackageSearch({
   invalid?: boolean
   /** 오류 문구 요소 id. `aria-describedby` 로 연결한다. */
   describedBy?: string
-  /** 입력창 아래에 글자 수(`N / 300자`)를 보여 준다. 길이 제한이 있다는 걸 미리 알린다. */
-  showCount?: boolean
 }) {
   const listId = useId()
   const [open, setOpen] = useState(false)
@@ -116,40 +113,46 @@ export function PackageSearch({
 
   return (
     <div ref={boxRef} className={cn('relative flex-1', className)}>
-      {icon && (
-        <SearchIcon
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-      )}
-      <input
-        value={value}
-        maxLength={MAX_PACKAGE_SEARCH_LENGTH}
-        onChange={(e) => {
-          onChange(e.target.value)
-          setOpen(true)
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        spellCheck={false}
-        autoComplete="off"
-        className={cn(
-          'h-11 w-full rounded-lg border border-input bg-background pr-3 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50',
-          icon ? 'pl-10' : 'pl-4',
-          inputClassName,
+      {/*
+        아이콘은 입력창 높이에만 맞춘다. 예전에는 바깥 상자(아래 글자 수 줄까지 포함) 기준으로 가운데를 잡아
+        아이콘이 입력창보다 아래로 내려가 있었다.
+      */}
+      <div className="relative">
+        {icon && (
+          <SearchIcon
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted-foreground"
+          />
         )}
-      />
+        <input
+          value={value}
+          maxLength={MAX_PACKAGE_SEARCH_LENGTH}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          spellCheck={false}
+          autoComplete="off"
+          className={cn(
+            'h-11 w-full rounded-lg border border-input bg-background pr-3 font-sans text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50',
+            icon ? 'pl-10' : 'pl-4',
+            inputClassName,
+          )}
+        />
+      </div>
 
       {showList && (
         <div className="absolute top-full right-0 left-0 z-30 mt-1.5 overflow-hidden rounded-xl border bg-background shadow-lg">
@@ -183,11 +186,7 @@ export function PackageSearch({
                     )}
                   >
                     <span className="truncate font-mono text-base">
-                      {/* 접두사 검색이라 강조 구간은 항상 앞에서부터 질의 길이만큼이다 */}
-                      <mark className="bg-transparent font-semibold underline underline-offset-2">
-                        {s.name.slice(0, query.length)}
-                      </mark>
-                      {s.name.slice(query.length)}
+                      <MatchedName name={s.name} query={query} />
                     </span>
                   </button>
                 </li>
@@ -206,11 +205,25 @@ export function PackageSearch({
           )}
         </div>
       )}
-      {showCount && (
-        <p className="mt-1.5 text-right text-sm text-muted-foreground tabular-nums">
-          {value.length} / {MAX_PACKAGE_SEARCH_LENGTH}자
-        </p>
-      )}
     </div>
+  )
+}
+
+/**
+ * 이름에서 입력과 같은 글자가 **실제로 있는 자리**에 밑줄을 긋는다. 대소문자는 가리지 않는다.
+ * 예전에는 입력 길이만큼 늘 맨 앞을 칠해서, 서버가 돌려준 이름처럼 앞이 다른 결과에서는 엉뚱한 글자에 밑줄이 갔다.
+ * 겹치는 곳이 없으면 칠하지 않는다.
+ */
+function MatchedName({ name, query }: { name: string; query: string }) {
+  const at = query ? name.toLowerCase().indexOf(query.toLowerCase()) : -1
+  if (at < 0) return <>{name}</>
+  return (
+    <>
+      {name.slice(0, at)}
+      <mark className="bg-transparent font-semibold text-foreground underline underline-offset-2">
+        {name.slice(at, at + query.length)}
+      </mark>
+      {name.slice(at + query.length)}
+    </>
   )
 }
