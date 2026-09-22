@@ -116,16 +116,31 @@
   .steps { display:flex; flex-wrap:wrap; gap:var(--sp-1); }
   .steps .st { font-weight:500; }
 
-  /* ── 노드 묶음 — 어느 노드의 절인지 항상 보인다 ─────────────────── */
-  .node { margin-top:var(--sp-5); }
-  .node + .node { margin-top:var(--sp-6); }
-  .nodebar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
-             padding:var(--sp-2) 0; margin-bottom:var(--sp-3); background:var(--bg);
-             border-bottom:2px solid var(--line); }
-  .nodebar .name { font-size:var(--fs-h); font-weight:700; letter-spacing:-.01em; }
+  /* ── 탭 — 스크롤해도 붙어 있다. 탭마다 그 안의 문제·주의 개수 배지 ──── */
+  .tabs { position:sticky; top:0; z-index:5; display:flex; gap:2px; flex-wrap:wrap; background:var(--bg);
+          border-bottom:1px solid var(--line); padding:var(--sp-1) 0 0; }
+  .tabs button { font:inherit; font-size:var(--fs-tbl); font-weight:500; color:var(--dim); background:transparent; border:0;
+                 border-bottom:2px solid transparent; padding:8px 12px 9px; cursor:pointer; display:inline-flex;
+                 align-items:center; gap:6px; white-space:nowrap; margin-bottom:-1px; }
+  .tabs button:hover { color:var(--fg); }
+  .tabs button.on { color:var(--fg); font-weight:600; border-bottom-color:var(--fg); }
+  .tabs button .st { font-size:11px; padding:1px 6px; }
+  .tabs .sep { flex:1; }
+  .panel { display:none; }
+  .panel.on, body.tab-all .panel { display:block; }
+  body.tab-all .panel + .panel { margin-top:var(--sp-4); }
+  section.card.flash { animation:flash 1.6s ease-out; }
+  @keyframes flash { 0% { box-shadow:0 0 0 3px var(--info); } 100% { box-shadow:0 0 0 0 transparent; } }
+
+  /* ── 노드 요약 줄 — 어느 탭에서나 두 노드의 상태가 보인다 ─────────── */
+  .nodes { display:grid; gap:var(--sp-2); margin:var(--sp-4) 0 var(--sp-3); }
+  .nodebar { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-3);
+             border:1px solid var(--line); border-radius:var(--r); background:var(--panel); }
+  .nodebar.has-bad { border-color:var(--bad); } .nodebar.has-warn { border-color:var(--warn); }
+  .nodebar .name { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
   .nodebar .host { font-size:var(--fs-cap); color:var(--dim); }
   .nodebar .meta { font-size:var(--fs-cap); color:var(--faint); margin-left:auto; }
-  .nodebar .stale { color:var(--warn); font-weight:600; }
+  .nodebar .fail { flex-basis:100%; margin:var(--sp-1) 0 0; }
 
   /* ── 절 카드 ──────────────────────────────────────────────────── */
   section.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
@@ -211,6 +226,8 @@
   /* ── 좁은 화면 — 중요도 순서는 그대로, 표만 옆으로 스크롤 ───────── */
   @media (max-width: 760px) {
     body { padding:var(--sp-4) var(--sp-3) 40px; }
+    .tabs { flex-wrap:nowrap; overflow-x:auto; }
+    .tabs button { padding:8px 10px 9px; font-size:var(--fs-cap); }
     .verdict { grid-template-columns:auto 1fr; }
     .verdict .t { font-size:24px; }
     section.card { overflow-x:auto; padding:var(--sp-3); }
@@ -238,6 +255,8 @@
     <div><div class="t">확인 중</div><div class="d"></div><div class="counts"></div><ul></ul></div>
   </div>
 
+  <div class="tabs" id="tabs"></div>
+  <div class="nodes" id="nodes"></div>
   <div id="body"></div>
 
   <footer>
@@ -357,7 +376,7 @@ const empty = text => `<div class="empty">${text}</div>`;
 const STATUS_CLS = { SUCCEEDED: 'ok', RUNNING: 'info', PENDING: 'muted', FAILED: 'warn', BLOCKED: 'bad', SKIPPED: 'muted', REQUESTED: 'info', NONE: 'muted' };
 const STEP_CLS = { ...STATUS_CLS, SUCCEEDED: 'done' };   // 단계 6개가 다 성공이면 회색 ✓ 여섯 — 비정상만 색이 든다
 const STATUS_KO = { SUCCEEDED: '성공', RUNNING: '실행 중', PENDING: '대기', FAILED: '실패', BLOCKED: '차단됨', SKIPPED: '건너뜀', REQUESTED: '요청됨', NONE: '없음' };
-function renderWeekly(weekly, now) {
+function renderWeekly(node, weekly, now) {
   if (!weekly) return '';
   const mark = findings.length;
   const runs = weekly.runs || [];
@@ -389,7 +408,7 @@ function renderWeekly(weekly, now) {
   const body = runs.length
     ? `<table><thead><tr><th>회차 (week_of)</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th>데이터 끝 (downloads_through)</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
     : empty('회차 객체가 하나도 없습니다. 타이머가 아직 한 번도 돌지 않았거나 _ops/weekly 를 못 읽는 것입니다.');
-  return card('weekly', '주간 수집 회차',
+  return card(`${node}-weekly`, '주간 수집 회차',
     `<span class="mono">pickage-raw/_ops/weekly</span> · ${weekly.weeks_total}주 중 최근 ${runs.length}주 · 읽음 ${ago(weekly.listed_at, now)}`,
     body, { mark, help: '가장 최근 <b>성공</b> 회차의 "데이터 끝" 이 지금 서비스가 가진 다운로드 데이터의 끝입니다. 단계는 depsdev_t2 → gcs_sync → downloads_weekly → downloads_parquet → bronze_depsdev → bronze_downloads 순서이고, 회색 ✓ 는 끝난 단계, 색이 든 것만 봐야 할 단계입니다. ×N 은 시도 횟수. 단계 로그 전문은 아래 로컬 디스크 절의 <code>logs/&lt;step&gt;.log</code>.' });
 }
@@ -409,7 +428,7 @@ const CUR_CLS = { COMPLETE: 'ok', RUNNING: 'info', FAILED: 'warn', BLOCKED: 'bad
 const STAGE_CLS = { ...CUR_CLS, COMPLETE: 'done' };
 const CUR_KO = { COMPLETE: '완료', RUNNING: '실행 중', FAILED: '실패', BLOCKED: '차단됨', WAITING_INPUT: '입력 대기', NOT_STARTED: '시작 전', NONE: '없음' };
 const STAGE_KO = { snapshot: '스냅샷', package_version: '패키지·버전', downloads: '다운로드', repository: '저장소 지표', package_snapshot: '패키지 스냅샷', dependents: '역의존' };
-function renderCurated(cur, now) {
+function renderCurated(node, cur, now) {
   if (!cur) return '';
   const mark = findings.length;
   const runs = cur.runs || [];
@@ -443,7 +462,7 @@ function renderCurated(cur, now) {
   const body = `<div class="sub">${current}${dispLine}</div>
     ${runs.length ? `<table><thead><tr><th>스냅샷</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th class="r">시작</th><th class="r">끝 / 재시도</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
                   : empty('아직 회차 기록이 없습니다.')}`;
-  return card('curated', 'Curated 전처리 회차', meta, body,
+  return card(`${node}-curated`, 'Curated 전처리 회차', meta, body,
     { mark, help: '주간 수집이 SUCCEEDED 가 되면 같은 타이머가 그 날짜의 raw → Curated 전처리를 하나 고릅니다. 단계는 스냅샷 → 패키지·버전 → 다운로드 → 저장소 지표 → 패키지 스냅샷 → 역의존. 실패는 10·20·40·60분 간격으로 다시 시도하고 연속 10회면 차단됩니다 — 차단은 원인을 고친 뒤 <code>run-curated-retry.sh --retry-snapshot</code>. 단계 로그는 data 노드 <code>/srv/pickage/ingest-work/orchestration/&lt;run-id&gt;/</code>.' });
 }
 
@@ -488,7 +507,7 @@ function renderEvents(node, minio, now) {
 }
 
 // ── 포인터 ─────────────────────────────────────────────────────────────
-function renderPointers(minio, now) {
+function renderPointers(node, minio, now) {
   if (!minio || !(minio.pointers || []).length) return '';
   const rows = minio.pointers.map(p => {
     const v = p.value || {};
@@ -496,7 +515,7 @@ function renderPointers(minio, now) {
       <td class="mono">${p.missing ? `없음 (${esc(p.error || '')})` : esc(v.run_id || v.run_path || JSON.stringify(v).slice(0, 80))}</td>
       <td class="mono">${esc(v.collected_date || v.model || '')}</td><td class="r">${p.missing ? '—' : ago(p.modified, now)}</td></tr>`;
   }).join('');
-  return card('pointers', '포인터 (_current.json)', '소비자가 지금 읽는 실행',
+  return card(`${node}-pointers`, '포인터 (_current.json)', '소비자가 지금 읽는 실행',
     `<table><thead><tr><th>객체</th><th>run_id</th><th>collected_date · 모델</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`,
     { help: '코퍼스 포인터가 바뀌면 다음 유사도 배치가 그것을 집고, 벡터 포인터가 바뀌면 app 노드의 로더가 DB 에 게시합니다. "없음" 은 아직 한 번도 게시되지 않았다는 뜻입니다.' });
 }
@@ -657,33 +676,99 @@ function renderDocker(node, docker, now) {
 }
 
 // ── 노드 하나 ───────────────────────────────────────────────────────────
-// 노드 하나 = 묶음 하나. 위에 노드 바(스크롤해도 붙어 있다)가 있어 어느 노드의 절인지 항상 보인다.
+// ── 탭 ────────────────────────────────────────────────────────────────
+// 절은 탭으로 나뉜다. 절 id 는 `<노드>-<탭>` 이라 id 끝 토큰이 곧 탭이다. 노드 요약 줄(id node-<노드>)은 탭 밖에 항상 있다.
+const TABS = [['weekly', '주간 수집'], ['curated', 'Curated 전처리'], ['events', 'MinIO 이벤트'], ['pointers', '포인터'],
+              ['inventory', '전체 목록'], ['local', '로컬 디스크'], ['docker', '컨테이너·로그'], ['all', '전체']];
+const TAB_KEY = 'pickage-monitor-tab';
+let activeTab = (() => { try { return localStorage.getItem(TAB_KEY) || 'weekly'; } catch (e) { return 'weekly'; } })();
+const tabOf = id => id && !id.startsWith('node-') ? id.slice(id.lastIndexOf('-') + 1) : null;
+function setTab(key) {
+  if (!TABS.some(([k]) => k === key)) key = 'weekly';
+  activeTab = key;
+  try { localStorage.setItem(TAB_KEY, key); } catch (e) { /* 저장이 막혀도 이번 화면에는 적용된다 */ }
+  document.body.classList.toggle('tab-all', key === 'all');
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === key));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.dataset.tab === key));
+}
+// 판정 항목을 누르면 — 그 절이 있는 탭으로 가서 그 절을 보여 주고 잠깐 테두리를 밝힌다.
+function goTo(id) {
+  const tab = tabOf(id);
+  if (tab && activeTab !== 'all') setTab(tab);
+  const el = document.getElementById(id);
+  if (!el) return false;
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  return false;
+}
+function renderTabs() {
+  const count = key => {
+    const mine = findings.filter(f => key === 'all' ? true : tabOf(f.section) === key);
+    const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
+    return bad ? chip(String(bad), 'bad', `문제 ${bad}`) : warn ? chip(String(warn), 'warn', `주의 ${warn}`) : '';
+  };
+  document.getElementById('tabs').innerHTML = TABS.map(([k, label], i) =>
+    `${k === 'all' ? '<span class="sep"></span>' : ''}<button type="button" data-tab="${k}" class="${k === activeTab ? 'on' : ''}" onclick="setTab('${k}')">${esc(label)}${count(k)}</button>`).join('');
+}
+
+// ── 갱신해도 보던 것이 그대로 — 절 단위 교체 ───────────────────────────
+// 통째로 innerHTML 을 바꾸면 펼친 <details> 가 닫히고 스크롤이 튄다. 그래서 id 가 있는 요소(절 카드·노드 줄)를
+// 하나씩 바꾸고, 바꾸기 전에 펼쳐 둔 details 의 열쇠를 적어 새 요소에서 다시 펼친다. 열쇠는 절 id + summary 글자
+// (숫자는 # 으로 뭉갠다 — "이전 51건" 이 "이전 52건" 이 돼도 같은 것) + 같은 글자 중 몇 번째인가. 스크롤 위치도 되돌린다.
+function detailKey(d) {
+  const sec = d.closest('[id]');
+  const norm = x => ((x.querySelector(':scope > summary') || {}).textContent || '').replace(/\d+/g, '#').trim();
+  const text = norm(d);
+  const same = [...(sec || document).querySelectorAll('details')].filter(x => norm(x) === text);
+  return `${sec ? sec.id : ''}|${text}|${same.indexOf(d)}`;
+}
+function patch(container, html) {
+  const y = window.scrollY;
+  const open = new Set([...container.querySelectorAll('details[open]')].map(detailKey));
+  const fresh = document.createElement('div'); fresh.innerHTML = html;
+  const incoming = [...fresh.children];
+  const seen = new Set();
+  let cursor = null;   // 새 순서대로 끼워 넣기 위한 앵커
+  incoming.forEach(el => {
+    seen.add(el.id);
+    const old = el.id && container.querySelector(`:scope > [id="${el.id}"]`);
+    if (old) old.replaceWith(el); else if (cursor) cursor.after(el); else container.prepend(el);
+    cursor = el;
+  });
+  [...container.children].forEach(el => { if (!seen.has(el.id)) el.remove(); });
+  container.querySelectorAll('details').forEach(d => { if (open.has(detailKey(d))) d.open = true; });
+  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+}
+
+// 노드 하나 → 요약 줄 하나 + 절 카드들(탭별). 어느 노드의 절인지는 카드 제목과 id 에 있다.
 function renderNode(node, report, now) {
   const mark = findings.length;
   if (report.unreachable) {
     flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`);
     findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
-    return `<div class="node" id="node-${esc(node)}"><div class="nodebar"><span class="name">${esc(node)}</span>${chip('닿지 못함', 'warn')}</div>
-      <section class="card has-warn"><div class="fail">${esc((report.errors || [{}])[0].message || '')}</div></section></div>`;
+    return { strip: `<div class="nodebar has-warn" id="node-${esc(node)}"><span class="name">${esc(node)}</span>${chip('닿지 못함', 'warn')}
+        <div class="fail">${esc((report.errors || [{}])[0].message || '')}</div></div>`, cards: [] };
   }
   const via = report.fetched_via ? ` · ${esc(report.fetched_via)} 가 중계` : '';
   const cached = report.cached ? ' · 캐시' : '';
   const errors = (report.errors || []).map(e => { flag('warn', `${node}: 보고서의 ${e.section} 절이 실패했습니다 — ${e.message}`); return `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`; }).join('');
   findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
-  const sections = renderWeekly(report.weekly, now)
-    + renderCurated(report.curated, now)
-    + renderEvents(node, report.minio, now)
-    + renderPointers(report.minio, now)
-    + renderInventory(node, report.minio, now)
-    + renderLocal(node, report.local, now)
-    + renderDocker(node, report.docker, now);
+  const cards = [
+    ['weekly', renderWeekly(node, report.weekly, now)],
+    ['curated', renderCurated(node, report.curated, now)],
+    ['events', renderEvents(node, report.minio, now)],
+    ['pointers', renderPointers(node, report.minio, now)],
+    ['inventory', renderInventory(node, report.minio, now)],
+    ['local', renderLocal(node, report.local, now)],
+    ['docker', renderDocker(node, report.docker, now)],
+  ].filter(([, html]) => html).map(([tab, html]) => ({ tab, html }));
   const mine = findings.slice(mark);
   const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
   const badge = bad ? chip(`문제 ${bad}`, 'bad') : warn ? chip(`주의 ${warn}`, 'warn') : chip('정상', 'ok');
-  return `<div class="node" id="node-${esc(node)}">
-    <div class="nodebar"><span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badge}
-      <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}</span></div>
-    ${errors}${sections}</div>`;
+  const strip = `<div class="nodebar ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="node-${esc(node)}">
+      <span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badge}
+      <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}</span>${errors}</div>`;
+  return { strip, cards };
 }
 
 // 판정 — 제목 한 단어, 문제·주의 개수, 근거 목록(항목마다 자기 심각도 기호 + 해당 절 링크).
@@ -699,7 +784,7 @@ function setVerdict(cls, title, desc, items) {
     ? `${bad.length ? chip(`문제 ${bad.length}`, 'bad') : ''}${warn.length ? chip(`주의 ${warn.length}`, 'warn') : ''}` : '';
   const sorted = [...bad, ...warn];   // 빨간 것이 먼저
   v.querySelector('ul').innerHTML = sorted.map(f =>
-    `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`).join('');
+    `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}" onclick="return goTo('${esc(f.section)}')">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`).join('');
 }
 
 // 받아 둔 보고서로 화면을 그린다. 정렬을 바꿀 때는 서버에 다시 묻지 않고 이것만 다시 부른다.
@@ -709,7 +794,14 @@ function draw(nodes, reports, now, elapsed) {
   // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
   const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
   if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.');
-  document.getElementById('body').innerHTML = order.map(x => renderNode(x.n, x.r, now)).join('');
+  const strips = [], byTab = Object.fromEntries(TABS.map(([k]) => [k, []]));
+  order.forEach(x => { const out = renderNode(x.n, x.r, now); strips.push(out.strip); out.cards.forEach(c => byTab[c.tab].push(c.html)); });
+  patch(document.getElementById('nodes'), strips.join(''));
+  TABS.filter(([k]) => k !== 'all').forEach(([k, label]) => {
+    const panel = document.querySelector(`.panel[data-tab="${k}"]`);
+    patch(panel, byTab[k].join('') || `<section class="card" id="empty-${k}">${empty(`${label} 절을 만드는 노드가 없습니다 — 그 노드에 닿지 못했거나 설정에서 꺼져 있습니다.`)}</section>`);
+  });
+  renderTabs();
 
   document.getElementById('updated').textContent =
     `${new Date(now).toLocaleTimeString('ko-KR')} 기준 · ${elapsed.toFixed(1)}초 걸림 · 15초마다`;
@@ -757,6 +849,9 @@ async function refreshOnce(fresh) {
 let busy = false, timer = null;
 async function refresh(fresh) { if (busy) return; busy = true; try { await refreshOnce(fresh); } finally { busy = false; } }
 function rearm() { clearInterval(timer); timer = setInterval(() => refresh(false), 15000); }
+// 탭 패널은 한 번 만들고, 그 안의 절 카드만 갱신마다 교체한다 (patch).
+document.getElementById('body').innerHTML = TABS.filter(([k]) => k !== 'all').map(([k]) => `<div class="panel" data-tab="${k}"></div>`).join('');
+renderTabs(); setTab(activeTab);
 const nowBtn = document.getElementById('now');
 nowBtn.addEventListener('click', async () => {
   nowBtn.disabled = true; const label = nowBtn.textContent; nowBtn.textContent = '다시 만드는 중…';
