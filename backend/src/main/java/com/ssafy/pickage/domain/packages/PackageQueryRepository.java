@@ -829,6 +829,42 @@ public class PackageQueryRepository {
 			jdbcTemplate.queryForObject(ANY_MIGRATION_PAIR_SQL, Boolean.class, kind));
 	}
 
+	/**
+	 * 요청한 이름이 <b>서빙 대상</b>인가 — {@code available_package} 에 있는가.
+	 *
+	 * <p>이 표는 검색·자동완성이 쓰는 것과 <b>같은 표다</b>({@link #SEARCH_SQL}). 화면에서
+	 * 고를 수 있는 이름이 곧 여기 있는 이름이라, 여기 없으면 다운로드·의존 수 자료 자체가
+	 * 없다 — 이동 기록만 없는 것이 아니다.
+	 *
+	 * <p><b>{@code scopeLoaded} 를 같은 질의에서 함께 낸다.</b> 표가 비어 있을 때 이름이 안
+	 * 걸리는 것과 "대상이 아니다" 가 구별되지 않기 때문이다. 나눠 물으면 왕복이 하나 늘고,
+	 * 그 사이에 표가 채워지면 두 답이 어긋난다.
+	 */
+	private static final String SERVING_SCOPE_SQL = """
+		SELECT p.name,
+		       (a.package_id IS NOT NULL) AS in_scope,
+		       EXISTS (SELECT 1 FROM available_package) AS scope_loaded
+		FROM package p
+		LEFT JOIN available_package a ON a.package_id = p.package_id
+		WHERE p.name = ANY (?)
+		""";
+
+	public List<ServingScopeRow> findServingScope(PackageNames names) {
+		return jdbcTemplate.query(SERVING_SCOPE_SQL,
+			ps -> ps.setArray(1, ps.getConnection()
+				.createArrayOf("text", names.values().toArray())),
+			(rs, i) -> new ServingScopeRow(rs.getString("name"), rs.getBoolean("in_scope"),
+				rs.getBoolean("scope_loaded")));
+	}
+
+	/**
+	 * @param inScope     {@code available_package} 에 있는가.
+	 * @param scopeLoaded 그 표에 행이 하나라도 있는가. <b>거짓이면 {@code inScope} 를 믿으면
+	 *                    안 된다</b> — 아직 안 채운 것과 대상이 아닌 것이 같아 보인다.
+	 */
+	public record ServingScopeRow(String name, boolean inScope, boolean scopeLoaded) {
+	}
+
 	/* ------------------------------------------------------------------ *
 	 * 공통 매핑
 	 * ------------------------------------------------------------------ */

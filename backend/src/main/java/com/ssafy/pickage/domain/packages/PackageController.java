@@ -223,8 +223,9 @@ public class PackageController {
 			+ "regular·dev 중 하나이며 기본 regular — 모집단이 달라 두 종류의 수를 더하거나 "
 			+ "lift 절댓값을 비교하면 안 된다. 기본 필터(votes>=5 AND publisher_months>=3)를 "
 			+ "통과한 상위 5개를 세우고 나머지는 etc 로 접는다. 점유율 분모는 표가 아니라 "
-			+ "조직·달 수(share_basis=publisher_months)다. 쌍은 있으나 전부 필터 미달이면 "
-			+ "INSUFFICIENT_EVIDENCE, 관측이 없으면 NO_DATA, 그 종류를 아직 안 올렸으면 "
+			+ "조직·달 수(share_basis=publisher_months)이며 한 응답의 합이 100 이 아니다. "
+			+ "쌍은 있으나 전부 필터 미달이면 INSUFFICIENT_EVIDENCE, 관측이 없으면 NO_DATA, "
+			+ "available_package 에 없으면 OUT_OF_SCOPE, 그 종류를 아직 안 올렸으면 "
 			+ "NOT_COMPUTED 로 나간다.")
 	@GetMapping("/packages/migration-pairs")
 	public ApiResponseBody<MigrationPairsResponse> getMigrationPairs(

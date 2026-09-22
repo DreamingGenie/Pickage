@@ -74,6 +74,23 @@ public record MigrationPairsResponse(
 	/** 이 종류의 회차가 아직 적재되지 않았다. 표 자체가 비어 있다. */
 	public static final String NOT_COMPUTED = TransitionsResponse.NOT_COMPUTED;
 	/**
+	 * <b>서빙 대상이 아니다</b> — {@code available_package} 에 없다
+	 * (S15P21A506-211 결정 5의 "수집 범위 밖").
+	 *
+	 * <p>{@link #NO_DATA} 와 가르는 것이 중요하다. 저쪽은 "자료는 있는데 이동이 관측되지
+	 * 않았다" 이고 이쪽은 <b>"이 패키지의 자료 자체가 없다"</b> 다. 다운로드·의존 수도 없으므로
+	 * <b>데이터를 더 돌려도 나오지 않는다</b> — 상위 10만 중 64,034개가 의존하는 공개 패키지가
+	 * 없어 원천에 기록이 없다(S15P21A506-136 §1).
+	 *
+	 * <p>기준을 {@code available_package} 로 잡은 것은 <b>검색·자동완성이 쓰는 표와 같은
+	 * 표이기 때문이다</b>({@code PackageQueryRepository} 의 검색 SQL). 화면에서 고를 수 있는
+	 * 이름이 곧 그 표의 이름이라, 두 곳의 "대상" 이 갈라질 수 없다.
+	 *
+	 * <p><b>그 표가 비어 있으면 이 상태를 쓰지 않는다.</b> 아직 안 채운 것과 대상이 아닌 것이
+	 * 같아 보이는데, 잘못 고르면 모든 패키지에 "분석 대상이 아닙니다" 를 띄운다.
+	 */
+	public static final String OUT_OF_SCOPE = TransitionsResponse.OUT_OF_SCOPE;
+	/**
 	 * <b>쌍은 있으나 근거가 약하다</b> — 기본 필터를 통과한 도착지가 하나도 없다
 	 * (S15P21A506-211 결정 5).
 	 *
@@ -104,8 +121,9 @@ public record MigrationPairsResponse(
 	 *                      {@code null} 이면 접을 것이 없다. <b>합이 100% 는 아니다</b> —
 	 *                      {@link Destination#sharePmPct()} 설명을 볼 것.
 	 * @param observedPairs 이 패키지에서 관측된 이동쌍 수(필터 전). 0 이면 {@link #NO_DATA}.
+	 *                      세어 보지 않은 상태에서는 {@code null} 이다.
 	 * @param dataStatus    {@code COMPLETE} · {@code INSUFFICIENT_EVIDENCE} · {@code NO_DATA} ·
-	 *                      {@code NOT_COMPUTED}.
+	 *                      {@code OUT_OF_SCOPE} · {@code NOT_COMPUTED}.
 	 */
 	@JsonInclude(JsonInclude.Include.ALWAYS)
 	public record Series(

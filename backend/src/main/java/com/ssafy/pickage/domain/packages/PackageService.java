@@ -18,6 +18,7 @@ import com.ssafy.pickage.domain.packages.PackageQueryRepository.BriefRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.MigrationPairRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.OverviewRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.RemovalReasonRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.ServingScopeRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.ShareRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.SimilarRow;
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.TransitionRow;
@@ -481,13 +482,18 @@ public class PackageService {
 	 * <ol>
 	 * <li>행이 하나라도 왔다 → 통과한 것이 있으면 {@code COMPLETE}, 없으면
 	 *     {@code INSUFFICIENT_EVIDENCE}</li>
-	 * <li>행이 없다 → 그 종류가 적재됐으면 {@code NO_DATA}(관측이 없다), 아니면
-	 *     {@code NOT_COMPUTED}(아직 안 올렸다)</li>
+	 * <li>행이 없다 → 서빙 대상이 아니면 {@code OUT_OF_SCOPE}, 그 종류가 적재 전이면
+	 *     {@code NOT_COMPUTED}, 둘 다 아니면 {@code NO_DATA}(관측이 없다)</li>
 	 * </ol>
 	 *
-	 * <p>둘째 줄이 {@code getRemovalReasons} 와 다르다. 그쪽은 조회가 범위 표를 조인해서
-	 * "행 없음" 이 곧 "대상 밖" 이지만, 이 표에는 범위 개념이 없다 — 이동이 관측된 패키지만
-	 * 행을 가진다. 그래서 {@code getTransitions} 처럼 적재 여부를 따로 묻는다.
+	 * <p><b>이 표 자체에는 범위 개념이 없다</b> — 이동이 관측된 패키지만 행을 가진다. 그래서
+	 * {@code getRemovalReasons} 처럼 조회 한 번으로 "대상 밖" 을 알 수 없고,
+	 * {@code available_package} 를 따로 묻는다. 그 표는 <b>검색·자동완성이 쓰는 것과 같은
+	 * 표라</b> 화면에서 고를 수 있는 이름과 여기 "대상" 이 갈라지지 않는다.
+	 *
+	 * <p>순서가 규칙이다. {@code OUT_OF_SCOPE} 를 먼저 보는 것은 <b>자료가 아예 없는 패키지는
+	 * 회차를 올려도 나오지 않기 때문이다</b> — 그런 이름에 "집계 대기 중" 을 띄우면 영영 오지
+	 * 않을 것을 기다리게 한다. {@code getRemovalReasons} 도 대상 밖을 먼저 가른다.
 	 */
 	@Transactional(readOnly = true)
 	public MigrationPairsResponse getMigrationPairs(PackageNames names, DependencyKind kind) {
@@ -502,14 +508,20 @@ public class PackageService {
 
 		// 적재 여부는 **행이 하나도 없는 이름이 있을 때만** 묻는다. 한 이름이라도 행이 있으면
 		// 그 종류가 올라와 있다는 뜻이라 물을 필요가 없다. getRemovalReasons 와 같은 규칙이다.
-		boolean loaded = !rows.isEmpty()
-			|| existing.names().isEmpty()
-			|| repository.hasAnyMigrationPair(kind.code());
+		// 행이 하나도 없는 이름이 있을 때만 두 가지를 더 묻는다. 한 이름이라도 행이 있으면
+		// 그 종류는 올라와 있고, 행이 있는 이름은 당연히 대상이라 물을 필요가 없다.
+		boolean anyEmpty = existing.names().stream().anyMatch(name -> !byName.containsKey(name));
+		boolean loaded = !anyEmpty || !rows.isEmpty() || repository.hasAnyMigrationPair(kind.code());
+		Set<String> outOfScope = anyEmpty ? outOfScope(existing.names()) : Set.of();
 
 		List<MigrationPairsResponse.Series> series = existing.names().stream()
 			.map(name -> {
 				List<MigrationPairRow> pairs = byName.get(name);
 				if (pairs == null || pairs.isEmpty()) {
+					if (outOfScope.contains(name)) {
+						return MigrationPairsResponse.Series.unknown(name,
+							MigrationPairsResponse.OUT_OF_SCOPE);
+					}
 					return loaded
 						? MigrationPairsResponse.Series.of(name, null, List.of(), null, 0,
 							MigrationPairsResponse.NO_DATA)
@@ -521,6 +533,24 @@ public class PackageService {
 			.toList();
 
 		return MigrationPairsResponse.of(kind, series, existing.notFound());
+	}
+
+	/**
+	 * 서빙 대상이 <b>아닌</b> 이름들.
+	 *
+	 * <p><b>{@code available_package} 가 비어 있으면 빈 집합을 돌려준다.</b> 그 상태에서는
+	 * 아직 안 채운 것과 대상이 아닌 것이 같아 보이는데, 잘못 고르면 <b>모든 패키지에 "분석
+	 * 대상이 아닙니다" 를 띄운다.</b> 로컬·시험 DB 가 실제로 그 상태다.
+	 */
+	private Set<String> outOfScope(List<String> names) {
+		List<ServingScopeRow> scope = repository.findServingScope(PackageNames.of(names));
+		if (scope.stream().noneMatch(ServingScopeRow::scopeLoaded)) {
+			return Set.of();
+		}
+		return scope.stream()
+			.filter(row -> !row.inScope())
+			.map(ServingScopeRow::name)
+			.collect(Collectors.toSet());
 	}
 
 	/**

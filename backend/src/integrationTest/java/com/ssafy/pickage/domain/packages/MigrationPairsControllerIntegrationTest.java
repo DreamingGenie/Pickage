@@ -89,11 +89,24 @@ class MigrationPairsControllerIntegrationTest {
 	@AfterEach
 	void cleanUpRows() {
 		jdbcTemplate.update("DELETE FROM migration_pair");
+		jdbcTemplate.update("DELETE FROM available_package");
 		jdbcTemplate.update("DELETE FROM package");
 	}
 
+	/** {@code package} 에만 넣는다 — deps.dev 전체 카탈로그에 있으나 서빙 대상은 아닌 상태. */
 	private void seedPackage(int packageId, String name) {
 		jdbcTemplate.update("INSERT INTO package (package_id, name) VALUES (?, ?)", packageId, name);
+	}
+
+	/**
+	 * 서빙 대상으로 만든다. 검색·자동완성에 나오는 이름이 곧 이 표의 이름이라, 화면에서
+	 * 고를 수 있는 패키지는 전부 여기 있다.
+	 */
+	private void seedServing(int packageId, String name) {
+		seedPackage(packageId, name);
+		jdbcTemplate.update(
+			"INSERT INTO available_package (package_id, package_name) VALUES (?, ?)",
+			packageId, name);
 	}
 
 	/**
@@ -115,7 +128,7 @@ class MigrationPairsControllerIntegrationTest {
 
 	@Test
 	void 도착지가_점유율_순으로_나가고_기준일이_실린다() throws Exception {
-		seedPackage(1, "moment");
+		seedServing(1, "moment");
 		seedPair(1, "regular", "date-fns", "18", 18, "25.0", REGULAR_SNAPSHOT);
 		seedPair(1, "regular", "dayjs", "20", 20, "30.0", REGULAR_SNAPSHOT);
 
@@ -140,7 +153,7 @@ class MigrationPairsControllerIntegrationTest {
 	void 종류가_다른_행은_섞이지_않는다() throws Exception {
 		// **이 시험이 이 파일의 이유다.** 두 원천의 모집단이 다르다 — 섞이면 lift 절댓값과
 		// votes 가 비교 불가능한 수끼리 한 분포에 들어간다.
-		seedPackage(1, "moment");
+		seedServing(1, "moment");
 		seedPair(1, "regular", "dayjs", "20", 20, "60.0", REGULAR_SNAPSHOT);
 		seedPair(1, "dev", "jest", "20", 20, "70.0", DEV_SNAPSHOT);
 
@@ -160,7 +173,7 @@ class MigrationPairsControllerIntegrationTest {
 	void 근거가_약하면_감추되_관측이_없다고_하지_않는다() throws Exception {
 		// INSUFFICIENT_EVIDENCE 와 NO_DATA 는 화면 문구가 반대다. 하나로 합치면 관측된
 		// 이동이 있는 패키지에 "이동 기록 없음" 을 띄운다.
-		seedPackage(1, "obscure");
+		seedServing(1, "obscure");
 		seedPair(1, "regular", "one-off", "4", 1, "100.0", REGULAR_SNAPSHOT);
 
 		mockMvc.perform(get("/api/packages/migration-pairs").param("names", "obscure"))
@@ -172,8 +185,8 @@ class MigrationPairsControllerIntegrationTest {
 
 	@Test
 	void 적재된_종류인데_행이_없으면_0_이다() throws Exception {
-		seedPackage(1, "react");
-		seedPackage(2, "moment");
+		seedServing(1, "react");
+		seedServing(2, "moment");
 		seedPair(2, "regular", "dayjs", "20", 20, "100.0", REGULAR_SNAPSHOT);
 
 		mockMvc.perform(get("/api/packages/migration-pairs").param("names", "react"))
@@ -186,7 +199,7 @@ class MigrationPairsControllerIntegrationTest {
 	void 그_종류를_아직_안_올렸으면_모른다고_한다() throws Exception {
 		// regular 만 올린 상태에서 dev 를 물으면 "이동 기록 없음"(끝난 답)이 아니라
 		// "아직 안 올렸다" 여야 한다. 표에 뭐라도 있는지만 보면 이 분기가 무너진다.
-		seedPackage(1, "moment");
+		seedServing(1, "moment");
 		seedPair(1, "regular", "dayjs", "20", 20, "100.0", REGULAR_SNAPSHOT);
 
 		mockMvc.perform(get("/api/packages/migration-pairs")
@@ -200,6 +213,32 @@ class MigrationPairsControllerIntegrationTest {
 		mockMvc.perform(get("/api/packages/migration-pairs")
 				.param("names", "moment").param("kind", "peer"))
 			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void 서빙_대상이_아니면_이동이_없다고_하지_않는다() throws Exception {
+		// available_package 는 **검색·자동완성이 쓰는 표와 같다.** 거기 없는 이름은 다운로드·
+		// 의존 수 자료 자체가 없어 회차를 더 올려도 이동이 나오지 않는다. NO_DATA 로 내보내면
+		// "자료는 있는데 이동만 없다" 로 읽혀 사용자가 다른 조건을 눌러 보게 된다.
+		seedPackage(1, "off-catalog");          // package 에만 있다
+		seedServing(2, "moment");               // 표가 비어 있지 않게 대상 하나를 둔다
+		seedPair(2, "regular", "dayjs", "20", 20, "100.0", REGULAR_SNAPSHOT);
+
+		mockMvc.perform(get("/api/packages/migration-pairs").param("names", "off-catalog"))
+			.andExpect(jsonPath("$.data.series[0].data_status").value("OUT_OF_SCOPE"))
+			.andExpect(jsonPath("$.data.series[0].observed_pairs").value(nullValue()));
+	}
+
+	@Test
+	void available_package_가_비어_있으면_대상_여부를_말하지_않는다() throws Exception {
+		// **이 시험이 이 분기의 이유다.** 그 표를 아직 안 채운 환경에서 "대상 아님" 으로 읽으면
+		// 모든 패키지에 "분석 대상이 아닙니다" 가 뜬다. 로컬 DB 가 실제로 그 상태다.
+		seedPackage(1, "react");
+		seedPackage(2, "moment");
+		seedPair(2, "regular", "dayjs", "20", 20, "100.0", REGULAR_SNAPSHOT);
+
+		mockMvc.perform(get("/api/packages/migration-pairs").param("names", "react"))
+			.andExpect(jsonPath("$.data.series[0].data_status").value("NO_DATA"));
 	}
 
 	@Configuration

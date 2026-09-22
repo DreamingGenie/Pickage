@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.ssafy.pickage.domain.packages.PackageQueryRepository.MigrationPairRow;
+import com.ssafy.pickage.domain.packages.PackageQueryRepository.ServingScopeRow;
 import com.ssafy.pickage.domain.packages.dto.MigrationPairsResponse;
 import com.ssafy.pickage.global.exception.BusinessException;
 
@@ -37,7 +38,12 @@ class MigrationPairsTest {
 			LocalDate.parse("2020-11-16"), SNAPSHOT);
 	}
 
-	private static PackageService serviceOf(List<MigrationPairRow> rows, boolean loaded) {
+	/**
+	 * @param inScope     available_package 에 있는가. 대상 밖이면 이동쌍이 없어도 뜻이 다르다.
+	 * @param scopeLoaded 그 표가 채워져 있는가. 거짓이면 서비스가 대상 여부를 판단하지 않는다.
+	 */
+	private static PackageService serviceOf(List<MigrationPairRow> rows, boolean loaded,
+		boolean inScope, boolean scopeLoaded) {
 		PackageQueryRepository fake = new PackageQueryRepository(null) {
 			@Override
 			public List<String> findExistingNames(PackageNames names) {
@@ -53,13 +59,25 @@ class MigrationPairsTest {
 			public boolean hasAnyMigrationPair(String kind) {
 				return loaded;
 			}
+
+			@Override
+			public List<ServingScopeRow> findServingScope(PackageNames names) {
+				return names.values().stream()
+					.map(name -> new ServingScopeRow(name, inScope, scopeLoaded))
+					.toList();
+			}
 		};
 		return new PackageService(fake);
 	}
 
 	private static MigrationPairsResponse.Series first(List<MigrationPairRow> rows,
 		boolean loaded) {
-		return serviceOf(rows, loaded)
+		return first(rows, loaded, true, true);
+	}
+
+	private static MigrationPairsResponse.Series first(List<MigrationPairRow> rows, boolean loaded,
+		boolean inScope, boolean scopeLoaded) {
+		return serviceOf(rows, loaded, inScope, scopeLoaded)
 			.getMigrationPairs(PackageNames.of(List.of("moment")), DependencyKind.REGULAR)
 			.series()
 			.get(0);
@@ -219,6 +237,34 @@ class MigrationPairsTest {
 			assertEquals(MigrationPairsResponse.NOT_COMPUTED, series.dataStatus());
 			assertNull(series.observedPairs());
 			assertNull(series.snapshotAt());
+		}
+
+		@Test
+		@DisplayName("서빙 대상이 아니면 OUT_OF_SCOPE — 회차를 올려도 나오지 않는다")
+		void outOfScope() {
+			// 깨지면 알게 되는 것 — available_package 에 없는 이름은 다운로드·의존 수 자료
+			// 자체가 없다. NO_DATA 로 내보내면 "이동이 관측되지 않았습니다" 가 되는데, 그건
+			// 자료가 있는데 이동만 없다는 뜻이라 사용자가 다른 구간을 눌러 보게 만든다.
+			MigrationPairsResponse.Series series = first(List.of(), true, false, true);
+
+			assertEquals(MigrationPairsResponse.OUT_OF_SCOPE, series.dataStatus());
+			assertNull(series.observedPairs());
+		}
+
+		@Test
+		@DisplayName("대상 밖이 적재 전보다 우선한다 — 자료 자체가 없으면 기다려도 안 온다")
+		void outOfScopeBeatsNotComputed() {
+			assertEquals(MigrationPairsResponse.OUT_OF_SCOPE,
+				first(List.of(), false, false, true).dataStatus());
+		}
+
+		@Test
+		@DisplayName("available_package 가 비어 있으면 대상 여부를 판단하지 않는다")
+		void emptyScopeTableIsNotAVerdict() {
+			// **이 시험이 이 분기의 이유다.** 표가 비었는데 그것을 "대상 아님" 으로 읽으면
+			// 모든 패키지에 "분석 대상이 아닙니다" 가 뜬다. 로컬 DB 가 실제로 그 상태다.
+			assertEquals(MigrationPairsResponse.NO_DATA,
+				first(List.of(), true, false, false).dataStatus());
 		}
 	}
 }
