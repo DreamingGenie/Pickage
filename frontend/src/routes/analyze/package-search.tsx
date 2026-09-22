@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { usePackageAutocomplete } from '@/api/autocomplete'
 import { cn } from '@/lib/utils'
 
+const MAX_PACKAGE_SEARCH_LENGTH = 300
+
 /**
  * 패키지명 검색창.
  *
@@ -119,6 +121,7 @@ export function PackageSearch({
       )}
       <input
         value={value}
+        maxLength={MAX_PACKAGE_SEARCH_LENGTH}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
