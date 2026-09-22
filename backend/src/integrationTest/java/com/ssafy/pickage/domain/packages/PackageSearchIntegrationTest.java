@@ -61,6 +61,8 @@ class PackageSearchIntegrationTest {
 	private void seedPackage(int packageId, String name) {
 		jdbcTemplate.update("INSERT INTO package (package_id, name, repo_url) VALUES (?, ?, NULL)",
 			packageId, name);
+		jdbcTemplate.update("INSERT INTO available_package (package_id, package_name) VALUES (?, ?)",
+			packageId, name);
 	}
 
 	private void seedSnapshot(int packageId, LocalDate at, long downloads) {
@@ -113,6 +115,46 @@ class PackageSearchIntegrationTest {
 		seedSnapshot(2, LocalDate.of(2026, 8, 31), 1);
 
 		assertThat(repository.searchNames("foo_bar", 10)).containsExactly("foo_bar");
+	}
+
+	@Test
+	void 최신_스냅샷이_있어도_미등록_패키지는_제외된다() {
+		seedPackage(1, "react-available");
+		seedSnapshot(1, LocalDate.of(2026, 8, 31), 100);
+		seedPackage(2, "react-unavailable");
+		seedSnapshot(2, LocalDate.of(2026, 8, 31), 900);
+		jdbcTemplate.update("DELETE FROM available_package WHERE package_id = 2");
+
+		assertThat(repository.searchNames("react", 10)).containsExactly("react-available");
+		jdbcTemplate.update("DELETE FROM available_package");
+		assertThat(repository.searchNames("react", 10)).isEmpty();
+	}
+
+	@Test
+	void 완전일치_접두사_중간포함_순으로_정렬하고_limit을_적용한다() {
+		seedPackage(1, "react");
+		seedSnapshot(1, LocalDate.of(2026, 8, 31), 1);
+		seedPackage(2, "react-addon");
+		seedSnapshot(2, LocalDate.of(2026, 8, 31), 100);
+		seedPackage(3, "@scope/react");
+		seedSnapshot(3, LocalDate.of(2026, 8, 31), 900);
+
+		assertThat(repository.searchNames("react", 10))
+			.containsExactly("react", "react-addon", "@scope/react");
+		assertThat(repository.searchNames("react", 2)).containsExactly("react", "react-addon");
+	}
+
+	@Test
+	void 퍼센트와_역슬래시도_검색_패턴이_아닌_글자로_취급된다() {
+		seedPackage(1, "percent%literal");
+		seedSnapshot(1, LocalDate.of(2026, 8, 31), 1);
+		seedPackage(2, "back\\slash");
+		seedSnapshot(2, LocalDate.of(2026, 8, 31), 1);
+		seedPackage(3, "ordinary");
+		seedSnapshot(3, LocalDate.of(2026, 8, 31), 900);
+
+		assertThat(repository.searchNames("%", 10)).containsExactly("percent%literal");
+		assertThat(repository.searchNames("\\", 10)).containsExactly("back\\slash");
 	}
 
 	@Configuration

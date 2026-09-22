@@ -206,14 +206,12 @@ public class PackageController {
 	/**
 	 * 명세 §2.4 — 사전에 없는 이름을 위한 서버 폴백.
 	 *
-	 * <p><b>접두사 검색만 한다.</b> 중간 일치는 v1 범위 밖이다 — {@code LIKE '%q%'} 로 바꾸면
-	 * {@code idx_package_name_prefix} 가 죽고, 사전 배포도 접두사 전제로 설계돼 있다.
+	 * <p>available_package에 등록되고 최신 스냅샷이 있는 이름을 포함 검색한다.
 	 *
-	 * <p>이름만 반환한다. 다운로드 순 정렬이라 배열 순서가 곧 인기순이고, 사전 파일과 형태가
-	 * 같아 클라이언트가 두 결과를 그대로 합칠 수 있다.
+	 * <p>이름만 반환한다. 완전 일치, 접두사 일치, 중간 포함 순이며 같은 그룹에서는 다운로드 순이다.
 	 */
-	@Operation(summary = "패키지명 검색 (접두사)",
-		description = "이름만 반환하며 순서가 곧 인기순이다. limit 기본 20, 최대 50.")
+	@Operation(summary = "등록된 패키지명 검색 (포함)",
+		description = "최신 스냅샷이 있는 등록 패키지만 반환한다. 완전 일치·접두사·중간 포함 순, 같은 그룹은 다운로드 순. limit 기본 20, 최대 50.")
 	@GetMapping("/packages/search")
 	public ApiResponseBody<PackageSearchResponse> search(
 		@RequestParam(name = "q", required = false) String q,
