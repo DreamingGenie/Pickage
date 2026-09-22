@@ -6,7 +6,10 @@ import { useGenerateHandoff } from '@/api/queries'
 import type { TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { reportExportReady } from '@/routes/report/_components/report-export-eligibility'
+import {
+  featuresExportable,
+  reportExportReady,
+} from '@/routes/report/_components/report-export-eligibility'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
 
@@ -26,10 +29,8 @@ import { toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
  *
  * <h2>자격 조건은 PDF와 같다</h2>
  *
- * `report-export-eligibility.ts`를 그대로 쓴다 — 기능 비교를 아직 안 돌렸거나 재분석이
- * 필요하면(`!reportExportReady`) 생성 요청 자체를 보내지 않는다. 조용히 막는 대신, 이유는
- * `report-page.tsx`의 공용 안내 문구(PDF 버튼과 같은 문구)가 버튼을 누르기 전부터 이미
- * 보여주고 있다 — 매 클릭마다 다시 설명할 필요가 없다.
+ * `report-export-eligibility.ts`를 그대로 쓴다. 기능 비교는 선행 조건이 아니다(2026-09-22) —
+ * 완료 결과가 있을 때만 싣고, 없으면 그 구역만 빠진다.
  */
 export function HandoffButton({
   packages,
@@ -60,7 +61,11 @@ export function HandoffButton({
         period: transitionPeriod,
         // 서버는 판정을 저장하지 않는다(DEC-FEATURE-CACHE-20260917-01) — 세션이 들고 있는
         // 완료 결과를 요청에 실어 보낸다. PDF와 같은 규칙(pdf-export-dialog.tsx 참고).
-        features: run.rawResult ? toFeaturesPdfPayload(run.rawResult) : undefined,
+        // 지금 고른 버전의 완료 결과일 때만 싣는다. 없으면 기능 비교 구역만 빠진다.
+        features:
+          featuresExportable(run) && run.rawResult
+            ? toFeaturesPdfPayload(run.rawResult)
+            : undefined,
       },
       { onSuccess: triggerDownload },
     )

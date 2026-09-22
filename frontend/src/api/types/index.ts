@@ -254,7 +254,8 @@ export interface PdfGenerateRequest {
 }
 
 /**
- * PDF 요청이 싣는 기능 비교 판정(백엔드 `FeatureComparisonPayload`와 짝, S15P21A506-463).
+ * PDF 요청이 싣는 기능 비교 결과(백엔드 `FeatureComparisonPayload`와 짝, S15P21A506-463).
+ * 2026-09-22 판정표를 없애고 공통점·패키지별 차이점 서술로 바꿨다.
  *
  * <b>`RagComparisonResult`(camelCase, `ai/rag/main.py` 계약)를 그대로 보내지 않는다.</b>
  * 이 요청의 다른 필드(`snapshot_at`·`period`)처럼 백엔드 snake_case 전략을 따라야 하는
@@ -262,19 +263,10 @@ export interface PdfGenerateRequest {
  */
 export interface PdfFeaturesPayload {
   packages: { package_name: string; version: string }[]
-  features: {
-    feature_label: string
-    results: {
-      package_name: string
-      version: string
-      verdict: FeatureVerdict
-      evidence_ids: string[]
-      grounded_in: 'EVIDENCE' | 'GENERAL_KNOWLEDGE'
-      note: string | null
-    }[]
-  }[]
-  narrative: { heading: string; body: string }[]
-  narrative_error: string | null
+  /** 공통점 서술 */
+  common: string
+  /** 패키지별 차이점 서술. `packages` 순서 */
+  differences: { package_name: string; version: string; body: string }[]
   limited: boolean
 }
 
@@ -792,23 +784,6 @@ export interface CommunityStatusResponse {
  * 아니라 `routes/report/features/adapter.ts` 가 만든 도메인 모델만 본다.
  * ------------------------------------------------------------------ */
 
-/** 구상안 §7.2. `UNSUPPORTED` 는 공식 부정 근거가 연결됐을 때만 쓴다. */
-export type FeatureVerdict =
-  'SUPPORTED' | 'CONDITIONALLY_SUPPORTED' | 'LIMITED_SUPPORT' | 'UNCONFIRMED' | 'UNSUPPORTED'
-
-/** 구상안 §7.2. verdict 와 다른 축이다 — 섞지 않는다. */
-export type FeatureDataStatus =
-  'COMPLETE' | 'PARTIAL' | 'NO_DATA' | 'COLLECTION_ERROR' | 'CONFLICT' | 'STALE'
-
-/** 구상안 §11 — 미확인 사유. UI 행동(재시도 여부)이 여기서 갈린다. */
-export type FeatureReasonCode =
-  | 'TRANSIENT_FETCH_ERROR'
-  | 'PARTIAL_SOURCE_FAILURE'
-  | 'ANALYZER_STALE'
-  | 'SOURCE_ABSENT'
-  | 'EVIDENCE_CONFLICT'
-  | 'RUNTIME_REQUIRED'
-
 /** 분석 요청·응답 모두에서 쓰는 (패키지, 정확한 버전) 쌍. */
 export interface FeatureTarget {
   package_name: string
@@ -901,25 +876,16 @@ export type FeatureRunErrorCode =
  * RAG 서버 응답 원본.
  *
  * **여기만 camelCase 다.** 백엔드가 이 값을 우리 타입으로 옮기지 않고 그대로 통과시킨다 —
- * 계약의 주인이 `ai/rag/main.py` 이고, 옮기면 백엔드의 snake_case 전략이 `featureLabel` 을
- * `feature_label` 로 바꿔 AI 가 정한 이름과 달라진다.
+ * 계약의 주인이 `ai/rag/main.py` 이고, 옮기면 백엔드의 snake_case 전략이 `dataStatus` 를
+ * `data_status` 로 바꿔 AI 가 정한 이름과 달라진다.
  */
 export interface RagComparisonResult {
   dataStatus: 'COMPLETE' | 'COMPARISON_LIMITED'
   packages: { package: string; version: string }[]
-  features: {
-    featureLabel: string
-    results: {
-      package: string
-      version: string
-      verdict: FeatureVerdict
-      evidenceIds: string[]
-      groundedIn: 'EVIDENCE' | 'GENERAL_KNOWLEDGE'
-      note: string | null
-    }[]
-  }[]
-  narrative: { heading: string; body: string; evidenceIds: string[] }[]
-  narrativeError: string | null
+  /** 공통점 서술 (2026-09-22, 판정표 대신) */
+  common: string
+  /** 패키지별 차이점 서술. 요청한 패키지 순서 */
+  differences: { package: string; version: string; body: string }[]
   /** 패키지별 인계 파일 상태. dataStatus 와 다른 축이다 */
   sources: {
     package: string

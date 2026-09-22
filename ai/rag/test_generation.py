@@ -16,6 +16,7 @@ from ai.rag.generation import (
     PROMPT,
     GmsCallError,
     _build_gms_request_body,
+    _RESPONSE_JSON_SCHEMA,
     _extract_gms_output_text,
     build_user_message,
     generate,
@@ -46,34 +47,11 @@ class GenerateHappyPathTests(unittest.TestCase):
 
         fake_response = {
             "dataStatus": "COMPLETE",
-            "packages": [
-                {"package": "foo", "version": "1.0.0"},
-                {"package": "bar", "version": "2.0.0"},
+            "common": "  둘 다 설정 파일을 읽어요.  ",
+            "differences": [
+                {"package": "foo", "version": "1.0.0", "body": "foo 는 파일로 설정해요."},
+                {"package": "bar", "version": "2.0.0", "body": "bar 는 코드로 설정해요."},
             ],
-            "features": [
-                {
-                    "featureLabel": "구조화 JSON",
-                    "results": [
-                        {
-                            "package": "foo",
-                            "version": "1.0.0",
-                            "verdict": "SUPPORTED",
-                            "evidenceIds": ["foo@1.0.0#0"],
-                            "groundedIn": "EVIDENCE",
-                            "note": "지원합니다.",
-                        },
-                        {
-                            "package": "bar",
-                            "version": "2.0.0",
-                            "verdict": "UNCONFIRMED",
-                            "evidenceIds": [],
-                            "groundedIn": "EVIDENCE",
-                            "note": "",
-                        },
-                    ],
-                }
-            ],
-            "narrative": [],
         }
 
         def fake_llm_call(system_prompt: str, user_message: str) -> str:
@@ -88,18 +66,20 @@ class GenerateHappyPathTests(unittest.TestCase):
         self.assertEqual(called_user_message, build_user_message(packages, evidence))
 
         self.assertEqual(result.data_status, "COMPLETE")
-        self.assertEqual(len(result.packages), 2)
-        self.assertEqual(result.packages[0].name, "foo")
-        self.assertEqual(len(result.features), 1)
-        row = result.features[0]
-        self.assertEqual(row.feature_label, "구조화 JSON")
-        self.assertEqual(len(row.results), 2)
-        self.assertEqual(row.results[0].package, "foo")
-        self.assertEqual(row.results[0].version, "1.0.0")
-        self.assertEqual(row.results[0].verdict, "SUPPORTED")
-        self.assertEqual(row.results[0].evidence_ids, ["foo@1.0.0#0"])
-        self.assertEqual(row.results[1].verdict, "UNCONFIRMED")
-        self.assertEqual(result.narrative, [])
+        # packages 는 모델이 아니라 요청에서 온다
+        self.assertEqual([p.name for p in result.packages], ["foo", "bar"])
+        self.assertEqual(result.common, "둘 다 설정 파일을 읽어요.")
+        self.assertEqual([d.package for d in result.differences], ["foo", "bar"])
+        self.assertEqual(result.differences[1].body, "bar 는 코드로 설정해요.")
+
+
+class ResponseSchemaTests(unittest.TestCase):
+    def test_schema_asks_only_for_common_and_per_package_differences(self):
+        self.assertEqual(
+            set(_RESPONSE_JSON_SCHEMA["properties"]), {"dataStatus", "common", "differences"}
+        )
+        item = _RESPONSE_JSON_SCHEMA["properties"]["differences"]["items"]
+        self.assertEqual(set(item["properties"]), {"package", "version", "body"})
 
 
 class BuildGmsRequestBodyTests(unittest.TestCase):
@@ -205,8 +185,8 @@ class DocumentStatusMessageTests(unittest.TestCase):
         def fake_llm(system_prompt, user_message):
             seen.append(user_message)
             return json.dumps(
-                {"dataStatus": "COMPLETE", "packages": [{"package": "foo", "version": "1.0.0"}],
-                 "features": [], "narrative": []}
+                {"dataStatus": "COMPLETE", "common": "공통",
+                 "differences": [{"package": "foo", "version": "1.0.0", "body": "차이"}]}
             )
 
         generate(packages, evidence, llm_call=fake_llm, sources=[PackageSource("foo", "1.0.0", "LIMITED")])
@@ -230,55 +210,48 @@ class MetaEvidenceMessageTests(unittest.TestCase):
             [e["sourceType"] for e in message["evidence"]], ["TARBALL_PACKAGE_JSON", "TARBALL_README"]
         )
 
-    def test_prompt_explains_package_metadata_and_keeps_environment_facts_out_of_the_rows(self):
+    def test_prompt_explains_package_metadata_and_keeps_environment_facts_out(self):
         self.assertIn("TARBALL_PACKAGE_JSON", PROMPT)
-        self.assertIn("라이선스", PROMPT)  # 라이선스·설치 크기 자체를 비교 기능 행으로 삼지 말 것
-
-    def test_prompt_puts_functional_axes_before_packaging_axes(self):
-        # 헤더 근거가 생긴 뒤 표가 "CLI 제공·타입 선언 포함·ESM/CJS" 같은 패키징 성격 행으로 기울었다
-        # (실측: 패키징 성격 행 7% → 25%). 기능 비교가 핵심이므로 기능 축이 먼저다.
-        axis_rules = PROMPT.split("## 비교 축(표의 행) 선정 규칙")[1].split("## 출력 형식")[0]
-
-        self.assertIn("9-1.", axis_rules)
-        rule = axis_rules.split("9-1.")[1].split("10.")[0]
-        self.assertIn("기능", rule)
-        self.assertIn("패키징", rule)
-        # 권고형 문구("우선하십시오")만으로는 모델이 따르지 않았다(실측: 패키징 행 25% → 23%).
-        # "최대 1개"라는 명시적 상한을 넣었을 때 14%로 내려갔으므로 이 문구를 지킨다.
-        self.assertIn("최대 1개", rule)
+        self.assertIn("License", PROMPT)
 
 
-class OutputLanguageTests(unittest.TestCase):
-    """화면에 나가는 텍스트는 한국어로 고정한다 (S15P21A506-420).
+class CompactInputTests(unittest.TestCase):
+    """출력에 근거 ID 가 없으니 입력에서도 뺀다 — 입력 토큰을 줄인다 (2026-09-22)."""
 
-    프롬프트가 언어를 지정하지 않아, 같은 입력에서도 실행마다 영어/한국어가 섞여 나왔다
-    (실측: 같은 입력 8회 중 영어 6회, 한국어 2회).
-    """
+    def test_evidence_items_carry_no_id_or_version(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        message = json.loads(build_user_message(packages, [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]))
 
-    def _rule(self) -> str:
-        return PROMPT.split("## 출력 형식")[1]
+        self.assertEqual(set(message["evidence"][0]), {"package", "section", "sourceType", "excerpt"})
 
-    def test_prompt_asks_for_korean_in_every_displayed_field(self):
-        rule = self._rule()
+    def test_only_supplementary_evidence_is_marked(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        noise = _make_evidence("foo@1.0.0#1", "foo", "1.0.0")
+        noise.verification_level = "SUPPLEMENTARY"
 
-        self.assertIn("한국어", rule)
-        for field in ("featureLabel", "note", "heading", "body"):
-            with self.subTest(field=field):
-                self.assertIn(field, rule)
+        message = json.loads(build_user_message(packages, [_make_evidence("foo@1.0.0#0", "foo", "1.0.0"), noise]))
 
-    def test_identifiers_and_quotations_keep_their_original_language(self):
-        # 패키지명·API 이름·코드와 README 인용 원문까지 번역하면 8-2(인용 문구를 가깝게 재진술)와
-        # 검증 가능성이 깨진다. 원어 유지가 명시되어야 한다.
-        rule = self._rule()
+        self.assertNotIn("supplementary", message["evidence"][0])
+        self.assertTrue(message["evidence"][1]["supplementary"])
 
-        self.assertIn("패키지 이름", rule)
-        self.assertIn("원문", rule)
+    def test_message_has_no_indentation(self):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        self.assertNotIn("\n", build_user_message(packages, [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]))
 
-    def test_enum_values_stay_english_because_the_schema_requires_them(self):
-        rule = self._rule()
 
-        self.assertIn("verdict", rule)
-        self.assertIn("groundedIn", rule)
+class PromptRuleTests(unittest.TestCase):
+    def test_prompt_asks_for_korean_plain_text(self):
+        self.assertIn("Korean", PROMPT)
+        self.assertIn("해요체", PROMPT)
+        self.assertIn("no Markdown", PROMPT)
+
+    def test_prompt_forbids_ranking_and_recommendation(self):
+        for word in ("rank", "recommend", "추천"):
+            with self.subTest(word=word):
+                self.assertIn(word, PROMPT)
+
+    def test_prompt_treats_excerpts_as_untrusted(self):
+        self.assertIn("untrusted", PROMPT)
 
 
 if __name__ == "__main__":

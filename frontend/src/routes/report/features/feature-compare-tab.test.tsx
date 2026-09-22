@@ -82,23 +82,15 @@ function envFor(targets: FeatureTarget[]): PackageEnvResponse {
 
 /** RAG 응답 원본. **여기만 camelCase 다**(계약의 주인이 `ai/rag/main.py`). */
 function ragResult(targets: FeatureTarget[]): RagComparisonResult {
-  const labels = ['구조화 JSON', 'Child logger', '다중 출력 경로']
   return {
     dataStatus: 'COMPLETE',
     packages: targets.map((t) => ({ package: t.package_name, version: t.version })),
-    features: labels.map((featureLabel, i) => ({
-      featureLabel,
-      results: targets.map((t, j) => ({
-        package: t.package_name,
-        version: t.version,
-        verdict: 'SUPPORTED' as const,
-        evidenceIds: [`E${String(i * 2 + j + 1).padStart(2, '0')}`],
-        groundedIn: 'EVIDENCE' as const,
-        note: null,
-      })),
+    common: '두 패키지 모두 로그를 남겨요.',
+    differences: targets.map((t) => ({
+      package: t.package_name,
+      version: t.version,
+      body: `${t.package_name} 만의 특징이에요.`,
     })),
-    narrative: [{ heading: '공통 기반', body: '두 패키지 모두 확인되었습니다.', evidenceIds: [] }],
-    narrativeError: null,
     sources: targets.map((t) => ({
       package: t.package_name,
       version: t.version,
@@ -134,24 +126,6 @@ function completesWith(result = ragResult(TARGETS)) {
   fetchFeatureRun.mockResolvedValue(runResponse({ status: 'COMPLETED', phase: 'DONE', result }))
 }
 
-/** `ragResult`와 같은 모양이되 첫 기능의 pino 칸에 설명을 채운다 — 펼치기 시험용. */
-function ragResultWithNote(targets: FeatureTarget[]): RagComparisonResult {
-  const base = ragResult(targets)
-  const [first, ...rest] = base.features
-  return {
-    ...base,
-    features: [
-      {
-        ...first,
-        results: first.results.map((r) =>
-          r.package === 'pino' ? { ...r, note: '설명 텍스트입니다.' } : r,
-        ),
-      },
-      ...rest,
-    ],
-  }
-}
-
 function failsWith(code: FeatureRunErrorCode) {
   startFeatureRun.mockResolvedValue(runResponse())
   fetchFeatureRun.mockResolvedValue(runResponse({ status: 'FAILED', error_code: code }))
@@ -184,7 +158,8 @@ describe('FeatureCompareTab', () => {
     expect(summary.getByText('import · require 둘 다')).toBeInTheDocument()
     // null 은 0 이 아니라 모름이다 — 0개로 적지 않는다
     expect(summary.getByText('알 수 없음')).toBeInTheDocument()
-    expect(screen.getByLabelText('pino')).toHaveValue('10.3.1')
+    expect(screen.getByRole('combobox', { name: 'pino' })).toHaveTextContent('10.3.1')
+    expect(screen.getByRole('combobox', { name: 'pino' })).toHaveTextContent('최신')
 
     expect(startFeatureRun).not.toHaveBeenCalled()
     expect(startButton()).toBeEnabled()
@@ -205,15 +180,18 @@ describe('FeatureCompareTab', () => {
 
     await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
 
-    expect(await screen.findByText(/README 를 모으고 있습니다/)).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '핵심 기능 비교' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/README 를 모으고 있어요/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '공통점' })).not.toBeInTheDocument()
     // 확인된 사실은 생성을 기다리지 않는다 — 위 표는 그대로 보인다
     expect(screen.getByRole('region', { name: '설치하기 전에 알아 둘 것' })).toBeInTheDocument()
 
     release(runResponse())
 
-    expect(await screen.findByRole('heading', { name: '핵심 기능 비교' })).toBeInTheDocument()
-    expect(screen.getByText('두 패키지 모두 확인되었습니다.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '공통점' })).toBeInTheDocument()
+    expect(screen.getByText('두 패키지 모두 로그를 남겨요.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '차이점' })).toBeInTheDocument()
+    expect(screen.getByText('pino 만의 특징이에요.')).toBeInTheDocument()
+    expect(screen.getByText('winston 만의 특징이에요.')).toBeInTheDocument()
     await waitFor(() =>
       expect(startFeatureRun).toHaveBeenCalledWith([
         { package_name: 'pino', version: '10.3.1' },
@@ -223,7 +201,7 @@ describe('FeatureCompareTab', () => {
     expect(screen.getByRole('button', { name: '선택한 버전으로 재분석' })).toBeEnabled()
   })
 
-  it('근거를 확인하지 못해 실패하면 다시 시도할 수 있다고 말하지 않는다', async () => {
+  it('결과 검증에 실패하면 다시 시도할 수 있다고 말하지 않는다', async () => {
     const user = userEvent.setup()
     failsWith('VERIFICATION_FAILED')
     renderTab()
@@ -231,7 +209,7 @@ describe('FeatureCompareTab', () => {
     await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
 
     expect(
-      await screen.findByText(/판정의 근거를 확인하지 못해 결과를 내지 않았습니다/),
+      await screen.findByText(/고른 패키지와 맞지 않는 결과가 나와 표시하지 않았습니다/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
     // 실패해도 확인된 소비 조건은 그대로 남는다
@@ -254,14 +232,13 @@ describe('FeatureCompareTab', () => {
     completesWith()
     renderTab()
 
-    const picker = await screen.findByLabelText('pino')
-    expect(
-      within(picker)
-        .getAllByRole('option')
-        .map((o) => o.getAttribute('value')),
-    ).toEqual(['10.3.1', '9.7.2', '8.5.0'])
+    const picker = await screen.findByRole('combobox', { name: 'pino' })
+    await user.click(picker)
+    const options = screen.getAllByRole('option')
+    expect(options.map((o) => o.textContent)).toEqual(['10.3.1최신', '9.7.2', '8.5.0'])
 
-    await user.selectOptions(picker, '9.7.2')
+    await user.click(screen.getByRole('option', { name: '9.7.2' }))
+    expect(picker).toHaveTextContent('9.7.2')
 
     await waitFor(() =>
       expect(fetchPackageEnv).toHaveBeenLastCalledWith([
@@ -317,51 +294,16 @@ describe('FeatureCompareTab', () => {
     )
   })
 
-  /** 출처 표기와 근거 Drawer 는 뺐다(기획 협의). 칸은 눌리는 버튼이 아니다. */
-  it('결과 칸은 판정만 보여 주고 출처를 열지 않는다', async () => {
+  /** 2026-09-22 판정표를 없앴다 — 판정 뱃지·기능 행이 나오지 않는다. */
+  it('결과는 표가 아니라 공통점·차이점 글로만 나온다', async () => {
     const user = userEvent.setup()
     completesWith()
     renderTab()
 
     await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
-    await screen.findByRole('heading', { name: '핵심 기능 비교' })
+    await screen.findByRole('heading', { name: '공통점' })
 
-    expect(screen.queryByRole('button', { name: /근거 열기|출처 열기/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('지원')).not.toBeInTheDocument()
     expect(screen.queryByText(/출처/)).not.toBeInTheDocument()
-  })
-
-  /**
-   * 뱃지는 항상 보이고 설명은 기본적으로 접혀 있다(S15P21A506-465). 펼치는 것은 칸이 아니라
-   * 기능명(행 머리글)이다 — 위 시험의 "칸은 버튼이 아니다" 결정은 그대로 유지된다.
-   */
-  it('설명은 기본적으로 접혀 있고, 기능명을 누르면 그 행만 펼쳐진다', async () => {
-    const user = userEvent.setup()
-    completesWith(ragResultWithNote(TARGETS))
-    renderTab()
-
-    await user.click(await screen.findByRole('button', { name: '기능 비교 시작' }))
-    await screen.findByRole('heading', { name: '핵심 기능 비교' })
-
-    const noteText = '설명 텍스트입니다.'
-    // 뱃지(판정)는 항상 보인다
-    expect(screen.getAllByText('지원').length).toBeGreaterThan(0)
-    // 설명은 접혀 있다
-    expect(screen.queryByText(noteText)).not.toBeInTheDocument()
-
-    // 설명이 없는 기능(예: Child logger)은 토글 자체가 없다 — 접을 것이 없으니 평문이다
-    expect(screen.queryByRole('button', { name: /Child logger/ })).not.toBeInTheDocument()
-
-    const toggle = screen.getByRole('button', { name: /구조화 JSON/ })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-
-    await user.click(toggle)
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText(noteText)).toBeInTheDocument()
-
-    await user.click(toggle)
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText(noteText)).not.toBeInTheDocument()
   })
 })

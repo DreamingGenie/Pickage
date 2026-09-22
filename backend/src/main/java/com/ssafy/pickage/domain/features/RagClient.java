@@ -29,8 +29,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * <ul>
  *   <li>이 응답의 계약 주인은 AI 쪽({@code ai/rag/main.py} 의 {@code _serialize})이다.
  *       여기에 같은 스키마를 한 벌 더 두면 한쪽만 고쳐지는 날이 온다.</li>
- *   <li>백엔드는 {@code SNAKE_CASE} 전략을 쓴다. record 로 받으면 {@code featureLabel} 이
- *       {@code feature_label} 로 바뀌어 나간다 — AI 가 정하고 프런트가 기다리는 이름과
+ *   <li>백엔드는 {@code SNAKE_CASE} 전략을 쓴다. record 로 받으면 {@code dataStatus} 가
+ *       {@code data_status} 로 바뀌어 나간다 — AI 가 정하고 프런트가 기다리는 이름과
  *       달라진다.</li>
  *   <li><b>트리 객체로 들고 있으면 안 된다</b>(S15P21A506-429). 여기서 파싱에 쓰는 것은
  *       Jackson 2 인데 HTTP 응답은 Spring Boot 4 의 Jackson 3 이 쓴다. Jackson 3 은

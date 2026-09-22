@@ -1,54 +1,70 @@
+import type { CSSProperties } from 'react'
+
 import { cn } from '@/lib/utils'
 import type { ComparisonView } from '@/routes/report/features/model'
 
 /**
- * 기능 비교 해설 (IA §9.5).
+ * AI 기능 비교 결과 — 공통점 한 덩어리 + 패키지별 차이점 문단 (2026-09-22, 판정표 대신).
  *
- * 표의 판정을 그대로 반복하지 않고, 기능을 구성하는 방식과 확인해야 할 조건을 근거 중심으로
- * 설명한다. **추천·순위·승자를 매기지 않는다**(IA §1-12) — 실제로 순위·승자를 매기는 문구를
- * 만들지 않는 것으로 지킨다.
- *
- * 표는 있는데 해설만 못 만든 경우(`narrativeError`)는 표의 판정과 근거가 그대로 유효하므로
- * 이 섹션만 실패로 알린다. 해설이 없다는 이유로 표를 물리지 않는다.
- *
- * 하단에 "추천하지 않는다" 는 상시 고지를 뒀었으나, 글이 줄어 화면이 압축된 지금은 매 카드마다
- * 반복해 읽을 만큼의 정보가 아니라 QA 피드백으로 뺐다(S15P21A506-465 후속) — 실제로 추천·순위
- * 문구를 만들지 않는 것이 규칙을 지키는 것이지, 문구로 고지하는 것이 규칙 자체는 아니다.
+ * 차이점은 패키지를 나란히 놓는다(넓은 화면에서 열). 어느 쪽이 낫다고 판정하지 않는다(IA 1-12).
  */
-export function NarrativeSection({ view, dimmed }: { view: ComparisonView; dimmed: boolean }) {
-  if (view.narrative.length === 0 && !view.narrativeError) return null
-
+export function ComparisonNarrative({
+  view,
+  dimmed,
+  note,
+}: {
+  view: ComparisonView
+  dimmed: boolean
+  /** README 가 짧은 패키지가 있을 때 한 줄 */
+  note?: string | null
+}) {
   return (
-    <section
-      aria-labelledby="narrative-title"
-      className={cn(
-        'flex flex-col gap-5 rounded-2xl border p-6 transition-opacity',
-        dimmed && 'opacity-60',
-      )}
-    >
-      <header className="flex flex-col gap-1.5">
-        <h3 id="narrative-title" className="text-sm font-semibold">
-          기능 비교 해설
-        </h3>
-        <p className="text-base text-muted-foreground">
-          표에서 드러나지 않는 차이와, 고를 때 확인해 볼 점을 정리했습니다.
-        </p>
-      </header>
-
-      {view.narrativeError ? (
+    <div className={cn('flex flex-col gap-5 transition-opacity', dimmed && 'opacity-60')}>
+      {view.limited && (
         <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-          해설을 만들지 못했습니다. 위 표의 판정과 근거는 그대로 확인할 수 있습니다.
+          자료가 부족해 일부만 설명했어요.
         </p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {view.narrative.map((section) => (
-            <div key={section.heading} className="flex flex-col gap-1.5 rounded-xl bg-muted/40 p-4">
-              <h4 className="text-base font-semibold">{section.heading}</h4>
-              <p className="text-base leading-relaxed">{section.body}</p>
-            </div>
+      )}
+
+      <section
+        aria-labelledby="common-title"
+        className="flex flex-col gap-2 rounded-2xl border p-6"
+      >
+        <h4 id="common-title" className="text-lg font-bold">
+          공통점
+        </h4>
+        <p className="text-base leading-relaxed">{view.common}</p>
+      </section>
+
+      <section aria-labelledby="differences-title" className="flex flex-col gap-3">
+        <h4 id="differences-title" className="text-lg font-bold">
+          차이점
+        </h4>
+        <div
+          className="grid items-stretch gap-4 md:grid-cols-[repeat(var(--cols),minmax(0,1fr))]"
+          style={{ '--cols': view.differences.length } as CSSProperties}
+        >
+          {view.differences.map((d) => (
+            <article key={d.name} className="flex flex-col gap-2 rounded-2xl border p-5">
+              <h5 className="flex flex-wrap items-baseline gap-x-2 text-base font-semibold">
+                <span className="font-mono">{d.name}</span>
+                <span className="font-mono text-sm font-normal text-muted-foreground">
+                  {d.version}
+                </span>
+              </h5>
+              {d.body ? (
+                <p className="text-base leading-relaxed">{d.body}</p>
+              ) : (
+                <p className="text-base text-muted-foreground">
+                  이 패키지는 설명을 만들지 못했어요.
+                </p>
+              )}
+            </article>
           ))}
         </div>
-      )}
-    </section>
+      </section>
+
+      {note && <p className="text-base leading-relaxed text-muted-foreground">{note}</p>}
+    </div>
   )
 }

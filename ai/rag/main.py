@@ -29,28 +29,10 @@ def _serialize(result: ComparisonResult) -> dict:
     return {
         "dataStatus": result.data_status,
         "packages": [{"package": p.name, "version": p.version} for p in result.packages],
-        "features": [
-            {
-                "featureLabel": row.feature_label,
-                "results": [
-                    {
-                        "package": r.package,
-                        "version": r.version,
-                        "verdict": r.verdict,
-                        "evidenceIds": r.evidence_ids,
-                        "groundedIn": r.grounded_in,
-                        "note": r.note,
-                    }
-                    for r in row.results
-                ],
-            }
-            for row in result.features
+        "common": result.common,
+        "differences": [
+            {"package": d.package, "version": d.version, "body": d.body} for d in result.differences
         ],
-        "narrative": [
-            {"heading": n.heading, "body": n.body, "evidenceIds": n.evidence_ids}
-            for n in result.narrative
-        ],
-        "narrativeError": result.narrative_error,
         # 패키지별 인계 파일 상태(S15P21A506-419). 못 읽은 값은 null — "모름"과 "OK"를 구분한다.
         # dataStatus(비교 가능 여부)와는 다른 축이라 섞지 않는다.
         "sources": [

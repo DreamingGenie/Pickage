@@ -17,7 +17,6 @@ import { ApiError } from '@/api/client'
 import type {
   FeatureRunResponse,
   FeatureVersionsResponse,
-  FeatureVerdict,
   PackageEnvItemWire,
   PackageEnvResponse,
   RagComparisonResult,
@@ -44,38 +43,13 @@ function mockRagResult(refs: readonly string[]): RagComparisonResult {
   return {
     dataStatus: 'COMPLETE',
     packages,
-    features: [
-      {
-        featureLabel: '구조적 로깅(JSON)',
-        results: packages.map((p) => ({
-          package: p.package,
-          version: p.version,
-          verdict: 'SUPPORTED' as FeatureVerdict,
-          evidenceIds: ['E01'],
-          groundedIn: 'EVIDENCE' as const,
-          note: null,
-        })),
-      },
-      {
-        featureLabel: '로그 레벨 사용자 정의',
-        results: packages.map((p, i) => ({
-          package: p.package,
-          version: p.version,
-          verdict: (i === 0 ? 'SUPPORTED' : 'UNCONFIRMED') as FeatureVerdict,
-          evidenceIds: i === 0 ? ['E02'] : [],
-          groundedIn: 'EVIDENCE' as const,
-          note: i === 0 ? null : '확인한 자료에서 발견되지 않음',
-        })),
-      },
-    ],
-    narrative: [
-      {
-        heading: '무엇이 다른가',
-        body: '세 패키지 모두 JSON 로그를 낸다. 레벨 사용자 정의는 winston 에서만 확인됐다.',
-        evidenceIds: ['E01', 'E02'],
-      },
-    ],
-    narrativeError: null,
+    common:
+      '모두 Node.js 에서 로그를 남기는 도구예요. 로그 레벨을 나누고, 로그를 JSON 으로 남겨 다른 도구가 읽기 쉽게 해요.',
+    differences: packages.map((p) => ({
+      package: p.package,
+      version: p.version,
+      body: `${p.package} 의 차이점을 설명하는 개발용 문장이에요. 실제 분석 결과가 아니에요.`,
+    })),
     sources: packages.map((p) => ({
       package: p.package,
       version: p.version,

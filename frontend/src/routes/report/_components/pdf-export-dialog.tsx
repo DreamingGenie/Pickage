@@ -6,6 +6,7 @@ import { pdfDownloadUrl } from '@/api/endpoints'
 import { useGeneratePdf } from '@/api/queries'
 import type { PdfJob, ReportSection, TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   BLOCK_REASON_LABEL,
+  featuresExportable,
   reportExportBlockReasons,
   type BlockReason,
 } from '@/routes/report/_components/report-export-eligibility'
@@ -79,6 +81,8 @@ export function PdfExportDialog({
   const job = generate.data
   const blockReasons = reportExportBlockReasons(run)
   const blocked = blockReasons.length > 0
+  /** 기능 비교 결과가 없거나 지금 고른 버전의 결과가 아니면 그 구역은 고를 수 없다 */
+  const featuresReady = featuresExportable(run)
 
   // 재분석이 새로 시작되면 이전 COMPLETE 파일을 더는 "지금 선택 버전 결과"로 보여주지
   // 않는다 — 실제로 있던 버그(다이얼로그가 report-page에 항상 마운트돼 있어 미리보기로
@@ -108,12 +112,13 @@ export function PdfExportDialog({
       to,
       snapshot_at: snapshotAt,
       period: transitionPeriod,
-      sections,
+      // 기능 비교를 고를 수 없는 상태가 된 뒤 체크가 남아 있었어도 싣지 않는다
+      sections: featuresReady ? sections : sections.filter((s) => s !== 'FEATURES'),
       // 서버는 판정을 저장하지 않는다(DEC-FEATURE-CACHE-20260917-01) — 세션이 들고 있는 완료
       // 결과를 요청에 실어 보낸다(구상안 §13.1·§14.5). 아직 분석을 실행하지 않았으면
       // rawResult가 없어 생략되고, 서버가 그 사실을 문서와 omitted로 알린다.
       features:
-        sections.includes('FEATURES') && run.rawResult
+        featuresReady && sections.includes('FEATURES') && run.rawResult
           ? toFeaturesPdfPayload(run.rawResult)
           : undefined,
     })
@@ -144,7 +149,8 @@ export function PdfExportDialog({
             to={to}
             snapshotAt={snapshotAt}
             transitionPeriod={transitionPeriod}
-            sections={sections}
+            sections={featuresReady ? sections : sections.filter((s) => s !== 'FEATURES')}
+            featuresReady={featuresReady}
             onToggle={toggle}
             onCancel={() => close(false)}
             onSubmit={submit}
@@ -211,6 +217,7 @@ function Ready({
   snapshotAt,
   transitionPeriod,
   sections,
+  featuresReady,
   onToggle,
   onCancel,
   onSubmit,
@@ -221,6 +228,7 @@ function Ready({
   snapshotAt?: string
   transitionPeriod: TransitionPeriodParam
   sections: ReportSection[]
+  featuresReady: boolean
   onToggle: (section: ReportSection) => void
   onCancel: () => void
   onSubmit: () => void
@@ -274,8 +282,13 @@ function Ready({
         <SectionToggle
           section="FEATURES"
           label="기능 심화 분석"
-          note="완료된 기능 비교 결과가 실립니다. 아직 분석을 실행하지 않았다면 구역 자리와 사유만 실립니다."
+          note={
+            featuresReady
+              ? '기능 비교의 공통점·차이점이 실려요.'
+              : '기능 비교 탭에서 분석을 마치면 고를 수 있어요.'
+          }
           checked={sections.includes('FEATURES')}
+          disabled={!featuresReady}
           onToggle={onToggle}
         />
       </fieldset>
@@ -301,18 +314,21 @@ function SectionToggle({
   label,
   note,
   checked,
+  disabled = false,
   onToggle,
 }: {
   section: ReportSection
   label: string
   note: string
   checked: boolean
+  disabled?: boolean
   onToggle: (section: ReportSection) => void
 }) {
   return (
-    <label className="flex items-start gap-3">
+    <label className={cn('flex items-start gap-3', disabled && 'opacity-60')}>
       <Checkbox
         checked={checked}
+        disabled={disabled}
         onCheckedChange={() => onToggle(section)}
         aria-label={label}
         className="mt-0.5"

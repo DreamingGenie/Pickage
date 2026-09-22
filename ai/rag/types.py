@@ -16,14 +16,6 @@ from typing import Literal
 SourceType = Literal["TARBALL_README", "TARBALL_PACKAGE_JSON"]
 VerificationLevel = Literal["DISTRIBUTED_ARTIFACT", "SUPPLEMENTARY"]
 
-GroundedIn = Literal["EVIDENCE", "GENERAL_KNOWLEDGE"]
-Verdict = Literal[
-    "SUPPORTED",
-    "CONDITIONALLY_SUPPORTED",
-    "LIMITED_SUPPORT",
-    "UNCONFIRMED",
-    "UNSUPPORTED",
-]
 DataStatus = Literal["COMPLETE", "COMPARISON_LIMITED"]
 # 인계 파일 꼬리의 `상태 …`(백엔드 DocAssembler 판정). README 산문 1,000자 이상이면 OK,
 # 짧지만 진입점·bin·.d.ts 등이 있으면 LIMITED, 그 밖 NONE. dataStatus 와 다른 축이다.
@@ -79,40 +71,6 @@ class EvidenceChunk:
 
 
 @dataclass
-class FeatureResult:
-    """features[].results[] 한 셀 — 패키지 하나에 대한 판정.
-
-    version(2026-09-18 추가): 176이 DB 없이 그때그때 청킹하는 방식으로 바뀌면서,
-    179(근거ID·패키지·버전 검증)가 다른 곳(ComparisonResult.packages)을 다시 조회하지
-    않고 셀 하나만 보고 검증할 수 있도록 셀 안에 버전을 직접 싣는다.
-    """
-
-    package: str
-    version: str
-    verdict: Verdict
-    evidence_ids: list[str] = field(default_factory=list)
-    grounded_in: GroundedIn = "EVIDENCE"
-    note: str = ""
-
-
-@dataclass
-class FeatureRow:
-    """표의 행 하나 (비교 축 하나)."""
-
-    feature_label: str
-    results: list[FeatureResult] = field(default_factory=list)
-
-
-@dataclass
-class NarrativeSection:
-    """"기능 비교 해설" 문단 하나."""
-
-    heading: str
-    body: str
-    evidence_ids: list[str] = field(default_factory=list)
-
-
-@dataclass
 class PackageSource:
     """비교 대상 한 패키지의 인계 파일 상태 — 꼬리 `근거: … 상태 …` 줄에서 읽는다 (S15P21A506-419).
 
@@ -127,13 +85,25 @@ class PackageSource:
 
 
 @dataclass
+class PackageNote:
+    """차이점 문단 하나 — 그 패키지만의 특징을 서술한다 (2026-09-22, 표 대신 서술형으로 전환)."""
+
+    package: str
+    version: str
+    body: str
+
+
+@dataclass
 class ComparisonResult:
-    """178(generate)의 출력. `ai/기능비교 프론트화면.png` 시안 구조 그대로."""
+    """178(generate)의 출력 — 공통점 서술 + 패키지별 차이점 서술.
+
+    2026-09-22 결정으로 기능별 판정표(features)·해설(narrative)·근거 ID 인용을 없앴다. 화면이
+    표 대신 글 두 덩어리(공통점 / 패키지별 차이점)만 보여주기 때문이다.
+    """
 
     data_status: DataStatus
     packages: list[PackageRef]
-    features: list[FeatureRow]
-    narrative: list[NarrativeSection] = field(default_factory=list)
-    narrative_error: str | None = None
+    common: str
+    differences: list[PackageNote] = field(default_factory=list)
     # 패키지별 인계 파일 상태. LLM 이 만드는 값이 아니라 pipeline 이 파일에서 읽어 붙인다.
     sources: list[PackageSource] = field(default_factory=list)

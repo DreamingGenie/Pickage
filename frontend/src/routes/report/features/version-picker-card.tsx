@@ -1,6 +1,10 @@
-import { useId } from 'react'
+import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+
+import { ToneBadge } from '@/components/common/tone-badge'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import type { FeatureAnalysis } from '@/routes/report/_components/use-analysis-run'
 import { StartButton } from '@/routes/report/features/ai-comparison-section'
 import type { PackageVersions } from '@/routes/report/features/model'
@@ -91,37 +95,127 @@ function VersionSelect({
   completedVersion: string | undefined
   onChange: (version: string) => void
 }) {
-  const id = useId()
+  const labelId = useId()
+  const listId = useId()
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const boxRef = useRef<HTMLDivElement>(null)
   const noStable = pkg.latestStable === null
   const differs = completedVersion !== undefined && value !== '' && value !== completedVersion
+  const current = pkg.choices.find((c) => c.version === value)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  function openList() {
+    const at = pkg.choices.findIndex((c) => c.version === value)
+    setActive(at < 0 ? 0 : at)
+    setOpen(true)
+  }
+
+  function pick(version: string) {
+    onChange(version)
+    setOpen(false)
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      setOpen(false)
+      return
+    }
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        openList()
+      }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((i) => Math.min(pkg.choices.length - 1, i + 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => Math.max(0, i - 1))
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      const choice = pkg.choices[active]
+      if (choice) pick(choice.version)
+    }
+  }
 
   return (
-    <div className="flex min-w-48 flex-1 flex-col gap-1.5 sm:max-w-64">
-      <label htmlFor={id} className="font-mono text-base text-muted-foreground">
+    <div ref={boxRef} className="relative flex min-w-48 flex-1 flex-col gap-1.5 sm:max-w-64">
+      <span id={labelId} className="font-mono text-base text-muted-foreground">
         {pkg.name}
-      </label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 rounded-md border bg-background px-3 font-mono text-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
+      </span>
+      {/*
+        기본 select 는 옵션 안에 라벨(최신)을 그릴 수 없어 목록을 직접 그린다. 버전 문자열과
+        '최신' 딱지를 나눠 보여 준다 — "최신 6.0" 처럼 한 줄 글자로 섞으면 버전을 읽기 어렵다.
+      */}
+      <button
+        type="button"
+        role="combobox"
+        aria-labelledby={labelId}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        disabled={disabled || pkg.choices.length === 0}
+        onClick={() => (open ? setOpen(false) : openList())}
+        onKeyDown={onKeyDown}
+        className="flex h-10 items-center justify-between gap-2 rounded-md border bg-background px-3 text-base tabular-nums transition-colors hover:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
       >
-        {value === '' && (
-          <option value="" disabled>
-            버전 고르기
-          </option>
+        {current ? (
+          <ChoiceLabel
+            version={current.version}
+            latest={current.version === pkg.latestStable}
+            prerelease={current.prerelease}
+          />
+        ) : (
+          <span className="text-muted-foreground">버전 고르기</span>
         )}
-        {pkg.choices.map((choice) => (
-          <option key={choice.version} value={choice.version}>
-            {choice.version === pkg.latestStable
-              ? `최신 ${choice.version}`
-              : choice.prerelease
-                ? `${choice.version} (사전 배포)`
-                : choice.version}
-          </option>
-        ))}
-      </select>
+        <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+
+      {open && (
+        <ul
+          id={listId}
+          role="listbox"
+          aria-labelledby={labelId}
+          className="absolute top-full right-0 left-0 z-30 mt-1.5 max-h-64 overflow-y-auto rounded-xl border bg-card p-1 shadow-lg"
+        >
+          {pkg.choices.map((choice, i) => {
+            const selected = choice.version === value
+            return (
+              <li
+                key={choice.version}
+                role="option"
+                aria-selected={selected}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(choice.version)}
+                className={cn(
+                  'flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 text-base tabular-nums',
+                  i === active && 'bg-muted',
+                )}
+              >
+                <ChoiceLabel
+                  version={choice.version}
+                  latest={choice.version === pkg.latestStable}
+                  prerelease={choice.prerelease}
+                />
+                {selected && <CheckIcon aria-hidden className="size-4 shrink-0" />}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
       {noStable && (
         <p className="text-base text-muted-foreground">비교할 수 있는 버전이 아직 없어요.</p>
       )}
@@ -131,5 +225,24 @@ function VersionSelect({
         </p>
       )}
     </div>
+  )
+}
+
+/** 버전 + 딱지. 딱지는 글자로 뜻을 말한다(색만으로 알리지 않는다, IA 1-13) */
+function ChoiceLabel({
+  version,
+  latest,
+  prerelease,
+}: {
+  version: string
+  latest: boolean
+  prerelease: boolean
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="truncate">{version}</span>
+      {latest && <ToneBadge tone="brand">최신</ToneBadge>}
+      {prerelease && <ToneBadge tone="neutral">사전 배포</ToneBadge>}
+    </span>
   )
 }
