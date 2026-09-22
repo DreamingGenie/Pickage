@@ -52,7 +52,14 @@ BUCKET = 'pickage-raw'
 # Sweeping "everything" would publish trial data into the bucket that holds
 # collection originals, so a sweep takes dated runs only.
 DATED_RUN = re.compile(r'run=\d{4}-\d{2}-\d{2}')
-SHARD_RUN = re.compile(r'run=(\d{4}-\d{2}-\d{2})-s(\d+)')
+# 샤드 회차는 날짜와 -sN 사이에 라벨을 둘 수 있다 — run=2026-09-22-additions-s1
+# (S15P21A506-452). 같은 날 회차가 둘 이상이거나 어떤 대상을 받았는지 폴더 이름으로
+# 구분하려는 것이다. **collected_date 는 여전히 앞의 날짜다.** 적재기의 파티션 검증이 날짜만
+# 받고, 라벨까지 파티션에 넣으면 같은 날 수집분이 버킷에서 갈라진다.
+# 라벨을 허용하기 전에는 그런 폴더가 DATED_RUN·SHARD_RUN 어느 쪽에도 안 걸려 네 개가 통째로
+# 빠졌고, 입고가 'No collector runs selected' 로 끝났다.
+# smoke run 은 날짜가 앞에 없어(run=smoke-2026-09-08) 여기 걸리지 않는다. 그대로다.
+SHARD_RUN = re.compile(r'run=(\d{4}-\d{2}-\d{2})(?:-[A-Za-z0-9]+)*-s(\d+)')
 # 샤드 수는 대상 CSV 이름이 말해 준다 (rank_top100k_20260902-s1of4.csv). 폴더가 몇 개 있는지로
 # 판단하면 s3 폴더를 빠뜨린 채 올려도 통과한다 — 원본의 1/4 이 빠진 것을 _SUCCESS 가 덮는다.
 SHARD_TARGETS = re.compile(r'-s(\d+)of(\d+)\.csv$')
