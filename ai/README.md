@@ -45,6 +45,8 @@
 - 배치 본체 구현 + 2단계 랭커(검색 top-30 → 구조적 관문 → cos 정렬) — MR !102, S15P21A506-168, 2026-09-11 develop 머지
 - **v7 모델로 교체 (2026-09-11)** — S15P21A506-329. ONNX export·MinIO 업로드까지 완료, 상세 배경·스펙은
   `ai/MODEL_CONTRACT.md` 참고. **EC2 #1 CPU 실측 검증(S15P21A506-287)은 v7으로 아직 안 함 — 미해결.**
+- **인지도 관문 추가 (2026-09-22)** — S15P21A506-450. `--downloads-floor`(기본 500,000) 구현 +
+  단위테스트, 위 "재랭킹 규칙" 절 참고. EC2 #1 실배치 반영은 다음 배포에서.
 
 **진행 중 / 블로커**
 
@@ -77,12 +79,23 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
    - plugin/adapter/preset/loader·비말단 config (이름·keywords) → drop
    - same-family: 우산↔하위모듈(`d3`↔`d3-axis`)·같은 포장(`lodash`↔`lodash-es`)·같은 `@scope` → drop
    - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 를 안 주면 `--package-text` 와 같은 폴더의 `package_dependents.parquet` 를 찾아 쓰고, 그것도 없으면 **경고 로그를 남기고 이 관문만 건너뛴다**(배치는 계속 돈다). manifest 의 `params.gate_drops.complement` 는 관문이 안 돌았으면 `null`, 돌았으면 걸러낸 쌍 수이고, `params.dependents_coverage` 는 이번 패키지 중 dependents 행이 있는 비율(`pool`·`with_dependents`·`ratio`)이다 — 후보 풀이 dependents 파일보다 커지면 이 비율이 내려간다
-3. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
-4. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
+3. **인지도 관문** (`--downloads-floor`, 기본 **500,000**, S15P21A506-450) — `downloads_last_month`가
+   이 값 미만인 후보는 drop. 정보가 없는 후보(None)도 통과 안 시킴(보수적).
+4. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
+5. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 
-- **인기도·다운로드·채택도를 순위 신호로 쓰지 않는다** (제안 §3.3). 생존·실체는 1단계 자격 필터의 관문일 뿐.
+- **(정정, 2026-09-22, S15P21A506-450) 인지도(downloads)를 관문으로 쓴다.** 이전엔 "인기도·
+  다운로드·채택도를 순위 신호로 쓰지 않는다"(제안 §3.3 원문)가 방침이었으나, 정답 기준 자체가
+  "기능 유사"에서 "기능 유사 + 인지도"로 기획 개정됨에 따라 뒤집혔다. `--downloads-floor`는
+  cos처럼 상대 정렬 신호가 아니라 구조적 관문과 같은 **pass/fail 하드컷**이다 — cos 자체엔
+  여전히 절대 임계값을 안 쓴다(`DEC-RANK-20260910-01`, 도메인마다 스케일이 달라 불안정).
+  실측(`ai/training/eval_gate_ranking.py`, "정답(B)도 인지도가 있어야 진짜 정답"으로 골드셋을
+  다시 채점): 하한 미적용 대비 recall@3 이 0.130→**0.332**(50만 하한)로 개선 — 순수 cos
+  정렬이 더 비슷하게 생긴 무명 패키지에 밀려 "인기 있는 진짜 대안"조차 놓치고 있었음을 확인.
+  50만보다 낮은 하한(1만/5만/10만)도 다 개선이었지만 50만이 가장 좋았다.
 - deprecated 지목 가산 없음 (`DEC-RANK-20260909-01`).
-- `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬.
+- `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬 (인지도 관문은 `--downloads-floor 0`
+  으로 별도로 꺼야 함 — `--gate` 와 독립적).
 
 **`is_same_family` 보완 이력 (S15P21A506-334)**: 스코프 없는 이름이 상대방의 스코프(조직명) 자체와
 정확히 같은 경우(`parcel`↔`@parcel/graph`)와, `@types/x`↔`x`(DefinitelyTyped 타입 선언) 두 규칙을
