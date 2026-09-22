@@ -195,7 +195,7 @@ export function useAnalysisRun(names: readonly string[]): FeatureAnalysis {
   /**
    * 버전 드롭다운의 선택지 (BE S15P21A506-432).
    *
-   * 서버가 **소비 조건이 있는 정식 버전만** 최근 3개 준다. 그래서 어느 것을 골라도 핵심 비교
+   * 서버가 **소비 조건이 있는 정식 버전만** 서로 다른 major 기준으로 최대 3개 준다. 그래서 어느 것을 골라도 핵심 비교
    * 요약이 채워지고, 사전 배포 버전은 오지 않는다.
    *
    * 패키지는 있는데 고를 버전이 없으면 `latestStable` 이 null 이다 — 자동 선택을 하지 않고,

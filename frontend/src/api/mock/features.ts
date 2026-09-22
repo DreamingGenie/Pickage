@@ -140,7 +140,8 @@ const MOCK_ENV: Record<string, PackageEnvItemWire> = {
 }
 
 /**
- * 버전 목록. 실서버처럼 **소비 조건이 있는 버전만** 올린다 — 여기서는 `MOCK_ENV` 에 있는 것.
+ * 버전 목록. 실서버처럼 **소비 조건이 있는 서로 다른 major의 최신 버전만** 올린다 — 여기서는
+ * `MOCK_ENV` 가 최신순으로 선언되어 있다는 전제에서 major별 첫 항목을 사용한다.
  * 그 밖의 이름은 "패키지는 있는데 고를 버전이 없음" 으로 돌려준다.
  */
 export function mockFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
@@ -148,6 +149,11 @@ export function mockFeatureVersions(names: readonly string[]): Promise<FeatureVe
     const versions = Object.values(MOCK_ENV)
       .filter((item) => item.name === name)
       .map((item) => item.version)
+      .filter(
+        (version, index, all) =>
+          all.findIndex((candidate) => candidate.split('.')[0] === version.split('.')[0]) === index,
+      )
+      .slice(0, 3)
     return { package_name: name, latest_stable: versions[0] ?? null, versions }
   })
   return delay({ packages, not_found: [] })

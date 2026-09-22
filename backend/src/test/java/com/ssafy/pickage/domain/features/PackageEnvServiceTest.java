@@ -35,7 +35,7 @@ class PackageEnvServiceTest {
 		}
 
 		@Override
-		public List<VersionRow> findRecentVersions(List<String> names, int limit) {
+		public List<VersionRow> findMajorDiverseVersions(List<String> names, int limit) {
 			limits.add(limit);
 			return rows;
 		}
@@ -50,18 +50,18 @@ class PackageEnvServiceTest {
 	void latestFirst() {
 		FeatureVersionsResponse res = versionsOf(List.of(
 			new VersionRow("express", true, "5.2.1"),
-			new VersionRow("express", true, "5.2.0"),
-			new VersionRow("express", true, "5.1.0")), "express");
+			new VersionRow("express", true, "4.21.2"),
+			new VersionRow("express", true, "3.0.0")), "express");
 
 		assertThat(res.packages()).hasSize(1);
 		FeatureVersionsResponse.Item item = res.packages().get(0);
 		assertThat(item.latestStable()).isEqualTo("5.2.1");
-		assertThat(item.versions()).containsExactly("5.2.1", "5.2.0", "5.1.0");
+		assertThat(item.versions()).containsExactly("5.2.1", "4.21.2", "3.0.0");
 		assertThat(res.notFound()).isEmpty();
 	}
 
 	@Test
-	@DisplayName("드롭다운에 올리는 수는 3 이다")
+	@DisplayName("드롭다운에 올리는 major 후보 수는 3 이다")
 	void asksForThree() {
 		FakeRepository repo = new FakeRepository(List.of());
 		new PackageEnvService(repo).getVersions(PackageNames.of(List.of("express")));

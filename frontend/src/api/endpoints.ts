@@ -266,7 +266,7 @@ export function postCommunityRefresh(
  * 버전 드롭다운은 `GET /api/packages/versions`(BE S15P21A506-432)가 준다.
  * ------------------------------------------------------------------ */
 
-/** 기능 비교 버전 드롭다운. 소비 조건이 있는 최근 정식 버전만 온다(BE S15P21A506-432). */
+/** 기능 비교 버전 드롭다운. 소비 조건이 있는 서로 다른 major의 최신 정식 버전만 온다. */
 export function fetchFeatureVersions(names: readonly string[]): Promise<FeatureVersionsResponse> {
   return USE_MOCK
     ? mockFeatureVersions(names)
