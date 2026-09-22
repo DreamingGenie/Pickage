@@ -42,7 +42,10 @@ export function CandidateGrid({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="min-w-0 font-mono text-2xl leading-none font-bold tracking-tight">
+                <span
+                  title={c.name}
+                  className="min-w-0 truncate font-mono text-2xl leading-none font-bold tracking-tight"
+                >
                   {c.name}
                 </span>
                 <span
