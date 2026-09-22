@@ -55,6 +55,12 @@ BUCKET = 'pickage-curated'
 #                primary key of etl_dataset_current - one row per dataset). Two keys are
 #                still needed because root, source and notes differ per run; only the
 #                name they share is borrowed. Leave it out unless a loader demands it.
+#
+#                Two entries then share one prefix, so pairing the wrong --dataset with
+#                the other's --run-id lands on objects built from a different root. That
+#                refuses rather than overwrites - the GET check finds a digest the local
+#                file does not have - but it says 'Remote checksum mismatch', which does
+#                not say why. Keep each entry's run IDs naming its own run.
 DATASETS = {
     'dependent-transitions': {
         'root': 'data/dependent_transitions',
