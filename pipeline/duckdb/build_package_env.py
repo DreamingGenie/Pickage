@@ -69,6 +69,16 @@ from pathlib import Path
 import re
 import sys
 
+try:
+    # Windows 에서 stdout 이 콘솔이 아니면(파이프·파일) 인코딩이 cp949 로 정해져,
+    # 거기 없는 글자 하나에 출력이 UnicodeEncodeError 로 죽는다. 이 파일의 오류 메시지와
+    # --help 에 em dash 가 있어서 실제로 --help 조차 트레이스백으로 끝났다.
+    # 수집기(collectors/registry/collect.py)와 적재기가 같은 이유로 같은 것을 한다.
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parents[2]
 BUCKET = 'pickage-raw'
 PREFIX = 'npm-registry/v1'
