@@ -68,6 +68,20 @@ function FlowBody({ pkg, className }: { pkg: PackageMigration; className?: strin
   const dropped = Math.max(0, 100 - covered)
   const weak = pkg.dataStatus === 'INSUFFICIENT_EVIDENCE'
 
+  /**
+   * **한쪽만 반올림하고 다른 쪽은 100 에서 뺀다.** 둘을 각자 반올림하면 합이 101%(또는
+   * 99%)가 된다 — covered 44.5 · dropped 55.5 면 45 와 56 이다. 형제 컴포넌트
+   * `RemovalBars` 가 같은 이유로 같은 규칙을 쓴다.
+   */
+  const coveredPercent = Math.round(covered)
+  const droppedPercent = 100 - coveredPercent
+
+  /**
+   * 반올림하면 0 이 되는 나머지. **"나머지 0% 를 뺐어요" 는 자기 모순이라** 따로 말한다 —
+   * 합이 99.6 인 패키지가 실제로 있다(반올림 때문에 100.2 까지 나온다).
+   */
+  const droppedIsTiny = dropped > 0 && droppedPercent === 0
+
   return (
     <div className={cn('flex w-full max-w-72 flex-col gap-3', className)}>
       {/*
@@ -76,7 +90,7 @@ function FlowBody({ pkg, className }: { pkg: PackageMigration; className?: strin
       */}
       <div
         role="img"
-        aria-label={`관측된 이동 중 ${covered.toFixed(0)}%가 집계에 들어왔고 ${dropped.toFixed(0)}%는 근거가 약해 빠졌어요`}
+        aria-label={`관측된 이동 중 ${coveredPercent}%가 집계에 들어왔고 ${droppedPercent}%는 근거가 약해 빠졌어요`}
         className="flex h-6 w-full overflow-hidden rounded-md border bg-muted/40"
       >
         {pkg.destinations.map((d, i) => (
@@ -130,8 +144,12 @@ function FlowBody({ pkg, className }: { pkg: PackageMigration; className?: strin
 
       {dropped > 0 && (
         <p className="text-base text-muted-foreground">
-          나머지 <strong className="text-foreground">{dropped.toFixed(0)}%</strong> 는 근거가 약해
-          집계에서 뺐어요.
+          나머지{' '}
+          <strong className="text-foreground">
+            {droppedIsTiny ? '1% 미만' : `${droppedPercent}%`}
+          </strong>
+          {/* 조사가 갈린다 — "36%는"(모음)과 "1% 미만은"(받침). 한 벌로 쓰면 한쪽이 어색하다. */}
+          {droppedIsTiny ? '은' : '는'} 근거가 약해 집계에서 뺐어요.
         </p>
       )}
     </div>
