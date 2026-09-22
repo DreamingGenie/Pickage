@@ -67,7 +67,8 @@ python -m pipeline.minio.ingest_derived --dataset package-dependents-exp460k \
 | `optional` | 11,738 | 50,016 | 3,399 | 0 / 0 / 1 |
 
 - 세 종류 모두 dependents 가 0 인 대상: **272,890** (기본 회차 15,050)
-- `package_exists = false`: **8,729** (기본 회차 2,251 — 뜻은 기본 회차 README §4-9)
+- `package_exists = false`: **8,729** (기본 회차 2,251 — 뜻은 기본 회차 README §4-9).
+  적재 미매칭 수와 **같지 않다** — §4 의 주의를 볼 것
 - ecosyste.ms 대조: **65,307개에서 중앙 비율 0.710** — 기본 회차와 **같은 수**다.
   대조는 `ecosystems_dependent_count` 가 있는 대상만 하는데 그 값이 상위 10만 표에서만
   오므로, 목록을 넓혀도 대조 대상이 늘지 않는다.
@@ -105,9 +106,15 @@ package_exists 불일치        0
 못한 것이 아니라 상위 10만 표에 없는 패키지라서이고, NULL 자체가 "순위 밖"이라는 사실이다.
 두 열은 대상 목록이 무엇이든 항상 `../targets/rank_top100k_20260902.csv` 에서 조인해 온다.
 
-`package_exists = false` 가 2,251 → 8,729 로 는 것도 넓힌 쪽 때문이다. 이 값은
-`dependent_transition` 을 PostgreSQL 에 적재할 때 **이름이 안 붙는 대상 수**를 그대로 정한다
-(기본 회차에서 2,251 × 3종 × 3구간 = 20,259행이 빠져 97.7% 였다).
+`package_exists = false` 가 2,251 → 8,729 로 는 것도 넓힌 쪽 때문이다.
+
+> **이 값을 PostgreSQL 미매칭 수로 쓰지 말 것.** 기본 회차에서는 둘이 우연히 같았다
+> (2,251 × 3종 × 3구간 = 20,259행이 빠져 97.7%). 이 회차에서는 **9 개 어긋난다** —
+> `package` 쪽 실측은 8,738 이다. 이 열은 versions_full 에 적격 최신 릴리스가 있는지를
+> 보고, 적재는 Curated `package` 표에 이름이 있는지를 본다. 두 기준이 12 개(이쪽만 있음)와
+> 3 개(저쪽만 있음)에서 갈린다. 적재 기대값은
+> [`../dependent_transitions_exp460k_260922/README.md` §8](../dependent_transitions_exp460k_260922/README.md)
+> 을 볼 것.
 
 ## 5. 다시 만들기
 
