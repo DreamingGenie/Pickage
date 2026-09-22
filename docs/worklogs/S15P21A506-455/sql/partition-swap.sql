@@ -9,6 +9,9 @@
 --   -v bak=vd455_backup_20260922       옛 파티션을 옮겨 둘 백업 스키마
 --   -v day=2026-08-31                  교체할 기준일
 --   -v cmp=full                        값 대조 범위: full | sample | none
+--
+-- 운영에서는 full 만 쓴다. 리허설에서 실제로 돌려 본 것도 full 뿐이다
+-- (782만 행 대조에 3.5초). sample 과 none 은 코드에 있으나 검증하지 않았다.
 --   -v parent=public.package_version_snapshot   교체 대상 부모 테이블
 --
 -- `parent` 를 인자로 받는 이유는 리허설 때문이다. 로컬 공유 DB 의 public 표를 건드리지
