@@ -179,6 +179,12 @@ def build(target: Path, out: Path, memory: str) -> int:
 
     parts = sorted(target.rglob('part-*.jsonl.gz'))
     glob = (target / '**' / 'part-*.jsonl.gz').as_posix()
+    # 상대 경로로 받으면 아래 relative_to 가 ValueError 를 낸다. parquet 을 다 쓰고 나서
+    # 통계를 찍다가 죽으므로 산출물은 멀쩡한데 분포를 못 본다. 여기서 절대 경로로 맞춘다.
+    # resolve() 가 아니라 absolute() 다 — 작업 트리의 data/ 가 주 트리를 가리키는
+    # 정션일 때 resolve() 는 링크를 풀어 리포 밖 경로로 바꿔 버리고, 그러면 같은
+    # 자리에서 또 죽는다.
+    out = out.absolute()
     out.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
 
@@ -220,7 +226,12 @@ def build(target: Path, out: Path, memory: str) -> int:
                     TO '{out.as_posix()}' (FORMAT PARQUET, COMPRESSION zstd)""")
 
     rows = con.execute('SELECT count(*) FROM judged').fetchone()[0]
-    print(f'\n  {rows:,} 행 -> {out.relative_to(ROOT)}'
+    # 표시일 뿐이라 여기서 죽지 않게 한다. --out 을 리포 밖으로 줄 수도 있다.
+    try:
+        shown = out.relative_to(ROOT)
+    except ValueError:
+        shown = out
+    print(f'\n  {rows:,} 행 -> {shown}'
           f' ({out.stat().st_size / 1e6:.1f} MB)')
     print('\n  [module_format]')
     for value, n in con.execute(
