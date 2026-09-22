@@ -1222,25 +1222,41 @@ const dest = (
   votes: number,
   publisherMonths: number,
   sharePmPct: number,
+  /**
+   * 그 패키지를 지운 경우 중 이것을 함께 넣은 비율. **행마다 적는다.**
+   *
+   * 한때 `sharePmPct * 3.6` 으로 지어냈는데, share 가 31% 인 행에서 111.6% 가 나와
+   * 화면에 그대로 떴다. **서버는 그 값을 낼 수 없다** — DB 의
+   * `CK_MIGRATION_PAIR_PCT_RANGE` 가 0~100 을 강제하고, 실측 16,837쌍의 최댓값도
+   * 정확히 100.0 이다. mock 이 서버가 못 내는 값을 내면 화면은 실제로는 만나지 않을
+   * 상태로 개발된다.
+   */
+  aPct: number,
   evidence: 'strict' | 'recommended' | 'loose',
   extra: Partial<MockMigrationDestination> = {},
-): MockMigrationDestination => ({
-  name,
-  votes,
-  coEvents: Math.round(votes * 1.6),
-  publisherMonths,
-  dependents: Math.round(votes * 1.2),
-  lift: Math.round(votes * 40),
-  sharePmPct,
-  sharePct: sharePmPct + 2.4,
-  // 실측에서 a_pct 는 share_pm_pct 보다 훨씬 크다(moment→dayjs 는 5.7% vs 20.8%).
-  // 분모가 도착지들이 아니라 이탈 전체이기 때문이다. 배수를 흉내만 낸다.
-  aPct: Math.round(sharePmPct * 3.6 * 10) / 10,
-  evidence,
-  firstSeen: '2019-03-11',
-  lastSeen: '2026-07-28',
-  ...extra,
-})
+): MockMigrationDestination => {
+  // 픽스처를 손으로 적다 보면 또 범위를 넘긴다. 화면이 아니라 여기서 먼저 터지게 한다.
+  for (const [key, value] of Object.entries({ sharePmPct, aPct })) {
+    if (value < 0 || value > 100) {
+      throw new Error(`mock 픽스처의 ${key} 가 0~100 밖이다: ${name} ${value}`)
+    }
+  }
+  return {
+    name,
+    votes,
+    coEvents: Math.round(votes * 1.6),
+    publisherMonths,
+    dependents: Math.round(votes * 1.2),
+    lift: Math.round(votes * 40),
+    sharePmPct,
+    sharePct: Math.min(100, sharePmPct + 2.4),
+    aPct,
+    evidence,
+    firstSeen: '2019-03-11',
+    lastSeen: '2026-07-28',
+    ...extra,
+  }
+}
 
 /** 실행용 의존 기준(deps.dev 전수, 기준일 2026-08-31). */
 export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = {
@@ -1249,11 +1265,11 @@ export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = 
     // 실제 moment 는 53쌍 중 26개가 기본 필터를 통과하고 그중 5개만 이름을 세운다.
     observedPairs: 53,
     destinations: [
-      dest('pino', 347.4, 384, 5.7, 'strict', { variant: true }),
-      dest('bunyan', 166.5, 204, 3.0, 'strict'),
-      dest('consola', 91.9, 98, 1.4, 'strict', { variant: true }),
-      dest('loglevel', 64.9, 67, 1.0, 'strict'),
-      dest('winston-daily-rotate-file', 16.7, 49, 0.7, 'loose'),
+      dest('pino', 347.4, 384, 5.7, 20.8, 'strict', { variant: true }),
+      dest('bunyan', 166.5, 204, 3.0, 10.7, 'strict'),
+      dest('consola', 91.9, 98, 1.4, 5.4, 'strict', { variant: true }),
+      dest('loglevel', 64.9, 67, 1.0, 3.7, 'strict'),
+      dest('winston-daily-rotate-file', 16.7, 49, 0.7, 2.5, 'loose'),
     ],
     etc: { pairs: 48, sharePmPct: 9.9, belowFilter: 27 },
   },
@@ -1261,8 +1277,8 @@ export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = 
     dataStatus: 'COMPLETE',
     observedPairs: 9,
     destinations: [
-      dest('winston', 20.5, 14, 31.0, 'recommended', { variant: true }),
-      dest('pino-pretty', 8.0, 6, 12.5, 'loose', { variant: true }),
+      dest('winston', 20.5, 14, 31.0, 44.0, 'recommended', { variant: true }),
+      dest('pino-pretty', 8.0, 6, 12.5, 18.0, 'loose', { variant: true }),
     ],
     etc: { pairs: 7, sharePmPct: 0.9, belowFilter: 7 },
   },
@@ -1287,7 +1303,10 @@ export const MOCK_MIGRATION_PAIRS_DEV: Record<string, MockMigrationPairs> = {
   winston: {
     dataStatus: 'COMPLETE',
     observedPairs: 4,
-    destinations: [dest('pino', 12.0, 9, 18.2, 'recommended'), dest('debug', 7.5, 6, 9.4, 'loose')],
+    destinations: [
+      dest('pino', 12.0, 9, 18.2, 26.0, 'recommended'),
+      dest('debug', 7.5, 6, 9.4, 13.5, 'loose'),
+    ],
     etc: { pairs: 2, sharePmPct: 5.1, belowFilter: 1 },
   },
   pino: { dataStatus: 'NO_DATA', observedPairs: 0 },
