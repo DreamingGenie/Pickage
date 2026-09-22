@@ -11,6 +11,7 @@ import {
   EVIDENCE_HINT,
   EVIDENCE_LABEL,
   VARIANT_HINT,
+  VARIANT_LABEL,
   type MigrationEvidence,
   type MigrationModel,
 } from '@/routes/report/ecosystem/migration-model'
@@ -209,7 +210,7 @@ function EvidenceKey() {
       label: EVIDENCE_LABEL[key],
       hint: EVIDENCE_HINT[key],
     })),
-    { label: '변종', hint: VARIANT_HINT },
+    { label: VARIANT_LABEL, hint: VARIANT_HINT },
   ]
 
   return (

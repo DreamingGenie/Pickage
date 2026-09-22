@@ -2,6 +2,7 @@ import {
   EVIDENCE_HINT,
   EVIDENCE_LABEL,
   VARIANT_HINT,
+  VARIANT_LABEL,
   type MigrationEvidence,
 } from '@/routes/report/ecosystem/migration-model'
 import { cn } from '@/lib/utils'
@@ -47,10 +48,11 @@ export function EvidenceBadge({
 }
 
 /**
- * "변종" 배지 — 서로가 서로의 도착지로 관측된 쌍.
+ * "양방향" 배지 — 반대 방향 이동도 관측된 쌍.
  *
- * **지우지 않고 표시만 다르게 한다**(S15P21A506-211 결정 4 ③). lodash ↔ lodash-es 처럼
- * 같은 것의 다른 포장이면 "옮겨 갔다" 로 읽으면 안 되지만, 관측된 기록이라 숨기지도 않는다.
+ * **지우지 않고 표시만 다르게 한다**(S15P21A506-211 결정 4 ③). 다만 이름은 "변종" 이
+ * 아니다 — 상위 5 자리의 38.2%가 이 플래그를 달아서, 단정하면 대부분 거짓이 된다
+ * ({@link VARIANT_LABEL} 주석의 실측).
  */
 export function VariantBadge({ className }: { className?: string }) {
   return (
@@ -61,7 +63,7 @@ export function VariantBadge({ className }: { className?: string }) {
         className,
       )}
     >
-      변종
+      {VARIANT_LABEL}
     </span>
   )
 }

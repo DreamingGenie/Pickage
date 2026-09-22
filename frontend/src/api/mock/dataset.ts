@@ -1181,7 +1181,10 @@ export const MOCK_REMOVAL_REASONS: Record<string, MockRemovalReason> = {
  * 패키지의 79.7%가 합 99.5% 에 못 미치고 중앙값이 25.7% 다. mock 이 100 을 채우면 화면이
  * 정규화해도 티가 안 나서, **실제 데이터를 붙이는 날 조용히 네 배 부풀려진다.**
  *
- * winston — COMPLETE(5개 + 그 밖). 상위 5가 55.5%, 그 밖 8.3% → 합 63.8%.
+ * winston — COMPLETE(5개 + 그 밖). **실제 moment 의 모양을 그대로 옮겼다** — 상위 5가
+ *           11.8%, 그 밖 9.9% → 합 21.7%, 빗금 78%. 처음에는 합을 63.8% 로 두었는데,
+ *           4층 검증(2026-09-22)에서 실제 대표 사례가 21.7~44.4% 인 것이 확인됐다.
+ *           mock 이 더 후하면 리뷰어가 화면의 진짜 모습을 못 본다.
  * pino    — COMPLETE(2개, 접을 것 없음 → `etc` 는 null).
  * bunyan  — NOT_COMPUTED. 그 종류의 회차를 아직 안 올렸다.
  * log4js  — INSUFFICIENT_EVIDENCE. **쌍은 있는데 전부 근거 미달이라 `destinations` 가 비고
@@ -1238,23 +1241,25 @@ const dest = (
 export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = {
   winston: {
     dataStatus: 'COMPLETE',
-    observedPairs: 7,
+    // 실제 moment 는 53쌍 중 26개가 기본 필터를 통과하고 그중 5개만 이름을 세운다.
+    observedPairs: 53,
     destinations: [
-      dest('pino', 38.5, 26, 21.4, 'strict'),
-      dest('bunyan', 24.0, 17, 14.8, 'recommended'),
-      dest('consola', 15.5, 11, 9.1, 'recommended'),
-      dest('loglevel', 9.5, 7, 6.2, 'loose'),
-      dest('winston-daily-rotate-file', 6.5, 5, 4.0, 'loose', { variant: true }),
+      dest('pino', 347.4, 384, 5.7, 'strict', { variant: true }),
+      dest('bunyan', 166.5, 204, 3.0, 'strict'),
+      dest('consola', 91.9, 98, 1.4, 'strict', { variant: true }),
+      dest('loglevel', 64.9, 67, 1.0, 'strict'),
+      dest('winston-daily-rotate-file', 16.7, 49, 0.7, 'loose'),
     ],
-    etc: { pairs: 2, sharePmPct: 8.3, belowFilter: 2 },
+    etc: { pairs: 48, sharePmPct: 9.9, belowFilter: 27 },
   },
   pino: {
     dataStatus: 'COMPLETE',
-    observedPairs: 2,
+    observedPairs: 9,
     destinations: [
-      dest('winston', 20.5, 14, 31.0, 'recommended'),
+      dest('winston', 20.5, 14, 31.0, 'recommended', { variant: true }),
       dest('pino-pretty', 8.0, 6, 12.5, 'loose', { variant: true }),
     ],
+    etc: { pairs: 7, sharePmPct: 0.9, belowFilter: 7 },
   },
   bunyan: { dataStatus: 'NOT_COMPUTED' },
   log4js: {
