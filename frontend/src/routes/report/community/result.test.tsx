@@ -379,7 +379,7 @@ describe('와이어프레임 구성', () => {
 })
 
 /**
- * S15P21A506-409: Issue 원문 링크 버튼, 요약 강조, 발화 4개.
+ * S15P21A506-409·448: Issue 원문 링크 버튼, 요약 강조, 발화 4개.
  */
 describe('Issue 링크와 요약 강조', () => {
   const topic = SAMPLE_COMMUNITY_RESULT.topics[0]
@@ -399,13 +399,28 @@ describe('Issue 링크와 요약 강조', () => {
     expect(link).toHaveAccessibleName(new RegExp(`#${topic.issue_number}.*새 탭`))
   })
 
-  it('링크는 이 하나뿐이다 — 확장 화면의 다른 곳에는 외부 링크를 두지 않는다', () => {
+  it('실제 논의 흐름의 ISSUE #번호도 GitHub 원문 링크다', () => {
+    render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
+
+    const link = screen.getByRole('link', {
+      name: `ISSUE #${topic.issue_number} 원문 보기 (새 탭에서 열림)`,
+    })
+    expect(link).toHaveAttribute(
+      'href',
+      `https://github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}/issues/${topic.issue_number}`,
+    )
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.getAttribute('rel')).toContain('noopener')
+    expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+  })
+
+  it('Issue 원문 링크는 핵심 논의와 실제 논의 흐름에 하나씩만 둔다', () => {
     const { container } = render(
       <CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />,
     )
 
     const anchors = [...container.querySelectorAll('a')]
-    expect(anchors).toHaveLength(SAMPLE_COMMUNITY_RESULT.topics.length)
+    expect(anchors).toHaveLength(SAMPLE_COMMUNITY_RESULT.topics.length * 2)
     for (const a of anchors) expect(a.getAttribute('href')).toMatch(/^https:\/\/github\.com\//)
   })
 
