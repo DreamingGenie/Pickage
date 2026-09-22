@@ -135,7 +135,9 @@ export function FeatureTable({
                   기능
                 </th>
                 {view.packages.map((pkg) => (
-                  <th key={pkg.name} scope="col" className="pb-3 text-left font-normal">
+                  // text-center — 판정 뱃지가 칸 가운데로 온 뒤(QA 피드백) 위 헤더만 왼쪽에
+                  // 남아 있으면 안 맞아 보인다. "기능" 열 머리글은 행 라벨이라 그대로 왼쪽.
+                  <th key={pkg.name} scope="col" className="pb-3 text-center font-normal">
                     <span className="font-mono text-foreground">{pkg.name}</span>
                     <span className="ml-1.5 font-mono">{pkg.version}</span>
                   </th>
@@ -150,7 +152,13 @@ export function FeatureTable({
                   <tr key={row.id} className="border-t align-top">
                     <th scope="row" className="py-3 pr-3 text-left align-top font-normal">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{row.label}</span>
+                        {/*
+                          break-keep(word-break: keep-all) — 좁은 기능명 열에서 줄바꿈이
+                          음절 단위(예: "로그"가 "로"/"그"로 분리)로 일어나던 문제(QA 피드백).
+                          한글은 기본적으로 음절 사이 어디서나 줄바꿈이 허용되는데, keep-all은
+                          공백(단어 경계)에서만 줄바꿈하게 한다.
+                        */}
+                        <span className="font-medium break-keep text-foreground">{row.label}</span>
                         {hasDetail && (
                           <button
                             type="button"
