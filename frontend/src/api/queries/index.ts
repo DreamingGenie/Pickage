@@ -16,6 +16,7 @@ import {
   fetchRemovalReasons,
   fetchTransitions,
   fetchVersionShare,
+  generateHandoff,
   generatePdf,
   postCommunityRefresh,
   startFeatureRun,
@@ -129,6 +130,15 @@ export function usePdfPreview(reportId: string | null) {
     gcTime: Infinity,
     retry: false,
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/** `useGeneratePdf`와 같은 이유로 `useMutation`이고 재시도하지 않는다. */
+export function useGenerateHandoff() {
+  return useMutation({ mutationFn: generateHandoff, retry: false })
 }
 
 /* ------------------------------------------------------------------ *

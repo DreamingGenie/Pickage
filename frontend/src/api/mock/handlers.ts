@@ -36,6 +36,8 @@ import {
   type PackageDictionary,
   type PackageOverview,
   type PackageSearchResponse,
+  type MarkdownGenerateRequest,
+  type MarkdownJob,
   type PackagesOverviewResponse,
   type PdfGenerateRequest,
   type PdfJob,
@@ -330,6 +332,37 @@ export function mockPdfPreview(reportId: string): Promise<string> {
   const html = mockPdfHtml.get(reportId)
   if (!html) fail('S001', '보고서가 만료되었습니다. 다시 만들어 주세요.')
   return delay(html as string)
+}
+
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `mockGeneratePdf`와 같은 검증·이름 처리를 쓴다. HAND-OFF는 구역 선택이 없어 항상 커뮤니티·
+ * 기능 심화 분석을 함께 시도한다고 가정한다 — `omitted`도 그 전제로 고정한다(mock은 실제
+ * 커뮤니티 자료를 흉내내지 않으므로 PDF mock과 같은 규칙: 커뮤니티는 채워진 것으로,
+ * 기능 심화 분석은 항상 자리만 있는 것으로 다룬다). 다운로드는 PDF와 같은 이유로 mock 분기가
+ * 없다 — 주소를 여는 일이라 실서버에서만 된다.
+ */
+export function mockGenerateHandoff(request: MarkdownGenerateRequest): Promise<MarkdownJob> {
+  const list = normalizeNames(request.names)
+  const { found } = split(list)
+  if (found.length === 0) {
+    fail('V001', '보고서를 만들 수 있는 패키지가 없습니다. 이름을 확인해 주세요.')
+  }
+
+  const names = found.map((p) => p.name)
+  const id = `mock-handoff-${names.join('-')}`
+  const fileName = `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.md`
+
+  return delay<MarkdownJob>({
+    report_id: id,
+    file_name: fileName,
+    bytes: 8_000 + names.length * 2_200,
+    created_at: new Date().toISOString(),
+    omitted: ['FEATURES'],
+  })
 }
 
 /** 서버 렌더러의 모양만 흉내낸다. 값은 지어낸 것이다. */
