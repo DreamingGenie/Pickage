@@ -66,6 +66,9 @@ class EventStore:
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.lock = threading.Lock()
         self.events: deque[dict] = deque(maxlen=max_events)
+        # 고리가 가득 차서 밀어낸 건수. deque 는 조용히 버리므로 여기서 세어 보고서에 싣는다 —
+        # 백필처럼 하루 2만 건을 넘기면 "24시간치" 가 거짓이 되는데 화면이 그걸 말해야 한다.
+        self.dropped = 0
         self.started_at = self.clock()
         self.buckets: dict[str, dict] = {}     # name → {connected, since, last_event, error, reconnects}
         self.gaps: list[dict] = []             # {bucket, from, to, error}
@@ -103,6 +106,8 @@ class EventStore:
     # ── 이벤트 ──────────────────────────────────────────────────
     def add(self, event: dict) -> None:
         with self.lock:
+            if len(self.events) == self.max_events:
+                self.dropped += 1
             self.events.append(event)
             state = self.bucket_state(event["bucket"])
             state["last_event"] = event["time"]
@@ -122,6 +127,7 @@ class EventStore:
             buckets = {name: dict(state) for name, state in self.buckets.items()}
             gaps = [dict(g) for g in self.gaps]
             discovery = dict(self.discovery)
+            dropped = self.dropped
         created = [e for e in events if e["created"]]
         # 경로별 집계 — 목록 조회의 prefixes 표와 같은 깊이 규칙이라 같은 눈으로 읽힌다.
         prefixes: dict[tuple[str, str], dict] = {}
@@ -150,6 +156,10 @@ class EventStore:
             "retention_hours": int(self.retention.total_seconds() // 3600),
             "held": len(events),
             "max_events": self.max_events,
+            # 한도에 닿았는가 · 밀어낸 건수 · 남아 있는 가장 오래된 것의 시각 — "실제로 몇 시간치인가" 는 oldest 가 답한다.
+            "full": len(events) >= self.max_events,
+            "dropped": dropped,
+            "oldest": _iso(events[0]["time"]) if events else None,
             "discovery": discovery,
             "buckets": {name: {"connected": s["connected"], "since": _iso(s["since"]),
                                "last_event": _iso(s["last_event"]), "error": s["error"],

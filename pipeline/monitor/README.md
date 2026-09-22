@@ -139,6 +139,7 @@ docker compose run --rm pipeline-monitor --once | less
   "minio": {
       "pointers": [{"bucket": "pickage-curated", "key": "…/_current.json", "modified": …, "value": {…}}],
       "events": {"listening_since": …, "retention_hours": 24, "held": 312, "max_events": 20000,
+                 "full": false, "dropped": 0, "oldest": …,   // 고리가 한도에 닿으면 full — 밀어낸 건수와 남은 가장 오래된 시각. 화면은 "보관 한도" 표지를 붙이고 개수가 실제보다 적다고 말한다
                  "discovery": {"pending": false, "error": null, "attempts": 1},   // pending 이면 버킷 목록을 아직 못 받아 구독이 하나도 없다 (MinIO 가 늦게 뜨는 중). 받을 때까지 5→60초로 재시도한다
                  "buckets": {"pickage-raw": {"connected": true, "since": …, "last_event": …, "error": null, "reconnects": 0, "events": 300}},
                  "gaps": [{"bucket": "pickage-raw", "from": …, "to": …, "error": "…"}],    // 끊겼던 구간

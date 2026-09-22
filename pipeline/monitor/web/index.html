@@ -526,18 +526,23 @@ function renderEvents(node, minio, now) {
   const completed = ev.completed || [];
   const prefixes = ev.prefixes || [];
   const connChip = disc.pending ? chip(conn, 'warn') : down.length ? chip(conn, 'warn') : buckets.length ? chip(conn, 'done') : chip(conn, 'muted');
+  // 고리 버퍼가 한도에 닿으면 오래된 것부터 조용히 버려진다 — 그러면 아래 숫자가 전부 실제보다 적다. 인벤토리의 "목록 잘림" 과 같은 잣대.
+  const full = ev.full || (ev.held >= ev.max_events);
+  const coverage = ev.oldest ? `${ago(ev.oldest, now).replace(/<[^>]+>/g, '').replace(' 전', '')}치` : `${ev.retention_hours}시간치`;
+  if (full) flag('warn', `${node}: MinIO 이벤트 버퍼가 한도(${num(ev.max_events)}건)에 닿아 오래된 것은 버려졌습니다${ev.dropped ? ` (지금까지 ${num(ev.dropped)}건)` : ''} — 지금 남은 것은 ${coverage}뿐이라 이 절의 개수·크기가 실제보다 적습니다. 백필 중이면 정상이고, 전체 개수는 "MinIO 전체 목록" 탭으로 봅니다. 계속 그러면 events_max 를 올립니다.`);
+  const fullChip = full ? chip('보관 한도', 'warn', `한도 ${num(ev.max_events)}건에 닿아 오래된 것은 버려졌습니다 (${num(ev.dropped || 0)}건)`) : '';
   const kpis = `<div class="kv">
-      <div><div class="k">완료 알림 (_SUCCESS)</div><div class="v ${completed.length ? 'newfg' : ''}">${num(completed.length)}<small>건</small></div><div class="n">켜진 뒤 ${ev.retention_hours}시간치</div></div>
-      <div><div class="k">새 객체</div><div class="v ${ev.totals.created ? 'newfg' : ''}">+${num(ev.totals.created)}</div><div class="n">${bytes(ev.totals.bytes)} · <a href="#${esc(node)}-prefixes" onclick="return goTo('${esc(node)}-prefixes')">${prefixes.length}개 경로</a>${ev.totals.removed ? ` · 삭제 ${num(ev.totals.removed)}` : ''}</div></div>
-      <div><div class="k">보관 중 이벤트</div><div class="v">${num(ev.held)}<small>건</small></div><div class="n">최대 ${num(ev.max_events)} · ${ago(ev.listening_since, now)}부터</div></div>
+      <div><div class="k">완료 알림 (_SUCCESS)</div><div class="v ${completed.length ? 'newfg' : ''}">${num(completed.length)}<small>건</small></div><div class="n">${full ? `남은 ${coverage} 안에서` : `켜진 뒤 ${ev.retention_hours}시간치`}</div></div>
+      <div><div class="k">새 객체</div><div class="v ${ev.totals.created ? 'newfg' : ''}">+${num(ev.totals.created)}</div><div class="n">${bytes(ev.totals.bytes)} · <a href="#${esc(node)}-prefixes" onclick="return goTo('${esc(node)}-prefixes')">${prefixes.length}개 경로</a>${ev.totals.removed ? ` · 삭제 ${num(ev.totals.removed)}` : ''}${full ? ' · <b class="newfg" style="color:var(--warn)">한도에 닿아 실제보다 적음</b>' : ''}</div></div>
+      <div><div class="k">보관 중 이벤트</div><div class="v" ${full ? 'style="color:var(--warn)"' : ''}>${num(ev.held)}<small>/ ${num(ev.max_events)}건</small></div><div class="n">${full ? `한도 — ${num(ev.dropped || 0)}건 버림 · 가장 오래된 것 ${ago(ev.oldest, now)}` : `${ev.retention_hours}시간 보관 · ${ago(ev.listening_since, now)}부터`}</div></div>
     </div>`;
   const body = `${kpis}${gapsHtml}
     <div class="bucket"><h3>완료 알림 <span>_SUCCESS 가 찍힌 실행 · ${completed.length}건</span></h3>
       ${completed.length ? `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>실행 경로</th><th>누가</th></tr></thead><tbody>${completed.slice(0, 50).map(e => `<tr><td class="r">${ago(e.time, now)}</td><td class="mono">${esc(e.bucket)}</td><td class="name mono">${esc(e.prefix)}</td><td class="mono">${esc(e.principal || '')}</td></tr>`).join('')}</tbody></table>` : empty('아직 없습니다. 회차가 끝나면 여기 뜹니다.')}</div>
     <div class="bucket"><h3>이벤트 흐름 <span>최근 ${recent.length}건</span></h3>
       ${recent.length ? evTable(head, now) + (rest.length ? `<details><summary>이전 ${rest.length}건</summary>${evTable(rest, now)}</details>` : '') : empty('아직 없습니다. 무언가 올라오면 15초 안에 보입니다.')}</div>`;
-  return card(`${node}-events`, 'MinIO · 방금 올라온 것', `${connChip} · <span title="${esc(local(ev.listening_since))}">${ago(ev.listening_since, now)}부터</span> 구독`, body,
-    { mark, help: `모니터가 켜진 뒤(${esc(local(ev.listening_since))})에 생긴 것만 여기 옵니다 — 버킷 이벤트 구독이라 목록 조회 비용이 없습니다. 경로별로 묶은 것은 "MinIO 경로별 신규" 탭, 그 전 상태는 "MinIO 전체 목록" 탭의 버튼으로 봅니다. 구독이 끊겼던 구간이 있으면 그 사이 것은 오지 않고, "끊겼던 구간" 으로 표시됩니다.` });
+  return card(`${node}-events`, 'MinIO · 방금 올라온 것', `${connChip}${fullChip} · <span title="${esc(local(ev.listening_since))}">${ago(ev.listening_since, now)}부터</span> 구독 · ${full ? `남은 ${coverage}` : `${ev.retention_hours}시간치`} ${num(ev.held)}건`, body,
+    { mark, help: `모니터가 켜진 뒤(${esc(local(ev.listening_since))})에 생긴 것만 여기 옵니다 — 버킷 이벤트 구독이라 목록 조회 비용이 없습니다. 보관은 ${ev.retention_hours}시간 또는 ${num(ev.max_events)}건 중 먼저 닿는 쪽까지이고, 건수 한도에 닿으면 오래된 것부터 버려져 "보관 한도" 표지가 붙고 이 절의 개수가 실제보다 적어집니다(백필 때 그렇습니다). 경로별로 묶은 것은 "MinIO 경로별 신규" 탭, 그 전 상태와 전체 개수는 "MinIO 전체 목록" 탭의 버튼으로 봅니다. 구독이 끊겼던 구간이 있으면 그 사이 것은 오지 않고, "끊겼던 구간" 으로 표시됩니다.` });
 }
 
 // ── MinIO · 경로별 신규 — 같은 이벤트를 경로(depth)로 묶은 것 ────────────
@@ -556,7 +561,9 @@ function renderPrefixes(node, minio, now) {
   const body = `${kpis}${prefixes.length
     ? `<table><thead><tr><th>버킷</th><th>경로</th><th class="r">객체</th><th class="r">크기</th><th class="r">최근</th></tr></thead><tbody>${rows}</tbody></table>`
     : empty('아직 없습니다. 무언가 올라오면 15초 안에 여기 묶여 보입니다.')}`;
-  return card(`${node}-prefixes`, 'MinIO · 경로별 신규', `켜진 뒤 ${ev.retention_hours}시간치 · ${ago(ev.listening_since, now)}부터`, body,
+  const full = ev.full || (ev.held >= ev.max_events);
+  return card(`${node}-prefixes`, 'MinIO · 경로별 신규',
+    `${full ? chip('보관 한도', 'warn', `이벤트 버퍼가 한도 ${num(ev.max_events)}건에 닿아 오래된 것은 버려졌습니다 — 아래 개수는 실제보다 적습니다`) + ' · 남은 것만 · 가장 오래된 것 ' + ago(ev.oldest, now) : `켜진 뒤 ${ev.retention_hours}시간치 · ${ago(ev.listening_since, now)}부터`}`, body,
     { help: '"MinIO 신규" 탭의 이벤트를 경로(raw·curated 는 스냅샷·수집일까지 4단계, 나머지는 3단계)로 묶어 어느 데이터셋·어느 실행에 무엇이 얼마나 생겼는지 봅니다. 경로를 펼치면 그 아래 최근 객체가 있습니다. 모니터가 켜지기 전 것까지 세려면 "MinIO 전체 목록" 탭입니다.' });
 }
 

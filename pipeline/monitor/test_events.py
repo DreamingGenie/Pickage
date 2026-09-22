@@ -57,6 +57,15 @@ class StoreTest(unittest.TestCase):
         snap = self.store.snapshot()
         self.assertEqual(snap["held"], 5)                                   # maxlen 5 — old 는 밀려났다
         self.assertNotIn("old", [e["key"] for e in snap["recent"]])
+        # 조용히 버리지 않는다 — 한도에 닿았고 2건(old, k0)을 밀어냈다고 말한다. 남은 가장 오래된 것은 k1.
+        self.assertTrue(snap["full"])
+        self.assertEqual(snap["dropped"], 2)
+        self.assertEqual(snap["oldest"], (T0 - timedelta(minutes=5)).isoformat(timespec="seconds"))
+
+    def test_not_full_reports_no_drop(self):
+        self.add("a"); self.add("b")
+        snap = self.store.snapshot()
+        self.assertEqual((snap["full"], snap["dropped"], snap["held"]), (False, 0, 2))
 
     def test_connection_state_and_gaps(self):
         self.store.mark_disconnected("pickage-raw", "refused")
