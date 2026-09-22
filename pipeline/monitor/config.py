@@ -38,7 +38,8 @@ class MinioSettings:
     buckets: list[str] = field(default_factory=list)   # 비우면 계정이 볼 수 있는 전부
     depth: int = 3
     depth_overrides: dict[str, int] = field(default_factory=dict)
-    max_objects: int = 300_000
+    # 전체 목록 상한. 컨테이너 mem_limit 과 짝이다 — 객체당 262 B(실측), 15만 = 피크 40 MiB. 근거는 data/pipeline-monitor.yaml.
+    max_objects: int = 150_000
     new_window_hours: int = 24
     recent_per_prefix: int = 20
     # 버킷 이벤트 구독 (events.py). 켜진 뒤의 것을 retention 시간만큼 메모리에 든다.

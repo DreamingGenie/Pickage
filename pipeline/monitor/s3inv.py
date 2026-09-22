@@ -19,7 +19,7 @@ SUCCESS = "_SUCCESS"
 POINTER = "_current.json"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)   # slots — 전체 목록은 이 객체를 수십만 개 든다. __dict__ 를 빼면 객체당 약 100 B 준다
 class Obj:
     key: str
     size: int

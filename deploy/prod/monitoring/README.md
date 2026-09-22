@@ -958,7 +958,7 @@ curl -s 'http://127.0.0.1:19998/api/report?node=data' | grep -o '"fetched_via": 
 | data 노드 logs 에 `AccessDenied` | 계정·정책이 안 맞는다 | `../data/README.md` 의 확인 6줄을 돌린다 |
 | `docker` 절이 `Permission denied` | `.env` 의 `DOCKER_GID` 가 틀렸다 | `getent group docker` 값으로 고치고 `up -d` |
 | `docker` 절이 `client version 1.xx is too old` | 서버 Docker 데몬이 최소 API 1.44 를 요구해 옛 코드의 `v1.41` 접두사를 거절한다 (2026-09-21 두 노드 다 났다) | 코드가 이제 접두사 없이 부른다. 이 메시지가 보이면 그 노드의 `pipeline/` 체크아웃이 옛것이다 — `git pull` 후 `restart pipeline-monitor` |
-| 버킷 표에 "목록 잘림" | `max_objects` 초과 | `pipeline-monitor.yaml` 의 값을 올린다 (메모리 상한도 같이 본다) |
+| 버킷 표에 "목록 잘림" | `max_objects`(15만) 초과 | `pipeline-monitor.yaml` 의 값을 올리고 **compose 의 `mem_limit` 도 같이** — +10만 객체마다 +26 MiB (객체당 262 B 실측). 스왑 0 이라 상한을 넘기면 잘림 표시 대신 OOM Kill 이다 |
 | "전체 목록 조회" 가 오래 걸린다 | 버킷을 통째로 나열한다 (객체 1,000개당 요청 하나) | 그게 맞다. 평소 화면은 이벤트라 이 비용이 없다 |
 | "방금 올라온 것" 이 비어 있다 | 구독이 안 걸렸거나(로그에 `구독 시작` 이 없다), 켜진 뒤 실제로 아무것도 안 올라왔다 | `docker compose logs pipeline-monitor` · 회차가 돌면 15초 안에 찬다 |
 | 화면에 "버킷 목록 대기 중 (구독 전)" | MinIO 가 모니터보다 늦게 뜨는 중이거나(노드 재부팅 직후 — 두 스택은 별개 compose 라 순서가 없다) 계정에 `ListAllMyBuckets` 가 없다 | 기다린다 — 목록을 받을 때까지 5→60초로 재시도하고 받으면 저절로 붙는다. 몇 분 뒤에도 그대로면 로그의 `버킷 목록을 못 받아` 줄의 이유를 본다 |

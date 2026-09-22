@@ -102,7 +102,7 @@ docker compose run --rm pipeline-monitor --once | less
 | `minio.inventory` | 전체 목록 조회 버튼을 받는가. data 만 |
 | `minio.buckets` | 비우면 계정이 보는 전부. 구독과 목록에 같이 쓴다 |
 | `minio.depth` · `depth_overrides` | 경로 집계 깊이. raw·curated 는 4 (스냅샷·수집일까지). 이벤트 집계도 같은 규칙 |
-| `minio.max_objects` | 전체 목록이 넘기면 멈추고 `truncated` 를 켠다 — 화면이 "잘렸다" 고 말한다 |
+| `minio.max_objects` | 전체 목록이 넘기면 멈추고 `truncated` 를 켠다 — 화면이 "잘렸다" 고 말한다. 컨테이너 `mem_limit` 과 짝: 객체당 262 B(2026-09-22 tracemalloc 실측), 15만 = 피크 40 MiB. 올리면 +10만마다 +26 MiB 로 `mem_limit` 도 올린다 — 스왑 0 이라 넘기면 truncated 가 켜지기 전에 OOM 이다 |
 | `minio.pointers` | 읽을 `_current.json` 들 (`bucket/key`) |
 | `minio.curated` · `curated_bucket` · `curated_max_runs` | Curated 전처리 회차 절. data 만. 회차당 GET 2 (디스패처 상태 + 실행기 상태) |
 | `local.paths` · `log_globs` | 훑을 호스트 경로(컨테이너 안 경로 + 사람용 라벨)와 로그 패턴. 경로마다 `refresh_seconds`(0 = 보고서마다. 파일이 수십만 개인 캐시는 600 처럼 주기를 준다 — 그 사이는 마지막 결과를 `cached: true` 로 낸다. "지금 확인" 은 바로 훑는다)와 `note`(화면 머리 한 줄) |
