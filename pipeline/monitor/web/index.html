@@ -710,12 +710,19 @@ function renderDocker(node, docker, now) {
   const mark = findings.length;
   let running = 0, sickCount = 0;
   const rows = (docker.containers || []).map(c => {
+    // state 를 먼저 본다. paused · created · dead 도 ExitCode 는 0 이라 종료 코드로 가르면 "끝남 (0)" = 정상으로 새어 나간다.
+    //   running / restarting / paused / created / removing / exited / dead — Docker State.Status 의 일곱 값
     const up = c.state === 'running';
     let sick = false, st;
     if (c.state === 'restarting') { sick = true; st = chip('재시작 반복', 'bad'); flag('bad', `${node}: ${c.name} 가 계속 재시작하고 있습니다.`); }
+    else if (c.state === 'paused') { sick = true; st = chip('일시 중지', 'bad'); flag('bad', `${node}: ${c.name} 가 docker pause 로 멈춰 있습니다 — 살아 있는 것처럼 보이지만 아무 일도 하지 않습니다. docker unpause.`); }
+    else if (c.state === 'dead') { sick = true; st = chip('죽음 (dead)', 'bad'); flag('bad', `${node}: ${c.name} 가 dead 상태입니다 — 데몬이 정리하지 못한 컨테이너. docker rm 뒤 다시 up.`); }
+    else if (c.state === 'created') { sick = true; st = chip('시작 안 됨', 'warn'); flag('warn', `${node}: ${c.name} 가 만들어졌지만 시작되지 않았습니다 — compose up 이 중간에 실패했거나 의존 컨테이너를 기다리다 멈춘 것. docker compose up -d 를 다시.`); }
+    else if (c.state === 'removing') st = chip('지우는 중', 'muted');
     else if (up) { running++; st = chip(c.health === 'unhealthy' ? '비정상' : c.health === 'healthy' ? '실행 중 · 건강' : '실행 중', c.health === 'unhealthy' ? 'bad' : 'ok'); }
-    else if (c.exit_code === 0) st = chip('끝남 (0)', 'done');
-    else { sick = true; st = chip(`끝남 (${c.exit_code})`, 'warn'); flag('warn', `${node}: ${c.name} 가 종료 코드 ${c.exit_code} 로 끝났습니다 (${ago(c.finished_at, now).replace(/<[^>]+>/g, '')}).`); }
+    else if (c.state === 'exited' && c.exit_code === 0) st = chip('끝남 (0)', 'done');
+    else if (c.state === 'exited') { sick = true; st = chip(`끝남 (${c.exit_code})`, 'warn'); flag('warn', `${node}: ${c.name} 가 종료 코드 ${c.exit_code} 로 끝났습니다 (${ago(c.finished_at, now).replace(/<[^>]+>/g, '')}).`); }
+    else { sick = true; st = chip(`상태 ${c.state || '?'}`, 'warn'); flag('warn', `${node}: ${c.name} 의 상태가 "${c.state}" 입니다 — 화면이 모르는 값. docker inspect 로 봅니다.`); }
     if (c.oom_killed) { sick = true; flag('bad', `${node}: ${c.name} 가 OOM 으로 죽었습니다 — mem_limit 을 보세요.`); }
     if (c.health === 'unhealthy') flag('bad', `${node}: ${c.name} healthcheck 실패.`);
     const log = c.log || {};
@@ -735,7 +742,7 @@ function renderDocker(node, docker, now) {
     : empty('걸리는 컨테이너가 없습니다.');
   return card(`${node}-docker`, `컨테이너·로그 · ${esc(node)}`,
     `${total}개 중 실행 중 <b>${running}</b>${sickCount ? ` · 이상 <b style="color:var(--bad)">${sickCount}</b>` : ''} · 멈춘 것 포함, 모니터링 스택 자신은 제외`,
-    body, { mark, help: '"끝남 (0)" 은 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 0 이 아닌 종료 코드·OOM·재시작 반복·healthcheck 실패만 판정에 올라옵니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다 — 늘어나는지를 보세요. 로그의 빨간 줄은 error·exception·oom 같은 단어가 있는 줄입니다.' });
+    body, { mark, help: '"끝남 (0)" 은 <b>exited 상태에 종료 코드 0</b> 인 것만이고 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 같은 종료 코드 0 이라도 <b>일시 중지(paused)</b>·<b>시작 안 됨(created)</b>·<b>죽음(dead)</b> 은 따로 표시되고 판정에 올라옵니다. 0 이 아닌 종료 코드·OOM·재시작 반복·healthcheck 실패도 판정 대상입니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다 — 늘어나는지를 보세요. 로그의 빨간 줄은 error·exception·oom 같은 단어가 있는 줄입니다.' });
 }
 
 // ── 노드 하나 ───────────────────────────────────────────────────────────
