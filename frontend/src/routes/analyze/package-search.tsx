@@ -4,8 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { usePackageAutocomplete } from '@/api/autocomplete'
 import { cn } from '@/lib/utils'
 
-/** npm 패키지 이름 최대 길이(scope 포함). 이보다 긴 입력은 어차피 존재할 수 없다. */
-export const PACKAGE_NAME_MAX = 214
+const MAX_PACKAGE_SEARCH_LENGTH = 300
 
 /**
  * 패키지명 검색창.
@@ -53,7 +52,7 @@ export function PackageSearch({
   invalid?: boolean
   /** 오류 문구 요소 id. `aria-describedby` 로 연결한다. */
   describedBy?: string
-  /** 입력창 아래에 글자 수(`N / 214자`)를 보여 준다. 길이 제한이 있다는 걸 미리 알린다. */
+  /** 입력창 아래에 글자 수(`N / 300자`)를 보여 준다. 길이 제한이 있다는 걸 미리 알린다. */
   showCount?: boolean
 }) {
   const listId = useId()
@@ -125,6 +124,7 @@ export function PackageSearch({
       )}
       <input
         value={value}
+        maxLength={MAX_PACKAGE_SEARCH_LENGTH}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
@@ -142,7 +142,6 @@ export function PackageSearch({
         aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
-        maxLength={PACKAGE_NAME_MAX}
         spellCheck={false}
         autoComplete="off"
         className={cn(
@@ -209,7 +208,7 @@ export function PackageSearch({
       )}
       {showCount && (
         <p className="mt-1.5 text-right text-sm text-muted-foreground tabular-nums">
-          {value.length} / {PACKAGE_NAME_MAX}자
+          {value.length} / {MAX_PACKAGE_SEARCH_LENGTH}자
         </p>
       )}
     </div>

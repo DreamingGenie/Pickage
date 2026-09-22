@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListEveryBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::*"]
+    },
+    {
+      "Sid": "ListenForNewObjects",
+      "Effect": "Allow",
+      "Action": ["s3:ListenBucketNotification"],
+      "Resource": ["arn:aws:s3:::*"]
+    },
+    {
+      "Sid": "ReadPointersAndOps",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::pickage-raw/_ops/*",
+        "arn:aws:s3:::pickage-curated/_ops/*",
+        "arn:aws:s3:::pickage-curated/depsdev/v1/curated-bundle/*/status.json",
+        "arn:aws:s3:::*/_current.json"
+      ]
+    }
+  ]
+}

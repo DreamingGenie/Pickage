@@ -193,6 +193,7 @@ class CommunityAcceptanceIntegrationTest {
                                         + " dependent_transition, package_env,"
                                         + " similar_package,"
                                         + " package_version_snapshot, package_snapshot,"
+                                        + " available_package,"
                                         + " version, package"));
     }
 

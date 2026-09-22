@@ -673,7 +673,7 @@ public class PackageQueryRepository {
 	 * ------------------------------------------------------------------ */
 
 	/**
-	 * 명세 §2.4 — 접두사 검색.
+	 * §2.4 — available_package에 등록된 이름의 포함 검색.
 	 *
 	 * <p>{@code downloads} 는 <b>정렬에만</b> 쓰고 반환하지 않는다. 이름만 돌려줘야 사전 파일과
 	 * 형태가 같아 클라이언트가 두 결과를 그대로 합칠 수 있다.
@@ -683,8 +683,8 @@ public class PackageQueryRepository {
 	 * {@code fooXbar} 도 걸린다. 검색 결과가 조용히 넓어지는 쪽이라 눈에 잘 안 띈다.
 	 * 이스케이프 자체는 {@link #escapeLikePrefix} 가 붙인다.
 	 *
-	 * <p>{@code idx_package_name_prefix}({@code text_pattern_ops})가 없으면 이 조회는
-	 * 순차 스캔이 된다 — 기본 collation 에서 {@code LIKE 'q%'} 는 일반 B-tree 를 타지 않는다.
+	 * <p>완전 일치, 접두사 일치, 중간 포함 순으로 정렬하고 같은 그룹은 다운로드 순으로 정렬한다.
+	 * 포함 검색은 기존 package 이름의 접두사 인덱스를 이용하지 않으므로 운영 성능은 별도 확인한다.
 	 *
 	 * <p><b>{@code package_snapshot} 을 {@code JOIN}(inner)으로 건다.</b> {@code package} 는
 	 * deps.dev 전체 카탈로그(약 1,100만 행)라 스냅샷 없는 이름이 훨씬 많다. 스냅샷이 없으면
@@ -693,23 +693,36 @@ public class PackageQueryRepository {
 	 * JOIN} 이던 시절엔 이런 이름도 그대로 나갔다.
 	 */
 	private static final String SEARCH_SQL = """
-		SELECT p.name
-		FROM package p
+		SELECT p.package_name
+		FROM available_package p
 		JOIN package_snapshot ps
-		     ON ps.package_id = p.package_id
-		    AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
-		WHERE p.name LIKE ? ESCAPE '\\'
-		ORDER BY ps.downloads DESC NULLS LAST, p.name
+			ON ps.package_id = p.package_id
+			AND ps.snapshot_at = (SELECT MAX(snapshot_at) FROM snapshot)
+		WHERE p.package_name LIKE ? ESCAPE '\\'
+		ORDER BY
+			CASE
+				WHEN p.package_name = ? THEN 0
+				WHEN p.package_name LIKE ? ESCAPE '\\' THEN 1
+				ELSE 2
+			END,
+			ps.downloads DESC NULLS LAST,
+			p.package_name
 		LIMIT ?
 		""";
 
-	public List<String> searchNames(String prefix, int limit) {
-		return jdbcTemplate.query(SEARCH_SQL,
+	public List<String> searchNames(String keyword, int limit) {
+		String escapedKeyword = escapeLikePrefix(keyword);
+
+		return jdbcTemplate.query(
+			SEARCH_SQL,
 			ps -> {
-				ps.setString(1, escapeLikePrefix(prefix) + "%");
-				ps.setInt(2, limit);
+				ps.setString(1, "%" + escapedKeyword + "%"); // 중간 포함
+				ps.setString(2, keyword);                    // 완전 일치
+				ps.setString(3, escapedKeyword + "%");       // 접두사 일치
+				ps.setInt(4, limit);
 			},
-			(rs, i) -> rs.getString("name"));
+			(rs, i) -> rs.getString("package_name")
+		);
 	}
 
 	/**

@@ -10,6 +10,19 @@
     python -m pipeline.duckdb.build_package_env \\
       --collected-date 2026-09-16 --run-id registry-20260916-v1
 
+**회차를 여럿 줄 수 있다.** 대상 목록을 나눠 여러 번에 걸쳐 수집했으면 한 표를 만들려고
+둘 이상을 같이 읽어야 한다. `--collected-date` 와 `--run-id` 를 같은 수만큼 반복해 적으면
+앞에서부터 짝지어진다 (S15P21A506-452: 상위 10만 + 추가분 36.9만 = 46.9만).
+
+    python -m pipeline.duckdb.build_package_env \\
+      --collected-date 2026-09-16 --run-id registry-20260916-v1 \\
+      --collected-date 2026-09-22 --run-id registry-20260922-additions-v1
+
+회차가 둘 이상이면 `(Name, Version)` 이 겹치는지 보고 겹치면 멈춘다. `package_env` 의 PK 가
+`(package_id, version)` 이라 그냥 두면 적재에서 막히는데, 그때는 어느 회차가 겹쳤는지
+알아내기가 훨씬 번거롭다. 회차가 하나면 이 검사를 하지 않는다 — 수집기 체크포인트의 PK 가
+패키지 이름이라 한 회차 안에서는 겹칠 수 없고, 검사 비용만 든다.
+
 **회차를 사람이 명시한다.** 최신 폴더를 자동으로 집지 않는다 — 형태 6열은 09-16 회차부터
 들어갔고, 그 전 회차(09-09)에는 키 자체가 없어 전 행이 NULL 인 표가 조용히 만들어진다.
 `pipeline/dependent_transitions/load.py` 가 `_current.json` 을 안 따라가는 것과 같은 이유다.
@@ -55,6 +68,16 @@ import json
 from pathlib import Path
 import re
 import sys
+
+try:
+    # Windows 에서 stdout 이 콘솔이 아니면(파이프·파일) 인코딩이 cp949 로 정해져,
+    # 거기 없는 글자 하나에 출력이 UnicodeEncodeError 로 죽는다. 이 파일의 오류 메시지와
+    # --help 에 em dash 가 있어서 실제로 --help 조차 트레이스백으로 끝났다.
+    # 수집기(collectors/registry/collect.py)와 적재기가 같은 이유로 같은 것을 한다.
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 
 ROOT = Path(__file__).resolve().parents[2]
 BUCKET = 'pickage-raw'
@@ -161,8 +184,16 @@ def pull_run(s3, collected_date: str, run_id: str) -> Path:
 
 
 # 받은 part 가 끝까지 읽히는지 본다. 잘린 gz 를 DuckDB 에 넘기면 어디서 멈췄는지 안 알려 준다.
-def check_parts(target: Path) -> int:
-    parts = sorted(target.rglob('part-*.jsonl.gz'))
+def check_parts(targets: list[Path]) -> int:
+    parts = []
+    for target in targets:
+        found = sorted(target.rglob('part-*.jsonl.gz'))
+        # 회차가 여럿이면 폴더 이름을 잘못 적는 실수가 현실적으로 생긴다. 비어 있는 채로
+        # 넘어가면 그 회차만 조용히 빠진 표가 나오거나 build 가 IndexError 로 죽는데,
+        # 둘 다 어느 폴더가 문제인지 말해 주지 않는다.
+        if not found:
+            raise SystemExit(f'part 파일이 없다: {target} — 회차 폴더 이름을 확인할 것')
+        parts += found
     for path in parts:
         try:
             with gzip.open(path, 'rb') as f:
@@ -174,11 +205,16 @@ def check_parts(target: Path) -> int:
 
 
 # 판정해서 parquet 으로 쓰고 분포를 찍는다.
-def build(target: Path, out: Path, memory: str) -> int:
+def build(targets: list[Path], out: Path, memory: str) -> int:
     import duckdb
 
-    parts = sorted(target.rglob('part-*.jsonl.gz'))
-    glob = (target / '**' / 'part-*.jsonl.gz').as_posix()
+    globs = [(target / '**' / 'part-*.jsonl.gz').as_posix() for target in targets]
+    # 상대 경로로 받으면 아래 relative_to 가 ValueError 를 낸다. parquet 을 다 쓰고 나서
+    # 통계를 찍다가 죽으므로 산출물은 멀쩡한데 분포를 못 본다. 여기서 절대 경로로 맞춘다.
+    # resolve() 가 아니라 absolute() 다 — 작업 트리의 data/ 가 주 트리를 가리키는
+    # 정션일 때 resolve() 는 링크를 풀어 리포 밖 경로로 바꿔 버리고, 그러면 같은
+    # 자리에서 또 죽는다.
+    out = out.absolute()
     out.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
 
@@ -191,11 +227,18 @@ def build(target: Path, out: Path, memory: str) -> int:
 
     # 6열이 있는 회차인지 파일 하나로 본다. 전체를 추론시키면 4,000개 파일의 스키마를
     # 한꺼번에 들고 있어야 해서 읽기도 전에 메모리가 터진다 (실측: 988 MB 회차에서 OOM).
-    sample = {r[0] for r in con.execute(
-        f"DESCRIBE SELECT * FROM read_json_auto('{parts[0].as_posix()}')").fetchall()}
-    missing = [c for c in ('module_type', 'types', 'exports') if c not in sample]
-    if missing:
-        raise SystemExit(f'형태 6열이 없는 회차다: {missing} 없음. 09-16 이후 회차를 쓸 것')
+    #
+    # **회차마다 본다.** 첫 회차만 보고 넘어가면 09-16 뒤에 09-09 를 붙였을 때 앞의 것만
+    # 통과하고, 뒤 회차의 행은 여섯 열이 전부 NULL 인 채 섞여 들어간다. 그러면 그 패키지들이
+    # 통째로 CJS·타입 없음으로 떨어지는데, 오류가 아니라 값으로 보여서 아무도 못 알아챈다.
+    for target in targets:
+        first = sorted(target.rglob('part-*.jsonl.gz'))[0]
+        sample = {r[0] for r in con.execute(
+            f"DESCRIBE SELECT * FROM read_json_auto('{first.as_posix()}')").fetchall()}
+        missing = [c for c in ('module_type', 'types', 'exports') if c not in sample]
+        if missing:
+            raise SystemExit(f'형태 6열이 없는 회차다: {target} 에 {missing} 없음. '
+                             '09-16 이후 회차를 쓸 것')
 
     # 열을 못 박는다. 추론을 안 시키려는 것이고, 쓰지 않는 열(DevDependencies·
     # unpacked_size·deprecated 등)은 아예 읽지 않아 그만큼 덜 든다.
@@ -207,7 +250,8 @@ def build(target: Path, out: Path, memory: str) -> int:
     # 문자열**이라(수집기가 그렇게 적는다), JSON 으로 읽으면 한 겹 더 이스케이프돼
     # "import" 가 \"import\" 가 된다. 그러면 듀얼 판정이 한 건도 안 잡힌다 —
     # 실측으로 5,000행에서 11건이 0건이 됐다.
-    con.execute(f"""CREATE VIEW raw AS SELECT * FROM read_json('{glob}',
+    sources = ', '.join(f"'{g}'" for g in globs)
+    con.execute(f"""CREATE VIEW raw AS SELECT * FROM read_json([{sources}],
         format='newline_delimited',
         columns={{
             'Name': 'VARCHAR', 'Version': 'VARCHAR',
@@ -215,12 +259,33 @@ def build(target: Path, out: Path, memory: str) -> int:
             'module_type': 'VARCHAR', 'types': 'VARCHAR', 'exports': 'VARCHAR'
         }})""")
 
+    # 회차를 여럿 읽었을 때만 본다. 한 회차 안에서는 수집기 체크포인트의 PK 가 패키지
+    # 이름이라 겹칠 수 없어서, 회차가 하나면 2,000만 행 GROUP BY 를 공짜로 하지 않는다.
+    #
+    # **쓰기 전에 본다.** parquet 을 먼저 쓰고 검사하면, 겹쳤을 때 --out 자리에 실패한
+    # 산출물이 성공한 것과 구분되지 않는 채로 남는다. 판정 전 raw 를 보는 것이라 JUDGE 를
+    # 한 번 더 돌리지도 않는다 — Name·Version 두 열만 읽으면 되니 원본을 한 번 더 훑는
+    # 값만 든다.
+    if len(targets) > 1:
+        dups = con.execute("""SELECT count(*) FROM (
+            SELECT 1 FROM raw GROUP BY Name, Version HAVING count(*) > 1)""").fetchone()[0]
+        if dups:
+            raise SystemExit(
+                f'(Name, Version) 이 {dups:,} 쌍 겹친다. 회차 둘이 같은 패키지를 담고 있다 — '
+                'package_env 의 PK 가 (package_id, version) 이라 적재에서 막힌다. '
+                '회차 선택을 확인할 것')
+
     con.execute(f"CREATE VIEW judged AS {JUDGE}")
     con.execute(f"""COPY (SELECT * FROM judged ORDER BY Name, Version)
                     TO '{out.as_posix()}' (FORMAT PARQUET, COMPRESSION zstd)""")
 
     rows = con.execute('SELECT count(*) FROM judged').fetchone()[0]
-    print(f'\n  {rows:,} 행 -> {out.relative_to(ROOT)}'
+    # 표시일 뿐이라 여기서 죽지 않게 한다. --out 을 리포 밖으로 줄 수도 있다.
+    try:
+        shown = out.relative_to(ROOT)
+    except ValueError:
+        shown = out
+    print(f'\n  {rows:,} 행 -> {shown}'
           f' ({out.stat().st_size / 1e6:.1f} MB)')
     print('\n  [module_format]')
     for value, n in con.execute(
@@ -240,27 +305,46 @@ def build(target: Path, out: Path, memory: str) -> int:
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--collected-date', required=True, help='예: 2026-09-16')
-    parser.add_argument('--run-id', required=True, help='예: registry-20260916-v1')
-    parser.add_argument('--raw', type=Path,
-                        help='이미 받아 둔 회차 폴더. 주면 MinIO 를 보지 않는다')
+    # 회차를 여럿 주려면 둘을 같은 수만큼 반복한다. 앞에서부터 짝지어진다.
+    parser.add_argument('--collected-date', action='append', default=[], metavar='날짜',
+                        help='예: 2026-09-16. --run-id 와 같은 수만큼 반복할 수 있다')
+    parser.add_argument('--run-id', action='append', default=[], metavar='회차',
+                        help='예: registry-20260916-v1')
+    parser.add_argument('--raw', type=Path, nargs='+', metavar='폴더',
+                        help='이미 받아 둔 회차 폴더들. 주면 MinIO 를 보지 않는다')
     parser.add_argument('--out', type=Path, default=OUT)
     parser.add_argument('--memory', default='6GB',
                         help='DuckDB 상한. 넘으면 --out 옆 tmp/ 로 흘린다')
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    # 짝이 어긋나면 zip 이 조용히 짧은 쪽에서 끊는다. 회차 하나가 소리 없이 빠지는 것이
+    # 이 파이프라인에서 가장 비싼 실수라 여기서 막는다.
+    if len(args.collected_date) != len(args.run_id):
+        parser.error(f'--collected-date 가 {len(args.collected_date)}개, '
+                     f'--run-id 가 {len(args.run_id)}개다. 같은 수여야 짝이 맞는다')
+    if not args.raw and not args.collected_date:
+        parser.error('--collected-date 와 --run-id 짝, 또는 --raw 중 하나는 있어야 한다')
+    # 둘을 같이 주면 main 이 --raw 를 먼저 보고 날짜·회차를 버린다. 그러면 지정한 회차를
+    # MinIO 에서 받아 온 줄 알지만 실제로는 손으로 적은 폴더가 표가 된다 — 회차가 소리 없이
+    # 바뀌는 것이라 위의 짝 검증과 같은 이유로 막는다.
+    if args.raw and args.collected_date:
+        parser.error('--raw 와 --collected-date/--run-id 는 같이 줄 수 없다. '
+                     '--raw 를 주면 MinIO 를 보지 않아 회차 지정이 무시된다')
+    return args
 
 
 def main(argv=None) -> int:
     args = parse_args(argv)
     if args.raw:
-        target = args.raw
-        print('  받아 둔 폴더를 그대로 쓴다. 완료 확인을 건너뛴다')
+        targets = list(args.raw)
+        print(f'  받아 둔 폴더 {len(targets)}개를 그대로 쓴다. 완료 확인을 건너뛴다')
     else:
         from pipeline.minio.ingest_raw import client
-        target = pull_run(client(), args.collected_date, args.run_id)
+        s3 = client()
+        targets = [pull_run(s3, date, run_id)
+                   for date, run_id in zip(args.collected_date, args.run_id)]
 
-    print(f'  part 검사 {check_parts(target)}개 모두 온전함')
-    build(target, args.out, args.memory)
+    print(f'  part 검사 {check_parts(targets)}개 모두 온전함')
+    build(targets, args.out, args.memory)
     return 0
 
 

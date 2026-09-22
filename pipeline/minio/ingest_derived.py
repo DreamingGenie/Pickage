@@ -47,6 +47,20 @@ BUCKET = 'pickage-curated'
 #                second collection date sitting in the same folder joins this run.
 #   object_name  fixed name under data/. Only for a consumer that hardcodes it.
 #   pointer      publish _current.json at the prefix root.
+#   dataset_name name written into the manifest's `dataset`, when it differs from the
+#                key here. For a run that **supersedes** another one rather than sitting
+#                beside it: the target list widened, it replaces the same table whole,
+#                and its loader compares the manifest against one constant
+#                (pipeline/dependent_transitions/load.py DATASET, which is also the
+#                primary key of etl_dataset_current - one row per dataset). Two keys are
+#                still needed because root, source and notes differ per run; only the
+#                name they share is borrowed. Leave it out unless a loader demands it.
+#
+#                Two entries then share one prefix, so pairing the wrong --dataset with
+#                the other's --run-id lands on objects built from a different root. That
+#                refuses rather than overwrites - the GET check finds a digest the local
+#                file does not have - but it says 'Remote checksum mismatch', which does
+#                not say why. Keep each entry's run IDs naming its own run.
 DATASETS = {
     'dependent-transitions': {
         'root': 'data/dependent_transitions',
@@ -84,6 +98,64 @@ DATASETS = {
             '상위 5,000 대상만 담은 요약 CSV·stats.json 은 git'
             ' datasets/dependent_transitions_260917/ 에 있어 여기 올리지 않음.'
             ' 전량 899,964행은 이 parquet 에만 있다.',
+        ],
+    },
+    'dependent-transitions-exp460k': {
+        # 대상 목록을 468,519 로 넓힌 회차다. **기존 prefix 에 run_id 로 들어간다** —
+        # package-dependents-candidate-pool 과 달리 이 회차는 앞 회차 옆에 서는 것이 아니라
+        # 그것을 대체한다. dependent_transition 을 전량 교체하고 etl_dataset_current 의
+        # 그 한 행이 이것을 가리키므로, 버킷에서만 이름을 갈라 두면 적재기가 찾지 못한다.
+        # 항목을 따로 만드는 것은 root·source·notes 가 회차마다 달라야 하기 때문이고,
+        # manifest 의 dataset 이름만 dataset_name 으로 빌려 쓴다.
+        'root': 'data/dependent_transitions_exp460k_260922',
+        'prefix': 'depsdev/v1/dependent-transitions',
+        'dataset_name': 'dependent-transitions',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_dependent_transitions.py'
+                   ' --targets datasets/targets/expanded_468k_20260922.csv'
+                   ' --label exp460k_260922',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)'
+                  ' + datasets/targets/expanded_468k_20260922.csv (확장 대상 목록 468,519)',
+        'readme': 'datasets/dependent_transitions_exp460k_260922/README.md',
+        'jira': ['S15P21A506-454', 'S15P21A506-195'],
+        'notes': [
+            '같은 버킷 depsdev/v1/dependent-transitions/ 의 앞 회차'
+            '(run_id=dependent-transitions-20260921-v1)와 **대상 목록만 다르고 계산은 같다.**'
+            ' 스냅샷·구간·열 15개가 모두 같다. (period, target, kind) 1행 4,216,671 ='
+            ' 대상 468,519 × regular/peer/optional × 1y/3y/5y.',
+            '겹치는 상위 10 만 대상의 값은 **한 행도 다르지 않다.** 앞 회차 899,964행을 열 15개'
+            ' 그대로 양방향 EXCEPT ALL 로 대조해 차이 0 을 확인했다 — 계산이 같으므로 같아야'
+            ' 하는 값이다. download_rank·in_top100k 도 대상 목록과 무관하게 언제나'
+            ' datasets/targets/rank_top100k_20260902.csv 에서 조인해 오므로 같다.',
+            '넓힌 368,523 개 중 네 수가 하나라도 0 이 아닌 것은 112,661 개(30.6%)다. 나머지'
+            ' 255,862 개는 행은 있으나 전부 0 이다 — 조회 실패가 아니라 dependent 가 없는'
+            ' 것이고, 앞 회차에서는 그 구분조차 할 수 없었다(범위 밖).',
+            '범주가 넷인 것이 이 데이터셋의 핵심이다. unobserved(관측 불가)는 양 끝에 선언이'
+            ' 있는데 구간 안에 대표 릴리스가 바뀌지 않은 것 — 변할 기회 자체가 없었다.'
+            ' **유지로 세면 안 된다.** 1년 구간에서 전체의 76.3%가 여기 들어가고, 유지로'
+            ' 세면 유지율이 87.4% 가 아니라 98.9% 로 보인다.',
+            'inflow_new 는 inflow 의 부분집합이다. T1 때 아직 없던 패키지의 유입이라'
+            ' 채택이 아니라 생태계 성장이다. 1년 구간에서 유입 2,340,929 중 2,191,355(93.6%)'
+            ' 가 신생이라, 둘을 합쳐 읽으면 성장이 채택으로 둔갑한다.',
+            'devDependencies 는 원천(NPMRequirements)에 없다. eslint·jest·prettier 류의'
+            ' 유지·유입·이탈을 이 결과로 읽으면 안 된다. 대상을 넓혀도 이 한계는 그대로다.',
+            '대표 릴리스는 published_at <= T 중 **ordinal 최고**다. published_at 은 시점'
+            ' 필터에만 쓴다 — 같은 발행시각에 전환점이 둘 이상인 그룹이 있어 발행시각으로'
+            ' 고르면 무엇이 뽑힐지 정해지지 않는다.',
+            'retained + inflow + unobserved(= T2 선언자 수)가 같은 버킷의'
+            ' depsdev/v1/package-dependents-exp460k/ 의 n_dependents 와 1,405,557행 중'
+            ' 144행 어긋난다(132행은 이쪽이 작고 최대 차 10, 12행은 이쪽이 크고 최대 차 1).'
+            ' 저쪽이 T2 컷오프 없이 전체 ordinal 최대를 대표로 쓰는데 snapshot=2026-08-31'
+            ' 파티션에 2026-09-01 발행분이 섞여 있어서다. **스냅샷 경계를 지키는 쪽은 이'
+            ' 데이터셋이다.** 앞 회차에서 136행이던 것과 같은 원인이다.',
+            '이 회차를 적재하면 dependent_removal_reason 의 범위가 낡는다.'
+            ' pipeline/removal_reasons/load.py 가 적재 범위를 dependent_transition 에서'
+            ' 조인해 가져오므로, 이쪽만 넓히면 같은 패키지에서 한 패널은 수를 다른 패널은'
+            ' 범위 밖을 말한다. **이 회차 게시 뒤 removal-reasons 를 재적재한다.**',
+            '상위 5,000 대상만 담은 요약 CSV·stats.json 은 git'
+            ' datasets/dependent_transitions_exp460k_260922/ 에 있어 여기 올리지 않음.'
+            ' 전량 4,216,671행은 이 parquet 에만 있다.',
         ],
     },
     'deprecated-replacement': {
@@ -270,6 +342,52 @@ DATASETS = {
             ' 있어 여기 올리지 않는다. 배열은 CSV 셀에 들어가지 않는다(react 한 행이 19만 원소).',
         ],
     },
+    'package-dependents-exp460k': {
+        # candidate-pool 과 같은 이유로 prefix 를 나눈다. 계산은 같고 **대상 모집단만 다른**
+        # 회차이고, 기존 회차가 그대로 살아 있어 받는 쪽이 둘 중 하나를 골라야 한다.
+        # 같은 티켓의 dependent-transitions-exp460k 가 기존 prefix 를 쓰는 것과 다르다 —
+        # 그쪽은 표를 전량 교체하는 대체 회차이고 이쪽은 공존한다.
+        'root': 'data/package_dependents_exp460k_260922',
+        'prefix': 'depsdev/v1/package-dependents-exp460k',
+        'partition': 'snapshot',
+        'date': '2026-08-31',
+        'builder': 'pipeline/duckdb/build_package_dependents.py'
+                   ' --targets datasets/targets/expanded_468k_20260922.csv'
+                   ' --label exp460k_260922',
+        'source': 'pickage-raw depsdev/v1 requirements + versions_full (snapshot=2026-08-31)'
+                  ' + datasets/targets/expanded_468k_20260922.csv (확장 대상 목록 468,519)',
+        'readme': 'datasets/package_dependents_exp460k_260922/README.md',
+        'jira': ['S15P21A506-454', 'S15P21A506-354'],
+        'notes': [
+            '확장 대상 468,519 개를 대상으로 한 dependents 목록. (name, kind) 1행 1,405,557 ='
+            ' 468,519 × regular/peer/optional. 열 구성은 같은 버킷의'
+            ' depsdev/v1/package-dependents/ 와 **완전히 같고 대상 목록만 다르다.**',
+            '겹치는 상위 10 만의 299,988행은 **일곱 열이 한 자리도 다르지 않다** —'
+            ' n_dependents·dependents 배열·download_rank·ecosystems_dependent_count·'
+            'package_exists 를 전부 대조해 불일치 0 이다.',
+            '넓힌 368,523 개 중 의존자가 하나라도 있는 것은 110,683 개(30.0%)다. 엣지는 전체'
+            ' 14,496,162 로 기존 회차 13,392,517 보다 1,103,645 늘었다(8.2%) — 대상 수가'
+            ' 4.7 배인 것에 비하면 작다. **순위 밖 패키지는 수가 아니라 이름이 필요해서**'
+            ' 넣는 쪽이다.',
+            '대상 468,519 중 8,729 개는 package_exists=false 다 — 원천(versions_full)에'
+            ' 적격 릴리스가 없다. 기존 회차의 2,251 개와 같은 성질이고, 유지·유입·이탈을'
+            ' PostgreSQL 에 적재할 때 이름이 안 붙는 수가 이 값으로 정해진다.',
+            '쓰는 쪽에서 교집합을 잴 때 분모는 min(|A|,|B|) 로 한다. Jaccard 로 재면'
+            ' webpack↔webpack-cli 가 0.231 이라 보완재인데 0.3 관문을 통과해 버린다.',
+            'devDependencies 는 원천(NPMRequirements)에 없다. 이 회차에서도 typescript 가'
+            ' 57,189 로 ecosyste.ms 488,056 의 0.12 배다. 개발 도구 판단에 쓰면 안 된다.',
+            '의존자 모집단에서 번들 중첩 의존 경로 노드 7,052,193 을 뺐다.'
+            ' `@winglang/sdk>0.76.19>cdktf>safe-buffer` 형태이고 전부 published_at 이 NULL'
+            ' 이다. 빼지 않으면 tslib 이 116,820 대신 972,523 이 된다.',
+            '상위 10 만 밖 368,523 개는 download_rank·ecosystems_dependent_count 가 NULL 이다.'
+            ' 값을 못 구한 것이 아니라 그 표에 없는 패키지라서이고, NULL 자체가 "순위 밖"이다.'
+            ' ecosyste.ms 대조가 기존 회차와 똑같이 65,307 개·중앙 0.710 인 것도 그래서다.',
+            '요약 CSV(50 MB)·stats.json 은 git datasets/package_dependents_exp460k_260922/ 에'
+            ' 있다. 단 CSV 는 datasets/README.md 의 크기 규칙에 걸려 추적하지 않는다 —'
+            ' 빌더를 93 초 다시 돌리면 나온다. 배열은 CSV 셀에 들어가지 않는다'
+            '(react 한 행이 19만 원소).',
+        ],
+    },
     'package-text': {
         'root': 'data/keywords/package_text',
         'prefix': 'ecosystems-keywords/v1/package-text',
@@ -386,9 +504,10 @@ def object_names(spec, files):
 
 
 def build_manifest(spec, dataset, date_value, run_id, records, size, row_total):
-    """Manifest body. The date key is named after the dataset's own partition."""
+    """Manifest body. The date key is named after the dataset's own partition, and
+    `dataset` is the CLI key unless the entry borrows another's name (dataset_name)."""
     return {'contract_version': 1, 'run_id': run_id, 'status': 'PASSED',
-            'dataset': dataset, spec['partition']: date_value,
+            'dataset': spec.get('dataset_name', dataset), spec['partition']: date_value,
             'file_count': len(records), 'bytes': size, 'row_count': row_total,
             'verification': 'GET_SHA256_ALL_FILES',
             'builder': spec['builder'], 'source': spec['source'],

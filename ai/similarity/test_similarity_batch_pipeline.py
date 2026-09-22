@@ -270,6 +270,41 @@ class LoadState(QuietMixin, unittest.TestCase):
         np.testing.assert_array_equal(state["p"]["vector"], np.array([1.0, 2.0, 3.0], dtype=np.float32))
 
 
+class WriteOutputStateRoundTrip(QuietMixin, unittest.TestCase):
+    """S15P21A506-457: write_output 이 쓴 text_hash_state.parquet 를 load_state 가
+    그대로 다시 읽을 수 있어야 한다 — 그래야 --state 증분 재임베딩이 실제로 동작한다.
+    """
+
+    ROWS = [
+        {"name": "a", "_text_hash": "h1"},
+        {"name": "b", "_text_hash": "h2"},
+    ]
+    VECTORS = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
+    GATE = {"status": "SKIPPED", "reason": "test"}
+    META = {"params": {}}
+
+    def test_load_state_reads_write_output_result_without_error(self):
+        """이전엔 KeyError('vector')로 여기서 죽었다 — 이제는 안 죽어야 한다."""
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        self.assertEqual(set(state), {"a", "b"})
+
+    def test_round_tripped_vector_matches_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        np.testing.assert_array_equal(state["a"]["vector"], self.VECTORS[0])
+        np.testing.assert_array_equal(state["b"]["vector"], self.VECTORS[1])
+
+    def test_round_tripped_hash_matches_original(self):
+        with tempfile.TemporaryDirectory() as d:
+            sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, self.META, allow_gate_skip=True)
+            state = sbp.load_state(os.path.join(d, "text_hash_state.parquet"))
+        self.assertEqual(state["a"]["hash"], "h1")
+        self.assertEqual(state["b"]["hash"], "h2")
+
+
 class LoadDependents(QuietMixin, unittest.TestCase):
     """S15P21A506-173: package_dependents 류 parquet(name·kind·dependents) 로더."""
 
@@ -692,6 +727,100 @@ class ApplyGates(unittest.TestCase):
         self.assertEqual(drops["complement"], 0)
 
 
+class ApplyDownloadsFloor(unittest.TestCase):
+    """S15P21A506-450: 인지도 관문."""
+
+    HITS = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+
+    def test_floor_zero_keeps_hits_unchanged(self):
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, {1: 10, 2: 20, 3: 30}, floor=0)
+        self.assertEqual(kept, self.HITS)
+        self.assertEqual(dropped, 0)
+
+    def test_drops_candidate_below_floor(self):
+        downloads = {1: 1_000_000, 2: 100, 3: 600_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_missing_downloads_data_does_not_pass(self):
+        """downloads 정보가 없는(None) 후보는 관대하게 통과시키지 않는다."""
+        downloads = {1: 1_000_000, 2: None, 3: 600_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_candidate_not_in_map_treated_as_missing(self):
+        downloads = {1: 1_000_000, 3: 600_000}  # 2 없음
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual([c for _, c, _ in kept], [1, 3])
+        self.assertEqual(dropped, 1)
+
+    def test_all_pass_when_all_above_floor(self):
+        downloads = {1: 1_000_000, 2: 2_000_000, 3: 3_000_000}
+        kept, dropped = sbp.apply_downloads_floor(self.HITS, downloads, floor=500_000)
+        self.assertEqual(kept, self.HITS)
+        self.assertEqual(dropped, 0)
+
+
+class ApplyDownloadsFloorWithFallback(unittest.TestCase):
+    """S15P21A506-458: base 별로 3개 미만이면 하한을 단계적으로 완화한다."""
+
+    TIERS = (500_000, 100_000, 50_000, 10_000, 0)
+
+    def test_base_with_enough_at_strictest_tier_is_not_relaxed(self):
+        """모든 후보가 최상위 하한을 이미 넘으면 완화가 필요 없다."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+        downloads = {1: 1_000_000, 2: 2_000_000, 3: 3_000_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual(kept, hits)
+        self.assertEqual(tiers_used[500_000], 1)
+        self.assertEqual(sum(tiers_used.values()), 1)
+
+    def test_relaxes_to_next_tier_when_strictest_leaves_too_few(self):
+        """50만 하한이면 1개만 남지만, 5만까지 낮추면 3개가 남는 경우."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7)]
+        downloads = {1: 600_000, 2: 80_000, 3: 60_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for _, c, _ in kept}, {1, 2, 3})
+        self.assertEqual(tiers_used[50_000], 1)
+        self.assertEqual(tiers_used[500_000], 0)
+
+    def test_falls_through_to_last_tier_even_if_still_under_min_kept(self):
+        """맨 끝(0)까지 가도 3개가 안 채워지면, 그 결과라도(2개든 0개든) 그대로 쓴다."""
+        hits = [(0, 1, 0.9), (0, 2, 0.8)]  # 애초에 구조적 관문 통과분이 2개뿐
+        downloads = {1: 5_000, 2: 3_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for _, c, _ in kept}, {1, 2})
+        self.assertEqual(tiers_used[0], 1)
+
+    def test_each_base_relaxes_independently(self):
+        hits = [
+            (0, 1, 0.9), (0, 2, 0.8), (0, 3, 0.7),  # base 0: 전부 인기 있음 -> 안 완화
+            (5, 6, 0.9), (5, 7, 0.8), (5, 8, 0.7),  # base 5: 인기 없음 -> 완화 필요
+        ]
+        downloads = {1: 1_000_000, 2: 1_000_000, 3: 1_000_000, 6: 5_000, 7: 4_000, 8: 3_000}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(hits, downloads, self.TIERS)
+        self.assertEqual({c for b, c, _ in kept if b == 0}, {1, 2, 3})
+        self.assertEqual({c for b, c, _ in kept if b == 5}, {6, 7, 8})
+        self.assertEqual(tiers_used[500_000], 1)
+        self.assertEqual(tiers_used[0], 1)
+
+    def test_min_kept_is_configurable(self):
+        hits = [(0, 1, 0.9), (0, 2, 0.8)]
+        downloads = {1: 1_000_000, 2: 100}
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback(
+            hits, downloads, self.TIERS, min_kept=1
+        )
+        self.assertEqual([c for _, c, _ in kept], [1])
+        self.assertEqual(tiers_used[500_000], 1)
+
+    def test_empty_hits_returns_empty(self):
+        kept, tiers_used = sbp.apply_downloads_floor_with_fallback([], {}, self.TIERS)
+        self.assertEqual(kept, [])
+        self.assertEqual(sum(tiers_used.values()), 0)
+
+
 class ResolveDependentsPath(unittest.TestCase):
     """S15P21A506-173: --dependents 를 안 줘도 --package-text 옆 파일이 있으면 관문이 돈다."""
 
@@ -979,6 +1108,15 @@ class ParseArgs(unittest.TestCase):
 
     def test_no_gate_turns_it_off(self):
         self.assertFalse(sbp.parse_args(self.BASE + ["--no-gate"]).gate)
+
+    def test_downloads_floor_defaults_to_500000(self):
+        """S15P21A506-450: 실측으로 채택된 기본값."""
+        self.assertEqual(sbp.parse_args(self.BASE).downloads_floor, 500_000)
+
+    def test_downloads_floor_parsed(self):
+        self.assertEqual(
+            sbp.parse_args(self.BASE + ["--downloads-floor", "100000"]).downloads_floor, 100000
+        )
 
     def test_dependents_defaults_to_none(self):
         """S15P21A506-173: 안 주면 보완재 관문이 자동으로 꺼진다(옛 호출부 호환)."""

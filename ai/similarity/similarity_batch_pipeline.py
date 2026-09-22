@@ -1,7 +1,8 @@
 """유사도 배치 파이프라인 (§4.1) — EC2 #1에서 cron이 배치 시각마다 1회성으로 실행.
 
-코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → 의미 검색(넓게) → 구조적 관문 → cos 정렬
-→ 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지 않는다(방식 C).
+코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → 의미 검색(넓게) → 구조적 관문 → 인지도 관문
+→ cos 정렬 → 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지
+않는다(방식 C).
 
 모델 I/O·전처리 규격: ai/MODEL_CONTRACT.md
 설계: docs/Pickage_기능별_개발_구상안_0909.md §3.3, §4.1, §4.2
@@ -16,6 +17,17 @@
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
   4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived·보완재(dependents 교집합
                       >0.3, package_dependents.parquet 이 입력 옆에 있을 때) drop (--gate, 기본 on, S15P21A506-333·173)
+  4c 인지도 관문      구현 — downloads_last_month < --downloads-floor(기본 500,000) 인 후보 drop
+                      (S15P21A506-450). 정답 기준이 "기능 유사"에서 "기능 유사 + 인지도"로
+                      기획 개정된 데 따른 것 — 실측(eval_gate_ranking.py, 인지도 반영 정답지
+                      기준)으로 하한 미적용 대비 recall@3 이 0.130→0.332 로 개선됨을 확인하고
+                      50만을 채택함. cos 축은 절대 임계값을 안 쓰므로(DEC-RANK-20260910-01)
+                      이 하드컷은 downloads 축에만 건다.
+                      base 별 단계적 완화 구현 (S15P21A506-458) — 하드컷 하나만 쓰면 니치
+                      base 에서 관문 통과 후 후보가 3개 미만(0개 포함)이 되는 사례가 실측
+                      (로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 늘어나는 게 확인돼, base 별로
+                      500,000→100,000→50,000→10,000→0 순으로 3개가 채워질 때까지 완화한다
+                      (`apply_downloads_floor_with_fallback()`)
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -34,6 +46,11 @@ import time
 from typing import Iterable
 
 import numpy as np
+
+try:  # cp949 등 UTF-8 이 아닌 콘솔에서 log() 의 한글·특수문자(—) 출력이 죽는 것을 막는다
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 # onnxruntime · transformers · pyarrow 는 무겁고 배치 실행 노드에만 설치된다.
 # 순수 로직(자격 필터·top-K·재랭킹·게이트)을 numpy 만으로 테스트할 수 있도록
@@ -557,6 +574,87 @@ def dependents_coverage(names: list[str], dependents_map: dict[str, set[str]]) -
     }
 
 
+# ── 4c. 인지도 관문 (§4.2, S15P21A506-450) ────────────────────────────
+#
+# 정답 기준이 "기능 유사"에서 "기능 유사 + 인지도"로 기획 개정됨에 따라 도입
+# (기존엔 "인기도·다운로드·채택도를 순위 신호로 쓰지 않는다"가 방침이었음 — ai/README.md
+# 갱신 필요). 구조적 관문(위)과 성격이 달라 별도 절로 둔다: 구조적 관문은 "대안 자체가
+# 아니다"를 걸러내는 것이고, 이건 "대안은 맞지만 너무 무명이다"를 거른다.
+#
+# cos 축은 절대 임계값을 쓰지 않기로 한 결정(DEC-RANK-20260910-01, 도메인마다 cos 스케일이
+# 달라 불안정)이 있어, 하드 컷오프는 downloads 축 하나에만 건다 — 두 축 모두 하드컷하면
+# 후보가 비는 위험이 커진다(브레인스토밍 결론).
+
+def apply_downloads_floor(
+    hits: list[tuple[int, int, float]],
+    downloads_by_idx: dict[int, int | None],
+    floor: int,
+) -> tuple[list[tuple[int, int, float]], int]:
+    """downloads_last_month < floor 인 후보(candidate)를 hits 에서 제거한다.
+
+    floor<=0 이면 무변경. downloads 정보가 없는 후보(None)는 **통과시키지 않는다** —
+    데이터 없다고 관대하게 봐주면 "실제로는 영세한데 그냥 몰라서 통과"하는 사례를 만든다
+    (보완재 관문은 반대로 데이터 없으면 통과가 기본값인데, 거긴 "감점 근거 없음=감점 안 함"이고
+    여기는 "자격 근거 없음=자격 불충분"이라 취지가 다르다).
+
+    실측(eval_gate_ranking.py, S15P21A506-450): "정답(B)도 인지도가 있어야 진짜 정답"으로
+    골드셋을 다시 채점했을 때, 하한 미적용 대비 recall@3 이 0.130→0.332(50만 하한)로
+    개선됨을 확인 — 순수 cos 정렬은 더 비슷하게 생긴 무명 패키지에 밀려 "인지도 있는 진짜
+    대안"조차 자주 놓치고 있었다.
+    """
+    if floor <= 0:
+        return hits, 0
+    kept, dropped = [], 0
+    for base_idx, cand_idx, cos in hits:
+        dl = downloads_by_idx.get(cand_idx)
+        if dl is None or dl < floor:
+            dropped += 1
+            continue
+        kept.append((base_idx, cand_idx, cos))
+    return kept, dropped
+
+
+DOWNLOADS_FLOOR_TIERS = (500_000, 100_000, 50_000, 10_000, 0)
+
+
+def apply_downloads_floor_with_fallback(
+    hits: list[tuple[int, int, float]],
+    downloads_by_idx: dict[int, int | None],
+    floors: tuple[int, ...] = DOWNLOADS_FLOOR_TIERS,
+    min_kept: int = 3,
+) -> tuple[list[tuple[int, int, float]], dict[int, int]]:
+    """base 별로 `floors`(내림차순, 엄격→완화)를 순서대로 시도해 `min_kept`개 이상
+    남는 첫 단계를 쓴다 (S15P21A506-458).
+
+    `apply_downloads_floor()` 하드컷 하나만으로는 관문 통과 후 후보가 3개 미만(또는
+    0개)이 되는 base 가 실측(로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 더 늘어나는 게
+    확인됐다 — 골드셋(유명 패키지 위주) 기준 측정에서는 거의 안 보이던 문제가, 코퍼스
+    전체(대부분 비유명 패키지)에서는 무시하기 힘든 규모였다.
+
+    base 마다 독립적으로 단계를 낮춰가며 재시도한다 — 어떤 base 는 최상위 하한에서도
+    3개가 다 남고, 어떤 base 는 훨씬 낮춰야 겨우 채워진다. **끝까지(보통 0, 하한 없음)
+    가도 `min_kept` 미만이면 그 결과라도 그대로 쓴다** — 애초에 없는 후보를 만들어낼
+    수는 없다(구조적 관문을 통과한 후보 자체가 1~2개뿐인 니치 base 가 그런 경우).
+
+    돌려주는 `tiers_used`(`{floor: base 개수}`)는 관측성용 — 실제 운영에서 완화가
+    얼마나 자주, 어느 단계까지 일어나는지 manifest 로 볼 수 있게 한다.
+    """
+    by_base: dict[int, list[tuple[int, int, float]]] = {}
+    for h in hits:
+        by_base.setdefault(h[0], []).append(h)
+
+    kept: list[tuple[int, int, float]] = []
+    tiers_used = {f: 0 for f in floors}
+    for cand_hits in by_base.values():
+        for floor in floors:
+            survivors, _ = apply_downloads_floor(cand_hits, downloads_by_idx, floor)
+            if len(survivors) >= min_kept or floor == floors[-1]:
+                kept.extend(survivors)
+                tiers_used[floor] += 1
+                break
+    return kept, tiers_used
+
+
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
 
 def scoring_gate(candidates: list[dict]) -> dict:
@@ -586,10 +684,19 @@ def write_output(
     out_dir: str,
     candidates: list[dict],
     rows: list[dict],
+    vectors: "np.ndarray",
     gate: dict,
     meta: dict,
     allow_gate_skip: bool,
 ) -> None:
+    """산출물 3종 + `text_hash_state.parquet`(다음 실행의 `--state` 입력)을 쓴다.
+
+    `vectors[i]` 는 `rows[i]` 의 임베딩과 같은 순서여야 한다(호출부가 보장 — `embed_corpus()`
+    반환값을 그대로 넘긴다). **`vector` 컬럼을 반드시 같이 써야 `load_state()`가 다음 실행에서
+    재사용할 수 있다** — 예전엔 `name`·`text_hash`만 쓰고 있어서 `load_state()`가
+    `KeyError: 'vector'`로 죽었다(S15P21A506-457, `--state`가 한 번도 실제로 동작한 적
+    없었을 가능성이 있는 원인).
+    """
     os.makedirs(out_dir, exist_ok=True)
 
     import pyarrow as pa
@@ -597,7 +704,10 @@ def write_output(
 
     pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
     pq.write_table(
-        pa.Table.from_pylist([{"name": r["name"], "text_hash": r["_text_hash"]} for r in rows]),
+        pa.Table.from_pylist([
+            {"name": r["name"], "text_hash": r["_text_hash"], "vector": vectors[i].tolist()}
+            for i, r in enumerate(rows)
+        ]),
         os.path.join(out_dir, "text_hash_state.parquet"),
     )
 
@@ -608,8 +718,8 @@ def write_output(
         "base_packages": len({c["base_package"] for c in candidates}),
         "scoring_gate": gate,
     }
-    json.dump(manifest, open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=2)
+    with open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
 
     if gate_allows_success(gate, allow_gate_skip):
         open(os.path.join(out_dir, "_SUCCESS"), "w").close()
@@ -643,6 +753,9 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
     p.add_argument("--gate", action=argparse.BooleanOptionalAction, default=True,
                    help="구조적 관문(plugin/adapter·same-family drop). 기본 on, --no-gate 로 끔")
+    p.add_argument("--downloads-floor", type=int, default=500_000,
+                   help="이 값 미만 downloads_last_month 후보 drop (S15P21A506-450). 0이면 끔. "
+                        "package_text 에 downloads_last_month 컬럼이 없으면 경고 후 건너뜀")
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--query-block", type=int, default=2000)
     p.add_argument("--allow-gate-skip", action="store_true",
@@ -689,6 +802,28 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
 
+    downloads_floor = args.downloads_floor
+    downloads_floor_tiers: tuple[int, ...] | None = None
+    tiers_used: dict[int, int] | None = None
+    if downloads_floor > 0:
+        if rows and "downloads_last_month" not in rows[0]:
+            log("경고: 인지도 관문 건너뜀 — downloads_last_month 컬럼 없음 (구버전 package_text)")
+            downloads_floor = 0
+        else:
+            # downloads_floor 를 최상위 단계로 하고, 그 아래 표준 단계(DOWNLOADS_FLOOR_TIERS
+            # 중 그보다 낮은 것들)로 내려가며 완화한다. 항상 0으로 끝나 최후엔 하한 없이라도
+            # 있는 후보는 다 쓴다 (S15P21A506-458 — 하드컷 하나뿐이면 니치 base 에서 후보가
+            # 3개 미만·0개가 되는 사례가 실측으로 전체의 7.7%p 늘어나는 게 확인됨).
+            downloads_floor_tiers = tuple(dict.fromkeys(
+                [downloads_floor] + [f for f in DOWNLOADS_FLOOR_TIERS if f < downloads_floor]
+            ))
+            downloads_by_idx = {i: rows[i].get("downloads_last_month") for i in range(len(rows))}
+            hits, tiers_used = apply_downloads_floor_with_fallback(
+                hits, downloads_by_idx, downloads_floor_tiers
+            )
+            log(f"인지도 관문(단계 {downloads_floor_tiers}): base 별 최종 단계 분포 {tiers_used} "
+                f"→ {len(hits)} 쌍 잔여")
+
     candidates = rerank(hits, names, args.user_k)
 
     gate = scoring_gate(candidates)
@@ -708,11 +843,14 @@ def main(argv: Iterable[str] | None = None) -> int:
             "gate_drops": gate_drops,
             "dependents": dependents_path,
             "dependents_coverage": coverage,
+            "downloads_floor": downloads_floor,
+            "downloads_floor_tiers": downloads_floor_tiers,
+            "downloads_floor_tiers_used": tiers_used,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
     }
-    write_output(args.out, candidates, rows, gate, meta, args.allow_gate_skip)
+    write_output(args.out, candidates, rows, vectors, gate, meta, args.allow_gate_skip)
     log(f"완료 — {meta['elapsed_sec']}s")
     return 0
 

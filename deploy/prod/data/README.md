@@ -746,6 +746,12 @@ systemctl list-timers pickage-weekly.timer
 
 ### 지금 어디까지 왔나
 
+**서버에 안 들어가고 보려면** 모니터링 터널을 열고 `http://127.0.0.1:19998/`
+([`../monitoring/README.md`](../monitoring/README.md) 11절). 회차 상태·단계·coverage 와
+MinIO 에 새로 생긴 것, 단계 로그 꼬리까지 같은 화면에 있다 — 아래 명령들이 답하는 것을
+**물을 때 그 자리에서** 읽어 보여 준다(15초마다, "지금 확인" 은 즉시). 서버에 들어와 있다면
+아래 명령이 여전히 가장 짧다.
+
 **이것이 배포와 무관한 확인 경로다.** 운영자용 조회 API(S15P21A506-347)는 백엔드가
 배포된 뒤에야 쓸 수 있고, 지금 운영 이미지에는 그 API 가 없다.
 
@@ -1301,6 +1307,62 @@ docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
 >
 > 설계는 Tailscale 로 묶는 것으로 되어 있다. 터널이 불편해지거나(장시간 전송, 자동화)
 > GPU 쪽에서 정기적으로 당겨 가야 하면 그때 도입하면 된다.
+
+### 파이프라인 모니터에 줄 계정 (S15P21A506-362)
+
+두 노드의 모니터링 스택에 있는 `pipeline-monitor` 컨테이너가 쓴다
+([`../monitoring/README.md`](../monitoring/README.md) 11절). 계정은 **하나**를 만들어
+두 노드의 `deploy/prod/monitoring/<노드>/.env` 에 같이 넣는다 — 하는 일이 같고
+(목록을 보고 답한다), 폐기도 한 번이면 된다.
+
+권한 내용은 [pipeline/minio/policies/monitor.json](../../../pipeline/minio/policies/monitor.json).
+
+| | |
+| --- | --- |
+| 목록 | **전 버킷** — 사람이 "전체 목록 조회" 버튼을 누를 때만 쓴다 |
+| 이벤트 구독 | **전 버킷** (`s3:ListenBucketNotification`, MinIO 확장) — 평소 화면은 이것으로 "방금 올라온 것" 을 본다 |
+| 읽기 | `pickage-raw/_ops/**` · `pickage-curated/_ops/**`(Curated 전처리 회차 상태, S15P21A506-372) · `curated-bundle/**/status.json`(단계별 상태) · 어느 버킷이든 `_current.json` **만** |
+| 쓰기 | **없다** |
+| 삭제 | **없다** |
+
+**읽기 전용이고, 데이터 본문(parquet·jsonl)도 못 읽는 것이 이 계정의 핵심이다.** 목록에는
+키·크기·시각만 있고, 그것으로 "무엇이 생겼나" 는 충분히 답이 된다. 소켓까지 쥔 컨테이너에
+원본 읽기를 더 얹을 이유가 없다.
+
+**1. 정책을 만든다.** 정책 파일이 바뀌었을 때(예: 2026-09-21 Curated 전처리 상태 읽기 추가)도 같은 명령이다 —
+`mc admin policy create` 는 같은 이름이 있으면 내용을 갈아 끼우고, 붙어 있는 사용자에게 바로 적용된다. 키는 그대로다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-monitor /tmp/p.json' < ../../../pipeline/minio/policies/monitor.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-monitor "$S" >/dev/null && mc admin policy attach l pickage-monitor --user pickage-monitor >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-monitor "$S"'
+```
+
+나온 값을 **두 노드**의 `deploy/prod/monitoring/<노드>/.env` 에 `MONITOR_S3_ACCESS_KEY` ·
+`MONITOR_S3_SECRET_KEY` 로 넣는다. 엔드포인트(`MONITOR_S3_ENDPOINT`)는 노드마다 다르다 —
+각 `.env.example` 의 값을 그대로 쓴다.
+
+**3. 권한이 의도대로인지 확인한다.** 4·5번이 뚫려 있으면 이 계정을 만든 의미가 없다.
+
+```bash
+docker compose exec -T minio sh -c '
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+echo "1 버킷 목록      :"; mc ls chk/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "2 원본 목록      :"; mc ls chk/pickage-raw/depsdev/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "3 회차 상태 읽기 :"; mc ls chk/pickage-raw/_ops/weekly/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "4 원본 읽기      :"; mc cat chk/pickage-raw/depsdev/v1/projects/ 2>&1 | grep -q "Access Denied" && echo 거부 || echo "허용(문제!)"
+echo "5 아무 데나 쓰기 :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/run.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "6 삭제           :"; mc rm chk/pickage-raw/_ops/weekly/2099-01-05/run.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "7 이벤트 구독    :"; timeout 3 mc watch chk/pickage-quarantine >/dev/null 2>&1; [ $? -eq 124 ] && echo 허용 || echo "거부(문제!)"'
+```
+
+(4번의 경로는 실제 있는 객체로 바꿔 본다. 7번은 3초 동안 붙어 있다가 타임아웃(124)으로
+끝나면 허용이고, 바로 끝나면 권한 거부다.)
 
 ### 스모크 잡 — 배치보다 먼저 이걸 돌린다
 

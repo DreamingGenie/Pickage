@@ -75,6 +75,30 @@ def build_gold(rows, domains):
     return gold
 
 
+def filter_gold_by_popularity(gold, downloads_by_name, floor):
+    """정답(B)이 downloads_last_month>=floor 인 것만 남긴 골드 (S15P21A506-450).
+
+    이 골드셋은 원래 "기능적으로 유사한가"만으로 라벨링됐다 — 인지도는 기준에 없었다.
+    정답 기준 자체가 "기능이 유사하면서 인지도도 있어야 한다"로 바뀌면, downloads 하한을
+    걸어서 생기는 recall 하락 중 일부는 진짜 실패가 아니라 "정답이지만 이제는 기준 미달인
+    B를 더 이상 안 뽑는" **의도된 동작**이다. 원본 recall(구 정답지) 만으로는 이 둘을
+    구분 못 한다 — 이 함수로 만든 골드로 다시 재면, "B 자체가 새 기준(인지도)도 만족하는데
+    놓친" 진짜 손실만 남는다.
+
+    floor<=0 이면 원본 그대로(구 정답지). B의 downloads 정보가 없으면(코퍼스 밖 보충 이름
+    등) 새 기준을 만족하는지 모르므로 **제외**한다(관대하게 통과시키지 않음 — 위
+    apply_downloads_floor 와 같은 보수적 태도).
+    """
+    if floor <= 0:
+        return gold
+    out = {}
+    for k, alts in gold.items():
+        kept = {a for a in alts if (downloads_by_name.get(a) or 0) >= floor}
+        if kept:
+            out[k] = kept
+    return out
+
+
 def embed(model, texts, cache, batch_size):
     if cache and os.path.exists(cache):
         arr = np.load(cache)
@@ -143,6 +167,44 @@ def fmt(m):
             f"평균노출 {m['avg_shown']:.2f}  3개미만 {m['lt3_ratio']:.0%}  0개 {m['zero_ratio']:.0%}")
 
 
+# ── downloads 하한 스윕 (S15P21A506-450) ──────────────────────────────
+#
+# "TOP3에 영세 패키지가 너무 많이 잡힌다"는 반복 피드백 대응. cos 축은 기존
+# 구조적 관문(위)이 이미 상대적으로 처리하므로, 여기서는 downloads_last_month에만
+# 절대 하한을 걸어본다 — 하드 컷오프를 두 축에 동시에 걸면 후보가 비는 위험이
+# 커지므로(브레인스토밍 결정) 한 축으로 제한한다.
+#
+# apply_downloads_floor() 자체는 ai/similarity/similarity_batch_pipeline.py 의
+# 정본을 그대로 import 한다(복사 아님, 위 apply_gates/rerank 와 같은 원칙) — 이 배치가
+# 실제로 채택한 하한(500,000)도 그 정본에 반영돼 있다.
+
+def downloads_stats(shown, downloads_by_name, floors=(10_000, 50_000, 100_000, 500_000)):
+    """설정 하나에서 실제로 노출된(top-3) 후보들의 downloads_last_month 분포.
+
+    "관문을 어떻게 바꾸면 recall/precision이 얼마나 깎이는가"만으로는 원래 문제
+    ("영세 패키지가 뽑힌다")가 실제로 나아졌는지 알 수 없어서, 선정된 후보 자체의
+    인기도 분포를 recall/precision과 나란히 본다.
+    """
+    vals = [downloads_by_name.get(c) for cands in shown.values() for c, _ in cands]
+    vals = [v for v in vals if v is not None]
+    missing = sum(1 for cands in shown.values() for c, _ in cands) - len(vals)
+    if not vals:
+        return None
+    arr = np.array(vals, dtype=np.float64)
+    out = {"n": len(arr), "missing_downloads": missing,
+           "mean": float(np.mean(arr)), "median": float(np.median(arr))}
+    for f in floors:
+        out[f"below_{f}"] = float((arr < f).mean())
+    return out
+
+
+def fmt_downloads(d):
+    if d is None:
+        return "(downloads 정보 없음)"
+    below = "  ".join(f"<{f:,} {d[f'below_{f}']:.0%}" for f in (10_000, 50_000, 100_000, 500_000) if f"below_{f}" in d)
+    return f"평균 {d['mean']:,.0f}  중앙값 {d['median']:,.0f}  {below}  (n={d['n']}, downloads결측 {d['missing_downloads']})"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", required=True)
@@ -155,6 +217,10 @@ def main():
     ap.add_argument("--retrieve-k", type=int, default=30)
     ap.add_argument("--batch-size", type=int, default=128)
     ap.add_argument("--cache", default=None, help="코퍼스 임베딩 .npy 캐시 경로")
+    ap.add_argument("--downloads-floors", default="10000,50000,100000,500000",
+                     help="쉼표 구분 downloads_last_month 하한 스윕 값(S15P21A506-450). "
+                          "각 값마다 gate(+보완재) 결과에 하한을 추가로 걸어 recall/precision/"
+                          "lt3_ratio와 선정된 downloads 분포를 나란히 잰다")
     args = ap.parse_args()
 
     if args.model != BASE_MODEL:
@@ -193,6 +259,35 @@ def main():
         gc, drops_c = sp.apply_gates(hits, names, kw_by_idx, True, dependents_by_idx=deps_by_idx)
         configs["gate+보완재"] = gc
         cov = sum(1 for n in names if n in deps) / len(names)
+
+    # downloads 하한 스윕 (S15P21A506-450) — 프로덕션과 가장 가까운 관문(보완재 있으면 그것,
+    # 없으면 plugin·같은계열) 결과 위에 downloads_last_month 하한만 추가로 건다.
+    base_key = "gate+보완재" if deps_by_idx is not None else "gate(plugin·같은계열)"
+    downloads_by_idx = {pool_idx[p["name"]]: p.get("downloads_last_month")
+                         for p in pool if p["name"] in pool_idx}
+    downloads_by_name = {p["name"]: p.get("downloads_last_month") for p in pool}
+    floors = [int(f) for f in args.downloads_floors.split(",") if f.strip()]
+    dl_drops = {}
+    config_floor = {k: 0 for k in configs}  # 각 설정이 어느 downloads 하한에 대응하는지 (매칭 골드용)
+    for floor in floors:
+        dl_hits, dropped = sp.apply_downloads_floor(configs[base_key], downloads_by_idx, floor)
+        key = f"{base_key}+dl>={floor:,}"
+        configs[key] = dl_hits
+        config_floor[key] = floor
+        dl_drops[floor] = dropped
+
+    # 정답 기준 자체가 바뀌었으므로(기능 유사 → 기능 유사 + 인지도), downloads 하한을 건
+    # 설정은 같은 하한으로 거른 골드("B도 그 인지도는 넘어야 진짜 정답")와 맞춰 잰다.
+    # floor=0(구 정답지)은 그대로 남겨서 "얼마나 많이가 재라벨 때문인지" 대조할 수 있게 한다.
+    gold_matched = {0: gold}
+    gold_drop = {}
+    for floor in floors:
+        gm = filter_gold_by_popularity(gold, downloads_by_name, floor)
+        gold_matched[floor] = gm
+        old_pairs = sum(len(v) for v in gold.values())
+        new_pairs = sum(len(v) for v in gm.values())
+        gold_drop[floor] = {"골드쌍": f"{old_pairs}→{new_pairs}", "쿼리(base)": f"{len(gold)}→{len(gm)}"}
+
     shown = {k: shown_by_base(h, names) for k, h in configs.items()}
 
     lines = [
@@ -209,10 +304,29 @@ def main():
               f"이름만 판정 시 drop 수: {drops_name}"]
     if deps_by_idx is not None:
         lines.append(f"보완재 포함 drop 수: {drops_c}")
+    lines.append(f"downloads 하한 drop 수 (기준: {base_key}): {dl_drops}")
+    lines += ["", "[정답 기준 자체의 변화] downloads 하한별로 '정답(B)도 그 인지도를 넘는' 것만 남기면"
+                  " 골드셋이 이렇게 줄어든다 (B 자체가 원래도 인지도 미달이면, 그 정답 자체가 새 기준"
+                  " 아래선 더 이상 '틀렸다고 감점할 대상'이 아니다):"]
+    for floor, d in gold_drop.items():
+        lines.append(f"  dl>={floor:<8,} 골드쌍 {d['골드쌍']}  쿼리(base) {d['쿼리(base)']}")
 
-    lines += ["", "[설정별 지표]"]
+    lines += ["", "[설정별 지표] (recall/precision/lt3_ratio + 선정된 TOP3의 downloads 분포)",
+              "  downloads 하한이 걸린 설정은 '구 정답지'(원래 정답, 인지도 무관)와 '신 정답지'"
+              "(같은 하한으로 거른 정답, B도 인지도 있어야 함) 둘 다 잰다 — 그 차이가"
+              " '재라벨 때문에 사라진 손실'이다."]
     for k in configs:
-        lines.append(f"  {k:22} {fmt(score(gold, shown[k]))}")
+        floor = config_floor[k]
+        m = score(gold, shown[k])
+        lines.append(f"  {k:28} {fmt(m)}  [구정답지]")
+        if floor > 0:
+            m_new = score(gold_matched[floor], shown[k])
+            lines.append(f"  {'':28} {fmt(m_new)}  [신정답지: B도 dl>={floor:,}]")
+            # 같은 신정답지 기준으로, 하한을 안 건 기존 시스템은 얼마나 하는지 — 하한이
+            # 실제로 "누락됐던 인기 정답"을 더 건져오는지, 아니면 후보만 줄여 손해인지 확인용
+            m_nofloor = score(gold_matched[floor], shown[base_key])
+            lines.append(f"  {'':28} {fmt(m_nofloor)}  [신정답지, 하한無 비교용({base_key})]")
+        lines.append(f"  {'':28} └ downloads: {fmt_downloads(downloads_stats(shown[k], downloads_by_name))}")
 
     lines += ["", "[참고] 예전 방식 — cos 임계값 τ 로 top-3 를 자름 (관문 없음 / 관문 있음)"]
     for tau in THRESHOLDS:
@@ -258,7 +372,8 @@ def main():
         f.write(report)
     raw = {k: {b: v for b, v in s.items()} for k, s in shown.items()}
     with open(os.path.join(args.out, f"eval_gate_{args.label}.json"), "w", encoding="utf-8") as f:
-        json.dump({"shown": raw, "gold": {f"{d}|{b}": sorted(g) for (d, b), g in gold.items()}},
+        json.dump({"shown": raw, "gold": {f"{d}|{b}": sorted(g) for (d, b), g in gold.items()},
+                   "downloads_by_name": downloads_by_name},
                   f, ensure_ascii=False)
     try:
         print(report)
