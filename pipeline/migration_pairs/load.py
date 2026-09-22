@@ -23,6 +23,11 @@
 대신 회차 식별을 manifest 가 아니라 **CSV 파일의 SHA-256** 으로 한다. 형제 적재기가 manifest
 와 parquet 을 대조하는 자리에서, 이 적재기는 읽은 파일의 해시를 그대로 이력에 남긴다.
 
+**데이터셋을 다시 만들었으면 `--run-id` 를 올린다.** 같은 회차 이름에 다른 내용을 올리려 하면
+적재기가 CSV 를 보내기 전에 끊는다. 형제 적재기는 run_id 가 불변 MinIO 회차를 가리켜 이런 일이
+없지만, 여기서는 입력이 git 의 파일이라 내용이 바뀔 수 있다 — 자세한 이유는 `build_sql` 의
+`publish_key` 주석에 있다.
+
 ## dep_kind 는 여기서 붙인다 (S15P21A506-211 결정 3-1)
 
 네 데이터셋의 CSV 열 구성이 완전히 같아 **구분이 디렉터리 이름뿐이다.** 빌더를 고쳐 열을
@@ -41,7 +46,7 @@ regular 는 deps.dev **2026-08-31 스냅샷**, dev 는 npm registry 수집분이
 까지다. 한 표에 기준일이 둘 섞이므로 행마다 `snapshot_at` 을 넣는다. `etl_load_execution`
 은 스냅샷을 하나만 갖는 구조라 주력인 regular 의 날짜를 쓰고, 두 값 모두 manifest 에 남긴다.
 
-`last_seen` 이 `snapshot_at` 을 넘는 행이 있는데 오류가 아니다. 이유는 V12 마이그레이션의
+`last_seen` 이 `snapshot_at` 을 넘는 행이 있는데 오류가 아니다. 이유는 V13 마이그레이션의
 머리말에 적었다 — regular 는 추출 사고, dev 는 정상 수집 범위다. 그래서 막지 않고 **세어서
 quality 에 남긴다.** 다음 회차에서 갑자기 늘면 추출이 또 샌 것이다.
 
@@ -49,7 +54,7 @@ quality 에 남긴다.** 다음 회차에서 갑자기 늘면 추출이 또 샌 
 
 출발 패키지만 `package` 와 이름으로 붙인다. 도착지는 이름 그대로 넣는다. 2026-09-22 실측에서
 도착지 327쌍이 `package` 에 없었고 그중 61건은 기본 필터를 통과하면서 상위 5 안에 든다.
-**버리면 55개 패키지의 분포가 거짓이 된다.** 근거는 V12 머리말에 있다.
+**버리면 55개 패키지의 분포가 거짓이 된다.** 근거는 V13 머리말에 있다.
 
 출발 쪽이 안 붙는 489쌍은 빠진다. 조회가 `package_id` 로 들어오므로 어차피 닿지 않는다 —
 `removal_reasons/load.py` 가 "미해결은 경고가 아니다" 라고 적은 것과 같은 이유다.
@@ -203,6 +208,47 @@ BEGIN;
 -- 동시 적재 차단 (트랜잭션 종료 시 자동 해제)
 SELECT pg_advisory_xact_lock({LOCK_KEY});
 
+-- 같은 회차 이름에 **다른 내용**을 덮으려는 것을 여기서 끊는다.
+--
+-- etl_dataset_current 는 (dataset, execution_id, snapshot_at, manifest_sha256) 복합 FK 로
+-- etl_load_execution 을 가리키는데 ON UPDATE CASCADE 가 없다. 그래서 아래 ON CONFLICT
+-- DO UPDATE 가 manifest_sha256 을 바꾸는 순간 그 참조가 끊겨 FK 위반으로 죽는다. 데이터는
+-- 롤백되어 안전하지만, 사람에게 남는 것은
+-- "violates foreign key constraint etl_dataset_current_…_fkey" 라는 원문뿐이라 **무엇을
+-- 해야 하는지 알 수 없다.** --verify-only 도 같은 지점에서 막혀 확인할 길조차 없다.
+--
+-- **형제 적재기는 이 자리에 닿지 않는다.** 그쪽 run_id 는 불변 MinIO 회차를 가리켜서 같은
+-- run_id 면 manifest_sha256 도 같고, DO UPDATE 가 FK 열을 건드리지 않는다. 이 적재기는
+-- manifest 를 git CSV 내용에서 유도하므로 **데이터셋을 다시 만들면 같은 run_id 라도 해시가
+-- 반드시 달라진다** — 재생성은 이 저장소에서 일상이다(S15P21A506-395 09-21 · -422 09-22,
+-- 그리고 -136 9번 "새 스냅샷마다 30분 전체 재실행").
+--
+-- 막기만 하고 자동으로 새 회차를 만들지는 않는다. 덮어쓰기는 사람이 뜻을 확인해야 하는
+-- 일이고, "옛 회차를 덮지 않고 새 run_id 로 올린다" 가 이 저장소의 원칙이다
+-- (datasets/dependent_transitions_260917/README.md §1).
+--
+-- CSV 전송 **앞**에 두어 2.3만 행을 보내기 전에 끊는다. psql 변수는 달러 인용(DO $$) 안에서
+-- 치환되지 않으므로 임시 표를 거쳐 넘긴다.
+CREATE TEMP TABLE publish_key ON COMMIT DROP AS
+SELECT :'execution_id'::text AS execution_id, :'manifest_sha256'::text AS manifest_sha256;
+
+DO $$
+DECLARE previous text;
+BEGIN
+  SELECT e.manifest_sha256 INTO previous
+    FROM public.etl_load_execution e
+    JOIN publish_key k ON k.execution_id = e.execution_id;
+  IF previous IS NOT NULL AND previous <> (SELECT manifest_sha256 FROM publish_key) THEN
+    RAISE EXCEPTION E'같은 회차 이름에 다른 입력을 올리려 한다 — 새 회차로 올릴 것\\n'
+                     '  회차          %\\n'
+                     '  이미 게시된 것 %\\n'
+                     '  지금 읽은 것   %\\n'
+                     '데이터셋 CSV 를 다시 만들었다면 --run-id 를 올린다.',
+                    (SELECT execution_id FROM publish_key), previous,
+                    (SELECT manifest_sha256 FROM publish_key);
+  END IF;
+END $$;
+
 CREATE TEMP TABLE stage_pair (
     dep_kind         text    NOT NULL,
     snapshot_at      date    NOT NULL,
@@ -252,7 +298,7 @@ SELECT (SELECT count(*)                     FROM stage_pair)  AS staged_rows,
        (SELECT count(*) FROM resolved r
           LEFT JOIN "package" p ON p."name" = r.to_package_name
          WHERE p.package_id IS NULL)                          AS dest_not_in_package,
-       -- 기준일을 넘는 관측. regular 는 추출 사고, dev 는 정상 수집 범위다 (V12 머리말).
+       -- 기준일을 넘는 관측. regular 는 추출 사고, dev 는 정상 수집 범위다 (V13 머리말).
        -- **다음 회차에서 regular 쪽이 갑자기 늘면 추출이 또 샌 것이다.**
        (SELECT jsonb_object_agg(k.dep_kind, k.n) FROM
           (SELECT dep_kind, count(*) AS n FROM resolved

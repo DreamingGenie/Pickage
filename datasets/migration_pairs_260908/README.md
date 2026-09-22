@@ -453,7 +453,7 @@ diff 줄 수가 커 보이는 것(`all` 2,869줄)은 대부분 **정렬이 밀�
 
 | 무엇 | 어디 |
 |---|---|
-| 표 | `migration_pair` (마이그레이션 `V12`) |
+| 표 | `migration_pair` (마이그레이션 `V13`) |
 | 적재기 | `pipeline/migration_pairs/load.py` |
 | 시험 | `pipeline/migration_pairs/test_load.py` (13개, 0.03초) |
 
@@ -464,6 +464,9 @@ python -m pipeline.migration_pairs.load --run-id migration-pairs-20260922-v1 \
 ```
 
 `--verify-only` 는 게시 직전까지 전부 실행한 뒤 되돌린다. 매칭률을 보고 게시한다.
+
+**CSV 를 다시 만들었으면 `--run-id` 를 올린다.** 같은 회차 이름에 다른 내용을 올리려 하면
+적재기가 CSV 를 보내기 전에 끊는다 — 회차 이름이 곧 "무엇을 게시했나" 이기 때문이다.
 
 ### 9-1. 두 회차를 한 표에 넣고 `dep_kind` 로 가른다
 
