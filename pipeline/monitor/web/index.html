@@ -38,14 +38,27 @@
     --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
     --r:8px;
   }
+  /* 다크 — OS 설정을 따르되(기본), 상단 토글로 라이트/다크를 강제할 수 있다 (html[data-theme]). 선택은 브라우저에 남는다. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg:#0f1115; --panel:#161920; --line:#262b34; --hair:#1e2229;
       --fg:#e6e8ec; --fg2:#c4c9d2; --dim:#8b93a0; --faint:#657080;
       --ok:#4ade80; --ok-bg:#0f2a1c; --warn:#fbbf24; --warn-bg:#2b2110; --bad:#f87171; --bad-bg:#2c1516;
       --info:#93c5fd; --info-bg:#14223d; --track:#242933; --new:#6ee7b7;
     }
   }
+  :root[data-theme="dark"] {
+    --bg:#0f1115; --panel:#161920; --line:#262b34; --hair:#1e2229;
+    --fg:#e6e8ec; --fg2:#c4c9d2; --dim:#8b93a0; --faint:#657080;
+    --ok:#4ade80; --ok-bg:#0f2a1c; --warn:#fbbf24; --warn-bg:#2b2110; --bad:#f87171; --bad-bg:#2c1516;
+    --info:#93c5fd; --info-bg:#14223d; --track:#242933; --new:#6ee7b7;
+  }
+  :root[data-theme="dark"] .verdict .mark, :root:not([data-theme="light"]) .verdict .mark { color:#0f1115; }
+  .theme { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .theme button { font:inherit; font-size:var(--fs-cap); color:var(--dim); background:var(--panel); border:0;
+                  padding:5px 9px; cursor:pointer; line-height:1.2; }
+  .theme button + button { border-left:1px solid var(--line); }
+  .theme button.on { color:var(--fg); background:var(--track); font-weight:600; }
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
   body { margin:0; padding:var(--sp-5) var(--sp-4) 48px; background:var(--bg); color:var(--fg);
@@ -214,6 +227,9 @@
     <div class="when">
       <span id="updated">불러오는 중…</span>
       <button id="now" type="button" class="btn">지금 확인</button>
+      <span class="theme" id="theme" title="화면 밝기 — 기본은 OS 설정을 따른다">
+        <button type="button" data-theme="system">시스템</button><button type="button" data-theme="light">라이트</button><button type="button" data-theme="dark">다크</button>
+      </span>
       <nav><a href="http://127.0.0.1:19999/status.html">서버 상태</a><a href="http://127.0.0.1:19999/">netdata 대시보드</a></nav>
     </div>
   </div>
@@ -234,6 +250,23 @@
 </div>
 
 <script>
+// ── 밝기 — system(OS 따라감) · light · dark. localStorage 에 남는다 (없거나 막혀 있으면 system) ───────
+(function () {
+  const KEY = 'pickage-monitor-theme';
+  const read = () => { try { return localStorage.getItem(KEY) || 'system'; } catch (e) { return 'system'; } };
+  const apply = mode => {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    document.querySelectorAll('#theme button').forEach(b => b.classList.toggle('on', b.dataset.theme === mode));
+  };
+  apply(read());
+  document.getElementById('theme').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    try { localStorage.setItem(KEY, b.dataset.theme); } catch (e2) { /* 저장이 막혀도 이번 화면에는 적용된다 */ }
+    apply(b.dataset.theme);
+  });
+})();
+
 // ── 유틸 ────────────────────────────────────────────────────────────────
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 function bytes(n) {
