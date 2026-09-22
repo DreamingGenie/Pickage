@@ -13,6 +13,7 @@ import {
   fetchPackagesOverview,
   fetchPdfPreview,
   fetchSimilarPackages,
+  fetchMigrationPairs,
   fetchRemovalReasons,
   fetchTransitions,
   fetchVersionShare,
@@ -28,6 +29,7 @@ import {
   type CommunityRefreshTrigger,
   type FeatureRunResponse,
   type FeatureTarget,
+  type DependencyKindParam,
   type TransitionPeriodParam,
 } from '@/api/types'
 
@@ -257,6 +259,26 @@ export function useRemovalReasons(
   return useQuery({
     queryKey: queryKeys.packages.removalReasons(names, period),
     queryFn: () => fetchRemovalReasons(names, period),
+    enabled: ready && usable(names),
+    retry,
+  })
+}
+
+/**
+ * 관측된 교체 흐름 (S15P21A506-424). 위 둘과 달리 **구간이 아니라 종류를 받는다** —
+ * 연속한 릴리스를 훑은 결과라 "몇 년치" 라는 축이 없다.
+ *
+ * 종류를 바꾸면 기준일도 함께 바뀐다(regular 2026-08-31 · dev 2026-09-16). 그래서 캐시
+ * 키에도 종류가 들어간다 — 같은 이름이어도 두 종류는 모집단이 다른 별개의 수다.
+ */
+export function useMigrationPairs(
+  names: readonly string[],
+  kind: DependencyKindParam,
+  ready = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.packages.migrationPairs(names, kind),
+    queryFn: () => fetchMigrationPairs(names, kind),
     enabled: ready && usable(names),
     retry,
   })

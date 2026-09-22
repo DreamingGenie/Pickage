@@ -14,6 +14,9 @@ import {
   BY_NAME,
   LATEST_SNAPSHOT,
   MOCK_DICTIONARY,
+  MOCK_MIGRATION_PAIRS_DEV,
+  MOCK_MIGRATION_PAIRS_REGULAR,
+  MOCK_MIGRATION_SNAPSHOT,
   MOCK_PACKAGES,
   MOCK_REMOVAL_REASONS,
   MOCK_TRANSITIONS,
@@ -30,6 +33,8 @@ import {
   SEARCH_LIMIT_MAX,
   SIMILAR_LIMIT_DEFAULT,
   SIMILAR_LIMIT_MAX,
+  DEFAULT_DEPENDENCY_KIND,
+  type DependencyKindParam,
   type DependentsTrendResponse,
   type DictManifest,
   type DownloadsTrendResponse,
@@ -38,6 +43,8 @@ import {
   type PackageSearchResponse,
   type MarkdownGenerateRequest,
   type MarkdownJob,
+  type MigrationPairsResponse,
+  type MigrationSeriesItem,
   type PackagesOverviewResponse,
   type PdfGenerateRequest,
   type PdfJob,
@@ -727,6 +734,92 @@ export function mockRemovalReasons(
     period: resolvedPeriod,
     ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
     series,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * GET /packages/migration-pairs  (S15P21A506-424)
+ *
+ * 위 둘과 달리 **구간(period)이 없다.** 연속한 릴리스를 전부 훑은 결과라 "몇 년치" 라는
+ * 축이 성립하지 않는다. 대신 `kind` 로 원천을 고르고, 기준일이 종류마다 다르다.
+ *
+ * 모르는 `kind` 는 서버가 400 이므로 mock 도 400 을 던진다 — 조용히 기본값으로
+ * 떨어뜨리면 화면은 개발용을 요청하고 실행용을 받아 놓고 그 사실을 모른다.
+ * ------------------------------------------------------------------ */
+
+const DEPENDENCY_KINDS: readonly DependencyKindParam[] = ['regular', 'dev']
+
+function checkKind(raw?: string): DependencyKindParam {
+  if (raw === undefined || raw === '') return DEFAULT_DEPENDENCY_KIND
+  if (!DEPENDENCY_KINDS.includes(raw as DependencyKindParam)) {
+    fail('V004', `kind는 ${DEPENDENCY_KINDS.join(', ')} 중 하나여야 합니다: ${raw}`)
+  }
+  return raw as DependencyKindParam
+}
+
+function migrationRowOf(name: string, kind: DependencyKindParam): MigrationSeriesItem {
+  const table = kind === 'dev' ? MOCK_MIGRATION_PAIRS_DEV : MOCK_MIGRATION_PAIRS_REGULAR
+  // 픽스처가 없으면 그 종류를 아직 안 올린 것으로 본다 — dev 가 실제로 그 상태다.
+  const fixture = table[name] ?? { dataStatus: 'NOT_COMPUTED' as const }
+  const base = { name, share_basis: 'publisher_months' }
+
+  // 세어 보지 않은 두 상태는 기준일도 관측 수도 모른다. 0 으로 메우면 "세어 보니 없었다"
+  // 와 구분되지 않는다 — 이 지표가 가장 경계하는 혼동이다.
+  if (fixture.dataStatus === 'NOT_COMPUTED' || fixture.dataStatus === 'OUT_OF_SCOPE') {
+    return {
+      ...base,
+      snapshot_at: null,
+      destinations: [],
+      etc: null,
+      observed_pairs: null,
+      data_status: fixture.dataStatus,
+    }
+  }
+
+  return {
+    ...base,
+    // NO_DATA 는 읽을 행이 없어 기준일도 모른다(서버가 표에서 읽으므로).
+    snapshot_at: fixture.dataStatus === 'NO_DATA' ? null : MOCK_MIGRATION_SNAPSHOT[kind],
+    destinations: (fixture.destinations ?? []).map((d) => ({
+      name: d.name,
+      votes: d.votes,
+      co_events: d.coEvents,
+      publisher_months: d.publisherMonths,
+      dependents: d.dependents,
+      lift: d.lift,
+      share_pm_pct: d.sharePmPct,
+      share_pct: d.sharePct,
+      a_pct: d.aPct,
+      evidence: d.evidence,
+      variant: d.variant ?? false,
+      first_seen: d.firstSeen,
+      last_seen: d.lastSeen,
+    })),
+    etc: fixture.etc
+      ? {
+          pairs: fixture.etc.pairs,
+          share_pm_pct: fixture.etc.sharePmPct,
+          below_filter: fixture.etc.belowFilter,
+        }
+      : null,
+    observed_pairs: fixture.observedPairs ?? 0,
+    data_status: fixture.dataStatus,
+  }
+}
+
+export function mockMigrationPairs(
+  names: readonly string[] | undefined,
+  kind?: string,
+): Promise<MigrationPairsResponse> {
+  const list = normalizeNames(names)
+  const resolvedKind = checkKind(kind)
+  const { found, not_found } = split(list)
+
+  return delay<MigrationPairsResponse>({
+    metric: 'migration_pairs',
+    kind: resolvedKind,
+    series: found.map((pkg) => migrationRowOf(pkg.name, resolvedKind)),
     not_found,
   })
 }

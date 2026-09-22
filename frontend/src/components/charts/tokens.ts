@@ -25,6 +25,15 @@ export const SERIES_STYLES: SeriesStyle[] = [
 
 export const seriesStyle = (i: number): SeriesStyle => SERIES_STYLES[i % SERIES_STYLES.length]
 
+/**
+ * 교체 흐름 막대의 도착지 색 — **다섯 단계.**
+ *
+ * `SHARE_FILLS` 를 쓰지 않는 이유는 그쪽이 네 칸이라 다섯째 도착지에서 색이 처음으로
+ * 되돌아가기 때문이다. 막대만 보면 같은 색 조각이 둘이라 하나로 읽힌다 — 범례에 비율이
+ * 있어도 막대의 모양이 먼저 눈에 들어온다. 도착지는 최대 다섯 개다(API 가 상위 5만 준다).
+ */
+export const FLOW_FILLS = ['#0F172A', '#334155', '#64748B', '#94A3B8', '#CBD5E1']
+
 /** Version Share 계열 색. UNRESOLVED 는 색이 아니라 빗금으로 구분한다. */
 export const SHARE_FILLS = ['#0F172A', '#475569', '#94A3B8', '#CBD5E1']
 export const UNRESOLVED_FILL = 'url(#pk-hatch)'
