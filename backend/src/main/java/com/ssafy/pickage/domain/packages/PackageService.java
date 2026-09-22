@@ -618,7 +618,7 @@ public class PackageService {
 	private static MigrationPairsResponse.Destination destination(MigrationPairRow row) {
 		return new MigrationPairsResponse.Destination(
 			row.toName(), row.votes(), row.coEvents(), row.publisherMonths(), row.dependents(),
-			row.lift(), row.sharePmPct(), row.sharePct(),
+			row.lift(), row.sharePmPct(), row.sharePct(), row.aPct(),
 			MigrationPairFilter.grade(row.votes(), row.publisherMonths(), row.aPct(),
 				row.sharePct()),
 			row.bidirectional(), row.firstSeen(), row.lastSeen());

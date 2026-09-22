@@ -168,6 +168,10 @@ public record MigrationPairsResponse(
 	 *                    않는다.</b> 남는 자리는 "근거가 약해 집계에서 뺀 이동" 으로 둔다.
 	 * @param sharePct    표 기준 점유율. <b>라벨 필터용으로만 남긴 값이고 화면에 쓰지
 	 *                    않는다</b>(S15P21A506-136 §3). 등급 판정의 입력이라 함께 낸다.
+	 * @param aPct        <b>그 패키지를 뺀 전이 중 이것을 함께 넣은 비율.</b>
+	 *                    {@code sharePmPct}(도착지들 사이의 몫)와 분모가 다르다 — 이쪽은
+	 *                    이탈 전체가 분모라 "뺀 사람 다섯 중 하나가 이걸 골랐다" 로 읽힌다.
+	 *                    화면이 배지 옆에 실제 관측을 적을 때 쓴다.
 	 * @param evidence    {@code strict} · {@code recommended} · {@code loose}. 행을 지우는
 	 *                    대신 붙이는 배지다(결정 1).
 	 * @param variant     양방향 관측. <b>"같은 물건의 두 포장" 일 수 있다</b>(lodash ↔
@@ -184,6 +188,7 @@ public record MigrationPairsResponse(
 		BigDecimal lift,
 		BigDecimal sharePmPct,
 		BigDecimal sharePct,
+		BigDecimal aPct,
 		String evidence,
 		boolean variant,
 		LocalDate firstSeen,

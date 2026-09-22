@@ -141,6 +141,9 @@ class MigrationPairsControllerIntegrationTest {
 			.andExpect(jsonPath("$.data.series[0].share_basis").value("publisher_months"))
 			.andExpect(jsonPath("$.data.series[0].destinations[0].name").value("dayjs"))
 			.andExpect(jsonPath("$.data.series[0].destinations[0].share_pm_pct").value(30.0))
+			// 화면이 배지 옆에 "지운 경우의 N%" 를 적는다. 빠지면 그 문장이 조용히 사라진다.
+			.andExpect(jsonPath("$.data.series[0].destinations[0].a_pct").value(1.0))
+			.andExpect(jsonPath("$.data.series[0].destinations[0].dependents").value(50))
 			.andExpect(jsonPath("$.data.series[0].destinations[1].name").value("date-fns"))
 			// a_pct 가 1.00 이라 strict(>=3) 에 못 미치고 share_pct 30 으로 recommended 다.
 			// 등급이 votes·publisher_months 만 보고 정해지지 않는다는 것을 여기서 밟는다.
