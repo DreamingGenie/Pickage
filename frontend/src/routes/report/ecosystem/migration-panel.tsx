@@ -151,23 +151,31 @@ export function MigrationPanel({
 
           {directions.length > 0 && <CrossDirections directions={directions} />}
 
-          <div className="flex flex-wrap justify-center gap-5">
+          {/*
+            **열은 그리드가 나눈다.** 고정 폭(`sm:w-72`)으로 두었더니 위 패널(이탈 사유)은
+            세 칸인데 이쪽만 2+1 로 접히는 폭 구간이 생겼다 — 같은 화면에서 두 패널의
+            리듬이 어긋난다. 비율로 나누면 그 구간이 없어지고, 칸 수와 간격을 손으로 빼는
+            매직 넘버도 필요 없다(그리드가 계산한다).
+
+            칸 수를 패키지 수로 묶는 것은 **1~2개일 때 오른쪽에 빈 칸을 남기지 않기**
+            위해서다. 셋을 전제로 `lg:grid-cols-3` 를 고정하면 하나만 비교할 때 왼쪽으로
+            쏠린다.
+          */}
+          <div
+            className={cn(
+              'grid gap-5',
+              model.packages.length >= 2 && 'sm:grid-cols-2',
+              model.packages.length >= 3 && 'lg:grid-cols-3',
+            )}
+          >
             {model.packages.map((pkg, i) => {
               const style = seriesStyle(i)
               const emphasized = !emphasisKeys || emphasisKeys.includes(pkg.key)
               return (
                 <div
                   key={pkg.key}
-                  /*
-                    **열 폭에 매직 넘버를 두지 않는다.** 형제 패널은
-                    `sm:basis-[calc(50%-10px)]` 처럼 칸 수와 `gap-5` 를 손으로 빼서 쓰는데,
-                    간격을 바꾸면 그 수를 같이 고쳐야 하는 것을 아무도 기억하지 못한다.
-                    고정 폭(`sm:w-72`)에 `justify-center` 를 더하면 몇 개가 들어오든 스스로
-                    줄바꿈하고, 1~2개일 때 남는 자리도 양옆으로 고르게 나뉜다.
-                  */
                   className={cn(
-                    'flex w-full flex-none flex-col items-center gap-3 transition-opacity duration-150',
-                    'sm:w-72',
+                    'flex min-w-0 flex-col items-center gap-3 transition-opacity duration-150',
                     !emphasized && 'opacity-40',
                   )}
                 >

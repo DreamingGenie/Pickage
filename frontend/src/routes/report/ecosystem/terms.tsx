@@ -53,4 +53,4 @@ export const MIGRATION_TERM = '어디로 옮겨 갔나'
  * "옮겨 갔다" 는 제목만 보면 서비스가 이사를 판정해 준 것처럼 읽힌다. 그래서 이 줄이
  * <b>무엇을 관측했는지</b>를 먼저 말한다 — 판정이 아니라 기록이라는 것.
  */
-export const MIGRATION_CAPTION = '이 패키지를 빼면서 같은 버전에 새로 넣은 것을 모은 거예요'
+export const MIGRATION_CAPTION = '이 패키지를 지운 프로젝트들이 그때 함께 넣은 패키지를 모은 거예요'

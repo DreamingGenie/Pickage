@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react'
+
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   EVIDENCE_HINT,
   EVIDENCE_LABEL,
@@ -20,11 +23,54 @@ import { cn } from '@/lib/utils'
  */
 
 /**
- * 근거 배지. **툴팁에 판정 기준을 싣는다.**
+ * 배지 + 설명 말풍선.
+ *
+ * <b>브라우저 기본 `title` 속성을 쓰지 않는다.</b> 처음에는 그것으로 뒀는데 커서만
+ * 물음표로 바뀌고 말풍선이 뜨지 않는 일이 잦았다 — 기본 툴팁은 1초 넘게 가만히 있어야
+ * 뜨고, 마우스가 조금만 움직여도 취소되며, 키보드 포커스로는 아예 뜨지 않는다. 설명을
+ * 달아 놓고 읽히지 않으면 배지는 여전히 "서비스가 임의로 매긴 점수" 다.
+ *
+ * 대신 디자인 시스템의 `Tooltip`(Radix)을 쓴다. `delayDuration` 이 0 이라 바로 뜨고,
+ * 트리거에 포커스가 가면 키보드로도 열린다.
+ */
+function Badge({
+  hint,
+  children,
+  className,
+}: {
+  hint: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <Tooltip>
+      {/*
+        `tabIndex={0}` — 배지는 버튼이 아니라 글자라서 기본으로는 포커스를 받지 못한다.
+        그러면 키보드만 쓰는 사람에게는 설명이 없는 것과 같다.
+      */}
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className={cn(
+            'shrink-0 cursor-help rounded px-1 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+            className,
+          )}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      {/* 기본 폭은 한 줄짜리 말풍선용이라 이 문장들에는 좁다. */}
+      <TooltipContent className="max-w-72 text-xs leading-relaxed">{hint}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
+ * 근거 배지. **말풍선에 판정 기준을 싣는다.**
  *
  * 낱말만 떠 있으면 서비스가 임의로 매긴 점수처럼 읽힌다. 실제로는 계산 파이프라인이 원래
- * 쓰던 고정 문턱이고, 그 문턱을 사람 말로 적은 것이 툴팁이다. 모달의 풀이표도 같은 상수를
- * 읽으므로 두 설명이 갈라질 수 없다.
+ * 쓰던 고정 문턱이고, 그 문턱을 사람 말로 적은 것이 말풍선이다. 모달의 풀이표도 같은
+ * 상수를 읽으므로 두 설명이 갈라질 수 없다.
  */
 export function EvidenceBadge({
   evidence,
@@ -34,16 +80,15 @@ export function EvidenceBadge({
   className?: string
 }) {
   return (
-    <span
-      title={EVIDENCE_HINT[evidence]}
+    <Badge
+      hint={EVIDENCE_HINT[evidence]}
       className={cn(
-        'shrink-0 cursor-help rounded px-1 text-xs',
         evidence === 'strict' ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground',
         className,
       )}
     >
       {EVIDENCE_LABEL[evidence]}
-    </span>
+    </Badge>
   )
 }
 
@@ -56,14 +101,8 @@ export function EvidenceBadge({
  */
 export function VariantBadge({ className }: { className?: string }) {
   return (
-    <span
-      title={VARIANT_HINT}
-      className={cn(
-        'shrink-0 cursor-help rounded border px-1 text-xs text-muted-foreground',
-        className,
-      )}
-    >
+    <Badge hint={VARIANT_HINT} className={cn('border text-muted-foreground', className)}>
       {VARIANT_LABEL}
-    </span>
+    </Badge>
   )
 }
