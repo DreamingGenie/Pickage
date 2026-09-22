@@ -134,10 +134,10 @@ export function MetricChart({
   // 선만으로 다시 만들어야 하고, 그건 어느 선이 강조됐는지 아는 쪽에서만 할 수 있다.
   const yDomainOf = showingIndex ? indexedExtentY : undefined
 
-  const modeLabel = showingIndex ? '변화율 · 구간 시작 = 100%' : '로그축'
+  const modeLabel = showingIndex ? '변화율 · 구간 시작 = 100%' : '로그 눈금'
   const ariaSuffix = showingIndex
-    ? '변화율 — 표시 구간의 첫 관측치를 100%로 두고 그 대비 비율로 그렸습니다'
-    : '로그축 — 세로 간격이 아니라 눈금 값을 읽어 주세요'
+    ? '변화율 — 보이는 기간의 첫 값을 100%로 두고 얼마나 달라졌는지 그렸어요'
+    : '로그 눈금 — 세로 간격이 일정하지 않아요. 눈금 숫자를 읽어 주세요'
 
   /**
    * **시리즈별로** 선을 그릴지 가른다(311b) — 예전에는 가장 긴 시리즈 하나로 카드 전체를
@@ -167,21 +167,24 @@ export function MetricChart({
         높이에서 13px 어긋났다. 최솟값을 맞춰 두 카드가 언제나 같은 높이가 되게 한다(S15P21A506-405).
       */}
       <header className="flex min-h-10 flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
-            {title}
-          </h3>
-          {hasInfo && (
-            <InfoDialog label={`${title} 안내`} title={infoTitle ?? title}>
-              {info}
-              {showClampNote && (
-                <p>
-                  이 지표는 {observedFrom}부터 관측되어, 고른 조회 기간 중 그 이전 구간은 그리지
-                  않았습니다.
-                </p>
-              )}
-            </InfoDialog>
-          )}
+        <div className="flex min-w-0 flex-col">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold" title={`${unit} · ${modeLabel}`}>
+              {title}
+            </h3>
+            {hasInfo && (
+              <InfoDialog label={`${title} 안내`} title={infoTitle ?? title}>
+                {info}
+                {showClampNote && (
+                  <p>
+                    이 지표는 {observedFrom}부터 모았어요. 고른 기간 중 그보다 앞은 그리지 않았어요.
+                  </p>
+                )}
+              </InfoDialog>
+            )}
+          </div>
+          {/* 무엇을 센 값인지 한 줄로 늘 보여 준다. 모달을 열지 않아도 읽히게 하려는 것이다. */}
+          <p className="text-sm text-muted-foreground">{unit}</p>
         </div>
         {allowIndex && (
           <SegmentedControl
@@ -207,7 +210,7 @@ export function MetricChart({
           ) : state.status === 'error' ? (
             <MetricError height={h} error={state.error} onRetry={state.onRetry} />
           ) : rawMax === 0 ? (
-            <EmptyState height={h}>이 구간에 관측된 스냅샷이 없습니다.</EmptyState>
+            <EmptyState height={h}>이 기간에는 모아 둔 자료가 없어요.</EmptyState>
           ) : lined.length === 0 ? (
             /*
             점 두 개를 선으로 이으면 없는 추세를 그린 것이 된다. 시리즈 전부가 이 상태라
@@ -216,11 +219,11 @@ export function MetricChart({
             <EmptyState height={h} icon={false}>
               {accumulating.map((s) => (
                 <span key={s.key}>
-                  <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
-                  {validCount(s)}주차
+                  <span className="font-medium text-foreground">{s.label}</span> 자료를 모으는
+                  중이에요 · {validCount(s)}주째
                 </span>
               ))}
-              <span>추세를 그리려면 스냅샷이 {MIN_POINTS_FOR_LINE}개 이상 필요합니다.</span>
+              <span>선을 그리려면 {MIN_POINTS_FOR_LINE}주 넘게 모아야 해요. 매주 새로 모아요.</span>
             </EmptyState>
           ) : (
             <>
@@ -320,8 +323,8 @@ function AccumulatingNotes({ series }: { series: ChartSeries[] }) {
     <div className="flex flex-col gap-1 rounded-xl border border-dashed px-4 py-3 text-base leading-relaxed text-muted-foreground">
       {series.map((s) => (
         <span key={s.key}>
-          <span className="font-medium text-foreground">{s.label}</span> 데이터 축적 중 ·{' '}
-          {validCount(s)}주차
+          <span className="font-medium text-foreground">{s.label}</span> 자료를 모으는 중이에요 ·{' '}
+          {validCount(s)}주째
         </span>
       ))}
     </div>
@@ -340,7 +343,7 @@ function RefreshNotice({ error, onRetry }: { error: unknown; onRetry?: () => voi
 
   return (
     <p className="-mt-1.5 flex flex-wrap items-baseline gap-2 text-base leading-relaxed text-muted-foreground">
-      <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+      <span>새 자료를 받지 못해서, 마지막으로 받은 자료로 그렸어요.</span>
       {onRetry && notice.retryable && (
         <button
           type="button"
@@ -379,7 +382,7 @@ function MetricError({
           onClick={onRetry}
           className="mt-1 rounded-md border px-3 py-1.5 text-xs transition-colors hover:border-foreground/40"
         >
-          이 지표만 다시 시도
+          이 그래프만 다시 불러오기
         </button>
       )}
     </EmptyState>

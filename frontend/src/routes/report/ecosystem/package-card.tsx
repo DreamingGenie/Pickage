@@ -1,4 +1,4 @@
-import { ExternalLinkIcon } from 'lucide-react'
+import { ArrowUpRightIcon } from 'lucide-react'
 
 import { errorNotice } from '@/api/client'
 import { seriesStyle } from '@/components/charts/tokens'
@@ -69,13 +69,13 @@ export function PackageCard({
             </span>
           )}
           {model.isDeprecated && (
-            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-base text-amber-800">
-              폐기 표시
+            <span className="shrink-0 rounded bg-tone-down px-1.5 py-0.5 text-base text-tone-down-foreground">
+              지원 종료
             </span>
           )}
         </div>
         <span className="pl-[30px] font-mono text-xs text-muted-foreground/60">
-          {model.licenses.length ? model.licenses.join(' · ') : '라이선스 미상'} · v
+          {model.licenses.length ? model.licenses.join(' · ') : '라이선스 정보 없음'} · v
           {model.latestVersion}
         </span>
       </div>
@@ -95,6 +95,19 @@ export function PackageCard({
         <p className="-mt-2 text-base leading-relaxed text-muted-foreground">{model.description}</p>
       )}
 
+      {/* "최신 버전 폐기 표시" 가 무슨 뜻인지 모르겠다는 의견 — 배지만 두지 않고 뜻을 풀어 준다 */}
+      {model.isDeprecated && (
+        <div role="note" className="flex flex-col gap-1 rounded-xl bg-tone-down px-4 py-3">
+          <p className="font-semibold text-tone-down-foreground">
+            만든 사람이 더 이상 쓰지 말라고 안내하고 있어요
+          </p>
+          <p className="text-sm leading-relaxed text-tone-down-foreground/90">
+            최신 버전에 &lsquo;지원 종료(deprecated)&rsquo; 표시가 붙어 있어요. 설치는 되지만 앞으로
+            고쳐지지 않을 수 있어요.
+          </p>
+        </div>
+      )}
+
       <ObservationBadges model={model} />
 
       {/* 의존 수 — 표시 버전과 증감. 증감은 유입·이탈로 나누지 않는다(합계값이라 나눌 수 없다) */}
@@ -110,7 +123,7 @@ export function PackageCard({
         {delta === null ? (
           <MissingTile
             label={DEPENDENTS_DELTA_TERM}
-            title="증감을 내려면 관측치가 둘 이상 필요합니다"
+            title="증감을 보려면 두 번 이상 모은 자료가 필요해요"
           />
         ) : (
           <div className="flex items-baseline justify-between gap-3">
@@ -150,8 +163,9 @@ export function PackageCard({
           */}
           <InfoDialog label="Version Share 안내" title="Version Share">
             <p>
-              공개된 의존 조건을 major 단위로 묶은 비율입니다. 실제 설치 버전이 아니고, 한
-              프로젝트가 여러 버전에 걸릴 수 있어 합계는 실제 사용처 수보다 큽니다.
+              이 패키지를 적어 둔 쪽이 어떤 큰 버전(major, 예: 4.x · 5.x)을 조건으로 걸었는지 나눈
+              비율이에요. 실제로 설치된 버전은 아니에요. 한 프로젝트가 여러 버전에 걸릴 수 있어서
+              조각을 모두 더하면 실제 프로젝트 수보다 커요.
             </p>
           </InfoDialog>
         </div>
@@ -161,8 +175,8 @@ export function PackageCard({
           <VersionShareError error={versionShareState.error} onRetry={versionShareState.onRetry} />
         ) : model.versionShare.length === 0 ? (
           <EmptyPanel
-            message="버전 분포를 불러올 수 없습니다"
-            hint="이 시점에 집계된 자료가 없습니다"
+            message="버전 분포를 보여 드릴 수 없어요"
+            hint="이 날짜에 모아 둔 자료가 없어요"
           />
         ) : (
           <>
@@ -180,7 +194,7 @@ export function PackageCard({
         )}
         {versionShareState.status === 'ready' && versionShareState.refreshError !== undefined && (
           <p className="-mt-1.5 flex flex-wrap items-baseline gap-2 text-base leading-relaxed text-muted-foreground">
-            <span>최신 자료를 받지 못해 마지막으로 받은 것을 그렸습니다.</span>
+            <span>새 자료를 받지 못해서, 마지막으로 받은 자료로 그렸어요.</span>
             {versionShareState.onRetry && errorNotice(versionShareState.refreshError).retryable && (
               <button
                 type="button"
@@ -212,11 +226,12 @@ function RepositoryLink({ url, name }: { url: string | null; name: string }) {
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      title={`${name} 저장소 열기`}
-      aria-label={`${name} 저장소 열기`}
-      className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+      aria-label={`${name} 소스 코드 보기 (새 탭)`}
+      className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
     >
-      <ExternalLinkIcon aria-hidden className="size-4" />
+      {/* 아이콘만 두면 누르면 무엇이 열리는지 알 수 없다 — 글자와 바깥으로 나가는 화살표를 함께 둔다 */}
+      <ArrowUpRightIcon aria-hidden className="size-4" />
+      소스 코드 보기
     </a>
   )
 }
@@ -305,14 +320,15 @@ function VersionPicker({
         */}
         <InfoDialog label="표시 버전 안내" title="표시 버전" className="ml-0.5">
           <p>
-            &lsquo;전체&rsquo;는 모든 버전(major)을 합한 값입니다. 버전을 하나 이상 골라 합쳐 볼 수
-            있고, 고른 버전의 합계가 {DEPENDENTS_TERM} 그래프와 {DEPENDENTS_TERM} 증감에 반영됩니다.
+            &lsquo;전체&rsquo;는 모든 큰 버전(major)을 합한 값이에요. 4.x 처럼 하나 이상 골라 합쳐
+            볼 수 있고, 고른 버전의 합계가 {DEPENDENTS_TERM} 그래프와 {DEPENDENTS_TERM} 증감에
+            반영돼요.
           </p>
           <p>
             {isAll
-              ? '지금은 전체를 보고 있습니다.'
-              : `지금은 고른 ${selected.length}개 버전을 합해 보고 있습니다.`}{' '}
-            선택은 이 패키지에만 적용되고 다른 패키지에는 영향을 주지 않습니다.
+              ? '지금은 전체를 보고 있어요.'
+              : `지금은 고른 ${selected.length}개 버전을 합해 보고 있어요.`}{' '}
+            이 선택은 이 패키지에만 적용되고, 다른 패키지에는 영향을 주지 않아요.
           </p>
         </InfoDialog>
       </div>

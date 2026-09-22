@@ -43,7 +43,7 @@ export function RemovalReasonsPanel({
   const dateLabel =
     model.t1 && model.t2
       ? `${model.t1} ~ ${model.t2}`
-      : '적재 전 — 아직 이 구간이 계산되지 않았습니다'
+      : '준비 중 — 이 기간은 아직 계산하지 않았어요'
   /** 서버가 값으로 보낸 단위. 행이 하나도 없으면 계약상 기본값을 쓴다. */
   const unit = model.packages[0]?.unit ?? 'transitions'
 
@@ -60,20 +60,20 @@ export function RemovalReasonsPanel({
           <h3 className="text-lg font-semibold">이탈 사유</h3>
           <InfoDialog label="이탈 사유 계산 기준 안내" title="계산 기준">
             <p>
-              위 <strong>유지 · 유입 · 이탈</strong> 과 <strong>세는 단위가 다릅니다.</strong>{' '}
-              저쪽은 프로젝트를 이름으로 센 <strong>패키지 수</strong> 이고, 이 수치는 뺀 행위를 센{' '}
-              <strong>전이 건수</strong>({unit}) 입니다. 한 프로젝트가 뺐다가 다시 넣고 또 뺐으면
-              저쪽은 1, 이쪽은 2 입니다. <strong>두 패널의 수를 더하거나 나누지 마세요.</strong>
+              위 <strong>유지 · 유입 · 이탈</strong> 과 <strong>세는 단위가 달라요.</strong> 그쪽은
+              프로젝트를 이름으로 센 <strong>패키지 수</strong>이고, 이쪽은 뺀 일을 하나씩 센{' '}
+              <strong>횟수</strong>({unit})예요. 한 프로젝트가 뺐다가 다시 넣고 또 뺐으면 그쪽은 1,
+              이쪽은 2 예요. <strong>두 패널의 수를 더하거나 나누지 마세요.</strong>
             </p>
             <p>
-              <strong>다른 것과 함께 제거</strong> 는 같은 릴리스에서 다른 패키지를 함께 넣었다는
-              뜻이지, 그것이 <strong>대체품이라는 보장은 아닙니다.</strong> 한 릴리스에 섞인 의존성
-              대청소일 수 있습니다.
+              <strong>다른 것과 함께 제거</strong> 는 같은 버전에서 다른 패키지를 함께 넣었다는
+              뜻이에요. 그것이 <strong>대체품이라는 보장은 없어요.</strong> 한 번에 의존성을 크게
+              정리했을 수도 있어요.
             </p>
             <p>
-              집계 대상은{' '}
-              {model.population ? populationLabel(model.population) : '위 패널과 같은 모집단'} 이고,
-              구간과 기준일은 위 패널과 같습니다.
+              센 대상은{' '}
+              {model.population ? populationLabel(model.population) : '위 패널과 같은 패키지들'}{' '}
+              이고, 기간과 기준일은 위 패널과 같아요.
             </p>
           </InfoDialog>
         </div>
@@ -82,7 +82,7 @@ export function RemovalReasonsPanel({
 
       <p className="text-base text-muted-foreground">
         최근 <strong className="text-foreground">{periodLabel}</strong> 간{' '}
-        {unit === 'transitions' ? '전이 건수' : unit} 기준입니다. 위 패널과 같은 구간을 봅니다.
+        {unit === 'transitions' ? '뺀 횟수' : unit} 기준이에요. 위 패널과 같은 기간을 봐요.
       </p>
 
       {state.status === 'loading' ? (
@@ -96,7 +96,7 @@ export function RemovalReasonsPanel({
         <>
           {model.notFound.length > 0 && (
             <p className="rounded-lg border border-dashed px-3 py-2 text-base text-muted-foreground">
-              일부 패키지의 이탈 사유를 찾지 못했습니다:{' '}
+              일부 패키지는 이탈 사유를 찾지 못했어요:{' '}
               <span className="font-mono text-foreground">{model.notFound.join(', ')}</span>
             </p>
           )}

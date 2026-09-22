@@ -60,7 +60,7 @@ export function CommunityIssueCard({
       <InfoDialog
         label={`#${topic.issue_number} 요약 안내`}
         title="요약 안내"
-        className="ml-1 align-middle"
+        className="relative z-10 ml-1 align-middle"
       >
         {notes.map((l) => (
           <p key={l.code}>{l.message}</p>
@@ -69,9 +69,15 @@ export function CommunityIssueCard({
     ) : null
 
   return (
+    /*
+      카드 전체를 누르면 GitHub 원문이 열린다 — 버튼만 눌러야 해서 불편하다는 의견. 링크를 따로 하나 더
+      두지 않고 기존 "GitHub에서 보기" 링크를 카드 크기로 늘린다(`after:inset-0`). 그래서 링크는 여전히
+      하나뿐이다(DEC-COMMUNITY-LINK-MARKS). 안의 ⓘ 버튼은 `relative z-10` 으로 그 위에 둔다.
+    */
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-2xl border border-l-[5px] bg-card p-6',
+        'relative flex flex-col gap-3 rounded-2xl border border-l-[5px] bg-card p-6',
+        issueUrl && 'transition-shadow hover:shadow-[0_6px_20px_-12px_rgba(15,23,42,0.35)]',
         accent.bar,
       )}
     >
@@ -92,7 +98,10 @@ export function CommunityIssueCard({
             asChild
             variant="outline"
             size="sm"
-            className={cn('h-8 gap-1.5 font-bold', accent.text)}
+            className={cn(
+              "h-8 gap-1.5 font-bold after:absolute after:inset-0 after:rounded-2xl after:content-['']",
+              accent.text,
+            )}
           >
             <a
               href={issueUrl}

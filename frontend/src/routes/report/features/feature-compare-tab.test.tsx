@@ -161,11 +161,11 @@ describe('FeatureCompareTab', () => {
     completesWith()
     renderTab()
 
-    const summary = within(await screen.findByRole('region', { name: '핵심 비교 요약' }))
-    expect(summary.getByText('CommonJS')).toBeInTheDocument()
-    expect(summary.getByText('ESM + CommonJS')).toBeInTheDocument()
+    const summary = within(await screen.findByRole('region', { name: '설치하기 전에 알아 둘 것' }))
+    expect(summary.getByText('require (CommonJS)')).toBeInTheDocument()
+    expect(summary.getByText('import · require 둘 다')).toBeInTheDocument()
     // null 은 0 이 아니라 모름이다 — 0개로 적지 않는다
-    expect(summary.getByText('미확인')).toBeInTheDocument()
+    expect(summary.getByText('알 수 없음')).toBeInTheDocument()
     expect(screen.getByLabelText('pino')).toHaveValue('10.3.1')
 
     expect(startFeatureRun).not.toHaveBeenCalled()
@@ -190,7 +190,7 @@ describe('FeatureCompareTab', () => {
     expect(await screen.findByText(/README 를 모으고 있습니다/)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '핵심 기능 비교' })).not.toBeInTheDocument()
     // 확인된 사실은 생성을 기다리지 않는다 — 위 표는 그대로 보인다
-    expect(screen.getByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '설치하기 전에 알아 둘 것' })).toBeInTheDocument()
 
     release(runResponse())
 
@@ -217,7 +217,7 @@ describe('FeatureCompareTab', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
     // 실패해도 확인된 소비 조건은 그대로 남는다
-    expect(screen.getByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '설치하기 전에 알아 둘 것' })).toBeInTheDocument()
   })
 
   it('문헌을 아직 못 받아 실패하면 다시 시도할 수 있다', async () => {
@@ -265,7 +265,7 @@ describe('FeatureCompareTab', () => {
     })
     renderTab()
 
-    expect(await screen.findByText('비교할 수 있는 버전이 아직 없습니다.')).toBeInTheDocument()
+    expect(await screen.findByText('비교할 수 있는 버전이 아직 없어요.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '기능 비교 시작' })).toBeDisabled()
   })
 
@@ -291,7 +291,9 @@ describe('FeatureCompareTab', () => {
     completesWith()
     renderTab()
 
-    expect(await screen.findByRole('region', { name: '핵심 비교 요약' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('region', { name: '설치하기 전에 알아 둘 것' }),
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(fetchPackageEnv).toHaveBeenCalledWith([{ package_name: 'pino', version: '10.3.1' }]),
     )

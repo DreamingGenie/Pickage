@@ -28,11 +28,11 @@ export function VersionPickerCard({ run }: { run: FeatureAnalysis }) {
     >
       <header className="flex flex-col gap-1.5">
         <h3 id="version-picker-title" className="text-sm font-semibold">
-          기능 비교 버전 선택
+          어느 버전끼리 비교할까요?
         </h3>
         <p className="text-base text-muted-foreground">
-          최신 안정 버전이 자동 선택되어 소비 조건이 즉시 표시됩니다. 버전 변경은 Dependency 그래프
-          필터와 별도로 동작합니다.
+          최신 정식 버전이 먼저 골라져 있어요. 지금 쓰는 버전이 있다면 바꿔 보세요. 생태계 변화의
+          표시 버전과는 따로 움직여요.
         </p>
       </header>
 
@@ -98,7 +98,7 @@ function VersionSelect({
       >
         {value === '' && (
           <option value="" disabled>
-            버전 선택
+            버전 고르기
           </option>
         )}
         {pkg.choices.map((choice) => (
@@ -112,11 +112,11 @@ function VersionSelect({
         ))}
       </select>
       {noStable && (
-        <p className="text-base text-muted-foreground">비교할 수 있는 버전이 아직 없습니다.</p>
+        <p className="text-base text-muted-foreground">비교할 수 있는 버전이 아직 없어요.</p>
       )}
       {differs && (
         <p className="text-base text-muted-foreground">
-          표시 중인 결과는 <span className="font-mono">{completedVersion}</span> 기준입니다.
+          아래 결과는 아직 <span className="font-mono">{completedVersion}</span> 기준이에요.
         </p>
       )}
     </div>
