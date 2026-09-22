@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { MigrationFlowBar } from '@/components/charts/migration-flow'
+import { observationHint } from '@/routes/report/ecosystem/migration-model'
 import type {
   MigrationDestination,
   PackageMigration,
@@ -66,5 +67,20 @@ describe('남는 자리의 비율', () => {
     render(<MigrationFlowBar pkg={pkg([dest('pino', 100)])} />)
 
     expect(screen.queryByText(/근거가 약해 집계에서 뺐어요/)).toBeNull()
+  })
+})
+
+describe('서버가 새 필드를 아직 안 보낼 때', () => {
+  it('없는 값에 토씨를 붙이려다 화면을 죽이지 않는다', () => {
+    // a_pct 는 방금 서버에 더한 필드다. 프런트가 먼저 배포되거나 백엔드만 롤백되면
+    // 없는 채로 온다. 그때 undefined.toFixed() 가 render 중에 터지면 이 패널만 비는
+    // 것이 아니라 **보고서 페이지 전체가 빈 화면**이 된다 — 라우터의 에러 경계가 받기
+    // 때문이고, 이 화면에서 실제로 한 번 겪은 고장 방식이다.
+    const partial = { dependents: 397, aPct: undefined }
+    expect(observationHint(partial)).toBe('이 패키지를 지운 프로젝트 397곳이 그때 함께 넣었어요')
+
+    expect(observationHint({ dependents: undefined, aPct: undefined })).toBe(
+      '관측된 수를 받지 못했어요',
+    )
   })
 })
