@@ -14,6 +14,7 @@ import com.ssafy.pickage.domain.packages.PackageNames;
 import com.ssafy.pickage.domain.packages.PackageService;
 import com.ssafy.pickage.domain.packages.TransitionPeriod;
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 import com.ssafy.pickage.domain.report.dto.PdfGenerateRequest;
 import com.ssafy.pickage.domain.report.dto.PdfJobResponse;
 import com.ssafy.pickage.global.exception.BusinessException;
@@ -94,6 +95,12 @@ public class ReportPdfService {
 			? communityOf(overview.items().getFirst().name())
 			: null;
 
+		// 기능 비교는 서버가 조회하지 않는다 — 요청이 실어 보낸 세션 판정을 그대로 쓴다(구상안 §14.5).
+		// FEATURES 를 고르지 않았으면 애초에 null 이라 문서는 그 구역을 그리지 않는다.
+		FeatureComparisonPayload features = requested.contains(ReportSection.FEATURES)
+			? request.features()
+			: null;
+
 		ReportHtmlRenderer.Sources sources = new ReportHtmlRenderer.Sources(
 			names.values(),
 			request.from(),
@@ -105,7 +112,8 @@ public class ReportPdfService {
 			packages.getTransitions(names, period),
 			packages.getRemovalReasons(names, period),
 			requested,
-			communityStatus);
+			communityStatus,
+			features);
 
 		// 한 번 그린 HTML 로 미리보기와 PDF 를 모두 만든다. 여기서 갈라지지 않는 것이
 		// "본 것과 받은 것이 같다" 의 전부다.
@@ -114,7 +122,7 @@ public class ReportPdfService {
 
 		String id = UUID.randomUUID().toString().replace("-", "");
 		PdfJobResponse meta = PdfStore.meta(id, fileName(names.values()), pdf.length,
-			omitted(requested, communityStatus));
+			omitted(requested, communityStatus, features));
 		store.save(id, html, pdf, meta);
 		return meta;
 	}
@@ -133,12 +141,18 @@ public class ReportPdfService {
 	}
 
 	/**
-	 * <b>요청했지만 문서에 채우지 못한 구역.</b> 기능 심화 분석은 기능이 아직 없어서, 커뮤니티 분석은 저장된 자료가 아직
-	 * 없어서 빈다. 커뮤니티 자료가 실렸으면 여기 넣지 않는다 — 화면이 "자리와 사유만 실렸다" 고 안내하는 대상이다.
+	 * <b>요청했지만 문서에 채우지 못한 구역.</b> 기능 심화 분석은 요청이 판정 payload 를 안 실어 보내서
+	 * (아직 분석을 실행하지 않았거나 재분석이 필요해서), 커뮤니티 분석은 저장된 자료가 아직 없어서 빈다.
+	 * 채웠으면 여기 넣지 않는다 — 화면이 "자리와 사유만 실렸다" 고 안내하는 대상이다.
 	 */
-	static List<String> omitted(Set<ReportSection> requested, CommunityStatusResponse communityStatus) {
+	static List<String> omitted(
+		Set<ReportSection> requested, CommunityStatusResponse communityStatus, FeatureComparisonPayload features
+	) {
 		return requested.stream()
-			.filter(section -> section != ReportSection.COMMUNITY || !ReportCommunity.hasResult(communityStatus))
+			.filter(section -> switch (section) {
+				case COMMUNITY -> !ReportCommunity.hasResult(communityStatus);
+				case FEATURES -> features == null;
+			})
 			.map(Enum::name)
 			.toList();
 	}

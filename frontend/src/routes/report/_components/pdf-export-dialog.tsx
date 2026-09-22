@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
 import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
+import { toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
@@ -106,6 +107,13 @@ export function PdfExportDialog({
       snapshot_at: snapshotAt,
       period: transitionPeriod,
       sections,
+      // 서버는 판정을 저장하지 않는다(DEC-FEATURE-CACHE-20260917-01) — 세션이 들고 있는 완료
+      // 결과를 요청에 실어 보낸다(구상안 §13.1·§14.5). 아직 분석을 실행하지 않았으면
+      // rawResult가 없어 생략되고, 서버가 그 사실을 문서와 omitted로 알린다.
+      features:
+        sections.includes('FEATURES') && run.rawResult
+          ? toFeaturesPdfPayload(run.rawResult)
+          : undefined,
     })
   }
 
@@ -292,7 +300,7 @@ function Ready({
         <SectionToggle
           section="FEATURES"
           label="기능 심화 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note="완료된 기능 비교 결과가 실립니다. 아직 분석을 실행하지 않았다면 구역 자리와 사유만 실립니다."
           checked={sections.includes('FEATURES')}
           onToggle={onToggle}
         />
@@ -490,7 +498,7 @@ function Complete({
 function omittedNote(section: ReportSection): string {
   return section === 'COMMUNITY'
     ? '커뮤니티 분석: 이 패키지의 GitHub 자료가 아직 수집되지 않아 안내만 실렸습니다. GitHub 커뮤니티 탭을 한 번 연 뒤 다시 만들면 채워집니다.'
-    : '기능 심화 분석: 해당 분석 기능이 아직 없어 자리와 사유만 실렸습니다.'
+    : '기능 심화 분석: 이 비교의 기능 비교를 아직 실행하지 않아 자리와 사유만 실렸습니다. 기능 비교 탭에서 분석을 완료한 뒤 다시 만들면 채워집니다.'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

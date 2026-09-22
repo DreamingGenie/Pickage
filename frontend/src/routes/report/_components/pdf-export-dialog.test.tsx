@@ -71,12 +71,12 @@ describe('PdfExportDialog — 준비', () => {
     expect(community.closest('label')).not.toHaveTextContent('아직 제공되지 않습니다')
   })
 
-  it('기능 심화 분석은 여전히 아직 제공되지 않는다고 안내한다', () => {
+  it('기능 심화 분석은 완료 결과가 실린다고 안내하고, 미실행 시 대체 문구도 함께 적는다', () => {
     renderDialog()
 
-    expect(
-      screen.getByRole('checkbox', { name: '기능 심화 분석' }).closest('label'),
-    ).toHaveTextContent('아직 제공되지 않습니다')
+    const label = screen.getByRole('checkbox', { name: '기능 심화 분석' }).closest('label')
+    expect(label).toHaveTextContent('완료된 기능 비교 결과가 실립니다')
+    expect(label).toHaveTextContent('아직 분석을 실행하지 않았다면')
   })
 
   it('조건을 주지 않은 조회 기간은 기본값(보유한 전 기간·매주)으로 적고, 그래프와 수치 표가 실린다고 알린다', () => {
@@ -100,6 +100,80 @@ describe('PdfExportDialog — 준비', () => {
       period: '3y',
       sections: ['COMMUNITY'],
     })
+    // COMMUNITY 만 골랐으므로 features 는 비어야 한다 — FEATURES 를 안 골랐는데 실어 보내면 안 된다.
+    expect(generatePdf.mock.calls[0][0].features).toBeUndefined()
+  })
+
+  /**
+   * S15P21A506-463 — 서버는 판정을 저장하지 않으므로(DEC-FEATURE-CACHE-20260917-01) 세션이
+   * 들고 있는 완료 결과를 요청이 그대로 실어 보내야 한다(구상안 §13.1·§14.5).
+   */
+  it('기능 심화 분석을 고르고 완료 결과가 있으면 판정을 payload 로 실어 보낸다', async () => {
+    generatePdf.mockResolvedValue(JOB)
+    const rawResult = {
+      dataStatus: 'COMPLETE' as const,
+      packages: [{ package: 'axios', version: '1.7.0' }],
+      features: [
+        {
+          featureLabel: '재시도',
+          results: [
+            {
+              package: 'axios',
+              version: '1.7.0',
+              verdict: 'SUPPORTED' as const,
+              evidenceIds: ['E1'],
+              groundedIn: 'EVIDENCE' as const,
+              note: null,
+            },
+          ],
+        },
+      ],
+      narrative: [{ heading: '요약', body: '지원합니다.', evidenceIds: [] }],
+      narrativeError: null,
+      sources: [],
+    }
+    renderDialog(vi.fn(), { ...RUN, rawResult } as unknown as AnalysisRun)
+
+    await userEvent.click(screen.getByRole('checkbox', { name: '기능 심화 분석' }))
+    await userEvent.click(screen.getByRole('button', { name: 'PDF 생성' }))
+
+    await waitFor(() => expect(generatePdf).toHaveBeenCalledTimes(1))
+    expect(generatePdf.mock.calls[0][0]).toMatchObject({
+      sections: ['FEATURES'],
+      features: {
+        packages: [{ package_name: 'axios', version: '1.7.0' }],
+        features: [
+          {
+            feature_label: '재시도',
+            results: [
+              {
+                package_name: 'axios',
+                version: '1.7.0',
+                verdict: 'SUPPORTED',
+                evidence_ids: ['E1'],
+                grounded_in: 'EVIDENCE',
+                note: null,
+              },
+            ],
+          },
+        ],
+        narrative: [{ heading: '요약', body: '지원합니다.' }],
+        limited: false,
+      },
+    })
+  })
+
+  it('기능 비교를 한 번도 완료하지 않았으면(=rawResult 없음) 구역을 고르기 전에 이미 막힌다', async () => {
+    generatePdf.mockResolvedValue(JOB)
+    renderDialog(vi.fn(), {
+      ...RUN,
+      hasCompletedOnce: false,
+      rawResult: null,
+    } as unknown as AnalysisRun)
+
+    // BLOCKED 라 준비 화면 자체가 안 뜬다 — payload 없이 제출되는 경로 자체가 없다는 뜻이다.
+    expect(screen.getByText('지금은 PDF를 만들 수 없습니다')).toBeInTheDocument()
+    expect(generatePdf).not.toHaveBeenCalled()
   })
 })
 
@@ -136,10 +210,10 @@ describe('PdfExportDialog — 완료', () => {
   it('채우지 못한 구역은 이유를 구역마다 다르게 안내한다', async () => {
     await generate({ ...JOB, omitted: ['COMMUNITY', 'FEATURES'] })
 
-    // 커뮤니티는 기능이 있는데 자료가 없는 것, 기능 심화 분석은 기능 자체가 없는 것이다.
+    // 커뮤니티는 기능이 있는데 자료가 없는 것, 기능 심화 분석은 이번 비교에서 아직 실행하지 않은 것이다.
     expect(screen.getByText(/커뮤니티 분석: .*수집되지 않아/)).toBeInTheDocument()
-    expect(screen.getByText(/기능 심화 분석: .*기능이 아직 없어/)).toBeInTheDocument()
-    expect(screen.queryByText(/커뮤니티 분석: .*기능이 아직 없어/)).toBeNull()
+    expect(screen.getByText(/기능 심화 분석: .*아직 실행하지 않아/)).toBeInTheDocument()
+    expect(screen.queryByText(/커뮤니티 분석: .*아직 실행하지 않아/)).toBeNull()
   })
 
   it('채우지 못한 구역이 없으면 안내를 그리지 않는다', async () => {

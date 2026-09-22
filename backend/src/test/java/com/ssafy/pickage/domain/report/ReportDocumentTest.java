@@ -96,7 +96,7 @@ class ReportDocumentTest {
 			RemovalReasonsResponse.Series.unknown("got", RemovalReasonsResponse.OUT_OF_SCOPE)), List.of());
 
 		return new ReportHtmlRenderer.Sources(List.of("axios", "got"), null, null, overview, downloads, dependents,
-			share, transitions, removalReasons, sections, community);
+			share, transitions, removalReasons, sections, community, null);
 	}
 
 	private static long count(String html, String needle) {
@@ -230,7 +230,7 @@ class ReportDocumentTest {
 		var base = sources(Set.of(), null);
 		var given = new ReportHtmlRenderer.Sources(base.names(), DAY.minusYears(1), DAY, base.overview(),
 			base.downloads(), base.dependents(), base.versionShare(), base.transitions(),
-			base.removalReasons(), Set.of(), null);
+			base.removalReasons(), Set.of(), null, null);
 
 		assertThat(RENDERER.render(given)).contains(DAY.minusYears(1) + " ~ " + DAY).doesNotContain("전체 기간 ·");
 	}
@@ -321,13 +321,17 @@ class ReportDocumentTest {
 		assertThat(html).contains("<h2>기능 심화 분석</h2>").contains("이 구역은 아직 제공되지 않습니다");
 	}
 
+	/**
+	 * 순서는 생태계 → 기능 비교 → 커뮤니티다(S15P21A506-463, 화면 탭 순서와 같다). 보내는 순서를
+	 * 반대로 줘도(FEATURES 뒤에 COMMUNITY) 문서 순서는 이 고정 순서를 따른다는 것도 함께 본다.
+	 */
 	@Test
 	void 구역_순서는_보낸_순서와_무관하게_고정이다() {
 		var both = RENDERER.render(sources(new java.util.LinkedHashSet<>(
-			List.of(ReportSection.FEATURES, ReportSection.COMMUNITY)), community()));
+			List.of(ReportSection.COMMUNITY, ReportSection.FEATURES)), community()));
 
-		assertThat(both.indexOf("<h2>커뮤니티 분석</h2>")).isLessThan(both.indexOf("<h2>기능 심화 분석</h2>"));
-		assertThat(both.indexOf("<h2>기능 심화 분석</h2>")).isLessThan(both.indexOf("<h2>자료 상태와 해석 한계</h2>"));
+		assertThat(both.indexOf("<h2>기능 심화 분석</h2>")).isLessThan(both.indexOf("<h2>커뮤니티 분석</h2>"));
+		assertThat(both.indexOf("<h2>커뮤니티 분석</h2>")).isLessThan(both.indexOf("<h2>자료 상태와 해석 한계</h2>"));
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -384,7 +388,8 @@ class ReportDocumentTest {
 			List.of());
 
 		String html = RENDERER.render(new ReportHtmlRenderer.Sources(List.of("consola"), null, null, overview,
-			emptyTrend, emptyTrend, emptyShare, unknown, unknownRemovals, Set.of(ReportSection.COMMUNITY), null));
+			emptyTrend, emptyTrend, emptyShare, unknown, unknownRemovals, Set.of(ReportSection.COMMUNITY), null,
+			null));
 
 		assertThat(html).contains("그래프로 그릴 자료가 없습니다").contains("자료 없음");
 		byte[] pdf = convert(html);
