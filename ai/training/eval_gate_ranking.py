@@ -75,6 +75,30 @@ def build_gold(rows, domains):
     return gold
 
 
+def filter_gold_by_popularity(gold, downloads_by_name, floor):
+    """정답(B)이 downloads_last_month>=floor 인 것만 남긴 골드 (S15P21A506-450).
+
+    이 골드셋은 원래 "기능적으로 유사한가"만으로 라벨링됐다 — 인지도는 기준에 없었다.
+    정답 기준 자체가 "기능이 유사하면서 인지도도 있어야 한다"로 바뀌면, downloads 하한을
+    걸어서 생기는 recall 하락 중 일부는 진짜 실패가 아니라 "정답이지만 이제는 기준 미달인
+    B를 더 이상 안 뽑는" **의도된 동작**이다. 원본 recall(구 정답지) 만으로는 이 둘을
+    구분 못 한다 — 이 함수로 만든 골드로 다시 재면, "B 자체가 새 기준(인지도)도 만족하는데
+    놓친" 진짜 손실만 남는다.
+
+    floor<=0 이면 원본 그대로(구 정답지). B의 downloads 정보가 없으면(코퍼스 밖 보충 이름
+    등) 새 기준을 만족하는지 모르므로 **제외**한다(관대하게 통과시키지 않음 — 위
+    apply_downloads_floor 와 같은 보수적 태도).
+    """
+    if floor <= 0:
+        return gold
+    out = {}
+    for k, alts in gold.items():
+        kept = {a for a in alts if (downloads_by_name.get(a) or 0) >= floor}
+        if kept:
+            out[k] = kept
+    return out
+
+
 def embed(model, texts, cache, batch_size):
     if cache and os.path.exists(cache):
         arr = np.load(cache)
@@ -261,10 +285,25 @@ def main():
     downloads_by_name = {p["name"]: p.get("downloads_last_month") for p in pool}
     floors = [int(f) for f in args.downloads_floors.split(",") if f.strip()]
     dl_drops = {}
+    config_floor = {k: 0 for k in configs}  # 각 설정이 어느 downloads 하한에 대응하는지 (매칭 골드용)
     for floor in floors:
         dl_hits, dropped = apply_downloads_floor(configs[base_key], names, downloads_by_idx, floor)
-        configs[f"{base_key}+dl>={floor:,}"] = dl_hits
+        key = f"{base_key}+dl>={floor:,}"
+        configs[key] = dl_hits
+        config_floor[key] = floor
         dl_drops[floor] = dropped
+
+    # 정답 기준 자체가 바뀌었으므로(기능 유사 → 기능 유사 + 인지도), downloads 하한을 건
+    # 설정은 같은 하한으로 거른 골드("B도 그 인지도는 넘어야 진짜 정답")와 맞춰 잰다.
+    # floor=0(구 정답지)은 그대로 남겨서 "얼마나 많이가 재라벨 때문인지" 대조할 수 있게 한다.
+    gold_matched = {0: gold}
+    gold_drop = {}
+    for floor in floors:
+        gm = filter_gold_by_popularity(gold, downloads_by_name, floor)
+        gold_matched[floor] = gm
+        old_pairs = sum(len(v) for v in gold.values())
+        new_pairs = sum(len(v) for v in gm.values())
+        gold_drop[floor] = {"골드쌍": f"{old_pairs}→{new_pairs}", "쿼리(base)": f"{len(gold)}→{len(gm)}"}
 
     shown = {k: shown_by_base(h, names) for k, h in configs.items()}
 
@@ -283,11 +322,27 @@ def main():
     if deps_by_idx is not None:
         lines.append(f"보완재 포함 drop 수: {drops_c}")
     lines.append(f"downloads 하한 drop 수 (기준: {base_key}): {dl_drops}")
+    lines += ["", "[정답 기준 자체의 변화] downloads 하한별로 '정답(B)도 그 인지도를 넘는' 것만 남기면"
+                  " 골드셋이 이렇게 줄어든다 (B 자체가 원래도 인지도 미달이면, 그 정답 자체가 새 기준"
+                  " 아래선 더 이상 '틀렸다고 감점할 대상'이 아니다):"]
+    for floor, d in gold_drop.items():
+        lines.append(f"  dl>={floor:<8,} 골드쌍 {d['골드쌍']}  쿼리(base) {d['쿼리(base)']}")
 
-    lines += ["", "[설정별 지표] (recall/precision/lt3_ratio + 선정된 TOP3의 downloads 분포)"]
+    lines += ["", "[설정별 지표] (recall/precision/lt3_ratio + 선정된 TOP3의 downloads 분포)",
+              "  downloads 하한이 걸린 설정은 '구 정답지'(원래 정답, 인지도 무관)와 '신 정답지'"
+              "(같은 하한으로 거른 정답, B도 인지도 있어야 함) 둘 다 잰다 — 그 차이가"
+              " '재라벨 때문에 사라진 손실'이다."]
     for k in configs:
+        floor = config_floor[k]
         m = score(gold, shown[k])
-        lines.append(f"  {k:28} {fmt(m)}")
+        lines.append(f"  {k:28} {fmt(m)}  [구정답지]")
+        if floor > 0:
+            m_new = score(gold_matched[floor], shown[k])
+            lines.append(f"  {'':28} {fmt(m_new)}  [신정답지: B도 dl>={floor:,}]")
+            # 같은 신정답지 기준으로, 하한을 안 건 기존 시스템은 얼마나 하는지 — 하한이
+            # 실제로 "누락됐던 인기 정답"을 더 건져오는지, 아니면 후보만 줄여 손해인지 확인용
+            m_nofloor = score(gold_matched[floor], shown[base_key])
+            lines.append(f"  {'':28} {fmt(m_nofloor)}  [신정답지, 하한無 비교용({base_key})]")
         lines.append(f"  {'':28} └ downloads: {fmt_downloads(downloads_stats(shown[k], downloads_by_name))}")
 
     lines += ["", "[참고] 예전 방식 — cos 임계값 τ 로 top-3 를 자름 (관문 없음 / 관문 있음)"]
