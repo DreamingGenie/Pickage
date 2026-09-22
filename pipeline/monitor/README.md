@@ -122,6 +122,7 @@ docker compose run --rm pipeline-monitor --once | less
       // 이번 주 회차가 "아예 시작 안 한" 것을 잡는다 — 창(화요일 10:00 KST)이 열렸는데 그 주 객체가 하나도 없으면 missing.
       // 판정 규칙은 pipeline.weekly.schedule 의 current_week_of · window_open 을 그대로 쓴다.
       "expected": {"week_of": "2026-09-21", "window_open_at": "2026-09-22T01:00:00+00:00", "window_open": true, "present": true, "missing": false},
+      "stale_running_hours": 26,    // schedule.STALE_RUNNING — 화면이 이 값으로 오래된 RUNNING 을 올린다
       "runs": [
       {"week_of": "2026-09-21", "status": "RUNNING", "consecutive_failures": 0,
        "coverage": {"downloads_through": "2026-09-20", …}, "last_error": null,

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from pipeline.weekly.schedule import current_week_of, is_manual_pending, window_open, window_open_at
+from pipeline.weekly.schedule import STALE_RUNNING, current_week_of, is_manual_pending, window_open, window_open_at
 from pipeline.weekly.state import ObjectStore, manual_key, run_key
 
 ERROR_SHOWN = 600       # 화면에 싣는 실패 메시지 길이. 전문은 run.json 과 단계 로그에 있다
@@ -85,4 +85,7 @@ def collect(s3, *, bucket: str, max_runs: int, now: datetime) -> dict:
         "missing": opened and this_week not in weeks,
     }
     return {"listed_at": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
-            "bucket": bucket, "weeks_total": len(weeks), "expected": expected, "runs": runs}
+            "bucket": bucket, "weeks_total": len(weeks), "expected": expected,
+            # 실행기가 "죽은 RUNNING" 으로 보는 기준. 화면이 같은 값으로 오래된 RUNNING 을 올린다 — 여기서 따로 정하면 어긋난다.
+            "stale_running_hours": int(STALE_RUNNING.total_seconds() // 3600),
+            "runs": runs}

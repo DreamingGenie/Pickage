@@ -405,12 +405,25 @@ function renderWeekly(node, weekly, now) {
       <td><div class="steps">${chip('회차 객체 없음', 'muted')}</div><div class="cap">창 열림 ${ago(ex.window_open_at, now)} · run.json 도 우편함도 없다</div></td>
       <td class="mono">—</td><td class="r">—</td></tr>`;
   }
-  if (runs.length) {
-    const latest = runs[0];
-    if (latest.status === 'BLOCKED') flag('bad', `주간 회차 ${latest.week_of} 가 BLOCKED — 연속 ${latest.consecutive_failures}회 실패로 자동 재시도가 멈췄습니다. 수동 실행 요청이 필요합니다.`);
-    else if (latest.status === 'FAILED') flag('warn', `주간 회차 ${latest.week_of} 가 FAILED (연속 ${latest.consecutive_failures}회). 10분 뒤 타이머가 다시 시도합니다.`);
-    runs.forEach(r => { if (r.manual && r.manual.pending) flag('warn', `${r.week_of} 수동 실행 요청이 아직 처리되지 않았습니다 (최대 10분).`); });
-  }
+  // 모든 회차를 본다 — 최신 회차만 보면 지난 주가 BLOCKED 인 채 남은 것이 배너에 안 올라온다.
+  // 타이머는 이번 주만 판정하므로 지난 회차의 BLOCKED·FAILED 는 수동 요청 외에는 되살릴 길이 없다
+  // (pipeline.weekly.state.pending_manual_weeks 의 docstring). 그래서 지난 주 BLOCKED 에 수동 요청까지 없으면 가장 급한 문제다.
+  const staleH = weekly.stale_running_hours || 26;   // 실행기의 STALE_RUNNING. 서버가 같은 값을 준다
+  const staleOf = r => r.status === 'RUNNING' && r.started_at && now - Date.parse(r.started_at) > staleH * 3600 * 1000;
+  runs.forEach((r, i) => {
+    const latest = i === 0, pending = r.manual && r.manual.pending;
+    if (r.status === 'BLOCKED') {
+      if (pending) flag('warn', `${r.week_of} 가 BLOCKED 이고 수동 실행 요청이 걸려 있습니다 — 다음 발화(최대 10분)가 집어 갑니다.`);
+      else if (latest) flag('bad', `주간 회차 ${r.week_of} 가 BLOCKED — 연속 ${r.consecutive_failures}회 실패로 자동 재시도가 멈췄습니다. 수동 실행 요청이 필요합니다.`);
+      else flag('bad', `지난 회차 ${r.week_of} 가 BLOCKED 인 채 수동 요청도 없습니다 — 타이머는 이번 주만 보므로 이 회차를 되살릴 길은 수동 실행 요청뿐입니다. npm 다운로드는 18개월 상한이라 오래 둘수록 다시 받을 수 없게 됩니다.`);
+    } else if (r.status === 'FAILED') {
+      if (latest) flag('warn', `주간 회차 ${r.week_of} 가 FAILED (연속 ${r.consecutive_failures}회). 10분 뒤 타이머가 다시 시도합니다.`);
+      else flag('warn', `지난 회차 ${r.week_of} 가 FAILED 로 남았습니다 — 타이머는 이번 주만 보므로 자동 재시도가 없습니다.${pending ? ' 수동 요청이 걸려 있어 다음 발화가 집어 갑니다.' : ' 수동 실행 요청이 필요합니다.'}`);
+    } else if (staleOf(r)) {
+      flag('warn', `${r.week_of} 가 ${Math.round((now - Date.parse(r.started_at)) / 3600000)}시간 넘게 RUNNING 입니다 — 실행기가 죽은 것으로 보는 기준(${staleH}시간)을 넘었습니다. 다음 발화가 이어받거나, systemd 상한에 걸려 죽었을 수 있습니다. 로컬 디스크 탭의 단계 로그를 봅니다.`);
+    }
+    if (pending && r.status !== 'BLOCKED' && r.status !== 'FAILED') flag('warn', `${r.week_of} 수동 실행 요청이 아직 처리되지 않았습니다 (최대 10분).`);
+  });
   const rows = runs.map(r => {
     const steps = (r.steps || []).map(s => chip(`${s.step} ${STATUS_KO[s.status] || s.status}${s.attempt_count > 1 ? ' ×' + s.attempt_count : ''}`, STEP_CLS[s.status],
                                                 s.error_message ? s.error_message.slice(0, 200) : '')).join('');
@@ -423,9 +436,10 @@ function renderWeekly(node, weekly, now) {
     const manual = r.manual && r.manual.requested_at
       ? `<div class="cap">수동 요청 ${ago(r.manual.requested_at, now)} · ${r.manual.pending ? '<b class="newfg">아직 안 집어 감</b>' : '집어 감 ' + ago(r.manual.claimed_at, now)}</div>` : '';
     const cov = r.coverage || {};
-    const cls = r.status === 'BLOCKED' ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
+    const stale = staleOf(r);
+    const cls = r.status === 'BLOCKED' || stale ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
     return `<tr class="${cls}"><td class="name mono">${esc(r.week_of)}</td>
-      <td>${chip(STATUS_KO[r.status] || r.status, STATUS_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회</div>` : ''}</td>
+      <td>${stale ? chip(`실행 중 · ${staleH}h 초과`, 'warn') : chip(STATUS_KO[r.status] || r.status, STATUS_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회</div>` : ''}</td>
       <td><div class="steps">${steps || chip('단계 없음', 'muted')}</div>${manual}${detail.join('')}</td>
       <td class="mono">${esc(cov.downloads_through || '—')}</td>
       <td class="r">${ago(r.updated_at || r.finished_at || r.started_at, now)}</td></tr>`;

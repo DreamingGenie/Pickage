@@ -59,6 +59,7 @@ class CollectTest(unittest.TestCase):
         # NOW 는 화요일 12:00 KST — 이번 주(09-21) 창이 열렸고 회차 객체가 있으니 missing 이 아니다
         self.assertEqual(out["expected"], {"week_of": "2026-09-21", "window_open_at": "2026-09-22T01:00:00+00:00",
                                            "window_open": True, "present": True, "missing": False})
+        self.assertEqual(out["stale_running_hours"], 26)     # schedule.STALE_RUNNING 그대로
 
     def test_missing_current_week_is_named_when_window_is_open(self):
         """타이머가 안 돌아 이번 주 객체가 아예 없으면 — 지난주 SUCCEEDED 만 있어 초록으로 보이던 것을 잡는다."""
