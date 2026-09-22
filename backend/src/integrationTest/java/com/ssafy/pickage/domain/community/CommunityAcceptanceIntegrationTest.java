@@ -176,7 +176,8 @@ class CommunityAcceptanceIntegrationTest {
      * 지정하지 않으면 거절한다. community_snapshot 은 V3(S15P21A506-315),
      * dependent_transition 은 V8(S15P21A506-361), dependent_removal_reason 은
      * V9(S15P21A506-396), package_env 는 V10(S15P21A506-393),
-     * migration_pair 는 V13(S15P21A506-424)에서 이 이유로 추가됐다.
+     * migration_pair 는 V13(S15P21A506-424), available_package 는
+     * V12(S15P21A506-438)에서 이 이유로 추가됐다.
      * package_env 는 package 가 아니라 version 을 참조하지만 결과는 같다 — version 이
      * 목록에 있으므로 그것을 참조하는 표도 함께 지정해야 한다.
      *
@@ -195,6 +196,7 @@ class CommunityAcceptanceIntegrationTest {
                                         + " package_env,"
                                         + " similar_package,"
                                         + " package_version_snapshot, package_snapshot,"
+                                        + " available_package,"
                                         + " version, package"));
     }
 
