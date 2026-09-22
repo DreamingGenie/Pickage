@@ -131,16 +131,17 @@ class ReportMarkdownRendererTest {
 	class Escaping {
 
 		@Test
-		@DisplayName("표를 깨는 문자(파이프·백틱)가 무력화된다 — 이름 한가운데의 하이픈은 안 건드린다")
+		@DisplayName("표를 깨는 파이프는 무력화된다 — 단일 백틱·이름 한가운데 하이픈은 안 건드린다")
 		void escapesTableBreakingCharsButNotMidwordHyphens() {
 			// "js-yaml" 처럼 실제 패키지 이름 한가운데 있는 하이픈은 표를 깨지 않으므로
-			// 이스케이프하지 않아야 읽을 수 있다 — 파이프·백틱만 무력화 대상이다.
+			// 이스케이프하지 않아야 읽을 수 있다. 단일 백틱은 표 칸 경계를 못 넘으므로
+			// (S15P21A506-467 후속) 더는 이스케이프 대상이 아니다 — 파이프만 무력화한다.
 			var nasty = new PackagesOverviewResponse.Item("js-yaml|`evil`", "https://x", "5.0.0",
 				Instant.parse("2026-07-14T09:02:11Z"), "desc", List.of(), false, 1L, 1, 1, 1, null);
 			String md = RENDERER.render(sources(new PackagesOverviewResponse(DAY, List.of(nasty), List.of())));
 
 			String row = md.lines().filter(l -> l.contains("evil")).findFirst().orElseThrow();
-			assertThat(row).contains("js-yaml\\|\\`evil\\`");
+			assertThat(row).contains("js-yaml\\|`evil`");
 			// 표의 실제 칸 수(이스케이프 안 된 파이프로 나눈 구간)가 헤더와 같아야 한다.
 			String header = md.lines().filter(l -> l.startsWith("| 패키지 |")).findFirst().orElseThrow();
 			assertThat(row.split("(?<!\\\\)\\|", -1).length).isEqualTo(header.split("\\|", -1).length);
@@ -160,6 +161,53 @@ class ReportMarkdownRendererTest {
 			assertThat(md).contains("\\-fake-item");
 			// 한가운데 하이픈은 그대로다 — "fake" 와 "item" 사이의 두 번째 하이픈은 이스케이프되지 않는다.
 			assertThat(md).doesNotContain("fake\\-item");
+		}
+
+		@Test
+		@DisplayName("단일·이중 백틱은 인라인 코드 표기를 그대로 살린다 — 표 칸 경계를 못 넘어 안전하다")
+		void preservesInlineCodeSpans() {
+			// GMS 가 생성한 설명은 `logger.info()` 처럼 코드 식별자를 인라인 코드로 감싼다.
+			// 무조건 이스케이프하면 실제 HAND-OFF 출력 전체가 \`logger.info()\` 로 깨졌다.
+			var nasty = new PackagesOverviewResponse.Item("`pino`", "https://x", "5.0.0",
+				Instant.parse("2026-07-14T09:02:11Z"), "desc", List.of(), false, 1L, 1, 1, 1, null);
+			String md = RENDERER.render(sources(new PackagesOverviewResponse(DAY, List.of(nasty), List.of())));
+
+			assertThat(md).contains("`pino`");
+		}
+
+		@Test
+		@DisplayName("코드펜스를 만들 수 있는 3개 이상 연속 백틱만 이스케이프한다")
+		void escapesOnlyBacktickRunsOfThreeOrMore() {
+			assertThat(ReportMarkdownRenderer.mdEscape("`a`")).isEqualTo("`a`");
+			assertThat(ReportMarkdownRenderer.mdEscape("``a``")).isEqualTo("``a``");
+			assertThat(ReportMarkdownRenderer.mdEscape("```a```")).isEqualTo("\\`\\`\\`a\\`\\`\\`");
+		}
+
+		@Test
+		@DisplayName("대괄호만으로는 아무것도 못 만들므로 한가운데(줄 시작이 아닌) 위치는 그대로 둔다")
+		void preservesMidlineBrackets() {
+			// 커뮤니티 발화자 표기(예: "mcollina [조직 구성원]")처럼 이 렌더러 자신이 조립하는
+			// 문자열에도 대괄호가 흔히 쓰인다 — 실제 위험이 없는데 무조건 이스케이프하면
+			// 실제 HAND-OFF 출력에서 "mcollina \[조직 구성원\]" 처럼 잡음이 됐다.
+			assertThat(ReportMarkdownRenderer.mdEscape("mcollina [조직 구성원]"))
+				.isEqualTo("mcollina [조직 구성원]");
+		}
+
+		@Test
+		@DisplayName("대괄호 뒤에 괄호가 바로 오면(인라인 링크 조합) 그 괄호만 이스케이프한다")
+		void escapesLinkFormingBracketParen() {
+			// 줄 맨 앞이 아닌 위치에서 "](" 조합만의 효과를 본다 — 맨 앞 "[" 는 별도로
+			// guardLeadingMarker 가 다룬다(참조 링크 정의 시험에서 확인).
+			String out = ReportMarkdownRenderer.mdEscape("보세요: [click here](https://evil.example)");
+			assertThat(out).isEqualTo("보세요: [click here]\\(https://evil.example)");
+			assertThat(out).doesNotContain("](https://evil.example)");
+		}
+
+		@Test
+		@DisplayName("줄 맨 앞의 참조 링크 정의( [라벨]: 주소 )는 대괄호를 이스케이프해 무력화한다")
+		void escapesLeadingBracketForLinkReferenceDefinition() {
+			assertThat(ReportMarkdownRenderer.mdEscape("[evil]: https://phish.example"))
+				.isEqualTo("\\[evil]: https://phish.example");
 		}
 
 		@Test
@@ -414,11 +462,11 @@ class ReportMarkdownRendererTest {
 	class EscapeHelpers {
 
 		@Test
-		@DisplayName("mdEscape 는 어디에 있든 위험한 문자를 전부 이스케이프한다")
+		@DisplayName("mdEscape 는 위치와 무관하게 위험한 문자(별표·밑줄·꺾쇠·파이프·역슬래시)를 이스케이프한다")
 		void mdEscapeEscapesInlineSpecialsEverywhere() {
-			// 맨 앞 문자(백틱)는 INLINE_SPECIAL 로, 나머지도 위치와 무관하게 이스케이프된다.
+			// 백틱(단일)·대괄호는 실제로 위험한 조합일 때만 이스케이프한다 — 아래 별도 시험.
 			String out = ReportMarkdownRenderer.mdEscape("a`b*c_d[e]f<g|h\\i");
-			assertThat(out).isEqualTo("a\\`b\\*c\\_d\\[e\\]f\\<g\\|h\\\\i");
+			assertThat(out).isEqualTo("a`b\\*c\\_d[e]f\\<g\\|h\\\\i");
 		}
 
 		@Test

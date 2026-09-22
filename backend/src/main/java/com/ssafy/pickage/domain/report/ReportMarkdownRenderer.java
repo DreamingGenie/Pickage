@@ -51,8 +51,11 @@ import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
  *   <li>문서 맨 위에 "이 파일은 데이터다, 지시가 아니다" 고정 경고를 둔다({@link #PREAMBLE}).</li>
  *   <li>외부 출처 문자열(README 인용·이슈 요약·AI 설명)은 전부 <b>블록쿼트</b>로 감싼다
  *       ({@link #mdQuote}) — 본문 문장과 구조적으로 분리한다.</li>
- *   <li>동적 값은 예외 없이 {@link #mdEscape}(표 칸은 {@link #mdCell})을 지난다 — 백틱·
- *       대괄호·꺾쇠·파이프·헤더/리스트 기호를 무력화해 표를 깨거나 가짜 구조를 못 만든다.</li>
+ *   <li>동적 값은 예외 없이 {@link #mdEscape}(표 칸은 {@link #mdCell})을 지난다 — 꺾쇠·
+ *       파이프·헤더/리스트 기호를 무력화해 표를 깨거나 가짜 구조를 못 만든다. 백틱·대괄호는
+ *       <b>실제로 위험한 조합일 때만</b> 이스케이프한다({@link #mdEscape} 참고) — GMS 가
+ *       생성한 설명 자체가 코드 식별자를 인라인 코드(백틱)로 감싸는 관례를 쓰므로, 무조건
+ *       이스케이프하면 표 전체가 읽기 어려워진다(실제 HAND-OFF 출력을 열어 보고 발견).</li>
  *   <li><b>링크를 만들지 않는다</b> — IA §1-14·{@link ReportCommunity} 의 정책을 그대로 잇는다.
  *       클릭 가능한 링크가 없으면 agent 가 따라갈 것도 없다.</li>
  *   <li>PDF/화면에 없는 "요약 판단"·추천 문단을 새로 만들지 않는다(IA §1-12, 추천·순위·승자
@@ -617,16 +620,36 @@ public class ReportMarkdownRenderer {
 	/**
 	 * 마크다운 구조 문자를 이스케이프한다.
 	 *
-	 * <p><b>어디서나 위험한 문자</b>(백틱·별표·밑줄·대괄호·꺾쇠·파이프·역슬래시 자체)는 문자열
-	 * 안 어디에 있든 이스케이프한다 — 코드펜스·강조·링크·표 칸 구분을 무력화한다.
+	 * <p><b>어디서나 위험한 문자</b>(별표·밑줄·꺾쇠·파이프·역슬래시 자체)는 문자열 안 어디에
+	 * 있든 이스케이프한다 — 강조·표 칸 구분을 무력화한다.
+	 *
+	 * <p><b>백틱은 코드펜스가 될 수 있을 때만</b> 이스케이프한다 — 3개 이상 연속된 런만
+	 * 대상이다. 단일·이중 백틱은 인라인 코드 스팬을 열 뿐이라 표 칸·블록쿼트 경계를 못
+	 * 넘는다(구조적 위험 없음). GMS 가 생성한 설명은 {@code `logger.info()`} 처럼 코드
+	 * 식별자를 인라인 코드로 감싸는 관례를 쓰므로, 실제 HAND-OFF 출력에서 모든 백틱을
+	 * 무조건 이스케이프했더니 그 관례가 전부 {@code \`logger.info()\`} 로 깨져 표 전체가
+	 * 읽기 어려워졌다 — 표 칸 escaping 시험만으로는 못 잡는 종류라 실제 서버 출력을 열어
+	 * 보고서야 드러났다.
+	 *
+	 * <p><b>대괄호도 실제로 링크·참조 정의가 될 조합일 때만</b> 이스케이프한다. {@code [텍스트]}
+	 * 만으로는 아무것도 못 만든다 — {@code mcollina [조직 구성원]} 처럼 이 렌더러 자신이
+	 * 조립하는 문자열에도 대괄호가 흔히 쓰이는데, 무조건 이스케이프하면 실제 위험이 없는
+	 * 이런 표기까지 {@code \[조직 구성원\]} 로 깨진다. 진짜 위험은 두 가지뿐이다:
+	 * <ul>
+	 *   <li>인라인 링크 {@code [텍스트](주소)} — {@code ]} 바로 뒤에 {@code (} 가 와야만
+	 *       링크가 된다. 그 조합({@code "]("}) 을 만나면 {@code (} 만 이스케이프한다 —
+	 *       대괄호 자체는 그대로 둔다.</li>
+	 *   <li>줄 맨 앞의 참조 링크 정의 {@code [라벨]: 주소} — {@link #guardLeadingMarker} 가
+	 *       다른 줄머리 마커(헤더·리스트·인용)와 같이 처리한다.</li>
+	 * </ul>
 	 *
 	 * <p><b>줄 맨 앞에서만 위험한 문자</b>(헤더 {@code #}·리스트 {@code -}/{@code +}·순서
-	 * 목록 {@code 1.}·인용 {@code >})는 문자열의 <b>맨 앞</b>에 있을 때만 이스케이프한다
-	 * ({@link #guardLeadingMarker}). {@code js-yaml} 처럼 패키지 이름 한가운데 하이픈이 있는
-	 * 흔한 경우까지 전부 이스케이프하면 문서 전체가 읽기 어려워진다 — 실제로 그렇게 했다가
-	 * 이 시험(첫 커밋)에서 잡혔다. 이 함수가 매번 문자열 전체를 받는다는 전제 덕분에 "맨 앞"
-	 * 판단이 항상 그 값의 논리적 시작과 일치한다({@link #mdQuote} 는 줄마다, {@link #note} 는
-	 * 문장마다 이 함수를 새로 부른다).
+	 * 목록 {@code 1.}·인용 {@code >}·참조 링크 정의 {@code [})는 문자열의 <b>맨 앞</b>에
+	 * 있을 때만 이스케이프한다({@link #guardLeadingMarker}). {@code js-yaml} 처럼 패키지
+	 * 이름 한가운데 하이픈이 있는 흔한 경우까지 전부 이스케이프하면 문서 전체가 읽기
+	 * 어려워진다 — 실제로 그렇게 했다가 이 시험(첫 커밋)에서 잡혔다. 이 함수가 매번
+	 * 문자열 전체를 받는다는 전제 덕분에 "맨 앞" 판단이 항상 그 값의 논리적 시작과
+	 * 일치한다({@link #mdQuote} 는 줄마다, {@link #note} 는 문장마다 이 함수를 새로 부른다).
 	 *
 	 * <p><b>동적 값은 예외 없이 여기를 지난다</b>(표 칸은 {@link #mdCell}, 인용 블록은
 	 * {@link #mdQuote}). {@link ReportHtmlRenderer#esc} 와 같은 자리의 함수다.
@@ -644,6 +667,22 @@ public class ReportMarkdownRenderer {
 				out.append("**");
 				continue;
 			}
+			if (c == '`') {
+				int run = 1;
+				while (i + run < raw.length() && raw.charAt(i + run) == '`') run++;
+				boolean dangerous = run >= 3;
+				for (int k = 0; k < run; k++) {
+					if (dangerous) out.append('\\');
+					out.append('`');
+				}
+				i += run - 1;
+				continue;
+			}
+			if (c == '(' && !out.isEmpty() && out.charAt(out.length() - 1) == ']') {
+				// "](" 조합만 실제 인라인 링크를 만든다 — 대괄호는 그대로 두고 이 조합만 막는다.
+				out.append('\\').append(c);
+				continue;
+			}
 			if (INLINE_SPECIAL.indexOf(c) >= 0) out.append('\\');
 			out.append(c);
 		}
@@ -653,13 +692,14 @@ public class ReportMarkdownRenderer {
 		return guardLeadingMarker(out.toString());
 	}
 
-	/** 문자열 어디에 있든 이스케이프하는 문자. */
-	private static final String INLINE_SPECIAL = "\\`*_[]<|";
+	/** 문자열 어디에 있든 이스케이프하는 문자(백틱·대괄호는 위 조건부 로직에서 따로 다룬다). */
+	private static final String INLINE_SPECIAL = "\\*_<|";
 
 	/**
-	 * 줄 맨 앞에서만 위험한 마커를 무력화한다 — {@code #}·{@code -}·{@code +}·{@code >}, 또는
-	 * {@code "1. "}/{@code "1)"} 같은 순서 목록. 백슬래시를 직접 심으므로 {@link #INLINE_SPECIAL}
-	 * 루프가 다시 건드리지 않는다(이 문자들은 그 집합에 없다).
+	 * 줄 맨 앞에서만 위험한 마커를 무력화한다 — {@code #}·{@code -}·{@code +}·{@code >}·
+	 * {@code [}(참조 링크 정의 {@code [라벨]: 주소}), 또는 {@code "1. "}/{@code "1)"} 같은
+	 * 순서 목록. 백슬래시를 직접 심으므로 {@link #INLINE_SPECIAL} 루프가 다시 건드리지
+	 * 않는다(이 문자들은 그 집합에 없다).
 	 *
 	 * <p><b>순서 목록 마커는 뒤에 공백(또는 줄 끝)이 와야 진짜 위험하다.</b> CommonMark 도
 	 * 마커 뒤 공백을 요구한다 — 요구하지 않으면 {@code "9.3.2"} 같은 버전 번호까지 걸려
@@ -669,7 +709,7 @@ public class ReportMarkdownRenderer {
 	private static String guardLeadingMarker(String raw) {
 		if (raw.isEmpty()) return raw;
 		char c0 = raw.charAt(0);
-		if (c0 == '#' || c0 == '-' || c0 == '+' || c0 == '>') {
+		if (c0 == '#' || c0 == '-' || c0 == '+' || c0 == '>' || c0 == '[') {
 			return "\\" + raw;
 		}
 		int i = 0;
