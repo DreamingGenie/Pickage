@@ -91,12 +91,7 @@
   .verdict .t { font-size:var(--fs-verdict); font-weight:700; letter-spacing:-.02em; line-height:1.1; }
   .verdict .d { font-size:var(--fs-body); color:var(--dim); margin-top:var(--sp-1); }
   .verdict .counts { display:flex; gap:var(--sp-2); margin-top:var(--sp-2); flex-wrap:wrap; }
-  .verdict ul { margin:var(--sp-3) 0 0; padding:0; list-style:none; display:grid; gap:var(--sp-1); }
-  .verdict li { display:grid; grid-template-columns:auto 1fr; gap:var(--sp-2); align-items:baseline;
-                font-size:var(--fs-tbl); line-height:1.45; }
-  .verdict li a { color:var(--fg); text-decoration:none; }
-  .verdict li a:hover { text-decoration:underline; }
-  .verdict li .where { color:var(--dim); font-size:var(--fs-cap); margin-left:var(--sp-1); white-space:nowrap; }
+  .verdict .flist { margin-top:var(--sp-3); }
   .is-ok .mark { background:var(--ok); } .is-ok .t { color:var(--ok); }
   .is-warn .mark { background:var(--warn); } .is-warn .t { color:var(--warn); }
   .is-bad .mark { background:var(--bad); } .is-bad .t { color:var(--bad); }
@@ -132,15 +127,30 @@
   section.card.flash { animation:flash 1.6s ease-out; }
   @keyframes flash { 0% { box-shadow:0 0 0 3px var(--info); } 100% { box-shadow:0 0 0 0 transparent; } }
 
-  /* ── 노드 요약 줄 — 어느 탭에서나 두 노드의 상태가 보인다 ─────────── */
-  .nodes { display:grid; gap:var(--sp-2); margin:var(--sp-4) 0 var(--sp-3); }
-  .nodebar { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-3);
-             border:1px solid var(--line); border-radius:var(--r); background:var(--panel); }
-  .nodebar.has-bad { border-color:var(--bad); } .nodebar.has-warn { border-color:var(--warn); }
-  .nodebar .name { font-size:var(--fs-body); font-weight:700; letter-spacing:-.01em; }
+  /* ── 노드 줄 — 탭 위에 항상. 누르면 그 노드의 판정 항목이 펼쳐진다 ──── */
+  .nodes { display:grid; gap:var(--sp-2); margin:0 0 var(--sp-3); }
+  details.nodebar { border:1px solid var(--line); border-radius:var(--r); background:var(--panel); margin:0; }
+  details.nodebar.has-bad { border-color:var(--bad); } details.nodebar.has-warn { border-color:var(--warn); }
+  .nodebar > summary { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-3);
+                       list-style:none; cursor:pointer; font-size:var(--fs-body); color:var(--fg); }
+  .nodebar > summary::-webkit-details-marker { display:none; }
+  .nodebar > summary::before { content:"▸"; color:var(--faint); font-size:12px; width:10px; }
+  details.nodebar[open] > summary::before { content:"▾"; }
+  .nodebar > summary:hover { background:var(--hover); border-radius:var(--r); }
+  .nodebar .name { font-weight:700; letter-spacing:-.01em; }
   .nodebar .host { font-size:var(--fs-cap); color:var(--dim); }
   .nodebar .meta { font-size:var(--fs-cap); color:var(--faint); margin-left:auto; }
-  .nodebar .fail { flex-basis:100%; margin:var(--sp-1) 0 0; }
+  .nodebar .body { padding:0 var(--sp-3) var(--sp-3) calc(var(--sp-3) + 10px + var(--sp-3)); }
+  .nodebar .fail { margin:var(--sp-2) 0 0; }
+
+  /* 판정 항목 목록 — 판정 블록(전역)과 노드 줄(노드별)이 같은 모양을 쓴다 */
+  .flist { margin:var(--sp-2) 0 0; padding:0; list-style:none; display:grid; gap:var(--sp-1); }
+  .flist li { display:grid; grid-template-columns:auto 1fr; gap:var(--sp-2); align-items:baseline;
+              font-size:var(--fs-tbl); line-height:1.45; }
+  .flist li a { color:var(--fg); text-decoration:none; }
+  .flist li a:hover { text-decoration:underline; }
+  .flist li .where { color:var(--dim); font-size:var(--fs-cap); margin-left:var(--sp-1); white-space:nowrap; }
+  .flist .none { color:var(--faint); font-size:var(--fs-cap); }
 
   /* ── 절 카드 ──────────────────────────────────────────────────── */
   section.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
@@ -252,11 +262,11 @@
 
   <div class="verdict" id="verdict">
     <div class="mark">…</div>
-    <div><div class="t">확인 중</div><div class="d"></div><div class="counts"></div><ul></ul></div>
+    <div><div class="t">확인 중</div><div class="d"></div><div class="counts"></div><ul class="flist"></ul></div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
   <div class="nodes" id="nodes"></div>
+  <div class="tabs" id="tabs"></div>
   <div id="body"></div>
 
   <footer>
@@ -716,6 +726,7 @@ function renderTabs() {
 // 하나씩 바꾸고, 바꾸기 전에 펼쳐 둔 details 의 열쇠를 적어 새 요소에서 다시 펼친다. 열쇠는 절 id + summary 글자
 // (숫자는 # 으로 뭉갠다 — "이전 51건" 이 "이전 52건" 이 돼도 같은 것) + 같은 글자 중 몇 번째인가. 스크롤 위치도 되돌린다.
 function detailKey(d) {
+  if (d.id) return d.id + '|self';     // 노드 줄처럼 자기 id 가 있으면 그것이 열쇠다 — summary 글자는 갱신마다 바뀔 수 있다 ("· 캐시")
   const sec = d.closest('[id]');
   const norm = x => ((x.querySelector(':scope > summary') || {}).textContent || '').replace(/\d+/g, '#').trim();
   const text = norm(d);
@@ -740,14 +751,25 @@ function patch(container, html) {
   if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
 }
 
-// 노드 하나 → 요약 줄 하나 + 절 카드들(탭별). 어느 노드의 절인지는 카드 제목과 id 에 있다.
+// 판정 항목 한 줄 — 심각도 표지 + 글자(누르면 그 절로) + 어느 절인지
+const findingItem = f => `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}" onclick="return goTo('${esc(f.section)}')">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`;
+const findingList = items => `<ul class="flist">${items.length ? [...items.filter(f => f.level === 'bad'), ...items.filter(f => f.level === 'warn')].map(findingItem).join('') : '<li class="none">걸리는 것이 없습니다.</li>'}</ul>`;
+// 문제·주의 태그 — 있는 것만, 둘 다 있으면 둘 다. 없으면 정상.
+const badges = items => {
+  const bad = items.filter(f => f.level === 'bad').length, warn = items.filter(f => f.level === 'warn').length;
+  return (bad ? chip(`문제 ${bad}`, 'bad') : '') + (warn ? chip(`주의 ${warn}`, 'warn') : '') + (!bad && !warn ? chip('정상', 'ok') : '');
+};
+const nodeOf = id => !id ? null : id.startsWith('node-') ? id.slice(5) : id.slice(0, id.lastIndexOf('-'));
+
+// 노드 하나 → 노드 줄(누르면 그 노드의 판정 항목) + 절 카드들(탭별). 어느 노드의 절인지는 카드 제목과 id 에 있다.
 function renderNode(node, report, now) {
   const mark = findings.length;
   if (report.unreachable) {
     flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`);
     findings.slice(mark).forEach(f => { f.section = `node-${node}`; f.sectionTitle = node; });
-    return { strip: `<div class="nodebar has-warn" id="node-${esc(node)}"><span class="name">${esc(node)}</span>${chip('닿지 못함', 'warn')}
-        <div class="fail">${esc((report.errors || [{}])[0].message || '')}</div></div>`, cards: [] };
+    const mine = findings.slice(mark);
+    return { strip: `<details class="nodebar has-warn" id="node-${esc(node)}"><summary><span class="name">${esc(node)}</span>${badges(mine)}</summary>
+        <div class="body"><div class="fail">${esc((report.errors || [{}])[0].message || '')}</div>${findingList(mine)}</div></details>`, cards: [] };
   }
   const via = report.fetched_via ? ` · ${esc(report.fetched_via)} 가 중계` : '';
   const cached = report.cached ? ' · 캐시' : '';
@@ -763,28 +785,29 @@ function renderNode(node, report, now) {
     ['docker', renderDocker(node, report.docker, now)],
   ].filter(([, html]) => html).map(([tab, html]) => ({ tab, html }));
   const mine = findings.slice(mark);
-  const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
-  const badge = bad ? chip(`문제 ${bad}`, 'bad') : warn ? chip(`주의 ${warn}`, 'warn') : chip('정상', 'ok');
-  const strip = `<div class="nodebar ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="node-${esc(node)}">
-      <span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badge}
-      <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}</span>${errors}</div>`;
+  const bad = mine.some(f => f.level === 'bad'), warn = mine.some(f => f.level === 'warn');
+  const strip = `<details class="nodebar ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="node-${esc(node)}">
+      <summary><span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badges(mine)}
+        <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}</span></summary>
+      <div class="body">${errors}${findingList(mine)}</div></details>`;
   return { strip, cards };
 }
 
-// 판정 — 제목 한 단어, 문제·주의 개수, 근거 목록(항목마다 자기 심각도 기호 + 해당 절 링크).
+// 판정 — 제목 한 단어, 문제·주의 개수. 노드별 근거는 아래 노드 줄을 펼쳐 본다.
+// 어느 노드에도 속하지 않는 항목(전역 — 예: data 보고서가 하나도 없다)만 여기 목록으로 남는다.
 const MARKS = { ok: '✓', warn: '!', bad: '✕' };
-function setVerdict(cls, title, desc, items) {
+function setVerdict(cls, title, desc, items, nodes = []) {
   const v = document.getElementById('verdict');
   v.className = 'verdict ' + cls;
   v.querySelector('.mark').textContent = MARKS[cls.replace('is-', '')] || '…';
   v.querySelector('.t').textContent = title;
   v.querySelector('.d').textContent = desc;
-  const bad = (items || []).filter(f => f.level === 'bad'), warn = (items || []).filter(f => f.level === 'warn');
-  v.querySelector('.counts').innerHTML = (items || []).length
-    ? `${bad.length ? chip(`문제 ${bad.length}`, 'bad') : ''}${warn.length ? chip(`주의 ${warn.length}`, 'warn') : ''}` : '';
-  const sorted = [...bad, ...warn];   // 빨간 것이 먼저
-  v.querySelector('ul').innerHTML = sorted.map(f =>
-    `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}" onclick="return goTo('${esc(f.section)}')">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`).join('');
+  const all = items || [];
+  const bad = all.filter(f => f.level === 'bad').length, warn = all.filter(f => f.level === 'warn').length;
+  v.querySelector('.counts').innerHTML = all.length
+    ? `${bad ? chip(`문제 ${bad}`, 'bad') : ''}${warn ? chip(`주의 ${warn}`, 'warn') : ''}` : '';
+  const global = all.filter(f => !nodes.includes(nodeOf(f.section)));
+  v.querySelector('.flist').innerHTML = global.length ? [...global.filter(f => f.level === 'bad'), ...global.filter(f => f.level === 'warn')].map(findingItem).join('') : '';
 }
 
 // 받아 둔 보고서로 화면을 그린다. 정렬을 바꿀 때는 서버에 다시 묻지 않고 이것만 다시 부른다.
@@ -805,9 +828,9 @@ function draw(nodes, reports, now, elapsed) {
 
   document.getElementById('updated').textContent =
     `${new Date(now).toLocaleTimeString('ko-KR')} 기준 · ${elapsed.toFixed(1)}초 걸림 · 15초마다`;
-  if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·전처리·컨테이너·로그에서 걸리는 것이 없습니다.', []);
-  else if (worst === 'warn') setVerdict('is-warn', '주의', '당장 장애는 아니지만 두면 커지거나 확인이 필요한 것입니다. 항목을 누르면 그 절로 갑니다.', findings);
-  else setVerdict('is-bad', '문제', '빨간 항목부터 보세요. 항목을 누르면 그 절로 갑니다.', findings);
+  if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·전처리·컨테이너·로그에서 걸리는 것이 없습니다.', [], nodes);
+  else if (worst === 'warn') setVerdict('is-warn', '주의', '당장 장애는 아니지만 두면 커지거나 확인이 필요한 것입니다. 노드 줄을 펼치면 항목이 있고, 누르면 그 절로 갑니다.', findings, nodes);
+  else setVerdict('is-bad', '문제', '노드 줄을 펼쳐 빨간 항목부터 보세요. 항목을 누르면 그 절로 갑니다.', findings, nodes);
 }
 
 async function refreshOnce(fresh) {
