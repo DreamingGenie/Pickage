@@ -20,6 +20,9 @@ dist/
 .DS_Store
 .idea/
 
+# AI 도구가 대화 중 임시로 만든 화면 출력 — 제품 자산·검수 근거가 아니다.
+/Claude outputs/
+
 # Bulk raw poll history from the Phase 0/1 spike harness — stays local per
 # baseline/phase0/scripts/spikes/README.md's own convention. Curated,
 # representative samples belong in data/samples/examples/ instead (tracked).
