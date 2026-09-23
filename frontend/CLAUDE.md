@@ -161,3 +161,12 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   커뮤니티 발화자 표기(`mcollina [조직 구성원]`)도 대괄호를 흔히 쓰는데, 무조건 이스케이프하면 이런 안전한 표기까지 잡음이 됐다.
   링크는 만들지 않는다(IA §1-14 계승). 추천·순위 문구도 새로 만들지 않는다(IA §1-12) — PDF에 없는 "요약 판단"을 이 문서에만
   넣지 않는다.
+- `DEC-FEATURE-DIFF-MARKS-20260923-01`(`S15P21A506-470`·`S15P21A506-471`): AI 기능 비교의 차이점 문단
+  (`differences[].body`)이 3~5문장으로 길어 훑어 읽기 어렵다는 피드백에 따라, 커뮤니티 핵심 논의 요약과
+  같은 방식으로 핵심 문장 1개·핵심어 최대 3개를 굵게·형광펜으로 강조한다. `ai/rag`(같은 GMS 단일 호출,
+  새 LLM 호출 없음)가 `differences[].marks`(`{start,end,kind}`, UTF-16 오프셋)를 계산해 내려주고
+  `RagClient`(백엔드)는 원문을 그대로 통과시킨다. **강조 렌더링 로직을 공용화했다** — 커뮤니티 전용이던
+  `segmentSummary`/`EmphasizedSummary`(`community/summary-marks.ts`·`emphasized-summary.tsx`)를
+  `lib/text-marks.ts`(`segmentText`)·`components/common/emphasized-text.tsx`(`EmphasizedText`)로
+  옮기고, `api/types`의 `CommunitySummaryMark`는 `TextMark`로 일반화했다(같은 모양, 커뮤니티·기능비교
+  공용). PDF·HAND-OFF(MD) 렌더링에는 이번에 반영하지 않는다(화면 전용, 범위 밖).

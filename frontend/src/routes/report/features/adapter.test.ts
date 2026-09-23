@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { RagComparisonResult } from '@/api/types'
+import type { RagComparisonResult, TextMark } from '@/api/types'
 import { diffAnalyses, isEmptyChange } from '@/routes/report/features/adapter'
 import { toComparisonView, toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
 
@@ -14,7 +14,7 @@ function result(over: Partial<RagComparisonResult> = {}): RagComparisonResult {
     dataStatus: 'COMPLETE',
     packages,
     common: '둘 다 로그를 남겨요.',
-    differences: packages.map((p) => ({ ...p, body: `${p.package} 설명` })),
+    differences: packages.map((p) => ({ ...p, body: `${p.package} 설명`, marks: [] as TextMark[] })),
     sources: packages.map((p) => ({
       package: p.package,
       version: p.version,
@@ -41,13 +41,30 @@ describe('toComparisonView', () => {
 
   it('차이점은 요청한 패키지 순서로 세우고, 빠진 패키지는 빈 문단으로 둔다', () => {
     const view = toComparisonView(
-      result({ differences: [{ package: 'winston', version: '3.19.0', body: 'w' }] }),
+      result({
+        differences: [{ package: 'winston', version: '3.19.0', body: 'w', marks: [] }],
+      }),
     )
 
     expect(view.differences).toEqual([
-      { name: 'pino', version: '10.3.1', body: '' },
-      { name: 'winston', version: '3.19.0', body: 'w' },
+      { name: 'pino', version: '10.3.1', body: '', marks: [] },
+      { name: 'winston', version: '3.19.0', body: 'w', marks: [] },
     ])
+  })
+
+  it('강조 구간(marks)을 패키지별로 옮긴다(S15P21A506-470)', () => {
+    const marks: TextMark[] = [{ start: 0, end: 4, kind: 'KEY_TERM' }]
+    const view = toComparisonView(
+      result({
+        differences: [
+          { package: 'pino', version: '10.3.1', body: 'pino 설명', marks },
+          { package: 'winston', version: '3.19.0', body: 'winston 설명', marks: [] },
+        ],
+      }),
+    )
+
+    expect(view.differences[0].marks).toEqual(marks)
+    expect(view.differences[1].marks).toEqual([])
   })
 
   it('RAG 가 자료가 부족하다고 하면 그대로 적는다', () => {

@@ -45,11 +45,19 @@ function mockRagResult(refs: readonly string[]): RagComparisonResult {
     packages,
     common:
       '모두 Node.js 에서 로그를 남기는 도구예요. 로그 레벨을 나누고, 로그를 JSON 으로 남겨 다른 도구가 읽기 쉽게 해요.',
-    differences: packages.map((p) => ({
-      package: p.package,
-      version: p.version,
-      body: `${p.package} 의 차이점을 설명하는 개발용 문장이에요. 실제 분석 결과가 아니에요.`,
-    })),
+    differences: packages.map((p) => {
+      const body = `${p.package} 의 차이점을 설명하는 개발용 문장이에요. 실제 분석 결과가 아니에요.`
+      const sentenceStart = body.indexOf('실제 분석 결과가 아니에요.')
+      return {
+        package: p.package,
+        version: p.version,
+        body,
+        marks: [
+          { start: 0, end: p.package.length, kind: 'KEY_TERM' as const },
+          { start: sentenceStart, end: body.length, kind: 'KEY_SENTENCE' as const },
+        ],
+      }
+    }),
     sources: packages.map((p) => ({
       package: p.package,
       version: p.version,

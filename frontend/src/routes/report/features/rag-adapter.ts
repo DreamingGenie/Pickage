@@ -11,7 +11,7 @@ import type { ComparisonView } from '@/routes/report/features/model'
  * 2026-09-22 판정표를 없애고 공통점·패키지별 차이점 서술만 받는다.
  */
 export function toComparisonView(result: RagComparisonResult): ComparisonView {
-  const bodyOf = new Map(result.differences.map((d) => [d.package, d.body]))
+  const diffOf = new Map(result.differences.map((d) => [d.package, d]))
   const packages = result.packages.map((p) => ({ name: p.package, version: p.version }))
   return {
     packages,
@@ -20,7 +20,11 @@ export function toComparisonView(result: RagComparisonResult): ComparisonView {
     common: result.common,
     // 요청한 패키지 순서로 세운다. 서버가 패키지마다 한 문단을 보장하지만(verify_result),
     // 빠졌으면 빈 문단으로 두고 화면이 그 사실을 적는다.
-    differences: packages.map((p) => ({ ...p, body: bodyOf.get(p.name) ?? '' })),
+    differences: packages.map((p) => ({
+      ...p,
+      body: diffOf.get(p.name)?.body ?? '',
+      marks: diffOf.get(p.name)?.marks ?? [],
+    })),
     analyzedAt: new Date().toISOString(),
   }
 }

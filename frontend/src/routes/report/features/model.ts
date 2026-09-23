@@ -5,6 +5,8 @@
  * 컴포넌트는 이 파일의 타입만 본다.
  */
 
+import type { TextMark } from '@/api/types'
+
 export interface VersionChoice {
   version: string
   prerelease: boolean
@@ -32,6 +34,8 @@ export interface PackageDifference {
   name: string
   version: string
   body: string
+  /** `body` 안의 핵심 문장 1개·핵심어 최대 3개 강조 구간(S15P21A506-470). 없으면 평문으로 보인다 */
+  marks: TextMark[]
 }
 
 export interface ComparisonPackage {

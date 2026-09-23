@@ -1,10 +1,10 @@
 import { ExternalLinkIcon } from 'lucide-react'
 
+import { EmphasizedText } from '@/components/common/emphasized-text'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { IssueAccent } from '@/routes/report/community/accent'
-import { EmphasizedSummary } from '@/routes/report/community/emphasized-summary'
 import { githubIssueUrl } from '@/routes/report/community/summary-marks'
 import type { CommunityLimitation, CommunityTopic } from '@/api/types'
 
@@ -117,7 +117,7 @@ export function CommunityIssueCard({
 
       {topic.summary_ko ? (
         <p className="text-sm leading-relaxed">
-          <EmphasizedSummary text={topic.summary_ko} marks={topic.summary_marks} />
+          <EmphasizedText text={topic.summary_ko} marks={topic.summary_marks} />
           {info}
         </p>
       ) : (

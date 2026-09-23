@@ -677,10 +677,13 @@ export interface CommunityMessage {
 }
 
 /**
- * 요약문(`summary_ko`) 안의 강조 구간. 서버가 계산한 UTF-16 오프셋 `[start, end)` 라 JS `String.slice` 와 같은 단위다
- * (S15P21A506-408). `KEY_TERM` 은 핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다.
+ * 어떤 본문 문자열 안의 강조 구간. 서버가 계산한 UTF-16 오프셋 `[start, end)` 라 JS `String.slice` 와 같은
+ * 단위다(S15P21A506-408). `KEY_TERM` 은 핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다.
+ *
+ * 커뮤니티 요약(`summary_ko`)과 AI 기능 비교 차이점(`differences[].body`, S15P21A506-470) 둘 다 이
+ * 계약을 쓴다 — 렌더링도 `components/common/emphasized-text.tsx` 하나를 공유한다.
  */
-export interface CommunitySummaryMark {
+export interface TextMark {
   start: number
   end: number
   kind: 'KEY_TERM' | 'KEY_SENTENCE'
@@ -710,7 +713,7 @@ export interface CommunityTopic {
   /** 최대 4개 */
   messages: CommunityMessage[]
   /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */
-  summary_marks: CommunitySummaryMark[]
+  summary_marks: TextMark[]
 }
 
 export interface CommunityLimitation {
@@ -885,7 +888,13 @@ export interface RagComparisonResult {
   /** 공통점 서술 (2026-09-22, 판정표 대신) */
   common: string
   /** 패키지별 차이점 서술. 요청한 패키지 순서 */
-  differences: { package: string; version: string; body: string }[]
+  differences: {
+    package: string
+    version: string
+    body: string
+    /** 핵심 문장 1개·핵심어 최대 3개의 강조 구간(S15P21A506-470). 없거나 비어 있으면 평문으로 보인다 */
+    marks: TextMark[]
+  }[]
   /** 패키지별 인계 파일 상태. dataStatus 와 다른 축이다 */
   sources: {
     package: string
