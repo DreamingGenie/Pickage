@@ -30,7 +30,7 @@ import java.util.List;
  * com.ssafy.pickage.domain.community.verification.GitHubRepositoryClient})와 <b>별도 rate limit
  * quota</b>다(비인증 10/분, 인증 30/분 — 구현계획 §설정과 보안). 그래서 {@code send()}/rate-limit 판정 코드를 213에서 가져다 쓰지
  * 않고 이 클래스 안에 다시 작게 둔다 — 이미 병합·리뷰된 213 파일은 건드리지 않는다는 2026-09-11 사용자 결정 ({@code
- * docs/for_community/specs/S15P21A506-212.md} §7).
+ * docs/history/0923_0917_pickage_final_set_archive/for_community/specs/S15P21A506-212.md} §7).
  */
 public class GitHubIssueSearchClient {
 

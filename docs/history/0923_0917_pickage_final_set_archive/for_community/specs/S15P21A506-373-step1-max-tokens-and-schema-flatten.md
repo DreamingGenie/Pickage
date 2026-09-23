@@ -54,7 +54,7 @@
       실제로 보내는 요청 JSON의 `text.format.schema.properties.flow.items`에
       `support` 키가 없고(`additionalProperties`도 확인), `flow_support`가
       최상위에 존재하는지 — 즉 평탄화가 실제로 적용됐는지를 계약 테스트로 고정한다.
-  - `docs/for_community/GMS_연동_참고.md` — `:30-39`의 "2026-09-16 추가 확인" 문단이
+  - `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md` — `:30-39`의 "2026-09-16 추가 확인" 문단이
     지금 `flow[].support`처럼 2단 중첩" 표현을 쓰는데 이번 변경으로 더는 사실이
     아니게 된다. `MAX_OUTPUT_TOKENS(2048)` 언급도 4096으로 바뀐다. 두 문장을 이번
     변경 사실에 맞게 갱신하고, 0단계 §7 실측(경로 B 미재현) 결과를 한 줄 추가한다.
@@ -135,7 +135,7 @@
     무관함을 확인함 — 수정 대상에서 제외한 근거.
   - `GmsCommunitySummarizerTest.java`의 `VALID_PAYLOAD`(`:96-110`)가 실제로
     `flow[0].support`를 갖고 있음을 확인, 갱신 필요 지점으로 확정함.
-  - `docs/for_community/GMS_연동_참고.md:30-39`가 실제로 `flow[].support`·`2048`을
+  - `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md:30-39`가 실제로 `flow[].support`·`2048`을
     언급함을 확인, 갱신 대상으로 확정함.
 - 발견해 Spec에 반영한 차이: 없음 — 계획 문서 §3③이 예고한 "TopicSummary 구조는
   안 바꿔도 됨" 판단이 실제 코드 대조로도 그대로 맞았다.

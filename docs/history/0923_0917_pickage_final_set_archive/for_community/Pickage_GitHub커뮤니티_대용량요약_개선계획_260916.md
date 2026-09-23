@@ -7,7 +7,7 @@
 > 제목과 수치를 표시합니다")이 재현되는 것을 스크린샷으로 확인한 뒤 착수했다.
 >
 > 이 문서는 **계획 문서이며 구현 문서가 아니다.** 어떤 코드도 이 문서 작성 중에
-> 바꾸지 않았다. `docs/for_community/AGENTS.md`가 정한 "PRD/Spec 원본은 바로 고치지
+> 바꾸지 않았다. `docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`가 정한 "PRD/Spec 원본은 바로 고치지
 > 않고 무엇을·왜 바꿀지 먼저 제안한다" 규칙에 따라, 이 문서는
 > [`Pickage_GitHub커뮤니티_구현계획_260908.md`](Pickage_GitHub커뮤니티_구현계획_260908.md)
 > (이하 "본 PRD")를 대체하지 않고 그 위에 얹는 **제안**이다. 실제 구현은 이 문서가
@@ -74,7 +74,7 @@ HTTP 200인데 응답 바디의 `status`가 `incomplete`이거나 페이로드 �
 실패하는 경우는 **아무 로그도 남지 않는다.** 이 때문에 지금까지 운영에서
 재현된 zod #479/#372 실패가 "경로 A(타임아웃)"·"경로 B(incomplete)"·"경로
 C(validator 거부)" 중 정확히 무엇이었는지 사후에 구분할 방법이 없다(§3의
-0단계에서 이 로그 공백을 먼저 메운다). `docs/for_community/GMS_연동_참고.md:36-39`가
+0단계에서 이 로그 공백을 먼저 메운다). `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md:36-39`가
 이미 "여전히 미확인: `max_output_tokens`(2048) 초과 시 `status`가 `incomplete`로
 오는지" 라고 명시해 뒀다 — 이번 재현이 바로 그 미확인 경로를 실제로 밟았을
 가능성이 높다(§2에서 근거를 좁힌다).
@@ -101,7 +101,7 @@ support 배열 → sourceRef object)에 이른다. OpenAI Structured Outputs str
 필요** — 이 수치는 웹 검색으로 얻은 일반 지식이며, 이 문서 서두가 스스로 정한
 "모든 주장에 정확한 근거를 붙인다" 규칙에 맞춰 착수 전 OpenAI 공식 문서 링크로
 재확인해야 한다. 이번 재검수에서도 별도로 검증하지 못했다). 이 값이 맞다면
-지금 스키마는 절대 한도를 넘지는 않지만 여유가 많지 않다. `docs/for_community/GMS_연동_참고.md:29-34`가
+지금 스키마는 절대 한도를 넘지는 않지만 여유가 많지 않다. `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md:29-34`가
 2026-09-16 실측으로 "중첩 배열/객체 스키마... strict 모드가 그대로 동작함"을 이미
 확인했으므로 **스키마 자체가 GMS에서 거부된다는 증거는 없다** — 이 부분은 §3③에서
 "낮은 확신, 낮은 리스크의 보험성 변경"으로만 다룬다.
@@ -218,7 +218,7 @@ task를 **강제로 인터럽트하고 FAILED로 만든다**(`:124-143,145-148`)
 - **PRD와의 관계 — 2026-09-16 승인·반영 완료**: 본 PRD §4.1은 원래 "제목·본문
   우선, 나머지는 최신 댓글부터 예산에 담은 뒤 모델에는 시각순으로 전달한다"라고
   **명시적으로 "최신 댓글 우선"을 계약으로 정해 두었다.** 즉 ②는 버그 수정이
-  아니라 PRD §4.1의 명시적 계약을 바꾸는 변경이었다 — `docs/for_community/AGENTS.md`의
+  아니라 PRD §4.1의 명시적 계약을 바꾸는 변경이었다 — `docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`의
   "PRD 변경은 먼저 제안" 규칙에 따라 이 계획 문서가 제안했고, 사용자가 승인해
   본 PRD §4.1을 반응 수 기반 문구로 이미 갱신했다(§8). **다만 코드는 아직
   이 갱신을 반영하지 않았다** — PRD 문구와 실제 `CommunitySummarySourceBundle.from`
@@ -288,7 +288,7 @@ task를 **강제로 인터럽트하고 FAILED로 만든다**(`:124-143,145-148`)
   (`Pickage_GitHub커뮤니티_구현계획_260908.md:188-212`)을 배치 병합 상황에서도
   똑같이 지켜야 한다는 제약이 새로 생긴다. **재검수로 추가된 항목**: N+1배
   호출은 팀 전체가 공유하는 GMS 조직 계정에도 영향을 준다 —
-  `docs/for_community/GMS_연동_참고.md:24-27`가 "SSAFY 조직 계정 하나를 팀
+  `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md:24-27`가 "SSAFY 조직 계정 하나를 팀
   전체가 공유...공유 자원이라는 점은 인지해 둘 것"이라고 이미 경고했다.
   실측된 rate limit 헤더(`X-Ratelimit-Limit-Requests: 10000` 등)가 넉넉해
   당장 한도에 걸릴 가능성은 낮아 보이지만, 이슈 2개 x 배치 5~6개 x
@@ -402,7 +402,7 @@ Spec 단계에서 다시 정밀 설계해야 한다.
    0~4단계로도 zod급 사례가 계속 실패하면 그때 별도 PRD 개정으로 재제안한다.
 ```
 
-각 단계는 `docs/for_community/AGENTS.md`의 Phase/Spec 절차를 따라 새 Jira
+각 단계는 `docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`의 Phase/Spec 절차를 따라 새 Jira
 하위 이슈(에픽 S15P21A506-323)로 등록하고, 착수 전 Spec을 작성해 승인받는다 —
 이번 계획 문서는 PRD 갱신 제안이지 Spec을 대신하지 않는다.
 

@@ -7,7 +7,7 @@
 > 댓글" 방식으로 방향을 바꾸도록 결정해, 이 Map-Reduce 코드(배치 분해·Reduce 호출)는
 > 최종적으로 **삭제했다** — git 이력에는 구현·삭제 커밋이 모두 남아 있다. 이 Spec은
 > "왜 이 방향을 먼저 시도했고 왜 못 썼는지"를 남기기 위한 기록이다. 실제로 배포된 설계는
-> [S15P21A506-373-step5-highlight-summary.md](S15P21A506-373-step5-highlight-summary.md)
+> [S15P21A506-373-step5-highlight-summary.md](../phases/S15P21A506-373-step5-highlight-summary.md)
 > 참고.
 
 > [`TEMPLATE.md`](TEMPLATE.md) 기반. Acceptance Criteria는 새로 쓰지 않고 Jira
@@ -98,7 +98,7 @@
 - DB 스키마 변경 — 필요 없음(배치 중간 산출물은 요청 처리 중 메모리에만 존재, snapshot에는
   최종 `TopicSummary` 하나만 저장되는 기존 계약 그대로).
 - `domain/packages/**`, `frontend/**`, `compose.yaml`/`application.yaml`의 GMS 설정 — 루트
-  AGENTS.md·`docs/for_community/AGENTS.md` "수정 가능 범위"의 기존 경계 그대로.
+  AGENTS.md·`docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md` "수정 가능 범위"의 기존 경계 그대로.
 
 ## 3. 아키텍처 / 데이터 흐름
 
@@ -217,7 +217,7 @@ flowchart TD
 - 이슈 자체가 `MAX_SUMMARY_BATCHES`를 넘는 댓글을 가진 경우 → §3 배치 분해 3번대로 저하
   (`SUMMARY_INPUT_LIMITED` limitation 유지, 지금 48,000자 초과 시 저하 표시와 같은 종류).
 - **외부 의존성으로 남겨둘 것**: GMS 공유 조직 계정 quota에 N+1배 호출이 주는 실제 영향
-  (`docs/for_community/GMS_연동_참고.md:24-27`가 이미 "SSAFY 조직 계정 하나를 팀 전체가
+  (`docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md:24-27`가 이미 "SSAFY 조직 계정 하나를 팀 전체가
   공유"라고 경고) — "확인 필요(외부 의존성)"로만 표시하고, 이번 Phase의 테스트는 전부
   fake/mock GMS 서버로 진행한다(§5). 실제 GMS quota 확인은 인프라 담당·오세진 님이 별도로
   판단한다.
@@ -307,7 +307,7 @@ flowchart TD
    인수, GMS_API_KEY 있으면 zod #479/#372 재수집)에서 부족함이 확인되면 그 결과를 근거로
    별도 상향을 제안한다 — 이번 Spec/구현 범위에 미리 포함하지 않는다.
 4. **GMS 공유 조직 계정 quota 확인 — 4단계 구현·병합 이후.** 이번 구현은 fake GMS로 진행하고
-   (`docs/for_community/AGENTS.md` 규칙 6), 인프라 담당에게 quota 영향을 확인하는 절차는
+   (`docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md` 규칙 6), 인프라 담당에게 quota 영향을 확인하는 절차는
    4단계가 구현·테스트·리뷰·병합까지 끝난 뒤 별도로 시작한다.
 
 ---

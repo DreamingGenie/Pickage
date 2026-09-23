@@ -1,8 +1,10 @@
 # Pickage 프론트엔드 — 작업 기준
 
-**모든 화면 작업 전에 `../docs/Pickage_메뉴구조_IA_0917.md`를 먼저 읽는다.** 데이터·상태·판정 계약은
-`../docs/Pickage_기능별_개발_구상안_0917.md`가 기준이다. 두 문서가 코드보다 우선한다.
-0915→0917 사이 결정 이력·현재 적용할 계약 요약은 `../docs/Pickage_0915_to_0917_기획변경_상세분석.md`(GitHub 커뮤니티·GMS 요약 구현 완료, 유사후보 데이터 기반 마련, 주간 배치 자동화, Dependents·Downloads 그래프 지수·증감·로그축 압축, Version Share 패키지 탭 범위 정정).
+0923 완성 기준 문서가 게시되기 전에는 보관본
+`../docs/history/0923_0917_pickage_final_set_archive/Pickage_메뉴구조_IA_0917.md`와
+`../docs/history/0923_0917_pickage_final_set_archive/Pickage_기능별_개발_구상안_0917.md`를
+참고한다. 현재 코드와 충돌하면 코드가 우선한다. 0915→0917 사이 결정 이력은
+`../docs/history/0923_0917_pickage_final_set_archive/Pickage_0915_to_0917_기획변경_상세분석.md`에 있다.
 
 Figma: `fuTQIgzDn8cr6BTwdOlDrx` → 프레임 `Pickage_v2_web-service`(`485:241`)
 (구 프레임 `Pickage_v1_web-service`(`220:193`)는 `무덤` Section의 폐기 보관본 — 참고하지 않는다)
@@ -80,7 +82,7 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   로직은 미완 — 구상안 §13.2 적격성 계약대로 `S15P21A506-220`에서 마무리한다.
 - GitHub 커뮤니티(확장-03): 구현 완료(`S15P21A506-316`, 2026-09-17 확인). `routes/report/community`가
   `report-page.tsx`의 세 번째 lazy tab(`community`)으로 연결돼 있다. 구현계획은
-  `../docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md`(`S15P21A506-323`).
+  `../docs/history/0923_0917_pickage_final_set_archive/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md`(`S15P21A506-323`).
 
 ## 예시 데이터
 

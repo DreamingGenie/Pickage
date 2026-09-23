@@ -4,7 +4,7 @@ root=Path(__file__).resolve().parents[4];sys.path.insert(0,str(root/'.git/phase5
 from playwright.sync_api import sync_playwright,expect
 db='pickage_315_test_'+uuid.uuid4().hex
 logs=[];processes=[];result={'commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'mock':False,'checks':[],'page_errors':[]}
-evidence=root/'docs/for_community/review-315/evidence'
+evidence=root/'docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/evidence'
 def sql(text):
     return subprocess.run(['docker','exec','-i','pickage-local-postgres-1','psql','-v','ON_ERROR_STOP=1','-U','postgres','-d',db],input=text.encode(),capture_output=True,check=True)
 def launch(cmd,cwd,env,name):

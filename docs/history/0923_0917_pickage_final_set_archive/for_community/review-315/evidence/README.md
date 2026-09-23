@@ -25,7 +25,7 @@ cd backend
 .\gradlew.bat -I ..\docs\for_community\review-315\probes\review.init.gradle test --tests '*ContractReviewTest' --console=plain
 .\gradlew.bat -I ..\docs\for_community\review-315\probes\review.init.gradle integrationTest --tests '*ApplicationContractReviewTest' --console=plain
 cd ..
-python -X utf8 docs/for_community/review-315/probes/capture_evidence.py
+python -X utf8 docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/probes/capture_evidence.py
 ```
 
 실제 통합 실행은 `DisposableTestDatabase.createFor("315")`가 별도 random DB를 생성하고 종료 시 drop한다. application datasource URL/user/password를 해당 DB로 명시한다. 기존 개발 DB의 package나 seed를 삭제하지 않는다. PostgreSQL 컨테이너가 실행되어 있고 기존 지원 클래스의 접속 환경이 필요하다.
@@ -56,8 +56,8 @@ cd ../frontend
 npm.cmd run typecheck
 npm.cmd run build
 cd ..
-python -X utf8 docs/for_community/review-315/probes/browser_regression.py
-python -X utf8 docs/for_community/review-315/probes/capture_post_fix.py
+python -X utf8 docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/probes/browser_regression.py
+python -X utf8 docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/probes/capture_post_fix.py
 ```
 
 전체 integrationTest의 기존 PickageApplicationTests는 Spring datasource를 쓰므로 `SPRING_DATASOURCE_URL`을 별도 시험 DB로 지정한다. 새 CommunityAcceptanceIntegrationTest는 자체 disposable DB를 사용한다. 실 GitHub 호출 3개는 opt-in이고 자동 실행에서는 skipped다.

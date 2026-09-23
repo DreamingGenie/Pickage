@@ -20,7 +20,7 @@ import java.util.List;
  * 실제 {@code gms.ssafy.io}를 호출한다. {@link com.ssafy.pickage.domain.community.verification
  * .RepositoryVerificationRealNetworkTest}와 같은 패턴 — 키가 없는 환경(CI·다른 팀원)에서는 자동으로 skip된다.
  *
- * <p>2026-09-16 curl 실측(`docs/for_community/GMS_연동_참고.md`)은 평면 2-필드 스키마로만 구조화 출력을
+ * <p>2026-09-16 curl 실측(`docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md`)은 평면 2-필드 스키마로만 구조화 출력을
  * 확인했다 — 이 시험은 실제로 이 클래스가 만드는 중첩 배열/객체 스키마와 `gpt-5.4-mini` 모델명이 그대로
  * 통하는지를 실제 호출로 확인하기 위한 것이다.
  *

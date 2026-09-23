@@ -590,7 +590,7 @@ export interface MigrationPairsResponse {
 /* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
- * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
+ * 보관 근거: `docs/history/0923_0917_pickage_final_set_archive/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
  * 실제 `backend/.../domain/community` DTO(더 신뢰도 높은 근거). 위 섹션과 같은 이유로
  * snake_case 그대로 둔다 — camelCase 변환은 `routes/report/community/adapter.ts`가 한다.
  * ------------------------------------------------------------------ */

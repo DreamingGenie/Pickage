@@ -38,7 +38,7 @@ kind가 `USER_SOLUTION`으로 올바르게 분류됨).
 `status=READY`로 끝났다 — `max_output_tokens`(당시 2048) 초과로 `status=incomplete`가
 되는 경로가 재현되지 않았다. 요약 태스크 특성상 입력이 커져도 모델이 출력을 압축하는
 경향을 보였다(중량 fixture에서 오히려 `messages` 배열이 더 작아짐). 상세는
-`docs/for_community/specs/S15P21A506-373-step0-diagnostics.md`.
+`docs/history/0923_0917_pickage_final_set_archive/for_community/specs/S15P21A506-373-step0-diagnostics.md`.
 
 **2026-09-16 S15P21A506-373 1단계 반영**: 위 0단계 진단에도 불구하고 계획대로
 `MAX_OUTPUT_TOKENS`를 2048→4096으로 상향하고(여전히 낮은 위험의 보험성 변경),

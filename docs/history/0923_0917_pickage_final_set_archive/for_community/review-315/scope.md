@@ -114,7 +114,7 @@
 - 신규 정규 단위 시험: 위 test community 경로 아래 `CommunityContractReviewTest.java`, `verification/VerificationContractReviewTest.java`, `collection/CollectionContractReviewTest.java`, `refresh/ConcurrencyContractReviewTest.java`. 현재 docs/probes의 반례를 이관한다.
 - 신규 통합 시험: integrationTest community 경로의 `CommunityAcceptanceIntegrationTest.java`. 현재 docs/probes/ApplicationContractReviewTest를 실제 앱 인수 시험으로 이관·확장한다.
 - 신규 fixture: `backend/src/test/resources/community/contract/*.json`, `backend/src/integrationTest/resources/community/contract/*.json`. §6 성공·실패·재시작 전체 wire 및 synthetic source만 둔다.
-- 문서: `docs/for_community/review-315/**`, 본 Spec, `docs/for_community/phases/S15P21A506-315-community-integration-acceptance.md`(완료 후 신규 기록), phases/README.md의 Phase5 상태·링크. 원본 PRD·이전 Phase 완료 기록·AGENTS/TEMPLATE 구조는 변경하지 않는다.
+- 문서: `docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/**`, 본 Spec, `docs/history/0923_0917_pickage_final_set_archive/for_community/phases/S15P21A506-315-community-integration-acceptance.md`(완료 후 신규 기록), phases/README.md의 Phase5 상태·링크. 원본 PRD·이전 Phase 완료 기록·AGENTS/TEMPLATE 구조는 변경하지 않는다.
 
 ## 공유 파일 변경 제안
 

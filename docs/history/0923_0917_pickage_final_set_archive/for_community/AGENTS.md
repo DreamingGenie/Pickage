@@ -1,6 +1,6 @@
 # GitHub 커뮤니티 백엔드 — Harness 운영 규칙
 
-이 문서는 루트 [`AGENTS.md`](../../AGENTS.md)·[`CLAUDE.md`](../../CLAUDE.md)를 대체하지 않는다.
+이 문서는 루트 [`AGENTS.md`](../../../../AGENTS.md)·[`CLAUDE.md`](../../../../CLAUDE.md)를 대체하지 않는다.
 Git 브랜치·커밋·Jira 연동·MR 템플릿은 항상 루트 규칙을 그대로 따르고, 이 문서는 그 위에
 **커뮤니티 백엔드 작업**(에픽 [`S15P21A506-323`](https://ssafy.atlassian.net/browse/S15P21A506-323))
 에만 적용되는 Harness 규칙 — Phase 분할, Spec, Verify Loop — 을 추가한다.
@@ -22,7 +22,7 @@ Git 브랜치·커밋·Jira 연동·MR 템플릿은 항상 루트 규칙을 그�
 
 ## 필독 문서 (구현 전에 반드시 읽는다)
 
-1. 루트 [`AGENTS.md`](../../AGENTS.md) — Git·Jira·MR 컨벤션 (공통 규칙, 최우선)
+1. 루트 [`AGENTS.md`](../../../../AGENTS.md) — Git·Jira·MR 컨벤션 (공통 규칙, 최우선)
 2. PRD/Spec 원본: [`Pickage_GitHub커뮤니티_구현계획_260908.md`](Pickage_GitHub커뮤니티_구현계획_260908.md)
    — "무엇을 왜" 수준까지는 이 문서가 정본이다. Phase별 Spec은 이 문서를 새로 쓰지 않고
    해당 절만 인용·요약한다.
@@ -39,7 +39,7 @@ Git 브랜치·커밋·Jira 연동·MR 템플릿은 항상 루트 규칙을 그�
 - `backend/src/main/resources/db/migration/V5__community.sql` (착수 시점 develop의 다음
   빈 번호가 V5가 아니면 그 번호로 조정 — 기존 V1~V4는 절대 수정하지 않는다)
 - `backend/src/test/java/com/ssafy/pickage/domain/community/**`
-- `docs/for_community/**` (이 문서 세트)
+- `docs/history/0923_0917_pickage_final_set_archive/for_community/**` (이 문서 세트)
 
 범위 밖 — 손대기 전 반드시 이유와 범위를 먼저 설명하고 승인받는다:
 

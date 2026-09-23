@@ -757,7 +757,7 @@ community 범위의 문맥/통신/탭 보존은 본문에서 구현하고 나머
 - `DEC-COMMUNITY-20260909-01`: 기준 하나, fallback 금지, 단일 snapshot, bounded Spring→GMS 예외.
 - 9월 8일 원문 보존 commit: `1b60139`. 이전 최신화: `2648950`, 재검수: `41e5e9f`.
 - 원문의 2026-09-20 일정은 보관 이력이며 현재 완료일로 약속하지 않는다.
-- 이전 과정은 [284 worklogs](../worklogs/S15P21A506-284/), 이번 과정은 [307 worklogs](../worklogs/S15P21A506-307/)에 남긴다.
+- 이전 과정은 [284 worklogs](../../../worklogs/S15P21A506-284/), 이번 과정은 [307 worklogs](../../../worklogs/S15P21A506-307/)에 남긴다.
 - v1은 단일 인스턴스 in-memory 진행/cooldown이므로 재시작 시 잃고 다중 인스턴스 중복 수집을 막지 못한다.
 - raw 미보존으로 삭제/편집 source의 장기 감사와 모든 요약 문장의 재현은 보장하지 않는다.
 - root package 일치와 PACKAGE_SCOPED는 주제별 Issue 연결의 증명이 아니다.

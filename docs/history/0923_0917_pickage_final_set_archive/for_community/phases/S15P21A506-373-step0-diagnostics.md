@@ -13,7 +13,7 @@
   — 댓글 85개 안팎 합성(fabricated) 이슈로 실제 GMS를 호출하는 새 테스트
   (`실제_GMS_호출로_대용량_댓글_이슈를_요약한다`) 추가. 1차는 짧은 템플릿 댓글, 2차는
   코드블록·스택트레이스 포함 500~1200자 댓글로 강화(§7 실측 결과 참고).
-- `docs/for_community/specs/S15P21A506-373-step0-diagnostics.md` — Spec + §7 실측 결과 기록.
+- `docs/history/0923_0917_pickage_final_set_archive/for_community/specs/S15P21A506-373-step0-diagnostics.md` — Spec + §7 실측 결과 기록.
 
 ## 실행한 테스트와 결과
 

@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * C1 — GMS Responses API(OpenAI 호환 프록시) 클라이언트. 2026-09-16 실측(`docs/for_community/GMS_연동_참고.md`)으로
+ * C1 — GMS Responses API(OpenAI 호환 프록시) 클라이언트. 2026-09-16 실측(`docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md`)으로
  * 구조화 출력(json_schema strict)·역할 분리 입력·GMS 자체 에러 포맷·rate limit 헤더를 확인한 뒤 작성했다.
  * 논의 흐름({@code flow}·{@code flow_support})은 요청하지 않는다(S15P21A506-412) — 화면이 S15P21A506-406 부터 그리지 않아
  * 출력 토큰만 쓰고, 개수 상한을 넘기면 요약 전체가 검증에서 탈락하는 원인이기도 했다.

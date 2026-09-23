@@ -3,7 +3,7 @@
 > **정상적인 Researcher→Spec→승인 절차를 따르지 않았다** — 4단계(Map-Reduce) 실측 도중
 > 시연 시간·비용이 감당 안 되는 게 드러나, 오세진 님과 실시간 대화로 설계를 여러 차례
 > 반복하며 정했다. 이 문서는 사전 Spec이 아니라 **그 결정 과정과 결과를 사후에 기록**한
-> 것이다 — `docs/for_community/AGENTS.md`의 Workflow Rule 위반을 인지하고 남긴다(시연
+> 것이다 — `docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`의 Workflow Rule 위반을 인지하고 남긴다(시연
 > 임박 상황에서의 예외적 처리).
 
 ## 배경 — 왜 Map-Reduce(4단계)를 버렸는가

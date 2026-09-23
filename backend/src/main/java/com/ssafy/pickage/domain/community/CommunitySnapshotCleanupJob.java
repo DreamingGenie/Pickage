@@ -17,7 +17,7 @@ import java.time.Instant;
  *
  * <p>그럼에도 인앱 {@code @Scheduled} 를 택했다 — 외부 cron 패턴의 이유("켜고 끄는 주체가 문제")는 GPU/Spark 다중 노드 조율이 필요한
  * 배치에서 나온 것이고, 이 정리는 {@code api} 컨테이너 하나 안에서 테이블 하나를 지우는 가벼운 작업이라 그 조율 문제가 없다. 이 판단은 {@code
- * docs/for_community/specs/S15P21A506-314.md} §3.4 에서 사용자 승인을 받았다 — 이후 일관성을 위해 외부 트리거 방식으로 바꾸기로 하면
+ * docs/history/0923_0917_pickage_final_set_archive/for_community/specs/S15P21A506-314.md} §3.4 에서 사용자 승인을 받았다 — 이후 일관성을 위해 외부 트리거 방식으로 바꾸기로 하면
  * 이 클래스만 바꾸면 된다(다른 코드는 {@link CommunitySnapshotRepository#deleteExpiredBefore} 만 의존한다).
  *
  * <p>{@link CommunitySnapshotTtl#isExpiredForCleanup} 이 실제 판정 기준이고, 조회 시점의 TTL 검사는 이 배치의 실행 여부와

@@ -20,7 +20,7 @@
     `요청_스키마는_flow_support를_평면_배열로_보낸다`(와이어 스키마 계약 고정 —
     `support` 키가 flow item에 없고 `flow_support`가 최상위에 있는지, `max_output_tokens`
     가 4096인지까지 확인).
-- `docs/for_community/GMS_연동_참고.md` — 0단계 실측 결과와 1단계 반영 사실을 시간순으로
+- `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md` — 0단계 실측 결과와 1단계 반영 사실을 시간순으로
   추가, `flow[].support` 언급을 과거형으로 정정.
 
 ## 실행한 테스트와 결과

@@ -1,6 +1,6 @@
 """Pickage 기능 비교 RAG 공용 데이터 구조 (S15P21A506-112 계열).
 
-EvidenceChunk 필드는 docs/Pickage_기능별_개발_구상안_0917.md §7.1의
+EvidenceChunk 필드는 docs/history/0923_0917_pickage_final_set_archive/Pickage_기능별_개발_구상안_0917.md §7.1의
 EvidenceRecord와 1:1 대응한다. 설계 근거는 readme-valiant-feather 계획 문서 참고.
 """
 

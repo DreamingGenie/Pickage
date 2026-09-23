@@ -49,7 +49,7 @@
       응답도 동기 완료 응답과 같은 envelope라는 전제 — §4 "미확인" 항목 참고).
   - `backend/src/test/java/com/ssafy/pickage/domain/community/GmsCommunitySummarizerTest.java`
     — mock 서버로 폴링 흐름 5개 케이스(§5).
-  - `docs/for_community/GMS_연동_참고.md` — §7/미확인 목록에 있던 "GMS가 background:true·
+  - `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md` — §7/미확인 목록에 있던 "GMS가 background:true·
     폴링 엔드포인트를 프록시하는지" 항목을 이번 실네트워크 확인 결과로 갱신(§6에서 실행).
 - **범위 밖 — 이 Phase에서 하지 않을 일**
   - ⑤-B(진짜 cross-request 비동기) — 계획 문서 §4.2·Jira 완료 판단 기준이 이번 범위
@@ -172,7 +172,7 @@ summarize(issue, budget)
     `FakeCommunitySummarizer`가 아니라 커스텀 람다로 인터럽트 흐름을 시험하는 것이라
     `GmsCommunitySummarizer` 내부 구현(폴링 유무)과 무관하게 통과함을 확인 — 다만
     회귀로 재실행해 실제로 안 깨짐을 확인하는 것은 §5에 남겨 둠.
-  - `docs/for_community/GMS_연동_참고.md`의 "아직 확인 안 된 것"/"미확인" 절에
+  - `docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md`의 "아직 확인 안 된 것"/"미확인" 절에
     background/폴링 항목이 실제로 남아 있음을 재확인(§4 외부 의존성 서술의 근거).
 - 발견해 Spec에 반영한 차이: 없음.
 - 이 Spec에서 아직 못 정한 것 (사용자 확인 필요 항목): 없음 — 외부 의존성 확인은

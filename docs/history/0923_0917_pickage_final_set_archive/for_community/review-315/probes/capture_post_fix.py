@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-OUT = ROOT / "docs/for_community/review-315/evidence/post-fix-results.json"
+OUT = ROOT / "docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/evidence/post-fix-results.json"
 result = {"commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()}
 result["commands"] = ["gradlew.bat test build integrationTest --console=plain", "npm.cmd run typecheck", "npm.cmd run build"]
 result["suites"] = {}

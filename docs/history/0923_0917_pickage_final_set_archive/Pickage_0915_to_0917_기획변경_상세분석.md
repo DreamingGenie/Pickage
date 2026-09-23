@@ -16,7 +16,7 @@
 | 항목 | 0915 서술 | 0917 반영 | 근거 |
 |---|---|---|---|
 | GitHub 커뮤니티 프런트 탭 | 구상안 §12.4 "프런트 tab·route는 아직 없다" | 구현 완료로 정정 | `frontend/src/routes/report/community/`, `report-page.tsx`의 `community` 탭 배선 확인(S15P21A506-316) |
-| GMS 커뮤니티 요약 생성 | 0915 baseline에 `GmsCommunitySummarizer.java` 자체가 없었음(`git cat-file -e`로 확인) | 구현 완료로 정정, 최종 방식 기록 | 0단계 진단(`aabce12`) → 1단계 스키마 평탄화(`5607654`) → 2단계 반응 수 기반 선택(선반영) → **3단계 background+폴링은 Spec 작성 후 기존 소유권·DB 스키마 설계와 충돌해 폐기**(`docs/for_community/phases/S15P21A506-373-step3-background-polling-abandoned.md`) → 4단계 Map-Reduce 대신 **하이라이트 요약**으로 최종 결론(`1b9ee72`, S15P21A506-365·-373) |
+| GMS 커뮤니티 요약 생성 | 0915 baseline에 `GmsCommunitySummarizer.java` 자체가 없었음(`git cat-file -e`로 확인) | 구현 완료로 정정, 최종 방식 기록 | 0단계 진단(`aabce12`) → 1단계 스키마 평탄화(`5607654`) → 2단계 반응 수 기반 선택(선반영) → **3단계 background+폴링은 Spec 작성 후 기존 소유권·DB 스키마 설계와 충돌해 폐기**(`docs/history/0923_0917_pickage_final_set_archive/for_community/phases/S15P21A506-373-step3-background-polling-abandoned.md`) → 4단계 Map-Reduce 대신 **하이라이트 요약**으로 최종 결론(`1b9ee72`, S15P21A506-365·-373) |
 | 유사후보 추천 dependency-overlap 관문 | 구상안 §4.1-4·§4.2 "미구현" | **결론은 그대로 두고 진행 상태만 세분화** — 관문에 쓸 데이터 기반(peer 의존 유사도·dependents 목록·AI 후보 풀 회차)은 마련됨, 관문 로직 자체는 여전히 미구현 | `ai/similarity/similarity_batch_pipeline.py`가 이 데이터셋을 아직 참조하지 않음을 코드로 직접 확인(S15P21A506-350·-354·-359) |
 | 주간 배치 자동화·운영 API | 구상안 §4.3 "별도 확인이 필요하다" | 구현 완료로 정정 | `pipeline/weekly/`, `deploy/prod/data/systemd/pickage-weekly.timer`, `WeeklyIngestService`·`OpsWeeklyController`(S15P21A506-273·-347) |
 | Dependents·Downloads 그래프 | 구상안 §7.2 로그축·계열별 축적·signed 증감만 서술 | 지수(=100 기준) 비교·증감 그래프 토글·로그축 압축 표시 추가 | 이 세션에서 직접 구현(S15P21A506-379) |

@@ -113,11 +113,11 @@ Phase 완료 시 `phases/<Jira키>-<slug>.md` 파일을 새로 만들어 다음�
 ## 브랜치 분기 시점 문제 (2026-09-11 발견, 다음 Phase부터 반영)
 
 Phase 2(213)의 브랜치를 `sh scripts/new-branch.sh`로 만들 때 규칙대로 `origin/develop`에서
-분기했다. 그런데 이 문서 세트(`docs/for_community/AGENTS.md`·`phases/README.md`·
+분기했다. 그런데 이 문서 세트(`docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`·`phases/README.md`·
 `specs/TEMPLATE.md`)는 Phase 1(314) 브랜치에서 처음 만들어 커밋했고, 314가 아직 develop에
 병합되지 않아 `origin/develop`에는 이 문서 세트가 없다. 그 결과 213 브랜치는 이 문서들을
 처음부터 다시 만들어야 했다(314 브랜치에서 `git show`로 내용을 그대로 옮김) — **두 브랜치가
-`docs/for_community/AGENTS.md`·`phases/README.md`·`specs/TEMPLATE.md`를 각자 새 파일로
+`docs/history/0923_0917_pickage_final_set_archive/for_community/AGENTS.md`·`phases/README.md`·`specs/TEMPLATE.md`를 각자 새 파일로
 추가하는 셈이라, 둘 다 develop에 병합될 때 이 세 파일에서 병합 충돌이 난다.** 내용은
 사실상 동일하니 해소 자체는 쉽지만("두 쪽 다 유지" 선택), 다음 Phase(3, 212)부터는 이 방식을
 피한다 — 구현계획 문서가 이미 !91→!90 같은 **선행 MR을 대상으로 하는 후속 MR** 패턴을 쓰고

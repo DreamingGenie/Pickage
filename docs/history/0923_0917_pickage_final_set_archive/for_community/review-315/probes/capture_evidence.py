@@ -6,7 +6,7 @@ import re
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[4]
-OUT = ROOT / "docs/for_community/review-315/evidence"
+OUT = ROOT / "docs/history/0923_0917_pickage_final_set_archive/for_community/review-315/evidence"
 OUT.mkdir(exist_ok=True)
 results = []
 for task in ("test", "integrationTest"):
