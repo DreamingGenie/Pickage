@@ -1,10 +1,10 @@
 import { Loader2Icon, SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 
 import { fetchPackagesOverview, fetchSimilarPackages, postCommunityRefresh } from '@/api/endpoints'
 import { usePackagesOverview, useSimilarPackages } from '@/api/queries'
-import { ANALYZE_BASE_PARAM, paths } from '@/app/routes'
+import { ANALYZE_BASE_PARAM, ANALYZE_WITH_PARAM, paths } from '@/app/routes'
 import { EmptyState } from '@/components/common/empty-state'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
@@ -39,62 +39,58 @@ export function AnalyzePage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   /**
-   * 확인을 요청한 기준 패키지. **확정된 기준이 아니다** — 아래 `base` 가 확정본이다.
-   *
-   * <h2>주소가 들고 있다</h2>
+   * 화면의 선택 전체를 주소가 들고 있다(S15P21A506-435).
    *
    * 예전에는 라우터 state 로만 받았다. 브라우저는 history state 를 새로고침 뒤에도 남기므로,
-   * 다른 패키지로 바꿔 검색한 뒤 새로고침하면 처음 넘어온 패키지로 되돌아갔다
-   * (S15P21A506-435). 주소에 실으면 새로고침·뒤로가기·공유가 전부 같은 화면을 연다.
+   * 다른 패키지로 바꿔 검색한 뒤 새로고침하면 처음 넘어온 패키지로 되돌아갔다. 주소에
+   * 실으면 새로고침·뒤로가기·공유가 전부 같은 화면을 연다.
    *
+   * `submitted` 는 확인을 <b>요청한</b> 이름이다. 확정된 기준은 아래 `base` 다.
    * 존재 확인과 후보 조회를 <b>한 번에</b> 한다 — 유사 패키지 응답이 이름이 없으면
    * `not_found` 로 알려주기 때문이다. 존재만 보려고 따로 한 번 더 부르면 왕복이 두 번이 되고,
    * 두 응답 사이에 이름이 사라지는 경우까지 다뤄야 한다.
    *
-   * `rejected` 는 주소에 적혀 있었지만 npm 이름 형식이 아니라 조회하지 않은 것이다.
+   * `dropped` 는 자리가 모자라, `rejected` 는 npm 이름 형식이 아니라 쓰지 않은 이름이다.
+   * 둘 다 화면에 적는다 — 조용히 버리면 주소와 화면이 다른데 그것을 알 방법이 없다.
    */
-  const { base: submitted, rejected } = useAnalyzeSelection(
-    searchParams.get(ANALYZE_BASE_PARAM),
-    null,
-  )
-
-  /**
-   * 보고서에서 "비교 대상 바꾸기" 로 되돌아온 경우의 확정 선택. 이미 확인된 패키지들이라
-   * 재확인 없이 2단계부터 다시 연다. **기준은 주소가 들고 오므로 여기서는 나머지만 쓴다.**
-   */
-  const location = useLocation()
-  const restore = (location.state as { restore?: string[] } | null)?.restore
-
-  /*
-    넘겨받은 state 는 첫 렌더에서 한 번만 쓴다. 남겨 두면 기준을 바꾼 뒤 새로고침했을 때
-    옛 기준의 후보가 새 기준에 그대로 붙는다.
-
-    **주소는 지우지 않는다.** `location.pathname` 만 넘기면 기준까지 함께 날아가서,
-    이 화면이 없애려는 버그가 그대로 돌아온다.
-  */
-  useEffect(() => {
-    if (location.state) {
-      navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
-    }
-    // 마운트 때 한 번만 비운다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const rawBase = searchParams.get(ANALYZE_BASE_PARAM)
+  const {
+    base: submitted,
+    picked,
+    dropped,
+    rejected,
+  } = useAnalyzeSelection(rawBase, searchParams.get(ANALYZE_WITH_PARAM))
 
   /**
    * 기준을 주소에 적는다. 지울 때는 `null`.
+   *
+   * **고른 후보는 함께 지운다.** 후보는 기준에 딸린 것이라, 기준이 바뀌면 남아 있을 자리가
+   * 없다. 그래서 기존 쿼리를 이어받지 않고 새로 만든다.
    *
    * `replace` 는 히스토리에 자국을 남기지 않을 때만 쓴다 — 오타를 고치는 도중처럼
    * 사용자가 "되돌아가고 싶어 할 지점" 이 아닌 변화다.
    */
   function setBase(name: string | null, options?: { replace?: boolean }) {
+    const next = new URLSearchParams()
+    if (name) next.set(ANALYZE_BASE_PARAM, name)
+    setSearchParams(next, { replace: options?.replace ?? false })
+  }
+
+  /**
+   * 고른 후보만 바꾼다.
+   *
+   * **언제나 `replace` 다.** 체크박스를 누를 때마다 히스토리에 항목이 쌓이면 뒤로가기가
+   * 화면을 떠나는 대신 체크를 하나씩 되감게 된다.
+   */
+  function setPicked(names: readonly string[]) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
-        if (name) next.set(ANALYZE_BASE_PARAM, name)
-        else next.delete(ANALYZE_BASE_PARAM)
+        if (names.length) next.set(ANALYZE_WITH_PARAM, names.join(','))
+        else next.delete(ANALYZE_WITH_PARAM)
         return next
       },
-      { replace: options?.replace ?? false },
+      { replace: true },
     )
   }
 
@@ -111,7 +107,6 @@ export function AnalyzePage() {
   const [unavailable, setUnavailable] = useState<string[]>([])
   /** 직접 찾기에서 확인했지만 없던 이름. 같은 이름으로는 다시 넣지 못하게 막는다. */
   const [extraMissing, setExtraMissing] = useState<string | null>(null)
-  const [picked, setPicked] = useState<string[]>(restore?.slice(1) ?? [])
   const [limitHit, setLimitHit] = useState(false)
   const [extraDraft, setExtraDraft] = useState('')
   const [creating, setCreating] = useState(false)
@@ -123,6 +118,11 @@ export function AnalyzePage() {
   useEffect(() => {
     submittedRef.current = submitted
   }, [submitted])
+  /** 같은 이유로 고른 목록도 최신값을 쥔다 — 왕복 사이에 다른 추가가 자리를 채웠을 수 있다. */
+  const pickedRef = useRef(picked)
+  useEffect(() => {
+    pickedRef.current = picked
+  }, [picked])
 
   const similar = useSimilarPackages(submitted ?? '')
   /*
@@ -176,37 +176,44 @@ export function AnalyzePage() {
   function verify(name: string) {
     const q = name.trim()
     if (!q) return
-    // 같은 이름 재확인은 상태가 안 바뀌어 react-query 가 다시 안 보낸다 — 직접 refetch (S15P21A506-332)
-    if (q === submitted) {
+    /*
+      같은 이름 재확인은 주소가 안 바뀌어 react-query 가 다시 안 보낸다 — 직접 refetch
+      (S15P21A506-332).
+
+      **주소에 적힌 원문(`rawBase`)도 함께 본다.** 형식이 아닌 이름은 `submitted` 가 되지
+      못하므로 그것만 보면 같은 이름을 다시 눌러도 매번 새 주소로 읽혀, 누를 때마다
+      히스토리에 자국이 하나씩 쌓인다.
+    */
+    if (q === submitted || q === rawBase) {
       void similar.refetch()
       void overview.refetch()
       return
     }
-    setPicked([])
     setLimitHit(false)
+    // 기준이 바뀌면 고른 후보도 함께 지워진다(`setBase`).
     setBase(q)
   }
 
   function resetBase() {
     setNoDataBaseAccepted(null)
-    setBase(null)
-    setPicked([])
     setLimitHit(false)
     setExtraError(null)
+    setBase(null)
   }
 
   function toggle(name: string) {
     setLimitHit(false)
-    setPicked((prev) => {
-      if (prev.includes(name)) return prev.filter((n) => n !== name)
-      // 네 번째 요청은 기존 선택을 자동 해제하지 않는다(IA 6.3 · 구상안 4.4)
-      if (1 + prev.length >= MAX_COMPARISON) {
-        setLimitHit(true)
-        return prev
-      }
-      setLastAdded(name)
-      return [...prev, name]
-    })
+    if (picked.includes(name)) {
+      setPicked(picked.filter((n) => n !== name))
+      return
+    }
+    // 네 번째 요청은 기존 선택을 자동 해제하지 않는다(IA 6.3 · 구상안 4.4)
+    if (1 + picked.length >= MAX_COMPARISON) {
+      setLimitHit(true)
+      return
+    }
+    setLastAdded(name)
+    setPicked([...picked, name])
   }
 
   /**
@@ -264,16 +271,13 @@ export function AnalyzePage() {
     // 기준이 바뀐 뒤 늦게 도착한 응답이면 지금 선택 목록과 무관하니 버린다.
     if (submittedRef.current !== requestedFor) return
 
-    let added = false
-    setPicked((prev) => {
-      if (prev.includes(q) || 1 + prev.length >= MAX_COMPARISON) return prev
-      added = true
-      return [...prev, q]
-    })
-    if (added) {
-      setExtraDraft('')
-      setLastAdded(q)
-    }
+    // 왕복 사이에 같은 이름이 또 들어왔거나 다른 추가가 마지막 자리를 채웠을 수 있다.
+    const latest = pickedRef.current
+    if (latest.includes(q) || 1 + latest.length >= MAX_COMPARISON) return
+
+    setPicked([...latest, q])
+    setExtraDraft('')
+    setLastAdded(q)
   }
 
   /**
@@ -293,8 +297,9 @@ export function AnalyzePage() {
     setUnavailable([])
 
     /*
-      보내기 전에 한 번 더 확인한다. 보고서에서 되돌아온 조합(`restore`)은 주소에서 온 이름이라 확인을
-      거치지 않았다. 자료가 없는 이름이 섞이면 넘기지 않고 빼 준 뒤 이 화면에 남는다.
+      보내기 전에 한 번 더 확인한다. **주소에서 온 이름은 확인을 거치지 않았다** — 기준은
+      조회로 걸러지지만 고른 후보는 형식만 봤을 뿐이라, 자료가 없는 이름이 섞여 있을 수 있다.
+      그런 이름은 넘기지 않고 빼 준 뒤 이 화면에 남는다.
     */
     try {
       const checked = await fetchPackagesOverview(selected)
@@ -302,7 +307,7 @@ export function AnalyzePage() {
         (n) => checked.not_found.includes(n) || !checked.items.some((it) => it.name === n),
       )
       if (missingNames.length > 0) {
-        setPicked((prev) => prev.filter((n) => !missingNames.includes(n)))
+        setPicked(pickedRef.current.filter((n) => !missingNames.includes(n)))
         setUnavailable(missingNames)
         setCreating(false)
         return
@@ -445,6 +450,28 @@ export function AnalyzePage() {
                   </p>
                 </div>
               </header>
+
+              {/*
+                주소에 적혀 있었지만 쓰지 않은 이름. 조용히 자르면 주소에는 더 있는데 화면에는
+                상한까지만 뜨고, 무엇이 빠졌는지 알 방법이 없다 — S15P21A506-187 이 보고서
+                화면에서 없앤 실패라 여기에 새로 만들지 않는다.
+              */}
+              {(dropped.length > 0 || rejected.length > 0) && (
+                <Notice tone="warn" title="주소에 적힌 일부를 비교에 넣지 못했어요">
+                  {dropped.length > 0 && (
+                    <p>
+                      한 번에 {MAX_COMPARISON}개까지 비교해요. 자리가 모자라{' '}
+                      <span className="font-mono">{dropped.join(', ')}</span> 는 뺐어요.
+                    </p>
+                  )}
+                  {rejected.length > 0 && (
+                    <p>
+                      <span className="font-mono">{rejected.join(', ')}</span> 는 npm 패키지 이름
+                      형식이 아니에요.
+                    </p>
+                  )}
+                </Notice>
+              )}
 
               {/*
               직접 찾기를 후보 위로 올렸다. 아래에 두면 원하는 패키지가 후보에 없을 때 한참 내려가야
