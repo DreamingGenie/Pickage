@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
         },
       },
       // 01·02 를 한 화면으로 합쳤다. 예전 경로로 들어오면 되돌려 보낸다.
-      { path: 'analyze/candidates', element: <Navigate to={paths.analyze} replace /> },
+      { path: 'analyze/candidates', element: <Navigate to={paths.analyze()} replace /> },
       {
         path: 'report/:reportId',
         lazy: async () => {

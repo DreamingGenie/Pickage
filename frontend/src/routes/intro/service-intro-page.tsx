@@ -56,7 +56,7 @@ export function ServiceIntroPage() {
       setError(parsed.reason)
       return
     }
-    navigate(paths.analyze, { state: { prefill: raw.trim() } })
+    navigate(paths.analyze(), { state: { prefill: raw.trim() } })
   }
 
   return (

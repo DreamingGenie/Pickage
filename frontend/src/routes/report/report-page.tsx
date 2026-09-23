@@ -174,7 +174,7 @@ export function ReportPage() {
               패키지가 담겨요. 링크가 잘렸을 수 있으니, 패키지를 다시 골라 주세요.
             </>
           }
-          actions={<Button onClick={() => navigate(paths.analyze)}>패키지 고르러 가기</Button>}
+          actions={<Button onClick={() => navigate(paths.analyze())}>패키지 고르러 가기</Button>}
         />
       </div>
     )
@@ -210,12 +210,12 @@ export function ReportPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(paths.analyze, { state: { restore: packages } })}
+            onClick={() => navigate(paths.analyze(), { state: { restore: packages } })}
           >
             <ArrowLeftIcon className="size-3.5" aria-hidden />
             비교 대상 바꾸기
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze)}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze())}>
             새 분석
           </Button>
           {/*

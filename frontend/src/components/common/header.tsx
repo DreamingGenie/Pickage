@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
  */
 const NAV = [
   { to: paths.intro, label: 'Intro', end: true },
-  { to: paths.analyze, label: 'Analyze', end: false },
+  { to: paths.analyze(), label: 'Analyze', end: false },
 ] as const
 
 export function Header() {

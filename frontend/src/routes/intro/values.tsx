@@ -137,7 +137,7 @@ export function IntroValues() {
               </div>
               <div className="flex justify-end">
                 <Link
-                  to={paths.analyze}
+                  to={paths.analyze()}
                   className="flex h-12 items-center rounded-full bg-primary px-6 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                 >
                   내 패키지로 비교해 보기
