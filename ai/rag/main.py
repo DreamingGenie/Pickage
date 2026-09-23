@@ -31,7 +31,15 @@ def _serialize(result: ComparisonResult) -> dict:
         "packages": [{"package": p.name, "version": p.version} for p in result.packages],
         "common": result.common,
         "differences": [
-            {"package": d.package, "version": d.version, "body": d.body} for d in result.differences
+            {
+                "package": d.package,
+                "version": d.version,
+                "body": d.body,
+                # 핵심 문장 1개·핵심어 최대 3개의 강조 구간(S15P21A506-470). 프런트 `TextMark` 와
+                # 같은 모양([start,end) UTF-16, kind).
+                "marks": [{"start": m.start, "end": m.end, "kind": m.kind} for m in d.marks],
+            }
+            for d in result.differences
         ],
         # 패키지별 인계 파일 상태(S15P21A506-419). 못 읽은 값은 null — "모름"과 "OK"를 구분한다.
         # dataStatus(비교 가능 여부)와는 다른 축이라 섞지 않는다.

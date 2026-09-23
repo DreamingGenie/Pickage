@@ -21,7 +21,7 @@ from ai.rag.generation import (
     build_user_message,
     generate,
 )
-from ai.rag.types import EvidenceChunk, PackageRef, PackageSource
+from ai.rag.types import EvidenceChunk, Mark, PackageRef, PackageSource
 
 
 def _make_evidence(evidence_id: str, package: str, version: str) -> EvidenceChunk:
@@ -49,8 +49,20 @@ class GenerateHappyPathTests(unittest.TestCase):
             "dataStatus": "COMPLETE",
             "common": "  둘 다 설정 파일을 읽어요.  ",
             "differences": [
-                {"package": "foo", "version": "1.0.0", "body": "foo 는 파일로 설정해요."},
-                {"package": "bar", "version": "2.0.0", "body": "bar 는 코드로 설정해요."},
+                {
+                    "package": "foo",
+                    "version": "1.0.0",
+                    "body": "foo 는 파일로 설정해요. 코드로도 설정할 수 있어요.",
+                    "key_sentence": "foo 는 파일로 설정해요.",
+                    "key_terms": ["파일로 설정"],
+                },
+                {
+                    "package": "bar",
+                    "version": "2.0.0",
+                    "body": "bar 는 코드로 설정해요.",
+                    "key_sentence": "",
+                    "key_terms": [],
+                },
             ],
         }
 
@@ -71,6 +83,19 @@ class GenerateHappyPathTests(unittest.TestCase):
         self.assertEqual(result.common, "둘 다 설정 파일을 읽어요.")
         self.assertEqual([d.package for d in result.differences], ["foo", "bar"])
         self.assertEqual(result.differences[1].body, "bar 는 코드로 설정해요.")
+        # key_sentence/key_terms 는 body 안에서 찾아 marks 로 계산된다(S15P21A506-470). 위치는
+        # 서버가 계산한다 — 모델이 준 값을 쓰지 않는다.
+        body = result.differences[0].body
+        sentence_start = body.index("foo 는 파일로 설정해요.")
+        term_start = body.index("파일로 설정")
+        self.assertEqual(
+            result.differences[0].marks,
+            [
+                Mark(start=sentence_start, end=sentence_start + 15, kind="KEY_SENTENCE"),
+                Mark(start=term_start, end=term_start + 6, kind="KEY_TERM"),
+            ],
+        )
+        self.assertEqual(result.differences[1].marks, [])
 
 
 class ResponseSchemaTests(unittest.TestCase):
@@ -79,7 +104,48 @@ class ResponseSchemaTests(unittest.TestCase):
             set(_RESPONSE_JSON_SCHEMA["properties"]), {"dataStatus", "common", "differences"}
         )
         item = _RESPONSE_JSON_SCHEMA["properties"]["differences"]["items"]
-        self.assertEqual(set(item["properties"]), {"package", "version", "body"})
+        self.assertEqual(
+            set(item["properties"]), {"package", "version", "body", "key_sentence", "key_terms"}
+        )
+        self.assertEqual(item["properties"]["key_terms"]["maxItems"], 3)
+
+
+class DifferenceMarksTests(unittest.TestCase):
+    """key_sentence/key_terms → marks 계산 (S15P21A506-470)."""
+
+    def _generate(self, key_sentence, key_terms, body="foo 는 파일로 설정해요."):
+        packages = [PackageRef(name="foo", version="1.0.0")]
+        evidence = [_make_evidence("foo@1.0.0#0", "foo", "1.0.0")]
+
+        def fake_llm(system_prompt, user_message):
+            return json.dumps(
+                {
+                    "dataStatus": "COMPLETE",
+                    "common": "공통",
+                    "differences": [
+                        {
+                            "package": "foo",
+                            "version": "1.0.0",
+                            "body": body,
+                            "key_sentence": key_sentence,
+                            "key_terms": key_terms,
+                        }
+                    ],
+                }
+            )
+
+        return generate(packages, evidence, llm_call=fake_llm).differences[0]
+
+    def test_body_not_matching_substrings_are_discarded_without_failing(self):
+        note = self._generate("요약문에 전혀 없는 문장이다.", ["없는 말"])
+
+        self.assertEqual(note.marks, [])
+        self.assertEqual(note.body, "foo 는 파일로 설정해요.")
+
+    def test_prompt_asks_for_verbatim_key_sentence_and_key_terms(self):
+        self.assertIn("key_sentence", PROMPT)
+        self.assertIn("key_terms", PROMPT)
+        self.assertIn("character for character", PROMPT)
 
 
 class BuildGmsRequestBodyTests(unittest.TestCase):

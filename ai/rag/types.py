@@ -84,6 +84,22 @@ class PackageSource:
     prose_chars: int | None = None
 
 
+MarkKind = Literal["KEY_TERM", "KEY_SENTENCE"]
+
+
+@dataclass
+class Mark:
+    """`body` 안의 강조 구간(S15P21A506-470). 위치는 UTF-16 코드 단위 오프셋 `[start, end)` 라 JS 문자열과
+    같은 단위다 — 프런트 `TextMark`(백엔드 커뮤니티 `SummaryMarkPayload`)와 같은 계약이다. `KEY_TERM` 은
+    핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다. 강조는 읽기 보조일 뿐이라 없어도 문단 자체에는
+    영향이 없다.
+    """
+
+    start: int
+    end: int
+    kind: MarkKind
+
+
 @dataclass
 class PackageNote:
     """차이점 문단 하나 — 그 패키지만의 특징을 서술한다 (2026-09-22, 표 대신 서술형으로 전환)."""
@@ -91,6 +107,9 @@ class PackageNote:
     package: str
     version: str
     body: str
+    # 핵심 문장 1개·핵심어 최대 3개의 강조 구간(S15P21A506-470). `generate()`가 모델이 준 문자열을
+    # `body` 안에서 찾아 계산한다 — 없거나 어긋나면 빈 목록이다.
+    marks: list[Mark] = field(default_factory=list)
 
 
 @dataclass
