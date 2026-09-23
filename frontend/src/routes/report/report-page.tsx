@@ -174,7 +174,7 @@ export function ReportPage() {
               패키지가 담겨요. 링크가 잘렸을 수 있으니, 패키지를 다시 골라 주세요.
             </>
           }
-          actions={<Button onClick={() => navigate(paths.analyze)}>패키지 고르러 가기</Button>}
+          actions={<Button onClick={() => navigate(paths.analyze())}>패키지 고르러 가기</Button>}
         />
       </div>
     )
@@ -205,17 +205,23 @@ export function ReportPage() {
           </h1>
         </div>
 
-        {/* 되돌아가기. 확정한 선택을 그대로 들고 가서 2단계부터 다시 연다 */}
+        {/*
+          되돌아가기. 확정한 선택을 그대로 들고 가서 2단계부터 다시 연다.
+
+          선택을 주소에 싣는다(S15P21A506-435). 라우터 state 로 넘기면 브라우저가 그것을
+          새로고침 뒤에도 남겨서, 분석 화면에서 기준을 바꾼 뒤 새로고침했을 때 옛 조합이
+          되살아난다. 여기서도 `packages[0]` 이 기준이다.
+        */}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(paths.analyze, { state: { restore: packages } })}
+            onClick={() => navigate(paths.analyze(packages[0], packages.slice(1)))}
           >
             <ArrowLeftIcon className="size-3.5" aria-hidden />
             비교 대상 바꾸기
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze)}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(paths.analyze())}>
             새 분석
           </Button>
           {/*
