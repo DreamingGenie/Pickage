@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ai/rag/ 라 평평하게 COPY하면 ai 네임스페이스가 안 생겨서 import가 깨진다 — 그래서
 # /app/ai/rag/ 아래에 패키지 구조를 그대로 살려서 복사한다. test_*.py는 이미지에
 # 안 싣는다(ai/similarity의 "pytest는 CI에서만 설치" 관례와 같은 이유).
-COPY generation.py main.py pipeline.py readme_chunker.py readme_source.py retrieval.py types.py verification.py ai/rag/
+COPY generation.py main.py marks.py pipeline.py readme_chunker.py readme_source.py retrieval.py types.py verification.py ai/rag/
 
 # non-root 사용자로 실행 (ai/similarity/Dockerfile과 같은 관례)
 RUN useradd --create-home --uid 1000 appuser
