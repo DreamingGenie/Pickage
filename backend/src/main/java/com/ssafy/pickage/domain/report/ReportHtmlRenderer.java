@@ -358,8 +358,10 @@ public class ReportHtmlRenderer {
 		removalBars(b, r);
 
 		b.append("<table><thead><tr><th>패키지</th>")
-			.append("<th class=\"n\">이탈 전이</th><th class=\"n\">대체 없이 제거</th>")
-			.append("<th class=\"n\">다른 것과 함께 제거</th><th class=\"n\">뺀 프로젝트</th>")
+			.append("<th class=\"n\">이탈 전이</th><th class=\"n\">")
+			.append(RemovalReasonsResponse.NO_REPLACEMENT_LABEL).append("</th><th class=\"n\">")
+			.append(RemovalReasonsResponse.WITH_REPLACEMENT_LABEL)
+			.append("</th><th class=\"n\">뺀 프로젝트</th>")
 			.append("</tr></thead><tbody>");
 
 		if (r.series().isEmpty()) {
@@ -397,7 +399,7 @@ public class ReportHtmlRenderer {
 	}
 
 	/**
-	 * {@code data_status} 별 사유, 또는 {@code COMPLETE} 일 때 대체 없이/함께 제거의 비율.
+	 * {@code data_status} 별 사유, 또는 {@code COMPLETE} 일 때 두 칸의 비율.
 	 * <b>각자 반올림하지 않는다</b> — 한쪽만 반올림하고 다른 쪽은 100 에서 빼야 합이 100 이 된다
 	 * (화면 {@code RemovalBars} 와 같은 규칙).
 	 */
@@ -415,7 +417,8 @@ public class ReportHtmlRenderer {
 		Integer no = series.noReplacement();
 		if (total == null || no == null || total <= 0) return null;
 		int noPercent = Math.round(no * 100f / total);
-		return "대체 없이 제거 " + noPercent + "% · 다른 것과 함께 제거 " + (100 - noPercent) + "%";
+		return RemovalReasonsResponse.NO_REPLACEMENT_LABEL + " " + noPercent + "% · "
+			+ RemovalReasonsResponse.WITH_REPLACEMENT_LABEL + " " + (100 - noPercent) + "%";
 	}
 
 	/**

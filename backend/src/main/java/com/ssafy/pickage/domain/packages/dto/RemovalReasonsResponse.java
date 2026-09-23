@@ -58,6 +58,22 @@ public record RemovalReasonsResponse(
 	 */
 	public static final String UNIT = "transitions";
 
+	/**
+	 * 두 칸의 이름. <b>뜻이 정반대라 한 쪽만 고치면 수치가 뒤집힌다</b> (S15P21A506-468).
+	 *
+	 * <p>여기 두는 이유는 HTML·Markdown 두 렌더러가 표 머리글과 요약 문장에서 같은 글자를
+	 * 따로 적고 있었기 때문이다. 화면({@code removal-bars.tsx})이 라벨을 상수로 묶은 뒤에도
+	 * 이쪽은 옛 이름이 남아, <b>같은 수를 화면과 리포트가 다르게 불렀다.</b>
+	 *
+	 * <p>바꿀 때는 화면의 {@code NO_REPLACEMENT_LABEL}·{@code WITH_REPLACEMENT_LABEL} 과
+	 * <b>짝으로</b> 옮긴다. "대체" 는 이 지표가 증명하지 못하는 말이라(같은 릴리스에 다른 것도
+	 * 들어갔다는 사실까지만 안다) 화면은 계산 기준 모달이 그 한계를 잇는다.
+	 */
+	public static final String NO_REPLACEMENT_LABEL = "대체 없이 제거";
+
+	/** @see #NO_REPLACEMENT_LABEL */
+	public static final String WITH_REPLACEMENT_LABEL = "다른 패키지로 대체";
+
 	// 네 상태의 뜻은 transitions 와 **같아야 한다.** 화면이 두 패널에 같은 분기를 쓴다.
 	// 문자열을 다시 적지 않고 그대로 가리키는 것은, 한쪽만 고쳐져 두 패널이 다른 규칙으로
 	// 도는 것을 막기 위해서다.

@@ -281,7 +281,7 @@ class ReportDocumentTest {
 		String section = html.substring(removalAt, html.indexOf("<h2>", removalAt + 1));
 		// axios: removals=8, noReplacement=3 → 대체 없이 37.5%→38%, 함께 62.5%→63%(각자 반올림 X)
 		assertThat(section).contains(">8<").contains(">3<").contains(">5<")
-			.contains("대체 없이 제거 38% · 다른 것과 함께 제거 62%");
+			.contains("대체 없이 제거 38% · 다른 패키지로 대체 62%");
 		// got 은 분석 대상 밖이라 위 유지·유입·이탈과 같은 자리(ghost)·사유를 쓴다.
 		assertThat(section).contains("class=\"fill ghost\"").contains("분석 대상 아님");
 	}
@@ -369,7 +369,7 @@ class ReportDocumentTest {
 			assertThat(text).contains("세로 눈금은 로그 간격입니다").containsPattern("\\d+(\\.\\d+)?[kM]");
 			// S15P21A506-425 회귀: 이탈 사유가 실제 PDF 변환을 거쳐도 살아 있어야 한다 — HTML
 			// 문자열 검사만으로는 XHTML→PDF 변환(글꼴·테이블 렌더링)에서 사라지는 걸 못 잡는다.
-			assertThat(text).contains("이탈 사유").contains("대체 없이 제거 38% · 다른 것과 함께 제거 62%");
+			assertThat(text).contains("이탈 사유").contains("대체 없이 제거 38% · 다른 패키지로 대체 62%");
 		}
 	}
 
