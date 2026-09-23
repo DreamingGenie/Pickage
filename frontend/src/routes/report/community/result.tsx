@@ -24,13 +24,19 @@ function issueCountText(count: number | null | undefined): string {
   return count == null ? '—' : `${count.toLocaleString('ko-KR')}건`
 }
 
-/** 요약 수치 한 칸. `sub` 는 그 수치가 무엇으로 이루어졌는지 한 줄로 말한다. */
-function Kpi({ label, value, sub }: { label: string; value: string; sub: string }) {
+/**
+ * 저장소 카드 옆에 두는 `열린 Issue` 한 칸(S15P21A506-469). 예전엔 이 칸이 4칸짜리 요약 수치 행의
+ * 하나였다 — 전체 Issue·핵심 논의 누적 댓글·사용자 반응 3칸과 수집 상태 배지 행은 화면이 복잡하다는
+ * 이유로 없앴고, 저장소 규모를 보여주는 맥락으로서 값어치가 있는 이 칸만 저장소 카드 왼쪽으로 옮겼다.
+ */
+function OpenIssuesCard({ openIssues }: { openIssues: number | null | undefined }) {
   return (
-    <div className="flex flex-col gap-1 rounded-2xl border bg-card px-5 py-4">
-      <p className="text-base text-muted-foreground">{label}</p>
-      <p className="text-3xl leading-tight font-bold tracking-tight">{value}</p>
-      <p className="text-base text-muted-foreground">{sub}</p>
+    <div className="flex w-full flex-col justify-between gap-1 rounded-2xl border bg-card px-5 py-4 sm:w-56">
+      <p className="text-base text-muted-foreground">열린 Issue</p>
+      <p className="text-3xl leading-tight font-bold tracking-tight">{issueCountText(openIssues)}</p>
+      <p className="text-base text-muted-foreground">
+        {openIssues == null ? '이번 자료에는 집계되지 않았습니다' : '현재 open 상태 전체'}
+      </p>
     </div>
   )
 }
@@ -61,8 +67,7 @@ export function CommunityResultView({
   packageName?: string | null
 }) {
   const terminalMessage = TERMINAL_MESSAGE[result.data_status]
-  const { summary, topics } = result
-  const totalIssues = result.repository?.issue_count
+  const { topics } = result
   const openIssues = result.repository?.open_issue_count
   const hasThreads = topics.some((t) => t.messages.length > 0)
 
@@ -82,35 +87,42 @@ export function CommunityResultView({
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2.5 rounded-2xl border bg-card px-5 py-4 sm:w-80">
-          <div className="flex items-center justify-between gap-2">
-            {result.repository ? (
-              // 링크가 아니다 — 확장 화면은 저장소 식별자를 표시 문자열로만 둔다(IA §1-14)
-              <p className="font-mono text-sm font-bold">{`github.com/${result.repository.full_name}`}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">확인된 저장소 없음</p>
-            )}
-            {/*
-              저장소 수준 한계(패키지 범위 추정, 제외된 이슈 등)와 수집 기준을 한 모달로 모았다
-              (S15P21A506-406). 셋 다 "이 결과가 어떤 범위로 모였나" 에 대한 설명이라 나눌 이유가 없다.
-              터미널 상태(저장소 미확인 등)에서도 조회 기준은 그대로라 항상 둔다.
-            */}
-            <InfoDialog label="수집 기준 안내" title="수집 기준과 한계">
-              <CommunityScopeInfo limits={result.data_limits} limitations={result.limitations} />
-            </InfoDialog>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2.5">
-            <StatusBadge
-              status={freshness === 'FRESH' ? 'ok' : 'warn'}
-              label={freshness === 'FRESH' ? '최신' : '이전 자료(갱신 필요)'}
-            />
-            <p className="text-base text-muted-foreground">
-              {new Date(result.collected_at).toLocaleString('ko-KR', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}{' '}
-              기준
-            </p>
+        <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-stretch">
+          {/* 예전엔 요약 수치 4칸 행의 하나였다 — 나머지 3칸·수집 상태 배지 행과 함께 없애고 이 칸만
+              저장소 카드 옆으로 올렸다(S15P21A506-469). 터미널 상태(저장소 미확인 등)에는 조회할
+              저장소 자체가 없어 함께 두지 않는다. `sm:items-stretch` 로 저장소 카드와 높이를 맞춘다
+              — 저장소 카드는 두 줄(이름+ⓘ, 배지+날짜)이라 이 칸(세 줄)보다 보통 낮다. */}
+          {!terminalMessage && <OpenIssuesCard openIssues={openIssues} />}
+          <div className="flex w-full flex-col gap-2.5 rounded-2xl border bg-card px-5 py-4 sm:w-80">
+            <div className="flex items-center justify-between gap-2">
+              {result.repository ? (
+                // 링크가 아니다 — 확장 화면은 저장소 식별자를 표시 문자열로만 둔다(IA §1-14)
+                <p className="font-mono text-sm font-bold">{`github.com/${result.repository.full_name}`}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">확인된 저장소 없음</p>
+              )}
+              {/*
+                저장소 수준 한계(패키지 범위 추정, 제외된 이슈 등)와 수집 기준을 한 모달로 모았다
+                (S15P21A506-406). 셋 다 "이 결과가 어떤 범위로 모였나" 에 대한 설명이라 나눌 이유가 없다.
+                터미널 상태(저장소 미확인 등)에서도 조회 기준은 그대로라 항상 둔다.
+              */}
+              <InfoDialog label="수집 기준 안내" title="수집 기준과 한계">
+                <CommunityScopeInfo limits={result.data_limits} limitations={result.limitations} />
+              </InfoDialog>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2.5">
+              <StatusBadge
+                status={freshness === 'FRESH' ? 'ok' : 'warn'}
+                label={freshness === 'FRESH' ? '최신' : '이전 자료(갱신 필요)'}
+              />
+              <p className="text-base text-muted-foreground">
+                {new Date(result.collected_at).toLocaleString('ko-KR', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}{' '}
+                기준
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -125,35 +137,6 @@ export function CommunityResultView({
         <p className="rounded-2xl border border-dashed px-5 py-4 text-sm">{terminalMessage}</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {/*
-              **왼쪽 두 칸은 저장소 전체, 오른쪽 두 칸은 핵심 논의(요약한 Issue)** 수치다(S15P21A506-413). 두 종류가 섞여 있으면
-              "4,320건"과 "57개"가 같은 범위의 수치처럼 읽혀 이해가 안 됐다. 그래서 순서로 묶고 오른쪽 라벨에는 `핵심 논의`를 붙인다.
-              예전에는 왼쪽도 요약한 Issue(최대 2건)에서 센 값이라 "2건만 분석한다"로 읽혔다. 그 2건이 어떤 기준으로 골라졌는지는
-              저장소 카드의 수집 기준 안내(ⓘ)에 있다. 작은 화면(2열)에서도 줄이 [전체·열린] / [핵심 논의 둘]로 갈린다.
-            */}
-            <Kpi
-              label="전체 Issue"
-              value={issueCountText(totalIssues)}
-              sub={totalIssues == null ? '이번 자료에는 집계되지 않았습니다' : 'GitHub 저장소 전체'}
-            />
-            <Kpi
-              label="열린 Issue"
-              value={issueCountText(openIssues)}
-              sub={openIssues == null ? '이번 자료에는 집계되지 않았습니다' : '현재 open 상태 전체'}
-            />
-            <Kpi
-              label="핵심 논의 누적 댓글"
-              value={`${summary.comment_count}개`}
-              sub={topics.map((t) => `#${t.issue_number} ${t.comments_count}개`).join(' · ') || '—'}
-            />
-            <Kpi
-              label="핵심 논의 사용자 반응"
-              value={`${summary.reaction_count}개`}
-              sub="GitHub 반응 합계"
-            />
-          </div>
-
           <section className="flex flex-col gap-4">
             <SectionHeading title="핵심 논의" hint="GitHub 공개 Issue · 핵심 논지 요약" />
             <div className="grid gap-6 lg:grid-cols-2">

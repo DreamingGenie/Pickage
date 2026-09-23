@@ -140,6 +140,12 @@ dataStatus:   COMPLETE · PARTIAL · NO_DATA · COLLECTION_ERROR · CONFLICT · 
   여전히 글자로만 쓴다. 긴 요약은 서버가 준 `summary_marks`(UTF-16 오프셋 `[start, end)`)로 핵심어는 굵게(`<strong>`), 핵심 문장은 형광펜(`<mark>`)으로
   강조한다 — 구간이 없거나 어긋나면 그 구간만 버리고 평문으로 보인다(`segmentSummary`). 대표 발화는 최대 4개다. GMS 가 준 핵심어는 요약문에
   글자 그대로 있어야 인정된다(서버 검증).
+- `DEC-COMMUNITY-SUMMARY-CARDS-20260923-01`(`S15P21A506-469`): 커뮤니티 탭 상단 요약 수치 4칸 행(전체
+  Issue·열린 Issue·핵심 논의 누적 댓글·핵심 논의 사용자 반응)과 `핵심 논의` 카드 아래 수집 상태 배지 행을
+  화면이 복잡하다는 이유로 없앴다. `열린 Issue` 만 저장소 규모 맥락으로 값어치가 있어 저장소 정보 카드
+  왼쪽의 `OpenIssuesCard` 로 옮겼다. **프런트 표시만** 없앴다 — 서버는 계속 `repository.issue_count`·
+  `summary.comment_count`·`summary.reaction_count`·`topic.collection_status` 를 내려준다. 불필요한
+  서버 계산·응답 필드 제거는 백엔드 담당자와 범위를 협의할 후속 이슈다.
 - `DEC-HANDOFF-MD-20260922-01`(`S15P21A506-466`·`S15P21A506-467`): "PDF로 저장" 옆에 **HAND-OFF** 버튼을 뒀다 — 같은 보고서 데이터를
   개발자가 프로젝트 폴더에 두고 코딩 agent(Claude·Codex·Gemini)에게 분석시킬 수 있게 순수 텍스트 `.md`로 내려받는다. PDF는 사람 전용
   레이아웃이라 이 용도에 안 맞는다는 판단. 백엔드(`ReportMarkdownRenderer`)는 `ReportHtmlRenderer`와 같은 `Sources`를 받는 **순수 포맷
