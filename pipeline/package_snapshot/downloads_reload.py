@@ -173,6 +173,15 @@ def recompute(daily_root, interval, out_dir, *, memory='4GB', threads=4):
 class DownloadsReloadLoader(PackageSnapshotLoader):
     """Registers like every package-snapshot execution, but publishes an UPDATE of downloads only."""
 
+    def __enter__(self):
+        super().__enter__()
+        # 운영 package_snapshot(6.5억 행, 24 GB)의 인덱스는 BRIN(snapshot_at) 하나다. 날짜 하나를 고르는
+        # 비용 추정이 BRIN 비트맵과 순차 스캔 사이에서 거의 같아, 플래너가 날짜에 따라 24 GB 전체 스캔으로
+        # 기운다(2026-09-22 운영 실측: 08-31 BRIN 16 s, 08-24 순차 196 s). 날짜당 다섯 번 훑으므로 그런
+        # 날짜는 23분이 걸렸다. 이 로더의 세션에서만 순차 스캔을 끈다 — 서비스·다른 로더 세션은 무관하다.
+        self._send('SET enable_seqscan=off;')
+        return self
+
     def _send(self, sql):
         if sql.strip() == 'COMMIT;':
             self.phase = 'COMMIT_SENT'
@@ -419,7 +428,9 @@ def run(*, daily_root, bronze, run_id, work_dir, command, snapshots=None, start=
         previous = days[day]
         day_root = root / day
         event('SNAPSHOT_START', snapshot=day, previous=previous, completed=len(reports))
-        rows = sql_json(command, f"SELECT count(*) FROM public.package_snapshot WHERE snapshot_at={quote(day)}::date;")
+        # 일회성 세션이라 로더의 SET 이 닿지 않는다. 같은 이유로 여기서도 순차 스캔을 끈다(08-24: 196 s → BRIN).
+        rows = sql_json(command, 'SET enable_seqscan=off; '
+                                 f"SELECT count(*) FROM public.package_snapshot WHERE snapshot_at={quote(day)}::date;")
         if not rows:
             raise ValueError(f'{day} has no published rows to reload')
         recomputed = time.monotonic()
