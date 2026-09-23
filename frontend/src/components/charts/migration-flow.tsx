@@ -118,7 +118,12 @@ function FlowBody({ pkg, className }: { pkg: PackageMigration; className?: strin
       ) : (
         <dl className="flex flex-col gap-1.5">
           {pkg.destinations.map((d, i) => (
-            <DestinationRow key={d.name} dest={d} fill={FLOW_FILLS[i % FLOW_FILLS.length]} />
+            <DestinationRow
+              key={d.name}
+              from={pkg.key}
+              dest={d}
+              fill={FLOW_FILLS[i % FLOW_FILLS.length]}
+            />
           ))}
           {pkg.etc && (
             <div className="flex items-center gap-2">
@@ -149,7 +154,16 @@ function FlowBody({ pkg, className }: { pkg: PackageMigration; className?: strin
   )
 }
 
-function DestinationRow({ dest, fill }: { dest: MigrationDestination; fill: string }) {
+function DestinationRow({
+  from,
+  dest,
+  fill,
+}: {
+  /** 출발 패키지 이름. 말풍선 문장이 "winston 을 지운…" 으로 시작한다. */
+  from: string
+  dest: MigrationDestination
+  fill: string
+}) {
   return (
     <div className="flex items-center gap-2">
       <span
@@ -163,7 +177,7 @@ function DestinationRow({ dest, fill }: { dest: MigrationDestination; fill: stri
         임의로 매긴 점수로 읽히고, 여기서 따로 문장을 쓰면 두 곳이 갈라진다.
       */}
       {dest.variant && <VariantBadge />}
-      <EvidenceBadge evidence={dest.evidence} hint={observationHint(dest)} />
+      <EvidenceBadge evidence={dest.evidence} hint={observationHint(from, dest)} />
       <dd className="ml-auto shrink-0 font-mono text-base text-foreground tabular-nums">
         {dest.sharePmPct.toFixed(1)}%
       </dd>

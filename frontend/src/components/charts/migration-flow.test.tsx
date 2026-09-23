@@ -76,11 +76,33 @@ describe('서버가 새 필드를 아직 안 보낼 때', () => {
     // 없는 채로 온다. 그때 undefined.toFixed() 가 render 중에 터지면 이 패널만 비는
     // 것이 아니라 **보고서 페이지 전체가 빈 화면**이 된다 — 라우터의 에러 경계가 받기
     // 때문이고, 이 화면에서 실제로 한 번 겪은 고장 방식이다.
-    const partial = { dependents: 397, aPct: undefined }
-    expect(observationHint(partial)).toBe('이 패키지를 지운 프로젝트 397곳이 그때 함께 넣었어요')
-
-    expect(observationHint({ dependents: undefined, aPct: undefined })).toBe(
+    // 비율이 없으면 문장 자체를 세울 수 없다 — 수를 지어내지 않고 그 사실을 말한다.
+    expect(observationHint('winston', { name: 'pino', dependents: 397, aPct: undefined })).toBe(
       '관측된 수를 받지 못했어요',
+    )
+
+    // 프로젝트 수만 없으면 괄호를 지우고 비율만 낸다.
+    expect(observationHint('winston', { name: 'pino', dependents: undefined, aPct: 8.4 })).toBe(
+      'winston을 지운 프로젝트 중 8.4%가 pino를 넣었어요',
+    )
+  })
+})
+
+describe('말풍선 문장', () => {
+  it('비율이 앞에 오고 실수가 괄호로 간다', () => {
+    expect(observationHint('winston', { name: 'pino', dependents: 50, aPct: 8.4 })).toBe(
+      'winston을 지운 프로젝트 중 8.4%(50곳)가 pino를 넣었어요',
+    )
+  })
+
+  it('이름의 받침에 따라 조사가 갈린다', () => {
+    // moment(트) 는 받침 없음, axios 도 "스" 로 읽혀 받침 없음. dayjs 는 "에스".
+    // 어긋나도 뜻이 달라지지 않는 자리라 근사를 쓴다 — josa.ts 주석 참고.
+    expect(observationHint('moment', { name: 'dayjs', dependents: 397, aPct: 20.8 })).toContain(
+      'moment를 지운',
+    )
+    expect(observationHint('winston', { name: 'pino', dependents: 50, aPct: 8.4 })).toContain(
+      'winston을 지운',
     )
   })
 })
