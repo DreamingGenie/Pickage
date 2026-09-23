@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { TransitionBars } from '@/components/charts/transition-bars'
@@ -35,6 +35,43 @@ function barWidths(container: HTMLElement): number[] {
     Number.parseFloat(el.style.width),
   )
 }
+
+/**
+ * 판정한 의존자가 0 인 행 — 의존자는 있는데 이 기간에 아무도 릴리스를 내지 않았다.
+ * 로컬 실측에서 1년 구간의 11.9%(34,777/293,235)가 이 모양이다.
+ */
+const allUnobserved: TransitionCounts = {
+  retained: 0,
+  outflow: 0,
+  unobserved: 412,
+  inflowAdopted: 0,
+  inflowRaw: 0,
+  inflowNew: 0,
+  unobservedFreshness: null,
+}
+
+describe('TransitionBars — 비율을 못 낼 때', () => {
+  /**
+   * 값/비율 토글이 있던 동안에는 값 모드 막대가 수를 대신 보여 줘서 가려지지 않았다.
+   * 토글을 없앤 뒤로는 이 화면이 유일한 표시라, 수까지 사라지면 **의존자가 아예 없는
+   * 것처럼 읽힌다** — 이 패널이 가장 경계하는 혼동이다 (S15P21A506-468 리뷰).
+   */
+  it('판정한 의존자가 없어도 의존자 수를 남긴다', () => {
+    render(<TransitionBars counts={allUnobserved} dataStatus="COMPLETE" max={100000} />)
+
+    expect(screen.getByText('판정한 의존자가 없습니다')).toBeInTheDocument()
+    expect(screen.getByText(/의존자 412 중/)).toBeInTheDocument()
+    expect(screen.getByText(/412 릴리스 없음/)).toBeInTheDocument()
+  })
+
+  /** NO_DATA(전부 0)는 붙일 수가 없다 — "의존자 0 중" 은 군더더기다. */
+  it('셀 것이 하나도 없으면 수를 붙이지 않는다', () => {
+    const none: TransitionCounts = { ...allUnobserved, unobserved: 0 }
+    render(<TransitionBars counts={none} dataStatus="NO_DATA" max={100000} />)
+
+    expect(screen.queryByText(/의존자 .* 중/)).not.toBeInTheDocument()
+  })
+})
 
 describe('TransitionBars — 관측불가 분해 막대', () => {
   it('하위 막대의 합이 부모 막대를 넘지 않는다', () => {
