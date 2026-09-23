@@ -90,6 +90,7 @@ function ragResult(targets: FeatureTarget[]): RagComparisonResult {
       package: t.package_name,
       version: t.version,
       body: `${t.package_name} 만의 특징이에요.`,
+      marks: [],
     })),
     sources: targets.map((t) => ({
       package: t.package_name,

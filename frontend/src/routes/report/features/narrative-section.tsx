@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 
+import { EmphasizedText } from '@/components/common/emphasized-text'
 import { cn } from '@/lib/utils'
 import type { ComparisonView } from '@/routes/report/features/model'
 
@@ -53,7 +54,9 @@ export function ComparisonNarrative({
                 </span>
               </h5>
               {d.body ? (
-                <p className="text-base leading-relaxed">{d.body}</p>
+                <p className="text-base leading-relaxed">
+                  <EmphasizedText text={d.body} marks={d.marks} />
+                </p>
               ) : (
                 <p className="text-base text-muted-foreground">
                   이 패키지는 설명을 만들지 못했어요.
