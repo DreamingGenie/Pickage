@@ -69,6 +69,7 @@ feat: deps.dev BigQuery 수집기 추가 (S15P21A506-122)
 | 폴더 | 내용 |
 |---|---|
 | `docs/` | 기획·요구사항·수집계획·검증 문서. `docs/api & data/`가 수집계획 정본, `docs/history/`는 폐기·아카이브 |
+| `exec/` | **제출용 포팅 매뉴얼** — 빌드·배포 매뉴얼, 외부 서비스 정보, DB 덤프, 시연 시나리오. 폴더명은 제출 규격이라 바꾸지 않는다. 운영 절차의 정본은 `deploy/` 쪽이다 |
 | `pipeline/` | 데이터 수집·변환 코드. `collectors/`(deps.dev BigQuery · npm downloads · ecosyste.ms keywords), `curated/`(PostgreSQL 적재용 정제), `minio/`, `duckdb/`(로컬 분석·데이터셋 빌더). 지도는 `pipeline/README.md` |
 | `datasets/` | 팀 공유용 작은 파생 데이터(추적). 폐기→대체 쌍, 마이그레이션 이동쌍, 학습 후보 표본, 수집 대상 목록. 지도는 `datasets/README.md` |
 | `data/` | 로컬 수집 데이터(gitignore). GCS `gs://oss-shift-a506-raw`가 팀 공유 정본 |
