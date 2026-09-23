@@ -34,10 +34,10 @@ DECLARE
     v_day      date := current_setting('vd455.day')::date;
     v_next     date := (current_setting('vd455.day')::date + 1);
     v_parentname text := current_setting('vd455.parent');
-    v_parentsch  text := split_part(current_setting('vd455.parent'), '.', 1);
     v_parent   regclass;
-    v_stparent regclass;
     v_new      regclass;
+    v_oldsch   text;
+    v_oldrel   text;
     v_old      regclass;
     v_oldname  text;
     v_dropped  timestamptz;
@@ -53,8 +53,7 @@ BEGIN
         RAISE EXCEPTION '부모가 없습니다: %', v_parentname;
     END IF;
 
-    v_stparent := to_regclass(format('%I.package_version_snapshot', v_stage));
-    v_new      := to_regclass(format('%I.%I', v_stage, 'd' || to_char(v_day, 'YYYYMMDD')));
+    v_new := to_regclass(format('%I.%I', v_stage, 'd' || to_char(v_day, 'YYYYMMDD')));
 
     EXECUTE format('SELECT old_relation, old_dropped_at FROM %I.swap_receipt WHERE snapshot_at = $1', v_backup)
        INTO v_oldname, v_dropped USING v_day;
@@ -67,7 +66,16 @@ BEGIN
     END IF;
 
     -- 교체 때 백업 스키마로 옮겼으므로 이름은 그대로, 스키마만 바뀌어 있다.
-    v_old := to_regclass(format('%I.%I', v_backup, split_part(v_oldname, '.', 2)));
+    -- 되돌릴 때는 **원래 있던 스키마**로 보낸다. 부모의 스키마가 아니다.
+    -- 2026-09-13 전환에서 부모만 public 으로 옮기고 229개 자식은 원래 스키마에
+    -- 남겼으므로, 운영의 옛 파티션은 public 이 아닌 곳에 있을 수 있다.
+    -- 부모 스키마로 되돌리면 파티션이 조용히 다른 곳으로 이사한다.
+    v_oldsch := split_part(v_oldname, '.', 1);
+    v_oldrel := split_part(v_oldname, '.', 2);
+    IF v_oldsch = '' OR v_oldrel = '' OR strpos(v_oldname, '.') <> length(v_oldsch) + 1 THEN
+        RAISE EXCEPTION '영수증의 옛 파티션 이름을 스키마와 표로 나눌 수 없습니다: %', v_oldname;
+    END IF;
+    v_old := to_regclass(format('%I.%I', v_backup, v_oldrel));
     IF v_old IS NULL THEN
         RAISE EXCEPTION '백업 스키마에서 옛 파티션을 찾지 못했습니다: %', v_oldname;
     END IF;
@@ -82,9 +90,9 @@ BEGIN
         EXECUTE format('ALTER TABLE %s DETACH PARTITION %s', v_parent::text, v_new::text);
     END IF;
 
-    EXECUTE format('ALTER TABLE %s SET SCHEMA %I', v_old::text, v_parentsch);
+    EXECUTE format('ALTER TABLE %s SET SCHEMA %I', v_old::text, v_oldsch);
     EXECUTE format('ALTER TABLE %s ATTACH PARTITION %I.%I FOR VALUES FROM (%L) TO (%L)',
-                   v_parent::text, v_parentsch, split_part(v_oldname, '.', 2), v_day, v_next);
+                   v_parent::text, v_oldsch, v_oldrel, v_day, v_next);
 
     SELECT count(*) INTO v_n
       FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid

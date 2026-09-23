@@ -25,15 +25,25 @@ DECLARE
     v_backup  text := current_setting('vd455.backup');
     v_day     date := current_setting('vd455.day')::date;
     v_next    date := (current_setting('vd455.day')::date + 1);
-    v_parent  regclass := to_regclass(current_setting('vd455.parent'));
+    v_parentname text := current_setting('vd455.parent');
+    v_parent  regclass;
     v_oldname text;
     v_dropped timestamptz;
     v_old     regclass;
     v_serving oid;
     v_newoid  oid;
+    v_oldoid  oid;
 BEGIN
-    EXECUTE format('SELECT old_relation, old_dropped_at, new_oid FROM %I.swap_receipt WHERE snapshot_at = $1', v_backup)
-       INTO v_oldname, v_dropped, v_newoid USING v_day;
+    IF v_parentname <> 'public.package_version_snapshot'
+       AND v_parentname !~ '^(vd193_reload_|vd455_)[a-z0-9_]{1,40}\.package_version_snapshot$' THEN
+        RAISE EXCEPTION '부모 이름이 허용 범위 밖입니다: %', v_parentname;
+    END IF;
+    v_parent := to_regclass(v_parentname);
+    IF v_parent IS NULL THEN
+        RAISE EXCEPTION '부모가 없습니다: %', v_parentname;
+    END IF;
+    EXECUTE format('SELECT old_relation, old_dropped_at, new_oid, old_oid FROM %I.swap_receipt WHERE snapshot_at = $1', v_backup)
+       INTO v_oldname, v_dropped, v_newoid, v_oldoid USING v_day;
 
     IF v_oldname IS NULL THEN
         RAISE EXCEPTION '그 날짜의 교체 기록이 없습니다: %', v_day;
@@ -61,6 +71,11 @@ BEGIN
     v_old := to_regclass(format('%I.%I', v_backup, split_part(v_oldname, '.', 2)));
     IF v_old IS NULL THEN
         RAISE EXCEPTION '백업 스키마에서 옛 파티션을 찾지 못했습니다: %', v_oldname;
+    END IF;
+    -- DROP 은 되돌릴 수 없다. 이름만 맞는 다른 표를 지우지 않도록 OID 까지 본다.
+    IF v_old::oid <> v_oldoid THEN
+        RAISE EXCEPTION '지우려는 표가 영수증의 옛 파티션이 아닙니다: 영수증 % / 실제 %',
+              v_oldoid, v_old::oid;
     END IF;
     IF EXISTS (SELECT 1 FROM pg_inherits WHERE inhrelid = v_old) THEN
         RAISE EXCEPTION '옛 파티션이 아직 어딘가에 붙어 있습니다. 지우지 않습니다: %', v_oldname;
