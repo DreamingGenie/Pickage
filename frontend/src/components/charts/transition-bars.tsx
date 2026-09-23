@@ -170,7 +170,7 @@ function RatioDonut({
             의존자 {population.toLocaleString()} 중
             <br />
             <span className="text-muted-foreground/70">
-              {unobserved.toLocaleString()} 릴리스 없음
+              {unobserved.toLocaleString()} {CATEGORIES[3].label}
             </span>
           </p>
         )}
@@ -206,8 +206,10 @@ function RatioDonut({
           <br />
           {shares.active.toLocaleString()} 판정
           <br />
+          {/* 이름은 CATEGORIES 에서만 읽는다 — 그 낱말은 결정의 산물이라(위 주석) 바뀔 수 있고,
+              여기 따로 적어 두면 막대와 캡션이 같은 수를 다른 이름으로 부르게 된다. */}
           <span className="text-muted-foreground/70">
-            {(shares.total - shares.active).toLocaleString()} 릴리스 없음
+            {(shares.total - shares.active).toLocaleString()} {CATEGORIES[3].label}
           </span>
         </p>
       </div>
