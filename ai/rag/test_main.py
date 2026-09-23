@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from ai.rag.main import create_app
 from ai.rag.pipeline import VerificationFailedError
 from ai.rag.readme_source import ReadmeSourceNotFoundError
-from ai.rag.types import ComparisonResult, PackageNote, PackageSource
+from ai.rag.types import ComparisonResult, Mark, PackageNote, PackageSource
 
 
 def _fake_compare_ok(packages):
@@ -45,7 +45,8 @@ class ComparePOSTTests(unittest.TestCase):
         self.assertEqual(body["packages"][0]["package"], "foo")
         self.assertEqual(body["common"], "설정 파일을 읽어요.")
         self.assertEqual(
-            body["differences"], [{"package": "foo", "version": "1.0.0", "body": "파일로 설정해요."}]
+            body["differences"],
+            [{"package": "foo", "version": "1.0.0", "body": "파일로 설정해요.", "marks": []}],
         )
         self.assertNotIn("features", body)
         self.assertNotIn("narrative", body)
@@ -64,6 +65,28 @@ class ComparePOSTTests(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertEqual(response.json()["detail"]["violations"], ["foo: 차이점 문단이 없음"])
 
+
+
+class DifferenceMarksSerializationTests(unittest.TestCase):
+    """차이점 강조 구간 직렬화 (S15P21A506-470)."""
+
+    def test_marks_are_serialized_as_start_end_kind(self):
+        def compare_with_marks(packages):
+            result = _fake_compare_ok(packages)
+            result.differences[0].marks = [
+                Mark(start=0, end=3, kind="KEY_SENTENCE"),
+                Mark(start=0, end=2, kind="KEY_TERM"),
+            ]
+            return result
+
+        client = TestClient(create_app(compare_fn=compare_with_marks))
+
+        body = client.post("/compare", json={"packages": [{"package": "foo", "version": "1.0.0"}]}).json()
+
+        self.assertEqual(
+            body["differences"][0]["marks"],
+            [{"start": 0, "end": 3, "kind": "KEY_SENTENCE"}, {"start": 0, "end": 2, "kind": "KEY_TERM"}],
+        )
 
 
 class SourcesAndNotFoundTests(unittest.TestCase):

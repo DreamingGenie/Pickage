@@ -18,6 +18,7 @@ import json
 import os
 from typing import Callable
 
+from ai.rag.marks import compute_marks
 from ai.rag.types import (
     ComparisonResult,
     EvidenceChunk,
@@ -43,6 +44,16 @@ Write two things:
 2. differences — one entry per compared package, in the given order. Describe what is characteristic of
    THAT package compared with the others: its approach, notable features, configuration style, and the
    situations it is built for. 3-5 sentences each. Do not repeat what is already in common.
+
+Each difference must also include key_sentence and key_terms, so a reader can skim without reading the
+whole paragraph: key_sentence is the single sentence in that difference's own body that best states what
+makes that package distinctive, and key_terms are up to 3 short keywords or phrases (each under 20
+characters) from that same body — package/API/option names, configuration styles, or notable
+capabilities. Both MUST be copied character for character from that difference's own body — never
+paraphrase, translate, shorten, add words, or invent text that is not in body. The server checks each one
+by exact substring search in that body and silently discards anything that does not match, so write body
+first and then copy from it. If nothing in body is worth marking, use an empty string for key_sentence
+and an empty list for key_terms.
 
 Rules:
 - Base every statement on the evidence first. When evidence is missing or thin, you may add widely known
@@ -120,8 +131,16 @@ _RESPONSE_JSON_SCHEMA = {
                     "package": {"type": "string"},
                     "version": {"type": "string"},
                     "body": {"type": "string"},
+                    # 핵심 문장 1개·핵심어 최대 3개(S15P21A506-470) — body 의 부분 문자열이어야
+                    # 인정된다. 서버(compute_marks)가 위치를 계산하고 어긋나면 버린다.
+                    "key_sentence": {"type": "string"},
+                    "key_terms": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "maxItems": 3,
+                    },
                 },
-                "required": ["package", "version", "body"],
+                "required": ["package", "version", "body", "key_sentence", "key_terms"],
                 "additionalProperties": False,
             },
         },
@@ -204,16 +223,25 @@ def _call_gms(system_prompt: str, user_message: str) -> str:
     return _extract_gms_output_text(raw_response)
 
 
+def _to_package_note(d: dict) -> PackageNote:
+    """차이점 문단 하나 — 강조 구간(`marks`)은 모델이 준 `key_sentence`/`key_terms` 를 `body` 안에서
+    글자 그대로 찾아 서버가 계산한다(S15P21A506-470). 못 찾은 것은 조용히 빠진다."""
+    body = d["body"].strip()
+    return PackageNote(
+        package=d["package"],
+        version=d["version"],
+        body=body,
+        marks=compute_marks(body, d.get("key_sentence"), d.get("key_terms")),
+    )
+
+
 def _parse_comparison_result(data: dict, packages: list[PackageRef]) -> ComparisonResult:
     """모델 응답을 결과로 옮긴다. packages 는 모델이 아니라 요청에서 가져온다 — 모델에게 되풀이시키지 않는다."""
     return ComparisonResult(
         data_status=data["dataStatus"],
         packages=list(packages),
         common=data["common"].strip(),
-        differences=[
-            PackageNote(package=d["package"], version=d["version"], body=d["body"].strip())
-            for d in data["differences"]
-        ],
+        differences=[_to_package_note(d) for d in data["differences"]],
     )
 
 def generate(
