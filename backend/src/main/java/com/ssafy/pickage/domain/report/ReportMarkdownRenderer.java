@@ -260,7 +260,10 @@ public class ReportMarkdownRenderer {
 	private void removalReasons(StringBuilder b, RemovalReasonsResponse r) {
 		heading(b, "이탈 사유");
 		b.append(mdEscape(removalReasonsCaption(r))).append("\n\n");
-		b.append("| 패키지 | 이탈 전이 | 대체 없이 제거 | 다른 것과 함께 제거 | 뺀 프로젝트 |\n");
+		b.append("| 패키지 | 이탈 전이 | ")
+			.append(RemovalReasonsResponse.NO_REPLACEMENT_LABEL).append(" | ")
+			.append(RemovalReasonsResponse.WITH_REPLACEMENT_LABEL)
+			.append(" | 뺀 프로젝트 |\n");
 		b.append("|---|---:|---:|---:|---:|\n");
 
 		if (r.series().isEmpty()) {
@@ -312,7 +315,8 @@ public class ReportMarkdownRenderer {
 		Integer no = series.noReplacement();
 		if (total == null || no == null || total <= 0) return null;
 		int noPercent = Math.round(no * 100f / total);
-		return "대체 없이 제거 " + noPercent + "% · 다른 것과 함께 제거 " + (100 - noPercent) + "%";
+		return RemovalReasonsResponse.NO_REPLACEMENT_LABEL + " " + noPercent + "% · "
+			+ RemovalReasonsResponse.WITH_REPLACEMENT_LABEL + " " + (100 - noPercent) + "%";
 	}
 
 	/** 아직 만들 수 없는 구역. HTML 의 {@code pending()} 과 같다. */

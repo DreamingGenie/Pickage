@@ -282,7 +282,7 @@ class ReportHtmlRendererTest {
 		assertTrue(html.contains("이탈 사유"));
 		assertTrue(html.contains(">1,840<"), "이탈 전이 수가 없다");
 		assertTrue(html.contains(">1,290<") && html.contains(">550<"), "대체 없이/함께 제거 수가 없다");
-		assertTrue(html.contains("대체 없이 제거 70% · 다른 것과 함께 제거 30%"),
+		assertTrue(html.contains("대체 없이 제거 70% · 다른 패키지로 대체 30%"),
 			"각자 반올림해 합이 100 이 아닌 비율이 나왔거나 비율 자체가 없다");
 	}
 
