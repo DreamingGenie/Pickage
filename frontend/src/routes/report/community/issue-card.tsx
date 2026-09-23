@@ -1,22 +1,12 @@
 import { ExternalLinkIcon } from 'lucide-react'
 
 import { InfoDialog } from '@/components/common/info-dialog'
-import { StatusBadge } from '@/components/common/status-badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { IssueAccent } from '@/routes/report/community/accent'
 import { EmphasizedSummary } from '@/routes/report/community/emphasized-summary'
 import { githubIssueUrl } from '@/routes/report/community/summary-marks'
-import type { CommunityCollectionStatus, CommunityLimitation, CommunityTopic } from '@/api/types'
-
-const COLLECTION_STATUS: Record<
-  CommunityCollectionStatus,
-  { label: string; level: 'ok' | 'warn' | 'err' }
-> = {
-  COMPLETE: { label: '댓글 전체 수집', level: 'ok' },
-  TRUNCATED: { label: '댓글 일부만 수집', level: 'warn' },
-  FAILED: { label: '댓글 수집 실패', level: 'err' },
-}
+import type { CommunityLimitation, CommunityTopic } from '@/api/types'
 
 /**
  * 카드의 수집 상태 배지가 **이미 말하는 사실**을 되풀이하는 한계 코드(S15P21A506-406).
@@ -51,7 +41,6 @@ export function CommunityIssueCard({
   const notes = limitations.filter(
     (l) => l.issue_number === topic.issue_number && !DUPLICATES_COLLECTION_BADGE.has(l.code),
   )
-  const collection = COLLECTION_STATUS[topic.collection_status]
   const issueUrl = githubIssueUrl(repositoryFullName, topic.issue_number)
   const stats = `${topic.state === 'OPEN' ? '열림' : '종료'} · 댓글 ${topic.comments_count} · 반응 ${topic.reactions_count}`
 
@@ -137,11 +126,6 @@ export function CommunityIssueCard({
           {info}
         </p>
       )}
-
-      {/* 두 카드 높이가 달라도 배지는 아래에 나란히 놓인다 */}
-      <div className="mt-auto border-t pt-3">
-        <StatusBadge status={collection.level} label={collection.label} />
-      </div>
     </div>
   )
 }

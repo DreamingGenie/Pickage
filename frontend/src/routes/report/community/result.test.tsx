@@ -83,16 +83,15 @@ describe('중복 정보 제거', () => {
     expect(container.textContent).toContain(resultWith().topics[0].messages[0].text)
   })
 
-  it('배지가 이미 말하는 "댓글 일부만 수집했습니다." 문구는 다시 쓰지 않는다', () => {
+  it('수집 상태 배지 행은 프런트에서 그리지 않는다(S15P21A506-469)', () => {
     renderView(resultWith())
 
-    // 배지(수집 상태)는 남는다.
-    expect(screen.getByText('댓글 일부만 수집')).toBeInTheDocument()
-    // 같은 뜻의 문장은 어디에도 없다 — 모달을 열기 전에도, 열어도 없다.
-    expect(screen.queryByText('댓글 일부만 수집했습니다.')).toBeNull()
+    expect(screen.queryByText('댓글 일부만 수집')).toBeNull()
+    expect(screen.queryByText('댓글 전체 수집')).toBeNull()
+    expect(screen.queryByText('댓글 수집 실패')).toBeNull()
   })
 
-  it('댓글 수집 실패 배지와 같은 뜻의 문구("댓글을 확인하지 못했습니다.")도 쓰지 않는다', async () => {
+  it('요약 안내 ⓘ 는 수집 배지와 무관하게 남는 한계가 있으면 뜬다', async () => {
     const user = userEvent.setup()
     const base = resultWith()
     const topic = { ...base.topics[0], collection_status: 'FAILED' as const }
@@ -104,9 +103,7 @@ describe('중복 정보 제거', () => {
       ],
     })
 
-    expect(screen.getByText('댓글 수집 실패')).toBeInTheDocument()
-    expect(screen.queryByText('댓글을 확인하지 못했습니다.')).toBeNull()
-    // 남는 한계가 없으면 이 Issue 에는 ⓘ 도 없다 — 열어 볼 것이 없는 버튼을 두지 않는다.
+    // COMMENTS_UNAVAILABLE 은 배지와 겹치는 문구라 요약 안내에서도 걸러진다 — 남는 한계가 없다.
     expect(screen.queryByRole('button', { name: `#${topic.issue_number} 요약 안내` })).toBeNull()
     await user.click(screen.getByRole('button', { name: '수집 기준 안내' })) // 저장소 ⓘ 는 그대로 있다
     expect(await screen.findByRole('dialog', { name: '수집 기준과 한계' })).toBeInTheDocument()
@@ -249,37 +246,26 @@ describe('와이어프레임 구성', () => {
     expect(screen.queryByText('2026-04-03')).toBeNull()
   })
 
-  it('요약 수치 4칸: 좌우는 저장소 전체 수치, 가운데 둘은 요약한 Issue 의 수치다', () => {
+  it('요약 수치 4칸 행은 그리지 않는다 — 열린 Issue 만 저장소 카드 옆에 남는다(S15P21A506-469)', () => {
     render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
-    const s = SAMPLE_COMMUNITY_RESULT.summary
-    const repo = SAMPLE_COMMUNITY_RESULT.repository!
-    // 수치는 라벨과 같은 칸에 있다. (같은 숫자가 두 칸에 나올 수 있어 칸 단위로 본다)
     const cell = (label: string) => screen.getByText(label).parentElement
 
-    // 천 단위 쉼표를 넣는다 — 저장소 전체 수치는 네 자리를 넘기 쉽다.
-    expect(cell('전체 Issue')).toHaveTextContent('1,234건')
-    expect(cell('전체 Issue')).toHaveTextContent('GitHub 저장소 전체')
+    expect(screen.queryByText('전체 Issue')).toBeNull()
+    expect(screen.queryByText('핵심 논의 누적 댓글')).toBeNull()
+    expect(screen.queryByText('핵심 논의 사용자 반응')).toBeNull()
     expect(cell('열린 Issue')).toHaveTextContent('56건')
     expect(cell('열린 Issue')).toHaveTextContent('현재 open 상태 전체')
-    expect(repo.issue_count).toBe(1234)
-    expect(cell('핵심 논의 누적 댓글')).toHaveTextContent(`${s.comment_count}개`)
-    expect(cell('핵심 논의 사용자 반응')).toHaveTextContent(`${s.reaction_count}개`)
-    expect(cell('핵심 논의 사용자 반응')).toHaveTextContent('GitHub 반응 합계')
+    expect(SAMPLE_COMMUNITY_RESULT.repository!.issue_count).toBe(1234)
   })
 
-  it('왼쪽 두 칸은 저장소 전체, 오른쪽 두 칸은 핵심 논의로 묶어 나열한다', () => {
+  it('열린 Issue 카드는 저장소 카드와 나란히 있다', () => {
     render(<CommunityResultView result={SAMPLE_COMMUNITY_RESULT} freshness="FRESH" />)
 
-    // 순서로 범위를 나눈다 — 섞이면 "4,320건"과 "57개"가 같은 범위의 수치로 읽힌다.
-    const labels = ['전체 Issue', '열린 Issue', '핵심 논의 누적 댓글', '핵심 논의 사용자 반응']
-    const order = labels.map((l) => {
-      const node = screen.getByText(l)
-      return Array.from(node.closest('.grid')!.children).indexOf(node.parentElement!)
-    })
-    expect(order).toEqual([0, 1, 2, 3])
-    // 예전 라벨이 남아 있지 않다.
-    expect(screen.queryByText('누적 댓글')).toBeNull()
-    expect(screen.queryByText('사용자 반응')).toBeNull()
+    const openIssuesCard = screen.getByText('열린 Issue').closest('.rounded-2xl')!
+    const repoCard = screen
+      .getByText(`github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}`)
+      .closest('.rounded-2xl')!
+    expect(openIssuesCard.parentElement).toBe(repoCard.parentElement)
   })
 
   it('"2건만 분석한다"로 읽히는 문구를 상단 수치에 쓰지 않는다', () => {
@@ -295,7 +281,7 @@ describe('와이어프레임 구성', () => {
   it.each([
     ['서버가 못 구해 null 이면', { issue_count: null, open_issue_count: null }],
     ['이 값을 더하기 전에 저장된 스냅샷이라 키가 없으면', {}],
-  ])('저장소 수치가 %s 빈 값(—)으로 두고 0건으로 지어내지 않는다', (_label, counts) => {
+  ])('열린 Issue 수치가 %s 빈 값(—)으로 두고 0건으로 지어내지 않는다', (_label, counts) => {
     const repository = { ...SAMPLE_COMMUNITY_RESULT.repository!, ...counts }
     if (Object.keys(counts).length === 0) {
       delete repository.issue_count
@@ -306,28 +292,8 @@ describe('와이어프레임 구성', () => {
     )
     const cell = (label: string) => screen.getByText(label).parentElement
 
-    expect(cell('전체 Issue')).toHaveTextContent('—')
     expect(cell('열린 Issue')).toHaveTextContent('—')
-    expect(cell('전체 Issue')).not.toHaveTextContent('0건')
-    // 나머지 두 칸은 영향을 받지 않는다.
-    expect(cell('핵심 논의 누적 댓글')).toHaveTextContent(
-      `${SAMPLE_COMMUNITY_RESULT.summary.comment_count}개`,
-    )
-  })
-
-  it('한쪽만 구했으면 그 칸만 채우고 다른 칸은 비운다', () => {
-    const repository = {
-      ...SAMPLE_COMMUNITY_RESULT.repository!,
-      issue_count: 9876,
-      open_issue_count: null,
-    }
-    render(
-      <CommunityResultView result={{ ...SAMPLE_COMMUNITY_RESULT, repository }} freshness="FRESH" />,
-    )
-    const cell = (label: string) => screen.getByText(label).parentElement
-
-    expect(cell('전체 Issue')).toHaveTextContent('9,876건')
-    expect(cell('열린 Issue')).toHaveTextContent('—')
+    expect(cell('열린 Issue')).not.toHaveTextContent('0건')
   })
 
   it('열린 Issue 가 0건이면 0건이라 적고 "지금 이어지는" 같은 말을 하지 않는다', () => {
