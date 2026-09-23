@@ -19,9 +19,9 @@ export interface AnalyzeSelection {
   dropped: string[]
   /** npm 이름 형식이 아니어서 뺀 것. 기준이 여기 들어가면 `base` 는 `null` 이다. */
   rejected: string[]
+  /** 유사 후보가 없어도 이 기준으로 진행하겠다고 확인했는지. */
+  acceptedNoSimilar: boolean
 }
-
-const EMPTY: AnalyzeSelection = { base: null, picked: [], dropped: [], rejected: [] }
 
 /**
  * 한 이름을 조회에 쓸 형태로 고친다. 형식이 아니면 `null`.
@@ -56,18 +56,26 @@ function normalize(raw: string): string | null {
  * `?with=` 만 있는 주소는 비교의 기준이 없어 고른 것을 되살릴 자리가 없다. 이때는
  * `dropped` 에 담지 않고 조용히 버린다 — 화면이 빈 1단계로 열려 "아무것도 고르지 않은
  * 상태" 임이 그대로 보이기 때문이다. 세 개를 골랐다고 믿게 만드는 위의 실패와 다르다.
+ *
+ * <h2>빈 배열도 그때그때 새로 만든다</h2>
+ *
+ * 모듈 상수 하나를 돌려쓰면 호출부가 그 배열을 제자리에서 바꿨을 때(`sort` 한 번이면 된다)
+ * 이후의 모든 "기준 없음" 결과가 함께 오염된다. 반환 타입이 `string[]` 이라 그것을 막을
+ * 방법이 없으므로, 아예 공유하지 않는다.
  */
 export function readAnalyzeSelection(
   rawBase: string | null,
   rawWith: string | null,
+  rawNoSimilar: string | null = null,
 ): AnalyzeSelection {
   const rejected: string[] = []
+  const acceptedNoSimilar = rawNoSimilar === '1'
 
   const baseInput = rawBase?.trim() ?? ''
   const base = baseInput ? normalize(baseInput) : null
   if (baseInput && !base) rejected.push(baseInput)
 
-  if (!base) return { ...EMPTY, rejected }
+  if (!base) return { base: null, picked: [], dropped: [], rejected, acceptedNoSimilar }
 
   const picked: string[] = []
   const dropped: string[] = []
@@ -91,7 +99,7 @@ export function readAnalyzeSelection(
     picked.push(name)
   }
 
-  return { base, picked, dropped, rejected }
+  return { base, picked, dropped, rejected, acceptedNoSimilar }
 }
 
 /**
@@ -105,6 +113,10 @@ export function readAnalyzeSelection(
 export function useAnalyzeSelection(
   rawBase: string | null,
   rawWith: string | null,
+  rawNoSimilar: string | null,
 ): AnalyzeSelection {
-  return useMemo(() => readAnalyzeSelection(rawBase, rawWith), [rawBase, rawWith])
+  return useMemo(
+    () => readAnalyzeSelection(rawBase, rawWith, rawNoSimilar),
+    [rawBase, rawWith, rawNoSimilar],
+  )
 }

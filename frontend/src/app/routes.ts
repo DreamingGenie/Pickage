@@ -18,6 +18,18 @@ export const ANALYZE_BASE_PARAM = 'base'
 export const ANALYZE_WITH_PARAM = 'with'
 
 /**
+ * 유사 후보가 없는 기준을 "그래도 쓰겠다" 고 한 확인(`1`).
+ *
+ * **이것도 주소에 있어야 한다.** 화면 state 로만 두면 새로고침 뒤 확인이 사라져,
+ * 기준은 주소에 남아 있는데 화면만 1단계 경고로 되돌아간다(S15P21A506-435).
+ *
+ * `paths.analyze` 는 이 값을 만들지 않는다. 확인은 그 화면 안에서 사용자가 누르는 것이지
+ * 다른 화면이 대신 넘겨줄 수 있는 것이 아니다 — 보고서에서 되돌아올 때 미리 켜 두면
+ * 사용자가 본 적 없는 경고를 넘긴 것이 된다.
+ */
+export const ANALYZE_NO_SIMILAR_PARAM = 'nosimilar'
+
+/**
  * 라우트 경로 단일 출처.
  *
  * <h2>비교 대상은 경로가 아니라 쿼리에 싣는다</h2>

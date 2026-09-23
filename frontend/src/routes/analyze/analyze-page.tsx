@@ -4,7 +4,12 @@ import { useNavigate, useSearchParams } from 'react-router'
 
 import { fetchPackagesOverview, fetchSimilarPackages, postCommunityRefresh } from '@/api/endpoints'
 import { usePackagesOverview, useSimilarPackages } from '@/api/queries'
-import { ANALYZE_BASE_PARAM, ANALYZE_WITH_PARAM, paths } from '@/app/routes'
+import {
+  ANALYZE_BASE_PARAM,
+  ANALYZE_NO_SIMILAR_PARAM,
+  ANALYZE_WITH_PARAM,
+  paths,
+} from '@/app/routes'
 import { EmptyState } from '@/components/common/empty-state'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
@@ -52,6 +57,10 @@ export function AnalyzePage() {
    *
    * `dropped` 는 자리가 모자라, `rejected` 는 npm 이름 형식이 아니라 쓰지 않은 이름이다.
    * 둘 다 화면에 적는다 — 조용히 버리면 주소와 화면이 다른데 그것을 알 방법이 없다.
+   *
+   * `acceptedNoSimilar` 는 유사 후보가 없는 기준을 그래도 쓰겠다고 한 확인이다. 이것도
+   * 주소에 있어야 한다 — 화면 state 로 두면 새로고침 뒤 기준은 남는데 화면만 1단계
+   * 경고로 되돌아가, 이 티켓이 없애려는 실패가 그 경로에만 남는다.
    */
   const rawBase = searchParams.get(ANALYZE_BASE_PARAM)
   const {
@@ -59,7 +68,12 @@ export function AnalyzePage() {
     picked,
     dropped,
     rejected,
-  } = useAnalyzeSelection(rawBase, searchParams.get(ANALYZE_WITH_PARAM))
+    acceptedNoSimilar,
+  } = useAnalyzeSelection(
+    rawBase,
+    searchParams.get(ANALYZE_WITH_PARAM),
+    searchParams.get(ANALYZE_NO_SIMILAR_PARAM),
+  )
 
   /**
    * 기준을 주소에 적는다. 지울 때는 `null`.
@@ -94,14 +108,29 @@ export function AnalyzePage() {
     )
   }
 
+  /**
+   * "유사 후보가 없어도 그래도 쓰겠다" 를 주소에 적는다.
+   *
+   * 1단계에서 2단계로 넘어가는 변화라 `push` 다 — 뒤로가기를 누르면 경고로 돌아간다.
+   * 기준을 바꾸면 `setBase` 가 쿼리를 새로 만들면서 이 확인도 함께 지운다. 확인은 그
+   * 기준에 대한 것이라 다른 이름으로 넘어가면 안 된다.
+   */
+  function acceptNoSimilar() {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set(ANALYZE_NO_SIMILAR_PARAM, '1')
+      return next
+    })
+  }
+
   const [draft, setDraft] = useState(submitted ?? '')
   const [extraError, setExtraError] = useState<string | null>(null)
   /**
-   * 유사 후보(similar_package)가 없는 이름에 대한 "그래도 진행" 확인.
-   * `noDataBaseAccepted` — 경고를 보고도 기준으로 쓰겠다고 한 이름.
-   * `noDataExtra` — 직접 추가하려는데 유사 후보가 없어 확인을 기다리는 이름.
+   * 직접 추가하려는데 유사 후보가 없어 확인을 기다리는 이름.
+   *
+   * 기준 쪽의 같은 확인은 주소에 있다(`acceptedNoSimilar`) — 그쪽은 어느 단계를 볼지
+   * 정하므로 새로고침에 살아남아야 하고, 이쪽은 누르는 그 순간에만 뜨는 물음이다.
    */
-  const [noDataBaseAccepted, setNoDataBaseAccepted] = useState<string | null>(null)
   const [noDataExtra, setNoDataExtra] = useState<string | null>(null)
   /** 보고서로 넘기기 직전 확인에서 자료가 없어 뺀 이름들 */
   const [unavailable, setUnavailable] = useState<string[]>([])
@@ -152,7 +181,7 @@ export function AnalyzePage() {
     hasReportData &&
     !missing &&
     similar.data?.data_status === 'NO_DATA' &&
-    noDataBaseAccepted !== submitted
+    !acceptedNoSimilar
 
   const base =
     submitted && similar.data && hasReportData && !missing && !noDataBase ? submitted : null
@@ -195,9 +224,9 @@ export function AnalyzePage() {
   }
 
   function resetBase() {
-    setNoDataBaseAccepted(null)
     setLimitHit(false)
     setExtraError(null)
+    // 유사 후보 확인도 함께 지워진다 — `setBase` 가 쿼리를 새로 만든다.
     setBase(null)
   }
 
@@ -417,7 +446,7 @@ export function AnalyzePage() {
                 <NoSimilarWarning
                   name={submitted}
                   confirmLabel="그래도 기준으로 쓰기"
-                  onConfirm={() => setNoDataBaseAccepted(submitted)}
+                  onConfirm={acceptNoSimilar}
                   onCancel={() => {
                     setBase(null)
                     setDraft('')

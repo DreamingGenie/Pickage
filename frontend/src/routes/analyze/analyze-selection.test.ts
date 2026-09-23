@@ -16,6 +16,7 @@ describe('readAnalyzeSelection', () => {
       picked: ['dayjs', 'luxon'],
       dropped: [],
       rejected: [],
+      acceptedNoSimilar: false,
     })
   })
 
@@ -25,6 +26,7 @@ describe('readAnalyzeSelection', () => {
       picked: [],
       dropped: [],
       rejected: [],
+      acceptedNoSimilar: false,
     })
   })
 
@@ -80,6 +82,7 @@ describe('readAnalyzeSelection', () => {
       picked: [],
       dropped: [],
       rejected: [],
+      acceptedNoSimilar: false,
     })
   })
 
@@ -88,6 +91,29 @@ describe('readAnalyzeSelection', () => {
       base: 'lodash',
       picked: ['dayjs'],
     })
+  })
+
+  /*
+    유사 후보가 없는 기준을 "그래도 쓰겠다" 고 한 확인. 화면 state 로 두면 새로고침 뒤
+    기준은 주소에 남는데 화면만 1단계 경고로 되돌아가, 이 화면이 없애려는 실패가 그
+    경로에만 남는다.
+  */
+  it('유사 후보 없음 확인을 주소에서 읽는다', () => {
+    expect(readAnalyzeSelection('lodash', null, '1').acceptedNoSimilar).toBe(true)
+    expect(readAnalyzeSelection('lodash', null, null).acceptedNoSimilar).toBe(false)
+    expect(readAnalyzeSelection('lodash', null, 'true').acceptedNoSimilar).toBe(false)
+  })
+
+  /*
+    빈 결과가 모듈 상수를 돌려쓰면, 호출부가 그 배열을 제자리에서 한 번만 바꿔도
+    이후의 모든 "기준 없음" 결과가 함께 오염된다.
+  */
+  it('빈 결과도 호출마다 제 배열을 가진다', () => {
+    const a = readAnalyzeSelection(null, null)
+    const b = readAnalyzeSelection(null, null)
+
+    expect(a.picked).not.toBe(b.picked)
+    expect(a.dropped).not.toBe(b.dropped)
   })
 })
 
