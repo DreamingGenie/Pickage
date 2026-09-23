@@ -1,24 +1,21 @@
 import { Loader2Icon, SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import { fetchPackagesOverview, fetchSimilarPackages, postCommunityRefresh } from '@/api/endpoints'
 import { usePackagesOverview, useSimilarPackages } from '@/api/queries'
-import { MAX_NAMES } from '@/api/types'
-import { paths } from '@/app/routes'
+import { ANALYZE_BASE_PARAM, paths } from '@/app/routes'
 import { EmptyState } from '@/components/common/empty-state'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { LoadingOverlay } from '@/components/common/loading-overlay'
 import { Notice } from '@/components/common/notice'
 import { Stepper } from '@/components/common/stepper'
 import { Button } from '@/components/ui/button'
+import { MAX_COMPARISON, useAnalyzeSelection } from '@/routes/analyze/analyze-selection'
 import { CandidateGrid } from '@/routes/analyze/candidate-grid'
 import { MissingPackage, NoSimilarWarning } from '@/routes/analyze/missing-package'
 import { PackageSearch } from '@/routes/analyze/package-search'
 import { SelectionPanel } from '@/routes/analyze/selection-panel'
-
-/** 기준 패키지를 포함한 비교 대상 수(IA §1-3). 서버의 `names` 상한과 같은 값이다. */
-const MAX_COMPARISON = MAX_NAMES
 
 /**
  * 화면에 깔 후보 수(IA §6.1-4: 기준 제외 최대 3개, 모두 미선택으로 노출).
@@ -39,26 +36,69 @@ const VISIBLE_CANDIDATES = 3
  */
 export function AnalyzePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   /**
-   * prefill — 인트로 히어로에서 넘어온 입력값.
-   * restore — 보고서에서 "비교 대상 바꾸기"로 되돌아온 경우의 확정 선택.
-   *           이미 확인된 패키지들이라 재확인 없이 2단계부터 다시 연다.
+   * 확인을 요청한 기준 패키지. **확정된 기준이 아니다** — 아래 `base` 가 확정본이다.
+   *
+   * <h2>주소가 들고 있다</h2>
+   *
+   * 예전에는 라우터 state 로만 받았다. 브라우저는 history state 를 새로고침 뒤에도 남기므로,
+   * 다른 패키지로 바꿔 검색한 뒤 새로고침하면 처음 넘어온 패키지로 되돌아갔다
+   * (S15P21A506-435). 주소에 실으면 새로고침·뒤로가기·공유가 전부 같은 화면을 연다.
+   *
+   * 존재 확인과 후보 조회를 <b>한 번에</b> 한다 — 유사 패키지 응답이 이름이 없으면
+   * `not_found` 로 알려주기 때문이다. 존재만 보려고 따로 한 번 더 부르면 왕복이 두 번이 되고,
+   * 두 응답 사이에 이름이 사라지는 경우까지 다뤄야 한다.
+   *
+   * `rejected` 는 주소에 적혀 있었지만 npm 이름 형식이 아니라 조회하지 않은 것이다.
+   */
+  const { base: submitted, rejected } = useAnalyzeSelection(
+    searchParams.get(ANALYZE_BASE_PARAM),
+    null,
+  )
+
+  /**
+   * 보고서에서 "비교 대상 바꾸기" 로 되돌아온 경우의 확정 선택. 이미 확인된 패키지들이라
+   * 재확인 없이 2단계부터 다시 연다. **기준은 주소가 들고 오므로 여기서는 나머지만 쓴다.**
    */
   const location = useLocation()
-  const nav = location.state as { prefill?: string; restore?: string[] } | null
-  const restore = nav?.restore
+  const restore = (location.state as { restore?: string[] } | null)?.restore
 
   /*
-    넘겨받은 state 는 첫 렌더에서 한 번만 쓴다. 브라우저는 history state 를 새로고침 뒤에도 남겨서,
-    그대로 두면 다른 패키지로 바꾼 뒤 새로고침했을 때 처음 넘어온 패키지로 되돌아갔다.
+    넘겨받은 state 는 첫 렌더에서 한 번만 쓴다. 남겨 두면 기준을 바꾼 뒤 새로고침했을 때
+    옛 기준의 후보가 새 기준에 그대로 붙는다.
+
+    **주소는 지우지 않는다.** `location.pathname` 만 넘기면 기준까지 함께 날아가서,
+    이 화면이 없애려는 버그가 그대로 돌아온다.
   */
   useEffect(() => {
-    if (location.state) navigate(location.pathname, { replace: true, state: null })
+    if (location.state) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+    }
     // 마운트 때 한 번만 비운다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const [draft, setDraft] = useState(nav?.prefill ?? restore?.[0] ?? '')
+  /**
+   * 기준을 주소에 적는다. 지울 때는 `null`.
+   *
+   * `replace` 는 히스토리에 자국을 남기지 않을 때만 쓴다 — 오타를 고치는 도중처럼
+   * 사용자가 "되돌아가고 싶어 할 지점" 이 아닌 변화다.
+   */
+  function setBase(name: string | null, options?: { replace?: boolean }) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (name) next.set(ANALYZE_BASE_PARAM, name)
+        else next.delete(ANALYZE_BASE_PARAM)
+        return next
+      },
+      { replace: options?.replace ?? false },
+    )
+  }
+
+  const [draft, setDraft] = useState(submitted ?? '')
   const [extraError, setExtraError] = useState<string | null>(null)
   /**
    * 유사 후보(similar_package)가 없는 이름에 대한 "그래도 진행" 확인.
@@ -78,14 +118,6 @@ export function AnalyzePage() {
   /** 방금 추가한 패키지. 선택 패널 아래 "추가했어요 · 되돌리기" 알림에 쓴다. */
   const [lastAdded, setLastAdded] = useState<string | null>(null)
 
-  /**
-   * 확인을 요청한 이름. **확정된 기준이 아니다.**
-   *
-   * 존재 확인과 후보 조회를 <b>한 번에</b> 한다 — 유사 패키지 응답이 이름이 없으면
-   * `not_found` 로 알려주기 때문이다. 존재만 보려고 따로 한 번 더 부르면 왕복이 두 번이 되고,
-   * 두 응답 사이에 이름이 사라지는 경우까지 다뤄야 한다.
-   */
-  const [submitted, setSubmitted] = useState<string | null>(nav?.prefill ?? restore?.[0] ?? null)
   /** 직접 추가 왕복 중 기준이 바뀌었는지 판별용 — state 클로저는 await 뒤에도 옛 값이라 ref 로 최신값을 쥔다. */
   const submittedRef = useRef(submitted)
   useEffect(() => {
@@ -152,12 +184,12 @@ export function AnalyzePage() {
     }
     setPicked([])
     setLimitHit(false)
-    setSubmitted(q)
+    setBase(q)
   }
 
   function resetBase() {
     setNoDataBaseAccepted(null)
-    setSubmitted(null)
+    setBase(null)
     setPicked([])
     setLimitHit(false)
     setExtraError(null)
@@ -338,8 +370,10 @@ export function AnalyzePage() {
                     /*
                     오류는 상태가 아니라 조회 결과에서 파생된다. 지우려면 "무엇을 확인했는지" 를
                     비워야 한다 — 그래야 조회가 꺼지고 문구도 함께 사라진다.
+
+                    오타를 고치는 도중이라 히스토리에 남길 지점이 아니다 — `replace` 로 지운다.
                   */
-                    if (missing) setSubmitted(null)
+                    if (missing) setBase(null, { replace: true })
                   }}
                   onSubmit={verify}
                   ariaLabel="기준 npm 패키지명"
@@ -365,13 +399,22 @@ export function AnalyzePage() {
 
               {missing ? (
                 <MissingPackage name={missing} />
+              ) : rejected.length > 0 ? (
+                /*
+                  주소에 적혀 있었지만 npm 이름 형식이 아니라 조회하지 않은 것. 조용히 빈
+                  화면을 띄우면 링크를 받은 사람은 무엇이 잘못됐는지 알 방법이 없다.
+                */
+                <Notice tone="error" title="주소에 적힌 패키지 이름을 읽지 못했어요">
+                  <span className="font-mono">{rejected.join(', ')}</span> 는 npm 패키지 이름
+                  형식이 아니에요. 위에 이름을 직접 넣어 주세요.
+                </Notice>
               ) : noDataBase && submitted ? (
                 <NoSimilarWarning
                   name={submitted}
                   confirmLabel="그래도 기준으로 쓰기"
                   onConfirm={() => setNoDataBaseAccepted(submitted)}
                   onCancel={() => {
-                    setSubmitted(null)
+                    setBase(null)
                     setDraft('')
                   }}
                 />

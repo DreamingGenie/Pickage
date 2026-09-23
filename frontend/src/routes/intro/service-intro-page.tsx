@@ -56,7 +56,15 @@ export function ServiceIntroPage() {
       setError(parsed.reason)
       return
     }
-    navigate(paths.analyze(), { state: { prefill: raw.trim() } })
+    /*
+      기준 패키지를 주소에 실어 넘긴다(S15P21A506-435). 라우터 state 로 넘기면 브라우저가
+      새로고침 뒤에도 그것을 남겨서, 분석 화면에서 패키지를 바꾼 뒤 새로고침하면 여기서
+      넘긴 이름으로 되돌아갔다.
+
+      보내는 값은 사용자가 친 원문이 아니라 `parsed` 가 떼어낸 이름이다 — `lodash@^4` 를
+      그대로 보내면 서버 이름 규칙에 `@`·`^` 가 없어 V004 로 거절당한다.
+    */
+    navigate(paths.analyze(parsed.value.name))
   }
 
   return (

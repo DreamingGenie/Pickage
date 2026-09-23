@@ -205,12 +205,15 @@ export function ReportPage() {
           </h1>
         </div>
 
-        {/* 되돌아가기. 확정한 선택을 그대로 들고 가서 2단계부터 다시 연다 */}
+        {/*
+          되돌아가기. 확정한 선택을 그대로 들고 가서 2단계부터 다시 연다.
+          기준은 주소에 싣고(S15P21A506-435), 나머지 선택은 아직 state 로 넘긴다.
+        */}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(paths.analyze(), { state: { restore: packages } })}
+            onClick={() => navigate(paths.analyze(packages[0]), { state: { restore: packages } })}
           >
             <ArrowLeftIcon className="size-3.5" aria-hidden />
             비교 대상 바꾸기
