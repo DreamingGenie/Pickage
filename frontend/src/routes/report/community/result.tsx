@@ -31,7 +31,7 @@ function issueCountText(count: number | null | undefined): string {
  */
 function OpenIssuesCard({ openIssues }: { openIssues: number | null | undefined }) {
   return (
-    <div className="flex w-full flex-col gap-1 rounded-2xl border bg-card px-5 py-4 sm:w-40">
+    <div className="flex w-full flex-col justify-between gap-1 rounded-2xl border bg-card px-5 py-4 sm:w-56">
       <p className="text-base text-muted-foreground">열린 Issue</p>
       <p className="text-3xl leading-tight font-bold tracking-tight">{issueCountText(openIssues)}</p>
       <p className="text-base text-muted-foreground">
@@ -87,10 +87,11 @@ export function CommunityResultView({
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-start">
+        <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-stretch">
           {/* 예전엔 요약 수치 4칸 행의 하나였다 — 나머지 3칸·수집 상태 배지 행과 함께 없애고 이 칸만
               저장소 카드 옆으로 올렸다(S15P21A506-469). 터미널 상태(저장소 미확인 등)에는 조회할
-              저장소 자체가 없어 함께 두지 않는다. */}
+              저장소 자체가 없어 함께 두지 않는다. `sm:items-stretch` 로 저장소 카드와 높이를 맞춘다
+              — 저장소 카드는 두 줄(이름+ⓘ, 배지+날짜)이라 이 칸(세 줄)보다 보통 낮다. */}
           {!terminalMessage && <OpenIssuesCard openIssues={openIssues} />}
           <div className="flex w-full flex-col gap-2.5 rounded-2xl border bg-card px-5 py-4 sm:w-80">
             <div className="flex items-center justify-between gap-2">
