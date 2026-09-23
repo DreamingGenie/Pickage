@@ -76,23 +76,41 @@ describe('서버가 새 필드를 아직 안 보낼 때', () => {
     // 없는 채로 온다. 그때 undefined.toFixed() 가 render 중에 터지면 이 패널만 비는
     // 것이 아니라 **보고서 페이지 전체가 빈 화면**이 된다 — 라우터의 에러 경계가 받기
     // 때문이고, 이 화면에서 실제로 한 번 겪은 고장 방식이다.
-    // 비율이 없으면 문장 자체를 세울 수 없다 — 수를 지어내지 않고 그 사실을 말한다.
+    // 비율만 없으면 알고 있는 수로 문장을 세운다 — 가진 것까지 버리지 않는다.
     expect(observationHint('winston', { name: 'pino', dependents: 397, aPct: undefined })).toBe(
-      '관측된 수를 받지 못했어요',
+      'winston을 지운 프로젝트 397곳이 pino를 넣었어요',
     )
 
     // 프로젝트 수만 없으면 괄호를 지우고 비율만 낸다.
     expect(observationHint('winston', { name: 'pino', dependents: undefined, aPct: 8.4 })).toBe(
       'winston을 지운 프로젝트 중 8.4%가 pino를 넣었어요',
     )
+
+    // 둘 다 없을 때만 수를 지어내지 않고 그 사실을 말한다.
+    expect(
+      observationHint('winston', { name: 'pino', dependents: undefined, aPct: undefined }),
+    ).toBe('관측된 수를 받지 못했어요')
   })
 })
 
 describe('말풍선 문장', () => {
   it('비율이 앞에 오고 실수가 괄호로 간다', () => {
     expect(observationHint('winston', { name: 'pino', dependents: 50, aPct: 8.4 })).toBe(
-      'winston을 지운 프로젝트 중 8.4%(50곳)가 pino를 넣었어요',
+      'winston을 지운 프로젝트 중 8.4%(50곳)이 pino를 넣었어요',
     )
+  })
+
+  /**
+   * 괄호가 붙고 안 붙고에 따라 조사가 갈린다 — "곳" 은 받침이 있고 "퍼센트" 는 없다.
+   * 한 쪽만 보고 '가' 로 굳히면 다른 쪽이 "…(50곳)가" 가 된다 (S15P21A506-468 리뷰).
+   */
+  it('괄호가 붙으면 조사가 이로 바뀐다', () => {
+    expect(observationHint('winston', { name: 'pino', dependents: 50, aPct: 8.4 })).toContain(
+      '(50곳)이 pino',
+    )
+    expect(
+      observationHint('winston', { name: 'pino', dependents: undefined, aPct: 8.4 }),
+    ).toContain('8.4%가 pino')
   })
 
   it('이름의 받침에 따라 조사가 갈린다', () => {

@@ -152,12 +152,22 @@ export function observationHint(
   const share = typeof dest.aPct === 'number' ? `${dest.aPct.toFixed(1)}%` : null
   const projects = typeof dest.dependents === 'number' ? dest.dependents.toLocaleString() : null
 
-  if (share === null) return '관측된 수를 받지 못했어요'
+  if (share === null && projects === null) return '관측된 수를 받지 못했어요'
 
   const removed = `${from}${josa(from, '을', '를')}`
   const added = `${dest.name}${josa(dest.name, '을', '를')}`
-  const count = projects === null ? '' : `(${projects}곳)`
-  return `${removed} 지운 프로젝트 중 ${share}${count}가 ${added} 넣었어요`
+
+  // 비율만 없을 때(배포 시차) 알고 있는 수까지 버리지 않는다 — 수만으로도 문장이 선다.
+  if (share === null) return `${removed} 지운 프로젝트 ${projects}곳이 ${added} 넣었어요`
+
+  /*
+    조사는 **마지막으로 소리 나는 말**에 맞춘다 — 괄호 안까지 읽는 관용이다.
+    수가 없으면 "8.4%가"(퍼센트, 받침 없음), 붙으면 "8.4%(50곳)이"(곳, 받침 ㅅ).
+    `josa` 에 기호가 아니라 **읽는 말**을 넘기는 이유가 이것이다.
+  */
+  const measured = projects === null ? share : `${share}(${projects}곳)`
+  const subject = `${measured}${josa(projects === null ? '퍼센트' : '곳', '이', '가')}`
+  return `${removed} 지운 프로젝트 중 ${subject} ${added} 넣었어요`
 }
 
 /**
