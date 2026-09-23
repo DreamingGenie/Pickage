@@ -39,7 +39,14 @@ export interface RemovalCounts {
 
 export interface PackageRemovalReasons {
   key: string
-  /** 서버가 값으로 실어 보낸다(`"transitions"`). 캡션에 그대로 쓴다 — 문서는 받는 쪽 코드에 안 닿는다. */
+  /**
+   * 서버가 값으로 실어 보낸다(`"transitions"`).
+   *
+   * **지금은 화면에 쓰지 않는다** (S15P21A506-468). 캡션이 `unit` 을 그대로 찍던 것을
+   * "뺀 횟수" 로 굳혔다 — 서버의 `RemovalReasonsResponse.UNIT` 이 상수 하나뿐이라
+   * 분기가 실제로는 한 갈래였고, 영문 단어가 그대로 노출될 위험만 남아 있었다.
+   * 계약 필드라 모델에는 남겨 둔다. 서버가 단위를 늘리는 날 캡션부터 고쳐야 한다.
+   */
   unit: string
   dataStatus: RemovalReasonsDataStatus
   /** COMPLETE·NO_DATA 일 때만 값이 있다. 나머지는 서버처럼 null — 0 으로 바꾸지 않는다. */

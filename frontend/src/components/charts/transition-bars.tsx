@@ -46,7 +46,7 @@ export function TransitionBars({
   counts,
   dataStatus,
   max,
-  mode = 'value',
+  mode = 'ratio',
   className,
 }: {
   counts: TransitionCounts | null
@@ -55,6 +55,11 @@ export function TransitionBars({
    *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. `ratio` 모드에서는
    *  쓰지 않는다(도넛은 패키지마다 자기 안에서 100%다). */
   max: number
+  /**
+   * **기본이 `ratio` 다** (S15P21A506-468). 값/비율 토글을 없애면서 화면에서 `value` 로
+   * 부르는 곳이 사라졌다 — 막대와 `릴리스 없음` 분해(S15P21A506-431)는 코드로만 남아
+   * 있고 시험이 지킨다. 되돌리려면 이 한 줄과 패널의 토글을 함께 살리면 된다.
+   */
   mode?: TransitionBarsMode
   className?: string
 }) {
@@ -139,9 +144,36 @@ function RatioDonut({
         : dataStatus === 'NOT_COMPUTED'
           ? '준비 중'
           : '판정한 의존자가 없습니다'
+    /**
+     * **비율을 못 내도 수는 남긴다** (S15P21A506-468 리뷰).
+     *
+     * `activityShares` 는 판정한 의존자가 0 이면 null 이다 — 나눌 분모가 없으니 옳다.
+     * 문제는 그때 `counts` 까지 버리고 문구 한 줄만 그렸다는 것이다. 값/비율 토글이
+     * 있던 동안에는 값 모드로 바꾸면 릴리스 없음 막대에 실제 수가 보여 가려지지 않았는데,
+     * 토글을 없애면서 <b>이 화면이 유일한 표시가 됐다.</b>
+     *
+     * 그대로 두면 의존자 412곳이 전부 이 기간에 릴리스를 안 낸 패키지가 "판정한 의존자가
+     * 없습니다" 한 줄로 끝나 <b>의존자가 아예 없는 것처럼 읽힌다</b> — 이 패널이 가장
+     * 경계하는 혼동("세어 보니 없었다" vs "몰라서 못 셌다")이다. 드문 경우도 아니다:
+     * 로컬 실측에서 1년 구간 행의 11.9%(34,777/293,235), 3년 7.1%, 5년 4.4% 가 여기 걸린다.
+     */
+    const observed = counts ? counts.retained + counts.inflowAdopted + counts.outflow : 0
+    const unobserved = counts?.unobserved ?? 0
+    const population = observed + unobserved
+
     return (
-      <div className={cn('flex min-h-32 flex-col items-center justify-center', className)}>
+      <div className={cn('flex min-h-32 flex-col items-center justify-center gap-2', className)}>
         <p className="text-base text-muted-foreground">{message}</p>
+        {/* 셀 곳이 있었을 때만. `NO_DATA`(전부 0)에 "의존자 0 중" 을 붙이면 군더더기다. */}
+        {population > 0 && (
+          <p className="text-center text-base text-muted-foreground/80">
+            의존자 {population.toLocaleString()} 중
+            <br />
+            <span className="text-muted-foreground/70">
+              {unobserved.toLocaleString()} 릴리스 없음
+            </span>
+          </p>
+        )}
       </div>
     )
   }
@@ -162,11 +194,21 @@ function RatioDonut({
             { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
           ]}
         />
-        {/* 두 줄 고정 — "의존자 N 중" / "M 판정". 문장으로 풀지 않는다(리뷰 지적). */}
+        {/*
+          **분모를 여기서만 말한다** (S15P21A506-468). 값(전체 대비) 모드가 사라지면서
+          `릴리스 없음` 칸이 화면에서 없어졌는데, 그 줄이 없으면 도넛이 전체를 나눈 것처럼
+          읽힌다 — 1년 구간 유지율이 87.2% 가 아니라 98.8% 로 보이는 그 오해다.
+
+          두 줄 고정. 문장으로 풀지 않는다(리뷰 지적).
+        */}
         <p className="text-base text-muted-foreground/80">
           의존자 {shares.total.toLocaleString()} 중
           <br />
           {shares.active.toLocaleString()} 판정
+          <br />
+          <span className="text-muted-foreground/70">
+            {(shares.total - shares.active).toLocaleString()} 릴리스 없음
+          </span>
         </p>
       </div>
       <dl className="flex w-full max-w-64 flex-col gap-1.5">

@@ -1,4 +1,5 @@
 import type { DependencyKindParam } from '@/api/types'
+import { josa } from '@/lib/josa'
 
 /**
  * 관측된 교체 흐름 view-model (S15P21A506-424).
@@ -128,31 +129,35 @@ export const EVIDENCE_LABEL: Record<MigrationEvidence, string> = {
  * 이번에는 <b>추상적이어서</b> 아무 수도 전하지 못했다.
  *
  * 셋째 판이 이것이다 — <b>그 쌍의 실제 수를 그대로 말한다.</b> 등급 낱말을 따로 변호할
- * 필요가 없어진다. 397곳·20.8% 를 보면 "근거 강함" 이 스스로 납득되고, 41곳·3.8% 면
- * 배지와 어긋나는 것이 눈에 보인다.
+ * 필요가 없어진다. 8.4%(50곳)를 보면 "근거 강함" 이 스스로 납득되고, 3.8%(41곳)면 배지와
+ * 어긋나는 것이 눈에 보인다.
+ *
+ * <b>비율이 앞에 오고 실수가 괄호로 간다</b>(S15P21A506-468). 사람이 먼저 알고 싶은 것은
+ * "몇 곳" 이 아니라 "얼마나" 다 — 397곳이 많은 수인지는 모집단을 알아야 판단할 수 있지만
+ * 20.8% 는 그 자체로 읽힌다.
+ *
+ * <b>이름을 문장에 넣는다.</b> 예전에는 조사(을/를)가 갈리는 것이 부담스러워 "이 패키지" 로
+ * 가리켰는데, 같은 줄에 이름이 있어도 <b>문장만 따로 읽으면 무엇 이야기인지 알 수 없다.</b>
+ * 조사는 {@link josa} 가 붙이고, 그 근사가 어긋나도 뜻은 달라지지 않는다.
  *
  * <b>값이 없을 수 있다고 보고 만든다.</b> 타입은 `number` 지만 그것은 컴파일 때의 약속일
- * 뿐이고, 런타임에 오는 것은 서버가 준 JSON 이다. `a_pct` 는 방금 서버에 더한 필드라
- * <b>프런트가 먼저 배포되거나 백엔드만 롤백되면 없는 채로 온다.</b> 그때
- * `undefined.toFixed()` 가 render 중에 터지면 이 패널만 비는 것이 아니라 라우터의
- * 에러 경계가 받아 <b>보고서 페이지 전체가 빈 화면이 된다</b> — 이 화면에서 실제로 한 번
- * 겪은 고장 방식이다. 이동 하나 때문에 다운로드·의존 수까지 사라지는 것은 이 패널이
- * 감당할 범위를 넘는다.
- *
- * 출발·도착 이름을 문장에 넣지 않는 것은 <b>조사 때문이다.</b> `moment 를`·`dayjs 를` 는
- * 이름의 끝소리에 따라 을/를 이 갈리는데, 패키지 이름은 무엇이든 올 수 있어 규칙을 세울
- * 수 없다. 이름은 이미 같은 줄에 있으므로 문장에서는 "이 패키지" 로 가리킨다.
+ * 뿐이고, 런타임에 오는 것은 서버가 준 JSON 이다. `undefined.toFixed()` 가 render 중에
+ * 터지면 이 패널만 비는 것이 아니라 라우터의 에러 경계가 받아 <b>보고서 페이지 전체가 빈
+ * 화면이 된다</b> — 이 화면에서 실제로 한 번 겪은 고장 방식이다.
  */
-export function observationHint(dest: {
-  dependents: number | null | undefined
-  aPct: number | null | undefined
-}): string {
+export function observationHint(
+  from: string,
+  dest: { name: string; dependents: number | null | undefined; aPct: number | null | undefined },
+): string {
+  const share = typeof dest.aPct === 'number' ? `${dest.aPct.toFixed(1)}%` : null
   const projects = typeof dest.dependents === 'number' ? dest.dependents.toLocaleString() : null
-  const share = typeof dest.aPct === 'number' ? dest.aPct.toFixed(1) : null
 
-  if (projects === null) return '관측된 수를 받지 못했어요'
-  if (share === null) return `이 패키지를 지운 프로젝트 ${projects}곳이 그때 함께 넣었어요`
-  return `이 패키지를 지운 프로젝트 ${projects}곳이 그때 함께 넣었어요 · 지운 경우의 ${share}%`
+  if (share === null) return '관측된 수를 받지 못했어요'
+
+  const removed = `${from}${josa(from, '을', '를')}`
+  const added = `${dest.name}${josa(dest.name, '을', '를')}`
+  const count = projects === null ? '' : `(${projects}곳)`
+  return `${removed} 지운 프로젝트 중 ${share}${count}가 ${added} 넣었어요`
 }
 
 /**

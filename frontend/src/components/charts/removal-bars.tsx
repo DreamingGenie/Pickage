@@ -7,9 +7,28 @@ import type {
 import { cn } from '@/lib/utils'
 
 /**
+ * 두 칸의 이름. **뜻이 정반대라 한 쪽만 고치면 수치가 뒤집힌다** (S15P21A506-468).
+ *
+ * 처음 이름은 "대체 없이 제거" · "다른 것과 함께 제거" 였다. 둘 다 "제거" 로 끝나고 앞말이
+ * 짧아 어느 쪽이 대체한 쪽인지 반대로 읽히기 쉬웠고, 실제로 아래쪽 뜻인 "다른 패키지로 대체"
+ * 를 <b>위쪽 이름으로</b> 바꿔 달라는 요청이 한 번 나왔다. 그대로 바꿨다면 winston 의
+ * 1,290건(70%)이 정반대 뜻이 된다 — 이 패널이 존재하는 이유가 "대체 없이 그냥 뺀 것이
+ * 70%" 라는 발견이라 치명적이다. <b>둘은 반드시 짝으로만 바꾼다.</b>
+ *
+ * 지금 이름은 그 짝을 맞춘 것이다 — 위쪽이 "없이", 아래쪽이 "로 대체" 라 서로 대구를 이룬다.
+ *
+ * <b>"대체" 는 이 지표가 증명하지 못하는 말이다.</b> 아는 것은 같은 릴리스에서 다른 것도
+ * 넣었다는 사실뿐이고, 그것이 대체품이라는 보장은 없다({@link RemovalCounts} 주석). 짧은
+ * 라벨을 택한 대가라, <b>계산 기준 모달이 그 한계를 반드시 이어 말해야 한다</b>
+ * (`removal-reasons-panel.tsx`). 라벨을 고칠 때 그 문단도 같이 본다.
+ */
+const NO_REPLACEMENT_LABEL = '대체 없이 제거'
+const WITH_REPLACEMENT_LABEL = '다른 패키지로 대체'
+
+/**
  * 이탈 사유 도넛 — 패키지 하나 (S15P21A506-410, 재설계 S15P21A506-427).
  *
- * **누적 막대가 아니라 도넛이다.** 막대였을 때는 막대 "안"의 두 색(대체 없이/함께 제거)이
+ * **누적 막대가 아니라 도넛이다.** 막대였을 때는 막대 "안"의 두 색(위 두 칸)이
  * 항상 100%를 채우는데도, 막대 "전체 길이"가 비교 패키지 중 최댓값 대비 상대 길이라
  * 짧게 그려진 패키지는 마치 셋째 범주가 빠진 것처럼 보였다(리뷰에서 확인된 오해).
  *
@@ -61,25 +80,25 @@ export function RemovalBars({
           size={104}
           ariaLabel="이탈 사유 비율"
           groups={[
-            { label: '대체 없이 제거', share: noPct / 100 },
-            { label: '다른 것과 함께 제거', share: (100 - noPct) / 100 },
+            { label: NO_REPLACEMENT_LABEL, share: noPct / 100 },
+            { label: WITH_REPLACEMENT_LABEL, share: (100 - noPct) / 100 },
           ]}
           fills={[SHARE_FILLS[0], SHARE_FILLS[2]]}
           // 총 건수를 가운데에 둔다 — %는 아래 범례에 이미 있어 반복하지 않는다.
           centerText={{ primary: total.toLocaleString(), secondary: '총 이탈' }}
         />
         <dl className="flex w-full max-w-64 flex-col gap-1.5">
-          {/* 대체 없이 제거가 이 지표의 결론이라 먼저·굵게 둔다. */}
+          {/* 이 지표의 결론이라 먼저·굵게 둔다. */}
           <Legend
             fill={SHARE_FILLS[0]}
-            label="대체 없이 제거"
+            label={NO_REPLACEMENT_LABEL}
             value={counts.noReplacement}
             percent={noPercent}
             strong
           />
           <Legend
             fill={SHARE_FILLS[2]}
-            label="다른 것과 함께 제거"
+            label={WITH_REPLACEMENT_LABEL}
             value={counts.withReplacement}
             percent={withPercent}
           />

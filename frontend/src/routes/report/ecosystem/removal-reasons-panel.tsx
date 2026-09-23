@@ -44,8 +44,6 @@ export function RemovalReasonsPanel({
     model.t1 && model.t2
       ? `${model.t1} ~ ${model.t2}`
       : '준비 중 — 이 기간은 아직 계산하지 않았어요'
-  /** 서버가 값으로 보낸 단위. 행이 하나도 없으면 계약상 기본값을 쓴다. */
-  const unit = model.packages[0]?.unit ?? 'transitions'
 
   return (
     <div
@@ -61,14 +59,14 @@ export function RemovalReasonsPanel({
           <InfoDialog label="이탈 사유 계산 기준 안내" title="계산 기준">
             <p>
               위 <strong>유지 · 유입 · 이탈</strong> 과 <strong>세는 단위가 달라요.</strong> 그쪽은
-              프로젝트를 이름으로 센 <strong>패키지 수</strong>이고, 이쪽은 뺀 일을 하나씩 센{' '}
-              <strong>횟수</strong>({unit})예요. 한 프로젝트가 뺐다가 다시 넣고 또 뺐으면 그쪽은 1,
-              이쪽은 2 예요. <strong>두 패널의 수를 더하거나 나누지 마세요.</strong>
+              프로젝트를 센 것이고 이쪽은 <strong>뺀 횟수</strong>예요. 한 프로젝트가 뺐다가 다시
+              넣고 또 뺐으면 그쪽은 1, 이쪽은 2 예요. <strong>두 패널의 수를 더하지 마세요.</strong>
             </p>
             <p>
-              <strong>다른 것과 함께 제거</strong> 는 같은 버전에서 다른 패키지를 함께 넣었다는
-              뜻이에요. 그것이 <strong>대체품이라는 보장은 없어요.</strong> 한 번에 의존성을 크게
-              정리했을 수도 있어요.
+              <strong>다른 패키지로 대체</strong> 는 같은 버전에서 다른 것도 넣었다는 뜻이에요.
+              그것이 <strong>정말 대체품이라는 보장은 없어요</strong> — 한 번에 의존성을 크게
+              정리했을 수도 있어요. 무엇으로 갔는지는 아래 <strong>어디로 옮겨 갔나</strong> 가
+              이름으로 답해요.
             </p>
             <p>
               센 대상은{' '}
@@ -81,8 +79,9 @@ export function RemovalReasonsPanel({
       </div>
 
       <p className="text-base text-muted-foreground">
-        최근 <strong className="text-foreground">{periodLabel}</strong> 간{' '}
-        {unit === 'transitions' ? '뺀 횟수' : unit} 기준이에요. 위 패널과 같은 기간을 봐요.
+        최근 <strong className="text-foreground">{periodLabel}</strong> 간 이 패키지를{' '}
+        <strong className="text-foreground">뺀 횟수</strong>를 두 가지로 나눈 거예요. 위 패널과 같은
+        기간이에요.
       </p>
 
       {state.status === 'loading' ? (

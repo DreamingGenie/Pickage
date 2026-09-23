@@ -282,7 +282,10 @@ function CrossDirections({ directions }: { directions: ReturnType<typeof crossDi
             <span className="font-mono text-base text-foreground tabular-nums">
               {d.sharePmPct.toFixed(1)}%
             </span>
-            <EvidenceBadge evidence={d.evidence} hint={observationHint(d)} />
+            <EvidenceBadge
+              evidence={d.evidence}
+              hint={observationHint(d.from, { ...d, name: d.to })}
+            />
             {d.variant && <VariantBadge />}
           </li>
         ))}
