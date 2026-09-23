@@ -46,7 +46,7 @@ export function TransitionBars({
   counts,
   dataStatus,
   max,
-  mode = 'value',
+  mode = 'ratio',
   className,
 }: {
   counts: TransitionCounts | null
@@ -55,6 +55,11 @@ export function TransitionBars({
    *  독립적으로 잡으면 패키지끼리 막대 길이를 비교할 수 없게 된다. `ratio` 모드에서는
    *  쓰지 않는다(도넛은 패키지마다 자기 안에서 100%다). */
   max: number
+  /**
+   * **기본이 `ratio` 다** (S15P21A506-468). 값/비율 토글을 없애면서 화면에서 `value` 로
+   * 부르는 곳이 사라졌다 — 막대와 `릴리스 없음` 분해(S15P21A506-431)는 코드로만 남아
+   * 있고 시험이 지킨다. 되돌리려면 이 한 줄과 패널의 토글을 함께 살리면 된다.
+   */
   mode?: TransitionBarsMode
   className?: string
 }) {
@@ -162,11 +167,21 @@ function RatioDonut({
             { label: CATEGORIES[2].label, share: shares.outflowPct / 100 },
           ]}
         />
-        {/* 두 줄 고정 — "의존자 N 중" / "M 판정". 문장으로 풀지 않는다(리뷰 지적). */}
+        {/*
+          **분모를 여기서만 말한다** (S15P21A506-468). 값(전체 대비) 모드가 사라지면서
+          `릴리스 없음` 칸이 화면에서 없어졌는데, 그 줄이 없으면 도넛이 전체를 나눈 것처럼
+          읽힌다 — 1년 구간 유지율이 87.2% 가 아니라 98.8% 로 보이는 그 오해다.
+
+          두 줄 고정. 문장으로 풀지 않는다(리뷰 지적).
+        */}
         <p className="text-base text-muted-foreground/80">
           의존자 {shares.total.toLocaleString()} 중
           <br />
           {shares.active.toLocaleString()} 판정
+          <br />
+          <span className="text-muted-foreground/70">
+            {(shares.total - shares.active).toLocaleString()} 릴리스 없음
+          </span>
         </p>
       </div>
       <dl className="flex w-full max-w-64 flex-col gap-1.5">

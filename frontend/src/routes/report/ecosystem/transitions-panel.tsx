@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
-import { TransitionBars, type TransitionBarsMode } from '@/components/charts/transition-bars'
+import { TransitionBars } from '@/components/charts/transition-bars'
 import { seriesStyle } from '@/components/charts/tokens'
 import { InfoDialog } from '@/components/common/info-dialog'
 import { SegmentedControl } from '@/components/common/segmented-control'
@@ -9,7 +9,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { MetricState } from '@/routes/report/ecosystem/model'
 import { DEPENDENTS_TERM } from '@/routes/report/ecosystem/terms'
 import {
-  populationLabel,
   TRANSITION_KIND_INFO,
   TRANSITION_KINDS,
   TRANSITION_PERIODS,
@@ -50,12 +49,6 @@ export function TransitionsPanel({
   className?: string
 }) {
   const [kind, setKind] = useState<TransitionKind>('regular')
-  /**
-   * 값(전체 대비 막대) · 비율(활동 대비 도넛) — 패널 전체가 공유하는 토글이다. 패키지마다
-   * 따로 두어 봤으나 오히려 불편하다는 피드백을 받았다 — 나란히 비교하는 화면에서 한쪽만
-   * 막대고 한쪽은 도넛이면 비교가 더 어려워진다. "조회 기간"과 같은 줄, 가운데에 둔다.
-   */
-  const [mode, setMode] = useState<TransitionBarsMode>('value')
 
   const rowsOf = (pkg: TransitionsModel['packages'][number]) =>
     pkg.rows.find((r) => r.kind === kind) ?? null
@@ -113,46 +106,31 @@ export function TransitionsPanel({
             그래프의 증감과 왜 다른지, 하나는 무엇을 세지 않는지 — 둘 다 이 패널의 **계산 기준**이라
             한 모달에 둔다.
           */}
+          {/*
+            **세 문단만 남긴다** (S15P21A506-468). 열 문단짜리였는데 읽히지 않는다는 지적을
+            받았다. 다만 통째로 빼지는 않았다 — 아래 둘은 없으면 화면이 거짓으로 읽힌다.
+
+              · "릴리스 없음" 이 자료 없음으로 읽히는 것 (그 칸이 npm 의 76.1%다)
+              · 기간을 넓히면 나아질 것처럼 보이는 것 (3년이 가장 많다)
+
+            분해(3년 안 · 3~5년 전 · 5년 초과) 설명은 뺐다. 값 모드와 함께 화면에서 사라져
+            설명할 대상이 없다.
+          */}
           <InfoDialog label="유지·유입·이탈 계산 기준 안내" title="계산 기준">
             <p>
-              {DEPENDENTS_TERM} 그래프의 증감과는 세는 방법이 달라요. 그쪽은 버전마다 센 값을 더한
-              것이고, 이 수치는{' '}
-              {model.population ? populationLabel(model.population) : '모은 패키지'} 중 프로젝트를
-              이름으로 하나씩 센 결과예요.
-            </p>
-            <p>개발할 때만 쓰는 의존(devDependencies)은 세지 않아요.</p>
-            {/*
-              S15P21A506-427. 막대 라벨은 "릴리스 없음"이라는 사실만 짧게 말한다 — 왜 그것이
-              "모른다"와 다른지는 여기서 밝힌다. 1년 구간에서 화면의 대부분을 먹는 칸이라
-              이 설명이 없으면 우리가 자료를 못 구한 것처럼 읽힌다.
-            */}
-            <p>
-              <strong>릴리스 없음</strong>은 자료를 못 구했다는 뜻이 아니에요. 그 프로젝트는 기간의
-              처음과 끝 모두 이 패키지를 그대로 적어 두고 있어요. 다만 그 사이에 새 버전을 내지
-              않아서, 계속 쓸지 다시 생각했는지는 판단하지 않았어요. npm 패키지의 76.1%가 최근 1년
-              동안 새 버전을 내지 않았어요.
+              {DEPENDENTS_TERM} 그래프와 세는 방법이 달라요. 그쪽은 버전마다 센 값을 더한 것이고,
+              이쪽은 프로젝트를 이름으로 하나씩 센 거예요. 개발할 때만 쓰는 의존(devDependencies)은
+              세지 않아요.
             </p>
             <p>
-              기간을 넓히면 <strong>릴리스 없음</strong>의 비율은 줄지만, 실제로 판단할 수 있는 수가
-              늘지는 않아요 — 기간이 길수록 새로 생긴 패키지가 많이 섞이기 때문이에요. 판단할 수
-              있는 수가 가장 많은 기간은 5년이 아니라 <strong>3년</strong>이에요.
-            </p>
-            {/*
-              S15P21A506-431. 분해 자체의 뜻과, 구간마다 비는 칸이 다른 이유. 화면에서 빈 칸은
-              아예 그리지 않으므로(freshnessSegments) 왜 안 보이는지를 여기서만 밝힐 수 있다.
-            */}
-            <p>
-              <strong>릴리스 없음</strong> 아래의 <strong>3년 안 · 3~5년 전 · 5년 초과</strong>는 그
-              프로젝트가 <strong>마지막으로 새 버전을 낸 때</strong>가 얼마나 지났는지예요. 셋을
-              더하면 릴리스 없음이 돼요 — 따로 센 것이 아니라 그 한 칸을 나눈 거예요. 5년이 넘었다면
-              잠시 쉬는 게 아니라 사실상 손을 뗀 프로젝트로 봐요.
+              <strong>판정하지 못한 프로젝트가 많아요.</strong> 기간의 처음과 끝 모두 이 패키지를
+              적어 두었지만 그 사이에 새 버전을 내지 않았다면, 계속 쓸지 다시 생각했는지 알 수
+              없어요. npm 패키지의 76.1%가 최근 1년 동안 새 버전을 내지 않았어요.{' '}
+              <strong>자료를 못 구한 것이 아니에요.</strong>
             </p>
             <p>
-              고른 기간에 따라 나오는 칸이 달라요. 3년으로 보면 <strong>3년 안</strong>은 나올 수
-              없고(그 사이에 새 버전을 냈다면 릴리스 없음이 아니니까요), 5년으로 보면 남는 칸이
-              <strong> 5년 초과</strong> 하나뿐이라 나눠 보여 드리지 않아요.{' '}
-              <strong>빈 칸은 자료가 없다는 뜻이 아니에요.</strong> 비율로 볼 때는 판단한 프로젝트만
-              세기 때문에 이 칸이 나오지 않고, 값으로 볼 때만 보여요.
+              기간을 넓혀도 판정할 수 있는 수는 늘지 않아요 — 기간이 길수록 새로 생긴 패키지가 많이
+              섞이기 때문이에요. 가장 많은 기간은 5년이 아니라 <strong>3년</strong>이에요.
             </p>
           </InfoDialog>
         </div>
@@ -160,9 +138,9 @@ export function TransitionsPanel({
       </div>
 
       {/*
-        3칸 그리드 — 양 끝 두 칸이 `1fr`라 가운데 칸(내용만큼만 차지)이 저절로 줄 가운데에
-        온다. 값/비율 토글을 여기 두는 이유는 "조회 기간"·"의존 종류"와 같은 줄이라 패널
-        전역 설정이라는 것이 위치로도 드러나서다.
+        3칸 그리드 — 양 끝에 "조회 기간"·"의존 종류" 를 밀어 두는 배치다. 가운데 칸은
+        값/비율 토글이 있던 자리로, 지금은 비어 있지만 그리드를 2칸으로 줄이지 않는다.
+        양 끝 정렬이 위 패널들과 같아야 줄이 맞는다.
       */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="justify-self-start">
@@ -173,17 +151,13 @@ export function TransitionsPanel({
             options={TRANSITION_PERIODS.map((p) => ({ key: p.key, label: p.label }))}
           />
         </div>
-        {/* 값(막대)·비율(도넛) — 패널 전체에 하나. */}
-        <SegmentedControl
-          label="표시 방식"
-          value={mode}
-          onChange={(k) => setMode(k as TransitionBarsMode)}
-          options={[
-            { key: 'value', label: '값' },
-            { key: 'ratio', label: '비율' },
-          ]}
-          className="justify-self-center"
-        />
+        {/*
+          **값/비율 토글을 없앴다** (S15P21A506-468). 두 모드의 분모가 달라서
+          (값=전체 대비 · 비율=판정한 것만) 고르는 것이 아니라 헷갈리는 자리였다.
+          비율만 남기되 분모를 도넛 옆에 글자로 남긴다 — "의존자 N 중 M 판정".
+          그 줄이 없으면 1년 구간 유지율이 87.2% 가 아니라 98.8% 로 보인다.
+        */}
+        <span aria-hidden />
         <div className="flex items-center gap-1.5 justify-self-end">
           <SegmentedControl
             label="의존 종류"
@@ -267,12 +241,7 @@ export function TransitionsPanel({
                     <span className="truncate font-mono text-base font-medium">{pkg.key}</span>
                   </div>
                   {row ? (
-                    <TransitionBars
-                      counts={row.counts}
-                      dataStatus={row.dataStatus}
-                      max={max}
-                      mode={mode}
-                    />
+                    <TransitionBars counts={row.counts} dataStatus={row.dataStatus} max={max} />
                   ) : (
                     <p className="text-base text-muted-foreground">자료 없음</p>
                   )}

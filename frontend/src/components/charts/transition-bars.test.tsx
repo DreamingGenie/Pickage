@@ -13,6 +13,11 @@ afterEach(cleanup)
  * 주면 순위 차가 큰 비교에서 부모와 하위가 전부 바닥값에 걸려 **하위 둘의 합이 부모의 두 배**로
  * 보인다. 그러면 한 칸의 분해가 아니라 더 큰 별도 범주로 읽힌다 — 눈으로는 "작은 막대 몇 개"로만
  * 보여 지나치기 쉬운 종류라 여기서 고정한다.
+ *
+ * **`mode="value"` 를 명시해야 한다** (S15P21A506-468). 화면에서 값/비율 토글이 빠지면서
+ * 기본값이 `ratio`(도넛)로 바뀌었다 — 생략하면 막대 자체가 그려지지 않아 이 시험이 지키려는
+ * 것을 못 본다. 막대 코드는 화면에서 부르는 곳이 없어졌지만, 토글을 되살릴 때를 위해
+ * 이 시험이 계속 지킨다.
  */
 const tiny: TransitionCounts = {
   retained: 10,
@@ -35,7 +40,7 @@ describe('TransitionBars — 관측불가 분해 막대', () => {
   it('하위 막대의 합이 부모 막대를 넘지 않는다', () => {
     // 큰 패키지와 함께 비교하는 상황: 이 행의 값은 전부 공유 스케일의 2% 미만이다.
     const { container } = render(
-      <TransitionBars counts={tiny} dataStatus="COMPLETE" max={100000} />,
+      <TransitionBars counts={tiny} dataStatus="COMPLETE" max={100000} mode="value" />,
     )
     const widths = barWidths(container)
 
@@ -53,6 +58,7 @@ describe('TransitionBars — 관측불가 분해 막대', () => {
         counts={{ ...tiny, unobservedFreshness: null }}
         dataStatus="COMPLETE"
         max={100000}
+        mode="value"
       />,
     )
     expect(barWidths(container)).toHaveLength(4)
