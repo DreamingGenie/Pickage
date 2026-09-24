@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime
 from pathlib import Path
 
@@ -209,6 +210,7 @@ class TransformParquetTests(unittest.TestCase):
             con3.close()
             temp3.cleanup()
 
+    @patch('pipeline.preprocessing.curated.transform._VERSION_BUCKET_ROWS', 1)
     def test_dependency_json_distinguishes_missing_empty_duplicate_and_conflict(self):
         versions = [
             _version("empty", "1.0.0", 1),
@@ -238,6 +240,87 @@ class TransformParquetTests(unittest.TestCase):
             self.assertIn('"dep":"^1"', dependencies["duplicate"])
             self.assertIsNone(dependencies["conflict"])
             self.assertIsNone(dependencies["null-dep"])
+            self.assertFalse(list(output.parent.glob('requirements-json*')))
+        finally:
+            con.close()
+            temp.cleanup()
+
+    @patch('pipeline.preprocessing.curated.transform._VERSION_BUCKET_ROWS', 1)
+    def test_multi_bucket_transform_preserves_rows_report_quality_and_cleans_requirements(self):
+        versions = [
+            _version("empty", "1.0.0", 1),
+            _version("missing", "1.0.0", 1),
+            _version("invalid", "1.0.0", 1),
+            _version("valid-a", "1.0.0", 1),
+            _version("valid-b", "1.0.0", 1),
+            _version("valid-c", "1.0.0", 1),
+            _version("future", "1.0.0", 1, published_at=datetime(2026, 9, 1)),
+            _version("nonrelease", "1.0.0", 1, is_release=False),
+        ]
+        requirements = [
+            _requirement("empty", "1.0.0"),
+            _requirement("invalid", "1.0.0", dependencies=[{"Name": "dep", "Requirement": None}]),
+            _requirement("valid-a", "1.0.0", dependencies=[{"Name": "dep-a", "Requirement": "^1"}]),
+            _requirement("valid-b", "1.0.0", peers=[{"Name": "peer", "Requirement": "^2"}]),
+            _requirement("valid-c", "1.0.0", optional=[{"Name": "optional", "Requirement": "^3"}]),
+            _requirement("future", "1.0.0"),
+            _requirement("nonrelease", "1.0.0"),
+        ]
+        results = []
+        for bucket_rows in (10_000, 1):
+            with patch('pipeline.preprocessing.curated.transform._VERSION_BUCKET_ROWS', bucket_rows):
+                temp, con, output, report = self.run_transform(versions, requirements)
+            try:
+                relations = {
+                    relation: self.read_rows(con, output, relation)
+                    for relation in (
+                        'package/data',
+                        'package_ids/data',
+                        'version/data',
+                        'quality/repository_selection',
+                        'quality/excluded_versions',
+                        'quality/dependency_issues',
+                        'quality/metadata_issues',
+                    )
+                }
+                requirements_clean = not list(output.parent.glob('requirements-json*'))
+                results.append((report, relations, requirements_clean))
+            finally:
+                con.close()
+                temp.cleanup()
+
+        baseline, bucketed = results
+        self.assertEqual(bucketed[0], baseline[0])
+        for relation in baseline[1]:
+            self.assertCountEqual(bucketed[1][relation], baseline[1][relation])
+        self.assertEqual(bucketed[0]['versions'], 6)
+        self.assertEqual(bucketed[0]['missing_requirements'], 1)
+        self.assertEqual(bucketed[0]['invalid_requirements'], 1)
+        self.assertEqual(bucketed[0]['output_counts']['version/data'], 6)
+        self.assertCountEqual(
+            bucketed[1]['quality/dependency_issues'],
+            [('invalid', '1.0.0', 'INVALID_REQUIREMENTS'),
+             ('missing', '1.0.0', 'MISSING_REQUIREMENTS')],
+        )
+        self.assertTrue(baseline[2])
+        self.assertTrue(bucketed[2])
+
+    @patch('pipeline.preprocessing.curated.transform._VERSION_BUCKET_ROWS', 1)
+    def test_empty_requirements_input_keeps_typed_missing_quality_row(self):
+        temp, con, output, report = self.run_transform(
+            [_version('pkg', '1.0.0', 1)], []
+        )
+        try:
+            self.assertEqual(report['missing_requirements'], 1)
+            self.assertEqual(report['invalid_requirements'], 0)
+            self.assertEqual(
+                self.read_rows(con, output, 'quality/dependency_issues'),
+                [('pkg', '1.0.0', 'MISSING_REQUIREMENTS')],
+            )
+            version = self.read_rows(con, output, 'version/data')
+            self.assertEqual(len(version), 1)
+            self.assertIsNone(version[0][-1])
+            self.assertFalse(list(output.parent.glob('requirements-json*')))
         finally:
             con.close()
             temp.cleanup()
@@ -277,13 +360,22 @@ class TransformParquetTests(unittest.TestCase):
             con.close()
             temp.cleanup()
 
-    def test_duplicate_requirements_rows_are_rejected(self):
-        versions = [_version("pkg", "1.0.0", 1)]
-        requirements = [
-            _requirement("pkg", "1.0.0"),
-            _requirement("pkg", "1.0.0"),
+    @patch('pipeline.preprocessing.curated.transform._VERSION_BUCKET_ROWS', 1)
+    def test_duplicate_requirements_rows_are_rejected_across_multi_bucket_input(self):
+        versions = [
+            _version("pkg-a", "1.0.0", 1),
+            _version("pkg-b", "1.0.0", 1),
+            _version("pkg-c", "1.0.0", 1),
         ]
-        self.assert_transform_error(versions, requirements, message="Duplicate requirements keys")
+        requirements = [
+            _requirement("pkg-a", "1.0.0"),
+            _requirement("pkg-a", "1.0.0"),
+            _requirement("pkg-b", "1.0.0"),
+            _requirement("pkg-c", "1.0.0"),
+        ]
+        self.assert_transform_error(
+            versions, requirements, message="Duplicate requirements keys"
+        )
 
     def test_ordinal_ties_have_deterministic_published_and_version_tiebreakers(self):
         versions = [

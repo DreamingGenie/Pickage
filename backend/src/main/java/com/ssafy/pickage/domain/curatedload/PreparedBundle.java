@@ -9,10 +9,21 @@ import java.util.Map;
 public record PreparedBundle(String prefix, String manifestSha256, String runId,
         LocalDate snapshot, String snapshotTimestamp, String manifestJson,
         String parentPrefix, String parentSha256, LocalDate parentSnapshot,
-        List<CopyFile> files, Map<String, Long> excludedDependentsReasons) {
+        List<CopyFile> files, Map<String, Long> excludedDependentsReasons,
+        Map<String, Long> dependencyDefaultedReasons, String dependencyDefaultedInputSha256) {
+    public PreparedBundle(String prefix, String manifestSha256, String runId,
+            LocalDate snapshot, String snapshotTimestamp, String manifestJson,
+            String parentPrefix, String parentSha256, LocalDate parentSnapshot,
+            List<CopyFile> files, Map<String, Long> excludedDependentsReasons) {
+        this(prefix, manifestSha256, runId, snapshot, snapshotTimestamp, manifestJson,
+                parentPrefix, parentSha256, parentSnapshot, files, excludedDependentsReasons,
+                Map.of(), null);
+    }
+
     public PreparedBundle {
         files = List.copyOf(files);
         excludedDependentsReasons = Map.copyOf(excludedDependentsReasons);
+        dependencyDefaultedReasons = Map.copyOf(dependencyDefaultedReasons);
     }
 
     public record CopyFile(String role, Path path, String sha256, long sourceRows,

@@ -128,7 +128,9 @@ def build_populations(con, calendar: list[dict], observed_timestamp: str, runtim
     con.executemany("INSERT INTO calendar VALUES (?,?,?,?)",
                     [(r["snapshot_index"], r["snapshot_at"], r["snapshot_timestamp"], r["timestamp_us"])
                      for r in calendar])
-    con.execute("""CREATE TABLE version_basis AS
+    # Keep the wide raw relation lazy while the birth relation is built.  The
+    # basis is consumed once and does not need a second full copy in scratch.
+    con.execute("""CREATE OR REPLACE TEMP VIEW version_basis AS
         SELECT v.package_id,p.name,v.version,v.published_at AS published_at_raw,
                v.published_at AT TIME ZONE 'UTC' AS published_at,
                epoch_us(v.published_at) AS published_at_us,r.dependency_error,
@@ -147,15 +149,25 @@ def build_populations(con, calendar: list[dict], observed_timestamp: str, runtim
                s.target_status
         FROM version_basis v JOIN semver_classification s USING(version)
         ASOF LEFT JOIN calendar c ON v.published_at_us<=c.timestamp_us""")
+    con.execute("DROP VIEW version_basis")
+    # Joining the full requirement structs directly makes DuckDB carry all
+    # dependency arrays through the hash table.  Project only the scalar
+    # quality fields needed by the population contract first.
+    con.execute("""CREATE OR REPLACE TEMP VIEW requirements_summary AS
+        SELECT Name,Version,Name IS NOT NULL AS requirements_present,
+               Name IS NOT NULL AND Dependencies IS NULL AS selected_list_null,
+               coalesce(array_length(Dependencies),0)::BIGINT AS declaration_count,
+               array_length(PeerDependencies)::BIGINT AS excluded_peer_count,
+               array_length(OptionalDependencies)::BIGINT AS excluded_optional_count
+        FROM input_requirements""")
     con.execute("""CREATE TABLE source_population AS
         SELECT v.package_id AS source_package_id,v.name AS source_name,v.version AS source_version,
                v.published_at_raw,v.published_at,v.published_at_us,v.birth_index,v.dependency_error,
-               r.Name IS NOT NULL AS requirements_present,
-               r.Name IS NOT NULL AND r.Dependencies IS NULL AS selected_list_null,
-               coalesce(array_length(r.Dependencies),0)::BIGINT AS declaration_count,
-               array_length(r.PeerDependencies)::BIGINT AS excluded_peer_count,
-               array_length(r.OptionalDependencies)::BIGINT AS excluded_optional_count
-        FROM version_birth v LEFT JOIN input_requirements r ON v.name=r.Name AND v.version=r.Version
+               coalesce(r.requirements_present,false) AS requirements_present,
+               coalesce(r.selected_list_null,false) AS selected_list_null,
+               coalesce(r.declaration_count,0)::BIGINT AS declaration_count,
+               r.excluded_peer_count,r.excluded_optional_count
+        FROM version_birth v LEFT JOIN requirements_summary r ON v.name=r.Name AND v.version=r.Version
         WHERE v.birth_index IS NOT NULL""")
     con.execute("""CREATE TABLE target_population AS
         SELECT package_id,name,version,published_at_raw,published_at,published_at_us,birth_index
@@ -206,6 +218,8 @@ def build_populations(con, calendar: list[dict], observed_timestamp: str, runtim
                                     [len(calendar)]).fetchone()[0]
     if independent_dense != summary["dense_target_snapshot_keys"]:
         raise ValueError("Birth intervals and dense key totals disagree")
+    con.execute("DROP TABLE version_birth")
+    con.execute("DROP VIEW requirements_summary")
     return {"statistics": summary, "runtime": runtime_metadata}
 
 

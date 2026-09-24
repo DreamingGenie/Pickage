@@ -69,7 +69,7 @@ def _snapshot(request, s3, work, workers):
     from pipeline.preprocessing.snapshot.input import read_candidate
     projects = work / "inputs" / "projects"
     for ref in request["calendar_refs"]:
-        hydrate_bronze(s3, ref, projects, table="projects", snapshot=ref["snapshot"], run_id=ref["run_id"])
+        hydrate_bronze(s3, ref, projects, table="projects", snapshot=ref["snapshot"], run_id=ref["run_id"], workers=workers)
     prefix = prefix_for("snapshot", request)
     output = work / "snapshot"
     candidate = output / "snapshot-candidate.json"
@@ -148,7 +148,7 @@ def execute_stage(name, request, completed, s3, work_dir):
         else:
             versions = work / "inputs" / "versions_full"
             hydrate_bronze(s3, request["raw_refs"]["versions_full"], versions,
-                           table="versions_full", snapshot=snapshot, run_id=request["bronze_run_id"])
+                           table="versions_full", snapshot=snapshot, run_id=request["bronze_run_id"], workers=workers)
         local_lock = work / "repository" / run_id / ".writer.lock"
         if local_lock.exists():
             raise ValueError("Repository local writer lock is held")

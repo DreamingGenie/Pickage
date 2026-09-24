@@ -78,6 +78,11 @@ class RepositoryDuckDBTransformTests(unittest.TestCase):
             report = transform(con, self._inputs(packages, versions, raws, projects), self.temp / "out")
         return report
 
+    def _run_target(self, packages, versions, raws, projects, target):
+        inputs = self._inputs(packages, versions, raws, projects)
+        with duckdb.connect(config={"threads": 2}) as con:
+            return transform(con, inputs, self.temp / "out", bucket_target_rows=target)
+
     def _rows(self, group, columns="*"):
         with duckdb.connect() as con:
             return con.execute(f"SELECT {columns} FROM read_parquet('{(self.temp / 'out' / group).as_posix()}/*.parquet', hive_partitioning=false) ORDER BY ALL").fetchall()
@@ -213,3 +218,28 @@ class RepositoryDuckDBTransformTests(unittest.TestCase):
             result = transform(con, inputs, self.temp / 'out')
         self.assertEqual(result['selection_reasons'], {'SELECTED': 1})
         self.assertEqual(self._rows('metric/data', 'stars, open_issues'), [(4, 2)])
+
+    def test_single_and_multi_bucket_outputs_are_equivalent(self):
+        packages = [(1, "alpha"), (2, "beta"), (3, "empty")]
+        versions = [(1, "1.0.0", TS, 1), (2, "1.0.0", TS, 1), (3, "1.0.0", TS, 1)]
+        raws = [(TS, "alpha", "1.0.0", True, TS, 1, "https://github.com/acme/shared"),
+                (TS, "beta", "1.0.0", True, TS, 1, "https://github.com/acme/shared"),
+                (TS, "empty", "1.0.0", True, TS, 1, None)]
+        projects = [(TS, "GITHUB", "acme/shared", 4, 2),
+                    (TS, "github", "ACME/SHARED", 5, 2),
+                    (TS, "GITHUB", "", 1, 1)]
+        single = self._run_target(packages, versions, raws, projects, 100)
+        compare_columns = {
+            "metric/data": "package_id, stars, open_issues",
+            "quality/selection": "package_id, version, reason, mapping_status",
+            "quality/candidates": "package_id, version, source_repo, repo_url, selected, reason",
+            "quality/project_observations": "repo_key, provider, project_path, stars, open_issues, source_rows, distinct_metric_pairs, invalid",
+            "quality/project_conflicts": "repo_key, provider, project_path, starscount, openissuescount, source_rows, invalid_metric, reason",
+            "quality/unmapped_projects": "Type, project_name, StarsCount, OpenIssuesCount, reason",
+        }
+        single_rows = {group: self._rows(group, columns) for group, columns in compare_columns.items()}
+        shutil.rmtree(self.temp / "out")
+        multi = self._run_target(packages, versions, raws, projects, 1)
+        multi_rows = {group: self._rows(group, columns) for group, columns in compare_columns.items()}
+        self.assertEqual(single, multi)
+        self.assertEqual(single_rows, multi_rows)

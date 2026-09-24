@@ -2,7 +2,9 @@ import hashlib
 import json
 import tempfile
 import unittest
+from functools import partial
 from pathlib import Path
+from unittest.mock import patch
 
 import duckdb
 from botocore.exceptions import ClientError
@@ -47,6 +49,8 @@ class FakeS3:
                 "IsTruncated": False}
 
     def put_object(self, Bucket, Key, Body, IfNoneMatch=None, IfMatch=None, **_):
+        if hasattr(Body, "read"):
+            Body = Body.read()
         old = self.objects.get((Bucket, Key))
         digest = hashlib.md5(Body).hexdigest()
         if IfNoneMatch == "*" and old is not None:
@@ -114,12 +118,17 @@ class WeeklyBuildIntegrationTests(unittest.TestCase):
                          workers=1, threads=1, memory="1GB", versions_table=versions_table)
 
     def rows(self, manifest, needle):
-        record = next(r for r in manifest["files"] if needle in r["key"])
-        body = self.s3.objects[(build.CURATED_BUCKET, record["key"])]
-        path = self.root / ("read-" + hashlib.md5(body).hexdigest() + ".parquet")
-        path.write_bytes(body)
+        paths = []
+        for record in manifest["files"]:
+            if needle not in record["key"]:
+                continue
+            body = self.s3.objects[(build.CURATED_BUCKET, record["key"])]
+            path = self.root / ("read-" + hashlib.md5(body).hexdigest() + ".parquet")
+            path.write_bytes(body)
+            paths.append(str(path))
+        self.assertTrue(paths, needle)
         with duckdb.connect() as con:
-            return con.execute("SELECT * FROM read_parquet(?)", [str(path)]).fetchall()
+            return con.execute("SELECT * FROM read_parquet(?)", [paths]).fetchall()
 
     def test_full_then_min_inherits_and_cumulates_missing_parent(self):
         ts0 = "2026-08-31T21:01:10"
@@ -138,7 +147,12 @@ class WeeklyBuildIntegrationTests(unittest.TestCase):
                 for name, version, *_ in min_versions]
         self.seed("2026-09-07", "raw-min", "versions_min", min_versions, self.min_schema)
         self.seed("2026-09-07", "raw-min", "requirements", req1, self.req_schema)
-        second = self.execute("2026-09-07", "raw-min", "curated-min", "versions_min")
+        # Force multiple shards even for this small fixture: reading only the
+        # first adapter output must fail the end-to-end row assertions.
+        with patch.object(build, "prepare_versions", partial(build.prepare_versions, output_buckets=2)):
+            second = self.execute("2026-09-07", "raw-min", "curated-min", "versions_min")
+        self.assertEqual(len(self.rows(second, "/weekly_versions/data/")), 3)
+        self.assertEqual(len(self.rows(second, "/quality/metadata_provenance/")), 3)
         version_rows = self.rows(second, "/version/data/")
         by_version = {row[0]: row for row in version_rows if row[1] == 1}
         self.assertEqual(by_version["1.0.0"][4:7], ("stable alpha", '["MIT"]', "old"))

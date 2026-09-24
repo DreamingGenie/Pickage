@@ -32,7 +32,7 @@ class _Experiment:
 class RealSnapshotRecoveryTests(unittest.TestCase):
     def test_recovery_reuses_completed_stages_and_prepared_input(self):
         # Keep the path short because the production output layout is nested.
-        with tempfile.TemporaryDirectory(dir="C:/", prefix="rc-") as folder:
+        with tempfile.TemporaryDirectory(prefix="rc-") as folder:
             root = Path(folder)
             fixture, request = make_weekly_fixture(root / "fixture", population=3)
             # Recovery currently uses two verification workers; keep the

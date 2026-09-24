@@ -54,4 +54,5 @@ def make_weekly_fixture(root, population=3):
     publish_parquet(fixture.s3, requirements, "requirements", SNAPSHOT, BRONZE_RUN)
     first["options"]["repository_engine"] = "duckdb"
     first["options"]["memory_limit"] = "1GB"
+    first["options"]["repository_max_temp_directory_size"] = "128MB"
     return fixture, first

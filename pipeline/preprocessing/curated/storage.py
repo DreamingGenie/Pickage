@@ -126,14 +126,20 @@ def _download_one(s3, bucket, record, cache_dir: Path) -> Path:
     try:
         result = s3.get_object(Bucket=bucket, Key=key)
         body = result["Body"]
-        with temporary_path.open("wb") as stream:
-            for block in iter(lambda: body.read(_CHUNK), b""):
-                digest.update(block)
-                size += len(block)
-                stream.write(block)
-        close = getattr(body, "close", None)
-        if close:
-            close()
+        try:
+            with temporary_path.open("wb") as stream:
+                for block in iter(lambda: body.read(_CHUNK), b""):
+                    if not block:
+                        continue
+                    if size + len(block) > expected_size:
+                        raise ValueError("Downloaded object exceeds manifest size")
+                    digest.update(block)
+                    size += len(block)
+                    stream.write(block)
+        finally:
+            close = getattr(body, "close", None)
+            if close:
+                close()
         if size != expected_size or digest.hexdigest() != expected_hash:
             raise ValueError("Downloaded object verification failed")
         os.replace(temporary_path, target)
@@ -184,12 +190,36 @@ def verify_files(s3, bucket, records, workers=4):
 def _upload_one(s3, bucket, prefix: str, directory: Path, path: Path):
     relative = path.resolve().relative_to(directory)
     key = "/".join(part for part in (prefix.strip("/"), *relative.parts) if part)
-    body = path.read_bytes()
-    size = len(body)
-    checksum = hashlib.sha256(body).hexdigest()
+    size, checksum = _hash_file(path)
     if size > _MAX_SINGLE_PUT:
         raise ValueError("Curated output exceeds single PUT limit")
-    put_immutable(s3, bucket, key, body)
+
+    # Stream the local file and never retain an entire Parquet object in RAM.
+    # A pre-existing object is accepted only after an exact streamed GET hash.
+    try:
+        remote = s3.head_object(Bucket=bucket, Key=key)
+    except Exception as error:
+        if not _not_found(error):
+            raise
+        remote = None
+    if remote is not None:
+        if int(remote.get("ContentLength", -1)) != size:
+            raise ValueError("Existing object differs")
+        _verify_remote(s3, bucket, key, size, checksum)
+    else:
+        try:
+            with path.open("rb") as stream:
+                s3.put_object(Bucket=bucket, Key=key, Body=stream, IfNoneMatch="*")
+        except Exception:
+            # A concurrent creator may have won the race. Verify its complete
+            # bytes before accepting it; unrelated failures remain failures.
+            try:
+                remote = s3.head_object(Bucket=bucket, Key=key)
+            except Exception:
+                raise
+            if int(remote.get("ContentLength", -1)) != size:
+                raise
+            _verify_remote(s3, bucket, key, size, checksum)
     _verify_remote(s3, bucket, key, size, checksum)
     return {"key": key, "bytes": size, "sha256": checksum}
 

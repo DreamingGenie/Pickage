@@ -127,7 +127,7 @@ def validate_request(value):
         if not bundle["run_prefix"].startswith("depsdev/v1/curated-bundle/snapshot=" + bundle["snapshot"] + "/"):
             raise ValueError("Parent bundle prefix date differs")
     options = value.get("options", {})
-    if not isinstance(options, dict) or set(options) - {"workers", "threads", "memory_limit", "repository_engine", "repository_max_temp_directory_size", "dependents_engine", "dependents_workers", "dependents_max_temp_size"}:
+    if not isinstance(options, dict) or set(options) - {"workers", "threads", "memory_limit", "repository_engine", "repository_max_temp_directory_size", "dependents_engine", "dependents_workers", "dependents_max_temp_size", "work_cleanup"}:
         raise ValueError("Unknown execution option")
     for field, default, limit in (("workers", 2, 16), ("threads", 2, 32)):
         number = options.get(field, default)
@@ -137,6 +137,8 @@ def validate_request(value):
         raise ValueError("memory_limit must be an explicit MB or GB value")
     if options.get("repository_engine", "duckdb") not in ("duckdb", "native", "docker"):
         raise ValueError("repository_engine must be duckdb, native or docker")
+    if options.get("work_cleanup", "none") not in ("none", "stage"):
+        raise ValueError("work_cleanup must be none or stage")
     if not re.fullmatch(r"[1-9][0-9]*(?:MB|GB)", options.get("repository_max_temp_directory_size", "100GB")):
         raise ValueError("repository_max_temp_directory_size must be an explicit MB or GB value")
     if options.get("dependents_engine", "parallel") not in ("parallel", "legacy"):

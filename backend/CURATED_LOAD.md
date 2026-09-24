@@ -9,7 +9,7 @@
 
 1. bundle manifest SHA와 `_SUCCESS`, 6개 단계의 manifest·marker·파일 목록을 검증한다.
 2. 서비스에 필요한 Parquet을 읽어 PostgreSQL COPY 파일로 변환한다. DuckDB는
-   1 thread, 메모리 한도 256MB를 사용하고 초과 중간 데이터는 작업 디렉터리에 쓴다.
+   1 thread, 메모리 한도 4GB를 사용하고 초과 중간 데이터는 작업 디렉터리에 쓴다.
 3. 파일별로 durable staging과 receipt를 같은 트랜잭션에 기록한다.
 4. DB의 현재 bundle과 입력의 `parent_bundle`이 정확히 같은지 확인한다.
 5. package/version을 upsert하고 두 snapshot 테이블, snapshot 날짜, 완료 이력을
@@ -92,6 +92,31 @@ DB 적재의 단일 실행 주체로 사용한다. 공유 advisory lock은 동�
 staging/WAL 최대 사용량을 측정하고 여유 공간 기준과 성공/실패 산출물 보관 주기를 정한다.
 
 ## 로컬 검증
+
+### 대량 적재와 재시작
+
+빈 DB의 최초 게시에서는 원본 Parquet 하나를 검증한 뒤 TSV를 최대 64MiB 묶음으로 나눈다.
+각 묶음을 임시 테이블에 COPY한 뒤 즉시 서비스 테이블에 INSERT하고 TSV와 임시 내용을 비운다.
+한 행이 묶음 한도를 넘으면 중단한다. 테스트용 `pickage.curated.bootstrap-copy-chunk-bytes`는
+1~67108864 bytes 범위에서 한도를 낮출 수 있다. NULL만 있는 파일과 빈 파일도 행 수 검증에 포함한다. 전체 baseline을 영구 staging에 복제하지 않는다. 부모가 없는 bundle만
+허용하며, 잠금을 잡은 뒤 서비스 테이블이 비어 있는지 다시 확인한다. 파일 간 중복과 참조 오류는
+최종 테이블의 PK/UK/FK로 검사한다. 마지막 파일이나 최종 검증에서 실패해도 서비스 행과 새
+스냅샷·파티션·게시 이력은 함께 롤백된다. 실패한 최초 적재는 처음부터 재실행한다.
+이후 게시에는 기존 staging 및 재시작 경로를 사용하고 값이 변경된 package/version만 UPDATE한다.
+한 스냅샷의 서비스 반영은 계속 하나의 트랜잭션이다. 이 처리 구조만으로 디스크 상한 내 성공을
+보장하지는 않으며, 실제 전체 입력의 제한된 파일시스템 실행 결과로 용량을 검증한다.
+JVM 옵션 `-Dpickage.curated.statement-timeout-seconds=10800`으로 SQL별 제한을 조정할 수 있다.
+기본 1800초, 허용 범위 1~21600초이며 제한 확대 자체가 성능 개선을 뜻하지 않는다.
+`CURATED_PUBLISH_SQL` 로그로 SQL별 시간과 반영 행 수를 확인한다.
+
+기존 stage는 동일 로더 계약에서만 자동 재사용한다. 코드가 바뀐 복구 실행은 변환 코드와
+DDL이 호환되는지 먼저 검토한 뒤에만 `curated-stage-reuse-v1` JSON proof를 만든다.
+필드: `current_contract_sha256`, `previous_contract_sha256`, `execution_id`,
+`manifest_sha256`, `reviewed_staging_compatible=true`, `review_evidence`.
+`-Dpickage.curated.stage-reuse-proof=<경로>`와
+`-Dpickage.curated.stage-reuse-proof-sha256=<파일 SHA256>`을 함께 지정한다.
+이는 특정 실행의 이전 receipt만 수용하는 명시적 복구이며 이전 계약/receipt를 새 값으로
+덮어쓰지 않는다. 파일 해시·중간 테이블 행 수·게시 검증은 그대로 수행한다.
 
 단위 시험: `./gradlew test --tests '*curatedload*'`
 

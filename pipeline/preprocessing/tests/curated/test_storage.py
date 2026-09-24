@@ -56,6 +56,8 @@ class FakeS3:
             raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
         if IfMatch is not None and (old is None or old[1] != IfMatch.strip('"')):
             raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
+        if hasattr(Body, "read"):
+            Body = Body.read()
         digest = hashlib.md5(Body).hexdigest()
         self.objects[(Bucket, Key)] = (Body, digest)
         return {"ETag": '"' + digest + '"'}
@@ -92,6 +94,36 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(paths, [target])
             self.assertEqual(target.read_bytes(), body)
             verify_files(self.s3, self.bucket, [record])
+
+    def test_download_rejects_oversized_stream_and_closes_body(self):
+        class TrackingBody(_Body):
+            def __init__(self, value):
+                super().__init__(value)
+                self.closed = False
+
+            def close(self):
+                self.closed = True
+
+        body = TrackingBody(b"too-large")
+        self.s3.objects[(self.bucket, "data/large.parquet")] = (body.value, "etag")
+        original = self.s3.get_object
+        self.s3.get_object = lambda **kwargs: {"Body": body}
+        record = {"key": "data/large.parquet", "bytes": 3, "sha256": hashlib.sha256(b"abc").hexdigest()}
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(ValueError):
+                download_files(self.s3, self.bucket, [record], root)
+        self.assertTrue(body.closed)
+        self.s3.get_object = original
+
+    def test_upload_streams_file_and_reuses_exact_existing_object(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "x.parquet"
+            path.write_bytes(b"x" * (2 * 1024 * 1024))
+            records = upload_outputs(self.s3, self.bucket, "run-2", Path(root), workers=1)
+            self.assertEqual(records[0]["bytes"], path.stat().st_size)
+            # The second call validates the remote object by streamed GET and
+            # does not need to read the local file into one bytes object.
+            self.assertEqual(upload_outputs(self.s3, self.bucket, "run-2", Path(root), workers=1), records)
 
     def test_upload_outputs_is_recursive_and_immutable(self):
         with tempfile.TemporaryDirectory() as root:

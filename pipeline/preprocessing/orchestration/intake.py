@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Mapping
 
 from pipeline.preprocessing.orchestration.contracts import validate_request, version_table
@@ -87,7 +88,7 @@ def hydrate_ref(s3, ref: Mapping[str, Any], target: Path) -> Path:
         raise
     return _materialize_verified(cached, target, size, ref["sha256"])
 
-def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: str, source_manifest=True) -> dict:
+def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: str, source_manifest=True, workers=1) -> dict:
     """Verify one native raw run and materialize its files; preserve source receipt as _MANIFEST.json."""
     from pipeline.preprocessing.curated.build import load_bronze
     prefix = ref["key"].rsplit("/", 1)[0]; manifest_body = _check_ref(s3, ref, waiting=True)
@@ -111,7 +112,9 @@ def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: st
     (destination / "_MANIFEST.json").write_bytes(source_body)
     cache = root.parent / ".raw-cache"
     from pipeline.preprocessing.curated.storage import download_files
-    for row in rows:
+    if not 1 <= workers <= 64:
+        raise ValueError("workers must be between 1 and 64")
+    def hydrate_row(row):
         key = row.get("key"); path = row.get("path") or (Path(key).name if isinstance(key, str) else None)
         if not isinstance(key, str) or not isinstance(path, str): raise ValueError("Bronze file requires key/path")
         path = _safe(path)
@@ -123,18 +126,20 @@ def hydrate_bronze(s3, ref, root: Path, *, table: str, snapshot: str, run_id: st
         else:
             cached = download_files(s3, ref["bucket"], [record], cache, workers=1)[0]
             _materialize_verified(cached, target, record["bytes"], record["sha256"])
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(hydrate_row, rows))
     return manifest
 
 def _check_schema(root: Path, expected: dict[str, str]) -> None:
     import duckdb
     files = sorted(Path(root).rglob("*.parquet"))
     if not files: raise ValueError("No Parquet files for schema validation")
-    for path in files:
-        with duckdb.connect(config={"threads": 1, "memory_limit": "256MB"}) as con:
+    with duckdb.connect(config={"threads": 1, "memory_limit": "256MB"}) as con:
+        for path in files:
             schema = dict((r[0], str(r[1]).upper()) for r in con.execute("DESCRIBE SELECT * FROM read_parquet(?, hive_partitioning=false)", [str(path)]).fetchall())
-        if any(name not in schema or schema[name].replace('"', '') != kind.upper().replace('"', '')
-               for name, kind in expected.items()):
-            raise ValueError(f"Raw schema mismatch: {path}")
+            if any(name not in schema or schema[name].replace('"', '') != kind.upper().replace('"', '')
+                   for name, kind in expected.items()):
+                raise ValueError(f"Raw schema mismatch: {path}")
 
 def _check_timestamp(root: Path, expected: str) -> None:
     import duckdb
@@ -173,12 +178,13 @@ def preflight(s3, request: dict, work_dir: Path) -> dict:
         validate_parent(s3, request)
     versions = version_table(request)
     manifests = {}
+    workers = request.get("options", {}).get("workers", 2)
     for table in (versions, "requirements"):
         manifests[table] = hydrate_bronze(s3, request["raw_refs"][table], work / "inputs" / table,
-                                          table=table, snapshot=request["snapshot"], run_id=request["bronze_run_id"])
+                                          table=table, snapshot=request["snapshot"], run_id=request["bronze_run_id"], workers=workers)
     projects = work / "inputs" / "projects"
     for ref in request["calendar_refs"]:
-        hydrate_bronze(s3, ref, projects, table="projects", snapshot=ref["snapshot"], run_id=ref["run_id"])
+        hydrate_bronze(s3, ref, projects, table="projects", snapshot=ref["snapshot"], run_id=ref["run_id"], workers=workers)
     _check_timestamp(Path(work) / "inputs" / versions, request["snapshot_timestamp"])
     _check_timestamp(Path(work) / "inputs" / "requirements", request["snapshot_timestamp"])
     _check_timestamp(projects / ("snapshot=" + request["snapshot"]), request["snapshot_timestamp"])

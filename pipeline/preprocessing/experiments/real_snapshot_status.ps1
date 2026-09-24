@@ -114,7 +114,14 @@ do {
             $dbPath = Join-Path $Root "run/db-$label/last-run.json"
             if (Test-Path -LiteralPath $dbPath) {
                 $db = Get-Content -LiteralPath $dbPath -Raw | ConvertFrom-Json
-                Write-Host "DB $label : $($db.status)"
+                Write-Host "DB $label last recorded result: $($db.status)"
+            }
+            if ($state.phase -eq "${label}:SPRING_DB_LOAD") {
+                $dbLog = Join-Path $Root "db-$label.log"
+                if (Test-Path -LiteralPath $dbLog) {
+                    Write-Host "Current DB log: $dbLog"
+                    Get-Content -LiteralPath $dbLog -Tail 6 | ForEach-Object { Write-Host $_ }
+                }
             }
         }
         if ($state.status -eq 'RUNNING' -and -not $alive) {

@@ -19,6 +19,8 @@ SOURCE_SUMMARY_SCHEMA = {
     "declaration_count": "BIGINT", "never_resolved_count": "BIGINT",
     "first_any_resolved_index": "INTEGER", "last_finite_resolved_index": "INTEGER",
 }
+SOURCE_BUCKET_TARGET_ROWS = 1_000_000
+SOURCE_BUCKET_MAX = 16
 
 
 def _calendar(n: int) -> None:
@@ -160,41 +162,59 @@ def finalize_quality_weighted(con, n: int) -> dict[str, Any]:
         LEFT JOIN target_population t USING(package_id,version)
         WHERE t.package_id IS NULL OR c.start_index<t.birth_index)""").fetchone()[0]:
         raise ValueError("count target is absent or interval begins before target birth")
-    con.execute("""CREATE OR REPLACE TEMP TABLE _weighted_sources AS
-        SELECT source_package_id,source_version,min(birth_index)::INTEGER birth_index,
-               bool_or(dependency_error) AS dependency_error,
-               sum(declaration_count)::BIGINT declaration_count,
-               sum(never_resolved_count)::BIGINT never_resolved_count,
-               min(first_any_resolved_index)::INTEGER first_any_resolved_index,
-               max(last_finite_resolved_index)::INTEGER last_finite_resolved_index,
-               min(birth_index)::INTEGER _birth_min,
-               max(birth_index)::INTEGER _birth_max,
-               bool_or(dependency_error=true) _has_error,
-               bool_or(dependency_error=false) _has_no_error,
-               bool_or(dependency_error IS NULL) _has_unknown
-        FROM all_source_summary GROUP BY source_package_id,source_version""")
-    print(f"QUALITY_STAGE weighted_sources elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
-    if con.execute("""SELECT EXISTS(SELECT 1 FROM _weighted_sources
-        WHERE _birth_min<>_birth_max
-           OR (_has_error AND _has_no_error)
-           OR (_has_error AND _has_unknown)
-           OR (_has_no_error AND _has_unknown))""").fetchone()[0]:
-        raise ValueError("source flags or birth differ across partitions")
-    _validate_sources(con, "_weighted_sources", n)
-    source_states = _source_status_series(con, n)
+    source_rows = int(con.execute("SELECT count(*) FROM all_source_summary").fetchone()[0])
+    buckets = min(SOURCE_BUCKET_MAX,
+                  max(1, (source_rows + SOURCE_BUCKET_TARGET_ROWS - 1) // SOURCE_BUCKET_TARGET_ROWS))
+    source_states = [{} for _ in range(n)]
+    source_birth, declaration_birth = {}, {}
+    total_sources = total_declarations = never_resolved = 0
+    for bucket in range(buckets):
+        con.execute(f"""CREATE OR REPLACE TEMP TABLE _weighted_sources AS
+            SELECT source_package_id,source_version,min(birth_index)::INTEGER birth_index,
+                   bool_or(dependency_error) AS dependency_error,
+                   sum(declaration_count)::BIGINT declaration_count,
+                   sum(never_resolved_count)::BIGINT never_resolved_count,
+                   min(first_any_resolved_index)::INTEGER first_any_resolved_index,
+                   max(last_finite_resolved_index)::INTEGER last_finite_resolved_index,
+                   min(birth_index)::INTEGER _birth_min,
+                   max(birth_index)::INTEGER _birth_max,
+                   bool_or(dependency_error=true) _has_error,
+                   bool_or(dependency_error=false) _has_no_error,
+                   bool_or(dependency_error IS NULL) _has_unknown
+            FROM all_source_summary
+            WHERE hash(source_package_id) % {buckets} = {bucket}
+            GROUP BY source_package_id,source_version""")
+        if con.execute("""SELECT EXISTS(SELECT 1 FROM _weighted_sources
+            WHERE _birth_min<>_birth_max
+               OR (_has_error AND _has_no_error)
+               OR (_has_error AND _has_unknown)
+               OR (_has_no_error AND _has_unknown))""").fetchone()[0]:
+            raise ValueError("source flags or birth differ across partitions")
+        _validate_sources(con, "_weighted_sources", n)
+        for values in con.execute(
+                "SELECT birth_index,count(*),sum(declaration_count),sum(never_resolved_count) "
+                "FROM _weighted_sources GROUP BY birth_index").fetchall():
+            birth, count, declarations, unresolved = map(int, values)
+            source_birth[birth] = source_birth.get(birth, 0) + count
+            declaration_birth[birth] = declaration_birth.get(birth, 0) + declarations
+            total_sources += count
+            total_declarations += declarations
+            never_resolved += unresolved
+        bucket_states = _source_status_series(con, n)
+        for index in range(n):
+            for status, count in bucket_states[index].items():
+                source_states[index][status] = source_states[index].get(status, 0) + count
+        con.execute("DROP TABLE _weighted_sources")
+        con.execute("DROP TABLE _weighted_source_status_deltas")
+    print(f"QUALITY_STAGE weighted_sources buckets={buckets} elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     print(f"QUALITY_STAGE source_statuses elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     declaration_states = _event_series(con, "all_status_deltas", "snapshot_index", "status", n)
     print(f"QUALITY_STAGE declaration_statuses elapsed_seconds={time.perf_counter() - started_at:.3f}", flush=True)
     target_birth = dict(con.execute("SELECT birth_index,count(*) FROM target_population GROUP BY birth_index").fetchall())
-    source_birth = dict(con.execute("SELECT birth_index,count(*) FROM _weighted_sources GROUP BY birth_index").fetchall())
-    declaration_birth = dict(con.execute("SELECT birth_index,sum(declaration_count)::BIGINT FROM _weighted_sources GROUP BY birth_index").fetchall())
     edge_deltas = dict(con.execute("""SELECT snapshot_index,sum(delta)::BIGINT FROM (
         SELECT start_index snapshot_index,dependents_count delta FROM all_counts
         UNION ALL SELECT end_index,-dependents_count FROM all_counts
         ) GROUP BY snapshot_index""").fetchall())
-    totals = con.execute("""SELECT count(*),coalesce(sum(declaration_count),0),
-        coalesce(sum(never_resolved_count),0) FROM _weighted_sources""").fetchone()
-    total_sources, total_declarations, never_resolved = map(int, totals)
     targets = edges = selected = sources = 0
     rows = []
     for index in range(n):

@@ -77,7 +77,11 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
     prefix = run_prefix(request)
     local = Path(work_dir).resolve() / request["run_id"]
     _validate_work_path(local, request["run_id"])
-    local.mkdir(parents=True, exist_ok=True)
+    if request.get("options", {}).get("work_cleanup", "none") == "stage":
+        from pipeline.preprocessing.orchestration.workspace import claim
+        claim(local, request["run_id"])
+    else:
+        local.mkdir(parents=True, exist_ok=True)
     execute = _executor or _default_executor
     preflight = _preflight or _default_preflight
     workers = request.get("options", {}).get("workers", 2)
@@ -137,6 +141,14 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
                             or descriptor.get("run_id") != request["run_id"]):
                         raise ValueError("Stage checkpoint identity mismatch")
                     verify_descriptor(s3, descriptor, workers=workers)
+                    if name == "snapshot" and _executor is None:
+                        metadata = descriptor.get("metadata", {})
+                        candidate = Path(metadata.get("candidate_path", ""))
+                        projects = Path(metadata.get("projects_dir", ""))
+                        if not candidate.is_file() or not projects.is_dir():
+                            replayed = execute(name, request, completed, stage_client, local)
+                            verify_descriptor(s3, replayed, workers=workers)
+                            descriptor = replayed
                     completed[name] = descriptor
                     state["stages"].setdefault(name, {}).update(status="COMPLETE", action="REVERIFIED")
                     save_state(s3, prefix, local, state)
@@ -162,6 +174,12 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
                 save_state(s3, prefix, local, state)
                 save_event(s3, prefix, local, {"stage": name, "status": "COMPLETE", "attempt": record["attempt"],
                                              "manifest_sha256": descriptor["manifest_sha256"]})
+                if request.get("options", {}).get("work_cleanup", "none") == "stage":
+                    from pipeline.preprocessing.orchestration.workspace import cleanup_stage
+                    removed = cleanup_stage(local, name)
+                    if removed:
+                        save_event(s3, prefix, local, {"stage": name, "status": "WORKSPACE_CLEANED",
+                                                       "removed": removed})
             if code_contract() != contract:
                 raise ValueError("Generator code changed during execution")
             # Recheck references at commit: later stages cannot silently replace earlier results.
@@ -200,4 +218,11 @@ def run(request, s3, work_dir, *, resume=False, failpoint=None, _executor=None, 
                 save_event(s3, prefix, local, {"status": state["status"], "phase": state["phase"], "error": state["error"]})
             except Exception:
                 pass
+            if request.get("options", {}).get("work_cleanup", "none") == "stage":
+                try:
+                    from pipeline.preprocessing.orchestration.workspace import cleanup_failed
+                    removed = cleanup_failed(local)
+                    save_event(s3, prefix, local, {"status": "WORKSPACE_CLEANED_AFTER_FAILURE", "removed": removed})
+                except Exception:
+                    pass
             raise

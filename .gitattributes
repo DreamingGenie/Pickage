@@ -5,6 +5,7 @@
 # 증상이 "왜 이 스크립트가 갑자기 안 되지" 로 나타나 원인 찾기 어렵다.
 *.sh    text eol=lf
 *.conf  text eol=lf
+pipeline/preprocessing/runtime/workspace.role text eol=lf
 
 # systemd 유닛과 서버에서 `.` 로 읽거나 파싱하는 env 원본. 같은 이유다 —
 # CRLF 로 내려오면 systemd 는 값 끝에 \r 을 붙이고, sh 는 변수 끝에 \r 을 남기며,

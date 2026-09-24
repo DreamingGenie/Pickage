@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import duckdb
@@ -34,6 +35,7 @@ class ChangesTest(unittest.TestCase):
             con.close()
         return path
 
+    @patch('pipeline.preprocessing.curated.changes._BUCKET_ROWS', 1)
     def test_insert_update_unchanged_and_missing(self):
         with tempfile.TemporaryDirectory() as d:
             oldp = self._package(d, "oldp.parquet", [(1, "a", "r"), (2, "b", "r")])
@@ -68,6 +70,25 @@ class ChangesTest(unittest.TestCase):
             con = duckdb.connect()
             self.assertEqual(con.execute("SELECT count(*) FROM read_parquet(?)", [result["files"]["version_upserts"]["path"]]).fetchone()[0], 1)
             con.close()
+
+    def test_identical_json_rows_are_filtered_before_semantic_comparison(self):
+        """Large unchanged JSON populations must produce no upsert rows."""
+        with tempfile.TemporaryDirectory() as d:
+            p = self._package(d, "p.parquet", [(1, "a", "r")])
+            rows = [(1, str(i), "same", '{"a":1,"nested":{"b":[1,2,2]}}')
+                    for i in range(1000)]
+            old = self._parquet(d, "old.parquet", rows)
+            new = self._parquet(d, "new.parquet", rows)
+            result = build_changes([p], [old], [p], [new], Path(d) / "out")
+            con = duckdb.connect()
+            try:
+                self.assertEqual(
+                    con.execute("SELECT count(*) FROM read_parquet(?)",
+                                [result["files"]["version_upserts"]["path"]]).fetchone()[0],
+                    0,
+                )
+            finally:
+                con.close()
 
     def test_identity_null_and_duplicate_are_rejected(self):
         with tempfile.TemporaryDirectory() as d:

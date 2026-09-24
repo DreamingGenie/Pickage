@@ -67,6 +67,16 @@ class WeightedEventsTests(unittest.TestCase):
         rows = self.con.execute("SELECT * FROM p_status_deltas").fetchall()
         self.assertIn((0, "RESOLVED", 2), rows)
 
+    def test_partitioned_validation_rejects_duplicate_identity_across_forced_buckets(self):
+        self.con.executemany("INSERT INTO declarations VALUES (?,?,?,?,?,?,?,?,?,?)", [
+            (1, "1.0.0", "app", 0, False, 0, "dep", "^1", 10, 0),
+            (1, "1.0.0", "app", 0, False, 0, "dep", "^1", 10, 0),
+            (2, "1.0.0", "other", 0, False, 0, "dep", "^1", 10, 0),
+        ])
+        with patch("pipeline.preprocessing.version_dependents.historical_production_events._VALIDATION_BUCKET_TARGET_ROWS", 1):
+            with self.assertRaisesRegex(ValueError, "declaration identity"):
+                validate_weighted_inputs(self.con, N)
+
     def test_simultaneous_birth_and_winner_switch_uses_a_before_plus_b_once(self):
         self._interval(10, 0, 1, "RESOLVED", 20, "1.0.0")
         self._interval(10, 1, N, "RESOLVED", 20, "2.0.0")

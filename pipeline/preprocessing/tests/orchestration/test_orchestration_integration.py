@@ -25,11 +25,13 @@ class OrchestrationIntegrationTests(unittest.TestCase):
 
     def test_real_stages_publish_bundle_with_known_values_and_zero(self):
         first_request = self.fixture.first_request()
+        first_request["options"]["repository_max_temp_directory_size"] = "128MB"
         first = run(first_request, self.fixture.s3, self.work)
         self._assert_complete(first, first_request, [(1, "alpha")], rows=1,
                               zero_rows=1, null_rows=0)
 
         second_request = self.fixture.current_request_after()
+        second_request["options"]["repository_max_temp_directory_size"] = "128MB"
         second = run(second_request, self.fixture.s3, self.work)
         self._assert_complete(second, second_request,
                               [(1, "alpha"), (2, "beta"), (3, "gamma")],

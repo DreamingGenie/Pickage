@@ -105,6 +105,24 @@ class CuratedBundleReaderTest {
     }
 
     @Test
+    void enforcesConfiguredWorkBudgetBeforeWritingParquet() throws Exception {
+        Map<String, byte[]> objects = new HashMap<>();
+        Path source = Files.createTempDirectory("curated-reader-budget-source-");
+        putParquet(source.resolve("package.parquet"), "CREATE TABLE t(package_id INTEGER,name VARCHAR,repo_url VARCHAR);INSERT INTO t VALUES (1,'alpha',NULL);");
+        objects.put("stage/package.parquet", Files.readAllBytes(source.resolve("package.parquet")));
+        putBundle(objects);
+        String previous = System.getProperty("pickage.curated.work-budget-bytes");
+        try {
+            System.setProperty("pickage.curated.work-budget-bytes", "1");
+            CuratedBundleReader reader = new CuratedBundleReader(fakeS3(objects), Files.createTempDirectory("curated-reader-budget-"));
+            assertThrows(IOException.class, () -> reader.prepare(PREFIX, sha(objects.get(PREFIX + "/run_manifest.json"))));
+        } finally {
+            if (previous == null) System.clearProperty("pickage.curated.work-budget-bytes");
+            else System.setProperty("pickage.curated.work-budget-bytes", previous);
+        }
+    }
+
+    @Test
     void rejectsDuplicateServiceKeys() throws Exception {
         Map<String, byte[]> objects = new HashMap<>();
         Path source = Files.createTempDirectory("curated-reader-duplicate-");

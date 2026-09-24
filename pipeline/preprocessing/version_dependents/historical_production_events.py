@@ -11,7 +11,14 @@ from pipeline.preprocessing.version_dependents.historical_production_sql import 
 from pipeline.preprocessing.version_dependents.historical_production_quality import summarize_sources
 
 _BATCH_SIZE = 8192
+_VALIDATION_BUCKET_TARGET_ROWS = 20_000_000
 _EVENT_JSON = '[{"package_id":"INTEGER","version":"VARCHAR","snapshot_index":"INTEGER","delta":"BIGINT"}]'
+
+
+def _validation_bucket_count(con, relation: str) -> int:
+    """Choose bounded validation partitions without changing validation semantics."""
+    rows = int(con.execute(f"SELECT count(*) FROM {relation}").fetchone()[0])
+    return min(16, max(1, (rows + _VALIDATION_BUCKET_TARGET_ROWS - 1) // _VALIDATION_BUCKET_TARGET_ROWS))
 
 
 def validate_weighted_inputs(con, n: int) -> dict[str, int]:
@@ -55,9 +62,16 @@ def validate_weighted_inputs(con, n: int) -> dict[str, int]:
            OR trim(d.source_version)='' OR d.source_name IS NULL OR d.birth_index IS NULL
            OR d.birth_index<0 OR d.birth_index>=? OR d.original_declaration_index IS NULL
            OR d.original_declaration_index<0)
-        OR EXISTS(SELECT 1 FROM declarations GROUP BY source_package_id,source_version,original_declaration_index
-                  HAVING count(*)<>1)""", [n]).fetchone()[0]:
+        """, [n]).fetchone()[0]:
         raise ValueError("declaration identity or lookup mapping is invalid")
+    buckets = _validation_bucket_count(con, "declarations")
+    for bucket in range(buckets):
+        if con.execute(f"""SELECT EXISTS(
+                SELECT 1 FROM declarations
+                WHERE source_package_id IS NULL OR hash(source_package_id) % {buckets} = {bucket}
+                GROUP BY source_package_id,source_version,original_declaration_index
+                HAVING count(*)<>1)""").fetchone()[0]:
+            raise ValueError("declaration identity or lookup mapping is invalid")
     return {"target_names": int(con.execute("SELECT count(*) FROM target_names").fetchone()[0]),
             "lookups": int(con.execute("SELECT count(*) FROM lookups").fetchone()[0])}
 

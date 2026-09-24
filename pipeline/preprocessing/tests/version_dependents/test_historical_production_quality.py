@@ -6,9 +6,11 @@ import json
 import unittest
 
 import duckdb
+from unittest.mock import patch
 
 from pipeline.preprocessing.version_dependents.historical_production_events import aggregate_partition_weighted, validate_weighted_inputs
 from pipeline.preprocessing.version_dependents.historical_production_quality import finalize_quality_weighted, summarize_sources
+import pipeline.preprocessing.version_dependents.historical_production_quality as quality_module
 from pipeline.preprocessing.version_dependents.historical_production_sql import aggregate_partition, finalize_quality
 from pipeline.preprocessing.tests.version_dependents.test_historical_production_events import base_fixture
 
@@ -86,6 +88,24 @@ class WeightedQualityTests(unittest.TestCase):
         legacy = [row[0] for row in self.con.execute(
             "SELECT quality_json FROM history_quality ORDER BY snapshot_index").fetchall()]
         self.assertEqual(weighted, legacy)
+
+    def test_forced_source_buckets_match_unbucketed_quality(self):
+        partitions = [(0, [
+            (1, "1.0.0", 0, False, 0, "dep", "^1", 10, 0),
+            (2, "1.0.0", 0, False, 0, "dep", "^1", 10, 0),
+        ]), (1, [])]
+        with patch.object(quality_module, "SOURCE_BUCKET_TARGET_ROWS", 1):
+            bucketed_result = self._finalize(partitions)
+        bucketed = [row[0] for row in self.con.execute(
+            "SELECT quality_json FROM history_quality ORDER BY snapshot_index").fetchall()]
+        with patch.object(quality_module, "SOURCE_BUCKET_TARGET_ROWS", 1_000_000):
+            unbucketed_result = finalize_quality_weighted(self.con, N)
+        unbucketed = [row[0] for row in self.con.execute(
+            "SELECT quality_json FROM history_quality ORDER BY snapshot_index").fetchall()]
+        self.assertEqual(bucketed_result, unbucketed_result)
+        self.assertEqual(bucketed, unbucketed)
+        self.assertEqual([json.loads(row)["source_versions"] for row in bucketed], [2] * N)
+        self.assertEqual([json.loads(row)["selected_declarations"] for row in bucketed], [2] * N)
 
     def test_same_winner_different_lookup_fallback_deduplicates_edge(self):
         result = self._finalize([(0, [

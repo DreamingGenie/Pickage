@@ -7,6 +7,7 @@ import argparse
 from datetime import date
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import tempfile
@@ -138,20 +139,72 @@ def _parquet_files(directory):
     return files
 
 
-def _write_master(con, current_files, previous_files, output_dir, kind):
-    """Write a cumulative registry, with current rows winning by identity."""
+def _move_same_filesystem(source, target):
+    """Move a generated artifact without creating a second full-size copy."""
+    source = Path(source)
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if os.stat(source.parent).st_dev != os.stat(target.parent).st_dev:
+        raise ValidationError('Prepared artifact and output must share a filesystem')
+    source.replace(target)
+    return target
+
+
+def _write_master(con, current_files, previous_files, output_dir, kind, *, bucket_target_rows=1_000_000):
+    """Link current files and export only prior identities missing currently.
+
+    The current snapshot is already materialized as Parquet. Hardlinking it
+    avoids a second full-size copy. Historical rows are read in bounded hash
+    buckets and only rows absent from the current identity set are exported.
+    """
     target = Path(output_dir) / f'master_{kind}' / 'data'
     target.mkdir(parents=True, exist_ok=True)
-    current = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in current_files)
+    current_files = [Path(path).resolve() for path in current_files]
+    if not current_files:
+        raise ValidationError('No master output: ' + kind)
+    for index, source in enumerate(current_files):
+        destination = target / f'current-{index:03d}.parquet'
+        try:
+            os.link(source, destination)
+        except OSError as exc:
+            raise ValidationError(
+                f'Current master requires hardlinks on one filesystem: {source}'
+            ) from exc
     if previous_files:
-        previous = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in previous_files)
+        previous_files = [Path(path).resolve() for path in previous_files]
+        current_sql = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in current_files)
+        previous_sql = ','.join("'" + p.as_posix().replace("'", "''") + "'" for p in previous_files)
         key = 'package_id' if kind == 'package' else 'package_id, version'
-        query = f"SELECT * FROM read_parquet([{current}]) UNION ALL SELECT p.* FROM read_parquet([{previous}]) p ANTI JOIN read_parquet([{current}]) c USING ({key})"
-    else:
-        query = f"SELECT * FROM read_parquet([{current}])"
-    path = target / 'part-000000.parquet'
-    con.execute(f"COPY ({query}) TO ? (FORMAT PARQUET, COMPRESSION ZSTD)", [str(path)])
-    return [path]
+        count = max(
+            con.execute(f"SELECT count(*) FROM read_parquet([{previous_sql}], hive_partitioning=false)").fetchone()[0],
+            con.execute(f"SELECT count(*) FROM read_parquet([{current_sql}], hive_partitioning=false)").fetchone()[0],
+        )
+        if bucket_target_rows < 1:
+            raise ValueError('bucket_target_rows must be positive')
+        buckets = min(16, max(1, (int(count) + bucket_target_rows - 1) // bucket_target_rows))
+        for bucket in range(buckets):
+            current_bucket = (
+                f"SELECT * FROM read_parquet([{current_sql}], hive_partitioning=false) c0 WHERE "
+                f"(hash(CAST(c0.package_id AS VARCHAR)) % {buckets}) = {bucket}"
+            )
+            previous_bucket = (
+                f"SELECT * FROM read_parquet([{previous_sql}], hive_partitioning=false) p0 WHERE "
+                f"(hash(CAST(p0.package_id AS VARCHAR)) % {buckets}) = {bucket}"
+            )
+            query = (f"SELECT p.* FROM ({previous_bucket}) p ANTI JOIN ({current_bucket}) c "
+                     f"USING ({key})")
+            shard_dir = Path(tempfile.mkdtemp(prefix=f'.missing-{bucket:03d}-', dir=str(target.parent)))
+            con.execute(
+                f"COPY ({query}) TO '{shard_dir.as_posix().replace(chr(39), chr(39) * 2)}' "
+                "(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 65536, "
+                "FILE_SIZE_BYTES '256MB')")
+            for index, shard in enumerate(sorted(shard_dir.glob('*.parquet'))):
+                shard.replace(target / f'missing-{bucket:03d}-{index:03d}.parquet')
+            shard_dir.rmdir()
+    paths = sorted(target.glob('*.parquet'))
+    if not paths:
+        raise ValidationError('No master output: ' + kind)
+    return paths
 
 
 def _publish_pointer(s3, prefix, manifest_body, request, old_pointer):
@@ -261,6 +314,12 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
         attempt = uuid.uuid4().hex
         local = Path(tempfile.mkdtemp(prefix=run_id + '-', dir=root))
         output = local / 'outputs'
+        removed = []
+        def release_database(name):
+            database = local / name
+            size = database.stat().st_size
+            database.unlink()
+            removed.append({'path': name, 'bytes': size})
         with duckdb.connect(str(local / 'work.duckdb'), config={'threads': threads, 'memory_limit': memory}) as con:
             for table, files in inputs.items():
                 n = con.execute('SELECT sum(num_rows) FROM parquet_file_metadata(?)',
@@ -268,7 +327,7 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
                 if n != sources[table]['row_count']:
                     raise ValidationError('Parquet row count differs from manifest: ' + table)
             versions = inputs[versions_table]
-            provenance = None
+            provenance_files = []
             if versions_table == 'versions_min':
                 # Keep the adapter's temporary views isolated from transform's
                 # old_ids/old_packages relation names.
@@ -276,39 +335,52 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
                                     config={'threads': threads, 'memory_limit': memory}) as metadata_con:
                     prepared = prepare_versions(metadata_con, versions, previous_packages, previous_versions,
                                                  previous_ids, local / 'weekly-metadata',
-                                                 parent or {})
-                versions = [prepared['versions']]
-                provenance = prepared['provenance']
+                                                 parent or {}, provenance_format='parquet')
+                release_database('weekly-metadata.duckdb')
+                versions = prepared['versions']
+                provenance_files = prepared['provenance']
             report = transform(con, versions, inputs['requirements'],
                                previous_ids, snapshot, output, previous_packages if versions_table == 'versions_min' else None)
             if versions_table == 'versions_min':
                 published_versions = output / 'weekly_versions/data'
                 published_versions.mkdir(parents=True, exist_ok=True)
-                published_file = published_versions / 'part-000000.parquet'
-                source_sql = str(versions[0]).replace("'", "''")
-                target_sql = str(published_file).replace("'", "''")
-                con.execute(f"COPY (SELECT * FROM read_parquet('{source_sql}')) TO '{target_sql}' (FORMAT PARQUET, COMPRESSION ZSTD)")
-            if provenance:
+                versions = [_move_same_filesystem(source, published_versions / f'part-{index:06d}.parquet')
+                            for index, source in enumerate(versions)]
+            if provenance_files:
                 quality = output / 'quality/metadata_provenance'
                 quality.mkdir(parents=True, exist_ok=True)
-                provenance_sql = str(provenance).replace("'", "''")
-                quality_sql = str(quality / 'part-000000.parquet').replace("'", "''")
-                con.execute(f"COPY (SELECT * FROM read_json_auto('{provenance_sql}', format='newline_delimited')) TO '{quality_sql}' (FORMAT PARQUET, COMPRESSION ZSTD)")
-            current_packages = _parquet_files(output / 'package/data')
-            current_versions = _parquet_files(output / 'version/data')
-            master_packages = _write_master(con, current_packages, previous_packages,
+                for index, provenance in enumerate(provenance_files):
+                    quality_file = quality / f'part-{index:06d}.parquet'
+                    if provenance.suffix == '.parquet':
+                        _move_same_filesystem(provenance, quality_file)
+                    else:
+                        provenance_sql = str(provenance).replace("'", "''")
+                        quality_sql = str(quality_file).replace("'", "''")
+                        con.execute(f"COPY (SELECT * FROM read_json_auto('{provenance_sql}', format='newline_delimited')) TO '{quality_sql}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        # The wide transform connection is no longer needed after all normal
+        # outputs are durable. Close it before cumulative registries and change
+        # detection so their spill/high-water marks cannot overlap.
+        # Closing releases buffers, but only unlinking releases its allocated
+        # database blocks. All remaining consumers use the validated Parquet.
+        release_database('work.duckdb')
+        current_packages = _parquet_files(output / 'package/data')
+        current_versions = _parquet_files(output / 'version/data')
+        with duckdb.connect(config={'threads': threads, 'memory_limit': memory}) as registry_con:
+            registry_con.execute("SET preserve_insertion_order=false")
+            registry_con.execute("SET temp_directory=?", [str(local / 'registry-tmp')])
+            master_packages = _write_master(registry_con, current_packages, previous_packages,
                                             output, 'package')
-            master_versions = _write_master(con, current_versions, previous_versions,
+            master_versions = _write_master(registry_con, current_versions, previous_versions,
                                             output, 'version')
-            if previous_packages and previous_versions:
-                changes_dir = output / 'changes'
-                change_report = build_changes(previous_packages, previous_versions,
-                                              current_packages, current_versions,
-                                              changes_dir, threads=threads,
-                                              memory_limit=memory)
-                report['changes'] = change_report
-            else:
-                report['changes'] = None
+        if previous_packages and previous_versions:
+            changes_dir = output / 'changes'
+            change_report = build_changes(previous_packages, previous_versions,
+                                          current_packages, current_versions,
+                                          changes_dir, threads=threads,
+                                          memory_limit=memory)
+            report['changes'] = change_report
+        else:
+            report['changes'] = None
         print('Publishing: uploading and GET-verifying Curated files', flush=True)
         records = upload_outputs(s3, CURATED_BUCKET, prefix + '/attempts/' + attempt,
                                  output, workers=workers)
@@ -322,7 +394,6 @@ def run(s3, snapshot, bronze_run_id, run_id, work_dir, workers=4, threads=4, mem
         _publish_pointer(s3, prefix, body, request, old_pointer)
         # Both connections are closed and immutable outputs have been uploaded
         # and GET-verified. These databases are not inputs to recovery or consumers.
-        removed = []
         for name in ('work.duckdb', 'weekly-metadata.duckdb'):
             scratch_db = local / name
             if scratch_db.is_file():

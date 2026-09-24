@@ -19,7 +19,8 @@ import duckdb
 from pipeline.preprocessing.experiments.dependents.historical_parallel_benchmark import compare_runs
 from pipeline.preprocessing.requirements_resolution.input import file_sha256
 from pipeline.preprocessing.orchestration.dependents import calculate as sequential_calculate
-from pipeline.preprocessing.orchestration.dependents_parallel import calculate as parallel_calculate
+from pipeline.preprocessing.orchestration.dependents_parallel import (
+    _load_weekly_views, _prepare_tables, calculate as parallel_calculate)
 from pipeline.preprocessing.version_dependents import historical_parallel as parallel
 from pipeline.preprocessing.version_dependents.historical_parallel_input import from_prepared
 from pipeline.preprocessing.tests.version_dependents.test_historical_production import prepared_fixture
@@ -58,8 +59,8 @@ def _weekly_files(root):
             "Name VARCHAR,Version VARCHAR,Dependencies STRUCT(Name VARCHAR,Requirement VARCHAR)[],PeerDependencies STRUCT(Name VARCHAR,Requirement VARCHAR)[],OptionalDependencies STRUCT(Name VARCHAR,Requirement VARCHAR)[],SnapshotAt TIMESTAMP",
             [(names[pid], version,
               None if pid == 10 and version == "0.9.0" else
-              ([{"Name": "lib", "Requirement": "^1"}, {"Name": "lib", "Requirement": "^1"},
-                {"Name": "lib", "Requirement": "workspace:*"}] if pid == 10 else []),
+              ([{"Name": "ghost", "Requirement": "*"}, {"Name": "lib", "Requirement": "^1"},
+                {"Name": "lib", "Requirement": "^1"}, {"Name": "lib", "Requirement": "workspace:*"}] if pid == 10 else []),
               [], [], stamp)
              for pid, version, _ in versions])],
         "targets": _parquet(root / "targets.parquet", "name VARCHAR", [("lib",), ("zero",)]),
@@ -296,6 +297,42 @@ class ParallelDependentsOrchestrationTests(unittest.TestCase):
                 )
         finally:
             shutil.rmtree(output, ignore_errors=True)
+
+    def test_weekly_adapter_preserves_oracle_under_constrained_duckdb_budget(self):
+        files, snapshot, stamp = _weekly_files(self.root / "constrained-weekly")
+        oracle_dir = self.root / "constrained-oracle"
+        with duckdb.connect(config={"threads": 1, "memory_limit": "128MB"}) as con:
+            oracle_output, _, oracle_quality = sequential_calculate(
+                con, files=files, snapshot=snapshot, snapshot_timestamp=stamp,
+                output=oracle_dir)
+        output = Path(_short_temp_dir("pd-constrained-"))
+        try:
+            with duckdb.connect(config={"threads": 2, "memory_limit": "128MB"}) as con:
+                actual_output, _, actual_quality = parallel_calculate(
+                    con, files=files, snapshot=snapshot, snapshot_timestamp=stamp,
+                    output=output, workers=2, threads=2, memory_limit="128MB",
+                    max_temp_size="256MB")
+            self.assertEqual(actual_quality["resolution_status"], oracle_quality["resolution_status"])
+            for name in ("version_dependents.parquet", "quality.parquet", "resolution_lookup.parquet"):
+                with duckdb.connect() as con:
+                    self.assertEqual(
+                        sorted(con.execute("SELECT * FROM read_parquet(?)", [str(oracle_output / name)]).fetchall(), key=repr),
+                        sorted(con.execute("SELECT * FROM read_parquet(?)", [str(actual_output / name)]).fetchall(), key=repr),
+                        name)
+        finally:
+            shutil.rmtree(output, ignore_errors=True)
+
+    def test_selected_declaration_indices_preserve_original_positions(self):
+        files, snapshot, stamp = _weekly_files(self.root / "index-contract")
+        with duckdb.connect(config={"threads": 1, "memory_limit": "128MB"}) as con:
+            _load_weekly_views(con, files)
+            _prepare_tables(con, snapshot=snapshot, snapshot_timestamp=stamp,
+                            output=self.root / "index-contract-out")
+            rows = con.execute(
+                "SELECT declared_name,original_declaration_index,requirement "
+                "FROM declarations WHERE declared_name='lib' ORDER BY original_declaration_index,requirement"
+            ).fetchall()
+        self.assertEqual(rows, [("lib", 1, "^1"), ("lib", 2, "^1"), ("lib", 3, "workspace:*")])
 
     def test_non_release_raw_provenance_is_rejected_before_empty_publication(self):
         files, snapshot, stamp = _empty_weekly_files(self.root / "invalid-release")

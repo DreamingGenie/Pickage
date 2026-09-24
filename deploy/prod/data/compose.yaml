@@ -453,21 +453,30 @@ services:
   # 완료된 raw 회차의 전처리 재시도를 놓치지 않도록 별도로 실행한다.
   curated-dispatch:
     profiles: ["ingest", "all"]
-    image: pickage-curated:runtime
+    image: pickage-curated:bounded-runtime
     build:
-      context: ../../../pipeline
-      dockerfile: preprocessing/Dockerfile
+      context: ../../..
+      dockerfile: pipeline/preprocessing/runtime/Dockerfile.bounded
     restart: "no"
-    entrypoint: ["python", "-m", "pipeline.preprocessing.orchestration.dispatcher"]
+    command: ["python", "-m", "pipeline.preprocessing.orchestration.dispatcher"]
     environment:
       PICKAGE_MINIO_ENV: .env.data
+    privileged: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /run:size=16m
     volumes:
       - ../../..:/opt/work:ro
-      - /srv/pickage/ingest-work:/opt/work/data:rw
+      - curated-bounded-work:/var/lib/pickage-bounded
     working_dir: /opt/work
-    mem_limit: 4g
-    memswap_limit: 4g
+    mem_limit: 8g
+    memswap_limit: 8g
     cpus: 2.0
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
 
 # named volumes
 volumes:
@@ -491,6 +500,9 @@ volumes:
 
   # 내려받은 JAR 캐시. 없으면 배치를 돌릴 때마다 Maven 에서 다시 받는다.
   sparkivy:
+
+  # Curated dispatcher scratch is mounted into the bounded supervisor only.
+  curated-bounded-work:
 
   # MLflow 의 sqlite 파일. **모델 파일이 아니라 "어느 모델이 @production 인가" 다.**
   #

@@ -62,13 +62,32 @@ public final class CuratedLoadJob {
         state.put("started_at", Instant.now().toString());
         state.put("status", "PREPARING");
         save("last-run.json", state);
+        CuratedBundleReader reader = new CuratedBundleReader(s3, workDir.resolve("inputs"));
         try {
-            PreparedBundle bundle = new CuratedBundleReader(s3, workDir.resolve("inputs")).prepare(candidate.prefix(), candidate.sha256());
+            if (!adopt && database != null && published(candidate.prefix(), candidate.sha256())) {
+                state.put("status", "SKIPPED");
+                return "SKIPPED";
+            }
             CuratedBundlePublisher publisher = new CuratedBundlePublisher(database);
-            String result = adopt ? publisher.adoptBaseline(bundle) : publisher.publish(bundle);
+            PreparedBundle bundle;
+            String result;
+            if (adopt) {
+                bundle = reader.prepare(candidate.prefix(), candidate.sha256());
+                result = publisher.adoptBaseline(bundle);
+            } else if (publisher.requiresStreamingBootstrap()) {
+                CuratedBundlePublisher.StreamingPublication publication =
+                    publisher.publishStreamingBootstrap(reader, candidate.prefix(), candidate.sha256());
+                bundle = publication.bundle();
+                result = publication.result();
+            } else {
+                bundle = reader.prepareAndStage(candidate.prefix(), candidate.sha256(), publisher::stageFile);
+                result = publisher.publishStaged(bundle);
+            }
             state.put("status", result);
             state.put("snapshot", bundle.snapshot().toString());
             state.put("excluded_dependents_reasons", bundle.excludedDependentsReasons());
+            state.put("dependency_defaulted_reasons", bundle.dependencyDefaultedReasons());
+            state.put("dependency_defaulted_input_sha256", bundle.dependencyDefaultedInputSha256());
             state.put("files", bundle.files().stream().map(file -> Map.of("role", file.role(),
                 "source_rows", file.sourceRows(), "loaded_rows", file.loadedRows(), "excluded_rows", file.excludedRows())).toList());
             log.info("Curated load {}: {}", result, candidate.prefix());
@@ -79,6 +98,8 @@ public final class CuratedLoadJob {
             log.error("Curated load failed: {}", candidate.prefix(), failure);
             throw failure;
         } finally {
+            try { reader.cleanupActiveAttempt(); }
+            catch (Exception cleanupFailure) { log.warn("Curated temporary work cleanup failed", cleanupFailure); }
             state.put("finished_at", Instant.now().toString());
             save("last-run.json", state);
             save("events/" + java.util.UUID.randomUUID() + ".json", state);

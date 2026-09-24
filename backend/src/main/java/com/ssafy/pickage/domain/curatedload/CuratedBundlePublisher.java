@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 
 /** Publishes one verified Curated bundle atomically into the service database. */
 public final class CuratedBundlePublisher {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CuratedBundlePublisher.class);
     public static final String DATASET = "curated-bundle";
     private static final ObjectMapper JSON = new ObjectMapper();
     private final DataSource dataSource;
@@ -36,14 +37,21 @@ public final class CuratedBundlePublisher {
         String executionId = executionId(bundle);
         String contract = LoadContract.sha256();
         try {
-            for (PreparedBundle.CopyFile file : bundle.files()) stageFile(bundle, executionId, contract, file);
+            for (PreparedBundle.CopyFile file : bundle.files()) {
+                LOG.info("CURATED_STAGE role={} rows={} START", file.role(), file.loadedRows());
+                stageFile(bundle, executionId, contract, file);
+                LOG.info("CURATED_STAGE role={} COMPLETE", file.role());
+            }
             try (Connection c = dataSource.getConnection()) {
                 c.setAutoCommit(false);
                 try {
                     setTimeouts(c);
                     lockAll(c);
+                    LOG.info("CURATED_PUBLISH snapshot={} START", bundle.snapshot());
                     String result = publishTransaction(c, bundle, executionId, contract);
                     c.commit();
+                    LOG.info("CURATED_PUBLISH snapshot={} status={}", bundle.snapshot(), result);
+                    if ("PUBLISHED".equals(result)) cleanupPublishedStage(executionId);
                     return result;
                 } catch (Throwable e) {
                     try { c.rollback(); } catch (SQLException ignored) { }
@@ -96,6 +104,7 @@ public final class CuratedBundlePublisher {
                 validateExistingMatches(c, bundle, executionId);
                 recordPublication(c, bundle, executionId, contract);
                 c.commit();
+                cleanupPublishedStage(executionId);
                 return "PUBLISHED";
             } catch (Throwable e) {
                 try { c.rollback(); } catch (SQLException ignored) { }
@@ -106,7 +115,63 @@ public final class CuratedBundlePublisher {
         }
     }
 
-    private void stageFile(PreparedBundle b, String execution, String contract,
+    /** Returns true only for an empty database with no published Curated current. */
+    public boolean requiresStreamingBootstrap() throws SQLException {
+        try (Connection c = dataSource.getConnection()) {
+            try (PreparedStatement p = c.prepareStatement(
+                    "SELECT NOT (EXISTS (SELECT 1 FROM public.package) " +
+                    "OR EXISTS (SELECT 1 FROM public.version) " +
+                    "OR EXISTS (SELECT 1 FROM public.snapshot) " +
+                    "OR EXISTS (SELECT 1 FROM public.package_snapshot) " +
+                    "OR EXISTS (SELECT 1 FROM public.package_version_snapshot)) " +
+                    "AND NOT EXISTS (SELECT 1 FROM etl_dataset_current WHERE dataset=? )")) {
+                p.setString(1, DATASET);
+                try (ResultSet r = p.executeQuery()) { r.next(); return r.getBoolean(1); }
+            }
+        }
+    }
+
+    /** Streams a first bundle through one reusable per-role file table, inserting and truncating each file atomically. */
+    public StreamingPublication publishStreamingBootstrap(CuratedBundleReader reader, String prefix,
+                                                           String expectedSha256) throws Exception {
+        Objects.requireNonNull(reader, "reader");
+        try (Connection c = dataSource.getConnection()) {
+            c.setAutoCommit(false);
+            c.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            try {
+                setTimeouts(c); lockAll(c); lockServiceTables(c);
+                if (current(c) != null || !serviceEmpty(c))
+                    throw contractError("Streaming bootstrap requires an empty service database");
+                boolean[] initialized = {false};
+                PreparedBundle bundle = reader.prepareBootstrapStreaming(prefix, expectedSha256,
+                    (partial, file) -> {
+                        if (!initialized[0]) {
+                            if (partial.parentPrefix() != null || partial.parentSha256() != null || partial.parentSnapshot() != null)
+                                throw contractError("Bootstrap bundle must not declare a parent");
+                            ensurePartition(c, partial.snapshot());
+                            exec(c, "bootstrap-snapshot", "INSERT INTO public.snapshot(snapshot_at) VALUES (?)", java.sql.Date.valueOf(partial.snapshot()));
+                            initialized[0] = true;
+                        }
+                        copyBootstrapFile(c, partial, file);
+                    });
+                validateBundleShape(bundle);
+                if (bundle.parentPrefix() != null || bundle.parentSha256() != null || bundle.parentSnapshot() != null)
+                    throw contractError("Bootstrap bundle must not declare a parent");
+                String actualCounts = validateBootstrapCounts(c, bundle);
+                String executionId = executionId(bundle);
+                recordPublication(c, bundle, executionId, LoadContract.sha256(), actualCounts);
+                c.commit();
+                return new StreamingPublication(bundle, "PUBLISHED");
+            } catch (Throwable e) {
+                try { c.rollback(); } catch (SQLException ignored) { }
+                throw e;
+            } finally { c.setAutoCommit(true); }
+        }
+    }
+
+    public record StreamingPublication(PreparedBundle bundle, String result) { }
+
+    public void stageFile(PreparedBundle b, String execution, String contract,
                            PreparedBundle.CopyFile file) throws Exception {
         Role role = Role.of(file.role());
         String actual = sha256(file.path());
@@ -117,15 +182,49 @@ public final class CuratedBundlePublisher {
             try {
                 setTimeouts(c);
                 lockAll(c);
-                ensureReceiptContract(c, execution, role, actual, b.snapshot(), contract);
-                if (receiptMatches(c, execution, role, actual, contract, b.snapshot())) {
+                String receiptContract = StageReuseProof.receiptContract(contract, execution, b.manifestSha256());
+                ensureReceiptContract(c, execution, role, actual, b.snapshot(), receiptContract);
+                if (receiptMatches(c, execution, role, actual, receiptContract, b.snapshot())) {
+                    LOG.info("CURATED_STAGE_REUSED role={} contract={}", role.external, receiptContract);
                     c.commit();
                     return;
                 }
+                if (!receiptContract.equals(contract))
+                    throw contractError("Recovery requires complete matching staged receipts: " + role.external);
                 copyToPersistentStage(c, b, execution, contract, role, file);
                 c.commit();
             } catch (Throwable e) {
                 try { c.rollback(); } catch (SQLException ignored) { }
+                throw e;
+            } finally { c.setAutoCommit(true); }
+        }
+    }
+
+    public void stageFile(PreparedBundle b, PreparedBundle.CopyFile file) throws Exception {
+        stageFile(b, executionId(b), LoadContract.sha256(), file);
+    }
+
+    /** Publishes files that were staged one at a time by a streaming reader. */
+    public String publishStaged(PreparedBundle bundle) throws Exception {
+        Objects.requireNonNull(bundle, "bundle");
+        validateBundleShape(bundle);
+        if (alreadyPublished(bundle)) return "SKIPPED";
+        String executionId = executionId(bundle);
+        String contract = LoadContract.sha256();
+        try (Connection c = dataSource.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                setTimeouts(c);
+                lockAll(c);
+                LOG.info("CURATED_PUBLISH snapshot={} START staged=true", bundle.snapshot());
+                String result = publishTransaction(c, bundle, executionId, contract);
+                c.commit();
+                LOG.info("CURATED_PUBLISH snapshot={} status={} staged=true", bundle.snapshot(), result);
+                if ("PUBLISHED".equals(result)) cleanupPublishedStage(executionId);
+                return result;
+            } catch (Throwable e) {
+                try { c.rollback(); } catch (SQLException ignored) { }
+                recordFailure(bundle, executionId, contract, e);
                 throw e;
             } finally { c.setAutoCommit(true); }
         }
@@ -172,6 +271,83 @@ public final class CuratedBundlePublisher {
         }
     }
 
+    private static void copyBootstrapFile(Connection c, PreparedBundle partial,
+                                          PreparedBundle.CopyFile file) throws Exception {
+        Role role = Role.of(file.role());
+        if (partial.parentPrefix() != null || partial.parentSha256() != null || partial.parentSnapshot() != null)
+            throw contractError("Bootstrap bundle must not declare a parent");
+        String name = "curated_bootstrap_copy_" + role.name().toLowerCase(Locale.ROOT);
+        try (Statement s = c.createStatement()) {
+            s.execute("CREATE TEMP TABLE IF NOT EXISTS " + name + " (" + role.tempColumns + ", PRIMARY KEY (" + adoptionKeyColumns(role) + ")) ON COMMIT DROP");
+            s.execute("TRUNCATE " + name);
+        }
+        String copy = "COPY " + name + " (" + role.columns + ") FROM STDIN WITH (FORMAT text)";
+        long copied;
+        try (InputStream in = Files.newInputStream(file.path())) {
+            copied = c.unwrap(PGConnection.class).getCopyAPI().copyIn(copy, in);
+        }
+        if (copied != file.loadedRows())
+            throw new SQLException("Curated row count mismatch for " + role + ": expected " + file.loadedRows() + ", got " + copied);
+        if (!sha256(file.path()).equalsIgnoreCase(file.sha256()))
+            throw new SQLException("Curated file SHA-256 mismatch: " + file.role());
+        if (role == Role.VERSION_SNAPSHOT) {
+            try (PreparedStatement p = c.prepareStatement("SELECT count(*) FROM " + name + " WHERE dependents_count IS NULL")) {
+                try (ResultSet r = p.executeQuery()) { r.next(); if (r.getLong(1) != 0) throw new SQLException("NULL dependents_count is not loadable"); }
+            }
+        }
+        if (role == Role.PACKAGE) {
+            exec(c, "bootstrap-package", "INSERT INTO public.package(package_id,name,repo_url) SELECT package_id,name,repo_url FROM " + name);
+        } else if (role == Role.VERSION) {
+            exec(c, "bootstrap-version", "INSERT INTO public.version(version,package_id,published_at,ordinal,description,licenses,deprecated,dependency) SELECT version,package_id,published_at,ordinal,description,licenses::jsonb,deprecated,dependency::jsonb FROM " + name);
+        } else if (role == Role.PACKAGE_SNAPSHOT) {
+            exec(c, "bootstrap-package-snapshot", "INSERT INTO public.package_snapshot(package_id,snapshot_at,downloads,stars,open_issues) SELECT package_id,snapshot_at,downloads,stars,open_issues FROM " + name);
+        } else {
+            exec(c, "bootstrap-version-snapshot", "INSERT INTO public.package_version_snapshot(package_id,version,snapshot_at,dependents_count) SELECT package_id,version,snapshot_at,dependents_count FROM " + name);
+        }
+        try (Statement s = c.createStatement()) {
+            s.execute("TRUNCATE " + name);
+        }
+    }
+
+    private static String validateBootstrapCounts(Connection c, PreparedBundle b) throws SQLException {
+        String actual = bootstrapCounts(c, b);
+        if (!expectedCounts(b).equals(actual)) throw contractError("Bootstrap row counts do not match Curated file metadata");
+        try (PreparedStatement p = c.prepareStatement("SELECT count(*) FROM public.snapshot WHERE snapshot_at=?")) {
+            p.setDate(1, java.sql.Date.valueOf(b.snapshot()));
+            try (ResultSet r = p.executeQuery()) { r.next(); if (r.getLong(1) != 1) throw contractError("Bootstrap snapshot cardinality differs"); }
+        }
+        return actual;
+    }
+
+    private static String bootstrapCounts(Connection c, PreparedBundle b) throws SQLException {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (Role role : Role.values()) {
+            String table = "public." + switch (role) {
+                case PACKAGE -> "package";
+                case VERSION -> "version";
+                case PACKAGE_SNAPSHOT -> "package_snapshot";
+                case VERSION_SNAPSHOT -> "package_version_snapshot";
+            };
+            String where = role == Role.PACKAGE || role == Role.VERSION ? "" : " WHERE snapshot_at=?";
+            try (PreparedStatement s = c.prepareStatement("SELECT count(*) FROM " + table + where)) {
+                if (!where.isEmpty()) s.setDate(1, java.sql.Date.valueOf(b.snapshot()));
+                try (ResultSet r = s.executeQuery()) {
+                r.next(); counts.put(role.external, r.getLong(1));
+                }
+            }
+        }
+        return json(counts);
+    }
+
+    private static String adoptionKeyColumns(Role role) {
+        return switch (role) {
+            case PACKAGE -> "package_id";
+            case VERSION -> "package_id,version";
+            case PACKAGE_SNAPSHOT -> "package_id,snapshot_at";
+            case VERSION_SNAPSHOT -> "package_id,version,snapshot_at";
+        };
+    }
+
     private String publishTransaction(Connection c, PreparedBundle b, String execution,
                                       String contract) throws Exception {
         Current current = current(c);
@@ -194,7 +370,7 @@ public final class CuratedBundlePublisher {
         ensurePartition(c, b.snapshot());
         validateStageIdentity(c, b, execution, current == null);
         validateExistingSnapshotRows(c, b, execution);
-        upsertService(c, b, execution);
+        upsertService(c, b, execution, empty);
         validatePublishedCounts(c, b, execution);
         recordPublication(c, b, execution, contract);
         return "PUBLISHED";
@@ -218,8 +394,12 @@ public final class CuratedBundlePublisher {
     }
 
     private void recordPublication(Connection c, PreparedBundle b, String execution, String contract) throws Exception {
+        recordPublication(c, b, execution, contract, counts(c, execution));
+    }
+
+    private void recordPublication(Connection c, PreparedBundle b, String execution, String contract,
+                                   String actual) throws Exception {
         String metadata = JSON.writeValueAsString(Map.of("prefix", b.prefix(), "manifest", b.manifestJson()));
-        String actual = counts(c, execution);
         String expected = expectedCounts(b);
         if (!expected.equals(actual)) throw contractError("Staged row counts do not match Curated file metadata");
         String attempt = execution + ":attempt-" + UUID.randomUUID();
@@ -234,7 +414,11 @@ public final class CuratedBundlePublisher {
         try (PreparedStatement p = c.prepareStatement(
                 "INSERT INTO etl_load_attempt(attempt_id,execution_id,status,phase,actual_counts,quality_report,completed_at) VALUES (?,?, 'PUBLISHED','publish',?::jsonb,?::jsonb,clock_timestamp()) ON CONFLICT (attempt_id) DO NOTHING")) {
             p.setString(1, attempt); p.setString(2, execution); p.setString(3, actual);
-            p.setString(4, json(Map.of("excluded_dependents_reasons", b.excludedDependentsReasons()))); p.executeUpdate();
+            Map<String, Object> quality = new LinkedHashMap<>();
+            quality.put("excluded_dependents_reasons", b.excludedDependentsReasons());
+            quality.put("dependency_defaulted_reasons", b.dependencyDefaultedReasons());
+            quality.put("dependency_defaulted_input_sha256", b.dependencyDefaultedInputSha256());
+            p.setString(4, json(quality)); p.executeUpdate();
         }
         try (PreparedStatement p = c.prepareStatement(
                 "INSERT INTO etl_dataset_current(dataset,execution_id,snapshot_at,manifest_sha256,manifest) VALUES (?,?,?,?,?::jsonb) " +
@@ -306,16 +490,90 @@ public final class CuratedBundlePublisher {
         try (PreparedStatement p=c.prepareStatement(versionMismatch)) { p.setString(1,execution); p.setDate(2,java.sql.Date.valueOf(b.snapshot())); try(ResultSet r=p.executeQuery()){r.next();if(r.getLong(1)>0)throw contractError("Existing version snapshot differs");} }
     }
 
-    private void upsertService(Connection c, PreparedBundle b, String execution) throws SQLException {
-        exec(c, "INSERT INTO package(package_id,name,repo_url) SELECT package_id,name,repo_url FROM etl_curated_stage_package WHERE execution_id=? ON CONFLICT(package_id) DO UPDATE SET repo_url=EXCLUDED.repo_url WHERE package.name=EXCLUDED.name", execution);
-        exec(c, "INSERT INTO version(version,package_id,published_at,ordinal,description,licenses,deprecated,dependency) SELECT version,package_id,published_at,ordinal,description,licenses,deprecated,dependency FROM etl_curated_stage_version WHERE execution_id=? ON CONFLICT(package_id,version) DO UPDATE SET published_at=EXCLUDED.published_at,ordinal=EXCLUDED.ordinal,description=EXCLUDED.description,licenses=EXCLUDED.licenses,deprecated=EXCLUDED.deprecated,dependency=EXCLUDED.dependency", execution);
-        exec(c, "INSERT INTO snapshot(snapshot_at) VALUES (?) ON CONFLICT DO NOTHING", java.sql.Date.valueOf(b.snapshot()));
-        exec(c, "INSERT INTO package_snapshot(package_id,snapshot_at,downloads,stars,open_issues) SELECT package_id,snapshot_at,downloads,stars,open_issues FROM etl_curated_stage_package_snapshot WHERE execution_id=? ON CONFLICT DO NOTHING", execution);
-        exec(c, "INSERT INTO package_version_snapshot(package_id,version,snapshot_at,dependents_count) SELECT package_id,version,snapshot_at,dependents_count FROM etl_curated_stage_version_snapshot WHERE execution_id=? ON CONFLICT DO NOTHING", execution);
+    private void upsertService(Connection c, PreparedBundle b, String execution, boolean bootstrap) throws SQLException {
+        String packageSql = packageMergeSql(bootstrap);
+        String versionSql = versionMergeSql(bootstrap);
+        exec(c, "package-merge", packageSql, execution);
+        exec(c, "version-merge", versionSql, execution);
+        exec(c, "snapshot-merge", "INSERT INTO snapshot(snapshot_at) VALUES (?) ON CONFLICT DO NOTHING", java.sql.Date.valueOf(b.snapshot()));
+        exec(c, "package-snapshot-merge", "INSERT INTO package_snapshot(package_id,snapshot_at,downloads,stars,open_issues) SELECT package_id,snapshot_at,downloads,stars,open_issues FROM etl_curated_stage_package_snapshot WHERE execution_id=? ON CONFLICT DO NOTHING", execution);
+        exec(c, "version-snapshot-merge", "INSERT INTO package_version_snapshot(package_id,version,snapshot_at,dependents_count) SELECT package_id,version,snapshot_at,dependents_count FROM etl_curated_stage_version_snapshot WHERE execution_id=? ON CONFLICT DO NOTHING", execution);
         try (PreparedStatement p=c.prepareStatement("SELECT count(*) FROM etl_curated_stage_package p WHERE execution_id=? AND EXISTS (SELECT 1 FROM package x WHERE x.package_id=p.package_id AND x.name<>p.name)")) { p.setString(1,execution); try(ResultSet r=p.executeQuery()){r.next();if(r.getLong(1)>0)throw contractError("package_id/name mapping changed");}}
     }
 
-    private static void exec(Connection c, String sql, Object... args) throws SQLException { try(PreparedStatement p=c.prepareStatement(sql)){for(int i=0;i<args.length;i++)p.setObject(i+1,args[i]);p.executeUpdate();} }
+    static String packageMergeSql(boolean bootstrap) {
+        return bootstrap
+                ? "INSERT INTO package(package_id,name,repo_url) SELECT package_id,name,repo_url FROM etl_curated_stage_package WHERE execution_id=?"
+                : "INSERT INTO package(package_id,name,repo_url) SELECT package_id,name,repo_url FROM etl_curated_stage_package WHERE execution_id=? ON CONFLICT(package_id) DO UPDATE SET repo_url=EXCLUDED.repo_url WHERE package.name=EXCLUDED.name AND package.repo_url IS DISTINCT FROM EXCLUDED.repo_url";
+    }
+
+    static String versionMergeSql(boolean bootstrap) {
+        return bootstrap
+                ? "INSERT INTO version(version,package_id,published_at,ordinal,description,licenses,deprecated,dependency) SELECT version,package_id,published_at,ordinal,description,licenses,deprecated,dependency FROM etl_curated_stage_version WHERE execution_id=?"
+                : "INSERT INTO version(version,package_id,published_at,ordinal,description,licenses,deprecated,dependency) SELECT version,package_id,published_at,ordinal,description,licenses,deprecated,dependency FROM etl_curated_stage_version WHERE execution_id=? ON CONFLICT(package_id,version) DO UPDATE SET published_at=EXCLUDED.published_at,ordinal=EXCLUDED.ordinal,description=EXCLUDED.description,licenses=EXCLUDED.licenses,deprecated=EXCLUDED.deprecated,dependency=EXCLUDED.dependency WHERE version.published_at IS DISTINCT FROM EXCLUDED.published_at OR version.ordinal IS DISTINCT FROM EXCLUDED.ordinal OR version.description IS DISTINCT FROM EXCLUDED.description OR version.licenses::jsonb IS DISTINCT FROM EXCLUDED.licenses::jsonb OR version.deprecated IS DISTINCT FROM EXCLUDED.deprecated OR version.dependency::jsonb IS DISTINCT FROM EXCLUDED.dependency::jsonb";
+    }
+
+    private static void exec(Connection c, String label, String sql, Object... args) throws SQLException {
+        long started = System.nanoTime();
+        LOG.info("CURATED_PUBLISH_SQL phase={} label={} START", "publish", label);
+        try (PreparedStatement p=c.prepareStatement(sql)) {
+            for(int i=0;i<args.length;i++)p.setObject(i+1,args[i]);
+            int rows = p.executeUpdate();
+            LOG.info("CURATED_PUBLISH_SQL phase={} label={} COMPLETE rows={} elapsed_ms={}", "publish", label, rows, (System.nanoTime()-started)/1_000_000L);
+        }
+    }
+
+    private void cleanupPublishedStage(String executionId) {
+        try (Connection c = dataSource.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                setTimeouts(c);
+                lockAll(c);
+                boolean otherExecution = false;
+                for (String table : List.of("etl_curated_stage_package", "etl_curated_stage_version",
+                        "etl_curated_stage_package_snapshot", "etl_curated_stage_version_snapshot")) {
+                    try (PreparedStatement p = c.prepareStatement("SELECT EXISTS (SELECT 1 FROM " + table + " WHERE execution_id<>?)")) {
+                        p.setString(1, executionId);
+                        try (ResultSet r = p.executeQuery()) {
+                        r.next();
+                            if (r.getBoolean(1)) { otherExecution = true; break; }
+                        }
+                    }
+                }
+                if (!otherExecution) {
+                    try (Statement s = c.createStatement()) {
+                        s.execute("TRUNCATE etl_curated_stage_package, etl_curated_stage_version, etl_curated_stage_package_snapshot, etl_curated_stage_version_snapshot");
+                    }
+                    LOG.info("CURATED_STAGE_CLEANUP reclaim=TRUNCATE");
+                } else {
+                    for (String table : List.of("etl_curated_stage_package", "etl_curated_stage_version",
+                            "etl_curated_stage_package_snapshot", "etl_curated_stage_version_snapshot")) {
+                        try (PreparedStatement p = c.prepareStatement("DELETE FROM " + table + " WHERE execution_id=?")) {
+                            p.setString(1, executionId);
+                            int rows = p.executeUpdate();
+                            LOG.info("CURATED_STAGE_CLEANUP table={} rows={}", table, rows);
+                        }
+                    }
+                }
+                c.commit();
+            } catch (Throwable failure) {
+                try { c.rollback(); } catch (SQLException ignored) { }
+                recordCleanupFailure(c, executionId, failure);
+                LOG.warn("CURATED_STAGE_CLEANUP failed execution={}", executionId, failure);
+            } finally { c.setAutoCommit(true); }
+        } catch (Exception failure) {
+            LOG.warn("CURATED_STAGE_CLEANUP connection failed execution={}", executionId, failure);
+        }
+    }
+
+    private static void recordCleanupFailure(Connection c, String executionId, Throwable failure) {
+        try (PreparedStatement p = c.prepareStatement("UPDATE etl_load_execution SET error_message=? WHERE execution_id=? AND status='PUBLISHED'")) {
+            p.setString(1, "Stage cleanup failed: " + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+            p.setString(2, executionId);
+            p.executeUpdate();
+            c.commit();
+        } catch (Exception ignored) { }
+    }
     private void recordFailure(PreparedBundle b, String execution, String contract, Throwable failure) {
         try (Connection c = dataSource.getConnection()) {
             c.setAutoCommit(false);
@@ -372,8 +630,38 @@ public final class CuratedBundlePublisher {
     private static boolean receiptMatches(Connection c,String e,Role r,String sha,String contract,LocalDate d)throws SQLException{String q="SELECT (SELECT coalesce(sum(loaded_rows),0) FROM etl_curated_load_file_receipt WHERE execution_id=? AND role=? AND contract_sha256=? AND snapshot_at=?),(SELECT count(*) FROM "+r.stage+" WHERE execution_id=?) FROM etl_curated_load_file_receipt WHERE execution_id=? AND role=? AND source_sha256=? AND contract_sha256=? AND snapshot_at=?";try(PreparedStatement p=c.prepareStatement(q)){p.setString(1,e);p.setString(2,r.external);p.setString(3,contract);p.setDate(4,java.sql.Date.valueOf(d));p.setString(5,e);p.setString(6,e);p.setString(7,r.external);p.setString(8,sha);p.setString(9,contract);p.setDate(10,java.sql.Date.valueOf(d));try(ResultSet x=p.executeQuery()){return x.next()&&x.getLong(1)==x.getLong(2);}}}
     private static String executionId(PreparedBundle b){return "curated:"+sha256Text(b.prefix()+"\u0000"+b.manifestSha256());}
     private static String sha256Text(String value){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
-    private static void setTimeouts(Connection c)throws SQLException{try(Statement s=c.createStatement()){s.execute("SET LOCAL search_path=public");s.execute("SET LOCAL lock_timeout='2s'");s.execute("SET LOCAL statement_timeout='30min'");}}
+    private static void setTimeouts(Connection c)throws SQLException{long seconds=statementTimeoutSeconds();try(Statement s=c.createStatement()){s.execute("SET LOCAL search_path=public");s.execute("SET LOCAL lock_timeout='2s'");s.execute("SET LOCAL statement_timeout='"+seconds+"s'");}}
+    private static long statementTimeoutSeconds() throws SQLException {
+        String configured = System.getProperty("pickage.curated.statement-timeout-seconds", "1800");
+        try {
+            long seconds = Long.parseLong(configured);
+            if (seconds < 1 || seconds > 21600) throw new NumberFormatException("out of range");
+            return seconds;
+        } catch (NumberFormatException invalid) {
+            throw new SQLException("pickage.curated.statement-timeout-seconds must be an integer from 1 to 21600: " + configured, invalid);
+        }
+    }
     private static void lockAll(Connection c)throws SQLException{try(PreparedStatement p=c.prepareStatement("SELECT pg_try_advisory_xact_lock(hashtextextended(?,0))")){for(String k:List.of("curated:package-snapshot","curated:package-version","curated:version-dependents","snapshot:reference")){p.setString(1,k);try(ResultSet r=p.executeQuery()){r.next();if(!r.getBoolean(1))throw new SQLException("Curated publisher advisory lock is busy", "55P03");}}}}
+    private static void lockServiceTables(Connection c) throws SQLException {
+        List<String> tables = new ArrayList<>(List.of(
+                "public.package", "public.version", "public.snapshot",
+                "public.package_snapshot", "public.package_version_snapshot"));
+        try (PreparedStatement p = c.prepareStatement(
+                "SELECT quote_ident(n.nspname) || '.' || quote_ident(ch.relname) " +
+                "FROM pg_inherits i " +
+                "JOIN pg_class parent ON parent.oid=i.inhparent " +
+                "JOIN pg_class ch ON ch.oid=i.inhrelid " +
+                "JOIN pg_namespace n ON n.oid=ch.relnamespace " +
+                "WHERE parent.oid IN ('public.package_snapshot'::regclass, 'public.package_version_snapshot'::regclass) " +
+                "ORDER BY ch.oid")) {
+            try (ResultSet r = p.executeQuery()) {
+                while (r.next()) tables.add(r.getString(1));
+            }
+        }
+        try (Statement s = c.createStatement()) {
+            s.execute("LOCK TABLE " + String.join(", ", tables) + " IN SHARE MODE");
+        }
+    }
     private static boolean serviceEmpty(Connection c)throws SQLException{try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT NOT (EXISTS (SELECT 1 FROM package) OR EXISTS (SELECT 1 FROM version) OR EXISTS (SELECT 1 FROM snapshot) OR EXISTS (SELECT 1 FROM package_snapshot) OR EXISTS (SELECT 1 FROM package_version_snapshot))")){r.next();return r.getBoolean(1);}}
     private static Current current(Connection c)throws SQLException{try(PreparedStatement p=c.prepareStatement("SELECT e.run_prefix,e.manifest_sha256,e.snapshot_at FROM etl_dataset_current d JOIN etl_load_execution e ON e.execution_id=d.execution_id WHERE d.dataset=?")){p.setString(1,DATASET);try(ResultSet r=p.executeQuery()){return r.next()?new Current(r.getString(1),r.getString(2),r.getDate(3).toLocalDate()):null;}}}
     private static void ensurePartition(Connection c,LocalDate d)throws SQLException{String next=d.plusDays(1).toString();Pattern dates=Pattern.compile("'(\\d{4}-\\d{2}-\\d{2})'");try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT c.relname,pg_get_expr(c.relpartbound,c.oid) FROM pg_inherits i JOIN pg_class c ON c.oid=i.inhrelid WHERE i.inhparent='public.package_version_snapshot'::regclass")){while(r.next()){Matcher m=dates.matcher(r.getString(2));List<LocalDate> bounds=new ArrayList<>();while(m.find())bounds.add(LocalDate.parse(m.group(1)));if(bounds.size()>=2&& !d.isBefore(bounds.get(0)) && d.isBefore(bounds.get(1))){return;}}}String n="package_version_snapshot_"+d.toString().replace("-","");try(PreparedStatement p=c.prepareStatement("SELECT 1 FROM pg_class WHERE relname=? AND relnamespace='public'::regnamespace")){p.setString(1,n);try(ResultSet r=p.executeQuery()){if(r.next())throw new SQLException("Existing partition has incompatible bounds: "+n);}}try(Statement s=c.createStatement()){s.execute("CREATE TABLE public."+n+" PARTITION OF public.package_version_snapshot FOR VALUES FROM ('"+d+"') TO ('"+next+"')");}}

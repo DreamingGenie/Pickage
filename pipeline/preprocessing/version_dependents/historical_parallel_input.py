@@ -23,6 +23,7 @@ _RECOVERY_PROOF_ENV = "PICKAGE_INPUT_RECOVERY_PROOF"
 _RECOVERY_PROOF_SHA_ENV = "PICKAGE_INPUT_RECOVERY_PROOF_SHA256"
 _RECOVERY_PROOF_FORMAT = "reader-limit-input-recovery-v1"
 _READER_CONTRACT_PATH = "pipeline/preprocessing/version_dependents/historical_artifact.py"
+_VALIDATION_BUCKET_TARGET_ROWS = 20_000_000
 
 
 def _record(path, con=None):
@@ -267,12 +268,16 @@ def _manifest(root, digest):
 def _verify_source_consistency(con):
     # Fixed-size extrema preserve DISTINCT-count semantics without maintaining
     # two additional distinct sets for every source version across all shards.
-    if con.execute("""SELECT EXISTS(SELECT 1 FROM declarations
-        GROUP BY source_package_id,source_version
-        HAVING min(birth_index) IS DISTINCT FROM max(birth_index)
-        OR min(coalesce(dependency_error::INTEGER,-1)) <>
-           max(coalesce(dependency_error::INTEGER,-1)))""").fetchone()[0]:
-        raise ValueError('Source birth or error flag differs across shards')
+    rows = int(con.execute("SELECT count(*) FROM declarations").fetchone()[0])
+    buckets = min(16, max(1, (rows + _VALIDATION_BUCKET_TARGET_ROWS - 1) // _VALIDATION_BUCKET_TARGET_ROWS))
+    for bucket in range(buckets):
+        if con.execute(f"""SELECT EXISTS(SELECT 1 FROM declarations
+            WHERE source_package_id IS NULL OR hash(source_package_id) % {buckets} = {bucket}
+            GROUP BY source_package_id,source_version
+            HAVING min(birth_index) IS DISTINCT FROM max(birth_index)
+            OR min(coalesce(dependency_error::INTEGER,-1)) <>
+               max(coalesce(dependency_error::INTEGER,-1)))""").fetchone()[0]:
+            raise ValueError('Source birth or error flag differs across shards')
 
 
 def verify_inputs(prepared_dir, manifest_sha256, *, threads=4, memory_limit='16GB', max_temp_size='256GB'):

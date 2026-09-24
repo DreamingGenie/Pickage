@@ -1,10 +1,13 @@
 """Local, disk-backed relational transform; no network or serving-DB writes."""
 from pathlib import Path
 import json
+import time
 
 import duckdb
 
 from pipeline.preprocessing.curated.repository import normalize_repository_url
+
+_VERSION_BUCKET_ROWS = 1_000_000
 
 
 class ValidationError(ValueError):
@@ -68,7 +71,7 @@ def transform(con, versions, requirements, previous_ids, snapshot, output,
     """).fetchone()))
     report['snapshot_timestamp'] = vtime[0].isoformat()
     print('Transform: filtering versions', flush=True)
-    con.execute("""CREATE TABLE eligible AS SELECT *,sha256(source_repo) AS repo_key FROM raw_versions
+    con.execute("""CREATE VIEW eligible AS SELECT *,sha256(source_repo) AS repo_key FROM raw_versions
         WHERE is_release=true AND (published_at IS NULL OR published_at<=SnapshotAt)""")
     _require_zero(con, 'Version required fields/lengths', """SELECT count(*) FROM eligible
         WHERE Name IS NULL OR trim(Name)='' OR length(Name)>300 OR contains(Name,chr(0))
@@ -145,13 +148,15 @@ def transform(con, versions, requirements, previous_ids, snapshot, output,
         LEFT JOIN old_packages old USING(package_id)""")
     report['packages'], report['packages_without_repo'] = con.execute(
         'SELECT count(*),count(*) FILTER(WHERE repo_url IS NULL) FROM packages').fetchone()
+    # These relations are only inputs to repository selection.  Drop their
+    # materialized copies before building the dependency projections so the
+    # DuckDB work file does not retain two repository-normalization stages.
+    con.execute('DROP TABLE distinct_repos')
+    con.execute('DROP TABLE normalized_repos')
+    if normalized_path.is_file():
+        normalized_path.unlink()
 
     print('Transform: assembling declared dependency JSON', flush=True)
-    # Duplicate manifest rows cannot be resolved by arbitrarily choosing one.
-    con.execute("""CREATE TABLE matched_requirements AS SELECT r.* FROM raw_requirements r
-        SEMI JOIN eligible e ON r.Name=e.Name AND r.Version=e.Version AND r.SnapshotAt=e.SnapshotAt""")
-    _require_zero(con, 'Duplicate requirements keys', """SELECT count(*) FROM
-        (SELECT Name,Version FROM matched_requirements GROUP BY ALL HAVING count(*)>1)""")
     con.execute("""CREATE MACRO bad_dependencies(a) AS (
         a IS NULL OR len(list_filter(a,x -> x IS NULL OR x.Name IS NULL OR trim(x.Name)=''
           OR contains(x.Name,chr(0)) OR x.Requirement IS NULL))>0
@@ -160,51 +165,108 @@ def transform(con, versions, requirements, previous_ids, snapshot, output,
     con.execute("""CREATE MACRO dependency_map(a) AS
         map_from_entries(list_transform(list_sort(list_distinct(a)),
             x -> struct_pack(k:=x.Name,v:=x.Requirement)))""")
-    con.execute("""CREATE TABLE requirements_json AS SELECT Name,Version,
+    version_buckets = min(16, max(1, (report['versions'] + _VERSION_BUCKET_ROWS - 1) // _VERSION_BUCKET_ROWS))
+    requirements_sql = """SELECT Name,Version,
         bad_dependencies(Dependencies) OR bad_dependencies(PeerDependencies)
             OR bad_dependencies(OptionalDependencies) invalid,
         CASE WHEN invalid THEN NULL ELSE json_object(
             'dependencies',dependency_map(Dependencies),
             'peerDependencies',dependency_map(PeerDependencies),
             'optionalDependencies',dependency_map(OptionalDependencies)) END dependency
-        FROM matched_requirements""")
-    report['invalid_requirements'] = con.execute('SELECT count(*) FROM requirements_json WHERE invalid').fetchone()[0]
-    report['missing_requirements'] = con.execute("""SELECT count(*) FROM eligible e
-        ANTI JOIN requirements_json r ON e.Name=r.Name AND e.Version=r.Version""").fetchone()[0]
-    con.execute("""CREATE TABLE final_versions AS SELECT
+        FROM matched_requirements"""
+    report['invalid_requirements'] = report['missing_requirements'] = 0
+    version_projection = """SELECT
         e.Version::VARCHAR AS version,p.package_id,e.published_at,e.ordinal::BIGINT AS ordinal,
         CASE WHEN contains(e.Description,chr(0)) THEN NULL ELSE e.Description END::VARCHAR AS description,
         to_json(e.Licenses) AS licenses,
         e.Deprecated::VARCHAR AS deprecated,r.dependency
-        FROM eligible e JOIN packages p ON e.Name=p.name
-        LEFT JOIN requirements_json r ON e.Name=r.Name AND e.Version=r.Version""")
-    _require_zero(con, 'Output FK', 'SELECT count(*) FROM final_versions ANTI JOIN packages USING(package_id)')
-    final_count = con.execute('SELECT count(*) FROM final_versions').fetchone()[0]
+        FROM eligible_bucket e JOIN packages p ON e.Name=p.name
+        LEFT JOIN requirements_bucket r ON e.Name=r.Name AND e.Version=r.Version"""
+    issues_projection = """SELECT e.Name,e.Version,
+        CASE WHEN r.Name IS NULL THEN 'MISSING_REQUIREMENTS' ELSE 'INVALID_REQUIREMENTS' END reason
+        FROM eligible_bucket e LEFT JOIN requirements_bucket r ON e.Name=r.Name AND e.Version=r.Version
+        WHERE r.Name IS NULL OR r.invalid"""
+    version_target = output / 'version/data'
+    version_target.mkdir(parents=True, exist_ok=False)
+    issues_target = output / 'quality/dependency_issues'
+    issues_target.mkdir(parents=True, exist_ok=False)
+    version_files = []
+    dependency_issue_count = 0
+    for bucket in range(version_buckets):
+        bucket_started = time.monotonic()
+        # Bound BOTH sides before the semijoin. Partitioning COPY output alone
+        # still builds a hash table for the entire snapshot and spills it.
+        con.execute(f"CREATE VIEW eligible_bucket AS SELECT * FROM eligible "
+                    f"WHERE hash(Name) % {version_buckets} = {bucket}")
+        con.execute(f"""CREATE VIEW matched_requirements AS
+            SELECT r.* FROM (SELECT * FROM raw_requirements
+                WHERE hash(Name) % {version_buckets} = {bucket}) r
+            SEMI JOIN eligible_bucket e
+                ON r.Name=e.Name AND r.Version=e.Version AND r.SnapshotAt=e.SnapshotAt""")
+        _require_zero(con, 'Duplicate requirements keys', """SELECT count(*) FROM
+            (SELECT Name,Version FROM matched_requirements GROUP BY ALL HAVING count(*)>1)""")
+        requirements_name = f'requirements-json-{bucket}'
+        requirement_files = _export(con, output.parent, requirements_name, requirements_sql)
+        _source(con, 'requirements_bucket', requirement_files)
+        invalid = con.execute('SELECT count(*) FROM requirements_bucket WHERE invalid').fetchone()[0]
+        missing = con.execute("""SELECT count(*) FROM eligible_bucket e
+            ANTI JOIN requirements_bucket r ON e.Name=r.Name AND e.Version=r.Version""").fetchone()[0]
+        report['invalid_requirements'] += invalid
+        report['missing_requirements'] += missing
+        requirements_seconds = time.monotonic() - bucket_started
+        timings = {}
+        for name, target_dir, query in (
+                (f'version-bucket-{bucket}', version_target, version_projection),
+                (f'dependency-issues-{bucket}', issues_target, issues_projection)):
+            export_started = time.monotonic()
+            generated = _export(con, output.parent, name, query)
+            if target_dir == issues_target:
+                actual = con.execute('SELECT count(*) FROM read_parquet(?,hive_partitioning=false)',
+                                     [[str(path) for path in generated]]).fetchone()[0]
+                if actual != invalid + missing:
+                    raise ValidationError('Export count mismatch: quality/dependency_issues')
+                dependency_issue_count += actual
+            for index, path in enumerate(generated):
+                target = target_dir / f'part-{bucket:03d}-{index:06d}.parquet'
+                path.replace(target)
+                if target_dir == version_target:
+                    version_files.append(target)
+            (output.parent / name).rmdir()
+            timings['version' if target_dir == version_target else 'quality'] = time.monotonic() - export_started
+        con.execute('DROP VIEW requirements_bucket')
+        con.execute('DROP VIEW matched_requirements')
+        con.execute('DROP VIEW eligible_bucket')
+        for path in requirement_files:
+            path.unlink()
+        (output.parent / requirements_name).rmdir()
+        print(f'Transform: version bucket {bucket + 1}/{version_buckets} complete '
+              f'requirements_seconds={requirements_seconds:.3f} '
+              f'version_seconds={timings["version"]:.3f} quality_seconds={timings["quality"]:.3f}', flush=True)
+    version_paths = [str(f) for f in version_files]
+    version_literals = ','.join(_literal(Path(p).resolve().as_posix()) for p in version_paths)
+    con.execute(f'CREATE VIEW final_versions_output AS SELECT * FROM read_parquet([{version_literals}], hive_partitioning=false)')
+    _require_zero(con, 'Output FK', 'SELECT count(*) FROM final_versions_output ANTI JOIN packages USING(package_id)')
+    final_count = con.execute('SELECT count(*) FROM final_versions_output').fetchone()[0]
     if final_count != report['versions'] or final_count + report['excluded_future_versions'] != report['release_versions']:
         raise ValidationError('Version count reconciliation failed')
     _require_zero(con, 'Output repository length', 'SELECT count(*) FROM packages WHERE length(repo_url)>200')
     _require_zero(con, 'Output duplicate version keys', """SELECT count(*) FROM
-        (SELECT package_id,version FROM final_versions GROUP BY ALL HAVING count(*)>1)""")
+        (SELECT package_id,version FROM final_versions_output GROUP BY ALL HAVING count(*)>1)""")
     _require_zero(con, 'Changed existing IDs', """SELECT count(*) FROM old_ids o
         LEFT JOIN package_ids p USING(name) WHERE p.package_id IS DISTINCT FROM o.package_id""")
     print('Transform: writing validated Parquet outputs', flush=True)
     exports = {
         'package/data': 'SELECT * FROM packages',
-        'version/data': 'SELECT * FROM final_versions',
         'package_ids/data': 'SELECT * FROM package_ids',
         'quality/repository_selection': """SELECT p.package_id,r.version,r.ordinal,r.repo_url,r.source_repo_sha256
             FROM chosen_repos r JOIN packages p USING(name)""",
         'quality/excluded_versions': """SELECT Name,Version,SnapshotAt,published_at,
             'PUBLISHED_AFTER_SNAPSHOT' reason FROM raw_versions
             WHERE is_release=true AND published_at>SnapshotAt""",
-        'quality/dependency_issues': """SELECT e.Name,e.Version,
-            CASE WHEN r.Name IS NULL THEN 'MISSING_REQUIREMENTS' ELSE 'INVALID_REQUIREMENTS' END reason
-            FROM eligible e LEFT JOIN requirements_json r ON e.Name=r.Name AND e.Version=r.Version
-            WHERE r.Name IS NULL OR r.invalid""",
         'quality/metadata_issues': """SELECT Name,Version,'description' AS field,
             'NUL_IN_DESCRIPTION' AS reason FROM eligible WHERE contains(Description,chr(0))""",
     }
-    output_counts = {}
+    output_counts = {'version/data': final_count, 'quality/dependency_issues': dependency_issue_count}
     for name, query in exports.items():
         files = _export(con, output, name, query)
         if not files:

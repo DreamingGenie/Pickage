@@ -20,8 +20,11 @@ class DispatcherIntegrationTests(unittest.TestCase):
             runner.run(baseline, fixture.s3, work)
 
             def request(s3, snapshot, run_id, work_dir, **kwargs):
+                options = dict(kwargs.pop("options", {}))
+                options["repository_max_temp_directory_size"] = "128MB"
                 return build_request(s3, snapshot, run_id, work_dir,
-                    bronze_run_id=BRONZE_RUN, download_run_id=DOWNLOAD_RUN, **kwargs)
+                    bronze_run_id=BRONZE_RUN, download_run_id=DOWNLOAD_RUN,
+                    options=options, **kwargs)
 
             with patch.object(dispatcher, "_documents", return_value={SNAPSHOT: {"status": "SUCCEEDED"}}), \
                  patch.object(dispatcher, "build_request", side_effect=request) as build:

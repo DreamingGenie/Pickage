@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ import java.util.regex.Pattern;
  * This class deliberately does not discover the latest pointer and does not write to S3.
  */
 public final class CuratedBundleReader {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(CuratedBundleReader.class);
     private static final String BUCKET = "pickage-curated";
     private static final String[] STAGES = {"snapshot", "package_version", "downloads", "repository", "package_snapshot", "dependents"};
     private static final Pattern SHA = Pattern.compile("[0-9a-f]{64}");
@@ -40,9 +42,18 @@ public final class CuratedBundleReader {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String DEFAULT_DEPENDENCY_JSON = "{\"dependencies\":{},\"peerDependencies\":{},\"optionalDependencies\":{}}";
     private static final long MAX_OBJECT_BYTES = 8L * 1024 * 1024 * 1024;
+    private static final long DEFAULT_WORK_BYTES = 4_000_000_000L;
+    private static final long MAX_WORK_BYTES = 8_000_000_000L;
+    private static final long DUCKDB_FILE_RESERVE_BYTES = 512_000_000L;
 
     private final S3Client s3;
     private final Path workDir;
+    private Path activeAttempt;
+
+    @FunctionalInterface
+    public interface StageSink {
+        void accept(PreparedBundle bundle, PreparedBundle.CopyFile file) throws Exception;
+    }
 
     public CuratedBundleReader(S3Client s3, Path workDir) {
         this.s3 = java.util.Objects.requireNonNull(s3, "s3");
@@ -51,9 +62,29 @@ public final class CuratedBundleReader {
 
     /** Validate the bundle and create COPY TEXT files without buffering a dataset in the JVM. */
     public PreparedBundle prepare(String prefix, String expectedSha256) throws Exception {
+        return prepareInternal(prefix, expectedSha256, null);
+    }
+
+    /** Streams each converted service file directly to the publisher and removes it immediately. */
+    public PreparedBundle prepareAndStage(String prefix, String expectedSha256, StageSink sink) throws Exception {
+        return prepareInternal(prefix, expectedSha256, java.util.Objects.requireNonNull(sink, "sink"));
+    }
+
+    /** Streams bootstrap COPY chunks bounded to one reusable file-sized work buffer. */
+    public PreparedBundle prepareBootstrapStreaming(String prefix, String expectedSha256, StageSink sink) throws Exception {
+        return prepareInternal(prefix, expectedSha256, java.util.Objects.requireNonNull(sink, "sink"), true);
+    }
+
+    private PreparedBundle prepareInternal(String prefix, String expectedSha256, StageSink sink) throws Exception {
+        return prepareInternal(prefix, expectedSha256, sink, false);
+    }
+
+    private PreparedBundle prepareInternal(String prefix, String expectedSha256, StageSink sink, boolean bootstrapStreaming) throws Exception {
         validateArguments(prefix, expectedSha256);
         Files.createDirectories(workDir);
         Path attempt = Files.createTempDirectory(workDir, "curated-input-");
+        activeAttempt = attempt;
+        WorkBudget budget = new WorkBudget(workBudgetBytes());
         try {
             byte[] manifestBytes = getBytes(prefix + "/run_manifest.json", 16L * 1024 * 1024);
             String actualManifestSha = sha256(manifestBytes);
@@ -68,45 +99,108 @@ public final class CuratedBundleReader {
             LocalDate snapshot = LocalDate.parse(request.path("snapshot").asText());
             String snapshotTimestamp = request.path("snapshot_timestamp").asText();
             String runId = request.path("run_id").asText();
+            Parent parent = parent(request);
             List<RemoteFile> files = selectFiles(manifest, request);
             List<PreparedBundle.CopyFile> prepared = new ArrayList<>();
             Map<String, Long> excluded = new LinkedHashMap<>();
+            Map<String, Long> dependencyDefaulted = new LinkedHashMap<>();
+            List<String> dependencyInputs = new ArrayList<>();
             try (Connection duck = DriverManager.getConnection("jdbc:duckdb:" + attempt.resolve("working.duckdb"))) {
                 try (var statement = duck.createStatement()) {
                     statement.execute("SET threads=1");
-                    statement.execute("SET memory_limit='256MB'");
+                    statement.execute("SET memory_limit='4GB'");
                     statement.execute("SET preserve_insertion_order=false");
                     statement.execute("SET temp_directory='" + sqlLiteral(attempt.resolve("scratch")) + "'");
+                    statement.execute("SET max_temp_directory_size='" + budget.duckdbTempLimit() + "B'");
                 }
+                LOG.info("CURATED_PREPARE memory_limit=4GB threads=1 files={}", files.size());
                 for (RemoteFile file : files) {
-                    Path parquet = download(file, attempt.resolve("objects"));
+                    LOG.info("CURATED_DOWNLOAD role={} bytes={}", file.role(), file.bytes());
+                    Path parquet = download(file, attempt.resolve("objects"), budget);
                     if ("quality".equals(file.role())) {
                         scanExcludedReasons(duck, parquet, excluded);
+                        deleteTracked(parquet, budget);
                         continue;
                     }
-                    Prepared preparedFile = convert(duck, file.role(), parquet, attempt.resolve("copy"));
+                    if (bootstrapStreaming) {
+                        List<Prepared> chunks = convertChunks(duck, file.role(), parquet, attempt.resolve("copy"), budget,
+                            (chunk, sourceRows, loadedRows, excludedRows) -> {
+                                PreparedBundle.CopyFile copyFile = new PreparedBundle.CopyFile(file.role(), chunk,
+                                    fileSha(chunk), sourceRows, loadedRows, excludedRows);
+                                sink.accept(new PreparedBundle(prefix, expectedSha256, runId, snapshot, snapshotTimestamp,
+                                    new String(manifestBytes, StandardCharsets.UTF_8), parent(request).prefix(), parent(request).sha256(),
+                                    parent(request).snapshot(), List.of(copyFile), excluded), copyFile);
+                                prepared.add(copyFile);
+                                deleteTracked(chunk, budget);
+                            });
+                        long sourceRows = chunks.stream().mapToLong(Prepared::sourceRows).sum();
+                        long loadedRows = chunks.stream().mapToLong(Prepared::loadedRows).sum();
+                        long excludedRows = chunks.stream().mapToLong(Prepared::excludedRows).sum();
+                        if (file.rowCount() >= 0 && file.rowCount() != sourceRows)
+                            throw invalid("Parquet row count mismatch: " + file.role());
+                        if ("version".equals(file.role())) {
+                            long defaulted = countDependencyQuality(duck, parquet);
+                            if (defaulted > 0) dependencyDefaulted.merge("DEPENDENCY_SQL_NULL_DEFAULTED", defaulted, Long::sum);
+                            dependencyInputs.add(file.sha256());
+                        }
+                        deleteTracked(parquet, budget);
+                        LOG.info("CURATED_COPY_READY role={} source={} loaded={} excluded={} chunks={}",
+                            file.role(), sourceRows, loadedRows, excludedRows, chunks.size());
+                        continue;
+                    }
+                    Prepared preparedFile = convert(duck, file.role(), parquet, attempt.resolve("copy"), budget);
+                    LOG.info("CURATED_COPY_READY role={} source={} loaded={} excluded={}",
+                            file.role(), preparedFile.sourceRows(), preparedFile.loadedRows(), preparedFile.excludedRows());
                     if (file.rowCount() >= 0 && file.rowCount() != preparedFile.sourceRows()) {
                         throw invalid("Parquet row count mismatch: " + file.role());
                     }
-                    prepared.add(new PreparedBundle.CopyFile(file.role(), preparedFile.path(),
-                    fileSha(preparedFile.path()), preparedFile.sourceRows(), preparedFile.loadedRows(), preparedFile.excludedRows()));
+                    if ("version".equals(file.role())) {
+                        long defaulted = writeDependencyQuality(duck, parquet, attempt.resolve("quality"), budget);
+                        if (defaulted > 0) dependencyDefaulted.merge("DEPENDENCY_SQL_NULL_DEFAULTED", defaulted, Long::sum);
+                        dependencyInputs.add(file.sha256());
+                    }
+                    deleteTracked(parquet, budget);
+                    PreparedBundle.CopyFile copyFile = new PreparedBundle.CopyFile(file.role(), preparedFile.path(),
+                    fileSha(preparedFile.path()), preparedFile.sourceRows(), preparedFile.loadedRows(), preparedFile.excludedRows());
+                    if (sink != null) {
+                        sink.accept(new PreparedBundle(prefix, expectedSha256, runId, snapshot, snapshotTimestamp,
+                                new String(manifestBytes, StandardCharsets.UTF_8), parent(request).prefix(), parent(request).sha256(),
+                                parent(request).snapshot(), List.of(copyFile), excluded), copyFile);
+                        deleteTracked(copyFile.path(), budget);
+                    }
+                    prepared.add(copyFile);
                     if (preparedFile.excludedReasons() != null) {
                         preparedFile.excludedReasons().forEach((key, value) -> excluded.merge(key, value, Long::sum));
                     }
-                    if ("version".equals(file.role())) writeDependencyQuality(duck, parquet, attempt.resolve("quality"));
                 }
             }
             long excludedRows = prepared.stream().filter(f -> "version_snapshot".equals(f.role()))
                     .mapToLong(PreparedBundle.CopyFile::excludedRows).sum();
             long qualityExcluded = excluded.values().stream().mapToLong(Long::longValue).sum();
             if (excludedRows != qualityExcluded) throw invalid("dependents NULL quality count mismatch");
-            Parent parent = parent(request);
+            Path qualityDetails = attempt.resolve("quality/dependency_defaulted.jsonl");
+            if (Files.exists(qualityDetails)) deleteTracked(qualityDetails, budget);
             return new PreparedBundle(prefix, expectedSha256, runId, snapshot, snapshotTimestamp,
                     new String(manifestBytes, StandardCharsets.UTF_8), parent.prefix(), parent.sha256(),
-                    parent.snapshot(), prepared, excluded);
+                    parent.snapshot(), prepared, excluded, dependencyDefaulted,
+                    dependencyInputs.isEmpty() ? null : sha256(String.join("\n", dependencyInputs).getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
-            // Preserve the attempt directory as evidence for caller logging, but never publish it.
             throw e;
+        }
+    }
+
+    /** Removes only the active UUID-named attempt created by this reader. */
+    public void cleanupActiveAttempt() throws IOException {
+        Path attempt = activeAttempt;
+        activeAttempt = null;
+        if (attempt == null || !attempt.getFileName().toString().startsWith("curated-input-")) return;
+        if (!attempt.startsWith(workDir) || Files.isSymbolicLink(attempt)) return;
+        if (Files.exists(attempt)) {
+            try (var paths = Files.walk(attempt)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (IOException error) { throw new CleanupFailure(error); }
+                });
+            } catch (CleanupFailure failure) { throw failure.error; }
         }
     }
 
@@ -225,7 +319,7 @@ public final class CuratedBundleReader {
                 || key.contains("..") || key.contains("\u0000")) throw invalid("unsafe approved file record");
     }
 
-    private Path download(RemoteFile file, Path root) throws IOException {
+    private Path download(RemoteFile file, Path root, WorkBudget budget) throws IOException {
         Path target = root.resolve(file.role() + "-" + file.sha256() + ".parquet").normalize();
         if (!target.startsWith(root.toAbsolutePath().normalize())) throw invalid("download path escapes work directory");
         Files.createDirectories(root);
@@ -238,6 +332,7 @@ public final class CuratedBundleReader {
             while ((n = in.read(buffer)) >= 0) {
                 total += n;
                 if (total > MAX_OBJECT_BYTES) throw invalid("approved object exceeds download limit");
+                budget.reserve(n);
                 digest.update(buffer, 0, n);
                 out.write(buffer, 0, n);
             }
@@ -247,9 +342,11 @@ public final class CuratedBundleReader {
         return target;
     }
 
-    private static Prepared convert(Connection con, String role, Path parquet, Path outputRoot) throws SQLException, IOException {
+    private static Prepared convert(Connection con, String role, Path parquet, Path outputRoot, WorkBudget budget) throws SQLException, IOException {
         Schema schema = Schema.forRole(role);
+        LOG.info("CURATED_VALIDATE role={} START", role);
         validateParquet(con, schema, parquet);
+        LOG.info("CURATED_VALIDATE role={} COMPLETE; COPY_CONVERT START", role);
         Files.createDirectories(outputRoot);
         Path output = outputRoot.resolve(role + "-" + fileToken(parquet) + ".copy.tsv");
         String sql = "SELECT " + schema.select() + " FROM read_parquet(?)";
@@ -257,9 +354,11 @@ public final class CuratedBundleReader {
         Map<String, Long> reasons = new LinkedHashMap<>();
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, parquet.toString());
-            try (ResultSet rs = ps.executeQuery(); BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8)) {
+            try (ResultSet rs = ps.executeQuery(); BufferedWriter writer = new BufferedWriter(new java.io.OutputStreamWriter(
+                    new BudgetOutputStream(Files.newOutputStream(output), budget), StandardCharsets.UTF_8))) {
                 while (rs.next()) {
                     source++;
+                    if (source % 1_000_000 == 0) LOG.info("CURATED_COPY_PROGRESS role={} rows_read={}", role, source);
                     if (("version_dependents".equals(role) || "version_snapshot".equals(role)) && rs.getObject(4) == null) {
                         excluded++;
                         continue;
@@ -276,14 +375,92 @@ public final class CuratedBundleReader {
         return new Prepared(output, source, source - excluded, excluded, reasons);
     }
 
-    private static long writeDependencyQuality(Connection con, Path parquet, Path qualityRoot) throws SQLException, IOException {
+    @FunctionalInterface
+    private interface ChunkSink { void accept(Path path, long sourceRows, long loadedRows, long excludedRows) throws Exception; }
+
+    private static List<Prepared> convertChunks(Connection con, String role, Path parquet, Path outputRoot,
+                                                 WorkBudget budget, ChunkSink sink) throws Exception {
+        Schema schema = Schema.forRole(role);
+        validateParquet(con, schema, parquet);
+        Files.createDirectories(outputRoot);
+        long chunkLimit = bootstrapChunkBytes();
+        List<Prepared> chunks = new ArrayList<>();
+        long source = 0, excluded = 0, chunkSource = 0, chunkLoaded = 0, chunkExcluded = 0, chunkBytes = 0;
+        Path output = outputRoot.resolve(role + "-" + fileToken(parquet) + "-chunk-0.copy.tsv");
+        BufferedWriter writer = chunkWriter(output, budget);
+        try (PreparedStatement ps = con.prepareStatement("SELECT " + schema.select() + " FROM read_parquet(?)")) {
+            ps.setString(1, parquet.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    source++;
+                    if (source % 1_000_000 == 0) LOG.info("CURATED_COPY_PROGRESS role={} rows_read={}", role, source);
+                    if (("version_dependents".equals(role) || "version_snapshot".equals(role)) && rs.getObject(4) == null) {
+                        excluded++; chunkSource++; chunkExcluded++;
+                        continue;
+                    }
+                    List<String> values = new ArrayList<>(schema.columns());
+                    long rowBytes = 1;
+                    for (int i = 1; i <= schema.columns(); i++) {
+                        if (i > 1) rowBytes++;
+                        Object value = rs.getObject(i);
+                        String text = copyText(value == null ? null : value.toString());
+                        values.add(text);
+                        rowBytes += text.getBytes(StandardCharsets.UTF_8).length;
+                    }
+                    if (rowBytes > chunkLimit) throw invalid("single Curated row exceeds bootstrap chunk limit: " + role);
+                    if (chunkBytes > 0 && chunkBytes + rowBytes > chunkLimit) {
+                        writer.close(); writer = null;
+                        chunks.add(new Prepared(output, chunkSource, chunkLoaded, chunkExcluded, Map.of()));
+                        sink.accept(output, chunkSource, chunkLoaded, chunkExcluded);
+                        output = outputRoot.resolve(role + "-" + fileToken(parquet) + "-chunk-" + chunks.size() + ".copy.tsv");
+                        writer = chunkWriter(output, budget);
+                        chunkBytes = chunkSource = chunkLoaded = chunkExcluded = 0;
+                    }
+                    for (int i = 0; i < values.size(); i++) {
+                        if (i > 0) writer.write('\t');
+                        writer.write(values.get(i));
+                    }
+                    writer.write('\n');
+                    chunkBytes += rowBytes; chunkSource++; chunkLoaded++;
+                }
+            }
+            writer.close(); writer = null;
+            chunks.add(new Prepared(output, chunkSource, chunkLoaded, chunkExcluded, Map.of()));
+            sink.accept(output, chunkSource, chunkLoaded, chunkExcluded);
+        } finally {
+            if (writer != null) writer.close();
+        }
+        if (source != chunks.stream().mapToLong(Prepared::sourceRows).sum()
+                || excluded != chunks.stream().mapToLong(Prepared::excludedRows).sum())
+            throw invalid("bootstrap chunk source row accounting mismatch: " + role);
+        return chunks;
+    }
+
+    private static BufferedWriter chunkWriter(Path output, WorkBudget budget) throws IOException {
+        return new BufferedWriter(new java.io.OutputStreamWriter(
+            new BudgetOutputStream(Files.newOutputStream(output), budget), StandardCharsets.UTF_8));
+    }
+
+    private static long bootstrapChunkBytes() {
+        String configured = System.getProperty("pickage.curated.bootstrap-copy-chunk-bytes", Long.toString(64L * 1024 * 1024));
+        try {
+            long value = Long.parseLong(configured);
+            if (value < 1 || value > 64L * 1024 * 1024) throw new NumberFormatException("out of range");
+            return value;
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException("pickage.curated.bootstrap-copy-chunk-bytes must be between 1 and 67108864: " + configured, invalid);
+        }
+    }
+
+    private static long writeDependencyQuality(Connection con, Path parquet, Path qualityRoot, WorkBudget budget) throws SQLException, IOException {
         Files.createDirectories(qualityRoot);
         Path output = qualityRoot.resolve("dependency_defaulted.jsonl");
         long count = 0;
             try (PreparedStatement ps = con.prepareStatement("SELECT package_id,version FROM read_parquet(?) WHERE dependency IS NULL ORDER BY package_id,version")) {
             ps.setString(1, parquet.toString());
-            try (ResultSet rs = ps.executeQuery(); BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8,
-                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND)) {
+            try (ResultSet rs = ps.executeQuery(); BufferedWriter writer = new BufferedWriter(new java.io.OutputStreamWriter(
+                    new BudgetOutputStream(Files.newOutputStream(output, java.nio.file.StandardOpenOption.CREATE,
+                            java.nio.file.StandardOpenOption.APPEND), budget), StandardCharsets.UTF_8))) {
                 while (rs.next()) {
                     writer.write("{\"package_id\":" + rs.getInt(1) + ",\"version\":\""
                             + jsonEscape(rs.getString(2)) + "\",\"reason\":\"DEPENDENCY_SQL_NULL_DEFAULTED\"}\n");
@@ -292,6 +469,13 @@ public final class CuratedBundleReader {
             }
         }
         return count;
+    }
+
+    private static long countDependencyQuality(Connection con, Path parquet) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("SELECT count(*) FROM read_parquet(?) WHERE dependency IS NULL")) {
+            ps.setString(1, parquet.toString());
+            try (ResultSet rs = ps.executeQuery()) { rs.next(); return rs.getLong(1); }
+        }
     }
 
     private static void scanExcludedReasons(Connection con, Path parquet, Map<String, Long> excluded) throws SQLException {
@@ -390,6 +574,21 @@ public final class CuratedBundleReader {
     }
 
     private static String sqlLiteral(Path path) { return path.toString().replace("'", "''"); }
+    private static long workBudgetBytes() {
+        String configured = System.getProperty("pickage.curated.work-budget-bytes", Long.toString(DEFAULT_WORK_BYTES));
+        try {
+            long value = Long.parseLong(configured);
+            if (value < 1 || value > MAX_WORK_BYTES) throw new NumberFormatException("out of range");
+            return value;
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException("pickage.curated.work-budget-bytes must be between 1 and 8GiB: " + configured, invalid);
+        }
+    }
+    private static void deleteTracked(Path path, WorkBudget budget) throws IOException {
+        long bytes = Files.exists(path) && !Files.isSymbolicLink(path) ? Files.size(path) : 0;
+        Files.deleteIfExists(path);
+        budget.release(bytes);
+    }
     private static String fileToken(Path path) { return path.getFileName().toString().replace(".parquet", ""); }
     private static String fileSha(Path path) throws IOException {
         MessageDigest digest = digest();
@@ -404,6 +603,37 @@ public final class CuratedBundleReader {
     private static String sha256(byte[] bytes) { MessageDigest d = digest(); return hex(d.digest(bytes)); }
     private static String hex(byte[] bytes) { StringBuilder s = new StringBuilder(); for (byte b : bytes) s.append("%02x".formatted(b)); return s.toString(); }
     private static IllegalArgumentException invalid(String message) { return new IllegalArgumentException(message); }
+
+    private static final class WorkBudget {
+        private final long limit;
+        private long used;
+        WorkBudget(long limit) throws IOException {
+            this.limit = limit;
+            this.used = duckdbTempLimit() + DUCKDB_FILE_RESERVE_BYTES;
+            if (used > limit) throw new IOException("Configured work budget cannot reserve DuckDB temp and database space: " + limit);
+        }
+        synchronized void reserve(long bytes) throws IOException {
+            if (bytes < 0 || used > limit - bytes) throw new IOException("Curated work directory exceeds configured byte budget: " + limit);
+            used += bytes;
+        }
+        synchronized void release(long bytes) { used = Math.max(duckdbTempLimit(), used - Math.max(0, bytes)); }
+        long duckdbTempLimit() { return Math.max(1L, limit / 2); }
+    }
+
+    private static final class BudgetOutputStream extends OutputStream {
+        private final OutputStream delegate;
+        private final WorkBudget budget;
+        BudgetOutputStream(OutputStream delegate, WorkBudget budget) { this.delegate = delegate; this.budget = budget; }
+        @Override public void write(int value) throws IOException { budget.reserve(1); delegate.write(value); }
+        @Override public void write(byte[] bytes, int offset, int length) throws IOException { budget.reserve(length); delegate.write(bytes, offset, length); }
+        @Override public void flush() throws IOException { delegate.flush(); }
+        @Override public void close() throws IOException { delegate.close(); }
+    }
+
+    private static final class CleanupFailure extends RuntimeException {
+        final IOException error;
+        CleanupFailure(IOException error) { this.error = error; }
+    }
 
     private record RemoteFile(String role, String key, String sha256, long bytes, long rowCount) {}
     private record Prepared(Path path, long sourceRows, long loadedRows, long excludedRows, Map<String, Long> excludedReasons) {}

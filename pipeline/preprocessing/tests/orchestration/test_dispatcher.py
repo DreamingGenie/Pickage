@@ -1,6 +1,7 @@
 """State-machine tests for the weekly raw-to-Curated dispatcher."""
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -57,6 +58,8 @@ class PagedMemoryS3(MemoryS3):
 
 class DispatcherTests(unittest.TestCase):
     def setUp(self):
+        self._tempdir = tempfile.tempdir
+        self.addCleanup(setattr, tempfile, "tempdir", self._tempdir)
         self.temp = tempfile.TemporaryDirectory(prefix="dispatcher-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -67,6 +70,69 @@ class DispatcherTests(unittest.TestCase):
         self.history = {self.base: {"snapshot": self.base, "raw_refs": {}}}
         self.raw = {self.week: {"status": "SUCCEEDED"}}
         self.request = {"snapshot": self.week, "run_id": "curated-weekly-20260914", "raw_refs": {}}
+
+    def test_bounded_context_rejects_workdir_outside_resolved_root(self):
+        bounded = self.root / "bounded"
+        bounded.mkdir()
+        with patch.dict(os.environ, {"BOUNDED_WORKSPACE": str(bounded)}, clear=False):
+            with self.assertRaisesRegex(ValueError, "escapes bounded workspace"):
+                dispatcher._bounded_context(self.root / "outside")
+
+    def test_bounded_dispatch_builds_stage_cleanup_request_and_sets_temp_root(self):
+        captured = {}
+        request = {**self.request, "options": {"work_cleanup": "stage"}}
+
+        def build(*args, **kwargs):
+            captured.update(kwargs)
+            return request
+
+        with patch.dict(os.environ, {"BOUNDED_WORKSPACE": str(self.root)}, clear=False), \
+             patch.multiple(dispatcher, _history=lambda s: self.history, _documents=lambda s: self.raw,
+                            _verify_raw=lambda s, r: None, build_request=build,
+                            runner=unittest.mock.Mock(run=unittest.mock.Mock())):
+            self.assertEqual(dispatcher.dispatch(self.s3, self.root, now=self.now), 0)
+        self.assertEqual(captured["options"]["work_cleanup"], "stage")
+        self.assertEqual(Path(tempfile.tempdir), self.root / "tmp")
+
+    def test_bounded_dispatch_rejects_frozen_request_without_rewriting_it(self):
+        prefix = dispatcher.OPS + "/" + self.week
+        frozen = {**self.request, "options": {"work_cleanup": "none"}}
+        body = json.dumps(frozen, sort_keys=True).encode()
+        self.s3.objects[(BUCKET, prefix + "/request.json")] = body
+        run = unittest.mock.Mock()
+        with patch.dict(os.environ, {"BOUNDED_WORKSPACE": str(self.root)}, clear=False), \
+             patch.multiple(dispatcher, _history=lambda s: self.history, _documents=lambda s: self.raw,
+                            _verify_raw=lambda s, r: None), \
+             patch.object(dispatcher.runner, "run", run):
+            self.assertEqual(dispatcher.dispatch(self.s3, self.root, now=self.now), 1)
+        self.assertFalse(run.called)
+        self.assertEqual(self.s3.objects[(BUCKET, prefix + "/request.json")], body)
+
+    def test_main_rejects_bounded_escape_before_client_or_status_writes(self):
+        bounded = self.root / "bounded"
+        bounded.mkdir()
+        outside = self.root / "outside"
+        with patch.dict(os.environ, {"BOUNDED_WORKSPACE": str(bounded)}, clear=False), \
+             patch("pipeline.minio.ingest_raw.client") as client:
+            self.assertEqual(dispatcher.main(["--work-dir", str(outside)]), 1)
+        client.assert_not_called()
+
+    def test_main_configures_bounded_temp_before_host_lock(self):
+        class Lock:
+            def __enter__(inner):
+                self.assertEqual(Path(tempfile.tempdir), self.root / "tmp")
+                return None
+
+            def __exit__(inner, *args):
+                return False
+
+        with patch.dict(os.environ, {"BOUNDED_WORKSPACE": str(self.root)}, clear=False), \
+             patch("pipeline.minio.ingest_raw.client", return_value=self.s3), \
+             patch.object(dispatcher, "host_lock", return_value=Lock()), \
+             patch.object(dispatcher, "dispatch", return_value=0) as run, \
+             patch.object(dispatcher, "_record"):
+            self.assertEqual(dispatcher.main(["--work-dir", str(self.root)]), 0)
+        run.assert_called_once_with(self.s3, self.root.resolve(), retry_snapshot=None)
 
     def _dispatch(self, *, history=None, weeks=None, request=None, **patches):
         values = {
