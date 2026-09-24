@@ -61,9 +61,11 @@ Downloads 그래프 지수·증감·로그축 압축 표시 추가와 Version Sh
 
 ### 제출 산출물 (2026-09-24)
 
-[`제출산출물/`](제출산출물/README.md) — 대회 제출용 **ERD · 시스템 아키텍처 · API 명세서** PDF 3종.
-코드(Flyway 마이그레이션·OpenAPI·DTO 소스)에서 생성하므로 PDF 를 직접 고치지 않고
-`python docs/제출산출물/src/build.py` 로 다시 만듭니다.
+대회 제출용 PDF 3종 — [`Pickage_ERD.pdf`](Pickage_ERD.pdf) ·
+[`Pickage_시스템_아키텍처.pdf`](Pickage_시스템_아키텍처.pdf) · [`Pickage_API_명세서.pdf`](Pickage_API_명세서.pdf).
+코드(Flyway 마이그레이션·OpenAPI·DTO 소스)에서 생성했으며, 생성기와 입력 스냅샷은
+[`history/제출산출물/`](history/제출산출물/README.md) 에 보관합니다. PDF 를 직접 고치지 않고
+`python docs/history/제출산출물/src/build.py` 로 다시 만듭니다.
 
 ### 아직 없는 것 (새로 써야 함)
 

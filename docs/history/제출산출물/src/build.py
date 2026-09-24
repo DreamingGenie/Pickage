@@ -1,7 +1,7 @@
 """제출 산출물(ERD · 시스템 아키텍처 · API 명세서) PDF 생성기.
 
-    python docs/제출산출물/src/build.py            # HTML 생성 + PDF 변환
-    python docs/제출산출물/src/build.py --html     # HTML 만 (PDF 변환 생략)
+    python docs/history/제출산출물/src/build.py            # HTML 생성 + PDF 변환
+    python docs/history/제출산출물/src/build.py --html     # HTML 만 (PDF 변환 생략)
 
 입력은 모두 저장소 안에 있다 — 네트워크·DB 없이 다시 돌릴 수 있다.
   * src/data/schema.json          Flyway V1~V13 을 적용한 빈 DB 에서 뽑은 스키마 (refresh_inputs.sh)
@@ -27,9 +27,9 @@ from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE.parent
-BUILD = OUT / "build"
-REPO = HERE.parents[2]
+REPO = HERE.parents[3]
+OUT = REPO / "docs"  # 완성본 PDF 는 docs 루트에 둔다. 생성기는 docs/history/제출산출물 에 보관
+BUILD = HERE.parent / "build"
 sys.path.insert(0, str(HERE))
 
 import notes  # noqa: E402
@@ -41,7 +41,10 @@ esc = html.escape
 
 def git_rev() -> str:
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO,
+        # 문서 커밋이 아니라 문서가 설명하는 코드의 기준 — develop 과의 공통 조상
+        base = subprocess.run(["git", "merge-base", "HEAD", "origin/develop"], cwd=REPO,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run(["git", "rev-parse", "--short", base], cwd=REPO,
                               capture_output=True, text=True, check=True).stdout.strip()
     except Exception:
         return "unknown"

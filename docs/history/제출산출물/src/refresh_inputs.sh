@@ -2,8 +2,8 @@
 #
 # refresh_inputs.sh — 산출물 생성기의 입력(src/data/*.json)을 현재 코드에서 다시 뽑는다
 #
-#   sh docs/제출산출물/src/refresh_inputs.sh
-#   python docs/제출산출물/src/build.py
+#   sh docs/history/제출산출물/src/refresh_inputs.sh
+#   python docs/history/제출산출물/src/build.py
 #
 # 마이그레이션·컨트롤러·RAG API 가 바뀌었을 때만 돌리면 된다. DTO 설명만 바뀐 경우는
 # build.py 가 자바 소스를 직접 읽으므로 이 단계가 필요 없다.
@@ -17,7 +17,7 @@
 set -eu
 
 ROOT=$(git rev-parse --show-toplevel)
-DATA="$ROOT/docs/제출산출물/src/data"
+DATA="$ROOT/docs/history/제출산출물/src/data"
 PG=pickage-docgen-pg
 PG_PORT=15499
 API_PORT=18099
@@ -51,7 +51,7 @@ until curl -sf "http://localhost:$API_PORT/v3/api-docs" -o "$DATA/backend-openap
 done
 
 echo "3) 스키마 추출"
-docker exec -i "$PG" psql -U postgres -d docgen -At <"$ROOT/docs/제출산출물/src/schema.sql" >"$DATA/schema.json"
+docker exec -i "$PG" psql -U postgres -d docgen -At <"$ROOT/docs/history/제출산출물/src/schema.sql" >"$DATA/schema.json"
 
 echo "4) RAG API OpenAPI"
 ( cd "$ROOT" && python -c "
@@ -68,4 +68,4 @@ for f in pathlib.Path(sys.argv[1]).glob("*.json"):
     d.pop("servers", None) if isinstance(d, dict) else None
     f.write_text(json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8", newline="\n")
 PY
-echo "완료 — 이제 python docs/제출산출물/src/build.py"
+echo "완료 — 이제 python docs/history/제출산출물/src/build.py"
