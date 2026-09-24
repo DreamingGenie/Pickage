@@ -59,6 +59,14 @@ Downloads 그래프 지수·증감·로그축 압축 표시 추가와 Version Sh
 그 0917 세트와 개발이 끝난 `for_community/` 기록은 0923 완성 기준 문서로 교체하는 과정에서
 `history/0923_0917_pickage_final_set_archive/` 로 이관했습니다.
 
+### 제출 산출물 (2026-09-24)
+
+대회 제출용 PDF 3종 — [`Pickage_ERD.pdf`](Pickage_ERD.pdf) ·
+[`Pickage_시스템_아키텍처.pdf`](Pickage_시스템_아키텍처.pdf) · [`Pickage_API_명세서.pdf`](Pickage_API_명세서.pdf).
+코드(Flyway 마이그레이션·OpenAPI·DTO 소스)에서 생성했으며, 생성기와 입력 스냅샷은
+[`history/제출산출물/`](history/제출산출물/README.md) 에 보관합니다. PDF 를 직접 고치지 않고
+`python docs/history/제출산출물/src/build.py` 로 다시 만듭니다.
+
 ### 아직 없는 것 (새로 써야 함)
 
 - API Key 발급 가이드 — deps.dev BigQuery(GCP)와 npm registry 기준이라 발급처가 완전히 다릅니다
