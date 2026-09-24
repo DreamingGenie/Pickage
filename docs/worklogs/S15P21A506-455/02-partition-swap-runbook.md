@@ -118,6 +118,26 @@ docker exec pickage-app-postgres-1 df -Pk /var/lib/postgresql/data | tail -1
 최근 날짜부터 내려간다. 첫 묶음은 2026-08-31 부터 10일이다.
 적재는 묶음 단위, **교체·확인·제거는 그 안에서 날짜 하나씩** 한다.
 
+### 2.0 드라이버로 한 줄에 — 아래 2.1~2.5 를 손으로 치지 않아도 된다
+
+날짜마다 세 명령이면 229일에 약 690개다. `swap_batch.py` 가 그 순서를 대신 친다.
+새 SQL 을 만들지 않고 아래 2.1~2.5 와 **같은 docker/psql 호출**만 쓴다.
+
+```bash
+python docs/worklogs/S15P21A506-455/sql/swap_batch.py --batch 1 --batch-size 10 --run-dir data/vd455/h5b/run2-20260923-v1 --run-manifest-sha256 dd92f148ed308c7960a84070657ce4a333e3204ee93bbd1295b548bf64a1056b --schema vd193_reload_455_20260922 --bak vd455_backup_20260922 --parent public.package_version_snapshot --container pickage-app-postgres-1 --user pickage --database pickage --output data/vd455/reload/prod
+```
+
+- 묶음 1 이 가장 최근 10일이다. 끝나면 `--batch 2`, `--batch 3` 으로 이어 간다.
+- 어느 단계든 실패하거나 값이 어긋나면 **즉시 멈춘다.** 뒤 날짜는 손대지 않는다.
+  마지막 날짜·단계·출력이 `<output>/driver-status.json` 에 남는다.
+- 이미 끝난 날짜는 건너뛴다. 같은 명령을 다시 쳐도 안전하다.
+- 1.5 절 설정도 드라이버가 직접 친다(`CREATE ... IF NOT EXISTS` 뿐이라 반복해도 무해).
+
+2026-09-24 로컬에서 2일 묶음으로 검증했다. 적재 117.5초, 날짜당 교체·확인·제거 약 4초,
+`delta_bytes` 0, 84.7 바이트/행. 재실행은 1초 만에 전부 건너뛰었다.
+
+아래 2.1~2.5 는 드라이버가 무엇을 치는지와, 한 날짜만 손으로 다룰 때의 절차다.
+
 ### 2.1 적재 계획 만들기
 
 `--date` 를 날짜 수만큼 반복한다(아래는 2일 예시, 실제로는 10개).
