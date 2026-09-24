@@ -1,0 +1,1393 @@
+{
+ "components": {
+  "schemas": {
+   "ApiResponseBodyCommunityStatusResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyEcosystemSummaryResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyFeatureRunResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyFeatureVersionsResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyMarkdownJobResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyMigrationPairsResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyPackageEnvResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyPackageSearchResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyPackagesOverviewResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyPdfJobResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyRemovalReasonsResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodySimilarPackagesResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyTransitionsResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyTrendResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "ApiResponseBodyVersionShareResponse": {
+    "properties": {
+     "success": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "Difference": {
+    "properties": {
+     "body": {
+      "type": "string"
+     },
+     "packageName": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "FailedResponseBody": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPdfJobResponse"
+     },
+     {
+      "properties": {
+       "code": {
+        "type": "string"
+       },
+       "message": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyMarkdownJobResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyFeatureRunResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyCommunityStatusResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackagesOverviewResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyFeatureVersionsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyVersionShareResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyTransitionsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyEcosystemSummaryResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodySimilarPackagesResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackageSearchResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyRemovalReasonsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyMigrationPairsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackageEnvResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyTrendResponse"
+     }
+    ]
+   },
+   "FeatureComparisonPayload": {
+    "properties": {
+     "common": {
+      "type": "string"
+     },
+     "differences": {
+      "items": {
+       "$ref": "#/components/schemas/Difference"
+      },
+      "type": "array"
+     },
+     "limited": {
+      "type": "boolean"
+     },
+     "packages": {
+      "items": {
+       "$ref": "#/components/schemas/PackageRef"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "MarkdownGenerateRequest": {
+    "properties": {
+     "features": {
+      "$ref": "#/components/schemas/FeatureComparisonPayload"
+     },
+     "from": {
+      "format": "date",
+      "type": "string"
+     },
+     "names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "period": {
+      "type": "string"
+     },
+     "snapshotAt": {
+      "format": "date",
+      "type": "string"
+     },
+     "to": {
+      "format": "date",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "PackageRef": {
+    "properties": {
+     "packageName": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "PdfGenerateRequest": {
+    "properties": {
+     "features": {
+      "$ref": "#/components/schemas/FeatureComparisonPayload"
+     },
+     "from": {
+      "format": "date",
+      "type": "string"
+     },
+     "names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "period": {
+      "type": "string"
+     },
+     "sections": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "snapshotAt": {
+      "format": "date",
+      "type": "string"
+     },
+     "to": {
+      "format": "date",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "SuccessResponseBody": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPdfJobResponse"
+     },
+     {
+      "properties": {
+       "data": {}
+      },
+      "type": "object"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyMarkdownJobResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyFeatureRunResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyCommunityStatusResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackagesOverviewResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyFeatureVersionsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyVersionShareResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyTransitionsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyEcosystemSummaryResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodySimilarPackagesResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackageSearchResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyRemovalReasonsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyMigrationPairsResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyPackageEnvResponse"
+     },
+     {
+      "$ref": "#/components/schemas/ApiResponseBodyTrendResponse"
+     }
+    ]
+   }
+  }
+ },
+ "info": {
+  "description": "Pickage API 문서",
+  "title": "Pickage API",
+  "version": "v1"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/api/packages": {
+   "get": {
+    "description": "이름 배열(최대 3개)로 조회한다. 일부가 없어도 200 이며 not_found 에 담긴다. 패키지는 있으나 스냅샷이 없으면 items 에 포함되고 지표 필드만 null 이다.",
+    "operationId": "getOverview",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "패키지 개요",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/community": {
+   "get": {
+    "description": "진행 상태 또는 저장된 결과만 읽는다. 새 수집을 시작하지 않는다.",
+    "operationId": "getStatus",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "커뮤니티 현황 조회",
+    "tags": [
+     "community"
+    ]
+   }
+  },
+  "/api/packages/community/refresh": {
+   "post": {
+    "description": "새 작업을 수락하면 202, 이미 신선한 결과가 있거나 같은 작업에 참여하거나 용량이 초과되면 200이다.",
+    "operationId": "refresh",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "trigger",
+      "required": true,
+      "schema": {
+       "enum": [
+        "ANALYSIS_CONFIRMED",
+        "TAB_OPENED"
+       ],
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "커뮤니티 현황 갱신",
+    "tags": [
+     "community"
+    ]
+   }
+  },
+  "/api/packages/dependents": {
+   "get": {
+    "description": "스냅샷별로 전 버전의 dependents_count 를 합산한다. 절대수는 부풀려진 값이다.",
+    "operationId": "getDependentsTrend",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "from",
+      "required": false,
+      "schema": {
+       "format": "date",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "to",
+      "required": false,
+      "schema": {
+       "format": "date",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "의존 수 추이",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/downloads": {
+   "get": {
+    "description": "from 생략 시 최초 스냅샷, to 생략 시 최신 스냅샷. 기간 상한 없음.",
+    "operationId": "getDownloadsTrend",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "from",
+      "required": false,
+      "schema": {
+       "format": "date",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "to",
+      "required": false,
+      "schema": {
+       "format": "date",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "다운로드 추이",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/env": {
+   "get": {
+    "description": "이름@버전 배열(최대 3개). 모듈 방식·타입 동봉·직접/peer 의존 수를 돌려준다. 없는 것은 not_found 에 담기고 200 이다.",
+    "operationId": "getEnv",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "refs",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "버전별 소비 조건",
+    "tags": [
+     "features"
+    ]
+   }
+  },
+  "/api/packages/feature-comparison": {
+   "post": {
+    "description": "runId 를 돌려준다. 결과는 상태 조회로 받는다. 동시 실행 수를 넘으면 V002.",
+    "operationId": "startComparison",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "refs",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "기능 비교 시작",
+    "tags": [
+     "features"
+    ]
+   }
+  },
+  "/api/packages/feature-comparison/{runId}": {
+   "get": {
+    "description": "COMPLETED 면 result 가 찬다. 실패도 200 이며 status=FAILED · error_code 로 구분한다.",
+    "operationId": "getComparison",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "runId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "기능 비교 상태",
+    "tags": [
+     "features"
+    ]
+   }
+  },
+  "/api/packages/migration-pairs": {
+   "get": {
+    "description": "X 를 뺀 릴리스가 무엇을 함께 넣었는지를 도착지 분포로 답한다. kind 는 regular·dev 중 하나이며 기본 regular — 모집단이 달라 두 종류의 수를 더하거나 lift 절댓값을 비교하면 안 된다. 기본 필터(votes>=5 AND publisher_months>=3)를 통과한 상위 5개를 세우고 나머지는 etc 로 접는다. 점유율 분모는 표가 아니라 조직·달 수(share_basis=publisher_months)이며 한 응답의 합이 100 이 아니다. 쌍은 있으나 전부 필터 미달이면 INSUFFICIENT_EVIDENCE, 관측이 없으면 NO_DATA, available_package 에 없으면 OUT_OF_SCOPE, 그 종류를 아직 안 올렸으면 NOT_COMPUTED 로 나간다.",
+    "operationId": "getMigrationPairs",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "kind",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "관측된 교체 흐름 (도착지 분포)",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/removal-reasons": {
+   "get": {
+    "description": "X 를 뺀 전이를 대체 동반(with_replacement)과 대체 없음(no_replacement)으로 가른다. period 는 1y·3y·5y 중 하나이며 기본 3y. 한 패키지가 한 줄이다(kind 없음). unit=transitions — 패키지 수가 아니라 전이 건수이며 유지·유입·이탈의 수와 더하거나 나누면 안 된다. 대상인데 제거가 없으면 0 과 NO_DATA, 대상 밖이면 null 과 OUT_OF_SCOPE 로 나간다.",
+    "operationId": "getRemovalReasons",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "구간별 이탈 사유",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/search": {
+   "get": {
+    "description": "최신 스냅샷이 있는 등록 패키지만 반환한다. 완전 일치·접두사·중간 포함 순, 같은 그룹은 다운로드 순. limit 기본 20, 최대 50.",
+    "operationId": "search",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "format": "int32",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "등록된 패키지명 검색 (포함)",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/similar": {
+   "get": {
+    "description": "기준 패키지 하나의 대체 후보를 순위 순으로 반환한다. limit 기본 20, 최대 50. 아직 계산되지 않았으면 200 에 빈 candidates 와 data_status=NO_DATA 로 나간다.",
+    "operationId": "getSimilar",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "format": "int32",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "유사 패키지",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/summary": {
+   "get": {
+    "description": "고른 패키지(최대 3개)의 공통 기능과 사용 흐름을 두 문장으로 요약한다. 조합·기준일마다 한 번만 모델을 부르고 이후엔 캐시로 답한다. status 가 READY 가 아니면 common·ecosystem 이 없다.",
+    "operationId": "getSummary",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "생태계 요약 (실험)",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/transitions": {
+   "get": {
+    "description": "구간 양 끝의 dependent 선언 집합을 비교한다. period 는 1y·3y·5y 중 하나이며 기본 3y. 한 패키지가 kind(regular·peer·optional)마다 한 줄씩 나온다. 계산 대상 밖이면 0 이 아니라 null 과 data_status=OUT_OF_SCOPE 로 나간다.",
+    "operationId": "getTransitions",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "유지·유입·이탈",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/version": {
+   "get": {
+    "description": "특정 시점의 major 별 의존 지분. snapshot_at 생략 시 최신 스냅샷. 데이터가 없는 날짜는 200 에 빈 slices 로 나간다.",
+    "operationId": "getVersionShare",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "snapshot_at",
+      "required": false,
+      "schema": {
+       "format": "date",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "버전 분포",
+    "tags": [
+     "packages"
+    ]
+   }
+  },
+  "/api/packages/versions": {
+   "get": {
+    "description": "패키지마다 소비 조건이 있는 서로 다른 major의 최신 정식 버전을 최대 3개 최신순으로 돌려준다. 패키지는 있는데 고를 버전이 없으면 versions 가 빈 배열이다.",
+    "operationId": "getVersions",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "names",
+      "required": false,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "기능 비교 버전 목록",
+    "tags": [
+     "features"
+    ]
+   }
+  },
+  "/api/report/markdown": {
+   "post": {
+    "description": "비교 대상과 조회 조건을 받아 agent 친화적 .md 문서를 만든다. 숫자는 서버가 다시 조회하므로 화면이 들고 있던 옛 값이 문서에 박히지 않는다. 구역은 항상 전체를 시도한다(선택 UI 없음). 응답은 작업 정보이며 파일이 아니다.",
+    "operationId": "generate_1",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MarkdownGenerateRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "HAND-OFF Markdown 생성",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/markdown/{reportId}": {
+   "get": {
+    "description": "생성된 문서의 파일명·크기·생성 시각.",
+    "operationId": "find_1",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "reportId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "HAND-OFF Markdown 작업 조회",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/markdown/{reportId}/file": {
+   "get": {
+    "description": "같은 reportId 로 여러 번 받을 수 있고, 다시 받아도 문서를 새로 만들지 않는다.",
+    "operationId": "file_1",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "reportId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "format": "byte",
+         "type": "string"
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "HAND-OFF Markdown 다운로드",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/pdf": {
+   "post": {
+    "description": "비교 대상과 조회 조건을 받아 문서를 만든다. 숫자는 서버가 다시 조회하므로 화면이 들고 있던 옛 값이 문서에 박히지 않는다. 응답은 작업 정보이며 파일이 아니다.",
+    "operationId": "generate",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PdfGenerateRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "PDF 생성",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/pdf/{reportId}": {
+   "get": {
+    "description": "생성된 문서의 파일명·크기·생성 시각. 다시 받기 전에 상태를 확인하는 자리다.",
+    "operationId": "find",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "reportId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "oneOf": [
+          {
+           "$ref": "#/components/schemas/FailedResponseBody"
+          },
+          {
+           "$ref": "#/components/schemas/SuccessResponseBody"
+          }
+         ]
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "PDF 작업 조회",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/pdf/{reportId}/file": {
+   "get": {
+    "description": "같은 reportId 로 여러 번 받을 수 있고, 다시 받아도 보고서를 새로 만들지 않는다.",
+    "operationId": "file",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "reportId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "*/*": {
+        "schema": {
+         "format": "byte",
+         "type": "string"
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "PDF 다운로드",
+    "tags": [
+     "report"
+    ]
+   }
+  },
+  "/api/report/pdf/{reportId}/preview": {
+   "get": {
+    "description": "문서 내용을 HTML 로 반환한다. 다운로드할 PDF 와 같은 생성에서 나온 것이다.",
+    "operationId": "preview",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "reportId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "OK"
+     }
+    },
+    "summary": "보고서 미리보기 (HTML)",
+    "tags": [
+     "report"
+    ]
+   }
+  }
+ },
+ "tags": [
+  {
+   "description": "GitHub 커뮤니티 현황 갱신·조회",
+   "name": "community"
+  },
+  {
+   "description": "npm 패키지 동향 조회",
+   "name": "packages"
+  },
+  {
+   "description": "보고서 PDF",
+   "name": "report"
+  },
+  {
+   "description": "기능 비교 (확장 보고서 2페이지)",
+   "name": "features"
+  },
+  {
+   "description": "보고서 HAND-OFF Markdown",
+   "name": "report"
+  }
+ ]
+}
