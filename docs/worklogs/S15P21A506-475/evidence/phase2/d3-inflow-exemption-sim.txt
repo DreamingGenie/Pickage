@@ -1,0 +1,32 @@
+구간 1y regular (2025-08-31→2026-08-31), 기준일 2026-09-25, 보고서 가능 코퍼스
+12개월 필터 탈락: 28823  transitions 행 없음: 0
+ inflow>=5   net>0=False: 복귀  4501  ≤2015  145  websocket True  chainsaw False
+ inflow>=5   net>0=True : 복귀  4425  ≤2015  141  websocket True  chainsaw False
+ inflow>=10  net>0=False: 복귀  2822  ≤2015   73  websocket True  chainsaw False
+ inflow>=10  net>0=True : 복귀  2795  ≤2015   72  websocket True  chainsaw False
+ inflow>=20  net>0=False: 복귀  1749  ≤2015   37  websocket True  chainsaw False
+ inflow>=20  net>0=True : 복귀  1739  ≤2015   37  websocket True  chainsaw False
+ inflow>=50  net>0=False: 복귀   862  ≤2015   24  websocket False  chainsaw False
+ inflow>=50  net>0=True : 복귀   861  ≤2015   24  websocket False  chainsaw False
+ inflow>=100 net>0=False: 복귀   486  ≤2015    8  websocket False  chainsaw False
+ inflow>=100 net>0=True : 복귀   485  ≤2015    8  websocket False  chainsaw False
+  websocket        release 2024-05-12 dl/mo    5,707,342 inflow     39 outflow     19 archived False inRank True
+  chainsaw         release 2011-07-17 dl/mo   60,659,564 inflow      0 outflow      0 archived False inRank True
+  ms               release 2020-12-08 dl/mo 2,176,759,275 inflow    498 outflow     35 archived False inRank True
+  safe-buffer      release 2020-05-10 dl/mo 1,188,835,514 inflow    109 outflow     23 archived False inRank True
+  request          release 2020-02-11 dl/mo   56,078,001 inflow    544 outflow    283 archived False inRank True
+  moment           release 2023-12-27 dl/mo  139,807,191 inflow   1971 outflow    376 archived False inRank True
+  hat              release 2011-08-06 dl/mo    1,237,435 inflow      3 outflow      0 archived False inRank True
+  buffers          release 2011-10-12 dl/mo   59,305,112 inflow      7 outflow      0 archived False inRank True
+  node-fetch       release 2023-07-25 dl/mo  725,551,750 inflow   5315 outflow    840 archived False inRank True
+  uuid             release 2026-08-18 dl/mo 1,109,161,952 inflow   9817 outflow   1122 archived False inRank True
+  colors           release 2019-09-22 dl/mo  102,902,898 inflow    242 outflow     86 archived False inRank True
+  left-pad         release 2018-04-09 dl/mo   11,226,667 inflow     25 outflow      2 archived True inRank True
+  mkdirp           release 2023-04-24 dl/mo  515,931,643 inflow    223 outflow    106 archived False inRank True
+  rimraf           release 2026-02-16 dl/mo  622,867,171 inflow    679 outflow    186 archived False inRank True
+  body-parser      release 2026-06-15 dl/mo  559,715,593 inflow    742 outflow    128 archived False inRank True
+  express-session  release 2026-01-22 dl/mo   16,691,634 inflow    356 outflow     20 archived False inRank True
+  querystring      release 2021-02-15 dl/mo   59,280,539 inflow     58 outflow     25 archived False inRank True
+  through2         release 2026-07-30 dl/mo  196,070,285 inflow     89 outflow     34 archived False inRank True
+
+[inflow>=20 & net>0] 가장 오래된 25: [('scss', '2011', 72, 5), ('imurmurhash', '2013', 83, 10), ('text-table', '2013', 68, 7), ('exit', '2013', 28, 18), ('net', '2014', 36, 15), ('user', '2014', 155, 11), ('passport-local', '2014', 89, 8), ('fs', '2014', 410, 138), ('thenify-all', '2015', 57, 2), ('lodash.constant', '2015', 24, 2), ('commondir', '2015', 22, 7), ('sha256', '2015', 32, 8), ('https', '2015', 59, 29), ('delayed-stream', '2015', 28, 3), ('convex', '2015', 261, 1), ('wordwrap', '2015', 46, 4), ('nprogress', '2015', 176, 9), ('stats.js', '2015', 31, 1), ('array-filter', '2015', 56, 1), ('json-stringify-safe', '2015', 58, 4), ('freeport', '2015', 21, 0), ('ee-first', '2015', 57, 2), ('require-directory', '2015', 67, 5), ('unpipe', '2015', 56, 4), ('co', '2015', 43, 11)]

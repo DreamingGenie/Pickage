@@ -1,0 +1,15 @@
+시연 쌍 zod(B) vs ajv(A) — 2026-09-25 운영 서비스 확인 (S15P21A506-476)
+
+후보: zod 입력 → joi 1위 · ajv 2위 · @redocly/ajv 3위 (ajv 입력 시 zod 10위)
+주간 다운로드(마지막 점 2026-08-31): ajv 377.2M · zod 274.9M. 2024-09 이후 전 구간 ajv 가 위
+의존 수(버전 합, API): 2022-05 zod 4,931 / ajv 97,358 → 2024-11 180,922 / 196,118 → 2025-05 292,012 / 220,178 → 2026-08 1,413,478 / 352,725 (2024-11~2025-05 사이 교차)
+3개월 추세(화면 카드): 다운로드 zod +52% · ajv +20% / 의존 등록 수 zod +38% · ajv +14%
+유지·유입·이탈 3년(화면): zod 유지 46.8% 유입 44.1% 이탈 9.1% · ajv 유지 76.9% 유입 14.4% 이탈 8.7%
+설치 전 조건(zod 4.5.4 / ajv 8.20.0): 불러오는 방식 import·require / CJS · 타입 둘 다 포함 · 직접 의존 0 / 4 · peer 0 / 0 — npm 레지스트리와 4항목 일치
+AI 기능 비교: demo-zod-ajv-feature-comparison.json (COMPLETED, 3~5초, 캐시 재사용)
+커뮤니티: zod #479(객체 refine 지연) · #372 / ajv #1945(React Native Hermes compile 재귀 오류) · #1978(uri-js, 오래된 논의 — 현재 8.20.0 은 fast-uri)
+
+설치 전 조건 데이터 오류 발견(시연 쌍 아님, 별도 보고 필요):
+- axios 1.20.0 module_format=ESM_ONLY — 실제 exports 에 require 조건 있음(중첩 조건)
+- postgres 3.4.9 module_format=ESM_ONLY — 실제 exports default 가 cjs
+- got 16.0.0 types_bundled=false — 실제 exports.types 있음

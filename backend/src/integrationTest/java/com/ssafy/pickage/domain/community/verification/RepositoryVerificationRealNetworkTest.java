@@ -17,7 +17,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
  * <p>실행: {@code GITHUB_COMMUNITY_TOKEN=<발급받은 토큰> ./gradlew integrationTest --tests
  * "*.RepositoryVerificationRealNetworkTest"}
  *
- * <p>Spec {@code docs/for_community/specs/S15P21A506-213.md} §7 — 사용자가 실제 토큰으로
+ * <p>Spec {@code docs/history/0923_0917_pickage_final_set_archive/for_community/specs/S15P21A506-213.md} §7 — 사용자가 실제 토큰으로
  * (1) 정상 검증 경로와 (2) 일부러 낮춘 byte 상한이 실제 응답을 끊는지를 함께 확인하기 위한
  * 시험이다.
  */

@@ -1,0 +1,10 @@
+                            execution_id                             |  status   |          created_at           |          updated_at           | err 
+---------------------------------------------------------------------+-----------+-------------------------------+-------------------------------+-----
+ similar-package-modelv2-corpuspackage-text-20260908-v1              | PUBLISHED | 2026-09-17 07:10:35.929072+00 | 2026-09-17 07:10:49.924819+00 | 
+ similar-package-package-text-20260908-v1                            | PUBLISHED | 2026-09-18 00:53:41.845894+00 | 2026-09-18 00:53:55.257249+00 | 
+ similar-package-modelv2-corpuspackage-text-20260908-v2-a453075856e9 | PUBLISHED | 2026-09-19 14:32:28.27168+00  | 2026-09-19 14:32:39.752059+00 | 
+(3 rows)
+
+ERROR:  column a.started_at does not exist
+LINE 1: SELECT a.execution_id, a.status, a.phase, a.started_at, a.co...
+                                                  ^

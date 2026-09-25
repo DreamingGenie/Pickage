@@ -1,0 +1,33 @@
+Timing is on.
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+Time: 0.267 ms
+### available 97,743 중 최신 시점(2026-08-31) 조건별 보유
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=89637.14..89637.15 rows=1 width=8)
+   ->  Gather  (cost=89636.92..89637.13 rows=2 width=8)
+         Workers Planned: 2
+         ->  Partial Aggregate  (cost=88636.92..88636.93 rows=1 width=8)
+               ->  Nested Loop  (cost=0.87..88287.38 rows=139818 width=0)
+                     ->  Parallel Index Only Scan using available_package_pkey on available_package a  (cost=0.29..2128.27 rows=40726 width=4)
+                     ->  Index Only Scan using "PK_PACKAGE_SNAPSHOT" on package_snapshot ps  (cost=0.57..5.20 rows=3 width=4)
+                           Index Cond: ((package_id = a.package_id) AND (snapshot_at = '2026-08-31'::date))
+(8 rows)
+
+Time: 19.718 ms
+ERROR:  canceling statement due to statement timeout
+Time: 30000.565 ms (00:30.001)
+### 인덱스 목록 (package_snapshot, package_version_snapshot 부모)
+            indexrelid            |         indrelid         
+----------------------------------+--------------------------
+ "PK_PACKAGE_SNAPSHOT"            | package_snapshot
+ ix_package_snapshot_history_date | package_snapshot
+ pk_package_version_snapshot      | package_version_snapshot
+ idx_pvs_pkg_snapshot             | package_version_snapshot
+(4 rows)
+
+Time: 7.082 ms

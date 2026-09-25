@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Pickage 시스템 아키텍처</title>
+<style>/*STYLE*/
+body { font-size: 10pt; }
+.sheet-a3 { page: wide; page-break-after: always; }
+.sheet-a3:last-child { page-break-after: auto; }
+svg.arch { width: 100%; height: auto; display: block; }
+svg.arch text { font-family: "Pretendard", "Malgun Gothic", sans-serif; }
+.zone-label { font-size: 15px; font-weight: 700; }
+.zone-sub { font-size: 12px; fill: #475569; }
+.c-title { font-size: 14px; font-weight: 700; fill: #0f172a; }
+.c-line { font-size: 11.5px; fill: #334155; }
+.c-mono { font-size: 11px; fill: #334155; font-family: Consolas, monospace !important; }
+.chip-title { font-size: 13px; font-weight: 700; fill: #0f172a; }
+.chip-sub { font-size: 11px; fill: #475569; }
+.e { fill: none; stroke-width: 1.8; }
+.e-web { stroke: #0f172a; } .e-ext { stroke: #2563eb; } .e-data { stroke: #059669; }
+.e-ai { stroke: #7c3aed; } .e-ci { stroke: #9333ea; stroke-dasharray: 6 4; } .e-spark { stroke: #b45309; stroke-dasharray: 5 4; }
+.e-lbl { font-size: 11px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+.lg { font-size: 12px; fill: #334155; }
+
+/* 2쪽 — 기능별 흐름 */
+.flows { display: grid; grid-template-columns: 150px repeat(5, 1fr); gap: 0; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; }
+.flows > div { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; position: relative; }
+.flows .hd { background: #0f172a; color: #fff; font-weight: 700; font-size: 10.5pt; text-align: center; border-bottom: 0; }
+.flows .hd small { display: block; font-weight: 400; opacity: .75; font-size: 8.5pt; }
+.flows .ft { color: #fff; font-weight: 700; font-size: 11pt; display: flex; flex-direction: column; justify-content: center; }
+.flows .ft small { font-weight: 400; font-size: 8.5pt; opacity: .9; margin-top: 2px; }
+.flows .cell { background: var(--tint); }
+.flows .cell.flow::after { content: "▶"; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: var(--c); z-index: 2; }
+.flows .cell.prep::before { content: "◀"; position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
+  font-size: 11px; color: var(--c); z-index: 2; }
+.chip { display: block; background: #fff; border: 1px solid var(--c); border-radius: 6px; padding: 3px 7px; margin: 3px 0;
+  font-size: 8.8pt; line-height: 1.35; }
+.chip b { color: var(--c); }
+.chip code { background: none; padding: 0; font-size: 8.3pt; }
+.chip.muted { border-style: dashed; color: #475569; }
+.stack { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 12px; }
+.stack div { border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 8px; font-size: 8.8pt; }
+.stack b { display: block; font-size: 9.5pt; margin-bottom: 2px; }
+.principles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.principles div { background: #f8fafc; border-left: 3px solid #1e40af; padding: 6px 9px; font-size: 8.8pt; }
+.principles b { display: block; font-size: 9.5pt; }
+</style></head><body>
+
+<!-- ═══════════════ 1쪽 — 배포 구성 ═══════════════ -->
+<section class="sheet-a3">
+<header class="doc-head"><div><h1>Pickage 시스템 아키텍처</h1>
+<p class="sub">① 배포 구성 — 운영은 app 노드와 data 노드 두 대의 AWS EC2 로 나뉘고, 두 노드는 MinIO 객체로만 데이터를 넘긴다</p></div>
+<p class="meta">기준 커밋 {{REV}} · 생성 {{DATE}}<br>근거: deploy/prod/app·data/compose.yaml</p></header>
+
+<svg class="arch" viewBox="0 0 1600 1000" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="a-web" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0f172a"/></marker>
+  <marker id="a-ext" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2563eb"/></marker>
+  <marker id="a-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#059669"/></marker>
+  <marker id="a-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7c3aed"/></marker>
+  <marker id="a-ci" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9333ea"/></marker>
+  <marker id="a-spark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b45309"/></marker>
+</defs>
+
+<!-- 외부 서비스 -->
+<rect x="20" y="8" width="1560" height="116" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-dasharray="6 4"/>
+<text x="34" y="30" class="zone-label" fill="#b45309">외부 서비스</text>
+<g>
+  <rect x="40" y="44" width="170" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="125" y="68" class="chip-title" text-anchor="middle">npm registry</text><text x="125" y="88" class="chip-sub" text-anchor="middle">버전·의존 선언·저장소</text>
+  <rect x="225" y="44" width="170" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="310" y="68" class="chip-title" text-anchor="middle">npm downloads API</text><text x="310" y="88" class="chip-sub" text-anchor="middle">일별 다운로드 수</text>
+  <rect x="410" y="44" width="180" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="500" y="68" class="chip-title" text-anchor="middle">deps.dev · BigQuery</text><text x="500" y="88" class="chip-sub" text-anchor="middle">의존 관계 주간 스냅샷</text>
+  <rect x="605" y="44" width="180" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="695" y="68" class="chip-title" text-anchor="middle">Google Cloud Storage</text><text x="695" y="88" class="chip-sub" text-anchor="middle">BigQuery 추출 Parquet</text>
+  <rect x="800" y="44" width="170" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="885" y="68" class="chip-title" text-anchor="middle">GitHub REST API</text><text x="885" y="88" class="chip-sub" text-anchor="middle">저장소·Issue·댓글</text>
+  <rect x="985" y="44" width="170" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="1070" y="68" class="chip-title" text-anchor="middle">jsDelivr CDN</text><text x="1070" y="88" class="chip-sub" text-anchor="middle">버전별 README 원문</text>
+  <rect x="1170" y="44" width="180" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="1260" y="68" class="chip-title" text-anchor="middle">LLM API (OpenAI)</text><text x="1260" y="88" class="chip-sub" text-anchor="middle">GMS_* 설정으로 엔드포인트 지정</text>
+  <rect x="1365" y="44" width="200" height="60" rx="8" fill="#fff" stroke="#f59e0b"/><text x="1465" y="68" class="chip-title" text-anchor="middle">GPU 학습 서버</text><text x="1465" y="88" class="chip-sub" text-anchor="middle">임베딩 모델 학습 → ONNX</text>
+  <path d="M590 74 H605" class="e e-data" marker-end="url(#a-data)"/>
+</g>
+
+<!-- 사용자 -->
+<rect x="20" y="320" width="155" height="170" rx="12" fill="#f1f5f9" stroke="#64748b"/>
+<text x="97" y="348" class="zone-label" text-anchor="middle" fill="#0f172a">사용자</text>
+<rect x="36" y="364" width="123" height="108" rx="8" fill="#fff" stroke="#94a3b8"/>
+<text x="97" y="390" class="c-title" text-anchor="middle">웹 브라우저</text>
+<text x="97" y="412" class="c-line" text-anchor="middle">React 19 SPA</text>
+<text x="97" y="430" class="c-line" text-anchor="middle">TanStack Query</text>
+<text x="97" y="448" class="c-line" text-anchor="middle">Vite 빌드 정적 파일</text>
+
+<!-- app 노드 -->
+<rect x="195" y="158" width="770" height="646" rx="14" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="212" y="184" class="zone-label" fill="#1d4ed8">app 노드</text>
+<text x="290" y="184" class="zone-sub">j15a506.p.ssafy.io · AWS EC2 · Docker Compose (pickage-app) — 서비스 제공</text>
+
+<rect x="220" y="330" width="170" height="150" rx="10" fill="#e0f2fe" stroke="#0284c7"/>
+<text x="305" y="356" class="c-title" text-anchor="middle">web · nginx</text>
+<text x="305" y="382" class="c-line" text-anchor="middle">TLS 종단 :443 (80→443)</text>
+<text x="305" y="402" class="c-line" text-anchor="middle">SPA 정적 파일 서빙</text>
+<text x="305" y="422" class="c-line" text-anchor="middle">/api · /swagger-ui 프록시</text>
+<text x="305" y="442" class="c-line" text-anchor="middle">/api/v1/ops 외부 차단</text>
+
+<rect x="430" y="210" width="300" height="300" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="580" y="236" class="c-title" text-anchor="middle">api · Spring Boot 4 (Java 21) :8080</text>
+<g class="c-line">
+  <text x="446" y="266"><tspan font-weight="700">packages</tspan>  검색·유사 후보·생태계 지표</text>
+  <text x="446" y="292"><tspan font-weight="700">features</tspan>  버전·소비 조건·기능 비교 실행</text>
+  <text x="446" y="318"><tspan font-weight="700">community</tspan>  GitHub 수집·요약 (비동기)</text>
+  <text x="446" y="344"><tspan font-weight="700">report</tspan>  PDF · HAND-OFF Markdown 생성</text>
+  <text x="446" y="370"><tspan font-weight="700">summary</tspan>  생태계 한 줄 요약 (실험)</text>
+  <text x="446" y="396"><tspan font-weight="700">docs</tspan>  README 수집·디스크 캐시</text>
+  <text x="446" y="422"><tspan font-weight="700">ops</tspan>  주간 수집 현황·수동 실행 (운영자)</text>
+</g>
+<text x="580" y="458" class="c-line" text-anchor="middle">Spring Data JPA · Flyway · springdoc</text>
+<text x="580" y="478" class="c-line" text-anchor="middle">공통 응답 {success, data} · 오류 코드 V/S/C</text>
+
+<rect x="770" y="210" width="170" height="190" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+<ellipse cx="855" cy="228" rx="70" ry="9" fill="none" stroke="#0d9488"/>
+<text x="855" y="262" class="c-title" text-anchor="middle">PostgreSQL 16</text>
+<text x="855" y="288" class="c-line" text-anchor="middle">Flyway V1 ~ V13</text>
+<text x="855" y="308" class="c-line" text-anchor="middle">테이블 16개</text>
+<text x="855" y="328" class="c-line" text-anchor="middle">package 약 1,100만 행</text>
+<text x="855" y="348" class="c-line" text-anchor="middle">버전 스냅샷 파티션</text>
+<text x="855" y="376" class="chip-sub" text-anchor="middle">호스트 밖에서 접근 불가</text>
+
+<rect x="770" y="420" width="170" height="90" rx="10" fill="#fff" stroke="#0d9488" stroke-dasharray="4 3"/>
+<text x="855" y="446" class="c-title" text-anchor="middle">README 인계 파일</text>
+<text x="855" y="468" class="c-mono" text-anchor="middle">/srv/pickage/docs</text>
+<text x="855" y="488" class="c-line" text-anchor="middle">api·rag-api 공유 볼륨</text>
+
+<rect x="430" y="540" width="300" height="110" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="580" y="566" class="c-title" text-anchor="middle">rag-api · FastAPI (Python) :8000</text>
+<text x="580" y="590" class="c-line" text-anchor="middle">README 근거 추출 → LLM 1회 호출</text>
+<text x="580" y="610" class="c-line" text-anchor="middle">→ 근거 대조 검증 → 공통점·차이 반환</text>
+<text x="580" y="632" class="chip-sub" text-anchor="middle">내부 전용 · 외부 포트 없음</text>
+
+<rect x="220" y="680" width="250" height="92" rx="10" fill="#fef3c7" stroke="#d97706"/>
+<text x="345" y="704" class="c-title" text-anchor="middle">게시 loader (Python)</text>
+<text x="345" y="726" class="c-line" text-anchor="middle">similarity-loader — 상주, 60초 폴링</text>
+<text x="345" y="746" class="c-line" text-anchor="middle">package-env 등 — 회차 지정 1회성</text>
+
+<rect x="490" y="680" width="150" height="92" rx="10" fill="#fef3c7" stroke="#d97706"/>
+<text x="565" y="704" class="c-title" text-anchor="middle">Spark worker ②</text>
+<text x="565" y="726" class="c-line" text-anchor="middle">data 노드 master 에</text>
+<text x="565" y="746" class="c-line" text-anchor="middle">합류하는 실행기</text>
+
+<rect x="660" y="680" width="130" height="92" rx="10" fill="#f3e8ff" stroke="#9333ea"/>
+<text x="725" y="704" class="c-title" text-anchor="middle">gitlab-runner</text>
+<text x="725" y="726" class="c-line" text-anchor="middle">CI 배포 잡 실행</text>
+<text x="725" y="746" class="c-line" text-anchor="middle">compose 재생성</text>
+
+<rect x="810" y="680" width="130" height="92" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+<text x="875" y="704" class="c-title" text-anchor="middle">Netdata</text>
+<text x="875" y="726" class="c-line" text-anchor="middle">자원·파이프라인</text>
+<text x="875" y="746" class="c-line" text-anchor="middle">모니터링</text>
+
+<!-- data 노드 -->
+<rect x="990" y="158" width="590" height="646" rx="14" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+<text x="1007" y="184" class="zone-label" fill="#047857">data 노드</text>
+<text x="1087" y="184" class="zone-sub">j15a506a.p.ssafy.io · AWS EC2 · 외부 포트 없음(SSH 터널)</text>
+
+<rect x="1015" y="210" width="260" height="120" rx="10" fill="#d1fae5" stroke="#059669"/>
+<text x="1145" y="236" class="c-title" text-anchor="middle">ingest-weekly · 주간 수집</text>
+<text x="1145" y="260" class="c-line" text-anchor="middle">systemd 타이머가 매주 실행</text>
+<text x="1145" y="280" class="c-line" text-anchor="middle">수집 → 검증 → MinIO 입고</text>
+<text x="1145" y="300" class="c-line" text-anchor="middle">실패 시 재시도·차단(BLOCKED)</text>
+
+<rect x="1015" y="360" width="260" height="215" rx="10" fill="#fff" stroke="#059669" stroke-width="1.5"/>
+<ellipse cx="1145" cy="378" rx="110" ry="9" fill="none" stroke="#059669"/>
+<text x="1145" y="410" class="c-title" text-anchor="middle">MinIO · S3 호환 :9000</text>
+<g class="c-line">
+  <text x="1033" y="440"><tspan class="c-mono" font-weight="700">raw</tspan>  수집 원본 (Bronze)</text>
+  <text x="1033" y="462"><tspan class="c-mono" font-weight="700">quarantine</tspan>  검증 실패 격리</text>
+  <text x="1033" y="484"><tspan class="c-mono" font-weight="700">curated</tspan>  검증·변환 결과</text>
+  <text x="1033" y="506"><tspan class="c-mono" font-weight="700">vectors</tspan>  유사도 산출물·완료 포인터</text>
+  <text x="1033" y="528"><tspan class="c-mono" font-weight="700">mlflow-artifacts</tspan>  모델 파일</text>
+</g>
+<text x="1145" y="558" class="chip-sub" text-anchor="middle">두 노드 사이의 유일한 인계 지점</text>
+
+<rect x="1300" y="210" width="230" height="120" rx="10" fill="#fef3c7" stroke="#d97706"/>
+<text x="1415" y="236" class="c-title" text-anchor="middle">Spark 3.5</text>
+<text x="1415" y="258" class="c-line" text-anchor="middle">master + worker ①</text>
+<text x="1415" y="280" class="c-line" text-anchor="middle">Curated 변환·지표 집계</text>
+<text x="1415" y="300" class="c-line" text-anchor="middle">Python·DuckDB 변환 병행</text>
+
+<rect x="1300" y="360" width="230" height="95" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="1415" y="386" class="c-title" text-anchor="middle">MLflow 3.1</text>
+<text x="1415" y="410" class="c-line" text-anchor="middle">모델 레지스트리</text>
+<text x="1415" y="430" class="c-line" text-anchor="middle">@candidate → @production</text>
+
+<rect x="1300" y="480" width="230" height="95" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="1415" y="506" class="c-title" text-anchor="middle">ai-similarity (배치)</text>
+<text x="1415" y="530" class="c-line" text-anchor="middle">bge-small-en-v1.5 ONNX 임베딩</text>
+<text x="1415" y="550" class="c-line" text-anchor="middle">유사 후보 Top-K 계산</text>
+
+<rect x="1015" y="605" width="515" height="80" rx="10" fill="#fff" stroke="#10b981" stroke-dasharray="4 3"/>
+<text x="1272" y="630" class="c-title" text-anchor="middle">데이터 처리 계층 (pipeline/)</text>
+<text x="1272" y="652" class="c-line" text-anchor="middle">수집 → 검증·Bronze 입고 → Curated 전처리 → 지표 집계 (전이·이동쌍·구간 다운로드)</text>
+<text x="1272" y="672" class="c-line" text-anchor="middle">매니페스트·계약 해시와 함께 게시 → app 노드 loader 가 PostgreSQL 에 반영</text>
+
+<rect x="1015" y="700" width="515" height="72" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+<text x="1272" y="728" class="c-title" text-anchor="middle">Netdata · 파이프라인 모니터</text>
+<text x="1272" y="750" class="c-line" text-anchor="middle">단계별 수집·게시 상태와 자원 지표를 app 노드 대시보드로 스트리밍</text>
+
+<!-- CI/CD -->
+<rect x="20" y="832" width="1560" height="152" rx="12" fill="#faf5ff" stroke="#9333ea" stroke-dasharray="6 4"/>
+<text x="34" y="856" class="zone-label" fill="#7e22ce">개발 · 배포 (CI/CD)</text>
+<g>
+  <rect x="40" y="872" width="230" height="92" rx="8" fill="#fff" stroke="#9333ea"/>
+  <text x="155" y="896" class="chip-title" text-anchor="middle">GitLab 저장소</text>
+  <text x="155" y="918" class="chip-sub" text-anchor="middle">기능 브랜치 → develop → main</text>
+  <text x="155" y="936" class="chip-sub" text-anchor="middle">MR 리뷰 · 훅으로 브랜치·커밋 규칙 검사</text>
+  <text x="155" y="954" class="chip-sub" text-anchor="middle">Jira 이슈 키로 커밋·MR 자동 연결</text>
+  <path d="M270 918 H300" class="e e-ci" marker-end="url(#a-ci)"/>
+  <rect x="300" y="872" width="330" height="92" rx="8" fill="#fff" stroke="#9333ea"/>
+  <text x="465" y="896" class="chip-title" text-anchor="middle">GitLab CI · test</text>
+  <text x="465" y="918" class="chip-sub" text-anchor="middle">frontend (Vitest·타입 검사) · backend (JUnit)</text>
+  <text x="465" y="936" class="chip-sub" text-anchor="middle">backend-integration (Postgres) · ai · rag (pytest)</text>
+  <text x="465" y="954" class="chip-sub" text-anchor="middle">→ smoke (pipeline-ok)</text>
+  <path d="M630 918 H660" class="e e-ci" marker-end="url(#a-ci)"/>
+  <rect x="660" y="872" width="300" height="92" rx="8" fill="#fff" stroke="#9333ea"/>
+  <text x="810" y="896" class="chip-title" text-anchor="middle">deploy-app</text>
+  <text x="810" y="918" class="chip-sub" text-anchor="middle">api · web · rag-api 이미지 빌드 (커밋 SHA 태그)</text>
+  <text x="810" y="936" class="chip-sub" text-anchor="middle">app 노드 runner 가 compose 재생성</text>
+  <text x="810" y="954" class="chip-sub" text-anchor="middle">헬스체크 통과 확인 · 태그로 롤백</text>
+  <rect x="990" y="872" width="300" height="92" rx="8" fill="#fff" stroke="#9333ea"/>
+  <text x="1140" y="896" class="chip-title" text-anchor="middle">deploy-ai</text>
+  <text x="1140" y="918" class="chip-sub" text-anchor="middle">ai-similarity 배치 이미지 빌드</text>
+  <text x="1140" y="936" class="chip-sub" text-anchor="middle">data 노드에 배포</text>
+  <text x="1140" y="954" class="chip-sub" text-anchor="middle">(유사도 배치는 1회성 실행)</text>
+  <path d="M960 900 H990" class="e e-ci" marker-end="url(#a-ci)"/>
+  <!-- 범례 -->
+  <g transform="translate(1320,872)">
+    <text x="0" y="12" class="lg" font-weight="700">연결선</text>
+    <path d="M0 30 H34" class="e e-web" marker-end="url(#a-web)"/><text x="42" y="34" class="lg">사용자 요청</text>
+    <path d="M130 30 H164" class="e e-ext" marker-end="url(#a-ext)"/><text x="172" y="34" class="lg">서비스 호출</text>
+    <path d="M0 54 H34" class="e e-data" marker-end="url(#a-data)"/><text x="42" y="58" class="lg">데이터 이동</text>
+    <path d="M130 54 H164" class="e e-ai" marker-end="url(#a-ai)"/><text x="172" y="58" class="lg">AI·모델</text>
+    <path d="M0 78 H34" class="e e-spark"/><text x="42" y="82" class="lg">Spark 클러스터</text>
+    <path d="M130 78 H164" class="e e-ci" marker-end="url(#a-ci)"/><text x="172" y="82" class="lg">배포</text>
+  </g>
+</g>
+
+<!-- ── 연결선 ── -->
+<!-- 사용자 → web → api -->
+<path d="M175 405 H218" class="e e-web" marker-end="url(#a-web)"/><text x="196" y="397" class="e-lbl" text-anchor="middle">HTTPS</text>
+<path d="M390 405 H428" class="e e-web" marker-end="url(#a-web)"/><text x="409" y="397" class="e-lbl" text-anchor="middle">/api</text>
+<!-- api → DB, docs, rag -->
+<path d="M730 300 H768" class="e e-ext" marker-end="url(#a-ext)"/><text x="749" y="292" class="e-lbl" text-anchor="middle" fill="#1d4ed8">JPA</text>
+<path d="M730 465 H768" class="e e-ext" marker-end="url(#a-ext)"/><text x="749" y="457" class="e-lbl" text-anchor="middle" fill="#1d4ed8">쓰기</text>
+<path d="M580 510 V538" class="e e-ai" marker-end="url(#a-ai)"/><text x="590" y="529" class="e-lbl" fill="#6d28d9">HTTP /compare (비동기 실행)</text>
+<path d="M730 600 H855 V512" class="e e-ai" marker-end="url(#a-ai)"/><text x="792" y="592" class="e-lbl" text-anchor="middle" fill="#6d28d9">읽기</text>
+<!-- api 외부 호출 버스 -->
+<path d="M580 210 V140 H125 V106" class="e e-ext" marker-end="url(#a-ext)"/>
+<path d="M580 140 H1260 V106" class="e e-ext" marker-end="url(#a-ext)"/>
+<path d="M885 140 V106" class="e e-ext" marker-end="url(#a-ext)"/>
+<path d="M1070 140 V106" class="e e-ext" marker-end="url(#a-ext)"/>
+<circle cx="580" cy="140" r="3.5" fill="#2563eb"/><circle cx="885" cy="140" r="3.5" fill="#2563eb"/><circle cx="1070" cy="140" r="3.5" fill="#2563eb"/>
+<text x="360" y="134" class="e-lbl" fill="#1d4ed8">api 외부 호출 — 저장소 검증</text>
+<text x="780" y="134" class="e-lbl" fill="#1d4ed8">Issue 수집</text>
+<text x="965" y="134" class="e-lbl" fill="#1d4ed8">README</text>
+<text x="1128" y="134" class="e-lbl" fill="#1d4ed8">요약·비교 생성</text>
+<!-- rag-api → LLM (버스 합류) -->
+<path d="M730 625 H982 V140" class="e e-ai"/><circle cx="982" cy="140" r="3.5" fill="#7c3aed"/>
+<text x="900" y="617" class="e-lbl" text-anchor="middle" fill="#6d28d9">LLM 호출</text>
+<!-- loader → PostgreSQL -->
+<path d="M345 680 V666 H952 V305 H942" class="e e-data" marker-end="url(#a-data)"/>
+<text x="400" y="662" class="e-lbl" fill="#047857">COPY · 원자적 게시</text>
+<!-- MinIO → loader -->
+<path d="M1015 545 H972 V783 H300 V774" class="e e-data" marker-end="url(#a-data)"/>
+<text x="640" y="798" class="e-lbl" text-anchor="middle" fill="#047857">MinIO Curated·vectors 읽기 (사설 IP :9000)</text>
+<!-- Spark worker ② ↔ master -->
+<path d="M565 772 V818 H1415 V806" class="e e-spark" marker-end="url(#a-spark)"/>
+<text x="1030" y="814" class="e-lbl" text-anchor="middle" fill="#b45309">data 노드 Spark master 에 합류 :7077</text>
+<!-- 주간 수집 -->
+<path d="M1145 210 V152 H310 V106" class="e e-data" marker-end="url(#a-data)"/>
+<path d="M695 152 V106" class="e e-data" marker-end="url(#a-data)"/>
+<circle cx="695" cy="152" r="3.5" fill="#059669"/>
+<text x="1138" y="205" class="e-lbl" text-anchor="end" fill="#047857">주간 수집</text>
+<path d="M1145 330 V358" class="e e-data" marker-end="url(#a-data)"/><text x="1155" y="349" class="e-lbl" fill="#047857">입고</text>
+<!-- Spark ↔ MinIO -->
+<path d="M1320 330 V345 H1250 V358" class="e e-data" marker-end="url(#a-data)"/><text x="1300" y="356" class="e-lbl" fill="#047857">s3a</text>
+<!-- 모델 -->
+<path d="M1545 106 V408 H1532" class="e e-ai" marker-end="url(#a-ai)"/><text x="1540" y="200" class="e-lbl" text-anchor="end" fill="#6d28d9">모델 등록</text>
+<path d="M1415 455 V478" class="e e-ai" marker-end="url(#a-ai)"/><text x="1425" y="471" class="e-lbl" fill="#6d28d9">@production</text>
+<path d="M1300 528 H1277" class="e e-ai" marker-end="url(#a-ai)"/>
+<!-- 배포 -->
+<path d="M725 872 V774" class="e e-ci" marker-end="url(#a-ci)"/>
+<path d="M1200 872 V806" class="e e-ci" marker-end="url(#a-ci)"/>
+</svg>
+</section>
+
+<!-- ═══════════════ 2쪽 — 기능별 흐름 ═══════════════ -->
+<section class="sheet-a3">
+<header class="doc-head"><div><h1>Pickage 시스템 아키텍처</h1>
+<p class="sub">② 기능별 처리 흐름 — 화면에서 시작한 요청이 어느 API·외부 연동·테이블을 거치고, 그 데이터는 어떤 배치가 미리 준비하는가</p></div>
+<p class="meta">기준 커밋 {{REV}} · 생성 {{DATE}}</p></header>
+
+<div class="flows">
+  <div class="hd">기능</div>
+  <div class="hd">화면 (frontend)<small>React SPA</small></div>
+  <div class="hd">API (api)<small>Spring Boot · /api</small></div>
+  <div class="hd">처리 · 외부 연동<small>서버 안 로직 · 외부 서비스</small></div>
+  <div class="hd">저장소<small>PostgreSQL · 파일</small></div>
+  <div class="hd">데이터 준비<small>배치 · 수집 (data 노드)</small></div>
+
+  <!-- 1 검색·후보 -->
+  <div class="ft" style="background:#2563eb">① 패키지 검색 · 유사 후보<small>기준 패키지 선택 → 비교 대상 최대 3개 확정</small></div>
+  <div class="cell flow" style="--c:#2563eb;--tint:#eff6ff"><span class="chip"><b>/</b> 서비스 소개·검색창 (자동완성)</span><span class="chip"><b>/analyze</b> 유사 후보 선택·직접 추가</span></div>
+  <div class="cell flow" style="--c:#2563eb;--tint:#eff6ff"><span class="chip"><code>GET /packages/search</code></span><span class="chip"><code>GET /packages/similar</code></span></div>
+  <div class="cell flow" style="--c:#2563eb;--tint:#eff6ff"><span class="chip">완전 일치 → 접두사 → 포함, 다운로드 순 정렬</span><span class="chip">후보는 미리 계산된 순위를 키 조회 — 요청 경로에 모델 없음</span></div>
+  <div class="cell" style="--c:#2563eb;--tint:#eff6ff"><span class="chip"><code>available_package</code></span><span class="chip"><code>similar_package</code></span><span class="chip"><code>package</code></span></div>
+  <div class="cell prep" style="--c:#2563eb;--tint:#eff6ff"><span class="chip"><b>ai-similarity</b> bge-small ONNX 임베딩 → Top-K</span><span class="chip"><b>similarity-loader</b> vectors 완료 포인터 감지 → 게시</span></div>
+
+  <!-- 2 생태계 변화 -->
+  <div class="ft" style="background:#059669">② 생태계 변화<small>사용 추이 · 버전 점유 · 이동 신호</small></div>
+  <div class="cell flow" style="--c:#059669;--tint:#ecfdf5"><span class="chip"><b>/report/draft</b> 생태계 탭</span><span class="chip">개요 카드 · 추이 차트 · 도넛 · 이동 경로</span></div>
+  <div class="cell flow" style="--c:#059669;--tint:#ecfdf5"><span class="chip"><code>GET /packages</code> 개요</span><span class="chip"><code>/downloads</code> · <code>/dependents</code> · <code>/version</code></span><span class="chip"><code>/transitions</code> · <code>/removal-reasons</code> · <code>/migration-pairs</code></span></div>
+  <div class="cell flow" style="--c:#059669;--tint:#ecfdf5"><span class="chip">지표별 엔드포인트 분리 — 느린 차트가 개요를 막지 않음</span><span class="chip">자료 없음·대상 밖을 0 과 구분 (<code>data_status</code>)</span></div>
+  <div class="cell" style="--c:#059669;--tint:#ecfdf5"><span class="chip"><code>package_snapshot</code> · <code>package_version_snapshot</code></span><span class="chip"><code>dependent_transition</code> · <code>dependent_removal_reason</code></span><span class="chip"><code>migration_pair</code> · <code>snapshot</code></span></div>
+  <div class="cell prep" style="--c:#059669;--tint:#ecfdf5"><span class="chip"><b>ingest-weekly</b> deps.dev·npm downloads 주간 수집</span><span class="chip"><b>Spark·DuckDB</b> 구간 집계 · 전이 · 이동쌍 계산</span></div>
+
+  <!-- 3 기능 비교 -->
+  <div class="ft" style="background:#7c3aed">③ 기능 비교 (RAG)<small>정확 버전의 실행 조건 · README 근거 비교</small></div>
+  <div class="cell flow" style="--c:#7c3aed;--tint:#f5f3ff"><span class="chip"><b>기능 비교 탭</b> 버전 선택 · 재분석</span><span class="chip">진행 상태 폴링 · 핵심 문장 강조</span></div>
+  <div class="cell flow" style="--c:#7c3aed;--tint:#f5f3ff"><span class="chip"><code>GET /packages/versions</code> · <code>/env</code></span><span class="chip"><code>POST /packages/feature-comparison</code></span><span class="chip"><code>GET …/feature-comparison/{runId}</code></span></div>
+  <div class="cell flow" style="--c:#7c3aed;--tint:#f5f3ff"><span class="chip"><b>docs</b> jsDelivr 에서 README 수집·캐시</span><span class="chip"><b>rag-api</b> 근거 추출 → LLM 1회 → 근거 대조 검증</span></div>
+  <div class="cell" style="--c:#7c3aed;--tint:#f5f3ff"><span class="chip"><code>package_env</code> · <code>version</code></span><span class="chip">README 인계 파일 (공유 볼륨)</span><span class="chip muted">실행 상태는 서버 메모리 (재시작 시 소실)</span></div>
+  <div class="cell prep" style="--c:#7c3aed;--tint:#f5f3ff"><span class="chip"><b>registry 수집</b> 모듈 형태·타입·의존 수</span><span class="chip"><b>package-env-loader</b> 회차 지정 게시</span></div>
+
+  <!-- 4 커뮤니티 -->
+  <div class="ft" style="background:#db2777">④ GitHub 커뮤니티<small>기준 패키지 저장소 활동 · 핵심 논의</small></div>
+  <div class="cell flow" style="--c:#db2777;--tint:#fdf2f8"><span class="chip"><b>커뮤니티 탭</b> 저장소 활동 · 핵심 Issue</span><span class="chip">비교 확정·탭 진입 시 갱신 요청</span></div>
+  <div class="cell flow" style="--c:#db2777;--tint:#fdf2f8"><span class="chip"><code>POST /packages/community/refresh</code> (202)</span><span class="chip"><code>GET /packages/community</code></span></div>
+  <div class="cell flow" style="--c:#db2777;--tint:#fdf2f8"><span class="chip"><b>npm registry</b> 저장소 주소 검증</span><span class="chip"><b>GitHub API</b> Issue·댓글 수집</span><span class="chip"><b>LLM</b> 한국어 요약 · 강조 구간</span></div>
+  <div class="cell" style="--c:#db2777;--tint:#fdf2f8"><span class="chip"><code>community_snapshot</code></span><span class="chip">24시간 재사용 · 7일 제공 · 매시간 정리</span></div>
+  <div class="cell prep" style="--c:#db2777;--tint:#fdf2f8"><span class="chip muted">배치 없음 — 요청 시 비동기 수집</span></div>
+
+  <!-- 5 출력 -->
+  <div class="ft" style="background:#d97706">⑤ 보고서 출력<small>PDF · HAND-OFF Markdown</small></div>
+  <div class="cell flow" style="--c:#d97706;--tint:#fffbeb"><span class="chip"><b>PDF로 저장</b> 구역 선택 · 미리보기</span><span class="chip"><b>HAND-OFF</b> 원클릭 다운로드</span></div>
+  <div class="cell flow" style="--c:#d97706;--tint:#fffbeb"><span class="chip"><code>POST /report/pdf</code> → <code>/{id}/preview</code> · <code>/{id}/file</code></span><span class="chip"><code>POST /report/markdown</code> → <code>/{id}/file</code></span></div>
+  <div class="cell flow" style="--c:#d97706;--tint:#fffbeb"><span class="chip">숫자를 서버가 다시 조회 — 화면의 옛 값이 문서에 박히지 않음</span><span class="chip">HTML 렌더 → PDF 변환 (한글 폰트 내장)</span></div>
+  <div class="cell" style="--c:#d97706;--tint:#fffbeb"><span class="chip">생태계 테이블 전체 재조회</span><span class="chip muted">생성 문서는 서버 메모리 보관</span></div>
+  <div class="cell prep" style="--c:#d97706;--tint:#fffbeb"><span class="chip muted">①~④ 의 데이터를 그대로 사용</span></div>
+
+  <!-- 6 운영 -->
+  <div class="ft" style="background:#475569">⑥ 운영 · 데이터 게시<small>운영자 전용</small></div>
+  <div class="cell flow" style="--c:#475569;--tint:#f8fafc"><span class="chip">Netdata 대시보드 · 파이프라인 상태 페이지</span></div>
+  <div class="cell flow" style="--c:#475569;--tint:#f8fafc"><span class="chip"><code>/api/v1/ops/weekly/**</code> (nginx 외부 차단)</span></div>
+  <div class="cell flow" style="--c:#475569;--tint:#f8fafc"><span class="chip">수동 실행 요청 → data 노드 타이머가 다음 발화에 수행</span></div>
+  <div class="cell" style="--c:#475569;--tint:#f8fafc"><span class="chip"><code>etl_load_execution</code> · <code>etl_load_attempt</code></span><span class="chip"><code>etl_dataset_current</code> · <code>etl_snapshot_reference</code></span></div>
+  <div class="cell prep" style="--c:#475569;--tint:#f8fafc"><span class="chip">매니페스트·계약 해시 검증 후 원자적 교체</span></div>
+</div>
+
+<div class="principles">
+  <div><b>조회와 계산의 분리</b>무거운 계산(임베딩·전이·이동쌍)은 data 노드 배치가 미리 하고, API 는 게시된 결과를 키로 읽는다.</div>
+  <div><b>노드 간 인계는 MinIO 객체</b>두 노드는 서로를 호출하지 않는다. 완료 포인터를 app 노드 loader 가 읽어 게시한다.</div>
+  <div><b>근거 우선 AI</b>LLM 출력은 README 근거와 대조해 어긋나면 막고(502), 유사 후보는 검증된 모델만 @production 으로 쓴다.</div>
+  <div><b>결측을 0 으로 채우지 않음</b>자료 없음 · 대상 밖 · 판정 불가를 <code>data_status</code> 로 구분해 화면이 오해하지 않게 한다.</div>
+</div>
+
+<div class="stack">
+  <div><b>Frontend</b>React 19 · TypeScript · React Router 7 · TanStack Query 5 · Tailwind 4 · Vite</div>
+  <div><b>Backend</b>Java 21 · Spring Boot 4 · Spring Data JPA · Flyway · springdoc</div>
+  <div><b>AI</b>FastAPI · ONNX Runtime · bge-small-en-v1.5 · MLflow · LLM API</div>
+  <div><b>Data</b>Python · DuckDB · Apache Spark 3.5 · deps.dev BigQuery · npm API</div>
+  <div><b>Storage</b>PostgreSQL 16 · MinIO · Google Cloud Storage</div>
+  <div><b>Infra</b>AWS EC2 ×2 · Docker Compose · nginx · Let's Encrypt · Netdata</div>
+  <div><b>DevOps</b>GitLab · GitLab CI/CD · Jira · Vitest · JUnit · pytest</div>
+</div>
+</section>
+</body></html>

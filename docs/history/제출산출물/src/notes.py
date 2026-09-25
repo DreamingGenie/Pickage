@@ -1,0 +1,337 @@
+"""산출물 생성기가 원본(스키마·OpenAPI·DTO)에서 얻지 못하는 설명을 사람이 채운 곳.
+
+DB 컬럼 주석(COMMENT ON)과 컨트롤러 @Operation, DTO @param 이 정본이다. 여기에는
+그것이 비어 있는 자리만 적는다. 원본에 설명이 생기면 원본이 이긴다(build.py 가 원본을 먼저 쓴다).
+"""
+
+# ── ERD ─────────────────────────────────────────────────────────────────
+
+# 테이블 → (그룹, 한 줄 설명). 그룹은 ERD 색 구분에 쓴다.
+TABLES = {
+    "package": ("core", "npm 패키지 마스터. deps.dev 전수 적재(약 1,100만 행)"),
+    "version": ("core", "패키지 버전별 메타데이터(배포 시각·설명·라이선스·폐기·의존 선언)"),
+    "snapshot": ("core", "deps.dev 스냅샷 기준일 목록. 모든 시계열 지표의 날짜 축"),
+    "package_snapshot": ("core", "기준일별 패키지 지표 — 주간 다운로드·GitHub stars·열린 이슈"),
+    "package_version_snapshot": ("core", "기준일·버전별 의존 수. snapshot_at 범위 파티션 테이블"),
+    "package_env": ("core", "버전별 소비 조건 — 모듈 방식·타입 동봉·직접/peer 의존 수 (기능 비교)"),
+    "available_package": ("core", "서비스에서 검색·분석 가능한 패키지 목록(데이터가 갖춰진 패키지만)"),
+    "similar_package": ("analysis", "AI 유사도 배치가 계산한 대체 후보 순위 (유사 후보 추천)"),
+    "dependent_transition": ("analysis", "구간(1y·3y·5y) 양 끝 의존자 집합 비교 — 유지·유입·이탈"),
+    "dependent_removal_reason": ("analysis", "구간별 이탈 사유 — 대체 동반 / 대체 없음"),
+    "migration_pair": ("analysis", "관측된 교체 흐름 — X 를 빼고 Y 를 넣은 이동 쌍과 통계"),
+    "community_snapshot": ("analysis", "GitHub 커뮤니티 분석 결과(패키지당 최신 1건, 7일 제공)"),
+    "etl_load_execution": ("etl", "데이터셋 적재 실행 단위. 입력 매니페스트·계약 해시·게시 상태"),
+    "etl_load_attempt": ("etl", "적재 실행의 개별 시도와 단계·품질 보고"),
+    "etl_dataset_current": ("etl", "데이터셋별로 현재 서비스에 게시된 실행(원자적 포인터)"),
+    "etl_snapshot_reference": ("etl", "실행별 스냅샷 날짜 계보(원천 시각·직전 기준일·간격)"),
+}
+
+GROUPS = {
+    "core": ("패키지·스냅샷 (서비스 핵심)", "#2563eb"),
+    "analysis": ("분석 결과 (배치 게시)", "#059669"),
+    "etl": ("ETL 적재 이력 (데이터 게시 관리)", "#d97706"),
+}
+
+# (테이블, 컬럼) → 설명. DB 주석이 없는 컬럼만.
+COLUMNS = {
+    ("package", "package_id"): "패키지 식별자 (deps.dev 기준 정수 ID)",
+    ("package", "name"): "npm 패키지명. 스코프 포함(@scope/name), 유일",
+    ("package", "repo_url"): "소스 저장소 주소(GitHub 등). 없을 수 있음",
+    ("version", "version"): "버전 문자열 (semver)",
+    ("version", "package_id"): "패키지 식별자",
+    ("version", "published_at"): "npm 배포 시각",
+    ("version", "ordinal"): "버전 정렬 순번. 문자열 정렬 오류(4.9.0 > 4.19.2)를 피하려고 최신 버전 판정에 쓴다",
+    ("version", "description"): "해당 버전의 package.json description",
+    ("version", "licenses"): "라이선스 목록 (JSON 배열)",
+    ("version", "deprecated"): "npm deprecate 메시지. NULL 이면 폐기되지 않음",
+    ("package_snapshot", "package_id"): "패키지 식별자",
+    ("package_snapshot", "snapshot_at"): "스냅샷 기준일",
+    ("package_snapshot", "downloads"): "기준일 직전 구간의 주간 다운로드 수",
+    ("package_snapshot", "stars"): "관측 시점의 GitHub stars",
+    ("package_snapshot", "open_issues"): "관측 시점의 열린 이슈 수",
+    ("package_version_snapshot", "package_id"): "패키지 식별자",
+    ("package_version_snapshot", "version"): "버전",
+    ("package_version_snapshot", "snapshot_at"): "스냅샷 기준일 (파티션 키)",
+    ("package_version_snapshot", "dependents_count"): "그 기준일에 이 버전을 의존하는 패키지 수",
+    ("package_env", "package_id"): "패키지 식별자",
+    ("package_env", "version"): "버전",
+    ("available_package", "package_id"): "패키지 식별자",
+    ("available_package", "package_name"): "패키지명 (검색용 비정규화 사본)",
+    ("available_package", "created_at"): "목록 등록 시각",
+    ("similar_package", "package_id"): "기준 패키지",
+    ("similar_package", "similar_package_id"): "대체 후보 패키지",
+    ("dependent_removal_reason", "package_id"): "패키지 식별자",
+    ("dependent_transition", "package_id"): "패키지 식별자",
+    ("dependent_transition", "retained"): "T1·T2 모두 의존하는 의존자 수 (유지)",
+    ("dependent_transition", "inflow"): "T1 에는 없고 T2 에 새로 의존하는 의존자 수 (유입)",
+    ("dependent_transition", "outflow"): "T1 에는 의존했으나 T2 에 뺀 의존자 수 (이탈)",
+    ("migration_pair", "from_package_id"): "출발 패키지(뺀 쪽)",
+    ("etl_dataset_current", "dataset"): "데이터셋 이름",
+    ("etl_dataset_current", "execution_id"): "현재 게시된 실행",
+    ("etl_dataset_current", "snapshot_at"): "게시된 실행의 기준일",
+    ("etl_dataset_current", "manifest_sha256"): "게시된 입력 매니페스트 해시",
+    ("etl_dataset_current", "manifest"): "게시된 입력 매니페스트 원문",
+    ("etl_dataset_current", "published_at"): "게시 시각",
+    ("etl_load_attempt", "attempt_id"): "시도 식별자",
+    ("etl_load_attempt", "execution_id"): "소속 실행",
+    ("etl_load_attempt", "status"): "PREPARING · FAILED · PUBLISHED · REVERIFIED",
+    ("etl_load_attempt", "phase"): "마지막으로 도달한 적재 단계",
+    ("etl_load_attempt", "actual_counts"): "이 시도에서 실제로 적재한 행 수",
+    ("etl_load_attempt", "quality_report"): "품질 검증 결과",
+    ("etl_load_attempt", "error_message"): "실패 사유",
+    ("etl_load_attempt", "created_at"): "시도 시작 시각",
+    ("etl_load_attempt", "completed_at"): "시도 종료 시각. PREPARING 이면 NULL",
+    ("etl_load_execution", "execution_id"): "실행 식별자",
+    ("etl_load_execution", "dataset"): "데이터셋 이름 (package-version, package-snapshot 등)",
+    ("etl_load_execution", "status"): "PREPARING · FAILED · PUBLISHED",
+    ("etl_load_execution", "snapshot_at"): "입력의 기준일. snapshot-reference 데이터셋은 NULL",
+    ("etl_load_execution", "curated_run_id"): "MinIO Curated 실행 ID",
+    ("etl_load_execution", "run_prefix"): "MinIO 입력 경로 접두사",
+    ("etl_load_execution", "manifest_sha256"): "입력 매니페스트 SHA-256",
+    ("etl_load_execution", "contract_sha256"): "최초 게시 시 검증한 코드·스키마 계약 해시",
+    ("etl_load_execution", "input_metadata"): "입력 메타데이터",
+    ("etl_load_execution", "expected_counts"): "매니페스트가 선언한 기대 행 수",
+    ("etl_load_execution", "actual_counts"): "실제 적재 행 수",
+    ("etl_load_execution", "error_message"): "실패 사유",
+    ("etl_load_execution", "created_at"): "생성 시각",
+    ("etl_load_execution", "updated_at"): "갱신 시각",
+    ("etl_load_execution", "active_attempt_id"): "현재 유효한 시도 (etl_load_attempt 참조, 지연 검사 FK)",
+    ("etl_snapshot_reference", "execution_id"): "소속 실행",
+    ("etl_snapshot_reference", "dataset"): "항상 'snapshot-reference'",
+    ("etl_snapshot_reference", "snapshot_at"): "관측된 스냅샷 기준일",
+    ("etl_snapshot_reference", "snapshot_timestamp"): "원천(deps.dev Projects) 관측 시각",
+    ("etl_snapshot_reference", "previous_snapshot_at"): "직전 기준일 (같은 실행 안)",
+    ("etl_snapshot_reference", "interval_days"): "직전 기준일과의 간격(일). 생성 컬럼",
+}
+
+# ERD 배치 — 열 번호와 그 열 안에서 위→아래 순서. 관계선이 인접 열 또는 같은 열 안에서만
+# 이어지게 골랐다(선이 다른 표를 가로지르지 않도록).
+LAYOUT = [
+    ["dependent_transition", "dependent_removal_reason", "community_snapshot", "available_package"],
+    ["similar_package", "package", "migration_pair"],
+    ["version", "package_snapshot"],
+    ["package_env", "package_version_snapshot", "snapshot"],
+    ["etl_load_execution", "etl_load_attempt", "etl_dataset_current", "etl_snapshot_reference"],
+]
+
+# ── API ─────────────────────────────────────────────────────────────────
+
+NAMES = ("패키지명 배열. 최대 3개(중복은 하나로 접음). `?names=a&names=b` 또는 `?names=a,b`. "
+         "없으면 V001, 3개 초과 V002, 형식 위반(214자 초과·허용 문자 밖) V004")
+REFS = ("`이름@버전` 배열. 최대 3개. 없으면 V001, 3개 초과 V002, 형식 위반 V004")
+PERIOD = "구간 프리셋 `1y` · `3y` · `5y`. 생략 시 `3y`. 그 밖의 값은 V004"
+
+# 파라미터 설명 — 이름 기본값, (operationId, 이름) 으로 덮어쓴다.
+PARAMS = {
+    "names": NAMES,
+    "refs": REFS,
+    "from": "조회 시작일 `YYYY-MM-DD`. 생략 시 최초 스냅샷. 형식 오류 V003",
+    "to": "조회 종료일 `YYYY-MM-DD`. 생략 시 최신 스냅샷. 형식 오류 V003",
+    "snapshot_at": "기준일 `YYYY-MM-DD`. 생략 시 최신 스냅샷. 데이터 없는 날짜는 빈 slices(200)",
+    "period": PERIOD,
+    "kind": "원천 `regular`(deps.dev 전수) · `dev`(registry 상위 10만). 생략 시 `regular`. 그 밖의 값 V004",
+    "limit": "최대 반환 수. 기본 20, 최대 50(초과 V002), 1 미만 V004",
+    "q": "검색어. 1자 이상 필수(없으면 V001)",
+    "name": "기준 패키지명 1개. 없으면 V001",
+    "runId": "기능 비교 시작 응답의 run_id. 없거나 만료되면 404(C006)",
+    "reportId": "생성 응답의 report_id. 없거나 만료되면 404(C006)",
+    "trigger": "갱신 계기. `ANALYSIS_CONFIRMED`(비교 대상 확정 직후) · `TAB_OPENED`(탭 진입)",
+    "weekOf": "회차 주의 월요일 `YYYY-MM-DD` (deps.dev 스냅샷 날짜). 월요일이 아니면 V004",
+    "weeks": "최신 주부터 거슬러 볼 주 수. 생략 시 기본값",
+}
+
+REQUIRED = {"names", "refs", "q", "name", "runId", "reportId", "trigger", "weekOf"}
+
+# 엔드포인트별 오류(공통 S001 제외). operationId 기준.
+ERRORS = {
+    "getOverview": ["V001", "V002", "V004"],
+    "getDownloadsTrend": ["V001", "V002", "V003", "V004"],
+    "getDependentsTrend": ["V001", "V002", "V003", "V004"],
+    "getVersionShare": ["V001", "V002", "V003", "V004"],
+    "getSimilar": ["V001", "V002", "V004"],
+    "getTransitions": ["V001", "V002", "V004"],
+    "getRemovalReasons": ["V001", "V002", "V004"],
+    "getMigrationPairs": ["V001", "V002", "V004"],
+    "search": ["V001", "V002", "V004"],
+    "getSummary": ["V001", "V002", "V004"],
+    "getVersions": ["V001", "V002", "V004"],
+    "getEnv": ["V001", "V002", "V004"],
+    "startComparison": ["V001", "V002 (인자 초과 또는 동시 실행 수 초과)", "V004"],
+    "getComparison": ["C006"],
+    "getStatus": ["V001", "V004"],
+    "refresh": ["V001", "V004"],
+    "generate": ["V001", "V004 (알 수 없는 sections 값)"],
+    "generate_1": ["V001"],
+    "find": ["C006"],
+    "find_1": ["C006"],
+    "preview": ["C006"],
+    "file": ["C006"],
+    "file_1": ["C006"],
+    "listRuns": ["V002"],
+    "getRun": ["V004"],
+    "requestManualRun": ["V002 (아직 오지 않은 주·18개월 초과)", "V004"],
+}
+
+# OpenAPI 에 없는 운영자 전용 API. 컨트롤러가 @Hidden 으로 Swagger 에서 뺐다.
+OPS = {
+    "tag": "ops-weekly",
+    "class": "OpsWeeklyController",
+    "paths": [
+        ("GET", "/api/v1/ops/weekly/runs", "listRuns",
+         [("weeks", "query", "integer", False)]),
+        ("GET", "/api/v1/ops/weekly/runs/{weekOf}", "getRun",
+         [("weekOf", "path", "string(date)", True)]),
+        ("POST", "/api/v1/ops/weekly/runs/{weekOf}/manual-request", "requestManualRun",
+         [("weekOf", "path", "string(date)", True)]),
+    ],
+}
+
+TAGS = {
+    "packages": "패키지·생태계 변화",
+    "features": "기능 비교",
+    "community": "GitHub 커뮤니티",
+    "report": "보고서 출력 (PDF · HAND-OFF)",
+    "ops-weekly": "운영자 전용 — 주간 수집",
+    "rag": "내부 서비스 — RAG 비교 (rag-api)",
+}
+TAG_ORDER = ["packages", "features", "community", "report", "ops-weekly", "rag"]
+TAG_SHORT = {"packages": "생태계", "features": "기능 비교", "community": "커뮤니티",
+             "report": "보고서", "ops-weekly": "운영자", "rag": "내부"}
+
+# 같은 분류 안에서의 순서 — 사용자 흐름(검색 → 후보 → 개요 → 차트 → 출력) 순.
+PATH_ORDER = [
+    "/api/packages/search", "/api/packages/similar", "/api/packages", "/api/packages/downloads",
+    "/api/packages/dependents", "/api/packages/version", "/api/packages/transitions",
+    "/api/packages/removal-reasons", "/api/packages/migration-pairs", "/api/packages/summary",
+    "/api/packages/versions", "/api/packages/env", "/api/packages/feature-comparison",
+    "/api/packages/feature-comparison/{runId}",
+    "/api/packages/community/refresh", "/api/packages/community",
+    "/api/report/pdf", "/api/report/pdf/{reportId}", "/api/report/pdf/{reportId}/preview",
+    "/api/report/pdf/{reportId}/file", "/api/report/markdown", "/api/report/markdown/{reportId}",
+    "/api/report/markdown/{reportId}/file",
+    "/api/v1/ops/weekly/runs", "/api/v1/ops/weekly/runs/{weekOf}",
+    "/api/v1/ops/weekly/runs/{weekOf}/manual-request",
+]
+
+# 응답 필드 설명 — DTO @param 이 없을 때만 쓴다. "Record.field" 가 필드명 단독보다 우선.
+FIELDS = {
+    # 공통
+    "name": "패키지명",
+    "not_found": "요청했지만 DB 에 없는 패키지명. 일부가 없어도 200 으로 응답한다",
+    "value": "그 기준일의 값",
+    "metric": "지표 이름",
+    "package_name": "패키지명",
+    "started_at": "시작 시각",
+    "finished_at": "종료 시각",
+    "updated_at": "마지막 갱신 시각",
+    "created_at": "생성 시각",
+    "snapshot_at": "스냅샷 기준일",
+    "PackagesOverviewResponse.snapshot_at": "지표의 기준 스냅샷 날짜 (모든 항목 공통)",
+    "version": "버전",
+    "packages": "비교 대상 패키지·버전",
+    "points": "기준일별 값. 없는 기준일은 0 으로 채우지 않고 뺀다 — x축은 snapshot_at 으로 맞춘다",
+    "kind": "의존 종류 `regular` · `peer` · `optional`",
+    "PackageSearchResponse.items": "검색된 패키지명 (완전 일치 → 접두사 → 중간 포함, 같은 그룹은 다운로드 순)",
+    # 개요
+    "PackageOverview.repo_url": "소스 저장소 주소",
+    "Item.repo_url": "소스 저장소 주소",
+    "latest_version": "최신 정식 버전 (ordinal 기준)",
+    "published_at": "최신 버전 배포 시각",
+    "description": "최신 버전의 package.json description",
+    "licenses": "라이선스 목록",
+    "stars": "GitHub stars (최신 스냅샷)",
+    "open_issues": "열린 이슈 수 (최신 스냅샷)",
+    "open_issues_delta": "직전 스냅샷 대비 열린 이슈 증감. 첫 스냅샷이면 null",
+    # 버전 분포
+    "slices": "major 버전별 조각. 데이터가 없는 날짜면 빈 배열",
+    "Slice.dependents": "그 major 를 의존하는 수 (버전별 합계)",
+    # 교체 흐름
+    "votes": "한 전이에 함께 들어온 후보가 k 개면 1/k 씩 나눈 표의 합",
+    "co_events": "X 를 빼면서 Y 를 넣은 전이 수",
+    "publisher_months": "서로 다른 (배포주체, 달) 조합 수. 한 조직의 일괄 변경을 거른다",
+    "Destination.dependents": "이 이동을 한 의존자 수 (중복 접음)",
+    "first_seen": "이 이동이 처음 관측된 날",
+    "last_seen": "마지막으로 관측된 날",
+    # 요약(실험)
+    "input_tokens": "입력 토큰 수",
+    "output_tokens": "출력 토큰 수",
+    "reasoning_tokens": "추론 토큰 수",
+    "credits": "호출 비용(크레딧)",
+    # 기능 비교
+    "FeatureRunResponse.error_detail": "FAILED 일 때 RAG 가 준 상세(JSON 원문). 예: 검증 위반 목록",
+    "common": "공통점 서술",
+    "differences": "패키지별 차이 문단",
+    "body": "차이 본문",
+    "limited": "자료 제한 여부 (README 가 짧거나 없어 비교가 제한됨)",
+    # 커뮤니티
+    "CommunityStatusResponse.refresh": "진행 중이거나 마지막 갱신 작업 정보. 작업이 없으면 null",
+    "CommunityStatusResponse.result": "저장된 분석 결과. 아직 없으면 null",
+    "refresh_id": "갱신 작업 식별자",
+    "stage": "진행 단계 (예: `COLLECTING_DISCUSSIONS`)",
+    "stage_message": "화면에 보여줄 단계 안내 문구",
+    "last_updated_at": "단계가 마지막으로 바뀐 시각",
+    "poll_after_seconds": "다음 조회까지 기다릴 초 (폴링 간격)",
+    "retry_at": "실패·용량 초과 시 다시 시도할 수 있는 시각",
+    "snapshot_id": "결과 스냅샷 식별자. 동시 갱신 결과를 구분한다",
+    "collected_at": "수집 시각. 재사용·제공 기간 판정의 기준",
+    "fresh_until": "이 시각까지는 새로 수집하지 않고 재사용한다 (수집 후 24시간)",
+    "serve_until": "이 시각까지 결과를 제공한다 (수집 후 7일)",
+    "summary_retry_at": "요약 생성 실패 시 재시도 가능 시각",
+    "repository": "검증된 GitHub 저장소 정보",
+    "owner": "저장소 소유자",
+    "Repository.name": "저장소 이름",
+    "RepositoryInfoResponse.name": "저장소 이름",
+    "full_name": "owner/name",
+    "scope": "패키지와 저장소의 대응 범위 (단일 패키지 / 모노레포 등)",
+    "archived": "저장소 보관(archived) 여부",
+    "issue_count": "저장소 전체 Issue 수 (PR 제외). 못 구했으면 null",
+    "open_issue_count": "그중 열린 Issue 수",
+    "CommunityResultResponse.summary": "수집 범위 안의 활동 합계",
+    "CommunitySummaryResponse.issue_count": "수집한 Issue 수",
+    "CommunitySummaryResponse.open_issue_count": "수집한 Issue 중 열린 수",
+    "comment_count": "수집한 댓글 수",
+    "reaction_count": "수집한 반응(이모지) 수",
+    "topics": "핵심 논의 Issue (최대 2개)",
+    "issue_number": "GitHub Issue 번호",
+    "state": "Issue 상태 `open` · `closed`",
+    "title_original": "Issue 원문 제목",
+    "title_ko": "한국어 제목",
+    "comments_count": "댓글 수",
+    "reactions_count": "반응 수",
+    "summary_ko": "논의 한국어 요약 (LLM 생성)",
+    "messages": "대표 발화",
+    "author_login": "작성자 GitHub 로그인",
+    "role": "작성자 역할 (메인테이너·기여자·사용자 등)",
+    "MessageResponse.kind": "발화 종류 (본문·댓글)",
+    "text": "발화 원문 발췌",
+    "summary_marks": "요약문 강조 구간",
+    "start": "시작 오프셋 (UTF-16, 포함)",
+    "end": "끝 오프셋 (UTF-16, 미포함)",
+    "SummaryMarkResponse.kind": "강조 종류 (핵심 문장·핵심어)",
+    "limitations": "결과 제한 사유 목록",
+    "code": "제한 사유 코드",
+    "message": "제한 사유 안내 문구",
+    "LimitationResponse.issue_number": "특정 Issue 에 대한 제한이면 그 번호",
+    "data_limits": "수집 정책 한도",
+    "policy_version": "수집 정책 버전",
+    "lookback_days": "수집 대상 기간(일)",
+    "max_issues": "수집하는 최대 Issue 수",
+    "max_comments_per_issue": "Issue 당 최대 댓글 수",
+    "max_messages_per_issue": "Issue 당 대표 발화 최대 수",
+    "source_note": "출처 안내 문구",
+    # 운영자
+    "week_of": "회차 주의 월요일 (deps.dev 스냅샷 날짜)",
+    "coverage": "이 회차가 덮는 데이터 범위",
+    "depsdev_snapshot": "deps.dev 스냅샷 날짜",
+    "downloads_through": "다운로드 수집 마지막 날짜",
+    "window_start": "수집 구간 시작",
+    "window_end": "수집 구간 끝",
+    "consecutive_failures": "연속 실패 횟수. 한도를 넘으면 BLOCKED",
+    "last_error": "마지막 실패 사유",
+    "manual_request_at": "수동 실행 요청 시각",
+    "manual_claimed_at": "수집 노드가 요청을 집어 간 시각",
+    "steps": "단계별 현황",
+    "step": "단계 이름",
+    "attempt_count": "시도 횟수",
+    "detail": "단계별 부가 정보 (예: `reason`)",
+}

@@ -1,0 +1,62 @@
+A                     B                            dlA     dlB     x   depA   depB    1yA    1yB    3yA    3yB 조건
+@babel/preset-modules @putout/babel             153.2M    0.1M1853.2     22     32    +5%   +68%   +47%  +256% B의존>성장역전
+@turf/sample          wkt-parser-helper           5.5M    0.0M 439.7      4      7    +0%   +40%    +0%   +75% B의존>성장역전
+@babel/helper-replace-supersneostandard               275.2M    0.9M 322.5     15     85    +0%   +37%   +88% +8500% B의존>성장역전
+@commitlint/resolve-extendsgit-cliff                  44.4M    0.4M 103.0      2      7    +0%  +250%    +0%  +250% B의존>성장역전
+@commitlint/top-level git-cliff                  40.2M    0.4M  93.4      1      7    +0%  +250%    +0%  +250% B의존>성장역전
+@turf/clusters        ml-hclust                   5.3M    0.1M  91.3      5     14    +0%   +56%   +25%  +133% B의존>성장역전
+@firebase/auth-interop-typesauth                       58.7M    0.7M  79.6      6     11    +0%   +38%   +20% +1000% B의존>성장역전
+@slack/logger         @dynamic-labs/logger       49.2M    0.7M  71.2     34     45    +0%   +45%   +21% +1025% B의존>성장역전
+@firebase/database-typesduckdb                     64.7M    0.9M  69.1     30     94    +0%   +62%    +7%  +236% B의존>성장역전
+@google-cloud/paginator@google-analytics/data     96.0M    1.6M  60.6     24     67    +4%  +139%   +14%  +458% B의존>성장역전
+@firebase/logger      @logtail/node              71.4M    1.3M  56.3     31     68    +3%   +39%   +29%  +209% B의존>성장역전
+@azure/core-http-compat@apimatic/core             44.4M    0.8M  55.8     10    294   -29%   +41%   +11%  +130% B의존>성장역전
+media-typer           music-metadata            502.8M    9.3M  54.0    946   1529    +4%  +154%   +77%  +736% B의존>성장역전
+@octokit/auth-oauth-user@node-oauth/oauth2-server   37.3M    0.8M  49.6      6     21    +0%   +75%   +50%  +425% B의존>성장역전
+@firebase/app-check-interop-typestype-coverage-core         58.2M    1.2M  49.6      5     10    +0%   +43%  +400%   +67% B의존>성장역전
+@slack/logger         @logtail/node              49.2M    1.3M  38.8     34     68    +0%   +39%   +21%  +209% B의존>성장역전
+@types/ssh2-streams   ssh-config                 17.0M    0.4M  38.7      9     99    +0%   +94%   -10%  +141% B의존>성장역전
+@types/mapbox-gl      @girs/glib-2.0              7.7M    0.3M  30.4    164    745    -1%+14800%   +43%+18525% B의존>성장역전
+@smithy/node-config-providerunconfig                  175.5M    6.3M  27.9     99    271   -81%   +36%   -73%  +223% B의존>성장역전
+@octokit/auth-unauthenticated@node-oauth/oauth2-server   18.2M    0.8M  24.3      4     21    +0%   +75%   +33%  +425% B의존>성장역전
+@csstools/postcss-trigonometric-functions@stdlib/math-base-special-kernel-sin   25.2M    1.2M  21.4      4      5    +0%   +67%   +33%   +67% B의존>성장역전
+css-functions-list    @linaria/react             34.2M    1.7M  20.4     26     76    +0%   +41%   +44%  +138% B의존>성장역전
+http-link-header      link-preview-js            14.1M    0.7M  19.8     94    156    +3%   +66%   +22%  +438% B의존>성장역전
+@types/color-convert  colortranslator             9.6M    0.5M  18.8     23     29    -4%   +32%   +35%  +222% B의존>성장역전
+@algolia/client-analytics@google-analytics/data     29.5M    1.6M  18.6      3     67    +0%  +139%    +0%  +458% B의존>성장역전
+@turf/clusters        ml-kmeans                   5.3M    0.3M  18.0      5     41    +0%   +41%   +25%  +215% B의존>성장역전
+@xhmikosr/downloader  got-scraping               17.7M    1.0M  16.8      5    100    +0%   +67%  +150%  +300% B의존>성장역전
+@aws-cdk/cloud-assembly-schemacdk8s                      18.7M    1.2M  16.1     39     40    +3%   +67%   +26%  +208% B의존>성장역전
+proto3-json-serializerts-proto-descriptors      105.6M    6.8M  15.5     17     49   -11%   +69%  +143%  +206% B의존>성장역전
+@google-cloud/projectify@solana/spl-token          88.0M    5.8M  15.1     17   3043    -6%   +43%    +0%  +220% B의존>성장역전
+@algolia/client-searchmeilisearch                32.9M    2.2M  15.0     58    143    +4%   +47%   +66%  +204% B의존>성장역전
+@apollo/usage-reporting-protobuf@escape.tech/graphql-armor   13.0M    1.1M  11.5      8     10    +0%   +43%   +60%  +400% B의존>성장역전
+@algolia/client-search@coral-xyz/anchor          32.9M    2.9M  11.2     58   1671    +4%   +61%   +66% +1014% B의존>성장역전
+css-functions-list    @compiled/react            34.2M    3.1M  11.1     26    164    +0%   +45%   +44% +2633% B의존>성장역전
+@swc/cli              cleye                      19.6M    1.8M  10.7    120    223    +4%   +59%   +69%  +365% B의존>성장역전
+@types/validator      arktype                    67.4M    6.6M  10.2    492    504    +5%  +234%   +34% +3777% B의존>성장역전
+domelementtype        node-html-parser          354.4M   35.8M   9.9    643   1994    +4%   +38%  +124%  +127% B의존>성장역전
+mjml-cli              mjml-browser                7.8M    0.9M   8.6     10     97    +0%   +45%   +11%  +155% B의존>성장역전
+@firebase/installations@percy/sdk-utils           38.3M    5.0M   7.7     17     21    +0%   +31%   +13%   +31% B의존>성장역전
+@prisma/debug         @mrleebo/prisma-ast        98.8M   13.1M   7.6     23     95    +5%   +79%   +53%  +459% B의존>성장역전
+@types/pdfmake        html-to-pdfmake             5.0M    0.7M   6.9     26     47    -4%   +38%   +53%  +124% B의존>성장역전
+lighthouse-stack-packs@google-cloud/resource-manager   15.4M    2.6M   6.0      8     42    +0%   +68%   +60%  +425% B의존>성장역전
+@octokit/auth-unauthenticated@twurple/auth              18.2M    3.2M   5.7      4     36    +0%   +57%   +33%  +112% B의존>성장역전
+@vercel/fun           @middy/util                13.7M    2.4M   5.7      2     70    +0%   +89%  +200%   +89% B의존>성장역전
+@figspec/components   @liveblocks/client          8.2M    1.4M   5.7      2     24    +0%   +50%    +0%  +167% B의존>성장역전
+yocto-queue           p-queue                   775.2M  137.0M   5.7   1846   2452    +4%   +52%  +207%  +134% B의존>성장역전
+@hapi/bourne          lossless-json              21.4M    3.8M   5.7     65    134    +0%   +76%   +25%  +253% B의존>성장역전
+compress-commons      @types/archiver           149.9M   26.8M   5.6     41    197    +2%   +32%  +105%  +135% B의존>성장역전
+@babel/helper-annotate-as-purecomment-json              329.0M   63.0M   5.2     74    616    +1%   +35%   +25%  +113% B의존>성장역전
+@algolia/logger-common@logtail/node               6.6M    1.3M   5.2      4     68    +0%   +39%   -43%  +209% B의존>성장역전
+make-fetch-happen     ky                        139.8M   29.1M   4.8    293   1187    +5%   +55%   +58%  +375% B의존>성장역전
+@prisma/fetch-engine  @mrleebo/prisma-ast        62.8M   13.1M   4.8     11     95    +0%   +79%   +57%  +459% B의존>성장역전
+istanbul-lib-processinfops-list                    28.6M    6.5M   4.4     30    274    +0%   +92%   +30%  +147% B의존>성장역전
+@algolia/client-search@opensearch-project/opensearch   32.9M    7.9M   4.2     58    173    +4%   +42%   +66%  +312% B의존>성장역전
+@types/ssh2-sftp-clientwerift-rtp                  6.4M    1.5M   4.1     22     34    +5%  +112%    +5% +3300% B의존>성장역전
+@babel/helper-define-polyfill-provider@react-native/js-polyfills  199.6M   49.8M   4.0     11     16    +0%   +33%  +120%  +167% B의존>성장역전
+@azure/core-client    aws-cdk-lib                69.0M   17.8M   3.9    180    699   -26%   +42%   -15%  +167% B의존>성장역전
+@react-pdf/pdfkit     html2pdf.js                21.3M    5.7M   3.7     47    215    +2%   +36%   +52%  +247% B의존>성장역전
+npm-normalize-package-binread-package-up           107.6M   30.4M   3.5    115    302    +3%   +44%   +49%+30200% B의존>성장역전
+@rushstack/rig-packageunconfig                   22.0M    6.3M   3.5     12    271    +0%   +36%   +33%  +223% B의존>성장역전
+1680

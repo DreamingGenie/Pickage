@@ -609,7 +609,7 @@ sh run-similarity-batch.sh
 | 옵션 | 무엇 |
 | --- | --- |
 | `--state` | 이전 회차의 `text_hash_state.parquet`. 주면 **바뀐 것만 재임베딩**한다 |
-| `--batch-size` · `--query-block` | 메모리를 지배한다. **OOM 이 나면 상한보다 이 둘을 먼저 줄인다** |
+| `--batch-size` · `--query-block` | 임베딩·검색 구간 메모리를 따른다. 상한(8g)에서 OOM 이 나면 상한을 더 올리기 전에 `--batch-size` 를 줄여 본다 |
 | `--no-gate` | 구조적 관문을 끈다. 게이트 때문에 후보가 비는지 가릴 때만 |
 
 스크립트가 넘기는 인자를 바꾸려면 `run-similarity-batch.sh` 의 5단계를 고친다.
@@ -634,11 +634,21 @@ docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_RO
 이 잡이 도는 시각이 이 노드가 가장 빠듯한 시각이다.
 
 ```
-Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
+Spark 셋 12g + ai-similarity 8g ≈ 20g > 15Gi   ← 상한 합계. 둘이 동시에 차면 커널이 아무거나 죽인다
 ```
 
-`mem_limit` 을 올리려면 worker① 의 `SPARK_WORKER_MEMORY` 를 먼저 내려야 한다.
-상한만 올리면 배치 때 커널이 아무거나 하나 죽인다 — 위 "메모리가 터졌을 때".
+`ai-similarity` 는 **8g** 다(S15P21A506-384). 2g 로는 한 번도 완주하지 못했다 — 커널 기록에
+09-17 05:22(2g)·05:47(4g)·09-19 13:12(2g) OOM 이 남아 있고, 성공한 회차는 상한을 손으로 올려
+다시 돌린 것이다. Spark worker① 상한(10g)은 내리지 않았다. Spark 는 09-09 스모크 이후 이 노드에서
+돈 적이 없어서, 상한을 깎는 대신 **배치 직전에 아래를 확인하고 하나라도 아니면 돌리지 않는다.**
+
+```bash
+curl -fsS -m 5 http://172.26.8.249:8080/json/ | python3 -c "import sys,json;print('activeapps',len(json.load(sys.stdin)['activeapps']))"   # 0
+systemctl is-active pickage-weekly.service                                  # inactive
+free -g | awk '/Mem/{print $7" GiB available"}'                             # 10 이상
+```
+
+Spark master UI 는 사설 IP 로만 열린다(`127.0.0.1:8080` 은 연결 거부).
 
 ### `up -d --profile batch` 로 띄우지 말 것
 

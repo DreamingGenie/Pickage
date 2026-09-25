@@ -153,7 +153,7 @@ _RESPONSE_JSON_SCHEMA = {
 def _build_gms_request_body(system_prompt: str, user_message: str, model: str) -> dict:
     """GMS Responses API(`/v1/responses`) 요청 바디 — Chat Completions와 모양이 다르다.
 
-    2026-09-16 실측 근거: docs/for_community/GMS_연동_참고.md, 검증된 실제 구현은
+    2026-09-16 실측 근거: docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md, 검증된 실제 구현은
     backend/.../GmsCommunitySummarizer.java. role 분리 입력 배열 + json_schema
     strict 포맷이 실제로 통과 확인됨.
     """

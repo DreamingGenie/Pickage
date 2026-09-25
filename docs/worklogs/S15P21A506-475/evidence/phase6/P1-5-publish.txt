@@ -1,0 +1,20 @@
+ Container pickage-app-postgres-1  Running
+PICKAGE_S3_ENDPOINT=http://172.26.8.249:9000 (.env.similarity-loader)
+06:32:41 감시 시작  s3://pickage-vectors/_current.json  간격 60초
+06:32:41 게시 시작  model=v2/corpus=package-text-20260908-v3  execution_id=similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb
+산출물 받기: s3://pickage-vectors/model=v2/corpus=package-text-20260908-v3/
+PICKAGE_S3_ENDPOINT=http://172.26.8.249:9000 (.env.similarity-loader)
+  ↓ candidates.parquet  (3.3 MB)
+  ↓ run_manifest.json  (0.0 MB)
+전송 파일 준비: 173782 행 (/var/lib/pickage/similar-package/similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb/f5cab732e71f4abea9768a8fe0979f5d/candidates.copy.tsv)
+{
+  "loaded_rows": 173003,
+  "staged_rows": 173782,
+  "loaded_bases": 16264,
+  "staged_bases": 16316,
+  "unresolved_bases": 50,
+  "unresolved_candidates": 16
+}
+경고: 779 행이 이름 매칭에 실패해 빠졌다 (base 50 · candidate 16)
+게시 완료 — /var/lib/pickage/similar-package/similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb/f5cab732e71f4abea9768a8fe0979f5d
+06:34:02 게시 완료  model=v2/corpus=package-text-20260908-v3

@@ -1,0 +1,149 @@
+== backend/src/main/resources/db/migration/V1__init.sql
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V2__add_curated_load_execution.sql
+CREATE TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+COMMENT
+COMMENT
+== backend/src/main/resources/db/migration/V3__add_snapshot_reference_execution.sql
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+CREATE INDEX
+COMMENT
+COMMENT
+== backend/src/main/resources/db/migration/V4__index_similar_package.sql
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V5__community.sql
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+== backend/src/main/resources/db/migration/V6__partition_package_version_snapshot.sql
+DO
+== backend/src/main/resources/db/migration/V7__normalize_package_version_snapshot_constraints.sql
+DO
+== backend/src/main/resources/db/migration/V8__dependent_transition.sql
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V9__dependent_removal_reason.sql
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V10__package_env.sql
+CREATE TABLE
+COMMENT
+ALTER TABLE
+COMMENT
+COMMENT
+ALTER TABLE
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V11__dependent_transition_unobserved_freshness.sql
+ALTER TABLE
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+== backend/src/main/resources/db/migration/V12__create_available_package.sql
+CREATE TABLE
+== backend/src/main/resources/db/migration/V13__migration_pair.sql
+CREATE TABLE
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+COMMENT
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
