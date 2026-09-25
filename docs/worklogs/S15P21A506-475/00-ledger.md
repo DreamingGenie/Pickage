@@ -182,3 +182,11 @@ T1 verify-only 91,618(합성 기대값과 일치)·변경 없음 · T2 범위 �
 운영 절차서 `02-runbook.md` — 사전 점검 블록과 게시 상태 조회는 운영에서 읽기 전용으로 시험함(상한 항목만 불통과, 정상).
 
 Jira: 384 에 OOM 이력·8g 권고, 460 에 다음 회차 항목(평가 재정의·D3·retrieve-k·174·--state) 공유.
+
+## P0 메모리 상한 — 완료 (2026-09-25)
+
+- MR !280 (`infra/fix/S15P21A506-384-similarity-batch-mem-8g`, 커밋 bb4972e) — `ai-similarity` mem_limit·memswap_limit 2g→8g, README 배치 직전 점검 명령, MODEL_CONTRACT 문구. CI success, 사용자 머지 → develop `789d99d`.
+- data 노드 반영: 서버에 자격증명이 없어 `git bundle`(`origin/develop ^766615b`, sha256 `82c00526…`) 을 ssh 표준입력으로 전송 → 서버에서 `git bundle verify` → `git fetch <bundle> refs/remotes/origin/develop:refs/remotes/origin/develop` → `git merge --ff-only`. HEAD `766615b → 789d99d`. 반영 직전 `pickage-weekly` inactive 확인. 번들 삭제.
+- 반영 전 확인: 117 커밋 중 주간 수집(저장소 마운트)이 쓰는 코드 변경은 `pipeline/downloads/input.py`(DuckDB 한도 환경변수화, 기본값 동일)뿐. 배치 스크립트는 주석 11줄.
+- 사후 사전 점검 전 항목 통과 (`evidence/phase6/p0-server-update-and-precheck.txt`): 8g·8g · activeapps 0 · inactive · 13 GiB · AI_TAG f416bde3(머지 후에도 유지) · 추적 파일 변경은 수집기 장부 `ledger.jsonl` 뿐(기존).
+- Jira 384 완료 처리는 사용자.
