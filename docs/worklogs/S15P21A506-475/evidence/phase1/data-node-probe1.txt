@@ -1,0 +1,119 @@
+### date
+Fri Sep 25 01:48:00 UTC 2026
+### resources
+4
+               total        used        free      shared  buff/cache   available
+Mem:           15785        2398        1972           3       11767       13386
+Swap:           2047           0        2047
+NAME      TYPE SIZE USED PRIO
+/swapfile file   2G 192K   -2
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       309G  162G  148G  53% /
+/dev/root       309G  162G  148G  53% /
+### docker ps
+pickage-monitoring-data-pipeline-monitor-1	pickage-pipeline-monitor:runtime	Up 2 days
+pickage-data-minio-1	minio/minio:RELEASE.2025-04-22T22-12-26Z	Up 5 days (healthy)
+pickage-monitoring-data-netdata-1	netdata/netdata:v2.10.1	Up 6 days (healthy)
+pickage-data-mlflow-1	ghcr.io/mlflow/mlflow:v3.1.0	Up 13 days (healthy)
+pickage-data-spark-worker-1-1	apache/spark:3.5.3-python3	Up 2 weeks
+pickage-data-spark-master-1	apache/spark:3.5.3-python3	Up 2 weeks
+### docker stats
+pickage-monitoring-data-pipeline-monitor-1	55.14MiB / 256MiB	0.18%
+pickage-data-minio-1	480.4MiB / 1GiB	6.47%
+pickage-monitoring-data-netdata-1	175.3MiB / 256MiB	6.28%
+pickage-data-mlflow-1	362.2MiB / 512MiB	0.01%
+pickage-data-spark-worker-1-1	303.3MiB / 10GiB	0.15%
+pickage-data-spark-master-1	212MiB / 1GiB	0.09%
+### repo status
+ M pipeline/collectors/bigquery/ledger/ledger.jsonl
+766615b Merge branch 'data/feat/S15P21A506-452-registry-additions-package-env' into 'develop'
+### data dir
+total 152
+drwxrwxr-x 4 ubuntu ubuntu  4096 Sep 22 06:59 .
+drwxrwxr-x 6 ubuntu ubuntu  4096 Sep 18 08:05 ..
+lrwxrwxrwx 1 ubuntu ubuntu    21 Sep 16 05:26 .env -> /srv/pickage/data.env
+-rw-rw-r-- 1 ubuntu ubuntu  7741 Sep 22 05:51 .env.example
+-rw-rw-r-- 1 ubuntu ubuntu 77002 Sep 22 05:51 README.md
+-rw-rw-r-- 1 ubuntu ubuntu 29779 Sep 22 05:51 compose.yaml
+drwxrwxr-x 2 ubuntu ubuntu  4096 Sep 18 05:48 lib
+-rw-rw-r-- 1 ubuntu ubuntu 10261 Sep 22 05:51 run-similarity-batch.sh
+-rw-rw-r-- 1 ubuntu ubuntu  5021 Sep 16 06:59 run-weekly-ingest.sh
+drwxrwxr-x 2 ubuntu ubuntu  4096 Sep 16 06:59 systemd
+### compose mem lines (all compose files)
+59:    mem_limit: 1g
+60:    # memswap_limit 을 mem_limit 과 **같게** 두는 것은 "이 컨테이너에 스왑을 0 준다" 는 뜻이다.
+61:    # 이 줄을 빼면 Docker 가 총량을 mem_limit 의 2배로 잡아서, 호스트에 스왑이 생긴 뒤로는
+63:    memswap_limit: 1g
+149:    mem_limit: 512m
+150:    memswap_limit: 512m   # 스왑 0. 위 minio 의 주석 참고
+189:    mem_limit: 1g
+190:    memswap_limit: 1g   # 스왑 0. 위 minio 의 주석 참고
+206:      # ⚠ mem_limit 10g 에서 데몬·driver·비힙 몫을 뺀 값이다. .env.example 의 산수를 볼 것.
+225:    mem_limit: 10g
+226:    memswap_limit: 10g
+377:    mem_limit: 2g
+378:    memswap_limit: 2g   # 스왑 0. 위 minio 의 주석 참고
+448:    mem_limit: 3g
+449:    memswap_limit: 3g   # 스왑 0. 위 minio 의 주석 참고
+### git diff compose
+### .env keys
+MINIO_ROOT_USER
+MINIO_ROOT_PASSWORD
+PRIVATE_IP
+SPARK_WORKER_CORES
+SPARK_WORKER_MEMORY
+AI_TAG
+AI_CORPUS_PREFIX
+AI_DST_RESULT
+AI_MODEL_NAME
+AI_MODEL_ALIAS
+MLFLOW_TRACKING_URI
+OSS_SHIFT_UA_CONTACT
+AI_DEPENDENTS_PATH
+### .env allowlisted values
+AI_TAG=f416bde3
+AI_CORPUS_PREFIX=pickage-curated/ecosystems-keywords/v1/package-text
+AI_DST_RESULT=pickage-vectors
+AI_MODEL_NAME=pickage-similarity
+AI_MODEL_ALIAS=production
+MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+AI_DEPENDENTS_PATH=pickage-curated/depsdev/v1/package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/data/package_dependents.parquet
+### images
+pickage-ai-similarity:f416bde3	2026-09-22 05:44:18 +0000 UTC	867MB
+pickage-ai-similarity:3eb7ad64	2026-09-22 05:05:53 +0000 UTC	867MB
+pickage-ai-similarity:48a3ace6	2026-09-22 04:33:29 +0000 UTC	867MB
+pickage-ai-similarity:5c10514e	2026-09-21 05:21:52 +0000 UTC	867MB
+pickage-pipeline-monitor:runtime	2026-09-21 04:26:43 +0000 UTC	275MB
+pickage-ai-similarity:81ec8fc8	2026-09-21 04:00:58 +0000 UTC	867MB
+pickage-ingest-weekly:runtime	2026-09-17 01:11:50 +0000 UTC	1.67GB
+pickage-ai-similarity:3219da0b	2026-09-16 07:29:18 +0000 UTC	866MB
+pickage-spark-experiment:runtime-3.5.3	2026-09-15 08:34:58 +0000 UTC	1.53GB
+### timers
+NEXT                            LEFT LAST                              PASSED UNIT                           ACTIVATES
+Fri 2026-09-25 01:50:00 UTC 1min 57s Fri 2026-09-25 01:40:07 UTC     7min ago pickage-weekly.timer           pickage-weekly.service
+Fri 2026-09-25 01:50:00 UTC 1min 57s Fri 2026-09-25 01:40:07 UTC     7min ago sysstat-collect.timer          sysstat-collect.service
+Fri 2026-09-25 01:52:08 UTC  4min 5s Fri 2026-09-25 00:05:27 UTC 1h 42min ago fwupd-refresh.timer            fwupd-refresh.service
+Fri 2026-09-25 05:51:29 UTC  4h 3min Thu 2026-09-24 15:23:47 UTC      10h ago motd-news.timer                motd-news.service
+Fri 2026-09-25 06:46:14 UTC 4h 58min Thu 2026-09-24 06:12:37 UTC      19h ago apt-daily-upgrade.timer        apt-daily-upgrade.service
+Fri 2026-09-25 09:34:25 UTC       7h Fri 2026-09-25 00:49:37 UTC    58min ago apt-daily.timer                apt-daily.service
+Fri 2026-09-25 10:32:46 UTC       8h Thu 2026-09-24 06:44:07 UTC      19h ago man-db.timer                   man-db.service
+Sat 2026-09-26 00:00:00 UTC      22h Fri 2026-09-25 00:00:07 UTC 1h 47min ago dpkg-db-backup.timer           dpkg-db-backup.service
+Sat 2026-09-26 00:00:00 UTC      22h Fri 2026-09-25 00:00:07 UTC 1h 47min ago logrotate.timer                logrotate.service
+Sat 2026-09-26 00:00:57 UTC      22h Fri 2026-09-25 00:00:57 UTC 1h 47min ago update-notifier-download.timer update-notifier-download.service
+Sat 2026-09-26 00:07:00 UTC      22h Fri 2026-09-25 00:07:07 UTC 1h 40min ago sysstat-summary.timer          sysstat-summary.service
+Sat 2026-09-26 00:10:07 UTC      22h Fri 2026-09-25 00:10:07 UTC 1h 37min ago systemd-tmpfiles-clean.timer   systemd-tmpfiles-clean.service
+Sun 2026-09-27 03:10:51 UTC   2 days Sun 2026-09-20 03:10:27 UTC   4 days ago e2scrub_all.timer              e2scrub_all.service
+Mon 2026-09-28 00:46:42 UTC   2 days Mon 2026-09-21 00:07:15 UTC   4 days ago fstrim.timer                   fstrim.service
+Wed 2026-09-30 06:01:39 UTC   5 days Mon 2026-09-21 21:09:16 UTC   3 days ago update-notifier-motd.timer     update-notifier-motd.service
+-                                  - -                                      - apport-autoreport.timer        apport-autoreport.service
+-                                  - -                                      - snapd.snap-repair.timer        snapd.snap-repair.service
+-                                  - -                                      - ua-timer.timer                 ua-timer.service
+
+18 timers listed.
+### units
+pickage-weekly.service                                                        static          -
+pickage-weekly.timer                                                          enabled         enabled
+### crontab
+no crontab for ubuntu
+### who
+ubuntu   pts/1        2026-09-22 06:58 (<공인 IP 가림>)

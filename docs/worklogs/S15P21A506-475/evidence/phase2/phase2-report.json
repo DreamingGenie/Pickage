@@ -1,0 +1,104 @@
+{
+ "run_at_utc": "2026-09-25T02:12:23+00:00",
+ "inputs": {
+  "package_text": {
+   "path": "data\\keywords\\package_text\\package_text_2026-09-08.parquet",
+   "sha256": "8b9b1f58e666e8dce47b65e0e866895a121037ec28eac5eb31d477535904d860"
+  },
+  "rerank_100k": {
+   "path": "datasets\\targets\\rerank_100k_20260922.csv",
+   "sha256_lf": "001d63149f6ca5dfe9af5bc0b92d97a02dd97d31d43da9487debf87a59c549fb"
+  },
+  "expanded_468k": {
+   "path": "datasets\\targets\\expanded_468k_20260922.csv",
+   "sha256_lf": "9aa58fad3a0f43bccf81b44262e6120153e0e9838b83c8c364b6bf3680bcbf21"
+  }
+ },
+ "reportable_list": {
+  "path": "data\\rehearsal475\\reportable_rerank_20260925.csv",
+  "rows": 91717,
+  "excluded_no_downloads": 8283,
+  "sha256": "3fb1e814b2e3c4c71a24b9ecfdbb905d0d384233c7a9d2d646bee64702a97604"
+ },
+ "backfill": {
+  "returncode": 0,
+  "stdout": "{\n \"input\": \"C:\\\\Users\\\\mypc\\\\Desktop\\\\S15P21A506\\\\data/keywords/package_text/package_text_2026-09-08.parquet\",\n \"output\": \"C:\\\\Users\\\\mypc\\\\Desktop\\\\S15P21A506\\\\data/rehearsal475\\\\package_text_reportable.parquet\",\n \"rank_list\": \"C:\\\\Users\\\\mypc\\\\Desktop\\\\S15P21A506\\\\data/rehearsal475\\\\reportable_rerank_20260925.csv\",\n \"rows\": 922322,\n \"download_rank_not_null(리포트 가능)\": 91712,\n \"download_rank_null(목록 밖)\": 830610\n}",
+  "stderr": ""
+ },
+ "output": {
+  "path": "data\\rehearsal475\\package_text_reportable.parquet",
+  "sha256": "74e138ec970f8df28015b4b5439629a8c2b15d4149b8000121fdb3d30363f8bd",
+  "bytes": 86416963
+ },
+ "checks": {
+  "rows_equal": true,
+  "schema_names_equal": true,
+  "schema_types_equal": true,
+  "other_columns_identical": true,
+  "mismatched_columns": [],
+  "download_rank_not_null": 91712,
+  "download_rank_expected": 91712,
+  "download_rank_count_ok": true,
+  "download_rank_values_ok": true,
+  "download_rank_wrong_sample": [],
+  "max_download_rank": 100000
+ },
+ "corpus": {
+  "qualify_date": "2026-09-25",
+  "current_v2": {
+   "loaded": 52342,
+   "qualified": 17807
+  },
+  "reportable": {
+   "loaded": 59801,
+   "qualified": 28922
+  },
+  "qualified_added": 11115,
+  "qualified_removed": 0,
+  "qualified_removed_sample": [],
+  "all_new_inside_reportable": true,
+  "current_inside_old100k": true,
+  "probes": {
+   "ws": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 52
+   },
+   "websocket": {
+    "in_current": false,
+    "in_reportable": false,
+    "reportable_rank": 8601
+   },
+   "eiows": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 70300
+   },
+   "websocket13": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 44215
+   },
+   "pusher": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 11436
+   },
+   "socket.io": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 2381
+   },
+   "js-yaml": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 38
+   },
+   "yaml": {
+    "in_current": true,
+    "in_reportable": true,
+    "reportable_rank": 106
+   }
+  }
+ }
+}
