@@ -205,3 +205,23 @@ Jira: 384 에 OOM 이력·8g 권고, 460 에 다음 회차 항목(평가 재정�
 | P1-6 확인 T+0 | 06:34 | health 200 · ws=pusher·partysocket·rpc-websockets · express·zod·js-yaml·yaml·axios 리허설과 동일 · 20~50ms · API 오류 로그 0 · search(`q=`) 정상 |
 
 롤백 정보: 이전 run_path `model=v2/corpus=package-text-20260908-v2`, execution_id `similar-package-modelv2-corpuspackage-text-20260908-v2-a453075856e9`, 결과 포인터 원본은 위 P1-1 파일.
+
+- P1-6 확인 T+30m(07:04 UTC): health·후보 API 전부 200, API 오류 로그 0, app 여유 12 GiB (`evidence/phase6/P1-6-verify-t30.txt`).
+
+## P3 전 영향 점검 (2026-09-25, S15P21A506-476)
+
+P3(`available_package` 를 보고서 가능 범위로 교체)는 455 교체 완료 뒤 실행한다. 실행 전에 범위 변화를 목록 파일로 다시 계산했다. 재현: `phase6_p3_impact.py` → `evidence/phase6/P3-impact.txt`.
+
+- 범위(잠정): 97,743(운영) → 91,717(재정렬 10만 ∩ 46.9만). 기존 10만 대비 유지 71,845 · 들어옴 19,872(AI 후보 풀 11,297 · 분야별 대표 6,255 · 의존자 50+ 2,301) · 빠짐 28,151(스코프 17,139, 09-02 목록 기준 월 100만 이상 0 · 10만 이상 179).
+- **분야 커버리지는 보고서 가능 범위 기준으로 쓴다**: 좁은 분야(keywords 20~49개) 52.4% → 84.3%, 중간 분야(50~199개) 84.3% → 95.8%. README §7-4 의 100% 는 다운로드 없는 스코프 8,283개를 포함한 재정렬 10만 기준이라 서비스 수치가 아니다.
+- 새로 들어오는 것은 정의상 기존 커트라인(09-02 월 다운로드 11,890) 아래다. npm 에서 유명한 패키지는 원래부터 범위 안에 있었다. 운영 검색에서 지금 자료가 없는 예: `dify-client`(자동완성에 `gridify-client` 만), `opencv4nodejs`, `zigbee2mqtt`(프런트엔드 패키지만) — 셋 다 `cat5` 로 들어온다.
+- ⚠ **한국 관련 패키지(이름·설명·keywords 기준)는 96 → 96, 들어옴 32 · 빠짐 32.** 빠지는 쪽이 `@toss/*`·`@apps-in-toss/*`, `@react-native-seoul/kakao-login`, `@types/kakao-js-sdk`, `iamport`, `eslint-config-naver`, `hwp.js`, `@hyunbinseo/holidays-kr` 등이다. 재정렬 규칙의 마지막 칸(fill, 인기순)에서 밀렸다. 2026-09-25 운영 검색으로 `kakao-login`·`iamport`·`holidays-kr` 가 지금은 나오는 것을 확인했다. **P3 실행 전에 데이터 파트(455 담당)와 받아들일지·보완 규칙을 둘지 정한다.** 보완하려면 의존 수 추이가 있어야 하므로 재정렬 10만 자체(455 계산 입력)를 건드리게 된다.
+
+## 발표 시연 쌍 선정 (2026-09-25, S15P21A506-476)
+
+발표 시연을 js-yaml vs yaml 에서 **zod vs ajv** 로 바꾸기 위한 확인. 증거 `evidence/phase6/demo-*`.
+
+- 조건: ①다운로드는 A 우세, 의존 수는 B 우세·급증 ②설치 전 조건·AI 기능 비교에서 차이가 명확 ③한쪽을 입력하면 다른 쪽이 후보로 나옴. 8쌍 비교표 `demo-pair-final-screen.csv`.
+- zod vs ajv 만 셋을 모두 만족: 의존 수가 2024-11~2025-05 사이에 교차, 다운로드는 전 구간 ajv 우세, zod 입력 시 ajv 2위, 설치 전 조건 4항목 레지스트리 일치. 상세 `demo-zod-ajv.txt`.
+- **설치 전 조건(env) 데이터 오류 발견** — axios 1.20.0·postgres 3.4.9 `ESM_ONLY`(실제로는 require 지원, 중첩 exports 조건), got 16.0.0 `types_bundled=false`(실제 exports.types 있음). 별도 버그로 보고 필요.
+- 브라우저 탭이 백그라운드이면 기능 비교 진행 표시·커뮤니티 탭이 멈춘다(Chrome 타이머 억제 · `visibilityState` 조건). 서버 결과는 정상.
