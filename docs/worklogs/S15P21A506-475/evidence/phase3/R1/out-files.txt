@@ -1,0 +1,7 @@
+total 45096
+drwxr-xr-x 1 mypc 197121        0 Sep 25 12:02 .
+drwxr-xr-x 1 mypc 197121        0 Sep 25 12:02 ..
+-rw-r--r-- 1 mypc 197121        0 Sep 25 12:02 _SUCCESS
+-rw-r--r-- 1 mypc 197121  3320612 Sep 25 12:02 candidates.parquet
+-rw-r--r-- 1 mypc 197121     1168 Sep 25 12:02 run_manifest.json
+-rw-r--r-- 1 mypc 197121 42846542 Sep 25 12:02 text_hash_state.parquet
