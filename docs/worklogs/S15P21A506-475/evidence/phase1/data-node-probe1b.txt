@@ -1,0 +1,118 @@
+### corpus pointer (package-text/_current.json)
+{"collected_date":"2026-09-08","manifest_sha256":"21e86a4aeefd4930aaa8d6a3fc5c0172427448cb9735bb7000934ea53ff933e0","run_id":"package-text-20260908-v2","run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v2"}
+### corpus runs
+[2026-09-19 12:59:37 UTC]   223B STANDARD _current.json
+[2026-09-14 06:42:56 UTC]     0B STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v1/_SUCCESS
+[2026-09-14 06:42:43 UTC]  82MiB STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v1/data/package_text.parquet
+[2026-09-14 06:42:56 UTC] 1.7KiB STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v1/run_manifest.json
+[2026-09-19 12:59:37 UTC]     0B STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v2/_SUCCESS
+[2026-09-19 12:59:36 UTC]  82MiB STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v2/data/package_text.parquet
+[2026-09-19 12:59:37 UTC] 1.7KiB STANDARD collected_date=2026-09-08/run_id=package-text-20260908-v2/run_manifest.json
+### result pointer (pickage-vectors/_current.json)
+{"run_path":"model=v2/corpus=package-text-20260908-v2","run_id":"package-text-20260908-v2","published_at":"2026-09-19T13:33:30Z","manifest_sha256":"a453075856e97c5a053ed700a079eab3876787ab03fbf0b2c64e8d8300a97f6f"}
+### result runs
+[2026-09-19 13:33:31 UTC]   214B STANDARD _current.json
+[2026-09-17 06:35:45 UTC]     0B STANDARD model=v2/corpus=package-text-20260908-v1/_SUCCESS
+[2026-09-17 06:35:45 UTC] 8.2MiB STANDARD model=v2/corpus=package-text-20260908-v1/candidates.parquet
+[2026-09-17 06:35:45 UTC]   680B STANDARD model=v2/corpus=package-text-20260908-v1/run_manifest.json
+[2026-09-17 06:35:45 UTC] 1.5MiB STANDARD model=v2/corpus=package-text-20260908-v1/text_hash_state.parquet
+[2026-09-19 13:33:29 UTC]     0B STANDARD model=v2/corpus=package-text-20260908-v2/_SUCCESS
+[2026-09-19 13:33:28 UTC] 4.5MiB STANDARD model=v2/corpus=package-text-20260908-v2/candidates.parquet
+[2026-09-19 13:33:28 UTC]   703B STANDARD model=v2/corpus=package-text-20260908-v2/run_manifest.json
+[2026-09-19 13:33:28 UTC] 950KiB STANDARD model=v2/corpus=package-text-20260908-v2/text_hash_state.parquet
+### current result run_manifest.json
+run_path=model=v2/corpus=package-text-20260908-v2
+{
+  "model_ver": "bge-small-v7-v5clean-batch32-step500",
+  "input_package_text": "/work/in/package_text.parquet",
+  "input_rows_qualified": 17883,
+  "params": {
+    "min_dependents": 5,
+    "max_rank": 100000,
+    "max_age_months": 12,
+    "retrieve_k": 30,
+    "user_k": 20,
+    "gate": true,
+    "gate_drops": {
+      "plugin_adapter": 58663,
+      "same_family": 119646,
+      "repo_archived": 1575
+    },
+    "raw_text_column": null
+  },
+  "elapsed_sec": 692.3,
+  "created_at": "2026-09-19T13:33:26",
+  "candidate_rows": 275192,
+  "base_packages": 16402,
+  "scoring_gate": {
+    "status": "SKIPPED",
+    "reason": "51K holdout undefined (S15P21A506-169)",
+    "measured_candidate_rows": 275192
+  }
+}
+### dependents objects
+[2026-09-16 01:07:49 UTC]     0B STANDARD package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/_SUCCESS
+[2026-09-16 01:07:44 UTC]  59MiB STANDARD package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/data/package_dependents.parquet
+[2026-09-16 01:07:49 UTC] 2.4KiB STANDARD package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/run_manifest.json
+[2026-09-22 03:07:54 UTC]     0B STANDARD package-dependents-exp460k/snapshot=2026-08-31/run_id=package-dependents-exp460k-20260922-v1/_SUCCESS
+[2026-09-22 03:07:49 UTC] 109MiB STANDARD package-dependents-exp460k/snapshot=2026-08-31/run_id=package-dependents-exp460k-20260922-v1/data/package_dependents.parquet
+[2026-09-22 03:07:54 UTC] 3.1KiB STANDARD package-dependents-exp460k/snapshot=2026-08-31/run_id=package-dependents-exp460k-20260922-v1/run_manifest.json
+[2026-09-15 05:33:26 UTC]     0B STANDARD package-dependents/snapshot=2026-08-31/run_id=package-dependents-20260915-v1/_SUCCESS
+[2026-09-15 05:33:16 UTC]  99MiB STANDARD package-dependents/snapshot=2026-08-31/run_id=package-dependents-20260915-v1/data/package_dependents.parquet
+[2026-09-15 05:33:26 UTC] 2.4KiB STANDARD package-dependents/snapshot=2026-08-31/run_id=package-dependents-20260915-v1/run_manifest.json
+### mlflow alias
+{
+  "model_version": {
+    "name": "pickage-similarity",
+    "version": "2",
+    "creation_timestamp": 1789444358796,
+    "last_updated_timestamp": 1789444358796,
+    "current_stage": "None",
+    "description": "",
+    "source": "s3://pickage-mlflow-artifacts/v7-v5clean",
+    "run_id": "",
+    "status": "READY",
+    "run_link": "",
+    "aliases": [
+      "production"
+    ]
+  }
+}
+{
+  "registered_model": {
+    "name": "pickage-similarity",
+    "creation_timestamp": 1789210099847,
+    "last_updated_timestamp": 1789444358796,
+    "latest_versions": [
+      {
+        "name": "pickage-similarity",
+        "version": "2",
+        "creation_timestamp": 1789444358796,
+        "last_updated_timestamp": 1789444358796,
+        "current_stage": "None",
+        "description": "",
+        "source": "s3://pickage-mlflow-artifacts/v7-v5clean",
+        "run_id": "",
+        "status": "READY",
+        "run_link": ""
+      }
+    ],
+    "aliases": [
+      {
+        "alias": "production",
+        "version": "2"
+      }
+    ]
+  }
+}
+### model artifacts
+[2026-09-15 03:39:40 UTC]     0B STANDARD v7-v5clean/_SUCCESS.txt
+[2026-09-15 03:40:19 UTC] 132MiB STANDARD v7-v5clean/model.onnx
+[2026-09-15 03:39:40 UTC] 1.6KiB STANDARD v7-v5clean/run_manifest.json
+[2026-09-15 03:39:40 UTC] 695KiB STANDARD v7-v5clean/tokenizer.json
+[2026-09-15 03:39:40 UTC]   633B STANDARD v7-v5clean/tokenizer_config.json
+[2026-09-12 06:54:32 UTC]     0B STANDARD v7/_SUCCESS.txt
+[2026-09-12 06:54:44 UTC] 132MiB STANDARD v7/model.onnx
+[2026-09-12 06:54:32 UTC] 2.0KiB STANDARD v7/run_manifest.json
+[2026-09-12 06:54:32 UTC] 695KiB STANDARD v7/tokenizer.json
+[2026-09-12 06:54:32 UTC]   633B STANDARD v7/tokenizer_config.json

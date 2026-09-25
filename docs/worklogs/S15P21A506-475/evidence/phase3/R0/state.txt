@@ -1,0 +1,4 @@
+exit=0 oom_killed=false started=2026-09-25T02:21:11.091726272Z finished=2026-09-25T02:40:54.898778675Z
+wall_sec=1186 mem=8g args=--downloads-floor 0 --allow-gate-skip
+CGROUP_MEMORY_PEAK=4289159168
+BATCH_EXIT=0

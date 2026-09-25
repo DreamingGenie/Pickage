@@ -1,0 +1,46 @@
+Timing is on.
+ default_transaction_read_only 
+-------------------------------
+ on
+(1 row)
+
+Time: 0.286 ms
+### snapshot calendar
+ dates |    min     |    max     
+-------+------------+------------
+   229 | 2022-05-08 | 2026-08-31
+(1 row)
+
+Time: 1.141 ms
+### package_snapshot: 최신 시점에 downloads 있는 패키지
+ERROR:  canceling statement due to statement timeout
+Time: 60018.187 ms (01:00.018)
+### package_snapshot: 시점 수 분포 (downloads 있는 행)
+ERROR:  canceling statement due to statement timeout
+Time: 60043.228 ms (01:00.043)
+### package_version_snapshot: 최신 시점에 행 있는 패키지
+ count 
+-------
+ 97743
+(1 row)
+
+Time: 4063.524 ms (00:04.064)
+### package_env: 패키지 수
+Time: 60000.475 ms (01:00.000)
+### dependent_transition / migration_pair: 패키지 수
+ERROR:  canceling statement due to statement timeout
+ count  
+--------
+ 459781
+(1 row)
+
+Time: 6227.049 ms (00:06.227)
+ count 
+-------
+  7821
+(1 row)
+
+Time: 28.738 ms
+### 교집합 (D=downloads 최신, V=version snapshot 최신, E=env, A=available)
+ERROR:  canceling statement due to statement timeout
+Time: 60001.395 ms (01:00.001)

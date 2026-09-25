@@ -1,0 +1,11 @@
+전송 파일 준비: 204752 행 (C:\Users\mypc\Desktop\S15P21A506\data\rehearsal475\loader-work\rehearsal-R2\3a2cf3fbe2694c23b6f2057a0079dea5\candidates.copy.tsv)
+{
+  "loaded_rows": 204752,
+  "staged_rows": 204752,
+  "loaded_bases": 26406,
+  "staged_bases": 26406,
+  "unresolved_bases": 0,
+  "unresolved_candidates": 0
+}
+게시 완료 — C:\Users\mypc\Desktop\S15P21A506\data\rehearsal475\loader-work\rehearsal-R2\3a2cf3fbe2694c23b6f2057a0079dea5
+exit=0 sec=9

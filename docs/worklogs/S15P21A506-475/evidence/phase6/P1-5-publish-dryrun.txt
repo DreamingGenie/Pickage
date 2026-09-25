@@ -1,0 +1,4 @@
+ Container pickage-app-postgres-1  Running
+PICKAGE_S3_ENDPOINT=http://172.26.8.249:9000 (.env.similarity-loader)
+06:32:30 감시 시작  s3://pickage-vectors/_current.json  간격 60초
+06:32:30 새 산출물: model=v2/corpus=package-text-20260908-v3 — --dry-run 이라 게시하지 않는다 (현재 게시본 model=v2/corpus=package-text-20260908-v2)

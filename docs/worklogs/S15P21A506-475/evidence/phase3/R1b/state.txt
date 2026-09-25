@@ -1,0 +1,4 @@
+exit=0 oom_killed=false started=2026-09-25T04:21:34.595437326Z finished=2026-09-25T04:21:46.072490337Z
+wall_sec=12 mem=8g args=--allow-gate-skip --downloads-floor 0 --state /work/in/state.parquet
+CGROUP_MEMORY_PEAK=2288779264
+BATCH_EXIT=0

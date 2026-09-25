@@ -1,0 +1,29 @@
+Timing is on.
+BEGIN
+Time: 0.125 ms
+SET
+Time: 0.104 ms
+SET
+Time: 0.075 ms
+SELECT 1
+Time: 1.525 ms
+SELECT 99995
+Time: 35.241 ms
+SELECT 91618
+Time: 150.509 ms
+ALTER TABLE
+Time: 10.355 ms
+SELECT 1
+Time: 72.667 ms
+### 계산 결과
+ latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+-----------------+----------+-----------------------+----------+----------------------+-------+---------+-------
+ 2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+(1 row)
+
+Time: 0.221 ms
+SELECT 1
+Time: 1.090 ms
+ERROR:  중단: 새 목록 91618 행이 기대 범위 [1, 1000] 밖이다
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+Time: 1.927 ms

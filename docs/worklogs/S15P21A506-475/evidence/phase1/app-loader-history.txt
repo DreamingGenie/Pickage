@@ -1,0 +1,3 @@
+["--interval","60","--psql","psql","--database","pickage","--db-user","pickage"] 2026-09-24T13:19:53.107638708Z
+13:19:54 감시 시작  s3://pickage-vectors/_current.json  간격 60초
+13:55:04 오류: 게시 상태를 읽지 못했다: psql: error: connection to server at "postgres" (172.18.0.2), port 5432 failed: FATAL:  the database system is not yet accepting connections

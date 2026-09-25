@@ -1,0 +1,5 @@
+5c41c9f8b5e5f1ee8c261eed28f264eafb413d199dee7403a24fccf4ece134de  corpus_current_before_P1_20260925T0606Z.json
+7db0e12531227670b03b1466909e1f6b430377f1995b4db3fe9b365ec711c13a  vectors_current_before_P1_20260925T0606Z.json
+
+{"run_path":"model=v2/corpus=package-text-20260908-v2","run_id":"package-text-20260908-v2","published_at":"2026-09-19T13:33:30Z","manifest_sha256":"a453075856e97c5a053ed700a079eab3876787ab03fbf0b2c64e8d8300a97f6f"}
+{"collected_date":"2026-09-08","manifest_sha256":"21e86a4aeefd4930aaa8d6a3fc5c0172427448cb9735bb7000934ea53ff933e0","run_id":"package-text-20260908-v2","run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v2"}

@@ -1,0 +1,38 @@
+before=99083|9a3b592f458723aecb0892b1fa890ca9 expected_new=91618
+== T1_verify_only exit=0  available=99083|9a3b592f458723aecb0892b1fa890ca9
+    latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+    2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+             91618 |       99083
+   검증 전용 — ROLLBACK
+   ROLLBACK
+== T2_guard_range exit=3  available=99083|9a3b592f458723aecb0892b1fa890ca9
+    latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+    2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+   ERROR:  중단: 새 목록 91618 행이 기대 범위 [1, 1000] 밖이다
+== T3_guard_keep exit=3  available=99083|9a3b592f458723aecb0892b1fa890ca9
+    latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+    2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+   ERROR:  중단: 기존 목록 유지 비율 72.43 % 가 하한 99 % 보다 낮다
+   T1~T3 뒤 변경 없음 확인
+backup exists after T1~T3: false
+== T4_swap exit=0  available=91618|bd3baa5049771a911e27f380b4615634
+    latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+    2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+             91618 |       99083
+   교체 완료 — COMMIT
+   after_swap=91618|bd3baa5049771a911e27f380b4615634
+   reads       5 71
+   reads       6 80
+== T5_guard_backup_exists exit=3  available=91618|bd3baa5049771a911e27f380b4615634
+    latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+    2026-08-31      |    91618 |                 99995 |    91618 |                 8377 | 91618 |       0 |     0
+   ERROR:  중단: 백업 표 available_package_bak_rehearsal 가 이미 있다 — 다른 이름을 줄 것
+   T5 뒤 변경 없음 확인
+== T6_rollback_verify exit=0  available=91618|bd3baa5049771a911e27f380b4615634
+             99083 |       99083
+   검증 전용 — ROLLBACK
+   ROLLBACK
+== T7_rollback exit=0  available=99083|9a3b592f458723aecb0892b1fa890ca9
+             99083 |       99083
+   되돌림 완료 — COMMIT
+   롤백 후 내용 지문이 교체 전과 동일
