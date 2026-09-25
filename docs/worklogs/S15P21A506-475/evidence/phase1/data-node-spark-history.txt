@@ -1,0 +1,38 @@
+### spark master: app registrations
+26/09/09 02:14:53 INFO Master: Registering app smoke-distribution
+26/09/09 02:14:53 INFO Master: Registered app smoke-distribution with ID app-20260909021453-0000
+26/09/09 02:15:20 INFO Master: Removing app app-20260909021453-0000
+26/09/09 03:16:02 INFO Master: Registering app smoke-distribution
+26/09/09 03:16:02 INFO Master: Registered app smoke-distribution with ID app-20260909031602-0001
+26/09/09 03:16:32 INFO Master: Removing app app-20260909031602-0001
+26/09/09 03:19:29 INFO Master: Registering app smoke-distribution
+26/09/09 03:19:29 INFO Master: Registered app smoke-distribution with ID app-20260909031929-0002
+26/09/09 03:19:56 INFO Master: Removing app app-20260909031929-0002
+26/09/09 03:46:57 INFO Master: Registering app smoke-distribution
+26/09/09 03:46:57 INFO Master: Registered app smoke-distribution with ID app-20260909034657-0003
+26/09/09 03:47:27 INFO Master: Removing app app-20260909034657-0003
+### worker1 executors
+26/09/09 02:14:53 INFO Worker: Asked to launch executor app-20260909021453-0000/0 for smoke-distribution
+26/09/09 02:15:20 INFO Worker: Executor app-20260909021453-0000/0 finished with state KILLED exitStatus 143
+26/09/09 03:16:02 INFO Worker: Asked to launch executor app-20260909031602-0001/0 for smoke-distribution
+26/09/09 03:16:33 INFO Worker: Executor app-20260909031602-0001/0 finished with state KILLED exitStatus 143
+26/09/09 03:19:29 INFO Worker: Asked to launch executor app-20260909031929-0002/0 for smoke-distribution
+26/09/09 03:19:56 INFO Worker: Executor app-20260909031929-0002/0 finished with state KILLED exitStatus 143
+26/09/09 03:46:57 INFO Worker: Asked to launch executor app-20260909034657-0003/0 for smoke-distribution
+26/09/09 03:47:27 INFO Worker: Executor app-20260909034657-0003/0 finished with state KILLED exitStatus 143
+### pickage-weekly recent runs
+Sep 25 03:10:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 03:20:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 03:20:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 03:30:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 03:30:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 03:40:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 03:40:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 03:50:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 03:50:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 04:00:04 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 04:00:04 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 04:10:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 04:10:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).
+Sep 25 04:20:08 ip-172-26-8-249 systemd[1]: pickage-weekly.service: Deactivated successfully.
+Sep 25 04:20:08 ip-172-26-8-249 systemd[1]: Finished pickage-weekly.service - Pickage 주간 수집 한 회차 (deps.dev 증분 + npm 다운로드 -> MinIO Bronze).

@@ -20,6 +20,9 @@ rm -rf "$W"; mkdir -p "$W/in/model" "$W/out" "$E"
 cp "$TEXT" "$W/in/package_text.parquet"
 [ "$DEPS" = none ] || cp "$DEPS" "$W/in/package_dependents.parquet"
 cp data/rehearsal475/inputs/model/* "$W/in/model/"
+# 선택: STATE=<이전 실행의 text_hash_state.parquet> 를 주면 /work/in/state.parquet 로 둔다
+# (관문만 바꾼 비교 실험에서 재임베딩을 건너뛰려고. 인자에 --state /work/in/state.parquet 를 함께 준다)
+[ -n "${STATE:-}" ] && cp "$STATE" "$W/in/state.parquet"
 ( cd "$W/in" && sha256sum package_text.parquet model/model.onnx $( [ "$DEPS" = none ] || echo package_dependents.parquet ) ) > "$E/inputs.sha256"
 
 NAME=rehearsal475-$RUN
