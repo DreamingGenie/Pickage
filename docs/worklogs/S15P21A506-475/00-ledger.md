@@ -153,3 +153,32 @@
 - R0 verify-only: 273,781행 전부 매칭(미해결 0). R0 적재 5초, 지문 `36ee9fa105fafa6347ba8e3f7fbb9047`, 포인터 `rehearsal-R0`.
 - **교체 R0→R2** (`phase5_swap_rehearsal.sh`): 9초, 204,752행·기준 26,406, 범위 밖 후보 0, 포인터 `rehearsal-R2`. 적재 중 0.2초 간격 조회 24회 — 오류·빈 결과 0, ws 결과가 8행→20행으로 원자 전환. (지연 p99 406ms 는 `docker exec` 기동 비용 포함 — 쿼리 지연 아님)
 - **롤백 R2→R0** (같은 execution_id 재적재): 6초, 지문 `36ee9fa1…` **최초 적재와 동일**, 포인터 `rehearsal-R0` 복귀, 조회 19회 오류 0. (증거 파일 `state-after-R0.txt` 는 롤백 결과로 덮였고, 최초 값은 이 장부의 위 줄이 기록)
+
+## 계획 v2·절차서·교체 스크립트 (2026-09-25 오후)
+
+결정 확정(사용자 "전부 제안대로"): `01-plan-v2.md` §0. 순서 P0 메모리 8g → P1 6-A → P2 455 → P3 available_package → P4 6-B → P5 마무리, 다음 회차 N1.
+
+추가로 확인한 운영 사실 (증거 `evidence/phase1/`):
+- 커널 OOM: 09-17 05:22(2g)·05:47(4g)·**09-19 13:12(2g)** — 2g 로 완주한 적 없음, 성공 회차는 수동으로 상한을 올려 재실행한 것으로 추정 (`data-node-oom-history.txt`)
+- Spark master: 09-09 스모크 4건 이후 등록 앱 0 (`data-node-spark-history.txt`). UI 는 `172.26.8.249:8080`
+- 상주 로더 명령에 `--allow-gate-skip` 없음 → SKIPPED 회차는 자동 게시 불가. v2 회차는 09-19 14:32 UTC 게시(execution_id 에 SHA 접미사 — watch 형식, 수동 `--once` 추정) (`app-load-history.txt`, `app-loader-history.txt`)
+- README 의 `docker compose run --rm similarity-loader --once` 는 필수 인자 누락으로 실패하는 형태
+- 로더 "게시됨" 판정은 DB `etl_dataset_current` → 수동 롤백 시 결과 포인터 복원 필수
+- app 노드 compose 경로는 `/srv/pickage/repo/deploy/prod/app`(gitlab-runner 빌드 디렉터리 링크), data 노드는 `~/S15P21A506/deploy/prod/data`
+- 자동완성 사전 API `/api/dict-manifest` 는 운영 404 — 검색은 전부 available_package 조회
+- 운영 available 97,743 의 최신 기준일 downloads 보유 확인 쿼리는 30초 타임아웃으로 취소(인덱스 계획이었으나 힙 무작위 읽기). 이후 운영 조회는 교체 스크립트의 verify-only 로 대신
+- `rank_top100k_20260902.csv` 에 이름 중복 4건(`lavalink-client` 등)
+
+관문 분리 실험 (`evidence/phase4/gate-isolation.txt`, `--state` 로 임베딩 재사용):
+- R1a(인지도만) recall@3 0.274 · R1b(보완재만) 0.242 · R1(둘 다) 0.290. 오답(`glob→fflate` 등)은 두 관문 결합에서 나온다
+- top-3 에 cos<0.5 후보가 있는 기준 R0 10.8% · R1a 19.6% · R1 20.1%. 유사도 하한 0.5 적용 시 후보 0 개 기준 1,435 → 채택 안 함
+- `--state` 재사용 시 최고 메모리 1.29~2.29 GB
+
+D3 임계값별 평가 질의 코퍼스 포함 (`evidence/phase4/d3-threshold-eval-coverage.txt`): 현재 33/85, N=20 이면 46/85. 12개월로 빠진 질의 47개에 moment·async·passport·remark·luxon 포함.
+
+available_package 교체 스크립트 (`ops/`), 스크래치 리허설 7종 전부 통과 (`evidence/phase5/available_swap/summary.txt`):
+T1 verify-only 91,618(합성 기대값과 일치)·변경 없음 · T2 범위 가드 · T3 유지비율 가드(72.43%<99%) · T4 교체(조회 11회 무중단, 71→80 원자 전환) · T5 백업 중복 가드 · T6/T7 롤백 후 지문 동일.
+
+운영 절차서 `02-runbook.md` — 사전 점검 블록과 게시 상태 조회는 운영에서 읽기 전용으로 시험함(상한 항목만 불통과, 정상).
+
+Jira: 384 에 OOM 이력·8g 권고, 460 에 다음 회차 항목(평가 재정의·D3·retrieve-k·174·--state) 공유.

@@ -1,0 +1,46 @@
+Timing is on.
+BEGIN
+Time: 0.124 ms
+SET
+Time: 0.140 ms
+SET
+Time: 0.090 ms
+SELECT 1
+Time: 7.117 ms
+SELECT 99995
+Time: 39.685 ms
+SELECT 91618
+Time: 171.115 ms
+ALTER TABLE
+Time: 11.739 ms
+SELECT 1
+Time: 67.961 ms
+### 계산 결과
+ latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+-----------------+----------+-----------------------+----------+----------------------+-------+---------+-------
+ 2026-08-31      |    99083 |                 99995 |    91618 |                 8377 | 71765 |   27318 | 19853
+(1 row)
+
+Time: 0.223 ms
+SELECT 1
+Time: 1.529 ms
+DO
+Time: 4.855 ms
+SELECT 99083
+Time: 21.687 ms
+LOCK TABLE
+Time: 0.458 ms
+DELETE 99083
+Time: 15.972 ms
+INSERT 0 91618
+Time: 349.929 ms
+### 교체 후
+ available_rows | backup_rows 
+----------------+-------------
+          91618 |       99083
+(1 row)
+
+Time: 6.079 ms
+검증 전용 — ROLLBACK
+ROLLBACK
+Time: 1.311 ms

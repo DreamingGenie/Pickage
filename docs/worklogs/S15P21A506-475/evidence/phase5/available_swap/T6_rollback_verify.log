@@ -1,0 +1,24 @@
+Timing is on.
+BEGIN
+Time: 0.142 ms
+SET
+Time: 0.137 ms
+SELECT 1
+Time: 1.183 ms
+DO
+Time: 4.802 ms
+LOCK TABLE
+Time: 0.105 ms
+DELETE 91618
+Time: 16.035 ms
+INSERT 0 99083
+Time: 396.893 ms
+ available_rows | backup_rows 
+----------------+-------------
+          99083 |       99083
+(1 row)
+
+Time: 8.069 ms
+검증 전용 — ROLLBACK
+ROLLBACK
+Time: 0.239 ms
