@@ -190,3 +190,18 @@ Jira: 384 에 OOM 이력·8g 권고, 460 에 다음 회차 항목(평가 재정�
 - 반영 전 확인: 117 커밋 중 주간 수집(저장소 마운트)이 쓰는 코드 변경은 `pipeline/downloads/input.py`(DuckDB 한도 환경변수화, 기본값 동일)뿐. 배치 스크립트는 주석 11줄.
 - 사후 사전 점검 전 항목 통과 (`evidence/phase6/p0-server-update-and-precheck.txt`): 8g·8g · activeapps 0 · inactive · 13 GiB · AI_TAG f416bde3(머지 후에도 유지) · 추적 파일 변경은 수집기 장부 `ledger.jsonl` 뿐(기존).
 - Jira 384 완료 처리는 사용자.
+
+## P1 — 6-A 인지도 관문 반영: 게시 완료 (2026-09-25 06:34 UTC)
+
+증거 `evidence/phase6/`. 사용자 지시("완료 처리하고 다음 작업도 진행")로 진행. Jira 384 완료 전이.
+
+| 단계 | 시각(UTC) | 결과 |
+| --- | --- | --- |
+| P1-1 이전 상태 저장 | 06:06 | 서버 `~/rollback-475/vectors_current_before_P1_20260925T0606Z.json`(sha256 `7db0e125…`)·`corpus_current_before_P1_…json`(`5c41c9f8…`). 게시 상태 `similar-package-modelv2-corpuspackage-text-20260908-v2-a453075856e9` |
+| P1-2 코퍼스 v3 게시 | 06:07 | 로컬 SSH 터널(19000) + `ingest_derived --run-id package-text-20260908-v3`. 파일 SHA `8b9b1f58…`(= v2). 포인터 advanced, manifest `7a1a564c…`. 터널 종료 |
+| P1-3 배치 | 06:08~06:31 | tmux `b475` 에서 `run-similarity-batch.sh`. EXIT 0, OOM 없음, 1,353초. **EC2 실측 최고 4.734 GiB**(docker stats 2초 표본). 관문 수치 R1 과 동일. 결과 포인터 `model=v2/corpus=package-text-20260908-v3`, manifest `77af8546…` |
+| P1-4 비교 | 06:32 | 운영 산출물 = 리허설 R1 **100% 동일**(173,782행, top-3 순서 16,316/16,316) |
+| P1-5 게시 | 06:32~06:34 | app 노드 `/srv/pickage/repo/deploy/prod/app` 에서 `docker compose run --rm -T similarity-loader --once --dry-run …` → `--once --allow-gate-skip …`. execution `…-v3-77af8546a0bb`. loaded 173,003 / staged 173,782 — 779행(base 50·candidate 16) 이름 미매칭 제외(v2 게시 때도 1,608행 같은 이유로 제외) |
+| P1-6 확인 T+0 | 06:34 | health 200 · ws=pusher·partysocket·rpc-websockets · express·zod·js-yaml·yaml·axios 리허설과 동일 · 20~50ms · API 오류 로그 0 · search(`q=`) 정상 |
+
+롤백 정보: 이전 run_path `model=v2/corpus=package-text-20260908-v2`, execution_id `similar-package-modelv2-corpuspackage-text-20260908-v2-a453075856e9`, 결과 포인터 원본은 위 P1-1 파일.

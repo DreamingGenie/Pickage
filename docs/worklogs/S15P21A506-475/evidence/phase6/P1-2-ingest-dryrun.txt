@@ -1,0 +1,5 @@
+RUN_ID=package-text-20260908-v3
+package-text/2026-09-08: files=1 bytes=86359211 rows=922322
+  package_text_2026-09-08.parquet -> package_text.parquet: 86,359,211 bytes, 922,322 rows
+  pointer ecosystems-keywords/v1/package-text/_current.json -> collected_date=2026-09-08/run_id=package-text-20260908-v3
+{"dataset": "package-text", "collected_date": "2026-09-08", "files": 1, "bytes": 86359211, "rows": 922322, "prefix": "ecosystems-keywords/v1/package-text/collected_date=2026-09-08/run_id=package-text-20260908-v3", "pointer": "ecosystems-keywords/v1/package-text/_current.json", "dry_run": true}
