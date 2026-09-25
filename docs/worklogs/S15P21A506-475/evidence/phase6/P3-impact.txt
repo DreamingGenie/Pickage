@@ -1,0 +1,38 @@
+## 1. 범위 변화 (잠정)
+기존 10만 99,996 · 재정렬 10만 100,000 · 보고서 가능(재정렬∩46.9만) 91,717
+재정렬 10만 중 다운로드 대상 밖 8,283
+유지 71,845 · 들어옴 19,872 · 빠짐 28,151
+들어옴 규칙별 {'pool': 11297, 'cat5': 6255, 'dep50': 2301, 'fill': 19}
+빠짐 중 (09-02 목록 기준) 월 100만 이상 0 · 10만 이상 179 · 스코프 17,139
+빠짐 상위 스코프 [('@types', 1207), ('@flighthq', 149), ('@cleartrip', 141), ('@codingame', 125), ('@mescius', 108)]
+AI 후보 풀 포함 18,013 → 29,310 / 29,310
+기존 10만 월 다운로드 최저 (09-02 목록 기준) 11,890
+
+## 2. 분야 커버리지 (keywords 기준, 3개 이상 범위에 있는 분야 비율)
+좁은 분야(20~49개, 6,639개 분야): 기존 52.4% · 재정렬 100.0% · 보고서 가능 84.3%
+중간 분야(50~199개, 4,104개 분야): 기존 84.3% · 재정렬 100.0% · 보고서 가능 95.8%
+
+## 3. 분야 예시 (전 → 후, +들어옴 −빠짐)
+ai-agent: 122 → 251 (+149 −20)
+smarthome: 11 → 27 (+16 −0)
+computer-vision: 5 → 10 (+5 −0)
+home-automation: 1 → 9 (+8 −0)
+zigbee: 5 → 10 (+5 −0)
+opencv: 7 → 12 (+6 −1)
+dify: 1 → 3 (+2 −0)
+raspberry: 2 → 15 (+13 −0)
+gpio: 1 → 11 (+10 −0)
+arduino: 4 → 15 (+11 −0)
+korea: 0 → 4 (+4 −0)
+korean: 28 → 36 (+11 −3)
+
+## 4. 사례 패키지
+dify-client 기존10만 False | 보고서 가능 True | 규칙 cat5 | 원래 순위 121513 | 월 다운로드 7576
+opencv4nodejs 기존10만 False | 보고서 가능 True | 규칙 cat5 | 원래 순위 105488 | 월 다운로드 10569
+zigbee2mqtt 기존10만 False | 보고서 가능 True | 규칙 cat5 | 원래 순위 161432 | 월 다운로드 4094
+onoff 기존10만 False | 보고서 가능 True | 규칙 cat5 | 원래 순위 106148 | 월 다운로드 10403
+
+## 5. 한국 관련 패키지 (이름·설명·keywords 에 한글 또는 korea·kakao·naver·toss·iamport 등)
+기존 96 → 후 96 (들어옴 32 · 빠짐 32)
+빠짐 상위: @apps-in-toss/types(38,192), @toss/tds-colors(34,920), @yolo-croket-dev/amqp-access(34,477), @toss/tds-react-native(33,483), @toss/storage(32,332), @toss/react(29,095), @toss/utils(28,746), @types/kakao-js-sdk(25,400), @hyunbinseo/holidays-kr(24,671), @toss/nestjs-aop(22,957), @list-kr/filterslists(21,730), eslint-config-naver(21,444), interlude-ui(20,232), @react-native-seoul/kakao-login(19,931), korean-law-mcp(18,024)
+들어옴 상위: hwp-convert(11,772), dictionary-ko(10,948), coinpayments(9,718), kernel-js-lite(9,536), josa(9,480), inko(8,926), coolsms-node-sdk(7,768), garu-ko(6,893), memi-board(5,021), vue-daum-postcode(4,253), blacktrigram(3,682), @simplysm/sd-core-common(3,525), @simplysm/sd-core-node(3,384), commitgate(3,383), korean-holidays(3,331)

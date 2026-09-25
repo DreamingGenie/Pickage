@@ -99,6 +99,8 @@ curl -s "https://j15a506.p.ssafy.io/api/packages/similar?name=ws&limit=3"
 
 ## 3. P3 — available_package 교체 (455 완료 통보 뒤)
 
+- [ ] **실행 전 결정 확인** — 이 교체로 한국 관련 패키지 32개(`@toss/*`, `@react-native-seoul/kakao-login`, `iamport` 등)가 검색에서 빠진다(`00-ledger.md` "P3 전 영향 점검", `evidence/phase6/P3-impact.txt`). 데이터 파트와 받아들이기로 정했는지 확인한 뒤 진행한다.
+
 ```bash
 # 스크립트를 서버로 (app 노드 홈)
 scp -i $KEY docs/worklogs/S15P21A506-475/ops/available_package_*.sql ubuntu@j15a506.p.ssafy.io:~/rollback-475/

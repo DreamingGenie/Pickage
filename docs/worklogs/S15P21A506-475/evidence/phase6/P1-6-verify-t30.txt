@@ -1,0 +1,14 @@
+T+30m 2026-09-25T07:04:43Z
+health: 200 0.046796s
+ws HTTP200 0.036104s
+express HTTP200 0.024820s
+js-yaml HTTP200 0.043529s
+yaml HTTP200 0.032367s
+search HTTP200
+api errors(30m): 0
+pickage-app-rag-api-1 Up About a minute
+pickage-app-api-1 Up 17 hours (healthy)
+pickage-app-web-1 Up 2 days (healthy)
+pickage-app-postgres-1 Up 9 days (healthy)
+app available 12 GiB
+similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb
