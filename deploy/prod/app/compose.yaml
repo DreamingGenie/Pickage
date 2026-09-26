@@ -46,6 +46,11 @@ services:
     # **모든 쿼리가 같이 느려진다.** 사용자에게는 장애로 보이는데 컨테이너는 살아 있어서
     # `docker ps` 로도 OOM 기록으로도 안 잡힌다. 차라리 죽고 restart 로 돌아오는 게 낫다.
     memswap_limit: 2g
+    # 병렬 VACUUM·병렬 쿼리가 쓰는 동적 공유 메모리(DSM)는 /dev/shm 에 잡힌다. Docker 기본
+    # 64 MB 로는 2026-09-24 `VACUUM package_snapshot` 이 67 MB 할당에 실패했다 (S15P21A506-479).
+    # 미리 잡아 두는 크기가 아니라 상한이고, 쓴 만큼은 위 mem_limit 2g 안에서 센다.
+    # 바꾸면 컨테이너가 다시 만들어진다 — ../README.md 의 "postgres `/dev/shm`".
+    shm_size: 512m
 
   api:
     # 로컬처럼 build: 만 두지 않는다. 운영에서 뜨는 것은 "지금 체크아웃된 소스" 가 아니라
