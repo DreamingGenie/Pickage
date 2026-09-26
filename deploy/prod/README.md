@@ -368,6 +368,26 @@ sudo rm /swapfile /etc/sysctl.d/99-swap.conf
 그래서 "느린데 아무것도 안 죽었다" 를 볼 때 `free -h` 의 `Swap` used 를 같이 본다.
 **여기가 0 이 아니면 어딘가 상한 밖에서 RAM 을 넘겼다는 뜻이다.**
 
+## postgres `/dev/shm` — 512m (S15P21A506-479)
+
+PostgreSQL 은 병렬 VACUUM·병렬 쿼리의 작업 메모리(동적 공유 메모리, DSM)를 `/dev/shm` 에 잡는다.
+Docker 기본값은 64 MB 라 2026-09-24 `VACUUM package_snapshot` 이 DSM 67 MB 할당에 실패하고
+멈췄다(S15P21A506-453). 그때는 `VACUUM (PARALLEL 0)` 으로 우회했다. 적재 세션의 `maintenance_work_mem`
+을 올릴수록 필요한 양도 커지므로 compose 에 `shm_size: 512m` 을 넣었다.
+
+- **상한이지 예약이 아니다.** 평소에는 거의 비어 있고, 쓴 만큼은 컨테이너 `mem_limit` 2g 안에서 센다.
+  `shared_buffers` 와 같은 주머니를 나눠 쓰므로 `maintenance_work_mem` 을 크게 올린 세션에서
+  병렬 VACUUM 을 돌릴 때는 둘의 합이 2g 에 닿지 않는지 본다.
+- **바꾸면 postgres 컨테이너가 다시 만들어진다.** 이 값이 바뀐 커밋이 `develop`·`main` 에 머지되면
+  배포 잡의 `docker compose up -d --wait` 가 postgres 를 재생성하고, 그동안(수십 초) api 가 DB 연결을
+  잃는다. **적재·배치가 돌지 않는 시간에 머지한다.** 데이터는 볼륨(`pgdata`)에 있어 그대로다.
+- 확인:
+
+  ```bash
+  docker exec pickage-app-postgres-1 df -h /dev/shm       # Size 512M
+  docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -c "VACUUM (PARALLEL 2, VERBOSE) available_package;"
+  ```
+
 ## 평소
 
 ```bash
