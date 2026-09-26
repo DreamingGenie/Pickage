@@ -1,0 +1,8 @@
+P3 verify-only (2026-09-26 04:35 UTC) new_rows 90,833 vs 예상 91,717 (재정렬10만 ∩ 46.9만 다운로드) — 차이 884
+- 운영 최신 파티션(d20260831) 보유 패키지 98,776 = 전부 재정렬 10만 안 (재정렬 - pvs = 1,224)
+- 예상 목록 중 pvs 행 없음 882: 운영 package 표에 이름 자체가 0/882 → 보고서 불가, 현재 available_package 에도 0/882
+  (예: @typescript/native-preview, date-fns-jalali, contenthook, @mui/base — curated-20260907 package 에 없는 이름)
+- 나머지 2: pvs 는 있으나 운영 package_snapshot 2026-08-31 downloads NULL
+- 목록: data/rehearsal475/p3_missing_pvs_882.txt (git 밖)
+첫 verify 시도(03:49 UTC)는 기준일을 임시 표 조인으로 넘겨 229 파티션 전체 스캔 → statement_timeout 15분 취소, 커밋 없음.
+ops/available_package_swap.sql 을 \gset 리터럴로 수정(53b197af…), EXPLAIN 으로 d20260831 단일 파티션 확인.

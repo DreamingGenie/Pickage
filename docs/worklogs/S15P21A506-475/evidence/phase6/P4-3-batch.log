@@ -1,0 +1,97 @@
+[1/6] 코퍼스 확정
+  run_id=package-text-20260908-v4  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v4
+[2/6] 모델 확정
+  v2  pickage-mlflow-artifacts/v7-v5clean
+[3/6] 중복 확인  model=v2/corpus=package-text-20260908-v4
+[4/6] 스테이징
+ Container pickage-data-minio-1  Running
+`l/pickage-curated/ecosystems-keywords/v1/package-text/collected_date=2026-09-08/run_id=package-text-20260908-v4/data/package_text.parquet` -> `/work/in/package_text.parquet`
+┌───────────┬─────────────┬──────────┬──────────────┐
+│ Total     │ Transferred │ Duration │ Speed        │
+│ 82.42 MiB │ 82.42 MiB   │ 00m00s   │ 823.64 MiB/s │
+└───────────┴─────────────┴──────────┴──────────────┘
+`l/pickage-mlflow-artifacts/v7-v5clean/_SUCCESS.txt` -> `/work/in/model/_SUCCESS.txt`
+`l/pickage-mlflow-artifacts/v7-v5clean/tokenizer.json` -> `/work/in/model/tokenizer.json`
+`l/pickage-mlflow-artifacts/v7-v5clean/model.onnx` -> `/work/in/model/model.onnx`
+`l/pickage-mlflow-artifacts/v7-v5clean/run_manifest.json` -> `/work/in/model/run_manifest.json`
+`l/pickage-mlflow-artifacts/v7-v5clean/tokenizer_config.json` -> `/work/in/model/tokenizer_config.json`
+┌────────────┬─────────────┬──────────┬──────────────┐
+│ Total      │ Transferred │ Duration │ Speed        │
+│ 132.75 MiB │ 132.75 MiB  │ 00m00s   │ 849.85 MiB/s │
+└────────────┴─────────────┴──────────┴──────────────┘
+`l/pickage-curated/depsdev/v1/package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/data/package_dependents.parquet` -> `/work/in/package_dependents.parquet`
+┌───────────┬─────────────┬──────────┬──────────────┐
+│ Total     │ Transferred │ Duration │ Speed        │
+│ 58.70 MiB │ 58.70 MiB   │ 00m00s   │ 816.60 MiB/s │
+└───────────┴─────────────┴──────────┴──────────────┘
+total 144516
+drwxr-xr-x 2 1000 1000     4096 Sep 26 05:40 model
+-rw-r--r-- 1 1000 1000 61553105 Sep 26 05:40 package_dependents.parquet
+-rw-r--r-- 1 1000 1000 86423482 Sep 26 05:40 package_text.parquet
+[5/6] 배치
+[05:40:29] package_text: 922322 행 중 dependents>=5, download_rank<=100000 인 59529 행만 읽음  (/work/in/package_text.parquet)
+[05:40:29] 자격 필터: 59529 → 28737  (dependents<5 0, 12개월 초과 30689, deprecated/spam 103)
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+[05:40:32] ONNX 로드: /work/in/model  (model_ver=bge-small-v7-v5clean-batch32-step500)
+[05:40:32] 재임베딩 대상: 28737 / 28737 (변경·신규분)
+[05:42:09]   임베딩 1600/28737
+[05:43:31]   임베딩 3200/28737
+[05:44:43]   임베딩 4800/28737
+[05:46:07]   임베딩 6400/28737
+[05:47:40]   임베딩 8000/28737
+[05:49:07]   임베딩 9600/28737
+[05:50:49]   임베딩 11200/28737
+[05:52:27]   임베딩 12800/28737
+[05:54:09]   임베딩 14400/28737
+[05:55:45]   임베딩 16000/28737
+[05:57:37]   임베딩 17600/28737
+[05:59:18]   임베딩 19200/28737
+[06:01:04]   임베딩 20800/28737
+[06:03:00]   임베딩 22400/28737
+[06:04:49]   임베딩 24000/28737
+[06:06:33]   임베딩 25600/28737
+[06:08:29]   임베딩 27200/28737
+[06:10:11]   top-30 2000/28737
+[06:10:12]   top-30 4000/28737
+[06:10:12]   top-30 6000/28737
+[06:10:13]   top-30 8000/28737
+[06:10:13]   top-30 10000/28737
+[06:10:14]   top-30 12000/28737
+[06:10:14]   top-30 14000/28737
+[06:10:15]   top-30 16000/28737
+[06:10:16]   top-30 18000/28737
+[06:10:16]   top-30 20000/28737
+[06:10:17]   top-30 22000/28737
+[06:10:17]   top-30 24000/28737
+[06:10:18]   top-30 26000/28737
+[06:10:18]   top-30 28000/28737
+[06:10:19]   top-30 28737/28737
+[06:10:19] 검색 top-30: 862110 쌍 (28737 base)
+[06:10:22] dependents(regular): 28737 개 패키지
+[06:10:22] dependents 커버리지: 28737/28737 (100.0%)
+[06:10:29] 구조적 관문: {'plugin_adapter': 80785, 'same_family': 179118, 'repo_archived': 3703, 'complement': 4565} → 593939 쌍 잔여
+[06:10:30] 인지도 관문(단계 (500000, 100000, 50000, 10000, 0)): base 별 최종 단계 분포 {500000: 19698, 100000: 2293, 50000: 638, 10000: 1179, 0: 2379} → 205596 쌍 잔여
+[06:10:34] 채점 게이트: SKIPPED (51K holdout undefined (S15P21A506-169))
+[06:10:37] 게이트 미통과(SKIPPED) — _SUCCESS 미기록. 로더가 이 실행을 무시함
+[06:10:37] 완료 — 1806.6s
+      회수
+ Container pickage-data-minio-1  Running
+`/work/out/model=v2/corpus=package-text-20260908-v4/candidates.parquet` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v4/candidates.parquet`
+`/work/out/model=v2/corpus=package-text-20260908-v4/run_manifest.json` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v4/run_manifest.json`
+`/work/out/model=v2/corpus=package-text-20260908-v4/text_hash_state.parquet` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v4/text_hash_state.parquet`
+┌───────────┬─────────────┬──────────┬──────────────┐
+│ Total     │ Transferred │ Duration │ Speed        │
+│ 69.67 MiB │ 69.67 MiB   │ 00m00s   │ 188.78 MiB/s │
+└───────────┴─────────────┴──────────┴──────────────┘
+`/tmp/_SUCCESS` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v4/_SUCCESS`
+┌───────┬─────────────┬──────────┬───────┐
+│ Total │ Transferred │ Duration │ Speed │
+│ 0 B   │ 0 B         │ 00m00s   │ 0 B/s │
+└───────┴─────────────┴──────────┴───────┘
+[6/6] 포인터
+      manifest_sha256 계산
+ 0 B / ? 214 bytes -> `l/pickage-vectors/_current.json`
+      model=v2/corpus=package-text-20260908-v4  sha256=d3730956568e96db5bf5f62d2acb0c6e919bc87e6fc30ca66e5b37962515ebfb
+완료: pickage-vectors/model=v2/corpus=package-text-20260908-v4
+EXIT=0
+5.061GiB / 8GiB

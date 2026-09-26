@@ -27,19 +27,21 @@ SET LOCAL lock_timeout = '5s';          -- 다른 적재기가 잡고 있으면 
 SET LOCAL statement_timeout = '15min';
 
 CREATE TEMP TABLE _latest ON COMMIT DROP AS SELECT max(snapshot_at) AS at FROM snapshot;
+-- 기준일은 리터럴로 넣는다. 임시 표와 조인하면 계획 시점 프루닝이 안 돼
+-- package_version_snapshot 229개 파티션(약 10.9억 행)을 전부 읽는다 (2026-09-26 운영 verify 에서 확인).
+SELECT at AS latest_at FROM _latest \gset
 
 -- ① 최신 기준일 파티션만 본다 (파티션 프루닝 + (package_id, snapshot_at) 인덱스)
 CREATE TEMP TABLE _pvs ON COMMIT DROP AS
 SELECT DISTINCT pvs.package_id
-  FROM package_version_snapshot pvs, _latest l
- WHERE pvs.snapshot_at = l.at;
+  FROM package_version_snapshot pvs
+ WHERE pvs.snapshot_at = :'latest_at';
 
 -- ② ①의 id 로만 PK 조회 (package_snapshot 전수 스캔을 피한다)
 CREATE TEMP TABLE _new ON COMMIT DROP AS
 SELECT v.package_id, p."name" AS package_name
   FROM _pvs v
-  JOIN _latest l ON true
-  JOIN package_snapshot ps ON ps.package_id = v.package_id AND ps.snapshot_at = l.at AND ps.downloads IS NOT NULL
+  JOIN package_snapshot ps ON ps.package_id = v.package_id AND ps.snapshot_at = :'latest_at' AND ps.downloads IS NOT NULL
   JOIN package p ON p.package_id = v.package_id;
 ALTER TABLE _new ADD PRIMARY KEY (package_id);
 
