@@ -225,3 +225,73 @@ P3(`available_package` 를 보고서 가능 범위로 교체)는 455 교체 완�
 - zod vs ajv 만 셋을 모두 만족: 의존 수가 2024-11~2025-05 사이에 교차, 다운로드는 전 구간 ajv 우세, zod 입력 시 ajv 2위, 설치 전 조건 4항목 레지스트리 일치. 상세 `demo-zod-ajv.txt`.
 - **설치 전 조건(env) 데이터 오류 발견** — axios 1.20.0·postgres 3.4.9 `ESM_ONLY`(실제로는 require 지원, 중첩 exports 조건), got 16.0.0 `types_bundled=false`(실제 exports.types 있음). 별도 버그로 보고 필요.
 - 브라우저 탭이 백그라운드이면 기능 비교 진행 표시·커뮤니티 탭이 멈춘다(Chrome 타이머 억제 · `visibilityState` 조건). 서버 결과는 정상.
+
+## P3 — available_package 교체: 완료 (2026-09-26 05:15 UTC)
+
+선행 확인(03:48 UTC, 읽기 전용): 455 `swap_receipt` 229행(마지막 2026-09-25 21:21 UTC) · `package_version_snapshot` 자식 229개 전부 `vd193_reload_455_b01~b23`, 옛 스키마 `vd193_reload_20260912_ready01` 0 · 실행 중 쿼리·잠금 0 · Jira 455 완료. 1절 사전 점검 전 항목 통과.
+
+| 단계 | 시각(UTC) | 결과 |
+| --- | --- | --- |
+| verify 1차 | 03:49~04:04 | ⚠ **229 파티션 전체 스캔** — 기준일을 임시 표 조인으로 넘겨 계획 시점 프루닝이 안 됨(스크래치 DB 리허설에서는 작아서 안 드러남). statement_timeout 15분으로 취소, 커밋 없음, 백업 표 미생성 |
+| SQL 수정 | 04:3x | `ops/available_package_swap.sql` 기준일 `\gset` 리터럴화(sha256 `53b197af…`). `EXPLAIN` 으로 `d20260831` 단일 파티션·`PK_PACKAGE_SNAPSHOT` 조회 확인 |
+| verify 2차 | 04:35 | 1분 43초, ROLLBACK. 결과는 아래와 동일 (`evidence/phase6/P3-1-verify.log`) |
+| 교체 | 05:13:55~05:15:08 | `expect 89924~91742 · min_keep_pct 60` · **COMMIT** (`evidence/phase6/P3-2-swap.log`) |
+| 확인 | 05:15 | search `dify-client`→dify-client · `websocket` 정상 · `@deepseek-ai/dsh-base`·`@toss/utils` 빈 결과 · dify-client downloads·dependents(08-03~08-31) 200 · health UP · api 오류 로그 0 (`P3-2-api-after.txt`) |
+
+| 항목 | 값 |
+| --- | ---: |
+| 기준일 | 2026-08-31 |
+| 기존 행 | 97,743 |
+| 최신 파티션 보유 패키지 | 98,776 (전부 재정렬 10만 안) |
+| **새 행** | **90,833** |
+| 다운로드 없음 제외 | 7,943 |
+| 유지 / 제외 / 추가 | 71,131 (72.8%) / 26,612 / 19,702 |
+
+- 예상 91,717 대비 −884: **882개는 운영 `package` 표에 이름이 없어** 보고서 불가(예 `@typescript/native-preview`·`date-fns-jalali`·`@mui/base`·`contenthook`), 기존 `available_package` 에도 0개 → 잃는 것 없음. 2개는 운영 08-31 downloads NULL. (`P3-1-gap-882.txt`)
+- 한국 관련 32개 제외는 Jira 476 결정대로 수용.
+
+**롤백 (R-B)**: 백업 표 `public.available_package_bak_475`(97,743행 = 교체 전 전체). 서버 `~/rollback-475/available_package_rollback.sql`(sha256 `30cdb2c1…`) 을 절차서 5절 R-B 명령으로 실행. 교체 전 이름 목록 사본은 로컬 `data/rehearsal475/prod_available_before_P3.txt`(git 밖).
+
+## P4 — 6-B 보고서 가능 코퍼스 (2026-09-26)
+
+| 단계 | 시각(UTC) | 결과 |
+| --- | --- | --- |
+| P4-1 순위 목록 | 05:2x | 운영 `available_package` 90,833 → `reportable_prod.csv`(sha256 `e05c8ac1…`, git 밖). rerank 에 없는 이름 0. R2 목록(91,717) 대비 P3 의 882+2 만 빠진 부분집합 |
+| P4-2 재부착 | 05:3x | `package_text_v4.parquet` sha256 `bde8316e…`, 922,322행, download_rank 90,832. 행 순서만 바뀌고 이름순 정렬 시 22개 열 값 동일 |
+| 이전 상태 저장 | 05:38 | 서버 `~/rollback-475/vectors_current_before_P4_20260926T0538Z.json`(`0b609802…`, v3 `77af8546…`)·`corpus_current_before_P4_…json`(`5c7ecef3…`, v3 `7a1a564c…`). 게시 중 execution `similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb` (`P4-1-saved-pointers.txt`) |
+| 코퍼스 v4 게시 | 05:39 | SSH 터널(19000) + `.env.server`(MinIO 루트 계정, git 밖). manifest `3f87795d…`, `_SUCCESS` 확인. 터널 종료 (`P4-2-ingest-*.txt`) |
+| 사전 점검 | 05:40 | 8g 짝 · activeapps 0 · weekly inactive(이번 주 09-21 회차 완료) · 13 GiB · f416bde3 · 추적 파일 변경 없음 · 타 세션 없음. 두 노드 cron·타이머에 Spark·유사도 예약 없음 |
+| P4-3 배치 | 05:40:24~06:10:42 | tmux `b475p4`. EXIT 0 · OOM 0 · **최고 5.061 GiB / 8 GiB** · 1,806.6초. 코퍼스 재임베딩 28,737. 인지도 관문 분포 {50만 19,698 · 10만 2,293 · 5만 638 · 1만 1,179 · 0 2,379}. 결과 포인터 `model=v2/corpus=package-text-20260908-v4` `d3730956…` (`P4-3-batch.log`, `P4-3-prod-manifest.txt`) |
+| P4-4 R2 비교 | 06:11 | 아래 표 (`P4-vs-R2.json`, `P4-4-demo-probes.txt`) |
+| P4-5 게시 드라이런 | 06:11 | "새 산출물 v4 — 게시하지 않는다 (현재 v3)" (`P4-5-publish-dryrun.txt`) |
+
+| 항목 | 운영 P4 | R2 |
+| --- | ---: | ---: |
+| 코퍼스 | 28,737 | 28,922 |
+| 후보 행 / 기준 | 203,564 / **26,187** | 204,752 / 26,406 |
+| 범위 밖 후보(`reportable_prod.csv` 기준) | **0** | 150 기준 · 151 후보 |
+| 공통 기준 top-3 동일 집합 / 순서 | 24,445/26,179 (93.4%) / 91.6% | — |
+| top-20 평균 겹침 | 0.969 | — |
+
+- 기준 차이(R2 에만 227 · 운영에만 8)는 운영 DB 에 이름이 없는 패키지를 목록에서 뺀 영향이다.
+- ws·express·ajv 의 top-5 는 R2·P1 과 같다. **zod → ajv 는 2위 → 3위**(`@redocly/ajv` 와 자리 바꿈). top-3 안이라 시연 조건은 유지. 사용자 확인 후 게시 진행.
+
+| 단계 | 시각(UTC) | 결과 |
+| --- | --- | --- |
+| P4-5 게시 | 06:35:30~06:36:50 | `--allow-gate-skip` 이 자동 모드 분류기에 막혀 **사용자가 직접 실행**. execution `similar-package-modelv2-corpuspackage-text-20260908-v4-d3730956568e`. loaded 203,564 / staged 203,564 · 기준 26,187 · 미매칭 0 (P1 은 779행 제외 — 이번엔 코퍼스가 available 안이라 0). 로그 app 노드 `~/rollback-475-P4-publish.log` |
+| P4-6 확인 T+0 | 06:37 | ws=pusher·partysocket·rpc-websockets · express=fastify·@tinyhttp/app·@hapi/hapi · zod=joi·@redocly/ajv·ajv · dify-client NO_DATA · health UP · API 오류 0 · DB `similar_package` 203,564행/26,187 기준, **available 밖 0** (`P4-6-verify-t0.txt`) |
+
+- zod 의 `@redocly/ajv`·`ajv` 는 cos **0.760455 동점**이다. 2위↔3위는 동점 순서(S15P21A506-174 비결정성)이지 품질 변화가 아니다.
+
+**롤백 (R-A)**: 이전 run_path `model=v2/corpus=package-text-20260908-v3`, execution_id `similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb`, 결과 포인터 원본 `~/rollback-475/vectors_current_before_P4_20260926T0538Z.json`(data 노드). 코퍼스 포인터 원본 `corpus_current_before_P4_20260926T0538Z.json`(v3).
+
+## 단계 상태 (2026-09-26 갱신)
+
+| 단계 | 상태 |
+| --- | --- |
+| P0 메모리 8g | 완료 (09-25) |
+| P1 6-A | 완료 (09-25) |
+| P2 455 | 완료 (09-26 06:21 KST, 전진) |
+| P3 available_package | **완료** (09-26 05:15 UTC) |
+| P4 6-B | **완료** (09-26 06:36 UTC) |
+| P5 마무리 | 백업 표 `available_package_bak_475` 보존 기간 결정·삭제, `.env.server` 삭제, D3 예외 규칙(AI 파트) |

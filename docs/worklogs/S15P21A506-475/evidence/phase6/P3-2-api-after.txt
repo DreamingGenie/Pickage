@@ -1,0 +1,19 @@
+Sat, Sep 26, 2026  5:15:37 AM
+== search q=dify-client
+{"data":{"query":"dify-client","items":["dify-client"]},"success":true}  [200 0.089085s]
+== search q=websocket
+{"data":{"query":"websocket","items":["websocket","websocket-driver","websocket-extensions","websocket-stream","websocket-as-promised"]},"success":true}  [200 0.096984s]
+== search q=@deepseek-ai/dsh-base
+{"data":{"query":"@deepseek-ai/dsh-base","items":[]},"success":true}  [200 0.036812s]
+== search q=@toss/utils
+{"data":{"query":"@toss/utils","items":[]},"success":true}  [200 0.036227s]
+== downloads dify-client
+{"data":{"metric":"downloads","unit":"weekly","series":[{"name":"dify-client","points":[{"snapshot_at":"2026-08-03","value":1714},{"snapshot_at":"2026-08-10","value":1500},{"snapshot_at":"2026-08-17","value":1213},{"snapshot_at":"2026-08-24","value":2238},{"snapshot_at":"2026-08-31","value":2310}]}],"not_found":[]},"success":true}  [200 0.042280s]
+== dependents dify-client
+{"data":{"metric":"dependents","sum_over_versions":true,"series":[{"name":"dify-client","major":"2","points":[{"snapshot_at":"2026-08-03","value":9},{"snapshot_at":"2026-08-10","value":9},{"snapshot_at":"2026-08-17","value":9},{"snapshot_at":"2026-08-24","value":9},{"snapshot_at":"2026-08-31","value":9}]}],"not_found":[]},"success":true}  [200 0.097577s]
+== downloads websocket
+{"data":{"metric":"downloads","unit":"weekly","series":[{"name":"websocket","points":[{"snapshot_at":"2026-08-03","value":1507529},{"snapshot_at":"2026-08-10","value":1428638},{"snapshot_at":"2026-08-17","value":1178046},{"snapshot_at":"2026-08-24","value":1390347},{"snapshot_at":"2026-08-31","value":1370442}]}],"not_found":[]},"success":true}  [200 0.035305s]
+== dependents websocket
+{"data":{"metric":"dependents","sum_over_versions":true,"series":[{"name":"websocket","major":"0","points":[{"snapshot_at":"2026-08-03","value":5},{"snapshot_at":"2026-08-10","value":5},{"snapshot_at":"2026-08-17","value":5},{"snapshot_at":"2026-08-24","value":5},{"snapshot_at":"2026-08-31","value":5}]},{"name":"websocket","major":"1","points":[{"snapshot_at":"2026-08-03","value":32333},{"snapshot
+== health
+{"groups":["liveness","readiness"],"status":"UP"} [200]

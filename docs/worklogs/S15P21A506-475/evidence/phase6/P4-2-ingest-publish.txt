@@ -1,0 +1,11 @@
+RUN_ID=package-text-20260908-v4
+package-text/2026-09-08: files=1 bytes=86423482 rows=922322
+  package_text_2026-09-08.parquet -> package_text.parquet: 86,423,482 bytes, 922,322 rows
+  pointer ecosystems-keywords/v1/package-text/_current.json -> collected_date=2026-09-08/run_id=package-text-20260908-v4
+PICKAGE_S3_ENDPOINT=http://localhost:19000 (.env.server)
+_current.json advanced: ecosystems-keywords/v1/package-text/_current.json
+{"dataset": "package-text", "collected_date": "2026-09-08", "files": 1, "bytes": 86423482, "rows": 922322, "prefix": "ecosystems-keywords/v1/package-text/collected_date=2026-09-08/run_id=package-text-20260908-v4", "pointer": "ecosystems-keywords/v1/package-text/_current.json", "dry_run": false}
+{"collected_date":"2026-09-08","manifest_sha256":"3f87795d3dfe631f673e9a053b078a99dad151535d75a8a6be76ca89fb2beec9","run_id":"package-text-20260908-v4","run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v4"}
+[2026-09-26 05:39:03 UTC]     0B STANDARD _SUCCESS
+[2026-09-26 05:39:01 UTC]  82MiB STANDARD data/package_text.parquet
+[2026-09-26 05:39:03 UTC] 1.7KiB STANDARD run_manifest.json
