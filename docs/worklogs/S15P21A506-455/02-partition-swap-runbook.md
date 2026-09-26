@@ -155,19 +155,21 @@ docker exec pickage-app-postgres-1 df -Pk /var/lib/postgresql/data | tail -1
 새 SQL 을 만들지 않고 아래 2.1~2.5 와 **같은 docker/psql 호출**만 쓴다.
 
 ```bash
-python docs/worklogs/S15P21A506-455/sql/swap_batch.py --batch 1 --batch-size 10 --run-dir data/vd455/h5b/run2-20260923-v1 --run-manifest-sha256 dd92f148ed308c7960a84070657ce4a333e3204ee93bbd1295b548bf64a1056b --schema vd193_reload_455_b01 --bak vd455_backup_20260922 --parent public.package_version_snapshot --container pickage-app-postgres-1 --user pickage --database pickage --output data/vd455/reload/prod
+python docs/worklogs/S15P21A506-455/sql/swap_batch.py --batch 1 --batch-size 10 --run-dir data/vd455/h5b/run2-20260923-v1 --run-manifest-sha256 dd92f148ed308c7960a84070657ce4a333e3204ee93bbd1295b548bf64a1056b --schema vd193_reload_455 --bak vd455_backup_20260922 --parent public.package_version_snapshot --container pickage-app-postgres-1 --user pickage --database pickage --output data/vd455/reload/prod
 ```
 
 (2026-09-25 운영 실행은 산출물이 주 트리에 있어 `--run-dir`·`--output` 을 절대 경로로 줬다.
-`--batch N` 과 `--schema …_bNN` 두 곳만 바꿔 반복한다.)
+그때는 `--schema …_bNN` 도 손으로 바꿨다. 지금은 `--batch N` 만 바꿔 반복한다.)
 
 - 묶음 1 이 가장 최근 10일이다. 끝나면 `--batch 2`, `--batch 3` 으로 이어 간다.
-- **묶음마다 `--schema` 를 다르게 준다** (`vd193_reload_455_b01`, `_b02`, …). 적재기 `inspect_target` 이
-  스키마에 저장된 계획과 새 묶음의 계획(날짜가 다름)을 비교해 같은 스키마로는
-  `Stored reload plan/code/input/service contract differs` 로 거부하고, 교체로 자식이 빠져나간 뒤에는
-  `Partition and receipt coverage differ` 에도 걸린다. 백업 스키마와 `--output` 은 그대로 둔다.
+- **묶음마다 스테이징 스키마가 달라야 하고, 드라이버가 자동으로 붙인다** (S15P21A506-481).
+  `--batch N` 이면 `--schema` 뒤에 `_bNN`(두 자리)을 붙여 `vd193_reload_455_b01`, `_b02`, … 가 된다.
+  손으로 `_bNN` 까지 적어 줘도 되지만 번호가 `--batch` 와 다르면 드라이버가 멈춘다.
+  `--date` 로 날짜를 직접 줄 때는 붙이지 않으므로 그때는 묶음마다 다른 `--schema` 를 손으로 준다.
+  이유: 적재기 `inspect_target` 이 스키마에 저장된 계획과 새 묶음의 계획(날짜가 다름)을 비교해
+  같은 스키마로는 `Stored reload plan/code/input/service contract differs` 로 거부하고, 교체로 자식이
+  빠져나간 뒤에는 `Partition and receipt coverage differ` 에도 걸린다. 백업 스키마와 `--output` 은 그대로 둔다.
   새 파티션은 그 스키마 안에 남으므로 완료 뒤 파티션 229개가 `_b01`..`_b23` 에 10개씩 보인다.
-  근본 수정은 S15P21A506-481.
 - 첫 묶음 전에 세션 기본값을 올리면 FK 검증·PK 생성이 빨라진다(운영 기본 64MB). 끝나면 되돌린다.
   ```sql
   ALTER ROLE pickage SET maintenance_work_mem='256MB';   -- 끝난 뒤: ALTER ROLE pickage RESET maintenance_work_mem;

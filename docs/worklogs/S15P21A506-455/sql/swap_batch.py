@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -263,12 +264,32 @@ class Driver:
             return 1
 
 
+def batch_schema(base: str, batch: int) -> str:
+    """묶음마다 스테이징 스키마를 따로 쓴다 (S15P21A506-481).
+
+    적재기 inspect_target 은 스키마에 저장된 계획과 새 계획을 비교해, 날짜가 다른
+    두 번째 묶음을 같은 스키마로는 거부한다. 그래서 `_bNN` 을 붙인다 — 2026-09-25
+    운영에서 손으로 쓰던 이름(`vd193_reload_455_b01`)과 같은 모양이다.
+    이미 `_bNN` 이 붙어 있으면 번호가 묶음과 같을 때만 받아 준다. 옛 명령을 그대로
+    복사해 `--batch 2 --schema …_b01` 을 치면 같은 거부가 다시 나기 때문이다.
+    """
+    suffix = f"_b{batch:02d}"
+    matched = re.search(r"_b(\d+)$", base)
+    if matched is None:
+        return base + suffix
+    if int(matched.group(1)) != batch:
+        raise SystemExit(f"--schema {base} 의 묶음 번호가 --batch {batch} 와 다릅니다. "
+                         f"접미사를 빼고 주면 드라이버가 {suffix} 를 붙입니다.")
+    return base
+
+
 def parse(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run-dir", required=True)
     ap.add_argument("--run-manifest-sha256", required=True)
-    ap.add_argument("--schema", required=True, help="vd193_reload_ 로 시작하는 스테이징 스키마")
+    ap.add_argument("--schema", required=True,
+                    help="vd193_reload_ 로 시작하는 스테이징 스키마. --batch 면 드라이버가 _bNN 을 붙인다")
     ap.add_argument("--bak", required=True, help="vd455_backup_ 로 시작하는 백업 스키마")
     ap.add_argument("--parent", required=True, help="교체 대상 부모. 운영은 public.package_version_snapshot")
     ap.add_argument("--container", required=True)
@@ -281,7 +302,10 @@ def parse(argv=None):
     group.add_argument("--batch", type=int, help="1 부터. 최근 날짜가 묶음 1 이다")
     group.add_argument("--date", action="append", dest="dates", help="날짜를 직접 지정. 반복")
     ap.add_argument("--batch-size", type=int, default=10)
-    return ap.parse_args(argv)
+    args = ap.parse_args(argv)
+    if args.batch is not None:
+        args.schema = batch_schema(args.schema, args.batch)
+    return args
 
 
 if __name__ == "__main__":
