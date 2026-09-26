@@ -63,6 +63,7 @@ DECLARE
     v_mismatch   bigint;
     v_bound      text;
     v_n          integer;
+    v_con        record;
 BEGIN
     IF v_stage !~ '^vd193_reload_[a-z0-9_]{1,40}$' THEN
         RAISE EXCEPTION '스테이징 스키마 이름이 규칙에 맞지 않습니다: %', v_stage;
@@ -124,6 +125,34 @@ BEGIN
                     WHERE indrelid = v_new AND indisprimary AND indisvalid) THEN
         RAISE EXCEPTION '새 파티션의 기본키가 없거나 무효합니다: %', v_new;
     END IF;
+
+    -- 서비스 부모의 CHECK 제약(V7 ck_package_version_snapshot_dependents_nonnegative 등)은
+    -- ATTACH 전에 자식에도 같은 이름·정의로 있어야 한다. 없으면 PostgreSQL 이
+    -- "child table is missing constraint" 로 거부한다 (2026-09-25 운영 첫 교체에서 실제 발생 —
+    -- 적재기는 스테이징 부모 기준으로 자식을 만들어 이 CHECK 를 달지 않는다).
+    -- 자식만 잠그고 자식만 스캔하므로(7.8M 행 수 초) 부모 잠금 전인 여기서 맞춘다.
+    FOR v_con IN
+        SELECT p.conname, pg_get_constraintdef(p.oid) AS condef
+          FROM pg_constraint p
+         WHERE p.conrelid = v_parent AND p.contype = 'c'
+           AND NOT EXISTS (SELECT 1 FROM pg_constraint c
+                            WHERE c.conrelid = v_new AND c.contype = 'c' AND c.conname = p.conname)
+         ORDER BY p.conname
+    LOOP
+        RAISE NOTICE '부모 CHECK 를 새 파티션에 추가합니다: % %', v_con.conname, v_con.condef;
+        EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I %s', v_new::text, v_con.conname, v_con.condef);
+    END LOOP;
+    -- 이름이 같은데 정의가 다르면 ATTACH 가 거부한다. 미리 확인해 분명한 메시지로 멈춘다.
+    FOR v_con IN
+        SELECT p.conname, pg_get_constraintdef(p.oid) AS condef, pg_get_constraintdef(c.oid) AS childdef
+          FROM pg_constraint p JOIN pg_constraint c
+            ON c.conrelid = v_new AND c.contype = 'c' AND c.conname = p.conname
+         WHERE p.conrelid = v_parent AND p.contype = 'c'
+           AND pg_get_constraintdef(p.oid) <> pg_get_constraintdef(c.oid)
+    LOOP
+        RAISE EXCEPTION '부모와 새 파티션의 CHECK % 정의가 다릅니다: 부모 % / 자식 %',
+              v_con.conname, v_con.condef, v_con.childdef;
+    END LOOP;
 
     ---------------------------------------------------------------- 2. 적재 영수증 대조
     EXECUTE format('SELECT rows, child_oid FROM %I.reload_partition WHERE snapshot_at = $1', v_stage)

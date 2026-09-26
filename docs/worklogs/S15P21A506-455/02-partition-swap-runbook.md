@@ -48,9 +48,15 @@
    ```bash
    .venv-bq/Scripts/python.exe -c "import pytz; print(pytz.__version__)"
    ```
-2. **실행 위치** — `python -m` 은 cwd 가 PYTHONPATH 보다 앞선다. 아래 명령은 반드시
-   `S15P21A506-455` worktree 안에서 실행한다. 다른 곳에서 실행하면 고치기 전 코드가 돌아
-   `Reload code contract changed: historical_db_fast_publish.py` 로 거부된다.
+2. **실행 위치와 PYTHONPATH** — `python -m` 은 cwd 가 PYTHONPATH 보다 앞선다. 아래 명령은
+   이 브랜치가 체크아웃된 트리 루트에서 실행한다(머지 뒤에는 주 트리 develop). 다른 곳에서
+   실행하면 고치기 전 코드가 돌아 `Reload code contract changed: historical_db_fast_publish.py`
+   로 거부된다. 그리고 드라이버가 `build_reload_plan.py` 를 파일 경로로 실행하므로
+   **저장소 루트를 `PYTHONPATH` 에 얹어야 한다.** 없으면 계획 단계에서
+   `No module named 'pipeline'` 로 멈춘다(2026-09-25 운영에서 실제 발생, DB 무영향).
+   ```powershell
+   $env:PYTHONPATH='C:\git\S15P21A506'
+   ```
 3. **SQL 은 파일로 넣는다** — PowerShell 파이프로 흘리면 인코딩이 깨져
    `syntax error at or near "WHERE"` 같은 엉뚱한 오류가 난다. `docker cp` 후 `-f` 를 쓴다.
 
@@ -73,7 +79,32 @@ docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -t -A -c "SELEC
 python -m pipeline.snapshot.load --candidate data/vd455/snapshot/projects-v1/snapshot-candidate.json --execution-id snapshot-reference-20260923-v455 --docker-container pickage-app-postgres-1 --database pickage --verify-only
 ```
 
-`--verify-only` 로 내용을 확인한 뒤 그 옵션을 빼고 다시 실행해 등록한다.
+`--verify-only` 로 내용을 확인한 뒤 그 옵션을 빼고 다시 실행해 등록한다. 운영 DB 사용자는
+`pickage` 이므로 `--db-user pickage` 를 붙인다(기본값 `postgres` 로는 접속이 안 된다).
+2026-09-25 운영 등록 결과: `LINKED_EXISTING`, 삽입 0, 기존 229일 연결, 7.6초.
+
+### 1.3b package-version 모집단 계보 — 운영에는 없다
+
+키 검증(`historical_db_keys.check_lineage`)은 달력 외에 **모집단 계보**도 본다. `etl_dataset_current`
+의 `package-version` 포인터가 계산 회차의 Curated 회차·기준일·매니페스트·타임스탬프
+(`curated-20260907-v2` / `2026-08-31` / `a537f84b…` / `2026-08-31T21:01:10.517131Z`)와 정확히
+같은 PUBLISHED 실행을 가리켜야 한다. 아니면 `published package-version population lineage does not match`.
+
+운영 DB 에는 이 행이 **없다.** 서비스 표는 S15P21A506-341 에서 로컬 검증 DB 를 pg_dump 로 옮긴 것이고
+이관 계획이 "로컬 ETL 이력은 옮기지 않는다"고 정했기 때문이다. 리허설은 로컬 DB(계보 있음)에서 돌아
+드러나지 않았다. 2026-09-25 에 로컬 `pickage` DB 의 `load-20260907-v2` 계보 행 3개
+(`etl_load_execution`·`etl_load_attempt`·`etl_dataset_current`)를 그대로 운영에 등록했다.
+등록 SQL 은 한 트랜잭션에 가드 셋을 둔다 — 운영에 package-version 계보가 없을 것, 운영 `package`·
+`version` 의 정확한 행 수가 11,080,940 / 54,188,349 일 것, 등록 뒤 적재기의 계보 질의가 1행일 것.
+서비스 표는 읽기만 하고 백엔드는 etl 표를 읽지 않으므로 서비스 영향은 없다. 되돌리기는 그 3행 DELETE.
+
+확인:
+
+```bash
+docker exec -i pickage-app-postgres-1 psql -U pickage -d pickage -A -c "SELECT c.execution_id, c.snapshot_at, e.curated_run_id, e.status FROM etl_dataset_current c JOIN etl_load_execution e ON e.dataset=c.dataset AND e.execution_id=c.execution_id WHERE c.dataset='package-version';"
+```
+
+`load-20260907-v2 | 2026-08-31 | curated-20260907-v2 | PUBLISHED` 한 행이 나와야 한다.
 
 ### 1.4 다른 적재기가 도는지 확인 — 겹치면 10초 만에 실패한다
 
@@ -124,10 +155,33 @@ docker exec pickage-app-postgres-1 df -Pk /var/lib/postgresql/data | tail -1
 새 SQL 을 만들지 않고 아래 2.1~2.5 와 **같은 docker/psql 호출**만 쓴다.
 
 ```bash
-python docs/worklogs/S15P21A506-455/sql/swap_batch.py --batch 1 --batch-size 10 --run-dir data/vd455/h5b/run2-20260923-v1 --run-manifest-sha256 dd92f148ed308c7960a84070657ce4a333e3204ee93bbd1295b548bf64a1056b --schema vd193_reload_455_20260922 --bak vd455_backup_20260922 --parent public.package_version_snapshot --container pickage-app-postgres-1 --user pickage --database pickage --output data/vd455/reload/prod
+python docs/worklogs/S15P21A506-455/sql/swap_batch.py --batch 1 --batch-size 10 --run-dir data/vd455/h5b/run2-20260923-v1 --run-manifest-sha256 dd92f148ed308c7960a84070657ce4a333e3204ee93bbd1295b548bf64a1056b --schema vd193_reload_455_b01 --bak vd455_backup_20260922 --parent public.package_version_snapshot --container pickage-app-postgres-1 --user pickage --database pickage --output data/vd455/reload/prod
 ```
 
+(2026-09-25 운영 실행은 산출물이 주 트리에 있어 `--run-dir`·`--output` 을 절대 경로로 줬다.
+`--batch N` 과 `--schema …_bNN` 두 곳만 바꿔 반복한다.)
+
 - 묶음 1 이 가장 최근 10일이다. 끝나면 `--batch 2`, `--batch 3` 으로 이어 간다.
+- **묶음마다 `--schema` 를 다르게 준다** (`vd193_reload_455_b01`, `_b02`, …). 적재기 `inspect_target` 이
+  스키마에 저장된 계획과 새 묶음의 계획(날짜가 다름)을 비교해 같은 스키마로는
+  `Stored reload plan/code/input/service contract differs` 로 거부하고, 교체로 자식이 빠져나간 뒤에는
+  `Partition and receipt coverage differ` 에도 걸린다. 백업 스키마와 `--output` 은 그대로 둔다.
+  새 파티션은 그 스키마 안에 남으므로 완료 뒤 파티션 229개가 `_b01`..`_b23` 에 10개씩 보인다.
+  근본 수정은 S15P21A506-481.
+- 첫 묶음 전에 세션 기본값을 올리면 FK 검증·PK 생성이 빨라진다(운영 기본 64MB). 끝나면 되돌린다.
+  ```sql
+  ALTER ROLE pickage SET maintenance_work_mem='256MB';   -- 끝난 뒤: ALTER ROLE pickage RESET maintenance_work_mem;
+  ```
+- 교체 SQL 은 ATTACH 전에 **서비스 부모의 CHECK 제약을 새 파티션에 복사**한다. V7 이 넣은
+  `ck_package_version_snapshot_dependents_nonnegative` 가 자식에 없으면 PostgreSQL 이
+  `child table is missing constraint` 로 거부한다(2026-09-25 운영 첫 교체에서 발생, 롤백으로 무영향).
+  리허설의 로컬 부모 표에는 그 CHECK 가 없어 드러나지 않았다.
+
+**2026-09-25 운영 묶음 1 실측** (10일, 7,336,106~7,829,660 행/일): 적재 1,908초 = 날짜당 167초
+(스테이징 52 · COPY 27 · FK 42 · PK 12 · 값 검증 9 · 커밋 전 4.5), 교체·확인·제거 날짜당 약 23초(CHECK 추가 포함).
+리허설 76초의 2.2배 — 운영 컨테이너 2 GiB 에서 version PK 가 캐시에 남지 않고 SSH 전송이 더해진다.
+229일 예상 약 13시간. 실패 뒤 같은 명령을 다시 치면 끝난 날짜를 다시 값 대조하느라 적재 단계에 약 17분이 붙는다.
+스테이징 중복 제거는 S15P21A506-480.
 - 어느 단계든 실패하거나 값이 어긋나면 **즉시 멈춘다.** 뒤 날짜는 손대지 않는다.
   마지막 날짜·단계·출력이 `<output>/driver-status.json` 에 남는다.
 - 이미 끝난 날짜는 건너뛴다. 같은 명령을 다시 쳐도 안전하다.
