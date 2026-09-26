@@ -45,7 +45,9 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.sql(f'CREATE DATABASE "{self.database}";', database="postgres")
         self.addCleanup(self.drop_owned_database)
-        migrations = sorted((ROOT / "backend/src/main/resources/db/migration").glob("V*.sql"))
+        # 버전 번호로 정렬한다. 문자열 순이면 V10 이 V1 보다 앞에 온다.
+        migrations = sorted((ROOT / "backend/src/main/resources/db/migration").glob("V*.sql"),
+                            key=lambda p: int(p.name[1:].split("__", 1)[0]))
         self.sql("BEGIN;\n" + migrations[0].read_text(encoding="utf-8") + "\nCOMMIT;")
         self.v1_service_schema = self.service_schema()
         self.sql("BEGIN;\n" + "\n".join(path.read_text(encoding="utf-8") for path in migrations[1:]) + "\nCOMMIT;")

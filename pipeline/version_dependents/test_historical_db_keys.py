@@ -67,9 +67,10 @@ class HistoricalDbKeyValidationIntegrationTests(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory()
         cls.root = Path(cls.temp.name)
         cls._sql(f'CREATE DATABASE "{cls.database}";', database="postgres")
-        migrations = sorted((Path(__file__).resolve().parents[2] /
-                             "backend/src/main/resources/db/migration").glob("V*.sql"))
-        cls._sql("BEGIN;\n" + "\n".join(p.read_text(encoding="utf-8") for p in migrations[:3]) + "\nCOMMIT;")
+        # 이름을 직접 적는다. glob 정렬은 문자열 순이라 V10 이 생긴 뒤로 앞 3개가 V1~V3 이 아니다.
+        migrations = Path(__file__).resolve().parents[2] / "backend/src/main/resources/db/migration"
+        names = ("V1__init.sql", "V2__add_curated_load_execution.sql", "V3__add_snapshot_reference_execution.sql")
+        cls._sql("BEGIN;\n" + "\n".join((migrations / n).read_text(encoding="utf-8") for n in names) + "\nCOMMIT;")
         cls.command = ["docker", "exec", "-i", cls.container, "psql", "-U", "postgres", "-d", cls.database]
 
     @classmethod
