@@ -280,6 +280,7 @@ P3(`available_package` 를 보고서 가능 범위로 교체)는 455 교체 완�
 | --- | --- | --- |
 | P4-5 게시 | 06:35:30~06:36:50 | `--allow-gate-skip` 이 자동 모드 분류기에 막혀 **사용자가 직접 실행**. execution `similar-package-modelv2-corpuspackage-text-20260908-v4-d3730956568e`. loaded 203,564 / staged 203,564 · 기준 26,187 · 미매칭 0 (P1 은 779행 제외 — 이번엔 코퍼스가 available 안이라 0). 로그 app 노드 `~/rollback-475-P4-publish.log` |
 | P4-6 확인 T+0 | 06:37 | ws=pusher·partysocket·rpc-websockets · express=fastify·@tinyhttp/app·@hapi/hapi · zod=joi·@redocly/ajv·ajv · dify-client NO_DATA · health UP · API 오류 0 · DB `similar_package` 203,564행/26,187 기준, **available 밖 0** (`P4-6-verify-t0.txt`) |
+| P4-6 확인 T+30m | 07:07 | similar(ws·zod·express)·search·dependents 200, 20~40ms · health UP · API 오류 0 · web 5xx 0 · app 여유 12,411 MiB (`P4-6-verify-t30.txt`) |
 
 - zod 의 `@redocly/ajv`·`ajv` 는 cos **0.760455 동점**이다. 2위↔3위는 동점 순서(S15P21A506-174 비결정성)이지 품질 변화가 아니다.
 
