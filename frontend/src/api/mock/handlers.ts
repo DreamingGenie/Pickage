@@ -14,31 +14,46 @@ import {
   BY_NAME,
   LATEST_SNAPSHOT,
   MOCK_DICTIONARY,
+  MOCK_MIGRATION_PAIRS_DEV,
+  MOCK_MIGRATION_PAIRS_REGULAR,
+  MOCK_MIGRATION_SNAPSHOT,
   MOCK_PACKAGES,
+  MOCK_REMOVAL_REASONS,
+  MOCK_TRANSITIONS,
+  TRANSITION_PERIOD_SCALE,
   dependentsByMajor,
   pointMetric,
   seriesOf,
   type MockPackage,
 } from '@/api/mock/dataset'
 import {
-  DEFAULT_WEEKS,
   MAX_NAMES,
-  MAX_WEEKS,
   NPM_NAME_RE,
   SEARCH_LIMIT_DEFAULT,
   SEARCH_LIMIT_MAX,
   SIMILAR_LIMIT_DEFAULT,
   SIMILAR_LIMIT_MAX,
+  DEFAULT_DEPENDENCY_KIND,
+  type DependencyKindParam,
   type DependentsTrendResponse,
   type DictManifest,
   type DownloadsTrendResponse,
   type PackageDictionary,
   type PackageOverview,
   type PackageSearchResponse,
+  type MarkdownGenerateRequest,
+  type MarkdownJob,
+  type MigrationPairsResponse,
+  type MigrationSeriesItem,
   type PackagesOverviewResponse,
   type PdfGenerateRequest,
   type PdfJob,
+  type RemovalReasonsResponse,
+  type RemovalReasonsSeriesItem,
   type SimilarPackagesResponse,
+  type TransitionPeriodParam,
+  type TransitionSeriesItem,
+  type TransitionsResponse,
   type TrendQuery,
   type TrendSeries,
   type VersionShareResponse,
@@ -188,26 +203,23 @@ export function mockPackagesOverview(
  * 4·5. 추이
  * ------------------------------------------------------------------ */
 
-/** `from`·`to` 를 실제 스냅샷 축 위의 구간으로 바꾼다. 기간 상한도 여기서 본다. */
+/**
+ * `from`·`to` 를 실제 스냅샷 축 위의 구간으로 바꾼다.
+ *
+ * **생략하면 보유한 전부다** — `from` 은 최초 스냅샷, `to` 는 최신 스냅샷이다. 기간 상한은
+ * 없다(S15P21A506-374). 서버의 `SnapshotWindow.of` 와 같은 규칙이어야 mock 으로 본 화면이
+ * 실서버에서 달라지지 않는다.
+ */
 function resolveWindow(from?: string, to?: string): { from: string; to: string } {
   const checkedFrom = checkDate(from, '시작 날짜')
   const checkedTo = checkDate(to, '끝 날짜')
 
-  const end = checkedTo ?? LATEST_SNAPSHOT
-  const endIndex = ALL_SNAPSHOTS.indexOf(end)
   // 스냅샷 축에 없는 날짜도 형식만 맞으면 받는다. 잘라내기는 문자열 비교로 처리된다.
-  const fallbackStart =
-    ALL_SNAPSHOTS[
-      Math.max(0, (endIndex < 0 ? ALL_SNAPSHOTS.length - 1 : endIndex) - (DEFAULT_WEEKS - 1))
-    ]
-  const start = checkedFrom ?? fallbackStart
+  const end = checkedTo ?? LATEST_SNAPSHOT
+  const start = checkedFrom ?? ALL_SNAPSHOTS[0]
 
   if (start > end) fail('V002', '시작 날짜가 끝 날짜보다 뒤입니다.')
 
-  const weeks = Math.round((Date.parse(end) - Date.parse(start)) / (7 * 864e5)) + 1
-  if (weeks > MAX_WEEKS) {
-    fail('V002', `한 번에 최대 ${MAX_NAMES}개, 최대 ${MAX_WEEKS}주까지 조회할 수 있습니다.`)
-  }
   return { from: start, to: end }
 }
 
@@ -307,8 +319,7 @@ export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
   const id = `mock-${names.join('-')}-${sections.join('-')}`
 
   // 서버와 같은 규칙(구상안 §13.6). 스코프 문자는 파일명에 남기지 않는다.
-  const fileName =
-    `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
+  const fileName = `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.pdf`
 
   mockPdfHtml.set(id, mockReportHtml(names, sections, not_found))
 
@@ -319,7 +330,8 @@ export function mockGeneratePdf(request: PdfGenerateRequest): Promise<PdfJob> {
     // 실제 크기가 아니다. 화면이 "크기 표시" 자리를 그리는지 보기 위한 값이다.
     bytes: 12_000 + names.length * 3_400,
     created_at: new Date().toISOString(),
-    omitted: sections,
+    // 커뮤니티 분석은 이제 기능이 있어 실린다(mock 은 자리 문구만). 기능 심화 분석만 자리와 사유가 실린다.
+    omitted: sections.filter((s) => s !== 'COMMUNITY'),
   })
 }
 
@@ -329,25 +341,56 @@ export function mockPdfPreview(reportId: string): Promise<string> {
   return delay(html as string)
 }
 
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `mockGeneratePdf`와 같은 검증·이름 처리를 쓴다. HAND-OFF는 구역 선택이 없어 항상 커뮤니티·
+ * 기능 심화 분석을 함께 시도한다고 가정한다 — `omitted`도 그 전제로 고정한다(mock은 실제
+ * 커뮤니티 자료를 흉내내지 않으므로 PDF mock과 같은 규칙: 커뮤니티는 채워진 것으로,
+ * 기능 심화 분석은 항상 자리만 있는 것으로 다룬다). 다운로드는 PDF와 같은 이유로 mock 분기가
+ * 없다 — 주소를 여는 일이라 실서버에서만 된다.
+ */
+export function mockGenerateHandoff(request: MarkdownGenerateRequest): Promise<MarkdownJob> {
+  const list = normalizeNames(request.names)
+  const { found } = split(list)
+  if (found.length === 0) {
+    fail('V001', '보고서를 만들 수 있는 패키지가 없습니다. 이름을 확인해 주세요.')
+  }
+
+  const names = found.map((p) => p.name)
+  const id = `mock-handoff-${names.join('-')}`
+  const fileName = `Pickage_${names.join('-').replace(/[^A-Za-z0-9._-]/g, '-')}_${LATEST_SNAPSHOT}.md`
+
+  return delay<MarkdownJob>({
+    report_id: id,
+    file_name: fileName,
+    bytes: 8_000 + names.length * 2_200,
+    created_at: new Date().toISOString(),
+    omitted: ['FEATURES'],
+  })
+}
+
 /** 서버 렌더러의 모양만 흉내낸다. 값은 지어낸 것이다. */
-function mockReportHtml(
-  names: string[],
-  sections: readonly string[],
-  notFound: string[],
-): string {
+function mockReportHtml(names: string[], sections: readonly string[], notFound: string[]): string {
   const rows = names
     .map((name) => {
       const pkg = BY_NAME.get(name)
-      return `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>`
-        + `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      return (
+        `<tr><td>${name}</td><td>${pkg?.latest_version ?? '-'}</td>` +
+        `<td class="n">${(pkg?.downloads ?? 0).toLocaleString()}</td></tr>`
+      )
     })
     .join('')
 
   const pending = sections
     .map(
       (s) =>
-        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>`
-        + `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`,
+        `<h2>${s === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'}</h2>` +
+        (s === 'COMMUNITY'
+          ? `<p class="note">mock 예시입니다. 실제 문서에는 기준 패키지의 저장소 수치·핵심 논의·실제 논의 흐름이 실립니다.</p>`
+          : `<p class="note">이 구역은 아직 제공되지 않습니다.</p>`),
     )
     .join('')
 
@@ -483,6 +526,300 @@ export function mockVersionShare(
     basis: 'dependents',
     sum_over_versions: true,
     items,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. GET /packages/transitions
+ * ------------------------------------------------------------------ */
+
+const TRANSITION_PERIODS: readonly TransitionPeriodParam[] = ['1y', '3y', '5y']
+
+function checkPeriod(period: string | undefined): TransitionPeriodParam {
+  if (period === undefined || period === '') return '3y'
+  if (!TRANSITION_PERIODS.includes(period as TransitionPeriodParam)) {
+    fail('V004', `period는 ${TRANSITION_PERIODS.join(', ')} 중 하나여야 합니다: ${period}`)
+  }
+  return period as TransitionPeriodParam
+}
+
+/** `LATEST_SNAPSHOT` 에서 period 만큼 거꾸로 뺀 날짜. 서버는 표에 저장된 값을 그대로
+ *  돌려줄 뿐 계산하지 않지만(TransitionPeriod.java), mock 은 보여줄 표가 없어 계산해 맞춘다. */
+function t1For(period: TransitionPeriodParam): string {
+  const years = { '1y': 1, '3y': 3, '5y': 5 }[period]
+  const d = new Date(`${LATEST_SNAPSHOT}T00:00:00Z`)
+  d.setUTCFullYear(d.getUTCFullYear() - years)
+  return d.toISOString().slice(0, 10)
+}
+
+function transitionRowsOf(name: string, period: TransitionPeriodParam): TransitionSeriesItem[] {
+  const fixture = MOCK_TRANSITIONS[name]
+  if (!fixture) {
+    // 카탈로그에는 있지만(그래서 not_found 는 아님) 전환 픽스처가 없는 채움 패키지 —
+    // 서버라면 배치가 아직 안 돈 패키지와 같은 모양이라 NOT_COMPUTED 로 낸다.
+    return (['regular', 'peer', 'optional'] as const).map((kind) => ({
+      name,
+      kind,
+      population: 'npm_all',
+      retained: null,
+      inflow: null,
+      inflow_new: null,
+      inflow_adopted: null,
+      outflow: null,
+      unobserved: null,
+      unobserved_recent: null,
+      unobserved_stale: null,
+      unobserved_dormant: null,
+      data_status: 'NOT_COMPUTED',
+    }))
+  }
+
+  const scale = TRANSITION_PERIOD_SCALE[period]
+  return fixture.map((row): TransitionSeriesItem => {
+    if (!row.counts) {
+      return {
+        name,
+        kind: row.kind,
+        population: 'npm_all',
+        retained: null,
+        inflow: null,
+        inflow_new: null,
+        inflow_adopted: null,
+        outflow: null,
+        unobserved: null,
+        unobserved_recent: null,
+        unobserved_stale: null,
+        unobserved_dormant: null,
+        data_status: row.dataStatus,
+      }
+    }
+    const retained = Math.round(row.counts.retained * scale)
+    const inflow = Math.round(row.counts.inflow * scale)
+    const inflowNew = Math.round(row.counts.inflowNew * scale)
+    const outflow = Math.round(row.counts.outflow * scale)
+    const unobserved = Math.round(row.counts.unobserved * scale)
+    return {
+      name,
+      kind: row.kind,
+      population: 'npm_all',
+      retained,
+      inflow,
+      inflow_new: inflowNew,
+      // 서버와 같은 계산(= inflow - inflow_new), 여기서 재발명하지 않는다.
+      inflow_adopted: inflow - inflowNew,
+      outflow,
+      unobserved,
+      ...freshnessOf(unobserved, period, row.freshnessMissing),
+      data_status: row.dataStatus,
+    }
+  })
+}
+
+/**
+ * 관측불가 분해 (S15P21A506-421). 구간마다 **정의상 비는 칸이 다르다** — 관측불가는 그
+ * 구간 안에 대표 릴리스가 없다는 뜻이므로, 3년으로 보면 `recent`(3년 안)가 나올 수 없고
+ * 5년으로 보면 `dormant` 만 남는다. mock 이 이 규칙을 어기면 화면이 실제로는 볼 수 없는
+ * 모양을 연습하게 된다.
+ *
+ * 비율은 2026-09-21 운영 실측에서 가져왔다(1y recent 34.3% · stale 24.2%, 3y stale 36.8%).
+ * **`dormant` 는 나머지로 구한다** — 반올림 때문에 셋의 합이 `unobserved` 에서 1 벌어지면
+ * 서버 DB CHECK 를 어기는 응답이 되고, 화면 어댑터가 합을 다시 세어 분해를 버린다.
+ */
+const FRESHNESS_SPLIT: Record<TransitionPeriodParam, { recent: number; stale: number }> = {
+  '1y': { recent: 0.343, stale: 0.242 },
+  '3y': { recent: 0, stale: 0.368 },
+  '5y': { recent: 0, stale: 0 },
+}
+
+function freshnessOf(
+  unobserved: number,
+  period: TransitionPeriodParam,
+  missing?: true,
+): Pick<TransitionSeriesItem, 'unobserved_recent' | 'unobserved_stale' | 'unobserved_dormant'> {
+  // 마이그레이션 배포 ~ 재적재 사이의 행. COMPLETE 인데 분해만 없다.
+  if (missing) {
+    return { unobserved_recent: null, unobserved_stale: null, unobserved_dormant: null }
+  }
+  const split = FRESHNESS_SPLIT[period]
+  const recent = Math.round(unobserved * split.recent)
+  const stale = Math.round(unobserved * split.stale)
+  return {
+    unobserved_recent: recent,
+    unobserved_stale: stale,
+    unobserved_dormant: unobserved - recent - stale,
+  }
+}
+
+export function mockTransitions(
+  names: readonly string[] | undefined,
+  period?: string,
+): Promise<TransitionsResponse> {
+  const list = normalizeNames(names)
+  const resolvedPeriod = checkPeriod(period)
+  const { found, not_found } = split(list)
+
+  const series = found.flatMap((pkg) => transitionRowsOf(pkg.name, resolvedPeriod))
+
+  // 서버 규칙: 응답의 모든 행이 NOT_COMPUTED 일 때만 t1·t2 키 자체가 없다.
+  // (`hasAnyTransition()` 이 전체 표를 보고 판단 — 특정 period 만 비어도 다른 패키지에
+  // 값이 있으면 그 값은 그대로 나간다. mock 도 같은 기준으로 판정한다.)
+  const allNotComputed = series.length > 0 && series.every((s) => s.data_status === 'NOT_COMPUTED')
+
+  return delay<TransitionsResponse>({
+    metric: 'dependent_transitions',
+    period: resolvedPeriod,
+    ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
+    series,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * GET /packages/removal-reasons  (S15P21A506-396·410)
+ *
+ * 위 transitions 와 **같은 프리셋·같은 기준일**을 쓴다(checkPeriod·t1For 재사용) —
+ * 서버가 두 표에서 같은 t1·t2 를 꺼내므로 mock 도 같은 자리에서 만든다.
+ * 단위만 다르다: 패키지 수가 아니라 전이 건수다.
+ * ------------------------------------------------------------------ */
+
+function removalRowOf(name: string, period: TransitionPeriodParam): RemovalReasonsSeriesItem {
+  const fixture = MOCK_REMOVAL_REASONS[name]
+  const base = { name, population: 'npm_all' as const, unit: 'transitions' }
+
+  // 카탈로그에는 있지만 픽스처가 없는 채움 패키지 — 배치가 아직 안 돈 것과 같은 모양이다.
+  if (!fixture || !fixture.counts) {
+    return {
+      ...base,
+      removals: null,
+      no_replacement: null,
+      with_replacement: null,
+      dependents: null,
+      data_status: fixture?.dataStatus ?? 'NOT_COMPUTED',
+    }
+  }
+
+  // **두 값을 먼저 스케일하고 더해서 removals 를 만든다.** removals 를 따로 스케일하면
+  // 반올림 때문에 no + with != removals 가 되어 서버의 DB CHECK 를 어기는 응답이 된다.
+  const scale = TRANSITION_PERIOD_SCALE[period]
+  const noRepl = Math.round(fixture.counts.noReplacement * scale)
+  const withRepl = Math.round(fixture.counts.withReplacement * scale)
+  const removals = noRepl + withRepl
+  // dependents <= removals 도 서버 CHECK 다. 스케일 뒤에도 지켜지게 자른다.
+  const dependents = Math.min(Math.round(fixture.counts.dependents * scale), removals)
+
+  return {
+    ...base,
+    removals,
+    no_replacement: noRepl,
+    with_replacement: withRepl,
+    dependents,
+    data_status: fixture.dataStatus,
+  }
+}
+
+export function mockRemovalReasons(
+  names: readonly string[] | undefined,
+  period?: string,
+): Promise<RemovalReasonsResponse> {
+  const list = normalizeNames(names)
+  const resolvedPeriod = checkPeriod(period)
+  const { found, not_found } = split(list)
+
+  const series = found.map((pkg) => removalRowOf(pkg.name, resolvedPeriod))
+  const allNotComputed = series.length > 0 && series.every((s) => s.data_status === 'NOT_COMPUTED')
+
+  return delay<RemovalReasonsResponse>({
+    metric: 'removal_reasons',
+    period: resolvedPeriod,
+    ...(allNotComputed ? {} : { t1: t1For(resolvedPeriod), t2: LATEST_SNAPSHOT }),
+    series,
+    not_found,
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * GET /packages/migration-pairs  (S15P21A506-424)
+ *
+ * 위 둘과 달리 **구간(period)이 없다.** 연속한 릴리스를 전부 훑은 결과라 "몇 년치" 라는
+ * 축이 성립하지 않는다. 대신 `kind` 로 원천을 고르고, 기준일이 종류마다 다르다.
+ *
+ * 모르는 `kind` 는 서버가 400 이므로 mock 도 400 을 던진다 — 조용히 기본값으로
+ * 떨어뜨리면 화면은 개발용을 요청하고 실행용을 받아 놓고 그 사실을 모른다.
+ * ------------------------------------------------------------------ */
+
+const DEPENDENCY_KINDS: readonly DependencyKindParam[] = ['regular', 'dev']
+
+function checkKind(raw?: string): DependencyKindParam {
+  if (raw === undefined || raw === '') return DEFAULT_DEPENDENCY_KIND
+  if (!DEPENDENCY_KINDS.includes(raw as DependencyKindParam)) {
+    fail('V004', `kind는 ${DEPENDENCY_KINDS.join(', ')} 중 하나여야 합니다: ${raw}`)
+  }
+  return raw as DependencyKindParam
+}
+
+function migrationRowOf(name: string, kind: DependencyKindParam): MigrationSeriesItem {
+  const table = kind === 'dev' ? MOCK_MIGRATION_PAIRS_DEV : MOCK_MIGRATION_PAIRS_REGULAR
+  // 픽스처가 없으면 그 종류를 아직 안 올린 것으로 본다 — dev 가 실제로 그 상태다.
+  const fixture = table[name] ?? { dataStatus: 'NOT_COMPUTED' as const }
+  const base = { name, share_basis: 'publisher_months' }
+
+  // 세어 보지 않은 두 상태는 기준일도 관측 수도 모른다. 0 으로 메우면 "세어 보니 없었다"
+  // 와 구분되지 않는다 — 이 지표가 가장 경계하는 혼동이다.
+  if (fixture.dataStatus === 'NOT_COMPUTED' || fixture.dataStatus === 'OUT_OF_SCOPE') {
+    return {
+      ...base,
+      snapshot_at: null,
+      destinations: [],
+      etc: null,
+      observed_pairs: null,
+      data_status: fixture.dataStatus,
+    }
+  }
+
+  return {
+    ...base,
+    // NO_DATA 는 읽을 행이 없어 기준일도 모른다(서버가 표에서 읽으므로).
+    snapshot_at: fixture.dataStatus === 'NO_DATA' ? null : MOCK_MIGRATION_SNAPSHOT[kind],
+    destinations: (fixture.destinations ?? []).map((d) => ({
+      name: d.name,
+      votes: d.votes,
+      co_events: d.coEvents,
+      publisher_months: d.publisherMonths,
+      dependents: d.dependents,
+      lift: d.lift,
+      share_pm_pct: d.sharePmPct,
+      share_pct: d.sharePct,
+      a_pct: d.aPct,
+      evidence: d.evidence,
+      variant: d.variant ?? false,
+      first_seen: d.firstSeen,
+      last_seen: d.lastSeen,
+    })),
+    etc: fixture.etc
+      ? {
+          pairs: fixture.etc.pairs,
+          share_pm_pct: fixture.etc.sharePmPct,
+          below_filter: fixture.etc.belowFilter,
+        }
+      : null,
+    observed_pairs: fixture.observedPairs ?? 0,
+    data_status: fixture.dataStatus,
+  }
+}
+
+export function mockMigrationPairs(
+  names: readonly string[] | undefined,
+  kind?: string,
+): Promise<MigrationPairsResponse> {
+  const list = normalizeNames(names)
+  const resolvedKind = checkKind(kind)
+  const { found, not_found } = split(list)
+
+  return delay<MigrationPairsResponse>({
+    metric: 'migration_pairs',
+    kind: resolvedKind,
+    series: found.map((pkg) => migrationRowOf(pkg.name, resolvedKind)),
     not_found,
   })
 }

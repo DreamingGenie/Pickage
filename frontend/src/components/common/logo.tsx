@@ -25,14 +25,15 @@ export function LogoMark({ className }: { className?: string }) {
 /** 헤더용 마크 + 워드마크. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn('flex items-center gap-2.5', className)}>
-      <LogoMark className="size-7" />
+    <span className={cn('flex items-center gap-3', className)}>
+      {/* 헤더 글자(18~20px)보다 작으면 서명이 묻힌다 — 큰 제목들 옆에서도 눈에 띄게 키웠다 */}
+      <LogoMark className="size-10" />
       <img
         src="/logo-wordmark.png"
         alt="Pickage"
         width={600}
         height={158}
-        className="h-[19px] w-auto object-contain"
+        className="h-7 w-auto object-contain"
       />
     </span>
   )

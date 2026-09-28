@@ -3,12 +3,17 @@
 기준 패키지의 `description + keywords` 임베딩으로 **유사/대체 후보 최대 3개**를 사전 계산하는 트랙.
 생성형 AI를 후보 검색·정렬에 쓰지 않는다. 서빙 요청은 PostgreSQL의 사전 계산 결과만 조회한다.
 
-설계 근거: `docs/Pickage_기능별_개발_구상안_0917.md` §3.3~3.5, §4.1, §4.2, §14.
+현재 설계 근거: `docs/Pickage_기능별_개발_구상안_0923.md` §5. 과거 상세 설계는
+`docs/history/0923_0917_pickage_final_set_archive/Pickage_기능별_개발_구상안_0917.md`에 보존한다.
 
 > **재학습 관련 안내 (2026-09-14)**: 모델 재학습(재파인튜닝)은 최대한 지양하는 방향으로
-> 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 현재 서빙
-> 모델(v7)의 스펙과 학습 이력은 `ai/MODEL_CONTRACT.md`에 남아 있다. 아래 내용은
+> 결정했다. 이 문서에서는 재학습 파이프라인 구축·운영에 관한 서술을 뺐다 — 서빙 모델의
+> 스펙과 학습 이력은 `ai/MODEL_CONTRACT.md`에 남아 있다. 아래 내용은
 > **이미 만들어진 모델을 유지·서빙하는 배치**(`similarity/`)에 집중한다.
+>
+> **정정 (2026-09-18)**: 실제 `@production`은 아래 설명하는 v7이 아니라 `v7-v5clean`이다
+> (2026-09-17 첫 실운영 배치에서 확인, S15P21A506-387). 스펙·학습 조건·recall은
+> `ai/MODEL_CONTRACT.md`의 "모델 — v7-v5clean" 절 참고.
 
 ## 폴더
 
@@ -41,6 +46,8 @@
 - 배치 본체 구현 + 2단계 랭커(검색 top-30 → 구조적 관문 → cos 정렬) — MR !102, S15P21A506-168, 2026-09-11 develop 머지
 - **v7 모델로 교체 (2026-09-11)** — S15P21A506-329. ONNX export·MinIO 업로드까지 완료, 상세 배경·스펙은
   `ai/MODEL_CONTRACT.md` 참고. **EC2 #1 CPU 실측 검증(S15P21A506-287)은 v7으로 아직 안 함 — 미해결.**
+- **인지도 관문 추가 (2026-09-22)** — S15P21A506-450. `--downloads-floor`(기본 500,000) 구현 +
+  단위테스트, 위 "재랭킹 규칙" 절 참고. EC2 #1 실배치 반영은 다음 배포에서.
 
 **진행 중 / 블로커**
 
@@ -54,6 +61,7 @@
 |---|---|---|
 | 1 | **ONNX export + EC2 #1 CPU(x86_64) 추론 검증** — export는 완료(2026-09-09), 남은 건 EC2에서 수치 일치·held-out recall 동등·처리량 실측 | S15P21A506-287 |
 | 2 | `ai/MODEL_CONTRACT.md` v7 갱신 — **완료**, 단 EC2 CPU 실측·저장 경로 불일치는 미해결 | S15P21A506-329 |
+| 2b | `ai/MODEL_CONTRACT.md`에 실제 운영 모델(v7-v5clean) 스펙·recall·저장 경로 반영 — **완료** (2026-09-18) | S15P21A506-387 |
 | 3 | 대규모 recall 재검증 (10만 색인 + 234 held-out, "deprecated 51K" 정체 확인). 51K holdout 정답 노후화 문제 있음 — 아래 "채점 게이트 설계 메모" 참고 | S15P21A506-169 |
 | 4 | 배치 본체 구현 (`similarity_batch_pipeline.py` 스텁 채우기) — **완료**, 2026-09-11 develop 머지 | MR !102, S15P21A506-168 |
 | 5 | `similar_packages` 로더 (방식 C의 LOAD). `pipeline/postgresql/load.py` 패턴 재사용 | 신규 |
@@ -71,13 +79,30 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 2. **구조적 관문** (`--gate`, 기본 **on**) — 점수 조정이 아니라 통과/탈락:
    - plugin/adapter/preset/loader·비말단 config (이름·keywords) → drop
    - same-family: 우산↔하위모듈(`d3`↔`d3-axis`)·같은 포장(`lodash`↔`lodash-es`)·같은 `@scope` → drop
-   - 보완재 감점(dependents 교집합 `> 0.3`) → **의존 그래프(Spark) 준비 후 추가** (`S15P21A506-173`)
-3. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
-4. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
+   - 보완재 drop (`--dependents`, 선택) — dependents 겹침 `교집합 ÷ min(두 dependents 수) > 0.3` (**구현 완료, 2026-09-16, `S15P21A506-173`**). `--dependents` 를 안 주면 `--package-text` 와 같은 폴더의 `package_dependents.parquet` 를 찾아 쓰고, 그것도 없으면 **경고 로그를 남기고 이 관문만 건너뛴다**(배치는 계속 돈다). manifest 의 `params.gate_drops.complement` 는 관문이 안 돌았으면 `null`, 돌았으면 걸러낸 쌍 수이고, `params.dependents_coverage` 는 이번 패키지 중 dependents 행이 있는 비율(`pool`·`with_dependents`·`ratio`)이다 — 후보 풀이 dependents 파일보다 커지면 이 비율이 내려간다
+3. **인지도 관문** (`--downloads-floor`, 기본 **500,000**, S15P21A506-450) — `downloads_last_month`가
+   이 값 미만인 후보는 drop. 정보가 없는 후보(None)도 통과 안 시킴(보수적).
+   **base 별 단계적 완화** (S15P21A506-458): 하드컷 하나만 쓰면 니치 base 에서 관문 통과 후
+   후보가 3개 미만이 되는 사례가 실측(로컬 92만 코퍼스 서브셋, rank≤10만)으로 13.4%→21.1%로
+   늘어나는 게 확인됨 — base 별로 500,000→100,000→50,000→10,000→0 순서로 3개가 채워질
+   때까지 낮춘다(`apply_downloads_floor_with_fallback()`). 끝(0)까지 가도 3개가 안 채워지면
+   있는 만큼(1~2개, 드물게 0개)만 노출한다 — 없는 후보를 만들어낼 수는 없다. manifest 의
+   `params.downloads_floor_tiers_used`에 base 가 최종적으로 어느 단계에서 멈췄는지 분포가 남는다.
+4. **정렬** — 관문 통과분을 **cos 유사도 순 단독**. 다른 가·감점 없음.
+5. 노출 최대 3 → 상위 2개 기본 선택. 내부 score·계수는 API에 노출하지 않는다.
 
-- **인기도·다운로드·채택도를 순위 신호로 쓰지 않는다** (제안 §3.3). 생존·실체는 1단계 자격 필터의 관문일 뿐.
+- **(정정, 2026-09-22, S15P21A506-450) 인지도(downloads)를 관문으로 쓴다.** 이전엔 "인기도·
+  다운로드·채택도를 순위 신호로 쓰지 않는다"(제안 §3.3 원문)가 방침이었으나, 정답 기준 자체가
+  "기능 유사"에서 "기능 유사 + 인지도"로 기획 개정됨에 따라 뒤집혔다. `--downloads-floor`는
+  cos처럼 상대 정렬 신호가 아니라 구조적 관문과 같은 **pass/fail 하드컷**이다 — cos 자체엔
+  여전히 절대 임계값을 안 쓴다(`DEC-RANK-20260910-01`, 도메인마다 스케일이 달라 불안정).
+  실측(`ai/training/eval_gate_ranking.py`, "정답(B)도 인지도가 있어야 진짜 정답"으로 골드셋을
+  다시 채점): 하한 미적용 대비 recall@3 이 0.130→**0.332**(50만 하한)로 개선 — 순수 cos
+  정렬이 더 비슷하게 생긴 무명 패키지에 밀려 "인기 있는 진짜 대안"조차 놓치고 있었음을 확인.
+  50만보다 낮은 하한(1만/5만/10만)도 다 개선이었지만 50만이 가장 좋았다.
 - deprecated 지목 가산 없음 (`DEC-RANK-20260909-01`).
-- `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬.
+- `--no-gate` 로 관문을 끄면 검색 30개를 그대로 cos 순 정렬 (인지도 관문은 `--downloads-floor 0`
+  으로 별도로 꺼야 함 — `--gate` 와 독립적).
 
 **`is_same_family` 보완 이력 (S15P21A506-334)**: 스코프 없는 이름이 상대방의 스코프(조직명) 자체와
 정확히 같은 경우(`parcel`↔`@parcel/graph`)와, `@types/x`↔`x`(DefinitelyTyped 타입 선언) 두 규칙을
@@ -112,7 +137,8 @@ deprecated 완전 제외·`move_lift` 배제는 그대로 유지하고, top-K 50
 
 ## 관련 문서
 
-- `docs/Pickage_기능별_개발_구상안_0917.md` — 시스템 확정안 (이전 세대는 `docs/history/` 로 이관)
+- `docs/Pickage_기능별_개발_구상안_0923.md` — 현재 시스템 설계 정본
+- `docs/history/0923_0917_pickage_final_set_archive/Pickage_기능별_개발_구상안_0917.md` — 0917 시스템 설계 보관본
 - `datasets/deprecated_replacement_260831/`, `datasets/migration_pairs_260908/`, `datasets/feature_candidates_260908/` — 학습 데이터
 - `pipeline/collectors/keywords/` — `package_text` (임베딩 입력) 수집
 - `pipeline/postgresql/` — 적재기 패턴 (방식 C 로더 참조)

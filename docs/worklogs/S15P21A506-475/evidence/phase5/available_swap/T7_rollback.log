@@ -1,0 +1,24 @@
+Timing is on.
+BEGIN
+Time: 0.121 ms
+SET
+Time: 0.101 ms
+SELECT 1
+Time: 1.032 ms
+DO
+Time: 3.464 ms
+LOCK TABLE
+Time: 0.108 ms
+DELETE 91618
+Time: 18.594 ms
+INSERT 0 99083
+Time: 379.801 ms
+ available_rows | backup_rows 
+----------------+-------------
+          99083 |       99083
+(1 row)
+
+Time: 6.899 ms
+COMMIT
+Time: 3.905 ms
+되돌림 완료 — COMMIT

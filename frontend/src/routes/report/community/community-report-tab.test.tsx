@@ -95,7 +95,7 @@ describe('CommunityReportTab', () => {
     renderWithClient(<CommunityReportTab basePackage="winston" baseConflict={false} active />)
 
     expect(
-      await screen.findByText(SAMPLE_COMMUNITY_RESULT.repository!.full_name),
+      await screen.findByText(`github.com/${SAMPLE_COMMUNITY_RESULT.repository!.full_name}`),
     ).toBeInTheDocument()
     expect(postCommunityRefresh).not.toHaveBeenCalled()
   })

@@ -10,6 +10,7 @@
         stats.json                   규모 통계(패키지 수·전이 수·이벤트 수·파일 크기)
       data/migration_pairs/migration_events.parquet   제거 이벤트 원시 전부(모델 최소 단위)
       data/migration_pairs/removal_stats.parquet, removal_by_year.parquet   위 두 표 필터 없이 전부
+      data/migration_pairs/removal_by_period.parquet, removal_by_period.csv   X × 구간(1y·3y·5y) 이탈 사유(전량)
 실행  .venv-bq/Scripts/python.exe pipeline/duckdb/build_migration_pairs.py   (중간 결과 data/migration_pairs.duckdb)
 
 원천·의존 종류 (S15P21A506-349, 2026-09-14 추가)
@@ -24,6 +25,13 @@
   depsdev 원천에는 Dev 칸 자체가 없어 Peer/Optional 만 본다(그래서 regular→dev 강등이 제거로 남는다. 이게 대조군이 필요한 이유)
 - 7단계(S15P21A506-281): trans 를 지우기 전에 "대체 없이 제거"(X 를 뺐지만 같은 전이에서 아무것도 안 넣음) 와
   연도별 이탈 수를 removal_stats / removal_by_year 로 집계. 점유율은 votes 기준 share 와 함께 (배포주체, 월) 기준 share_pm 도 낸다
+- 구간별 집계(S15P21A506-378): 화면이 쓰는 1y·3y·5y 로 같은 것을 다시 센다(removal_by_period).
+  구간은 겹치고(1y ⊂ 3y ⊂ 5y) 경계는 유지·유입·이탈에서 가져온다 — pipeline/duckdb/removal_periods.py
+
+**이 결과와 유지·유입·이탈(build_dependent_transitions.py)은 세는 단위가 다르다.** 저쪽은 시점 두 개의
+선언 집합을 비교한 **패키지 수**이고 이쪽은 연속한 두 릴리스를 훑은 **전이 건수**다. 한 패키지가 넣었다
+뺐다를 반복하면 이쪽에서는 여러 건이 된다. 그래서 "이탈 = 대체 동반 + 대체 없음" 이라는 덧셈이 저쪽의
+이탈과는 성립하지 않는다. 같은 화면에 놓더라도 더하거나 나누지 말 것.
 
 주의: lift 의 분모 B 는 그 실행의 모집단 전이 수다. depsdev(전수 3,958만)와 registry(상위 10만 726만)는
 모집단이 달라 lift 절댓값을 직접 비교할 수 없다. 쌍을 합치거나 votes 를 더하지 말 것.
@@ -59,6 +67,13 @@ if args.source == "depsdev" and args.kind != "regular":
     ap.error("depsdev 원천에는 개발용 의존이 없습니다. --source registry 와 함께 쓰세요.")
 
 ROOT = Path(__file__).resolve().parents[2].as_posix()  # 리포 루트
+
+# 구간별 이탈 사유(S15P21A506-378)의 판정 문장과 검산. 구간 경계가 왜 여기 있지 않고
+# 유지·유입·이탈에서 오는지는 그 모듈의 docstring 에 있다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from removal_periods import (  # noqa: E402
+    PERIODS, REMOVAL_BY_PERIOD_SQL, T2, build_periods, require_monotonic)
+
 R = f"{ROOT}/data/raw/requirements/**/*.parquet"
 V = f"{ROOT}/data/raw/versions_full/snapshot=2026-08-31/*.parquet"
 RG = f"{ROOT}/data/registry/parquet/registry_versions/*.parquet"
@@ -101,6 +116,25 @@ stats = {}
 
 # 1) 릴리스 + 의존성 (분석 대상 KIND_COL / 다른 칸으로 옮겨진 것 = 재분류이지 제거가 아니다)
 _NONREG = " || ".join(f"coalesce(list_transform(r.{c}, x -> x.Name), []::VARCHAR[])" for c in OTHER_COLS)
+
+# 표(vote) 를 정수로 센다 (S15P21A506-395). 이벤트 하나의 표는 1/추가수 인데, 이것을 DOUBLE 로
+# sum() 하면 더하는 순서에 따라 답이 달라진다 — preserve_insertion_order=false 로 병렬 집계하므로
+# 순서가 실행마다 바뀌고, votes 경계에 걸린 쌍이 들락날락했다. 배율을 곱해 정수로 반올림해 담고
+# 쌍 집계에서 한 번만 나눈다. 정수 덧셈은 순서에 무관하다.
+#
+# 배율 1e12 는 이벤트 65.7만 · 추가수 최대 853 기준으로 합이 HUGEINT 안에 들어간다.
+#
+# **나눈 뒤 반드시 반올림한다.** 정수로 담으면 쌍마다 1e-12 남짓의 잔차가 남는데, 문턱(3·8·12)은
+# 정확히 맞아떨어지는 경우가 많아 그 잔차에 걸린다 — 1/3 짜리 이벤트 세 개의 참값은 정확히 1 이지만
+# 정수 합은 0.999999999999 라, 반올림하지 않으면 votes>=3 에서 **일관되게 탈락**한다.
+# (결정적이지만 틀린 답이다. 고치기 전 DOUBLE 판은 같은 쌍을 실행마다 다르게 판정했다.)
+#
+# 자리수 6 인 이유 — 잔차는 쌍당 co_events × 5e-13 이라 5e-7 보다 한참 작고, 참 votes 는 1/k 의
+# 합이라 문턱에서 5e-7 안쪽에 "가깝기만 한" 값이 실질적으로 나오지 않는다. 9 로 하면 잔차를 다
+# 못 덮어 recommended 가 한 줄 빠진다(실측).
+VOTE_SCALE = 1_000_000_000_000
+VOTE_ROUND = 6
+
 if args.source == "depsdev":
     SELECT_REL = f"""SELECT r.Name, r.Version, v.published_at, v.source_repo,
        list_sort(list_transform(r.{KIND_COL}, x -> x.Name)) AS deps,
@@ -112,14 +146,21 @@ else:
     #  - is_release 조인이 필요 없다. 조인 적중 2,039만 행에서 is_release 와 "버전에 '-' 가 없다" 가
     #    불일치 0건으로 동치임을 확인했다(09-14). 조인을 하나 줄여 실행이 빠르다
     #  - source_repo 는 패키지 단위로 붙인다. 버전 단위로 조인하면 08-31 스냅샷 이후 발행된
-    #    20.1만 행(2만 패키지)이 비어 publisher 가 이름으로 떨어진다. 저장소는 버전마다 바뀌지 않으므로
-    #    any_value 로 패키지에 한 번 붙인다 (91,582 / 97,733 패키지 적중)
+    #    20.1만 행(2만 패키지)이 비어 publisher 가 이름으로 떨어진다. 저장소는 버전마다 거의
+    #    바뀌지 않으므로 패키지에 한 번 붙인다 (91,582 / 97,733 패키지 적중)
+    #  - **any_value 가 아니라 min 이다** (S15P21A506-378, 2026-09-18). 한 패키지에 서로 다른
+    #    source_repo 가 여럿인 경우가 317,206개(3.29%, 최대 1,394종) 있는데, any_value 는 그중
+    #    아무거나 고른다. 그러면 publisher 가 실행마다 바뀌고 publisher_months 와
+    #    publisher_months>=N 필터가 따라 흔들린다 — 같은 입력으로 두 번 돌려 removal_stats.csv
+    #    해시가 갈리는 것을 실측했다. 어느 저장소가 맞는지는 알 수 없으므로 **고르는 규칙이
+    #    정확할 필요는 없고 정해져 있기만 하면 된다.** publisher 는 "서로 다른 주체가 따로
+    #    움직였나" 를 세는 묶음 키일 뿐이다.
     #  - unpublished 행은 의존을 모른다(NULL). 넣으면 "의존 전부 제거"로 잡힌다 — 수집계획 §5-3
     SELECT_REL = f"""SELECT r.Name, r.Version, r.published_at, v.source_repo,
        list_sort(list_transform(r.{KIND_COL}, x -> x.Name)) AS deps,
        {_NONREG} AS nonreg
 FROM read_parquet('{RG}') r
-LEFT JOIN (SELECT Name, any_value(source_repo) AS source_repo FROM read_parquet('{V}')
+LEFT JOIN (SELECT Name, min(source_repo) AS source_repo FROM read_parquet('{V}')
            WHERE source_repo IS NOT NULL GROUP BY Name) v ON v.Name = r.Name
 WHERE NOT r.unpublished AND r.published_at IS NOT NULL
   AND regexp_matches(r.Version,'^\\d+\\.\\d+') AND NOT contains(r.Version,'-')"""
@@ -135,15 +176,36 @@ con.execute(r"""CREATE OR REPLACE TABLE seq AS
 SELECT Name, Version, published_at, deps, nonreg,
   CASE WHEN try_cast(regexp_extract(Version,'^(\d+)\.(\d+)',1) AS INT) > 0 THEN regexp_extract(Version,'^(\d+)\.(\d+)',1)
        ELSE '0.' || regexp_extract(Version,'^(\d+)\.(\d+)',2) END AS line,
+  -- 정규화 결과가 빈 문자열이면 이름으로 떨어뜨린다 (S15P21A506-399).
+  -- source_repo 가 맨 'https://' 나 'git+' 면 정규화 뒤 '' 가 되는데, NOT NULL 이라 그대로
+  -- 통과해 서로 다른 배포주체가 '' 하나로 뭉친다. -378 에서 any_value 를 min 으로 바꾼 뒤로는
+  -- 그 쓰레기값이 사전순 최솟값이라 **있으면 반드시** 골라진다.
+  -- trim 은 빈 값 판정에만 쓰는 게 아니라 묶음 키 자체를 바꾼다 — 앞뒤 공백만 다른 주소
+  -- 233종(versions_full 전수 실측)이 하나로 합쳐진다. 같은 저장소가 공백 때문에 둘로
+  -- 갈리던 것이라 합치는 쪽이 맞지만, publisher_months 가 올라가 경계 쌍이 들어올 수 있다.
   CASE WHEN Name LIKE '@%' THEN split_part(Name,'/',1)
-       WHEN source_repo IS NOT NULL THEN regexp_replace(lower(source_repo),'\.git$|^git\+|^https?://|^git://|^ssh://git@','','g')
-       ELSE Name END AS publisher
+       ELSE coalesce(nullif(trim(regexp_replace(lower(source_repo),'\.git$|^git\+|^https?://|^git://|^ssh://git@','','g')), ''), Name)
+       END AS publisher
 FROM rel""")
 con.execute("DROP TABLE rel")
 log("seq done")
 
 # 3) 연속 릴리스 전이 (removed / added / 재분류)
-con.execute("""CREATE OR REPLACE TABLE trans AS
+#
+# **정렬에 동순위 처리가 있어야 한다** (S15P21A506-378, 2026-09-18).
+# published_at 만으로 줄을 세우면 같은 시각에 발행된 릴리스 사이에서 lag() 가 무엇을 앞
+# 버전으로 잡을지 정해지지 않고, 그러면 "무엇이 빠졌나" 가 실행마다 달라진다. 같은 입력을
+# 두 번 돌려 removals_total 이 2,058,952 / 2,058,928 로 갈린 것을 실측했다.
+# 동순위 그룹 1,142개 · 703 패키지 · 한 그룹 최대 38개.
+#
+# 원천 둘에 같은 규칙을 쓰려고 ordinal 이 아니라 버전 숫자로 깬다 — registry 경로는
+# versions_full 을 버전 단위로 조인하지 않아 ordinal 이 없다. is_release / '-' 없음 조건에
+# prerelease 가 이미 걸러져 있어 (major, minor, patch) 로 충분하고, 마지막 Version 이
+# 순서를 완전하게 만든다.
+#
+# 자리마다 따로 뽑는 것이 중요하다. '^(\d+)\.(\d+)\.(\d+)' 한 번으로 뽑으면 두 자리
+# 버전(1.3)에 아예 안 맞아 전부 0 이 되고, 1.3 이 1.2.3 보다 앞에 선다.
+con.execute(r"""CREATE OR REPLACE TABLE trans AS
 SELECT Name, publisher, line, from_version, to_version, to_ts,
   list_filter(removed_raw, x -> NOT list_contains(nonreg, x)) AS removed,
   list_filter(removed_raw, x -> list_contains(nonreg, x)) AS reclassified,
@@ -152,7 +214,9 @@ FROM (
   SELECT Name, publisher, line, lag(Version) OVER w AS from_version, Version AS to_version, published_at AS to_ts, nonreg,
     list_filter(lag(deps) OVER w, x -> NOT list_contains(deps, x)) AS removed_raw,
     list_filter(deps, x -> NOT list_contains(lag(deps) OVER w, x)) AS added
-  FROM seq WINDOW w AS (PARTITION BY Name, line ORDER BY published_at) QUALIFY from_version IS NOT NULL
+  FROM seq
+  WINDOW w AS (PARTITION BY Name, line ORDER BY published_at, coalesce(try_cast(regexp_extract(Version,'^(\d+)',1) AS INT),0), coalesce(try_cast(regexp_extract(Version,'^\d+\.(\d+)',1) AS INT),0), coalesce(try_cast(regexp_extract(Version,'^\d+\.\d+\.(\d+)',1) AS INT),0), Version)
+  QUALIFY from_version IS NOT NULL
 )""")
 con.execute("DROP TABLE seq")
 n_trans = one("SELECT count(*) FROM trans")
@@ -166,9 +230,12 @@ stats["reclassified_to_other_kinds"] = one("SELECT coalesce(sum(len(reclassified
 log("transitions", stats)
 
 # 4) 제거 이벤트 (추가가 있는 것만) → 표 분배
-con.execute("""CREATE OR REPLACE TABLE events AS
+con.execute(f"""CREATE OR REPLACE TABLE events AS
 SELECT t.Name AS dependent, publisher, line, from_version, to_version, to_ts, x AS removed_pkg, added,
-       len(added) AS added_count, 1.0/len(added) AS vote_each
+       len(added) AS added_count,
+       -- 표를 VOTE_SCALE 배율의 정수로 반올림해 담는다 (S15P21A506-395). 이유는 상수 정의부 참고.
+       -- round(x) = (2x + k) // 2k 꼴이다 — DuckDB 의 // 는 절사이므로 절반을 미리 더한다.
+       (2 * {VOTE_SCALE} + len(added)) // (2 * len(added)) AS vote_each_scaled
 FROM trans t, unnest(removed) AS u(x) WHERE len(added) > 0""")
 stats["removal_events"] = one("SELECT count(*) FROM events")
 stats["removed_pkgs_distinct"] = one("SELECT count(DISTINCT removed_pkg) FROM events")
@@ -196,6 +263,29 @@ SELECT x AS removed_pkg, year(to_ts) AS year,
        count(*) FILTER (WHERE coalesce(len(added), 0) = 0)     AS removals_no_replacement,
        count(DISTINCT Name)                                    AS dependents
 FROM trans, unnest(removed) AS u(x) GROUP BY 1, 2""")
+
+# 5-3) 구간별 이탈 사유 (S15P21A506-378) — 화면이 쓰는 1y·3y·5y 에 맞춰 다시 센다.
+#      연도별 집계로는 대신할 수 없다. 구간은 2026-08-31 에 끝나는데 연도는 12-31 에 끝나서
+#      한 해를 잘라 쓸 수 없고, dependents 는 COUNT(DISTINCT) 라 연도끼리 더해지지 않는다.
+build_periods(con)
+con.execute(REMOVAL_BY_PERIOD_SQL)
+stats["removal_by_period"] = {
+    p: {"removals": r, "no_replacement": n, "with_replacement": w, "pkgs": k}
+    for p, r, n, w, k in con.execute("""
+        SELECT period, sum(removals), sum(removals_no_replacement),
+               sum(removals_with_replacement), count(*)
+        FROM removal_by_period GROUP BY 1 ORDER BY 1""").fetchall()}
+# 구간 밖으로 밀려난 전이가 얼마나 되는지 남긴다. **원천마다 원인도 규모도 다르다.**
+#   depsdev  — 721건. BigQuery 추출이 UTC 자정을 세 시간 넘겨 돌아 versions_full 의
+#              2026-08-31 파티션에 09-01 발행분 1,213행이 섞인 것이다. 사고에 가깝다
+#   registry — 117,077건. 수집이 2026-09-16 까지 돌아 T2 보다 16일 더 있다. 정상이다
+# 두 회차를 비교하려면 구간 경계가 같아야 하므로 registry 도 depsdev 의 T2 를 쓴다.
+# 그 대가로 registry 의 최근 16일치를 버린다 — 이 수가 그만큼이다.
+stats["transitions_after_t2"] = one(
+    f"SELECT count(*) FROM trans WHERE to_ts > TIMESTAMP '{T2}'")
+require_monotonic(con)
+log("removal_by_period", json.dumps(stats["removal_by_period"], ensure_ascii=False),
+    "T2 이후 전이", stats["transitions_after_t2"])
 stats["removed_pkgs_any"] = one("SELECT count(*) FROM removal_stats")
 stats["removals_total"] = one("SELECT sum(removals_total) FROM removal_stats")
 stats["removals_no_replacement_total"] = one("SELECT sum(removals_no_replacement) FROM removal_stats")
@@ -203,14 +293,16 @@ log("removal_stats", {k: stats[k] for k in ("removed_pkgs_any", "removals_total"
 con.execute("DROP TABLE trans")
 
 # 6) 쌍 집계 + lift
-con.execute("""CREATE OR REPLACE TABLE pairs AS
+con.execute(f"""CREATE OR REPLACE TABLE pairs AS
 WITH rm AS (SELECT removed_pkg, count(*) AS removal_events FROM events GROUP BY 1),
-     ev AS (SELECT removed_pkg AS from_pkg, y AS to_pkg, sum(vote_each) AS votes, count(*) AS co_events,
+     ev AS (SELECT removed_pkg AS from_pkg, y AS to_pkg,
+                   sum(vote_each_scaled) AS votes_scaled,
+                   round(sum(vote_each_scaled)/{VOTE_SCALE}.0, {VOTE_ROUND}) AS votes, count(*) AS co_events,
                    count(DISTINCT publisher || '|' || strftime(to_ts,'%Y-%m')) AS publisher_months,
                    count(DISTINCT dependent) AS dependents,
                    min(to_ts) AS first_seen, max(to_ts) AS last_seen
             FROM events, unnest(added) AS u(y) WHERE y <> removed_pkg GROUP BY 1,2)
-SELECT ev.from_pkg, ev.to_pkg, ev.votes, ev.co_events, ev.publisher_months, ev.dependents, rm.removal_events,
+SELECT ev.from_pkg, ev.to_pkg, ev.votes_scaled, ev.votes, ev.co_events, ev.publisher_months, ev.dependents, rm.removal_events,
        ev.co_events::DOUBLE/rm.removal_events AS a_rate, base.b_rate,
        (ev.co_events::DOUBLE/rm.removal_events)/base.b_rate AS lift, ev.first_seen, ev.last_seen
 FROM ev JOIN rm ON rm.removed_pkg = ev.from_pkg JOIN base ON base.to_pkg = ev.to_pkg""")
@@ -218,8 +310,14 @@ stats["candidate_pairs_all"] = one("SELECT count(*) FROM pairs")
 log("pairs", stats["candidate_pairs_all"])
 
 # share = lift≥5 쌍 안에서 X 전체 표 중 Y 의 비율 / bidirectional = (Y, X) 쌍도 lift≥5·votes≥3 으로 존재
+#
+# **share 도 정수 합에서 낸다** (S15P21A506-395). votes 를 결정적으로 만들어도
+# sum(votes) OVER (...) 가 부동소수점 윈도우 합이라 순서를 타고, round(share*100,1) 이
+# 경계에 걸리면 출력이 갈린다 — 전수 2회 대조에서 한 행이 63.8/63.7 로 갈리는 것을 실측했다.
+# votes_scaled 는 정수라 윈도우 합도 순서에 무관하다. share_pm 은 publisher_months 가
+# 정수라 이미 안전하다.
 con.execute("""CREATE OR REPLACE TABLE pairs_out AS
-SELECT p.*, votes/sum(votes) OVER (PARTITION BY from_pkg) AS share,
+SELECT p.*, votes_scaled::DOUBLE/sum(votes_scaled) OVER (PARTITION BY from_pkg) AS share,
        publisher_months/sum(publisher_months) OVER (PARTITION BY from_pkg) AS share_pm,
        EXISTS(SELECT 1 FROM pairs q WHERE q.from_pkg=p.to_pkg AND q.to_pkg=p.from_pkg AND q.lift>=5 AND q.votes>=3) AS bidirectional
 FROM pairs p WHERE lift>=5""")
@@ -232,6 +330,11 @@ STRICT = "lift>=5 AND votes>=12 AND publisher_months>=10 AND a_rate>=0.03"
 LOOSE = "lift>=5 AND votes>=3"
 RECOMMENDED = "lift>=5 AND votes>=8 AND publisher_months>=5 AND share>=0.10"
 
+# COPY 의 ORDER BY 는 **전순서여야 한다** (S15P21A506-395). 동순위가 남으면 값이 결정적이어도
+# 파일이 흔들린다 — DuckDB 는 병렬로 정렬하고 같은 키의 행 순서를 보장하지 않는다.
+# votes 를 반올림한 뒤로는 동순위가 오히려 늘어서 더 필요해졌다. 쌍은 (from_pkg, to_pkg),
+# events 는 (dependent, line, from_version, to_version, removed_pkg) 가 키다.
+# removal_stats / removal_by_year / removal_by_period 는 이미 키까지 넣어 두었다.
 for name, cond in (("strict", STRICT), ("loose", LOOSE)):
     stats[f"{name}_pairs"] = one(f"SELECT count(*) FROM pairs WHERE {cond}")
     stats[f"{name}_from_pkgs"] = one(f"SELECT count(DISTINCT from_pkg) FROM pairs WHERE {cond}")
@@ -253,7 +356,7 @@ for tag, cond in (("votes5_pm3", "lift>=5 AND votes>=5 AND publisher_months>=3")
 # 7) 출력
 for cond, fname in ((STRICT, "migration_pairs_strict.csv"), (LOOSE, "migration_pairs_all.csv"),
                     (RECOMMENDED, "migration_pairs_recommended.csv")):
-    con.execute(f"""COPY (SELECT {SELECT_COLS} FROM pairs_out WHERE {cond} ORDER BY from_pkg, votes DESC)
+    con.execute(f"""COPY (SELECT {SELECT_COLS} FROM pairs_out WHERE {cond} ORDER BY from_pkg, votes DESC, to_pkg)
                     TO '{OUT}/{fname}' (HEADER, DELIMITER ',')""")
 REMOVAL_MIN = 3  # 이 아래는 통계로 의미가 없고 행이 10만 개 넘게 늘어난다
 REMOVAL_COLS = """removed_pkg, removals_total, removals_no_replacement, removals_with_replacement,
@@ -266,19 +369,32 @@ con.execute(f"""COPY (SELECT y.removed_pkg, y.year, y.removals, y.removals_no_re
                       FROM removal_by_year y JOIN removal_stats s USING (removed_pkg)
                       WHERE s.removals_total >= {REMOVAL_MIN} ORDER BY y.removed_pkg, y.year)
                 TO '{OUT}/removal_by_year.csv' (HEADER, DELIMITER ',')""")
-con.execute(f"COPY (SELECT * FROM removal_stats ORDER BY removals_total DESC) TO '{EV_DIR}/removal_stats.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
+# 구간별 표는 git 에 두지 않는다. 구간이 겹쳐 연도별보다 행이 빠르게 늘고(전량 27만),
+# 프리셋을 늘리면 그만큼 커진다. parquet 과 나란히 data/ 에 두는 것은 migration_events 와
+# 같은 관례다 — 그쪽도 CSV·parquet 이 같은 내용으로 EV_DIR 에 있다.
+con.execute(f"""COPY (SELECT period, removed_pkg, removals, removals_no_replacement,
+                             removals_with_replacement,
+                             round(removals_no_replacement*100.0/removals, 1) AS no_replacement_pct,
+                             dependents
+                      FROM removal_by_period
+                      ORDER BY period, removals DESC, removed_pkg)
+                TO '{EV_DIR}/removal_by_period.csv' (HEADER, DELIMITER ',')""")
+con.execute(f"COPY (SELECT * FROM removal_stats ORDER BY removals_total DESC, removed_pkg) TO '{EV_DIR}/removal_stats.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 con.execute(f"COPY (SELECT * FROM removal_by_year ORDER BY removed_pkg, year) TO '{EV_DIR}/removal_by_year.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
+con.execute(f"COPY (SELECT * FROM removal_by_period ORDER BY period, removed_pkg) TO '{EV_DIR}/removal_by_period.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)")
 stats["removal_stats_rows_csv"] = one(f"SELECT count(*) FROM removal_stats WHERE removals_total >= {REMOVAL_MIN}")
 stats["recommended_pairs"] = one(f"SELECT count(*) FROM pairs_out WHERE {RECOMMENDED}")
 stats["recommended_from_pkgs"] = one(f"SELECT count(DISTINCT from_pkg) FROM pairs_out WHERE {RECOMMENDED}")
 con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_version, to_ts AS to_published_at,
-                             removed_pkg, added AS added_pkgs, added_count, vote_each
-                      FROM events ORDER BY removed_pkg, to_ts)
+                             removed_pkg, added AS added_pkgs, added_count,
+                             vote_each_scaled/{VOTE_SCALE}.0 AS vote_each
+                      FROM events ORDER BY removed_pkg, to_ts, dependent, line, from_version, to_version)
                 TO '{EV_DIR}/migration_events.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)""")
 con.execute(f"""COPY (SELECT dependent, publisher, line, from_version, to_version,
                              strftime(to_ts,'%Y-%m-%d %H:%M:%S') AS to_published_at,
-                             removed_pkg, array_to_string(added,'|') AS added_pkgs, added_count, round(vote_each,4) AS vote_each
-                      FROM events ORDER BY removed_pkg, to_ts)
+                             removed_pkg, array_to_string(added,'|') AS added_pkgs, added_count,
+                             round(vote_each_scaled/{VOTE_SCALE}.0, 4) AS vote_each
+                      FROM events ORDER BY removed_pkg, to_ts, dependent, line, from_version, to_version)
                 TO '{EV_DIR}/migration_events.csv' (HEADER, DELIMITER ',')""")
 
 # UTF-8 BOM (팀 공유 CSV 관례)
@@ -300,8 +416,10 @@ stats["file_bytes"] = {
     "migration_pairs_recommended.csv": sz(f"{OUT}/migration_pairs_recommended.csv"),
     "removal_stats.csv": sz(f"{OUT}/removal_stats.csv"),
     "removal_by_year.csv": sz(f"{OUT}/removal_by_year.csv"),
+    "removal_by_period.csv": sz(f"{EV_DIR}/removal_by_period.csv"),
     "removal_stats.parquet": sz(f"{EV_DIR}/removal_stats.parquet"),
     "removal_by_year.parquet": sz(f"{EV_DIR}/removal_by_year.parquet"),
+    "removal_by_period.parquet": sz(f"{EV_DIR}/removal_by_period.parquet"),
     "migration_events.parquet": sz(f"{EV_DIR}/migration_events.parquet"),
     "migration_events.csv": sz(f"{EV_DIR}/migration_events.csv"),
     "migration_pairs.duckdb": sz(DB),
@@ -315,6 +433,7 @@ if args.source == "depsdev":
     stats["input_bytes"]["requirements_parquet"] = dir_bytes(f"{ROOT}/data/raw/requirements")
 else:
     stats["input_bytes"]["registry_versions_parquet"] = dir_bytes(f"{ROOT}/data/registry/parquet/registry_versions")
+stats["periods"] = {k: {"t1": v, "t2": T2} for k, v in PERIODS.items()}
 stats["source"] = args.source
 stats["kind"] = args.kind
 stats["dep_column"] = KIND_COL

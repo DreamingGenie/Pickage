@@ -12,8 +12,9 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
+  /* 흑백으로 간다. 주 행동 버튼·체크·선택 표시가 이 색을 쓴다(파란 색조를 뺐다). */
+  --primary: #111827;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
@@ -26,7 +27,24 @@
   /* 확정: 보더는 단일 토큰만 사용한다 */
   --border: #dbdee5;
   --input: #dbdee5;
-  --ring: oklch(0.704 0.04 256.788);
+  --ring: #475467;
+
+  /* 페이지 바탕. 카드(흰색)가 바탕 위에 떠 보이게 한 단계 어둡게 둔다. */
+  --canvas: #f6f7f9;
+  /* 옅은 회색 바탕 — 선택된 칸·안내 상자 */
+  --brand-soft: #eef0f3;
+
+  /* 상태 톤. 색만으로 뜻을 전하지 않는다 — 언제나 글자와 함께 쓴다(IA 1-13). */
+  --tone-up: #eef0f3;
+  --tone-up-foreground: #1f2937;
+  --tone-down: #fff4e5;
+  --tone-down-foreground: #92400e;
+  --tone-positive: #ecfdf3;
+  --tone-positive-foreground: #067647;
+  --tone-neutral: #f1f3f6;
+  --tone-neutral-foreground: #475467;
+  --tone-danger: #fef3f2;
+  --tone-danger-foreground: #b42318;
 
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -65,6 +83,7 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
+  --canvas: oklch(0.129 0.042 264.695);
 
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
@@ -107,6 +126,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-canvas: var(--canvas);
+  --color-brand-soft: var(--brand-soft);
+  --color-tone-up: var(--tone-up);
+  --color-tone-up-foreground: var(--tone-up-foreground);
+  --color-tone-down: var(--tone-down);
+  --color-tone-down-foreground: var(--tone-down-foreground);
+  --color-tone-positive: var(--tone-positive);
+  --color-tone-positive-foreground: var(--tone-positive-foreground);
+  --color-tone-neutral: var(--tone-neutral);
+  --color-tone-neutral-foreground: var(--tone-neutral-foreground);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-danger-foreground: var(--tone-danger-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -140,6 +171,11 @@
    ────────────────────────────────────────────────────────────── */
 
 @theme {
+  /* 본문 글꼴. index.html 이 Pretendard 를 불러온다. */
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+    'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+
   --text-xs: 16px;
   --text-xs--line-height: 1.55;
   --text-sm: 16px;
@@ -158,15 +194,39 @@
   --text-4xl--line-height: 1.25;
   --text-5xl: 32px;
   --text-5xl--line-height: 1.2;
+
+  /*
+    눈금 밖의 단 하나 — 인트로 첫 화면 큰 제목 전용(`text-display`).
+    G2 처럼 첫 화면은 한 줄 제목이 화면을 잡아야 해서 따로 둔다. 다른 곳에 쓰지 않는다 —
+    본문·카드·보고서는 여전히 위 다섯 단계만 쓴다.
+  */
+  --text-display: 60px;
+  --text-display--line-height: 1.15;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
+  /*
+    스크롤바 자리를 늘 비워 둔다. ⓘ 모달(Radix Dialog)이 열리면 스크롤을 잠그면서 스크롤바가
+    사라지고, 그 폭만큼 화면이 옆으로 흔들렸다. 자리를 고정하면 폭이 변하지 않는다.
+  */
+  html {
+    scrollbar-gutter: stable;
   }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/*
+  Radix(react-remove-scroll-bar)는 잠글 때 사라진 스크롤바 폭만큼 body 에 margin-right 를 준다.
+  위에서 자리를 이미 비워 뒀으니 그 보정이 두 번 들어가 오히려 밀린다. 보정을 끈다.
+  (라이브러리 규칙이 `body[data-scroll-locked]` + !important 라 선택자를 한 단계 더 구체적으로 쓴다.)
+*/
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -181,8 +241,76 @@
   --animate-oss-pop: oss-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-oss-wipe: oss-wipe 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
   --animate-oss-rise: oss-rise 380ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-  /* 절차 카드가 앞 단계 아래로 떨어져 붙는 동작 */
-  --animate-oss-stack: oss-stack 420ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  /* 절차 카드가 앞 단계 아래로 떨어져 붙는 동작.
+     ⚠ 채움을 `both` 가 아니라 `backwards` 로 둔다. `both` 면 애니메이션이 끝난
+     뒤에도 채움이 유효해서, opacity·transform 을 다루는 이 애니메이션 때문에
+     카드가 **영구 스태킹 컨텍스트**가 된다. 그러면 카드 안의 검색 드롭다운
+     (z-30)이 카드 안에 갇히고, 카드 밖 하단 고정 바(z-20)가 그 위에 그려진다.
+     `to` 가 기본값(opacity 1 / transform none)과 같아서 뒤쪽 채움은 어차피
+     화면에 아무것도 더하지 않는다 (S15P21A506-374). */
+  --animate-oss-stack: oss-stack 420ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  /* 인트로 "자세히 보기" 예시 화면용 — 커서가 다가와 누르고, 사라지고, 문서가 올라온다. */
+  --animate-oss-cursor: oss-cursor 650ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-oss-click: oss-click 420ms ease-out both;
+  --animate-oss-press: oss-press 260ms ease-in-out both;
+  --animate-oss-fade-out: oss-fade-out 220ms ease-out both;
+  --animate-oss-slide-up: oss-slide-up 520ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes oss-cursor {
+  from {
+    opacity: 0;
+    transform: translate(90px, 70px);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes oss-click {
+  from {
+    opacity: 0.8;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes oss-press {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: scale(0.93);
+  }
+}
+
+@keyframes oss-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes oss-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes oss-stack {

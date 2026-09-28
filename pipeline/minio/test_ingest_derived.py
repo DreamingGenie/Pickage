@@ -119,6 +119,22 @@ class ManifestBytes(unittest.TestCase):
                                              'package-text-20260908-v1', [], 86159593, 922322))
         self.assertEqual(json.loads(body)['collected_date'], '2026-09-08')
 
+    def test_superseding_run_borrows_the_dataset_name_its_loader_expects(self):
+        """깨지면: pipeline/dependent_transitions/load.py 의 check_manifest 가 이 회차를
+        "manifest 의 dataset 이 다르다" 로 거부한다. 그쪽은 상수 하나와 대조하고, 그 상수는
+        etl_dataset_current 의 PK 이기도 해서 대체 회차가 빌려 써야 하는 이름이다."""
+        spec = DATASETS['dependent-transitions-exp460k']
+        self.assertEqual(spec['dataset_name'], 'dependent-transitions')
+        body = build_manifest(spec, 'dependent-transitions-exp460k', '2026-08-31',
+                              'dependent-transitions-exp460k-20260922-v1', [], 18922201, 4216671)
+        self.assertEqual(body['dataset'], 'dependent-transitions')
+
+    def test_a_dataset_without_the_override_keeps_its_own_key(self):
+        """깨지면: dataset_name 기본값이 새어 다른 데이터셋의 manifest 이름까지 바뀐다."""
+        body = build_manifest(DEPRECATED, 'deprecated-replacement', '2026-08-31',
+                              'deprecated-replacement-20260914-v1', [], 2839460, 28241)
+        self.assertEqual(body['dataset'], 'deprecated-replacement')
+
 
 class Pointer(unittest.TestCase):
     KEY = 'ecosystems-keywords/v1/package-text/_current.json'

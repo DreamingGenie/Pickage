@@ -57793,9 +57793,6 @@ asciify-image,2022,1,1,1
 asciify-image,2024,2,1,2
 asciify-image,2025,2,2,2
 asciify-image,2026,1,0,1
-asciimo,2011,1,1,1
-asciimo,2012,1,1,1
-asciimo,2016,1,0,1
 asciinema-player,2024,1,1,1
 asciinema-player,2025,1,1,1
 asciinema-player,2026,2,0,2
@@ -58095,7 +58092,7 @@ astw,2015,1,0,1
 astw,2017,4,3,4
 astw,2018,2,0,2
 astw,2021,1,1,1
-async,2011,4,3,4
+async,2011,3,2,3
 async,2012,20,10,20
 async,2013,98,67,98
 async,2014,195,110,187
@@ -59276,7 +59273,7 @@ axios,2022,1430,986,1344
 axios,2023,1711,1317,1520
 axios,2024,1720,1227,1592
 axios,2025,2480,1974,1594
-axios,2026,2231,1394,2189
+axios,2026,2232,1395,2190
 axios-auth-refresh,2019,1,1,1
 axios-auth-refresh,2020,2,2,1
 axios-auth-refresh,2021,1,1,1
@@ -59381,7 +59378,7 @@ axios-observable,2022,1,1,1
 axios-observable,2023,1,1,1
 axios-observable,2024,2,2,2
 axios-proxy-builder,2025,2,2,2
-axios-proxy-builder,2026,19,18,19
+axios-proxy-builder,2026,20,19,20
 axios-rate-limit,2020,3,1,3
 axios-rate-limit,2021,4,3,4
 axios-rate-limit,2023,3,2,3
@@ -61822,7 +61819,7 @@ backblaze-b2,2021,1,1,1
 backblaze-b2,2023,4,1,4
 backblaze-b2,2024,1,0,1
 backblaze-b2,2025,1,1,1
-backbone,2011,4,3,4
+backbone,2011,3,2,3
 backbone,2012,7,6,7
 backbone,2013,9,9,9
 backbone,2014,22,15,21
@@ -61905,7 +61902,6 @@ backpack-core,2018,1,1,1
 backpack-core,2019,1,1,1
 backpack-core,2020,1,1,1
 backport,2024,6,6,4
-backport-0.4,2011,3,3,2
 backstopjs,2016,1,1,1
 backstopjs,2017,1,1,1
 backstopjs,2018,1,1,1
@@ -62189,7 +62185,7 @@ base62,2021,1,0,1
 base62,2022,1,0,1
 base62,2024,1,0,1
 base62,2025,1,0,1
-base64,2011,5,3,4
+base64,2011,4,3,4
 base64,2014,3,3,3
 base64,2015,2,2,2
 base64,2016,2,2,2
@@ -64833,7 +64829,6 @@ brainjs,2024,1,0,1
 brainsatplay-data,2022,3,3,3
 brainsatplay-math,2022,1,1,1
 brainsatplay-math,2024,3,3,3
-braintree,2011,1,1,1
 braintree,2016,1,1,1
 braintree,2017,1,1,1
 braintree,2020,2,1,2
@@ -65999,8 +65994,6 @@ bufferjs,2011,2,1,2
 bufferjs,2012,3,1,3
 bufferjs,2014,11,2,3
 bufferjs,2018,1,1,1
-bufferlist,2010,3,0,1
-bufferlist,2014,1,1,1
 bufferpack,2014,1,1,1
 bufferpack,2016,2,1,2
 bufferpack,2017,1,1,1
@@ -67831,7 +67824,6 @@ chain-registry,2024,2,2,2
 chain-registry,2025,1,1,1
 chain3,2019,1,0,1
 chain3,2026,2,0,2
-chainsaw,2010,2,2,1
 chainsaw,2015,1,1,1
 chainsaw,2021,1,1,1
 chainsaw,2024,2,2,2
@@ -69212,7 +69204,7 @@ cleye,2023,1,0,1
 cleye,2024,2,1,2
 cleye,2025,2,0,2
 cleye,2026,2,1,2
-cli,2011,3,1,2
+cli,2011,1,0,1
 cli,2013,3,1,3
 cli,2014,3,0,3
 cli,2015,4,1,4
@@ -70286,7 +70278,7 @@ coffee-script,2012,63,50,60
 coffee-script,2013,129,107,128
 coffee-script,2014,144,113,144
 coffee-script,2015,139,112,137
-coffee-script,2016,102,75,97
+coffee-script,2016,98,71,96
 coffee-script,2017,77,45,77
 coffee-script,2018,95,48,93
 coffee-script,2019,42,12,42
@@ -70307,7 +70299,7 @@ coffeeify,2017,5,5,4
 coffeeify,2018,3,2,3
 coffeeify,2019,1,1,1
 coffeeify,2021,1,1,1
-coffeekup,2011,2,1,2
+coffeekup,2011,1,1,1
 coffeekup,2012,4,1,4
 coffeekup,2013,1,1,1
 coffeelint,2012,2,2,2
@@ -70638,7 +70630,6 @@ colorful,2021,2,0,2
 colorful,2022,1,0,1
 colorido,2019,1,1,1
 colorido,2020,2,0,2
-colorize,2011,1,1,1
 colorize,2012,1,0,1
 colorize,2014,1,1,1
 colorize,2017,1,1,1
@@ -70731,7 +70722,6 @@ colour,2015,1,1,1
 colour,2016,6,5,6
 colour,2017,4,4,4
 colour,2020,2,2,2
-coloured-log,2010,2,2,1
 coloured-log,2011,2,2,1
 coloured-log,2012,1,1,1
 colr,2015,1,0,1
@@ -71681,10 +71671,10 @@ confusing-browser-globals,2025,8,3,8
 confusing-browser-globals,2026,6,6,6
 congruence,2014,1,1,1
 congruence,2015,2,1,2
-connect,2010,4,2,2
-connect,2011,11,7,11
+connect,2010,1,0,1
+connect,2011,12,8,12
 connect,2012,22,11,22
-connect,2013,38,21,38
+connect,2013,37,20,37
 connect,2014,44,19,44
 connect,2015,24,9,24
 connect,2016,34,19,34
@@ -71835,7 +71825,7 @@ connect-query,2026,2,1,2
 connect-redis,2012,1,1,1
 connect-redis,2013,2,1,2
 connect-redis,2014,2,1,2
-connect-redis,2015,5,2,5
+connect-redis,2015,4,1,4
 connect-redis,2016,5,2,5
 connect-redis,2017,10,5,10
 connect-redis,2018,11,4,11
@@ -71999,7 +71989,7 @@ console.table,2022,4,3,4
 console.table,2023,3,3,3
 console.table,2024,2,1,2
 console.table,2025,2,2,2
-console.table,2026,17,17,17
+console.table,2026,18,18,18
 console3,2019,3,1,3
 consoler,2013,1,1,1
 consoler,2015,1,1,1
@@ -74322,7 +74312,7 @@ css-mqpacker,2017,3,2,3
 css-mqpacker,2018,9,4,7
 css-mqpacker,2019,9,6,9
 css-mqpacker,2020,8,4,8
-css-mqpacker,2021,3,0,2
+css-mqpacker,2021,2,0,2
 css-mqpacker,2022,1,1,1
 css-mqpacker,2023,1,1,1
 css-parse,2013,1,0,1
@@ -77147,7 +77137,7 @@ defined,2022,13,9,12
 defined,2023,12,11,12
 defined,2024,3,3,3
 defined,2026,2,2,2
-deflate,2011,4,3,1
+deflate,2011,3,2,1
 deflate,2020,1,1,1
 deflate-js,2017,1,1,1
 deflate-js,2020,2,1,2
@@ -80840,7 +80830,7 @@ ejs,2011,3,1,2
 ejs,2012,13,6,12
 ejs,2013,16,7,16
 ejs,2014,26,16,26
-ejs,2015,29,18,29
+ejs,2015,28,17,28
 ejs,2016,64,41,62
 ejs,2017,64,39,62
 ejs,2018,81,48,79
@@ -81428,7 +81418,7 @@ email-validator,2023,5,1,5
 email-validator,2024,4,2,4
 email-validator,2025,1,0,1
 email-validator,2026,2,0,2
-emailjs,2011,2,2,1
+emailjs,2011,1,1,1
 emailjs,2013,4,3,4
 emailjs,2014,4,0,4
 emailjs,2016,6,2,6
@@ -83009,7 +82999,6 @@ es5-ext,2026,4,4,4
 es5-polyfill,2019,3,1,2
 es5-polyfill,2020,1,1,1
 es5-shim,2011,1,0,1
-es5-shim,2012,1,1,1
 es5-shim,2013,2,2,2
 es5-shim,2014,1,1,1
 es5-shim,2015,10,6,9
@@ -86144,7 +86133,7 @@ evergreen-ui,2023,3,3,2
 evernode-js-client,2024,3,3,1
 everpocket-nodejs-contract,2024,4,4,1
 evertea,2024,4,0,4
-everyauth,2011,3,1,1
+everyauth,2011,2,1,1
 everyauth,2012,2,0,2
 everyauth,2013,2,1,2
 everyauth,2014,1,0,1
@@ -87455,7 +87444,7 @@ expressjs,2025,3,2,3
 expresso,2011,9,7,9
 expresso,2012,3,3,3
 expresso,2013,2,1,2
-expresso,2015,4,4,1
+expresso,2015,1,1,1
 expresso,2019,1,1,1
 exsolve,2025,16,14,16
 exsolve,2026,19,10,19
@@ -92970,7 +92959,7 @@ geohash,2024,1,1,1
 geoip-country,2021,1,0,1
 geoip-country,2022,1,0,1
 geoip-country,2024,1,1,1
-geoip-lite,2011,2,2,1
+geoip-lite,2011,1,1,1
 geoip-lite,2012,1,0,1
 geoip-lite,2013,2,2,2
 geoip-lite,2014,3,1,3
@@ -94258,7 +94247,7 @@ glamorous,2018,19,9,19
 glamorous,2019,10,5,10
 glamorous,2020,3,2,3
 glamorous,2021,1,1,1
-glob,2011,5,2,4
+glob,2011,4,1,4
 glob,2012,5,2,5
 glob,2013,23,14,23
 glob,2014,55,24,55
@@ -97970,7 +97959,7 @@ gulp-svg-sprite,2017,2,1,2
 gulp-svg-sprite,2018,4,4,4
 gulp-svg-sprite,2019,5,4,5
 gulp-svg-sprite,2020,4,2,4
-gulp-svg-sprite,2021,4,2,2
+gulp-svg-sprite,2021,3,2,2
 gulp-svg-sprite,2022,1,1,1
 gulp-svg-sprite,2023,1,1,1
 gulp-svg-sprites,2016,1,0,1
@@ -97988,7 +97977,7 @@ gulp-svgmin,2017,4,4,4
 gulp-svgmin,2018,2,1,2
 gulp-svgmin,2019,2,2,2
 gulp-svgmin,2020,2,0,2
-gulp-svgmin,2021,4,2,4
+gulp-svgmin,2021,3,2,3
 gulp-svgmin,2022,2,1,2
 gulp-svgmin,2024,1,1,1
 gulp-svgmin,2026,1,0,1
@@ -97998,7 +97987,7 @@ gulp-svgstore,2015,2,1,2
 gulp-svgstore,2016,1,1,1
 gulp-svgstore,2018,1,1,1
 gulp-svgstore,2019,4,3,4
-gulp-svgstore,2021,2,0,2
+gulp-svgstore,2021,1,0,1
 gulp-svgstore,2024,1,1,1
 gulp-swig,2014,1,0,1
 gulp-swig,2016,2,0,2
@@ -98303,8 +98292,6 @@ guy-test,2019,1,1,1
 guy-test,2020,1,1,1
 gx-ai,2024,3,3,1
 gyron,2022,5,0,5
-gzbz2,2011,5,4,2
-gzbz2,2012,1,0,1
 gzip,2011,1,0,1
 gzip,2012,2,2,2
 gzip,2016,1,0,1
@@ -99040,13 +99027,13 @@ hashids,2021,5,5,4
 hashids,2022,3,3,3
 hashids,2024,1,1,1
 hashids,2026,2,1,2
-hashish,2011,4,2,4
+hashish,2011,3,2,3
 hashish,2012,2,0,2
 hashish,2013,2,2,2
 hashish,2015,1,1,1
 hashish,2016,3,1,3
 hashish,2017,1,0,1
-hashlib,2011,3,3,3
+hashlib,2011,2,2,2
 hashlib,2012,1,0,1
 hashlib,2013,1,1,1
 hashlib,2023,1,0,1
@@ -100946,7 +100933,7 @@ htmlnano,2022,2,2,2
 htmlnano,2023,2,2,2
 htmlnano,2024,3,2,3
 htmlnano,2025,1,1,1
-htmlparser,2011,3,2,3
+htmlparser,2011,2,1,2
 htmlparser,2012,6,3,6
 htmlparser,2013,6,3,6
 htmlparser,2014,5,2,5
@@ -102074,7 +102061,6 @@ iconsax-react,2023,1,1,1
 iconsax-react,2024,1,1,1
 iconsax-react,2025,2,1,2
 iconsax-react,2026,1,1,1
-iconv,2011,1,1,1
 iconv,2012,6,3,6
 iconv,2013,8,4,8
 iconv,2014,10,6,10
@@ -106698,7 +106684,7 @@ jackspeak,2023,21,18,20
 jackspeak,2024,103,86,98
 jackspeak,2025,61,56,60
 jackspeak,2026,20,17,20
-jade,2011,3,3,3
+jade,2011,2,2,2
 jade,2012,12,7,12
 jade,2013,29,20,29
 jade,2014,45,32,45
@@ -106829,7 +106815,7 @@ jasmine-jquery,2024,1,1,1
 jasmine-marbles,2018,1,1,1
 jasmine-marbles,2020,1,1,1
 jasmine-marbles,2021,1,1,1
-jasmine-node,2011,4,2,2
+jasmine-node,2011,3,2,2
 jasmine-node,2012,8,7,8
 jasmine-node,2013,12,11,12
 jasmine-node,2014,13,12,13
@@ -107973,7 +107959,7 @@ jq-web,2025,1,0,1
 jq-web,2026,3,3,3
 jqGrid,2017,3,3,3
 jqmodal,2018,3,3,1
-jquery,2011,5,3,4
+jquery,2011,3,2,3
 jquery,2012,11,6,11
 jquery,2013,35,24,34
 jquery,2014,53,31,51
@@ -108785,7 +108771,7 @@ jsdoctypeparser,2021,2,1,2
 jsdoctypeparser,2023,1,1,1
 jsdocx,2024,3,2,1
 jsdom,2010,1,1,1
-jsdom,2011,7,3,7
+jsdom,2011,6,2,6
 jsdom,2012,13,3,13
 jsdom,2013,30,16,30
 jsdom,2014,43,18,40
@@ -112675,8 +112661,6 @@ laz-perf,2024,1,1,1
 laz-perf,2025,1,1,1
 lazily-async,2017,2,0,2
 lazily-async,2021,1,1,1
-lazy,2010,2,0,1
-lazy,2011,3,3,1
 lazy,2012,2,1,2
 lazy,2013,5,2,5
 lazy,2014,6,3,6
@@ -112747,7 +112731,7 @@ lazysizes,2016,2,2,2
 lazysizes,2018,4,2,4
 lazysizes,2019,4,3,4
 lazysizes,2020,6,5,5
-lazysizes,2021,7,5,7
+lazysizes,2021,6,4,6
 lazysizes,2023,3,2,3
 lazysizes,2024,9,8,9
 lazysizes,2025,3,1,3
@@ -113647,7 +113631,7 @@ libuuid,2020,3,0,3
 libxml-xsd,2016,3,2,3
 libxml-xsd,2018,3,1,3
 libxml-xsd,2019,3,2,3
-libxmljs,2011,2,1,2
+libxmljs,2011,3,1,3
 libxmljs,2012,7,4,6
 libxmljs,2013,5,5,5
 libxmljs,2014,5,0,5
@@ -113925,7 +113909,6 @@ lines-and-columns,2023,146,128,144
 lines-and-columns,2024,162,138,155
 lines-and-columns,2025,87,77,85
 lines-and-columns,2026,38,34,37
-lingo,2010,1,1,1
 lingo,2012,2,1,2
 lingo,2014,3,2,3
 lingo,2016,1,0,1
@@ -114750,7 +114733,7 @@ lodash,2017,1238,811,1192
 lodash,2018,1332,804,1290
 lodash,2019,1501,969,1452
 lodash,2020,1385,863,1361
-lodash,2021,1409,914,1344
+lodash,2021,1408,913,1343
 lodash,2022,1600,1009,1509
 lodash,2023,1661,970,1539
 lodash,2024,1668,837,1520
@@ -116951,7 +116934,7 @@ logger-stitch,2024,3,2,2
 loggerhythm,2018,3,3,3
 loggerhythm,2020,2,2,2
 loggerhythm,2021,1,1,1
-logging,2011,2,1,2
+logging,2011,1,1,1
 logging,2012,1,1,1
 logging,2014,1,0,1
 logging,2017,2,1,1
@@ -117432,9 +117415,6 @@ lscache,2021,2,1,2
 lscache,2022,1,1,1
 lscache,2025,1,1,1
 lscache,2026,1,1,1
-lsof,2010,1,1,1
-lsof,2016,1,0,1
-lsof,2017,1,1,1
 lta.base,2021,4,0,4
 ltgt,2014,1,0,1
 ltgt,2015,1,1,1
@@ -117448,7 +117428,6 @@ ltgt,2024,1,1,1
 ltrim,2019,1,1,1
 ltrim,2023,1,1,1
 ltrim,2025,1,0,1
-ltx,2011,1,0,1
 ltx,2014,4,2,4
 ltx,2016,3,2,3
 ltx,2018,1,0,1
@@ -118287,7 +118266,7 @@ mark.js,2023,1,1,1
 mark.js,2024,5,3,4
 mark.js,2025,1,1,1
 mark.js,2026,3,2,3
-markdown,2011,4,2,2
+markdown,2011,1,0,1
 markdown,2012,2,0,2
 markdown,2013,6,2,6
 markdown,2014,12,3,12
@@ -120928,7 +120907,7 @@ million,2021,1,1,1
 million,2023,1,1,1
 million,2024,6,6,5
 million,2025,1,1,1
-mime,2011,3,3,2
+mime,2011,1,1,1
 mime,2012,11,5,11
 mime,2013,21,10,21
 mime,2014,39,20,39
@@ -120979,12 +120958,10 @@ mime-types,2023,217,166,209
 mime-types,2024,179,130,177
 mime-types,2025,190,139,175
 mime-types,2026,1257,712,1224
-mimelib,2011,5,4,1
+mimelib,2011,1,0,1
 mimelib,2015,1,1,1
 mimelib,2017,1,0,1
 mimelib,2023,1,0,1
-mimelib-noiconv,2011,5,3,1
-mimelib-noiconv,2012,1,0,1
 mimeparse,2013,1,0,1
 mimeparse,2016,1,0,1
 mimeparse,2018,1,1,1
@@ -122591,7 +122568,7 @@ mongo-uri-builder,2025,1,0,1
 mongod,2014,1,1,1
 mongod,2017,3,1,3
 mongod,2018,1,1,1
-mongodb,2011,7,5,6
+mongodb,2011,6,4,6
 mongodb,2012,11,7,10
 mongodb,2013,21,14,21
 mongodb,2014,33,23,33
@@ -122713,7 +122690,7 @@ mongojs,2023,1,1,1
 mongoosastic,2017,1,0,1
 mongoosastic,2018,1,1,1
 mongoosastic,2019,2,1,2
-mongoose,2011,7,4,5
+mongoose,2011,6,4,5
 mongoose,2012,16,12,14
 mongoose,2013,27,24,26
 mongoose,2014,40,24,40
@@ -123777,7 +123754,7 @@ must,2016,1,1,1
 must,2017,2,1,2
 must,2018,1,1,1
 must,2021,1,1,1
-mustache,2011,3,2,3
+mustache,2011,2,1,2
 mustache,2012,8,2,8
 mustache,2013,4,1,4
 mustache,2014,8,2,8
@@ -124022,8 +123999,6 @@ n-readlines,2023,2,2,2
 n-readlines,2024,1,1,1
 n-readlines,2025,3,3,3
 n-readlines,2026,1,0,1
-n-util,2011,2,0,2
-n-util,2015,1,0,1
 n20-common-lib,2023,1,1,1
 n20-common-lib,2025,2,2,2
 n2k-signalk,2017,1,0,1
@@ -124600,7 +124575,6 @@ nconf,2022,6,3,6
 nconf,2023,3,2,3
 nconf,2025,2,2,2
 nconf,2026,3,3,3
-nconf-redis,2011,3,1,2
 nconf-yaml,2016,1,0,1
 nconf-yaml,2023,3,1,3
 ncp,2012,4,0,4
@@ -126102,7 +126076,7 @@ ngx-window-token,2017,2,2,2
 ngx-window-token,2018,1,1,1
 ngxi,2025,218,218,218
 nhooodennlonnn,2024,13,0,13
-nib,2011,4,3,1
+nib,2011,1,0,1
 nib,2012,2,1,2
 nib,2013,10,4,10
 nib,2014,5,5,5
@@ -128075,7 +128049,7 @@ node-upnp-subscription,2021,1,1,1
 node-utils,2011,1,0,1
 node-utils,2019,1,1,1
 node-utils,2022,1,0,1
-node-uuid,2011,9,7,4
+node-uuid,2011,5,3,4
 node-uuid,2012,10,10,10
 node-uuid,2013,21,10,21
 node-uuid,2014,39,17,39
@@ -128224,7 +128198,7 @@ node-xlsx,2023,10,8,10
 node-xlsx,2024,5,2,5
 node-xlsx,2025,3,3,3
 node-xlsx,2026,2,1,2
-node-xml,2011,3,1,3
+node-xml,2011,1,0,1
 node-xml,2014,1,1,1
 node-xml,2016,1,0,1
 node-xml,2025,1,0,1
@@ -128310,7 +128284,7 @@ node.js,2025,1,1,1
 node_extra_ca_certs_mozilla_bundle,2020,1,0,1
 node_extra_ca_certs_mozilla_bundle,2023,1,1,1
 node_extra_ca_certs_mozilla_bundle,2024,1,0,1
-node_hash,2011,3,0,1
+node_hash,2011,1,0,1
 node_hash,2012,1,1,1
 node_hash,2014,1,0,1
 node_hash,2016,1,1,1
@@ -128422,7 +128396,7 @@ nodelist-foreach-polyfill,2018,2,1,2
 nodelist-foreach-polyfill,2019,4,3,4
 nodelist-foreach-polyfill,2020,1,1,1
 nodelist-foreach-polyfill,2023,1,1,1
-nodemailer,2011,2,1,2
+nodemailer,2011,1,1,1
 nodemailer,2012,3,3,3
 nodemailer,2013,9,7,9
 nodemailer,2014,12,6,12
@@ -128544,7 +128518,7 @@ nodes,2025,1,1,1
 nodetree,2015,1,1,1
 nodetree,2017,1,1,1
 nodetree,2025,1,1,1
-nodeunit,2011,7,5,7
+nodeunit,2011,6,4,6
 nodeunit,2012,12,10,11
 nodeunit,2013,13,12,12
 nodeunit,2014,11,9,11
@@ -128996,7 +128970,7 @@ npid,2018,1,1,1
 npid,2020,1,0,1
 npid,2021,1,1,1
 npid,2026,1,1,1
-npm,2011,5,2,5
+npm,2011,5,3,5
 npm,2012,7,6,7
 npm,2013,20,14,20
 npm,2014,27,19,27
@@ -129992,7 +129966,7 @@ oas-validator,2020,4,2,4
 oas-validator,2021,1,0,1
 oas-validator,2023,2,0,2
 oas-validator,2024,1,1,1
-oauth,2011,4,4,3
+oauth,2011,3,3,3
 oauth,2012,2,2,2
 oauth,2013,7,3,7
 oauth,2014,8,5,8
@@ -131521,11 +131495,11 @@ optimat-vue-assets,2018,4,4,3
 optimat-vue-libs,2018,6,5,2
 optimism,2021,2,2,1
 optimism,2022,5,3,3
-optimist,2011,10,8,9
+optimist,2011,8,5,8
 optimist,2012,23,9,23
 optimist,2013,44,23,42
 optimist,2014,97,17,97
-optimist,2015,64,15,62
+optimist,2015,63,14,61
 optimist,2016,39,18,39
 optimist,2017,33,16,33
 optimist,2018,43,21,43
@@ -132664,7 +132638,6 @@ paper-jsdom,2018,1,1,1
 paper-jsdom,2019,1,0,1
 paper-jsdom,2024,2,0,2
 paper-jsdom,2026,2,0,2
-paperboy,2011,1,1,1
 paperboy,2013,2,1,2
 paperboy,2016,1,1,1
 paperclip,2013,1,0,1
@@ -135389,7 +135362,6 @@ pkgfiles,2017,1,1,1
 pkgfiles,2018,3,2,3
 pkgfiles,2019,1,0,1
 pkgfiles,2024,1,1,1
-pkginfo,2011,2,0,1
 pkginfo,2012,2,1,2
 pkginfo,2013,9,8,9
 pkginfo,2014,5,4,5
@@ -135746,7 +135718,6 @@ pn,2023,3,3,3
 pn,2024,6,5,6
 pn,2025,1,1,1
 pn,2026,1,1,1
-png,2012,1,1,1
 png,2013,1,1,1
 png,2014,2,1,2
 png,2015,1,0,1
@@ -137437,7 +137408,7 @@ postcss-smart-import,2017,5,4,5
 postcss-smart-import,2018,3,0,3
 postcss-smart-import,2019,1,0,1
 postcss-smart-import,2021,2,2,2
-postcss-sort-media-queries,2021,2,1,2
+postcss-sort-media-queries,2021,1,1,1
 postcss-sort-media-queries,2023,1,1,1
 postcss-sort-media-queries,2024,2,2,2
 postcss-sort-media-queries,2025,3,2,3
@@ -139301,7 +139272,6 @@ promised-exec,2015,5,3,5
 promised-exec,2016,1,0,1
 promised-exec,2019,1,0,1
 promised-exec,2023,1,0,1
-promised-io,2011,1,1,1
 promised-io,2012,1,1,1
 promised-io,2013,1,0,1
 promised-io,2014,4,1,4
@@ -139316,7 +139286,6 @@ promised-mongo,2018,1,0,1
 promised-sqlite3,2023,1,1,1
 promised-sqlite3,2024,3,1,2
 promised-sqlite3,2025,1,1,1
-promised-utils,2011,4,4,2
 promisepipe,2016,1,0,1
 promisepipe,2017,1,1,1
 promisepipe,2018,3,1,3
@@ -139778,7 +139747,7 @@ protagonist,2017,1,0,1
 protagonist,2018,1,0,1
 protagonist,2019,1,1,1
 protege,2012,3,1,3
-proto,2011,3,2,2
+proto,2011,1,1,1
 proto,2015,1,1,1
 proto,2018,1,1,1
 proto,2024,1,0,1
@@ -140717,7 +140686,6 @@ pushstate-server,2017,2,1,2
 pushstate-server,2018,2,2,2
 pushstate-server,2020,1,0,1
 pushstate-server,2021,2,0,2
-put,2011,2,2,1
 put,2016,1,0,1
 put,2020,3,3,2
 put,2022,1,0,1
@@ -140814,7 +140782,7 @@ pythonic,2019,1,0,1
 pythonic,2023,1,0,1
 pzvue-button,2017,2,2,1
 pzvue-button,2018,1,1,1
-q,2011,4,4,2
+q,2011,3,3,2
 q,2012,6,2,6
 q,2013,46,16,46
 q,2014,93,41,92
@@ -140830,7 +140798,7 @@ q,2023,79,70,77
 q,2024,55,49,55
 q,2025,26,21,25
 q,2026,16,14,15
-q-fs,2012,3,1,3
+q-fs,2012,2,0,2
 q-fs,2013,3,0,3
 q-fs,2014,1,1,1
 q-io,2014,6,3,6
@@ -140939,7 +140907,6 @@ qoa,2019,1,1,1
 qoa,2020,1,1,1
 qoa,2023,2,0,2
 qoa,2024,1,0,1
-qq,2011,1,0,1
 qq,2012,4,1,4
 qq,2013,1,0,1
 qq,2014,1,0,1
@@ -141652,7 +141619,7 @@ rambdax,2024,1,1,1
 rambdax,2026,1,1,1
 ramda,2015,23,18,23
 ramda,2016,56,36,56
-ramda,2017,92,64,92
+ramda,2017,91,63,91
 ramda,2018,121,87,120
 ramda,2019,87,64,85
 ramda,2020,110,77,110
@@ -150220,7 +150187,6 @@ recompose,2023,9,7,9
 recompose,2024,3,2,3
 recompose,2025,10,6,4
 recompose,2026,1,0,1
-reconf,2011,3,0,1
 reconlx,2021,5,4,5
 reconnect,2012,1,1,1
 reconnect,2013,2,1,2
@@ -150369,13 +150335,13 @@ redeyed,2023,5,4,5
 redeyed,2024,4,4,4
 redeyed,2025,2,2,2
 redeyed,2026,1,1,1
-redis,2011,10,7,9
+redis,2011,7,6,7
 redis,2012,14,10,14
 redis,2013,21,16,21
 redis,2014,24,17,24
 redis,2015,43,27,43
 redis,2016,73,31,71
-redis,2017,72,30,70
+redis,2017,71,29,69
 redis,2018,64,35,64
 redis,2019,61,35,59
 redis,2020,50,23,45
@@ -152141,7 +152107,7 @@ req-from,2023,1,1,1
 req-from,2024,5,4,4
 req-package-json,2022,1,1,1
 req-package-json,2023,4,3,4
-request,2011,13,10,12
+request,2011,8,8,8
 request,2012,18,10,17
 request,2013,102,46,101
 request,2014,171,86,169
@@ -152993,7 +152959,7 @@ restify-plugins,2019,1,1,1
 restify-plugins,2020,1,1,1
 restify-router,2017,2,1,2
 restify-router,2019,1,1,1
-restler,2011,4,1,3
+restler,2011,3,1,3
 restler,2012,4,1,4
 restler,2013,9,2,9
 restler,2014,5,3,5
@@ -153356,7 +153322,7 @@ righto,2021,1,1,1
 rijndael-js,2019,2,1,2
 rijndael-js,2025,2,1,1
 riki02,2024,7,3,3
-rimraf,2011,2,1,2
+rimraf,2011,2,0,2
 rimraf,2012,6,3,6
 rimraf,2013,21,17,21
 rimraf,2014,37,23,37
@@ -153371,7 +153337,7 @@ rimraf,2022,424,328,398
 rimraf,2023,489,376,473
 rimraf,2024,400,311,384
 rimraf,2025,255,192,240
-rimraf,2026,166,139,165
+rimraf,2026,167,140,166
 rimraf-promise,2016,2,0,2
 rimraf-promise,2017,1,0,1
 rimraf-promise,2018,3,1,3
@@ -155925,7 +155891,7 @@ save-to,2016,1,0,1
 saw,2014,3,1,3
 sawtooth-sdk,2018,3,2,2
 sawtooth-sdk,2022,1,0,1
-sax,2011,3,3,2
+sax,2011,1,1,1
 sax,2012,3,1,3
 sax,2013,8,4,8
 sax,2014,3,1,3
@@ -157955,7 +157921,7 @@ shortid,2023,33,14,31
 shortid,2024,37,20,36
 shortid,2025,31,9,23
 shortid,2026,4,2,4
-should,2011,4,2,4
+should,2011,3,1,3
 should,2012,15,12,15
 should,2013,49,34,48
 should,2014,54,46,53
@@ -159536,11 +159502,11 @@ socket-request-server,2018,1,1,1
 socket-request-server,2019,1,1,1
 socket-request-server,2020,2,2,2
 socket-request-server,2025,1,1,1
-socket.io,2011,5,5,4
+socket.io,2011,4,4,4
 socket.io,2012,13,8,13
 socket.io,2013,25,15,23
-socket.io,2014,32,20,29
-socket.io,2015,55,39,55
+socket.io,2014,28,16,28
+socket.io,2015,56,40,56
 socket.io,2016,80,52,80
 socket.io,2017,81,51,81
 socket.io,2018,87,54,80
@@ -159962,7 +159928,7 @@ sort-component,2013,1,1,1
 sort-component,2014,2,1,1
 sort-css-media-queries,2019,1,0,1
 sort-css-media-queries,2020,1,0,1
-sort-css-media-queries,2021,4,1,3
+sort-css-media-queries,2021,3,1,3
 sort-css-media-queries,2022,2,0,2
 sort-css-media-queries,2025,1,1,1
 sort-css-media-queries,2026,1,1,1
@@ -161659,11 +161625,11 @@ steno,2026,1,1,1
 stentor-constants,2026,3,3,3
 stentor-handler,2020,4,2,4
 stentor-request,2022,8,5,8
-step,2011,7,4,6
+step,2011,4,3,4
 step,2012,3,1,3
 step,2013,8,3,8
 step,2014,4,2,4
-step,2015,4,3,4
+step,2015,3,2,3
 step,2016,3,3,3
 step,2017,4,4,4
 step,2018,1,1,1
@@ -161701,7 +161667,7 @@ stimulus,2022,10,0,10
 stimulus,2023,4,1,4
 stimulus,2024,1,0,1
 stimulus,2026,1,1,1
-stitch,2011,4,2,1
+stitch,2011,2,1,1
 stitch,2012,1,0,1
 stitch,2013,3,0,3
 stockshark-rules,2020,3,2,2
@@ -166286,7 +166252,6 @@ tesseract.js,2023,5,4,5
 tesseract.js,2024,4,2,4
 tesseract.js,2025,16,14,14
 tesseract.js,2026,19,18,17
-test,2010,1,1,1
 test,2011,4,3,4
 test,2015,1,1,1
 test,2016,3,3,3
@@ -168602,7 +168567,6 @@ trash-cli,2021,2,2,2
 trash-cli,2024,2,2,2
 trata-foundation-spl-utils,2024,3,0,3
 trata-foundation-spl-utils-2,2024,4,0,4
-traverse,2010,1,1,1
 traverse,2011,5,2,5
 traverse,2012,3,2,3
 traverse,2013,3,1,3
@@ -171456,7 +171420,7 @@ ufo,2025,37,28,34
 ufo,2026,40,33,40
 ugcinc,2025,1,1,1
 ugcinc,2026,2,1,1
-uglify,2011,1,1,1
+uglify,2011,1,0,1
 uglify,2012,2,0,2
 uglify,2014,2,1,2
 uglify,2015,2,0,2
@@ -171479,7 +171443,7 @@ uglify-es,2022,33,24,33
 uglify-es,2023,59,50,58
 uglify-es,2024,21,15,21
 uglify-es,2025,6,6,6
-uglify-js,2011,12,7,12
+uglify-js,2011,9,5,9
 uglify-js,2012,23,16,22
 uglify-js,2013,29,18,29
 uglify-js,2014,50,41,50
@@ -171916,11 +171880,11 @@ undefsafe,2024,4,4,4
 undefsafe,2025,4,3,4
 undefsafe,2026,2,1,2
 under-pressure,2022,4,0,4
-underscore,2011,17,15,15
+underscore,2011,13,11,12
 underscore,2012,74,49,74
 underscore,2013,177,79,176
 underscore,2014,292,110,289
-underscore,2015,299,112,294
+underscore,2015,298,111,293
 underscore,2016,289,139,287
 underscore,2017,238,123,235
 underscore,2018,142,78,140
@@ -171961,7 +171925,7 @@ underscore.deep,2022,1,0,1
 underscore.deferred,2012,1,0,1
 underscore.deferred,2014,1,0,1
 underscore.deferred,2020,1,1,1
-underscore.string,2011,2,2,2
+underscore.string,2011,1,1,1
 underscore.string,2012,7,6,7
 underscore.string,2013,14,9,14
 underscore.string,2014,16,8,16
@@ -173804,7 +173768,7 @@ util,2010,1,1,1
 util,2011,4,2,4
 util,2013,1,0,1
 util,2014,8,6,8
-util,2015,19,11,19
+util,2015,20,11,20
 util,2016,27,20,27
 util,2017,41,25,40
 util,2018,46,31,46
@@ -174548,9 +174512,7 @@ vapor-js-npm,2026,3,0,3
 var-validator,2017,1,0,1
 var-validator,2018,1,1,1
 var-validator,2022,1,0,1
-vargs,2011,2,2,2
 vargs,2013,1,0,1
-vargs,2015,1,1,1
 vargs,2016,1,0,1
 vargs,2017,1,1,1
 vargs,2021,1,1,1
@@ -175907,8 +175869,8 @@ vow-fs,2018,2,2,2
 vow-node,2014,1,1,1
 vow-node,2017,1,0,1
 vow-node,2018,1,1,1
-vows,2011,22,20,20
-vows,2012,18,16,16
+vows,2011,18,16,18
+vows,2012,19,17,17
 vows,2013,8,7,8
 vows,2014,6,6,6
 vows,2015,5,5,5
@@ -179671,7 +179633,7 @@ websocket-as-promised,2019,3,3,3
 websocket-as-promised,2020,2,2,2
 websocket-as-promised,2022,2,1,2
 websocket-as-promised,2023,2,2,2
-websocket-client,2011,6,2,5
+websocket-client,2011,4,1,4
 websocket-client,2012,1,0,1
 websocket-driver,2014,1,0,1
 websocket-driver,2016,1,0,1
@@ -179702,7 +179664,7 @@ websocket-polyfill,2023,4,3,3
 websocket-polyfill,2024,3,1,2
 websocket-polyfill,2025,6,3,5
 websocket-polyfill,2026,1,0,1
-websocket-server,2011,3,1,2
+websocket-server,2011,2,0,2
 websocket-server,2014,3,0,3
 websocket-server,2017,1,0,1
 websocket-stream,2014,1,1,1
@@ -179773,6 +179735,7 @@ webvr-polyfill,2025,1,1,1
 webworker,2011,1,1,1
 webworker,2012,3,1,3
 webworker,2014,1,1,1
+webworker,2015,1,1,1
 webworker-threads,2014,2,2,2
 webworker-threads,2015,2,1,2
 webworker-threads,2016,3,2,3
@@ -181730,7 +181693,7 @@ xml-writer,2021,2,2,1
 xml-writer,2022,1,1,1
 xml-writer,2024,1,0,1
 xml-writer,2026,1,0,1
-xml2js,2011,4,2,4
+xml2js,2011,4,1,4
 xml2js,2012,4,1,4
 xml2js,2013,11,6,11
 xml2js,2014,22,13,22
@@ -182838,7 +182801,6 @@ yui,2014,1,0,1
 yui,2015,2,1,2
 yui,2016,1,1,1
 yui,2018,1,1,1
-yui-compressor,2011,1,1,1
 yui-compressor,2012,1,1,1
 yui-compressor,2014,2,0,1
 yuicompressor,2013,1,0,1
@@ -183254,7 +183216,7 @@ zoid,2021,5,4,5
 zoid,2022,10,5,10
 zoid,2023,2,0,2
 zoid,2024,2,0,2
-zombie,2011,8,6,1
+zombie,2011,3,2,1
 zombie,2012,2,2,2
 zombie,2013,5,2,5
 zombie,2014,1,1,1

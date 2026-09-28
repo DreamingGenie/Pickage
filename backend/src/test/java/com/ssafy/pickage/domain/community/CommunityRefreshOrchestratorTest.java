@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.ssafy.pickage.domain.community.collection.CollectedIssue;
 import com.ssafy.pickage.domain.community.collection.CommentCollectionStatus;
 import com.ssafy.pickage.domain.community.collection.IssueCollectionResult;
+import com.ssafy.pickage.domain.community.collection.RepositoryIssueCounts;
 import com.ssafy.pickage.domain.community.dto.CommunityErrorCode;
 import com.ssafy.pickage.domain.community.dto.SummaryStatus;
 import com.ssafy.pickage.domain.community.refresh.RefreshStatus;
@@ -35,9 +36,7 @@ class CommunityRefreshOrchestratorTest {
                         null,
                         null,
                         List.of(),
-                        List.of(),
                         SummaryStatus.SKIPPED,
-                        List.of(),
                         List.of());
     }
 
@@ -88,6 +87,103 @@ class CommunityRefreshOrchestratorTest {
         assertThat(row.result().topics().getFirst().state()).isEqualTo("OPEN");
         assertThat(row.result().limitations()).extracting("code").contains("SUMMARY_UNAVAILABLE");
         assertThat(task.snapshot().status()).isEqualTo(RefreshStatus.COMPLETED);
+    }
+
+    // ---- 저장소 전체 Issue 수 (S15P21A506-413)
+
+    private static final RepositoryVerificationResult VERIFIED =
+            new RepositoryVerificationResult.Verified(
+                    "pinojs", "pino", RepositoryScope.PACKAGE_SCOPED, false, false, List.of());
+
+    private CommunitySnapshotRow runWith(
+            StubIssueCollectionService collection, InMemoryCommunitySnapshotRepository repository) {
+        CommunityRefreshOrchestrator orchestrator =
+                com.ssafy.pickage.domain.community.CommunityTestFixtures.orchestrator(
+                        new StubRepositoryVerificationService(VERIFIED),
+                        collection,
+                        SKIPPED_SUMMARIZER,
+                        repository);
+        orchestrator.run(newTask(), "pino", PACKAGE_ID, null);
+        return repository.findByPackageId(PACKAGE_ID).orElseThrow();
+    }
+
+    private static StubIssueCollectionService successCollection() {
+        return new StubIssueCollectionService(
+                new IssueCollectionResult.Success(List.of(issue(1, List.of())), List.of(), 180));
+    }
+
+    @Test
+    void 공용_풀이_막혀_있어도_수집을_끝내고_저장소_Issue_수를_싣는다() throws Exception {
+        // S15P21A506-415 — 코어가 적은 배포 서버에서 모든 패키지의 수치가 비었다. 수치 조회를 GMS 와 나란히 공용 풀에 올렸는데,
+        // 그 풀이 GMS 응답 대기에 다 잡혀 조회가 예산이 바닥난 뒤에야 시작했기 때문이다. 풀을 전부 붙잡아 그 상황을 만든다.
+        var collection = successCollection();
+        collection.counts = new RepositoryIssueCounts(1234, 56);
+
+        try (var blocked = new CommonPoolBlocker()) {
+            var row =
+                    org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+                            java.time.Duration.ofSeconds(15),
+                            () -> runWith(collection, new InMemoryCommunitySnapshotRepository()),
+                            "공용 풀에 기대면 수집이 멈추거나 수치가 빈다");
+
+            assertThat(row.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+            assertThat(row.result().repository().issueCount()).isEqualTo(1234);
+            assertThat(row.result().repository().openIssueCount()).isEqualTo(56);
+        }
+    }
+
+    @Test
+    void 저장소_전체_Issue_수와_열린_수를_결과에_싣는다() {
+        var collection = successCollection();
+        collection.counts = new RepositoryIssueCounts(1234, 56);
+
+        var row = runWith(collection, new InMemoryCommunitySnapshotRepository());
+
+        assertThat(row.result().repository().issueCount()).isEqualTo(1234);
+        assertThat(row.result().repository().openIssueCount()).isEqualTo(56);
+        assertThat(row.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+    }
+
+    @Test
+    void 최근_논의가_없어도_저장소_전체_Issue_수는_싣는다() {
+        var collection =
+                new StubIssueCollectionService(new IssueCollectionResult.NoDiscussionData(365, List.of()));
+        collection.counts = new RepositoryIssueCounts(800, 12);
+
+        var row = runWith(collection, new InMemoryCommunitySnapshotRepository());
+
+        assertThat(row.dataStatus()).isEqualTo(DataStatus.NO_DISCUSSION_DATA);
+        assertThat(row.result().repository().issueCount()).isEqualTo(800);
+        assertThat(row.result().repository().openIssueCount()).isEqualTo(12);
+    }
+
+    @Test
+    void Issue_수를_못_구해도_결과는_그대로_게시하고_수치만_비운다() {
+        var collection = successCollection();
+        collection.countsFailure = new IllegalStateException("boom");
+
+        var row = runWith(collection, new InMemoryCommunitySnapshotRepository());
+
+        assertThat(row.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+        assertThat(row.result().topics()).hasSize(1);
+        assertThat(row.result().repository().issueCount()).isNull();
+        assertThat(row.result().repository().openIssueCount()).isNull();
+    }
+
+    @Test
+    void 앞뒤가_맞지_않는_수치는_게시_검증에서_실패하지_않도록_버린다() {
+        // 열린 수가 전체보다 크거나 음수인 값이 게시 검증까지 가면 결과 전체가 PUBLISH_FAILED 가 된다.
+        var collection = successCollection();
+        collection.counts = new RepositoryIssueCounts(5, 9);
+        var row = runWith(collection, new InMemoryCommunitySnapshotRepository());
+        assertThat(row.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+        assertThat(row.result().repository().issueCount()).isNull();
+
+        var negative = successCollection();
+        negative.counts = new RepositoryIssueCounts(-1, 0);
+        var row2 = runWith(negative, new InMemoryCommunitySnapshotRepository());
+        assertThat(row2.dataStatus()).isEqualTo(DataStatus.AVAILABLE);
+        assertThat(row2.result().repository().issueCount()).isNull();
     }
 
     @Test

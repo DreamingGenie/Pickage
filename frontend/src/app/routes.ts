@@ -2,6 +2,34 @@
 export const REPORT_NAMES_PARAM = 'names'
 
 /**
+ * 분석 화면이 기준 패키지를 싣는 쿼리 키. 읽는 쪽(`analyze-selection`)과 같은 값이다.
+ *
+ * <h2>보고서와 달리 기준을 자리가 아니라 이름으로 싣는다</h2>
+ *
+ * 보고서의 `?names=a,b,c` 는 **맨 앞이 기준**이라는 약속이 주소 어디에도 적혀 있지 않다.
+ * 손으로 재정렬하면 기준이 조용히 바뀌는데 화면에는 그 사실이 드러나지 않는다
+ * (S15P21A506-187 이 미해결로 남긴 약점이다). 분석 화면은 그 약속을 물려받지 않는다 —
+ * 여기서는 1단계와 2단계를 가르는 것이 "기준이 있느냐" 라서, 기준과 후보를 한 목록에
+ * 섞으면 주소만 보고 어느 단계인지 알 수 없다.
+ */
+export const ANALYZE_BASE_PARAM = 'base'
+
+/** 분석 화면이 **고른 후보**를 싣는 쿼리 키. 구분자는 `names` 와 같은 쉼표다. */
+export const ANALYZE_WITH_PARAM = 'with'
+
+/**
+ * 유사 후보가 없는 기준을 "그래도 쓰겠다" 고 한 확인(`1`).
+ *
+ * **이것도 주소에 있어야 한다.** 화면 state 로만 두면 새로고침 뒤 확인이 사라져,
+ * 기준은 주소에 남아 있는데 화면만 1단계 경고로 되돌아간다(S15P21A506-435).
+ *
+ * `paths.analyze` 는 이 값을 만들지 않는다. 확인은 그 화면 안에서 사용자가 누르는 것이지
+ * 다른 화면이 대신 넘겨줄 수 있는 것이 아니다 — 보고서에서 되돌아올 때 미리 켜 두면
+ * 사용자가 본 적 없는 경고를 넘긴 것이 된다.
+ */
+export const ANALYZE_NO_SIMILAR_PARAM = 'nosimilar'
+
+/**
  * 라우트 경로 단일 출처.
  *
  * <h2>비교 대상은 경로가 아니라 쿼리에 싣는다</h2>
@@ -19,7 +47,19 @@ export const REPORT_NAMES_PARAM = 'names'
  */
 export const paths = {
   intro: '/',
-  analyze: '/analyze',
+  /**
+   * 분석 화면. 인자 없이 부르면 빈 1단계다.
+   *
+   * 기준과 후보를 **주소가 들고 있다.** 예전에는 라우터 state 로만 넘겼는데, 브라우저는
+   * history state 를 새로고침 뒤에도 남겨서 다른 패키지로 바꿔 검색한 뒤 새로고침하면
+   * 처음 넘어온 패키지로 되돌아갔다(S15P21A506-435).
+   */
+  analyze: (base?: string | null, picked?: readonly string[]) => {
+    if (!base) return '/analyze'
+    const search = new URLSearchParams({ [ANALYZE_BASE_PARAM]: base })
+    if (picked?.length) search.append(ANALYZE_WITH_PARAM, picked.join(','))
+    return `/analyze?${search}`
+  },
   candidates: '/analyze/candidates',
   report: (reportId: string, names?: readonly string[]) => {
     const base = `/report/${reportId}`
@@ -28,17 +68,3 @@ export const paths = {
     return `${base}?${search}`
   },
 } as const
-
-/**
- * 03B 근거 드로어를 열어둔 채 리포트로 진입하는 링크.
- *
- * 비교 대상을 함께 받는다. 빠뜨리면 드로어는 열리는데 보고서가 비는 주소가 된다.
- */
-export function reportWithEvidence(
-  reportId: string,
-  evidenceId: string,
-  names?: readonly string[],
-) {
-  const url = paths.report(reportId, names)
-  return `${url}${url.includes('?') ? '&' : '?'}evidence=${encodeURIComponent(evidenceId)}`
-}

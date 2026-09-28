@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import com.openhtmltopdf.svgsupport.BatikSVGDrawer;
 import com.ssafy.pickage.global.exception.BusinessException;
 import com.ssafy.pickage.global.exception.ExceptionType;
 
@@ -73,6 +74,9 @@ public class HtmlToPdf {
 		try {
 			PdfRendererBuilder builder = new PdfRendererBuilder();
 			builder.useFastMode();
+
+			// 그래프는 인라인 SVG 다. 이 드로어가 없으면 <svg> 가 조용히 빈 자리로 나온다.
+			builder.useSVGDrawer(new BatikSVGDrawer());
 
 			// 파일이 아니라 스트림 공급자로 넘긴다. jar 안에서도 같은 코드가 동작한다.
 			builder.useFont(() -> open(regular), FAMILY, 400, BaseRendererBuilder.FontStyle.NORMAL, true);

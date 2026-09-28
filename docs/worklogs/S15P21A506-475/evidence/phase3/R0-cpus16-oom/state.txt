@@ -1,0 +1,4 @@
+exit=137 oom_killed=true started=2026-09-25T02:18:40.256386661Z finished=2026-09-25T02:19:13.781725274Z
+wall_sec=35 mem=2g args=--downloads-floor 0 --allow-gate-skip
+CGROUP_MEMORY_PEAK=2147483648
+BATCH_EXIT=137

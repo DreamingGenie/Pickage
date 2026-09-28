@@ -7,8 +7,6 @@
  * 난수를 쓰지 않는다. 새로고침마다 그래프가 흔들리면 화면 버그와 구분할 수 없다.
  */
 
-import { MAX_WEEKS } from '@/api/types'
-
 /** 0.5 — 모든 현재값의 기준. 실제로는 `SELECT MAX(snapshot_at) FROM snapshot`. */
 export const LATEST_SNAPSHOT = '2026-08-31'
 
@@ -22,8 +20,13 @@ export function snapshotDates(weeks: number, end = LATEST_SNAPSHOT): string[] {
   )
 }
 
-/** 전체 스냅샷 축. 조회 상한(104주)보다 넉넉히 잡아 구간 자르기가 실제로 동작하게 한다. */
-export const ALL_SNAPSHOTS = snapshotDates(MAX_WEEKS + 26)
+/**
+ * 전체 스냅샷 축.
+ *
+ * 조회 상한이 없어진 뒤에도(S15P21A506-374) 2년 반치를 유지한다 — 구간 자르기와 간격
+ * 솎아내기가 실제로 동작하는지 보려면 축이 화면보다 길어야 한다.
+ */
+export const ALL_SNAPSHOTS = snapshotDates(130)
 
 /** 결정적 흔들림. 두 주기를 겹쳐 규칙적으로 보이지 않게만 한다. */
 const wobble = (seed: number, i: number) =>
@@ -1049,4 +1052,276 @@ export function pointMetric(
   const seed = seedOf(pkg.name) + (metric === 'stars' ? 7 : 53)
   const base = latest - perWeek * weeksAgo
   return Math.max(0, Math.round(base + wobble(seed, weeksAgo) * Math.abs(perWeek) * 0.8))
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-361·391. 유지·유입·이탈 — mock 원본
+ *
+ * 값은 지어낸 것이지만 **네 가지 `data_status` 를 전부 실제로 볼 수 있게** 고른다 —
+ * mock 만 돌려서는 COMPLETE 하나만 보고 끝나기 쉬워서, 나머지 셋을 기본 비교 패키지
+ * (winston·pino·bunyan) 안에 의도적으로 흩어 둔다.
+ * ------------------------------------------------------------------ */
+
+export interface MockTransitionCounts {
+  retained: number
+  inflow: number
+  inflowNew: number
+  outflow: number
+  unobserved: number
+}
+
+export interface MockTransitionRow {
+  kind: 'regular' | 'peer' | 'optional'
+  dataStatus: 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  /** COMPLETE·NO_DATA 일 때만 채운다 — 그 밖엔 서버처럼 값이 없다(null). */
+  counts?: MockTransitionCounts
+  /**
+   * 관측불가 분해 세 값만 `null` 로 내는 행 (S15P21A506-421·431). **`data_status` 와 독립된
+   * 상태**라 `COMPLETE` 인데 셋만 없는 행이 실제로 존재한다 — 마이그레이션이 배포된 뒤
+   * 88만 행 재적재가 끝나기 전까지가 그 창이고, 스냅샷 회차마다 다시 생긴다.
+   * 화면이 그때 0 으로 그리지 않는지를 mock 만으로 확인할 수 있게 한 건 남겨 둔다.
+   */
+  freshnessMissing?: true
+}
+
+/**
+ * winston — regular 는 COMPLETE(원시 inflow 와 실제 채택 수 차이가 크게 보이도록 잡았다),
+ * peer 는 NO_DATA(진짜 0), optional 은 COMPLETE(작은 값)이되 **관측불가 분해만 없는 행**이다
+ * (`freshnessMissing`, S15P21A506-431).
+ *
+ * pino — regular 만 COMPLETE, peer·optional 은 OUT_OF_SCOPE(top-100k 밖).
+ *
+ * bunyan — 세 kind 전부 NOT_COMPUTED. bunyan 하나만 조회하면 응답 전체가 NOT_COMPUTED 뿐이라
+ * 서버 계약대로 `t1`·`t2` 키 자체가 없어지는 경우를 재현한다(다른 패키지와 같이 조회하면
+ * 그쪽에 COMPLETE 행이 있어 t1·t2 는 정상적으로 나간다).
+ */
+export const MOCK_TRANSITIONS: Record<string, MockTransitionRow[]> = {
+  winston: [
+    {
+      kind: 'regular',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 4180, inflow: 9840, inflowNew: 9240, outflow: 980, unobserved: 3120 },
+    },
+    {
+      kind: 'peer',
+      dataStatus: 'NO_DATA',
+      counts: { retained: 0, inflow: 0, inflowNew: 0, outflow: 0, unobserved: 0 },
+    },
+    {
+      kind: 'optional',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 118, inflow: 342, inflowNew: 312, outflow: 46, unobserved: 88 },
+      // 분해 셋만 없는 행 — 화면은 이 줄에서 하위 막대를 아예 그리지 않아야 한다.
+      freshnessMissing: true,
+    },
+  ],
+  pino: [
+    {
+      kind: 'regular',
+      dataStatus: 'COMPLETE',
+      counts: { retained: 2610, inflow: 5120, inflowNew: 4720, outflow: 612, unobserved: 1904 },
+    },
+    { kind: 'peer', dataStatus: 'OUT_OF_SCOPE' },
+    { kind: 'optional', dataStatus: 'OUT_OF_SCOPE' },
+  ],
+  bunyan: [
+    { kind: 'regular', dataStatus: 'NOT_COMPUTED' },
+    { kind: 'peer', dataStatus: 'NOT_COMPUTED' },
+    { kind: 'optional', dataStatus: 'NOT_COMPUTED' },
+  ],
+}
+
+/**
+ * 이탈 사유 픽스처 (S15P21A506-396·410). `MOCK_TRANSITIONS` 와 달리 **한 패키지가 한 줄**이다.
+ *
+ * 네 `data_status` 를 전부 덮는다 — 화면이 넷을 다르게 그리는지 mock 만으로 확인할 수 있게.
+ *
+ * winston — COMPLETE(큰 값).  pino — COMPLETE(작은 값).
+ * log4js — **NO_DATA(전부 0)**. 운영에서 대상의 58.5%가 이 상태라 가장 흔한 화면이다.
+ *          0 으로 그려야 하며 "분석 대상 아님" 으로 뭉개면 안 된다.
+ * morgan — OUT_OF_SCOPE(top-100k 밖).
+ * bunyan — NOT_COMPUTED. 혼자 조회하면 `t1`·`t2` 키 자체가 없어지는 경우를 재현한다.
+ *
+ * `removals` 를 적어 두지 않는 이유 — 기간 배율을 곱하면 반올림 때문에
+ * `round(no*s) + round(with*s) != round(removals*s)` 가 될 수 있다. 서버에는
+ * `no_replacement + with_replacement = removals` DB CHECK 가 걸려 있으므로,
+ * mock 도 **두 값을 스케일한 뒤 더해서** removals 를 만든다(handlers.ts).
+ */
+export interface MockRemovalReason {
+  dataStatus: 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  /** COMPLETE·NO_DATA 일 때만 있다. `dependents <= removals` 를 지켜 둔다(DB CHECK). */
+  counts?: { noReplacement: number; withReplacement: number; dependents: number }
+}
+
+export const MOCK_REMOVAL_REASONS: Record<string, MockRemovalReason> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    counts: { noReplacement: 1290, withReplacement: 550, dependents: 1622 },
+  },
+  pino: {
+    dataStatus: 'COMPLETE',
+    counts: { noReplacement: 286, withReplacement: 126, dependents: 377 },
+  },
+  log4js: {
+    dataStatus: 'NO_DATA',
+    counts: { noReplacement: 0, withReplacement: 0, dependents: 0 },
+  },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+  bunyan: { dataStatus: 'NOT_COMPUTED' },
+}
+
+/**
+ * 관측된 교체 흐름 픽스처 (S15P21A506-424).
+ *
+ * 다섯 `data_status` 를 전부 덮는다 — 화면이 다섯을 다르게 그리는지 mock 만으로 확인할 수
+ * 있게. 기본 비교 3개(winston·pino·bunyan)에 COMPLETE 둘과 NOT_COMPUTED 하나가 들어간다.
+ *
+ * **점유율 합이 100 이 아니도록 일부러 만들어 두었다.** 실측이 그렇다 — `share_pm_pct` 의
+ * 분모는 빌더가 `lift>=5` 인 쌍 전체로 잡는데 표에는 loose(`votes>=3`)만 적재되므로, 출발
+ * 패키지의 79.7%가 합 99.5% 에 못 미치고 중앙값이 25.7% 다. mock 이 100 을 채우면 화면이
+ * 정규화해도 티가 안 나서, **실제 데이터를 붙이는 날 조용히 네 배 부풀려진다.**
+ *
+ * winston — COMPLETE(5개 + 그 밖). **실제 moment 의 모양을 그대로 옮겼다** — 상위 5가
+ *           11.8%, 그 밖 9.9% → 합 21.7%, 빗금 78%. 처음에는 합을 63.8% 로 두었는데,
+ *           4층 검증(2026-09-22)에서 실제 대표 사례가 21.7~44.4% 인 것이 확인됐다.
+ *           mock 이 더 후하면 리뷰어가 화면의 진짜 모습을 못 본다.
+ * pino    — COMPLETE(2개, 접을 것 없음 → `etc` 는 null).
+ * bunyan  — NOT_COMPUTED. 그 종류의 회차를 아직 안 올렸다.
+ * log4js  — INSUFFICIENT_EVIDENCE. **쌍은 있는데 전부 근거 미달이라 `destinations` 가 비고
+ *           `etc` 에만 들어 있다.** NO_DATA 와 문구가 반대라 반드시 갈라야 한다.
+ * loglevel— NO_DATA. 자료는 있는데 이동이 관측되지 않았다.
+ * morgan  — OUT_OF_SCOPE. `available_package` 에 없다 — 기다려도 안 온다.
+ */
+export interface MockMigrationDestination {
+  name: string
+  votes: number
+  coEvents: number
+  publisherMonths: number
+  dependents: number
+  lift: number
+  sharePmPct: number
+  sharePct: number
+  /** 그 패키지를 지운 경우 중 이것을 함께 넣은 비율. 화면이 배지 옆에 그대로 적는다. */
+  aPct: number
+  evidence: 'strict' | 'recommended' | 'loose'
+  variant?: boolean
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface MockMigrationPairs {
+  dataStatus: 'COMPLETE' | 'INSUFFICIENT_EVIDENCE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+  destinations?: MockMigrationDestination[]
+  etc?: { pairs: number; sharePmPct: number; belowFilter: number }
+  /** 필터 전 관측된 쌍의 수. COMPLETE·INSUFFICIENT·NO_DATA 일 때만 값이 있다. */
+  observedPairs?: number
+}
+
+const dest = (
+  name: string,
+  votes: number,
+  publisherMonths: number,
+  sharePmPct: number,
+  /**
+   * 그 패키지를 지운 경우 중 이것을 함께 넣은 비율. **행마다 적는다.**
+   *
+   * 한때 `sharePmPct * 3.6` 으로 지어냈는데, share 가 31% 인 행에서 111.6% 가 나와
+   * 화면에 그대로 떴다. **서버는 그 값을 낼 수 없다** — DB 의
+   * `CK_MIGRATION_PAIR_PCT_RANGE` 가 0~100 을 강제하고, 실측 16,837쌍의 최댓값도
+   * 정확히 100.0 이다. mock 이 서버가 못 내는 값을 내면 화면은 실제로는 만나지 않을
+   * 상태로 개발된다.
+   */
+  aPct: number,
+  evidence: 'strict' | 'recommended' | 'loose',
+  extra: Partial<MockMigrationDestination> = {},
+): MockMigrationDestination => {
+  // 픽스처를 손으로 적다 보면 또 범위를 넘긴다. 화면이 아니라 여기서 먼저 터지게 한다.
+  for (const [key, value] of Object.entries({ sharePmPct, aPct })) {
+    if (value < 0 || value > 100) {
+      throw new Error(`mock 픽스처의 ${key} 가 0~100 밖이다: ${name} ${value}`)
+    }
+  }
+  return {
+    name,
+    votes,
+    coEvents: Math.round(votes * 1.6),
+    publisherMonths,
+    dependents: Math.round(votes * 1.2),
+    lift: Math.round(votes * 40),
+    sharePmPct,
+    sharePct: Math.min(100, sharePmPct + 2.4),
+    aPct,
+    evidence,
+    firstSeen: '2019-03-11',
+    lastSeen: '2026-07-28',
+    ...extra,
+  }
+}
+
+/** 실행용 의존 기준(deps.dev 전수, 기준일 2026-08-31). */
+export const MOCK_MIGRATION_PAIRS_REGULAR: Record<string, MockMigrationPairs> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    // 실제 moment 는 53쌍 중 26개가 기본 필터를 통과하고 그중 5개만 이름을 세운다.
+    observedPairs: 53,
+    destinations: [
+      dest('pino', 347.4, 384, 5.7, 20.8, 'strict', { variant: true }),
+      dest('bunyan', 166.5, 204, 3.0, 10.7, 'strict'),
+      dest('consola', 91.9, 98, 1.4, 5.4, 'strict', { variant: true }),
+      dest('loglevel', 64.9, 67, 1.0, 3.7, 'strict'),
+      dest('winston-daily-rotate-file', 16.7, 49, 0.7, 2.5, 'loose'),
+    ],
+    etc: { pairs: 48, sharePmPct: 9.9, belowFilter: 27 },
+  },
+  pino: {
+    dataStatus: 'COMPLETE',
+    observedPairs: 9,
+    destinations: [
+      dest('winston', 20.5, 14, 31.0, 44.0, 'recommended', { variant: true }),
+      dest('pino-pretty', 8.0, 6, 12.5, 18.0, 'loose', { variant: true }),
+    ],
+    etc: { pairs: 7, sharePmPct: 0.9, belowFilter: 7 },
+  },
+  bunyan: { dataStatus: 'NOT_COMPUTED' },
+  log4js: {
+    dataStatus: 'INSUFFICIENT_EVIDENCE',
+    observedPairs: 3,
+    etc: { pairs: 3, sharePmPct: 11.9, belowFilter: 3 },
+  },
+  loglevel: { dataStatus: 'NO_DATA', observedPairs: 0 },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+}
+
+/**
+ * 개발용 의존 기준(npm registry 상위 10만, 기준일 2026-09-16).
+ *
+ * **같은 패키지라도 도착지가 다르다.** 종류를 바꿨을 때 화면이 실제로 다른 것을 그리는지,
+ * 기준일 캡션이 함께 바뀌는지 mock 으로 확인하려는 것이다. 여기 없는 이름은
+ * `NOT_COMPUTED` 로 떨어진다 — 운영에서도 dev 회차는 아직 적재 전이다.
+ */
+export const MOCK_MIGRATION_PAIRS_DEV: Record<string, MockMigrationPairs> = {
+  winston: {
+    dataStatus: 'COMPLETE',
+    observedPairs: 4,
+    destinations: [
+      dest('pino', 12.0, 9, 18.2, 26.0, 'recommended'),
+      dest('debug', 7.5, 6, 9.4, 13.5, 'loose'),
+    ],
+    etc: { pairs: 2, sharePmPct: 5.1, belowFilter: 1 },
+  },
+  pino: { dataStatus: 'NO_DATA', observedPairs: 0 },
+  morgan: { dataStatus: 'OUT_OF_SCOPE' },
+}
+
+/** 종류마다 기준일이 다르다. 16일 차이가 화면 캡션에 그대로 드러나야 한다. */
+export const MOCK_MIGRATION_SNAPSHOT: Record<'regular' | 'dev', string> = {
+  regular: '2026-08-31',
+  dev: '2026-09-16',
+}
+
+/** 기간이 길어질수록 유지·유입·이탈 절대량이 느는 정도만 흉내낸다. 값의 의미는 안 바뀐다. */
+export const TRANSITION_PERIOD_SCALE: Record<'1y' | '3y' | '5y', number> = {
+  '1y': 0.4,
+  '3y': 1,
+  '5y': 1.6,
 }

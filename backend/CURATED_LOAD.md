@@ -24,7 +24,10 @@
 Java 21에서 `./gradlew curatedBootJar`를 실행하면
 `build/curated-loader/curated-loader.jar`가 만들어진다. 일반 API jar 출력 경로와 분리되어 있다.
 DB 스키마 migration은 기존 배포 절차로 먼저 적용한다. 이 배치는 Flyway를 자동 실행하지 않는다.
-API 배포 시 기존 Flyway 경로를 통해 V8 staging/receipt 테이블이 추가될 수 있다.
+API 배포 시 기존 Flyway 경로를 통해 V14 staging/receipt 테이블이 추가될 수 있다.
+develop의 V8과 번호가 겹쳐 운영 배포 전 V14로 변경했다. 기존 로컬 실험 DB에 V8 Curated
+마이그레이션을 적용했다면 새 마이그레이션을 그대로 실행하지 않는다. 해당 실험 DB는 보존하고
+새 검증 DB를 사용한다. 운영 DB의 Flyway 이력은 배포 전에 별도로 확인한다.
 서비스 테이블의 기존 NULL 제약은 변경하지 않는다.
 
 권한을 제한한 외부 properties 파일을 준비한다. 비밀번호가 있는 파일은 Git에 넣지 않는다.

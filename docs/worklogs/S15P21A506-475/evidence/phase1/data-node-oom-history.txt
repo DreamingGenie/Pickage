@@ -1,0 +1,17 @@
+### kernel OOM events since 09-15
+Sep 17 05:22:59 ip-172-26-8-249 kernel: python invoked oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+Sep 17 05:22:59 ip-172-26-8-249 kernel: Memory cgroup stats for /system.slice/docker-7f836233b78cd9cfd168d63e10a0bcbc3dc593c168c92e8ce0aa0fec750fce50.scope:
+Sep 17 05:22:59 ip-172-26-8-249 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-7f836233b78cd9cfd168d63e10a0bcbc3dc593c168c92e8ce0aa0fec750fce50.scope,mems_allowed=0,oom_memcg=/system.slice/docker-7f836233b78cd9cfd168d63e10a0bcbc3dc5
+Sep 17 05:22:59 ip-172-26-8-249 kernel: Memory cgroup out of memory: Killed process 3267094 (python) total-vm:3515900kB, anon-rss:2091588kB, file-rss:16760kB, shmem-rss:0kB, UID:1000 pgtables:4640kB oom_score_adj:0
+Sep 17 05:47:45 ip-172-26-8-249 kernel: python invoked oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+Sep 17 05:47:45 ip-172-26-8-249 kernel: Memory cgroup stats for /system.slice/docker-27747e6fa823f0d3e531b8c2da5971b323a362aba751ba4d8aa3cac086b1bc30.scope:
+Sep 17 05:47:45 ip-172-26-8-249 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-27747e6fa823f0d3e531b8c2da5971b323a362aba751ba4d8aa3cac086b1bc30.scope,mems_allowed=0,oom_memcg=/system.slice/docker-27747e6fa823f0d3e531b8c2da5971b323a3
+Sep 17 05:47:45 ip-172-26-8-249 kernel: Memory cgroup out of memory: Killed process 3299803 (python) total-vm:7071004kB, anon-rss:4183952kB, file-rss:17656kB, shmem-rss:0kB, UID:1000 pgtables:8940kB oom_score_adj:0
+Sep 19 13:12:18 ip-172-26-8-249 kernel: python invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0
+Sep 19 13:12:18 ip-172-26-8-249 kernel: Memory cgroup stats for /system.slice/docker-94010caf4865648c05bb44bc80b75c8a161c14f480d86cae50dbc1b89f2499a1.scope:
+Sep 19 13:12:18 ip-172-26-8-249 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-94010caf4865648c05bb44bc80b75c8a161c14f480d86cae50dbc1b89f2499a1.scope,mems_allowed=0,oom_memcg=/system.slice/docker-94010caf4865648c05bb44bc80b75c8a161c
+Sep 19 13:12:18 ip-172-26-8-249 kernel: Memory cgroup out of memory: Killed process 443798 (python) total-vm:5175776kB, anon-rss:2087224kB, file-rss:82996kB, shmem-rss:0kB, UID:1000 pgtables:4648kB oom_score_adj:0
+### journal access
+Sep 25 04:20:08 ip-172-26-8-249 kernel: br-bac9b0df18c0: port 3(vethf367a70) entered disabled state
+Sep 25 04:20:27 ip-172-26-8-249 kernel: [UFW BLOCK] IN=ens5 OUT= MAC=02:d3:40:cb:7c:0d:02:53:5b:2f:72:ba:08:00 SRC=143.198.83.214 DST=172.26.8.249 LEN=44 TOS=0x00 PREC=0x00 TTL=240 ID=13922 PROTO=TCP SPT=61000 DPT=6102 WINDOW=1025 RES=0x00 SYN URGP=0 
+### dmesg

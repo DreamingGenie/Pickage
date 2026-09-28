@@ -62,18 +62,24 @@ public record CommunitySummarySourceBundle(
         return new CommunitySummarySourceBundle(issue, Map.copyOf(refs), limited);
     }
 
-    /** 하이라이트 댓글 하나당 clip 상한(2026-09-16 4,000→2,000으로 낮춤 — 댓글 3개를 보여줘도
+    /** 하이라이트 댓글 하나당 clip 상한(2026-09-16 4,000→2,000으로 낮춤 — 댓글 4개를 보여줘도
      * 이슈당 최악 입력을 작게 묶어 두기 위해서다. 하이라이트는 원래 짧은 글이 대부분이라
      * 실질적 손실은 거의 없다). */
     private static final int HIGHLIGHT_COMMENT_CLIP = 2000;
 
+    /** 대표 발화(=GMS 에 보내는 댓글) 상한. 2026-09-20 3→4(S15P21A506-408). {@link CommunitySummaryValidator#MAX_MESSAGES}와 같다. */
+    static final int MAX_HIGHLIGHTS = CommunitySummaryValidator.MAX_MESSAGES;
+
     /**
      * "논의 전체 재구성" 대신 반응이 가장 많은 댓글 + 그에 대한 유지관리자
-     * (OWNER/MEMBER/COLLABORATOR) 답글 + (있으면) 그 답글 주변 댓글 1개까지, 최대 3개만 골라
-     * GMS에 보낸다(2026-09-16 오세진 님 결정 — Map-Reduce로도 시연에 필요한 시간·비용을 못
-     * 맞춰 방향을 바꿨다). 유지관리자 답글이 없으면 반응 2순위 댓글로 대신 채워 2개만
-     * 보여준다. 입력이 이슈 본문 + 댓글 최대 3개로 항상 작아 {@link #batches}가 사실상
-     * 필요 없어진다.
+     * (OWNER/MEMBER/COLLABORATOR) 답글 + (있으면) 그 답글 주변 댓글 1개를 먼저 고르고, 남는 자리(최대
+     * {@value #MAX_HIGHLIGHTS}개까지)는 **아직 안 고른 댓글 중 반응이 많은 순**(동률은 최신)으로 채워 GMS에 보낸다
+     * (2026-09-16 오세진 님 결정 — Map-Reduce로도 시연에 필요한 시간·비용을 못 맞춰 방향을 바꿨다. 2026-09-20 대표
+     * 발화를 최대 4개로 늘리면서 채우기를 더했다). 유지관리자 답글이 없어도 같은 채우기로 4개까지 모은다.
+     * 입력이 이슈 본문 + 댓글 최대 4개로 항상 작아 {@link #batches}가 사실상 필요 없다.
+     *
+     * <p>Bot 댓글은 후보에서 뺀다 — 요약 검증기({@link CommunitySummaryValidator})가 Bot 댓글이 발화로 나오면 요약
+     * 전체를 실패시키므로, 고르는 댓글이 늘수록 그 위험이 커지기 때문이다.
      */
     public static CommunitySummarySourceBundle highlights(CollectedIssue source) {
         var refs = new LinkedHashMap<TopicSummary.SourceRef, String>();
@@ -82,56 +88,53 @@ public record CommunitySummarySourceBundle(
             refs.put(new TopicSummary.SourceRef("ISSUE_BODY", source.sourceIssueId()), body);
 
         var comments = source.comments();
-        var topComment =
+        var candidates =
                 comments.stream()
                         .filter(c -> c.body() != null && !c.body().isBlank())
-                        .max(
-                                Comparator.comparingInt(CollectedComment::reactionCount)
-                                        .thenComparing(CollectedComment::createdAt))
-                        .orElse(null);
+                        .filter(c -> !c.isBot())
+                        .toList();
+        var byReaction =
+                Comparator.comparingInt(CollectedComment::reactionCount)
+                        .thenComparing(CollectedComment::createdAt);
+        var topComment = candidates.stream().max(byReaction).orElse(null);
 
         var selected = new ArrayList<CollectedComment>();
+        var chosen = new HashSet<String>();
         boolean limited = false;
         if (topComment != null) {
-            limited |= addHighlight(refs, selected, topComment);
+            limited |= addHighlight(refs, selected, chosen, topComment);
 
             var maintainerReply =
-                    comments.stream()
-                            .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
-                            .filter(c -> c.body() != null && !c.body().isBlank())
+                    candidates.stream()
+                            .filter(c -> !chosen.contains(c.sourceCommentId()))
                             .filter(c -> c.createdAt().isAfter(topComment.createdAt()))
                             .filter(c -> isMaintainer(c.authorAssociation()))
                             .min(Comparator.comparing(CollectedComment::createdAt))
                             .orElse(null);
 
             if (maintainerReply != null) {
-                limited |= addHighlight(refs, selected, maintainerReply);
+                limited |= addHighlight(refs, selected, chosen, maintainerReply);
 
                 // 유지관리자 답변 주변(그 이후 처음 나오는) 댓글 하나 — 사람들이 그 답변에
-                // 어떻게 반응했는지 보여주기 위해 최대 3번째로 담는다.
+                // 어떻게 반응했는지 보여주기 위해 함께 담는다.
                 var nearby =
-                        comments.stream()
-                                .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
-                                .filter(
-                                        c ->
-                                                !c.sourceCommentId()
-                                                        .equals(maintainerReply.sourceCommentId()))
-                                .filter(c -> c.body() != null && !c.body().isBlank())
+                        candidates.stream()
+                                .filter(c -> !chosen.contains(c.sourceCommentId()))
                                 .filter(c -> c.createdAt().isAfter(maintainerReply.createdAt()))
                                 .min(Comparator.comparing(CollectedComment::createdAt))
                                 .orElse(null);
-                if (nearby != null) limited |= addHighlight(refs, selected, nearby);
-            } else {
-                // 유지관리자 답글이 없으면 반응 2순위 댓글로 2개만 채운다.
-                var secondComment =
-                        comments.stream()
-                                .filter(c -> !c.sourceCommentId().equals(topComment.sourceCommentId()))
-                                .filter(c -> c.body() != null && !c.body().isBlank())
-                                .max(
-                                        Comparator.comparingInt(CollectedComment::reactionCount)
-                                                .thenComparing(CollectedComment::createdAt))
-                                .orElse(null);
-                if (secondComment != null) limited |= addHighlight(refs, selected, secondComment);
+                if (nearby != null) limited |= addHighlight(refs, selected, chosen, nearby);
+            }
+
+            // 남는 자리는 반응이 많은 순으로 채운다(유지관리자 답글이 없을 때도 같다).
+            var fillers =
+                    candidates.stream()
+                            .filter(c -> !chosen.contains(c.sourceCommentId()))
+                            .sorted(byReaction.reversed())
+                            .toList();
+            for (var c : fillers) {
+                if (selected.size() >= MAX_HIGHLIGHTS) break;
+                limited |= addHighlight(refs, selected, chosen, c);
             }
         }
         limited |= comments.size() > selected.size();
@@ -164,11 +167,13 @@ public record CommunitySummarySourceBundle(
     private static boolean addHighlight(
             Map<TopicSummary.SourceRef, String> refs,
             List<CollectedComment> selected,
+            Set<String> chosen,
             CollectedComment comment) {
         String text = clip(comment.body(), HIGHLIGHT_COMMENT_CLIP);
         boolean clipped = !text.equals(comment.body());
         refs.put(new TopicSummary.SourceRef("COMMENT", comment.sourceCommentId()), text);
         selected.add(withBody(comment, text));
+        chosen.add(comment.sourceCommentId());
         return clipped;
     }
 

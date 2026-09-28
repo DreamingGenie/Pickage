@@ -1,0 +1,231 @@
+{
+ "A": {
+  "path": "data/rehearsal475/inputs/prod_v2_candidates.parquet",
+  "rows": 275192,
+  "bases": 16402
+ },
+ "B": {
+  "path": "data/rehearsal475/runs/R0/out/result/candidates.parquet",
+  "rows": 273781,
+  "bases": 16325
+ },
+ "bases_common": 16310,
+ "bases_only_A": 92,
+ "bases_only_B": 15,
+ "top3_identical_order": 15178,
+ "top3_identical_set": 15441,
+ "top3_identical_order_pct": 93.06,
+ "top20_overlap_mean": 0.9775,
+ "bases_with_lt3_A": 939,
+ "bases_with_lt3_B": 937,
+ "probes": {
+  "ws": {
+   "A": [
+    "eiows",
+    "websocket13",
+    "pusher"
+   ],
+   "B": [
+    "eiows",
+    "websocket13",
+    "pusher"
+   ]
+  },
+  "js-yaml": {
+   "A": [
+    "@zkochan/js-yaml",
+    "read-yaml-file",
+    "yaml"
+   ],
+   "B": [
+    "@zkochan/js-yaml",
+    "read-yaml-file",
+    "yaml"
+   ]
+  },
+  "yaml": {
+   "A": [
+    "js-yaml",
+    "@zkochan/js-yaml",
+    "read-yaml-file"
+   ],
+   "B": [
+    "js-yaml",
+    "@zkochan/js-yaml",
+    "read-yaml-file"
+   ]
+  },
+  "axios": {
+   "A": [
+    "undici",
+    "@algolia/requester-node-http",
+    "@algolia/requester-browser-xhr"
+   ],
+   "B": [
+    "undici",
+    "@algolia/requester-node-http",
+    "@algolia/requester-browser-xhr"
+   ]
+  },
+  "express": {
+   "A": [
+    "restana",
+    "fastify",
+    "@tinyhttp/app"
+   ],
+   "B": [
+    "restana",
+    "fastify",
+    "@tinyhttp/app"
+   ]
+  },
+  "react": {
+   "A": [
+    "carbon-react",
+    "inferno",
+    "@mantine/core"
+   ],
+   "B": [
+    "carbon-react",
+    "inferno",
+    "@mantine/core"
+   ]
+  },
+  "lodash": {
+   "A": [
+    "flex-tools",
+    "@stdlib/utils",
+    "@contrail/types"
+   ],
+   "B": [
+    "flex-tools",
+    "@stdlib/utils",
+    "@contrail/types"
+   ]
+  },
+  "moment": {
+   "A": [],
+   "B": []
+  },
+  "webpack": {
+   "A": [
+    "@textlint/module-interop",
+    "mlly",
+    "cjs2esm"
+   ],
+   "B": [
+    "@textlint/module-interop",
+    "mlly",
+    "cjs2esm"
+   ]
+  },
+  "jest": {
+   "A": [
+    "zora",
+    "mocha",
+    "ava"
+   ],
+   "B": [
+    "zora",
+    "mocha",
+    "ava"
+   ]
+  },
+  "cheerio": {
+   "A": [
+    "htmlparser2",
+    "node-html-parser",
+    "sax-wasm"
+   ],
+   "B": [
+    "htmlparser2",
+    "node-html-parser",
+    "sax-wasm"
+   ]
+  },
+  "jsdom": {
+   "A": [
+    "@oozcitak/dom",
+    "@types/web",
+    "min-document"
+   ],
+   "B": [
+    "@oozcitak/dom",
+    "@types/web",
+    "min-document"
+   ]
+  },
+  "marked": {
+   "A": [
+    "@khanacademy/simple-markdown",
+    "node-html-markdown",
+    "cherry-markdown"
+   ],
+   "B": [
+    "@khanacademy/simple-markdown",
+    "markdown-it",
+    "node-html-markdown"
+   ]
+  },
+  "commander": {
+   "A": [
+    "node-cmd",
+    "@adonisjs/ace",
+    "argue-cli"
+   ],
+   "B": [
+    "node-cmd",
+    "@adonisjs/ace",
+    "argue-cli"
+   ]
+  },
+  "chalk": {
+   "A": [
+    "ansi-styles",
+    "yoctocolors",
+    "supports-color"
+   ],
+   "B": [
+    "ansi-styles",
+    "yoctocolors",
+    "supports-color"
+   ]
+  },
+  "uuid": {
+   "A": [
+    "short-uuid",
+    "@bugsnag/cuid",
+    "uuidv7"
+   ],
+   "B": [
+    "short-uuid",
+    "@bugsnag/cuid",
+    "uuidv7"
+   ]
+  },
+  "dotenv": {
+   "A": [
+    "envalid",
+    "shell-env",
+    "@adonisjs/env"
+   ],
+   "B": [
+    "envalid",
+    "shell-env",
+    "@adonisjs/env"
+   ]
+  },
+  "zod": {
+   "A": [
+    "schemastery",
+    "joi",
+    "decoders"
+   ],
+   "B": [
+    "schemastery",
+    "joi",
+    "decoders"
+   ]
+  }
+ }
+}

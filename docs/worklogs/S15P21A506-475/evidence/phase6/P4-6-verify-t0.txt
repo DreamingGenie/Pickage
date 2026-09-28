@@ -1,0 +1,23 @@
+== publish (사용자 실행, 06:35:30~06:36:50 UTC): loaded 203564/203564, bases 26187, unresolved 0/0, execution similar-package-modelv2-corpuspackage-text-20260908-v4-d3730956568e
+Sat, Sep 26, 2026  6:37:08 AM
+== similar ws
+{"data":{"base":"ws","model_ver":"bge-small-v7-v5clean-batch32-step500","data_status":"COMPLETE","candidates":[{"rank":1,"score":0.700041,"name":"pusher","latest_version":"5.3.4","description":"Node.js client to interact with the Pusher Channels REST API"},{"rank":2,"score":0.697485,"name":"partysocket","latest_version":"1.3.0","description":"A better WebSocket that Just Works™"},{"rank":3,"score":0.672729,"name":"rpc-websockets","latest_version":"10.0.1","description":"JSON-RPC 2.0 implementa
+== similar zod
+{"data":{"base":"zod","model_ver":"bge-small-v7-v5clean-batch32-step500","data_status":"COMPLETE","candidates":[{"rank":1,"score":0.821591,"name":"joi","latest_version":"18.2.5","description":"Object schema validation"},{"rank":2,"score":0.760455,"name":"@redocly/ajv","latest_version":"8.18.3","description":"Another JSON Schema Validator"},{"rank":3,"score":0.760455,"name":"ajv","latest_version":"8.20.0","description":"Another JSON Schema Validator"}],"not_found":[]},"success":true}  [200 0.0433
+== similar ajv
+{"data":{"base":"ajv","model_ver":"bge-small-v7-v5clean-batch32-step500","data_status":"COMPLETE","candidates":[{"rank":1,"score":1.0,"name":"@redocly/ajv","latest_version":"8.18.3","description":"Another JSON Schema Validator"},{"rank":2,"score":0.926707,"name":"json-schema-library","latest_version":"11.6.2","description":"Customizable and hackable json-validator and json-schema utilities for traversal, data generation and validation"},{"rank":3,"score":0.924222,"name":"@hyperjump/json-schema",
+== similar express
+{"data":{"base":"express","model_ver":"bge-small-v7-v5clean-batch32-step500","data_status":"COMPLETE","candidates":[{"rank":1,"score":0.764205,"name":"fastify","latest_version":"5.12.1","description":"Fast and low overhead web framework, for Node.js"},{"rank":2,"score":0.753342,"name":"@tinyhttp/app","latest_version":"3.0.11","description":"0-legacy, tiny & fast web framework as a replacement of Express"},{"rank":3,"score":0.749336,"name":"@hapi/hapi","latest_version":"21.4.10","description":"HT
+== similar dify-client
+{"data":{"base":"dify-client","data_status":"NO_DATA","candidates":[],"not_found":[]},"success":true}  [200 0.024573s]
+== search websocket
+{"data":{"query":"websocket","items":["websocket","websocket-driver","websocket-extensions"]},"success":true} [200]
+== health
+{"groups":["liveness","readiness"],"status":"UP"} [200]
+published|similar-package-modelv2-corpuspackage-text-20260908-v4-d3730956568e
+== api errors since 06:35
+0
+app available MiB 12411
+package_id,similar_package_id,rank,score,model_ver
+similar_package rows|bases|203564|26187
+outside available|0

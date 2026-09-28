@@ -1,0 +1,50 @@
+{
+  "model_ver": "bge-small-v7-v5clean-batch32-step500",
+  "input_package_text": "/work/in/package_text.parquet",
+  "input_rows_qualified": 17807,
+  "params": {
+    "min_dependents": 5,
+    "max_rank": 100000,
+    "max_age_months": 12,
+    "retrieve_k": 30,
+    "user_k": 20,
+    "gate": true,
+    "gate_drops": {
+      "plugin_adapter": 58166,
+      "same_family": 119651,
+      "repo_archived": 1538,
+      "complement": 5136
+    },
+    "dependents": "/work/in/package_dependents.parquet",
+    "dependents_coverage": {
+      "pool": 17807,
+      "with_dependents": 17807,
+      "ratio": 1.0
+    },
+    "downloads_floor": 500000,
+    "downloads_floor_tiers": [
+      500000,
+      100000,
+      50000,
+      10000,
+      0
+    ],
+    "downloads_floor_tiers_used": {
+      "500000": 14008,
+      "100000": 895,
+      "50000": 165,
+      "10000": 292,
+      "0": 956
+    },
+    "raw_text_column": null
+  },
+  "elapsed_sec": 1199.2,
+  "created_at": "2026-09-25T03:02:31",
+  "candidate_rows": 173782,
+  "base_packages": 16316,
+  "scoring_gate": {
+    "status": "SKIPPED",
+    "reason": "51K holdout undefined (S15P21A506-169)",
+    "measured_candidate_rows": 173782
+  }
+}

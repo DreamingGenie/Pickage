@@ -1,0 +1,164 @@
+# Pickage 모니터링 — `data` 노드 (j15a506**a**) · **child**
+#
+#   cd ~/S15P21A506/deploy/prod/monitoring/data
+#   docker compose up -d
+#
+# 계획과 단계별 확인 명령: ../README.md
+#
+# ⚠ 호스트명이 `app` 노드와 한 글자 차이다. 붙기 전에 `hostname` 을 볼 것.
+#   여기는 minio · mlflow · spark master·worker① 이 도는 노드다.
+
+# ⚠ 운영 스택(pickage-data)과 **다른 프로젝트 이름**이다. 같은 이름이면
+#   `docker compose down` 한 번에 MinIO 까지 같이 내려간다 — 수집 원본이 그 안에 있다.
+name: pickage-monitoring-data
+
+services:
+  netdata:
+    # `app` 과 **같은 버전을 쓴다.** 스트리밍 프로토콜은 버전이 벌어지면 붙지 않을 수 있고,
+    # 무엇보다 두 노드의 차트가 달라지면 한 화면에 놓고 비교하는 의미가 없어진다.
+    image: netdata/netdata:v2.10.1@sha256:7f62a1bee44692aa31fc50c81fdb319836227e5fca2fdbcc7cbe65ce356eb17e
+    restart: unless-stopped
+
+    hostname: j15a506a-data
+
+    # host 네트워크인 이유는 ../app/compose.yaml 과 같다.
+    # 이 노드에는 spark-master·spark-worker-1 도 host 모드로 떠 있다 —
+    # 포트는 안 겹친다(7077 · 8080 · 8081 · 40001-40014 vs 19999).
+    network_mode: host
+    pid: host
+
+    cap_add:
+      - SYS_PTRACE
+
+    # ⚠ **배치 상태(6절)를 보려면 이것이 필요하다.** 없으면 systemd 유닛이 하나도 안 보인다.
+    #
+    #   이 노드에 pickage-weekly.timer 가 있고, netdata 가 그 상태를 읽으려면
+    #   /run/dbus/system_bus_socket 으로 시스템 버스에 붙어야 한다. 소켓은 마운트돼
+    #   있고 권한도 srw-rw-rw- 인데(확인함), **AppArmor 의 docker-default 프로파일이
+    #   그 연결을 끊는다**:
+    #
+    #     SYSTEMD DBUS: Failed to add signal match for shutdown:
+    #                   Transport endpoint is not connected
+    #
+    #   2026-09-18 서버에서 이 줄만 넣었다 빼며 확인했다 — 넣으면
+    #   systemd.service_unit_state 가 나오고, 빼면 사라진다. 이 호스트는 AppArmor 가
+    #   enforce 모드로 29개 프로파일을 돌리고 있다.
+    #
+    # ⚠ **공짜가 아니다.** docker-default 프로파일이 주던 추가 구속이 사라진다.
+    #   이 컨테이너는 이미 pid: host · SYS_PTRACE · docker.sock · / 읽기 마운트를 갖고
+    #   있어서 AppArmor 가 막아 주던 여지가 크지는 않지만, 넓어지는 것은 맞다.
+    #
+    #   더 좁히려면 docker-default 에 dbus 접근만 더한 **커스텀 프로파일**을 두 호스트에
+    #   설치하는 방법이 있다. 프로파일이 없으면 컨테이너가 아예 안 뜨므로 관리 대상이
+    #   하나 느는데, 3주 프로젝트에서 그 값을 치를 이유가 없다고 봤다.
+    #
+    # ⚠ **`app` 노드에는 넣지 않았다.** 거기엔 pickage 유닛이 없고, 그 노드는
+    #   인터넷에 노출된 유일한 노드라 더 좁게 둔다. 대신 `app` 의 systemd 유닛
+    #   (docker.service 등)은 모니터링되지 않는다 — 필요해지면 그때 같은 줄을 넣는다.
+    security_opt:
+      - apparmor:unconfined
+
+    environment:
+      DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      # 없으면 컨테이너 이름이 안 보인다. ../app/.env.example 의 설명 참고.
+      PGID: ${DOCKER_GID:?.env 를 만들고 DOCKER_GID 를 채울 것 (cp .env.example .env)}
+
+    volumes:
+      - ./netdata.conf:/etc/netdata/netdata.conf:ro
+      # ⚠ child 쪽 stream.conf 는 **없으면 스트리밍이 그냥 안 된다.** 컨테이너는
+      #   멀쩡히 뜨고 자기 대시보드도 나오는데 parent 화면에 이 노드만 안 나타난다.
+      - ./stream.conf:/etc/netdata/stream.conf:ro
+      # 배치 타이머를 보려면 필요하다. 없으면 수집기가 *.service 만 읽어서
+      # **"타이머가 꺼져 있다" 를 영영 못 잡는다** — 그 파일의 주석을 볼 것.
+      - ./systemdunits.conf:/etc/netdata/go.d/systemdunits.conf:ro
+
+      # ⚠ netdatalib 볼륨은 ram 모드에서도 둔다. 메트릭 DB 말고도 이 노드의
+      #   machine GUID 가 여기 산다 — 지우면 parent 가 **다른 노드로 인식해서**
+      #   같은 서버가 이력 없는 새 노드로 한 번 더 생긴다.
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+
+      - /:/host/root:ro,rslave
+      # ⚠ **같은 `/` 를 한 번 더 붙인다. 빼면 컨테이너별 메트릭이 통째로 안 나온다.**
+      #   이 노드에서는 minio·mlflow·spark 가 통째로 안 보인다는 뜻이다.
+      #   이유와 판정 명령은 ../app/compose.yaml 의 같은 줄 주석에 있다.
+      - /:/host/parent-distro:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/log:/host/var/log:ro
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /run/dbus:/run/dbus:ro
+
+    # ⚠ 짝으로 둔다 (../../README.md 의 "Swap").
+    #
+    #   `app` 보다 작게 잡는 근거: 이 노드는 child 라 dbengine 을 안 돌린다(ram 모드).
+    #   그리고 **배치 시각에 이 노드가 가장 빠듯하다** — Spark 셋 12g + ai-similarity 2g
+    #   ≈ 14g / 15Gi (../data/README.md). 모니터링이 그 계산을 흔들면 안 된다.
+    mem_limit: 256m
+    memswap_limit: 256m
+
+  # ── 파이프라인 모니터 — "데이터가 어디까지 왔나" 의 재료 ─────────────
+  #
+  # netdata 는 자원만 본다. 이것은 그 다음 질문에 **물을 때 그 자리에서** 답하는 HTTP 서버다 —
+  # 주간 회차가 어디까지 갔나(_ops/weekly), MinIO 어느 경로에 무엇이 새로 생겼나,
+  # /srv/pickage/ingest-work 에 무엇이 쌓였나, 파이프라인 컨테이너의 로그 꼬리는 어떤가.
+  # 무엇을 보는지는 ./pipeline-monitor.yaml, 코드와 API 는 pipeline/monitor/README.md.
+  #
+  # 사람은 app 노드의 같은 서버(19998)에 터널을 열고, 그 서버가 이 노드의 것을 사설망으로
+  # 받아 중계한다. 그래서 이 노드는 사설 IP 에도 듣고, 문은 호스트 방화벽 한 줄이다 —
+  # netdata 스트리밍(Phase 4)과 같은 모양, 방향만 반대다 (../README.md 11.3).
+  pipeline-monitor:
+    # 코드는 이미지에 없다. ../../data/compose.yaml 의 ingest-weekly 와 같은 이유로
+    # 저장소의 pipeline/ 을 마운트한다 — 이 노드에는 레지스트리가 없어 고칠 때마다 굽게 된다.
+    # 이미지는 런타임(python + boto3)뿐이라 의존성이 바뀔 때만 다시 굽는다:
+    #   docker compose build pipeline-monitor
+    image: pickage-pipeline-monitor:runtime
+    build:
+      context: ../../../../pipeline/monitor
+    restart: unless-stopped
+
+    # host 네트워크인 이유 둘. (1) MinIO 를 127.0.0.1:9000 으로 붙는다 — 이 스택은 운영
+    # 스택(pickage-data)과 compose 네트워크가 달라 서비스 이름(minio)이 안 풀린다.
+    # (2) `ports:` 없이 듣는 주소를 설정이 혼자 정한다 — pipeline-monitor.yaml 의 listen
+    # (127.0.0.1 과 사설 IP 172.26.8.249 의 19998). 0.0.0.0 을 적지 않는다.
+    #   확인:  ss -ltn | grep 19998   → 두 줄. 0.0.0.0 이 나오면 즉시 되돌린다
+    network_mode: host
+    # 보고서의 hostname 에 찍힌다. netdata 와 같은 이름을 쓴다.
+    hostname: j15a506a-data
+
+    environment:
+      MONITOR_CONFIG: /etc/pipeline-monitor.yaml
+      # 전용 계정 pickage-monitor (pipeline/minio/policies/monitor.json). 루트 키를 넣지 말 것.
+      PICKAGE_S3_ENDPOINT: ${MONITOR_S3_ENDPOINT:?.env 에 MONITOR_S3_ENDPOINT 를 채울 것}
+      PICKAGE_S3_ACCESS_KEY: ${MONITOR_S3_ACCESS_KEY:?.env 에 MONITOR_S3_ACCESS_KEY 를 채울 것 (../../data/README.md "파이프라인 모니터에 줄 계정")}
+      PICKAGE_S3_SECRET_KEY: ${MONITOR_S3_SECRET_KEY:?.env 에 MONITOR_S3_SECRET_KEY 를 채울 것}
+
+    # uid 1000 으로 돌면서 docker 소켓을 읽으려면 호스트 docker 그룹이어야 한다.
+    # netdata 의 PGID 와 같은 값이다. 틀리면 보고서의 docker 절에 "Permission denied" 가 남는다.
+    group_add:
+      - "${DOCKER_GID:?.env 를 만들고 DOCKER_GID 를 채울 것}"
+
+    volumes:
+      - ../../../../pipeline:/opt/work/pipeline:ro
+      - ./pipeline-monitor.yaml:/etc/pipeline-monitor.yaml:ro
+      # 주간 수집 산출물·단계 로그. 읽기만 한다.
+      - /srv/pickage/ingest-work:/host/srv/pickage/ingest-work:ro
+      # ⚠ GET 만 부른다 (pipeline/monitor/dockerapi.py). 소켓의 의미는 위 netdata 의 같은 줄.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+
+    # 버킷 전체 목록을 메모리에 들고 집계한다 — pipeline-monitor.yaml 의 max_objects(15만) 와 **짝**이다.
+    # 2026-09-22 실측: 객체당 262 B, 15만 개 피크 40 MiB. 유휴 50 + 이벤트 버퍼 24 + 목록 40 + 결과 10 = 124,
+    # ×1.3 ≈ 165 MiB. 스왑 0 이라 상한을 넘기면 truncated 가 켜질 기회 없이 OOM Kill 이므로 여유(90 MiB)를 둔다.
+    # max_objects 를 올리면 +10만마다 +26 MiB 로 여기도 올린다. 배치 시각 계산(위 netdata 주석)에 이 값을 더한다.
+    mem_limit: 256m
+    memswap_limit: 256m
+
+volumes:
+  netdatalib:
+  netdatacache:

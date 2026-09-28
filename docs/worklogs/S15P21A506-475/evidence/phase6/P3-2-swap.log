@@ -1,0 +1,47 @@
+Timing is on.
+BEGIN
+Time: 0.184 ms
+SET
+Time: 0.225 ms
+SET
+Time: 0.074 ms
+SELECT 1
+Time: 24.300 ms
+Time: 0.464 ms
+SELECT 98776
+Time: 2306.338 ms (00:02.306)
+SELECT 90833
+Time: 63685.269 ms (01:03.685)
+ALTER TABLE
+Time: 225.706 ms
+SELECT 1
+Time: 493.182 ms
+### 계산 결과
+ latest_snapshot | old_rows | with_version_snapshot | new_rows | dropped_no_downloads | kept  | removed | added 
+-----------------+----------+-----------------------+----------+----------------------+-------+---------+-------
+ 2026-08-31      |    97743 |                 98776 |    90833 |                 7943 | 71131 |   26612 | 19702
+(1 row)
+
+Time: 0.441 ms
+SELECT 1
+Time: 7.783 ms
+DO
+Time: 14.272 ms
+SELECT 97743
+Time: 117.239 ms
+LOCK TABLE
+Time: 0.215 ms
+DELETE 97743
+Time: 107.853 ms
+INSERT 0 90833
+Time: 5425.000 ms (00:05.425)
+### 교체 후
+ available_rows | backup_rows 
+----------------+-------------
+          90833 |       97743
+(1 row)
+
+Time: 35.507 ms
+COMMIT
+Time: 21.197 ms
+교체 완료 — COMMIT

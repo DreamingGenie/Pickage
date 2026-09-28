@@ -1,0 +1,4 @@
+exit=0 oom_killed=false started=2026-09-25T03:34:17.828754866Z finished=2026-09-25T04:04:15.843847087Z
+wall_sec=1800 mem=8g args=--allow-gate-skip
+CGROUP_MEMORY_PEAK=5841354752
+BATCH_EXIT=0

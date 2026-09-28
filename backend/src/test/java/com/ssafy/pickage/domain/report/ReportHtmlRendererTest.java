@@ -14,8 +14,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.packages.dto.RemovalReasonsResponse;
+import com.ssafy.pickage.domain.packages.dto.TransitionsResponse;
 import com.ssafy.pickage.domain.packages.dto.TrendResponse;
 import com.ssafy.pickage.domain.packages.dto.VersionShareResponse;
+import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 
 /**
  * HTML 렌더러.
@@ -51,8 +54,12 @@ class ReportHtmlRendererTest {
 				List.of(new VersionShareResponse.Slice("5", 900L, new BigDecimal("100.0"))))),
 			List.of());
 
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5, 2, 1, 2)),
+			List.of());
+
 		return new ReportHtmlRenderer.Sources(List.of("express"), DAY.minusWeeks(4), DAY,
-			overview, downloads, dependents, share, Set.of());
+			overview, downloads, dependents, share, transitions, Set.of());
 	}
 
 	/** XML 로 파싱되면 변환기도 읽을 수 있다. */
@@ -82,6 +89,16 @@ class ReportHtmlRendererTest {
 	 * {@code &} 하나에 XML 파싱이 깨져 PDF 변환이 실패한다.
 	 */
 	@Test
+	@DisplayName("의존 수 제목은 화면과 같은 한국어 용어다 (영어 Dependents 를 쓰지 않는다)")
+	void usesTheScreensKoreanTermForDependents() {
+		String html = new ReportHtmlRenderer().render(
+			sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of())));
+
+		assertTrue(html.contains("의존 수"));
+		assertFalse(html.contains("Dependents"), "PDF 제목이 화면과 다른 영어 용어로 돌아갔다");
+	}
+
+	@Test
 	@DisplayName("남의 문자열이 태그로 해석되지 않는다")
 	void escapesForeignText() {
 		String nasty = "<script>alert(1)</script> & \"quoted\" 'single'";
@@ -98,7 +115,7 @@ class ReportHtmlRendererTest {
 		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
 		var withSections = new ReportHtmlRenderer.Sources(
 			base.names(), base.from(), base.to(), base.overview(),
-			base.downloads(), base.dependents(), base.versionShare(),
+			base.downloads(), base.dependents(), base.versionShare(), base.transitions(),
 			Set.of(ReportSection.COMMUNITY, ReportSection.FEATURES));
 
 		String html = new ReportHtmlRenderer().render(withSections);
@@ -107,6 +124,61 @@ class ReportHtmlRendererTest {
 		assertTrue(html.contains("커뮤니티 분석"));
 		assertTrue(html.contains("기능 심화 분석"));
 		assertTrue(html.contains("아직 제공되지 않습니다"));
+	}
+
+	private static FeatureComparisonPayload featuresPayload() {
+		return new FeatureComparisonPayload(
+			List.of(new FeatureComparisonPayload.PackageRef("winston", "3.19.0"),
+				new FeatureComparisonPayload.PackageRef("pino", "10.3.1")),
+			"두 패키지 모두 구조화 로깅을 지원합니다.",
+			List.of(new FeatureComparisonPayload.Difference("winston", "3.19.0", "winston 은 전송 방식을 여러 개 붙여요."),
+				new FeatureComparisonPayload.Difference("pino", "10.3.1", "pino 는 빠른 JSON 출력에 집중해요.")),
+			false);
+	}
+
+	/**
+	 * 세션이 판정 payload 를 실어 보내면 "아직 제공되지 않습니다" 대신 실제 내용이 실린다
+	 * (S15P21A506-463). 라벨은 화면과 같은 한글이어야 한다(구상안 §7.2).
+	 */
+	@Test
+	@DisplayName("기능 비교 payload 를 실으면 공통점·차이점이 채워진다")
+	void rendersFeatureComparisonWhenPayloadPresent() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("winston", "desc")), List.of()));
+		var withFeatures = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(), base.downloads(), base.dependents(),
+			base.versionShare(), base.transitions(), base.removalReasons(), Set.of(ReportSection.FEATURES), null,
+			featuresPayload());
+
+		String html = new ReportHtmlRenderer().render(withFeatures);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("기능 심화 분석"));
+		assertFalse(html.contains("아직 제공되지 않습니다"), "payload 가 있는데도 자리표시만 그렸다");
+		assertTrue(html.contains(">공통점<"));
+		assertTrue(html.contains("두 패키지 모두 구조화 로깅을 지원합니다"));
+		assertTrue(html.contains(">차이점<"));
+		assertTrue(html.contains("winston 은 전송 방식을 여러 개 붙여요."));
+		assertTrue(html.contains("pino 는 빠른 JSON 출력에 집중해요."));
+		assertFalse(html.contains("<table><thead><tr><th>기능</th>"), "판정표가 남아 있다");
+	}
+
+	/** 문서 순서는 생태계 → 기능 비교 → 커뮤니티다 — 화면 탭 순서와 같다(S15P21A506-463). */
+	@Test
+	@DisplayName("기능 비교가 커뮤니티보다 먼저 나온다")
+	void featuresComeBeforeCommunity() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("winston", "desc")), List.of()));
+		var withBoth = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(), base.downloads(), base.dependents(),
+			base.versionShare(), base.transitions(), base.removalReasons(),
+			Set.of(ReportSection.FEATURES, ReportSection.COMMUNITY), null, featuresPayload());
+
+		String html = new ReportHtmlRenderer().render(withBoth);
+
+		assertWellFormed(html);
+		int featuresAt = html.indexOf("기능 심화 분석");
+		int communityAt = html.indexOf("커뮤니티 분석");
+		assertTrue(featuresAt >= 0 && communityAt >= 0 && featuresAt < communityAt,
+			"기능 심화 분석이 커뮤니티 분석보다 뒤에 나왔다");
 	}
 
 	/**
@@ -124,14 +196,134 @@ class ReportHtmlRendererTest {
 			List.of(new TrendResponse.Series("consola", null, List.of())), List.of());
 		var emptyShare = VersionShareResponse.of(null,
 			List.of(new VersionShareResponse.Item("consola", List.of())), List.of());
+		var unknownTransitions = TransitionsResponse.of("3y", null, null,
+			List.of(TransitionsResponse.Series.unknown("consola", "regular",
+				TransitionsResponse.NOT_COMPUTED)),
+			List.of("nope-pkg"));
 
 		String html = new ReportHtmlRenderer().render(new ReportHtmlRenderer.Sources(
-			List.of("consola"), null, null, overview, emptyTrend, emptyTrend, emptyShare, Set.of()));
+			List.of("consola"), null, null, overview, emptyTrend, emptyTrend, emptyShare,
+			unknownTransitions, Set.of()));
 
 		assertWellFormed(html);
 		assertTrue(html.contains("집계 대기"), "null 지표를 0 처럼 비워 두었다");
 		assertTrue(html.contains("자료 없음"));
 		assertTrue(html.contains("nope-pkg"), "못 찾은 이름이 문서에 없다");
+		assertTrue(html.contains("준비 중"), "NOT_COMPUTED 를 0 처럼 비워 두었다");
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 유지·유입·이탈 (S15P21A506-394)
+	 * ------------------------------------------------------------------ */
+
+	@Test
+	@DisplayName("유입은 원시 inflow 가 아니라 inflow_adopted 를 메인으로 쓴다")
+	void transitionsUseAdoptedInflow() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		// inflow=150, inflowNew=120 → inflowAdopted=30. 표에는 150 이 아니라 30 이 메인으로 보여야 한다.
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.counted("express", "regular", 100, 150, 120, 10, 5, 2, 1, 2)),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(),
+			base.downloads(), base.dependents(), base.versionShare(), transitions, Set.of());
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("유지 · 유입 · 이탈"));
+		assertTrue(html.contains(">30<"), "메인 유입 칸에 inflow_adopted(30) 이 없다");
+		assertTrue(html.contains("원시 유입 150"), "원시 유입을 보조 설명으로 적지 않았다");
+	}
+
+	/**
+	 * {@code OUT_OF_SCOPE} 를 0 으로 그리면 "아무도 안 쓴다" 는 거짓말이 된다 — 화면과 같은
+	 * 규칙으로 {@code —} 와 사유 문구가 함께 있어야 한다.
+	 */
+	@Test
+	@DisplayName("OUT_OF_SCOPE 는 0 이 아니라 대시와 사유로 적힌다")
+	void transitionsMarkOutOfScope() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		var transitions = TransitionsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(TransitionsResponse.Series.unknown("express", "regular",
+				TransitionsResponse.OUT_OF_SCOPE)),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(),
+			base.downloads(), base.dependents(), base.versionShare(), transitions, Set.of());
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("분석 대상 아님"));
+		// 네 범주(유지·유입·이탈·릴리스 없음) 전부 "—" 여야 한다 — 0 으로 그리면 거짓말이 된다.
+		assertEquals(4, html.split("<td class=\"n\">—</td>", -1).length - 1,
+			"OUT_OF_SCOPE 인 네 칸이 전부 — 로 그려지지 않았다");
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * 이탈 사유 (S15P21A506-396·410)
+	 * ------------------------------------------------------------------ */
+
+	@Test
+	@DisplayName("이탈 사유는 전이 건수와 대체 없이/함께 제거 비율을 함께 적는다")
+	void removalReasonsRendersCountsAndPercent() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		var removalReasons = RemovalReasonsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(RemovalReasonsResponse.Series.counted("express", 1840, 1290, 550, 1622)),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(), base.downloads(), base.dependents(),
+			base.versionShare(), base.transitions(), removalReasons, Set.of(), null, null);
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("이탈 사유"));
+		assertTrue(html.contains(">1,840<"), "이탈 전이 수가 없다");
+		assertTrue(html.contains(">1,290<") && html.contains(">550<"), "대체 없이/함께 제거 수가 없다");
+		assertTrue(html.contains("대체 없이 제거 70% · 다른 패키지로 대체 30%"),
+			"각자 반올림해 합이 100 이 아닌 비율이 나왔거나 비율 자체가 없다");
+	}
+
+	/**
+	 * 운영 대상의 58.5%가 {@code NO_DATA} 다. {@code OUT_OF_SCOPE} 처럼 "분석 대상 아님" 으로
+	 * 적으면 대부분의 패키지에 잘못된 문구가 붙는다 — 실제 값 0 으로, 좋은 소식으로 적어야 한다.
+	 */
+	@Test
+	@DisplayName("이탈 사유의 NO_DATA 는 OUT_OF_SCOPE 처럼 적지 않고 실제 값 0 으로 적는다")
+	void removalReasonsNoDataIsZeroNotOutOfScope() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		var removalReasons = RemovalReasonsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(RemovalReasonsResponse.Series.none("express")),
+			List.of());
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(), base.downloads(), base.dependents(),
+			base.versionShare(), base.transitions(), removalReasons, Set.of(), null, null);
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("이 기간에 뺀 프로젝트가 없습니다"));
+		assertFalse(html.contains("분석 대상 아님"), "NO_DATA 를 OUT_OF_SCOPE 문구로 적었다");
+	}
+
+	@Test
+	@DisplayName("이탈 사유의 OUT_OF_SCOPE 는 0 이 아니라 대시와 사유로 적힌다")
+	void removalReasonsMarkOutOfScope() {
+		var base = sources(new PackagesOverviewResponse(DAY, List.of(item("express", "desc")), List.of()));
+		var removalReasons = RemovalReasonsResponse.of("3y", DAY.minusYears(3), DAY,
+			List.of(RemovalReasonsResponse.Series.unknown("express", RemovalReasonsResponse.OUT_OF_SCOPE)),
+			List.of("gone-pkg"));
+		var sources = new ReportHtmlRenderer.Sources(
+			base.names(), base.from(), base.to(), base.overview(), base.downloads(), base.dependents(),
+			base.versionShare(), base.transitions(), removalReasons, Set.of(), null, null);
+
+		String html = new ReportHtmlRenderer().render(sources);
+
+		assertWellFormed(html);
+		assertTrue(html.contains("분석 대상 아님"));
+		assertTrue(html.contains("gone-pkg"), "못 찾은 이름이 문서에 없다");
 	}
 
 	@Test

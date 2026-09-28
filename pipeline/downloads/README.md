@@ -46,7 +46,10 @@ blob은 `d9562f12af10e62eac98e81f604c9635522ba56a`다.
 ## 실행
 
 프로젝트 루트에서 기존 `.venv-bq` 환경의 DuckDB·boto3를 사용한다.
-입력 검증은 메모리 기반 DuckDB(4GB, 4스레드)로 수행한다.
+입력 검증은 메모리 기반 DuckDB(기본 4GB, 4스레드)로 수행한다. 상위 10만(일별 7천만 행) 기준값이라
+확장 46.9만(3.3억 행)은 OOM 으로 죽는다. 그때는 `PICKAGE_DOWNLOADS_DUCKDB_MEMORY`(예 `24GB`),
+`PICKAGE_DOWNLOADS_DUCKDB_THREADS`, `PICKAGE_DOWNLOADS_DUCKDB_TEMP`(넘치는 중간 결과를 흘릴 디렉터리)로 올린다.
+값을 주지 않으면 이전과 같다. 이 파일들은 `contract_sha256` 에 들어가므로 바뀐 코드로 만든 Bronze run 은 새 run ID 를 쓴다.
 실제 입고는 기존 `pipeline/minio/ingest_raw.py`의 클라이언트를 통해
 `http://localhost:9000`과 로컬 `pipeline/minio/.env`의 인증 설정을 사용한다.
 인증 값을 명령행이나 실행 보고서에 적지 않는다.

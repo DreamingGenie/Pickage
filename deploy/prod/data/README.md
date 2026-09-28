@@ -581,7 +581,7 @@ sh run-similarity-batch.sh
 [1/5] 코퍼스 확정
   run_id=package-text-20260908-v1  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v1
 [2/5] 모델 확정
-  v7  pickage-mlflow-artifacts/onnx_bge_v7
+  v7  pickage-mlflow-artifacts/v7
 [3/5] 중복 확인  model=v7/corpus=package-text-20260908-v1
 [4/5] 스테이징
 [5/5] 배치
@@ -599,7 +599,7 @@ sh run-similarity-batch.sh
 | 1 | (스크립트) | `_current.json` → `run_path`(코퍼스)·`run_id`(산출물 이름) 확정 |
 | 2 | (스크립트) | MLflow `@production` → 모델 `s3://` 경로 확정 |
 | 3 | (스크립트) | 산출물 경로에 `_SUCCESS` 가 있으면 **여기서 끝** |
-| 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown` |
+| 4 | `ai-stage` | MinIO → `/work/in/`, `uid 1000` 으로 `chown`. 코퍼스·모델에 더해 `.env` 의 `AI_DEPENDENTS_PATH` 가 있으면 dependents 를 `/work/in/package_dependents.parquet` 으로 받는다(보완재 관문 입력, S15P21A506-173). 비어 있거나 못 받으면 경고만 하고 배치는 그 관문만 건너뛴다 |
 | 5 | `ai-similarity` | 배치. `/work/out/model=vN/corpus=<run>/` 에 쓴다 |
 | — | `ai-collect` | `/work/out` → MinIO, `_SUCCESS` 게시 |
 
@@ -613,7 +613,7 @@ sh run-similarity-batch.sh
 | 옵션 | 무엇 |
 | --- | --- |
 | `--state` | 이전 회차의 `text_hash_state.parquet`. 주면 **바뀐 것만 재임베딩**한다 |
-| `--batch-size` · `--query-block` | 메모리를 지배한다. **OOM 이 나면 상한보다 이 둘을 먼저 줄인다** |
+| `--batch-size` · `--query-block` | 임베딩·검색 구간 메모리를 따른다. 상한(8g)에서 OOM 이 나면 상한을 더 올리기 전에 `--batch-size` 를 줄여 본다 |
 | `--no-gate` | 구조적 관문을 끈다. 게이트 때문에 후보가 비는지 가릴 때만 |
 
 스크립트가 넘기는 인자를 바꾸려면 `run-similarity-batch.sh` 의 5단계를 고친다.
@@ -638,11 +638,21 @@ docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_RO
 이 잡이 도는 시각이 이 노드가 가장 빠듯한 시각이다.
 
 ```
-Spark 셋 12g + ai-similarity 2g ≈ 14g / 15Gi
+Spark 셋 12g + ai-similarity 8g ≈ 20g > 15Gi   ← 상한 합계. 둘이 동시에 차면 커널이 아무거나 죽인다
 ```
 
-`mem_limit` 을 올리려면 worker① 의 `SPARK_WORKER_MEMORY` 를 먼저 내려야 한다.
-상한만 올리면 배치 때 커널이 아무거나 하나 죽인다 — 위 "메모리가 터졌을 때".
+`ai-similarity` 는 **8g** 다(S15P21A506-384). 2g 로는 한 번도 완주하지 못했다 — 커널 기록에
+09-17 05:22(2g)·05:47(4g)·09-19 13:12(2g) OOM 이 남아 있고, 성공한 회차는 상한을 손으로 올려
+다시 돌린 것이다. Spark worker① 상한(10g)은 내리지 않았다. Spark 는 09-09 스모크 이후 이 노드에서
+돈 적이 없어서, 상한을 깎는 대신 **배치 직전에 아래를 확인하고 하나라도 아니면 돌리지 않는다.**
+
+```bash
+curl -fsS -m 5 http://172.26.8.249:8080/json/ | python3 -c "import sys,json;print('activeapps',len(json.load(sys.stdin)['activeapps']))"   # 0
+systemctl is-active pickage-weekly.service                                  # inactive
+free -g | awk '/Mem/{print $7" GiB available"}'                             # 10 이상
+```
+
+Spark master UI 는 사설 IP 로만 열린다(`127.0.0.1:8080` 은 연결 거부).
 
 ### `up -d --profile batch` 로 띄우지 말 것
 
@@ -770,6 +780,12 @@ systemctl list-timers pickage-weekly.timer
 ```
 
 ### 지금 어디까지 왔나
+
+**서버에 안 들어가고 보려면** 모니터링 터널을 열고 `http://127.0.0.1:19998/`
+([`../monitoring/README.md`](../monitoring/README.md) 11절). 회차 상태·단계·coverage 와
+MinIO 에 새로 생긴 것, 단계 로그 꼬리까지 같은 화면에 있다 — 아래 명령들이 답하는 것을
+**물을 때 그 자리에서** 읽어 보여 준다(15초마다, "지금 확인" 은 즉시). 서버에 들어와 있다면
+아래 명령이 여전히 가장 짧다.
 
 **이것이 배포와 무관한 확인 경로다.** 운영자용 조회 API(S15P21A506-347)는 백엔드가
 배포된 뒤에야 쓸 수 있고, 지금 운영 이미지에는 그 API 가 없다.
@@ -1025,6 +1041,243 @@ echo "6 삭제          :"; mc rm  chk/pickage-raw/_ops/weekly/2099-01-05/manual
 > `mc admin` 하위 명령 구성은 릴리스마다 바뀐 이력이 있다. 이 절은 로컬(더 새 `mc`)에서
 > 확인했으므로, 이 노드의 더 오래된 이미지에서 안 되면 `mc admin policy --help` 를 먼저 볼 것.
 
+### app 노드 similarity-loader 에 줄 계정
+
+`app` 노드의 상주 유사도 로더(`similarity-loader` 컨테이너)가 `pickage-vectors` 의
+완료 포인터(`_current.json`)를 60초마다 읽고, 새 산출물이면 받아서 `similar_package` 에
+게시한다 (S15P21A506-371). 그 컨테이너가 쓸 계정이다.
+
+> **이름에 `similarity` 를 빼지 말 것.** 다른 로더와 헷갈린다 — 권한 폭이 다른 계정을
+> 재사용하는 실수로 이어진다.
+
+⚠ **위 worker② 의 키(`MINIO_ROOT_*`)를 재사용하지 말 것.** 그건 Spark executor 용이라
+권한 폭이 다르다. 여기는 결과 버킷 하나를 **읽기만** 하면 된다.
+
+권한 내용은 [pipeline/minio/policies/similarity-loader.json](../../../pipeline/minio/policies/similarity-loader.json).
+
+| | |
+| --- | --- |
+| 목록·읽기 | `pickage-vectors` |
+| 쓰기 | **없다** |
+| 삭제 | **없다** |
+| 다른 버킷 | **없다.** `pickage-raw` 도 `pickage-curated` 도 |
+
+**읽기만 주는 것이 이 계정의 핵심이다.** 이 로더는 DB 에만 쓰고 MinIO 에는 아무것도
+남기지 않는다. 산출물을 쓰는 것은 `data` 노드의 `ai-collect` 하나뿐이고, 그 전제를
+여기서 **규약이 아니라 권한으로** 못 박는다.
+
+**1. 정책을 만든다** (`data` 노드에서).
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-similarity-loader /tmp/p.json' < ../../../pipeline/minio/policies/similarity-loader.json
+```
+
+> **정책 내용만 고쳤을 때는** 사용자를 건드리지 않는다. 위 명령을 다시 돌리고 정책을
+> 다시 붙이면 된다 — 키가 안 바뀌므로 `app` 노드의 파일을 고칠 필요가 없다.
+>
+> ```bash
+> docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-similarity-loader /tmp/p.json; mc admin policy attach l pickage-similarity-loader --user pickage-similarity-loader; mc admin user info l pickage-similarity-loader' < ../../../pipeline/minio/policies/similarity-loader.json
+> ```
+>
+> 마지막 `user info` 가 **붙은 정책을 찍는다 — `pickage-similarity-loader` 하나여야 한다.**
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-similarity-loader "$S" >/dev/null && mc admin policy attach l pickage-similarity-loader --user pickage-similarity-loader >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-similarity-loader "$S"'
+```
+
+**⚠ 출력에 시크릿이 찍힌다.** 채팅·MR·이슈에 붙여넣지 말 것. 다시 볼 수 없으므로
+잃으면 사용자를 지우고 다시 만든다.
+
+**3. 권한이 의도대로인지 확인한다.**
+
+3번이 뚫려 있으면 이 계정을 만든 의미가 없고, 5번이 허용이면 이 계정이 수집 원본까지
+읽을 수 있다는 뜻이다.
+
+```bash
+docker compose exec -T minio sh -c '
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+echo "1 포인터 읽기   :"; mc cat chk/pickage-vectors/_current.json 2>&1 | head -1
+echo "2 목록          :"; mc ls  chk/pickage-vectors/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "3 쓰기          :"; echo "{}" | mc pipe chk/pickage-vectors/_probe.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "4 삭제          :"; mc rm  chk/pickage-vectors/_current.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "5 원본 읽기     :"; mc ls  chk/pickage-raw/ >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부'
+```
+
+**4. `app` 노드에 키 파일을 둔다 — 저장소 안이 아니다.**
+
+⚠ **저장소 안(`pipeline/minio/.env.similarity-loader`)에 만들면 다음 배포에 사라진다.** 배포 잡의
+`GIT_CLEAN_FLAGS: -ffdx -e deploy/prod/app/.env` 가 추적되지 않는 파일을 전부 지우고
+예외는 그 `.env` 하나뿐이다. **2026-09-16 배포부터 `similarity-loader` 가 그 이유로 재시작을
+반복했다** (S15P21A506-385). 그래서 배포가 건드리지 않는 호스트 경로에 두고, compose 가
+읽기 전용으로 넣는다.
+
+```bash
+# app 노드(j15a506)에서 — 여기만 data 노드가 아니다
+sudo mkdir -p /srv/pickage/secrets          # ⚠ 부모 /srv/pickage 는 건드리지 않는다 (app.env 가 있다)
+sudo cp /srv/pickage/repo/pipeline/minio/.env.similarity-loader.example /srv/pickage/secrets/minio-similarity-loader.env
+sudo chown 1000:1000 /srv/pickage/secrets/minio-similarity-loader.env   # 컨테이너가 uid 1000 으로 읽는다
+sudo chmod 600 /srv/pickage/secrets/minio-similarity-loader.env
+sudo nano /srv/pickage/secrets/minio-similarity-loader.env              # PICKAGE_S3_ACCESS_KEY·PICKAGE_S3_SECRET_KEY 에 위 키를 넣는다
+```
+
+⚠ **`app.env` 처럼 `640`·`gitlab-runner` 소유로 풀지 말 것.** 이 파일을 읽는 것은
+컨테이너(uid 1000) 하나뿐이다. 배포 잡은 `test -f` 로 **있는지만** 보고, 그건 위의
+디렉터리를 지나갈 수 있으면 되므로 `600` 으로 충분하다.
+
+**5. `similarity-loader` 를 다시 띄우고 확인한다.** 값은 컨테이너가 뜰 때 읽히므로 재생성한다.
+
+```bash
+cd /srv/pickage/repo/deploy/prod/app
+docker compose up -d --force-recreate similarity-loader
+sleep 20 && docker compose ps similarity-loader && docker compose logs --tail 5 similarity-loader
+```
+
+`STATUS` 가 `Up`(`Restarting` 이 아니다)이고 로그 마지막이 이 두 줄이면 성공이다.
+
+```
+PICKAGE_S3_ENDPOINT=http://172.26.8.249:9000 (.env.similarity-loader)
+감시 시작  s3://pickage-vectors/_current.json  간격 60초
+```
+
+**6. 옛 `pickage-loader` 계정이 있으면 지운다** (2026-09-17 임시 조치로 발급한 것).
+
+**MinIO 에는 사용자 개명이 없다** — 새 사용자를 만들고 옛것을 지우는 것이 개명이다.
+그래서 5번까지 새 키로 성공한 것을 **먼저 확인한 뒤에** 지운다. 순서를 뒤집으면 로더가
+인증 실패로 재시작을 반복한다.
+
+```bash
+# data 노드에서
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc admin user remove l pickage-loader; mc admin policy rm l pickage-loader; mc admin user ls l'
+```
+
+마지막 `user ls` 에 **`pickage-loader` 가 없고 `pickage-similarity-loader` 가 있으면** 된다.
+
+### app 노드 백엔드 로더에 줄 계정 — package-env-loader
+
+`pickage-curated` 의 Parquet 을 PostgreSQL 로 넣는 **백엔드 로더용** 계정이다.
+
+소비자가 생겼다. `deploy/prod/app/compose.yaml` 의 **`package-env-loader`** 서비스가
+`pipeline/package_env/load.py` 를 돌려 `package_env` 를 게시한다(S15P21A506-366). 그 서비스는
+이 계정을 **파일로** 읽는다 — 아래 3-2 를 반드시 같이 한다.
+
+⚠ 스프링 쪽 `PICKAGE_CURATED_S3_*` 는 **아직 사전 배선이다.** 그 셋을 읽는 백엔드 코드는
+없다([`../../ci/README.md`](../../ci/README.md) 의 "아직 없는 것"). 같은 계정을 두 군데에
+넣어 두는 것이고, 지금 실제로 쓰는 것은 로더 쪽뿐이다.
+
+⚠ **`pickage-ops` 와 다른 계정이다.** 그건 `_ops/weekly/` 전용이고 `manual-request.json`
+**쓰기**가 붙어 있다. ⚠ `pickage-similarity-loader` 와도 다르다 — 그건 `pickage-vectors` 다.
+두 버킷은 성질이 달라서(하나는 배치 산출물, 하나는 정제 데이터) 한 계정으로 묶지 않는다.
+
+권한 내용은 [pipeline/minio/policies/api-loader.json](../../../pipeline/minio/policies/api-loader.json).
+
+| | |
+| --- | --- |
+| 목록·읽기 | `pickage-curated` |
+| 쓰기 | **없다** |
+| 삭제 | **없다** |
+| 다른 버킷 | **없다.** `pickage-raw` 도 `pickage-vectors` 도 |
+
+**1. 정책을 만든다** (`data` 노드에서).
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-api-loader /tmp/p.json' < ../../../pipeline/minio/policies/api-loader.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-api-loader "$S" >/dev/null && mc admin policy attach l pickage-api-loader --user pickage-api-loader >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-api-loader "$S"'
+```
+
+**⚠ 출력에 시크릿이 찍힌다.** 채팅·MR·이슈에 붙여넣지 말 것. 다시 볼 수 없다.
+
+**3. 키를 지금 `app` 노드에 넣어 둔다 — 읽을 코드는 나중에 온다.**
+
+`app.env` 에 미리 넣고 compose 배선(`PICKAGE_CURATED_S3_*`)까지 해 두면, **코드가 생기는
+날 서버를 다시 만질 일이 없다.** 값이 비어 있든 채워져 있든 지금은 읽는 코드가 없어
+동작에 차이가 없다 — `:-` 라 기동도 막지 않는다. 팀 비밀 저장소에도 사본을 남긴다.
+
+```bash
+# app 노드(j15a506)에서 — 여기만 data 노드가 아니다
+sudo -u gitlab-runner tee -a /srv/pickage/app.env >/dev/null <<'ENV'
+
+PICKAGE_CURATED_S3_ENDPOINT=http://172.26.8.249:9000
+PICKAGE_CURATED_S3_ACCESS_KEY=pickage-api-loader
+PICKAGE_CURATED_S3_SECRET_KEY=<위 2번의 SECRET>
+ENV
+sudo -u gitlab-runner grep -c '^PICKAGE_CURATED_S3_SECRET_KEY=.' /srv/pickage/app.env   # 1 이면 채워졌다
+```
+
+⚠ **`sudo -u gitlab-runner` 로 쓴다.** 그 파일은 러너 소유의 `600` 이다. 러너로 쓰면
+소유권이 그대로 남고, 러너가 계속 읽고 고칠 수 있다(배포 잡이 `API_TAG` 를 `sed` 로
+갈아 끼운다). root 로 쓰면 파일이 없던 경우 root 소유로 생겨 그 `sed` 가 막힌다.
+
+⚠ **이름을 줄이지 말 것.** 스프링이 이름만으로 `pickage.curated.s3.*` 에 잇는다 —
+어긋나면 예외가 아니라 조용히 기본값으로 떨어진다(`PICKAGE_OPS_S3_*` 가 이미 겪었다,
+S15P21A506-347). 소비자 코드를 쓸 때 이 이름에 맞춘다.
+
+**api 컨테이너가 한 번 다시 뜬다.** compose 의 환경 목록이 바뀌면 재생성이고, 기동 +
+Flyway 로 1분 가까이 걸린다. 배선이 들어간 첫 배포에서 어차피 한 번 뜨므로 **키를 지금
+같이 넣는 편이 재시작을 한 번으로 줄인다** — 나중에 채우면 그때 또 뜬다. 배치·트래픽이
+몰리는 시각은 피한다.
+
+**3-2. 로더가 읽을 파일을 서버에 둔다 — 이건 사전 배선이 아니라 지금 필요하다.**
+
+`package-env-loader` 는 `app.env` 가 아니라 **파일**을 읽는다(`PICKAGE_MINIO_ENV`).
+`similarity-loader` 와 같은 자리에 같은 방식으로 둔다.
+
+```bash
+# app 노드(j15a506)에서 — 여기만 data 노드가 아니다
+sudo mkdir -p /srv/pickage/secrets          # ⚠ 부모 /srv/pickage 는 건드리지 않는다 (app.env 가 있다)
+sudo cp /srv/pickage/repo/pipeline/minio/.env.api-loader.example /srv/pickage/secrets/minio-api-loader.env
+sudo chown 1000:1000 /srv/pickage/secrets/minio-api-loader.env   # 컨테이너가 uid 1000 으로 읽는다
+sudo chmod 600 /srv/pickage/secrets/minio-api-loader.env
+sudo nano /srv/pickage/secrets/minio-api-loader.env              # PICKAGE_S3_ACCESS_KEY·PICKAGE_S3_SECRET_KEY 에 위 키를 넣는다
+```
+
+⚠ 키 이름은 **`PICKAGE_S3_*`** 다. `PICKAGE_CURATED_S3_*`(위 3번, 스프링용)와 이름이
+다르다 — 읽는 쪽이 다르기 때문이다. 이 파일은 `ingest_raw.py` 의 `client()` 가 직접 연다.
+
+⚠ **저장소 안에 만들지 말 것.** 배포 잡의 `GIT_CLEAN_FLAGS: -ffdx` 가 추적되지 않는
+파일을 매번 지운다 — 2026-09-16 배포가 `similarity-loader` 에서 그렇게 깨졌다
+(S15P21A506-385).
+
+⚠ 배포 잡에 `test -f` 가드를 두지 **않았다.** `package-env-loader` 는 상주가 아니라
+`--profile oneshot` 으로 사람이 부를 때만 돈다 — 파일이 없어도 사이트에는 아무 일이 없고,
+명령을 치는 그 자리에서 드러난다.
+
+**4. 권한이 의도대로인지 확인한다.**
+
+```bash
+docker compose exec -T minio sh -s <<'SH'
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+printf "1 목록          : "; mc ls chk/pickage-curated/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+printf "2 객체 읽기     : "
+key=$(mc ls --recursive chk/pickage-curated/ 2>/dev/null | head -1 | awk '{print $NF}')
+if   [ -z "$key" ];                                     then echo "버킷이 비어 있어 건너뜀"
+elif mc cat "chk/pickage-curated/$key" >/dev/null 2>&1; then echo 허용
+else                                                         echo "거부(문제!)"; fi
+printf "3 쓰기          : "; echo "{}" | mc pipe chk/pickage-curated/_probe.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+printf "4 원본 읽기     : "; mc ls chk/pickage-raw/     >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+printf "5 벡터 읽기     : "; mc ls chk/pickage-vectors/ >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+SH
+```
+
+**삭제는 시험하지 않는다.** 이 계정은 쓰기가 막혀 있어서 시험용 객체를 만들 수 없고,
+`pickage-curated` 의 실객체로 시험하면 **권한이 잘못 열려 있을 때 그 시험이 객체를
+지운다.** 대신 붙은 정책이 커밋된 파일과 같은지 본다 — 삭제 액션은 거기 없다.
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc admin user info l pickage-api-loader; mc admin policy info l pickage-api-loader'
+```
+
+`user info` 에 붙은 정책이 **`pickage-api-loader` 하나**여야 하고, `policy info` 의 내용이
+[api-loader.json](../../../pipeline/minio/policies/api-loader.json) 과 같아야 한다.
+
 ### GPU 서버용 계정
 
 외부 GPU 서버가 학습 데이터를 가져가고 **모델을 올릴 때** 쓴다.
@@ -1089,6 +1342,62 @@ docker compose exec minio sh -c 'mc admin user remove l pickage-gpu'
 >
 > 설계는 Tailscale 로 묶는 것으로 되어 있다. 터널이 불편해지거나(장시간 전송, 자동화)
 > GPU 쪽에서 정기적으로 당겨 가야 하면 그때 도입하면 된다.
+
+### 파이프라인 모니터에 줄 계정 (S15P21A506-362)
+
+두 노드의 모니터링 스택에 있는 `pipeline-monitor` 컨테이너가 쓴다
+([`../monitoring/README.md`](../monitoring/README.md) 11절). 계정은 **하나**를 만들어
+두 노드의 `deploy/prod/monitoring/<노드>/.env` 에 같이 넣는다 — 하는 일이 같고
+(목록을 보고 답한다), 폐기도 한 번이면 된다.
+
+권한 내용은 [pipeline/minio/policies/monitor.json](../../../pipeline/minio/policies/monitor.json).
+
+| | |
+| --- | --- |
+| 목록 | **전 버킷** — 사람이 "전체 목록 조회" 버튼을 누를 때만 쓴다 |
+| 이벤트 구독 | **전 버킷** (`s3:ListenBucketNotification`, MinIO 확장) — 평소 화면은 이것으로 "방금 올라온 것" 을 본다 |
+| 읽기 | `pickage-raw/_ops/**` · `pickage-curated/_ops/**`(Curated 전처리 회차 상태, S15P21A506-372) · `curated-bundle/**/status.json`(단계별 상태) · 어느 버킷이든 `_current.json` **만** |
+| 쓰기 | **없다** |
+| 삭제 | **없다** |
+
+**읽기 전용이고, 데이터 본문(parquet·jsonl)도 못 읽는 것이 이 계정의 핵심이다.** 목록에는
+키·크기·시각만 있고, 그것으로 "무엇이 생겼나" 는 충분히 답이 된다. 소켓까지 쥔 컨테이너에
+원본 읽기를 더 얹을 이유가 없다.
+
+**1. 정책을 만든다.** 정책 파일이 바뀌었을 때(예: 2026-09-21 Curated 전처리 상태 읽기 추가)도 같은 명령이다 —
+`mc admin policy create` 는 같은 이름이 있으면 내용을 갈아 끼우고, 붙어 있는 사용자에게 바로 적용된다. 키는 그대로다.
+
+```bash
+cd ~/S15P21A506/deploy/prod/data
+docker compose exec -T minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && cat > /tmp/p.json && mc admin policy create l pickage-monitor /tmp/p.json' < ../../../pipeline/minio/policies/monitor.json
+```
+
+**2. 사용자를 만들고 정책을 붙인다.**
+
+```bash
+docker compose exec minio sh -c 'mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; S=$(head -c 24 /dev/urandom | base64 | tr -dc A-Za-z0-9); mc admin user add l pickage-monitor "$S" >/dev/null && mc admin policy attach l pickage-monitor --user pickage-monitor >/dev/null && printf "ACCESS %s\nSECRET %s\n" pickage-monitor "$S"'
+```
+
+나온 값을 **두 노드**의 `deploy/prod/monitoring/<노드>/.env` 에 `MONITOR_S3_ACCESS_KEY` ·
+`MONITOR_S3_SECRET_KEY` 로 넣는다. 엔드포인트(`MONITOR_S3_ENDPOINT`)는 노드마다 다르다 —
+각 `.env.example` 의 값을 그대로 쓴다.
+
+**3. 권한이 의도대로인지 확인한다.** 4·5번이 뚫려 있으면 이 계정을 만든 의미가 없다.
+
+```bash
+docker compose exec -T minio sh -c '
+mc alias set chk http://127.0.0.1:9000 <ACCESS> <SECRET> >/dev/null
+echo "1 버킷 목록      :"; mc ls chk/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "2 원본 목록      :"; mc ls chk/pickage-raw/depsdev/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "3 회차 상태 읽기 :"; mc ls chk/pickage-raw/_ops/weekly/ >/dev/null 2>&1 && echo 허용 || echo "거부(문제!)"
+echo "4 원본 읽기      :"; mc cat chk/pickage-raw/depsdev/v1/projects/ 2>&1 | grep -q "Access Denied" && echo 거부 || echo "허용(문제!)"
+echo "5 아무 데나 쓰기 :"; echo "{}" | mc pipe chk/pickage-raw/_ops/weekly/2099-01-05/run.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "6 삭제           :"; mc rm chk/pickage-raw/_ops/weekly/2099-01-05/run.json >/dev/null 2>&1 && echo "허용(문제!)" || echo 거부
+echo "7 이벤트 구독    :"; timeout 3 mc watch chk/pickage-quarantine >/dev/null 2>&1; [ $? -eq 124 ] && echo 허용 || echo "거부(문제!)"'
+```
+
+(4번의 경로는 실제 있는 객체로 바꿔 본다. 7번은 3초 동안 붙어 있다가 타임아웃(124)으로
+끝나면 허용이고, 바로 끝나면 권한 거부다.)
 
 ### 스모크 잡 — 배치보다 먼저 이걸 돌린다
 

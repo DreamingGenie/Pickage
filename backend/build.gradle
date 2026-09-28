@@ -80,6 +80,8 @@ dependencies {
 	 * 자세한 것은 `HtmlToPdf` 주석.
 	 */
 	implementation 'io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.28'
+	// 그래프(선·도넛)를 SVG 로 그려 HTML 에 넣는다 — 미리보기는 브라우저가, PDF 는 이 모듈이 같은 SVG 를 그린다.
+	implementation 'io.github.openhtmltopdf:openhtmltopdf-svg-support:1.1.28'
 
 	/*
 	 * S3 — 주간 수집 상태를 MinIO 에서 읽는다 (S15P21A506-347).

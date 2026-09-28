@@ -20,7 +20,7 @@ import java.util.List;
  * 실제 {@code gms.ssafy.io}를 호출한다. {@link com.ssafy.pickage.domain.community.verification
  * .RepositoryVerificationRealNetworkTest}와 같은 패턴 — 키가 없는 환경(CI·다른 팀원)에서는 자동으로 skip된다.
  *
- * <p>2026-09-16 curl 실측(`docs/for_community/GMS_연동_참고.md`)은 평면 2-필드 스키마로만 구조화 출력을
+ * <p>2026-09-16 curl 실측(`docs/history/0923_0917_pickage_final_set_archive/for_community/GMS_연동_참고.md`)은 평면 2-필드 스키마로만 구조화 출력을
  * 확인했다 — 이 시험은 실제로 이 클래스가 만드는 중첩 배열/객체 스키마와 `gpt-5.4-mini` 모델명이 그대로
  * 통하는지를 실제 호출로 확인하기 위한 것이다.
  *
@@ -86,7 +86,77 @@ class GmsCommunitySummarizerRealNetworkTest {
                 .isEqualTo(SummaryStatus.READY);
         assertThat(summary.titleKo()).isNotBlank();
         assertThat(summary.summaryKo()).isNotBlank();
-        assertThat(summary.discussionFlow()).isNotEmpty();
+        assertThat(summary.messages()).isNotEmpty();
+    }
+
+    /**
+     * S15P21A506-408 — 하이라이트 댓글 4개 + 핵심어·핵심 문장. 실제 GitHub 이슈가 아닌 합성 이슈로 전체 경로
+     * (highlights → GMS → 검증기)를 돌려, 발화가 입력 댓글 수만큼 나오고 강조 구간이 요약문 안에서 유효한지 본다.
+     * 강조는 모델이 요약문에서 글자 그대로 옮겨야 하므로 실제 모델이 그 지시를 따르는지가 이 시험의 관심사다.
+     */
+    @Test
+    void 실제_GMS_호출로_발화_4개와_핵심어_강조를_받는다() {
+        var base = Instant.parse("2026-02-01T00:00:00Z");
+        var comments =
+                List.of(
+                        new CollectedComment("5001", "reporter2", "NONE", false, base.plusSeconds(60),
+                                "Same here on Android 13 with release builds. Debug builds work fine, which is"
+                                        + " strange. Cleartext traffic is disabled in our manifest.",
+                                "u-2", 12),
+                        new CollectedComment("5002", "maintainer", "MEMBER", false, base.plusSeconds(120),
+                                "This is almost always the Android network security config, not axios. Release"
+                                        + " builds block cleartext HTTP unless you allow the host explicitly.",
+                                "u-3", 5),
+                        new CollectedComment("5003", "reporter2", "NONE", false, base.plusSeconds(180),
+                                "Confirmed — adding android:usesCleartextTraffic=\"true\" for our staging host"
+                                        + " fixed it. Thanks!",
+                                "u-2", 2),
+                        new CollectedComment("5004", "helper", "CONTRIBUTOR", false, base.plusSeconds(240),
+                                "For production you should switch the endpoint to HTTPS instead of enabling"
+                                        + " cleartext globally; a domain-scoped network_security_config.xml is safer.",
+                                "u-4", 8),
+                        new CollectedComment("5005", "dependabot", "NONE", true, base.plusSeconds(300),
+                                "Bump axios from 1.6.0 to 1.6.2", "bot-1", 99));
+        var issue =
+                new CollectedIssue(
+                        88,
+                        "Network Error on Android release builds only",
+                        "closed",
+                        base.plusSeconds(400),
+                        "reporter1",
+                        comments.size(),
+                        3,
+                        CommentCollectionStatus.COMPLETE,
+                        comments,
+                        List.of(),
+                        "881",
+                        base,
+                        "u-1",
+                        "Requests succeed on iOS and in Android debug builds but fail with 'Network Error' in"
+                                + " Android release builds. The endpoint is plain HTTP on port 8080.");
+
+        var bundle = CommunitySummarySourceBundle.highlights(issue);
+        assertThat(bundle.issue().comments()).hasSize(4); // Bot 댓글은 후보에서 빠진다
+
+        TopicSummary raw = client().summarize(bundle.issue(), Duration.ofSeconds(30));
+        TopicSummary summary = CommunitySummaryValidator.validate(bundle, raw);
+
+        System.out.println("[실네트워크 GMS 강조 결과] raw.keyTerms=" + raw.keyTerms()
+                + ", raw.keySentences=" + raw.keySentences() + ", messages=" + raw.messages().size());
+        System.out.println("[실네트워크 GMS 요약문] " + summary.summaryKo());
+        for (var mark : summary.summaryMarks())
+            System.out.println("  " + mark.kind() + " [" + mark.start() + "," + mark.end() + ") "
+                    + summary.summaryKo().substring(mark.start(), mark.end()));
+
+        assertThat(summary.status())
+                .as("실호출 결과 — 실패하면 프롬프트·스키마를 다시 봐야 한다: %s", raw)
+                .isEqualTo(SummaryStatus.READY);
+        assertThat(summary.messages())
+                .as("입력 댓글 하나당 발화 하나(최대 4개)")
+                .hasSize(bundle.issue().comments().size());
+        assertThat(summary.summaryMarks()).as("핵심어·핵심 문장이 요약문에서 유효한 구간으로 남아야 한다").isNotEmpty();
+        for (var mark : summary.summaryMarks())
+            assertThat(mark.start()).isBetween(0, summary.summaryKo().length() - 1);
     }
 
     /**
@@ -109,8 +179,6 @@ class GmsCommunitySummarizerRealNetworkTest {
         System.out.println(
                 "[실네트워크 GMS 대형 fixture 결과] status="
                         + summary.status()
-                        + ", flow.size="
-                        + summary.discussionFlow().size()
                         + ", messages.size="
                         + summary.messages().size());
         assertThat(summary).as("항상 TopicSummary를 반환해야 함(예외 전파 금지)").isNotNull();

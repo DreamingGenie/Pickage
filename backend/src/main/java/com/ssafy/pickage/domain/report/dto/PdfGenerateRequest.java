@@ -21,15 +21,27 @@ import java.util.List;
  * @param from       생태계 조회 시작. 생략하면 서버 기본 구간.
  * @param to         생태계 조회 끝.
  * @param snapshotAt 버전 분포 기준일. 생략하면 최신 스냅샷.
+ * @param period     유지·유입·이탈 조회 구간({@code 1y}·{@code 3y}·{@code 5y}). 생략하면
+ *                   서버 기본값({@code TransitionPeriod.DEFAULT}, 3y). {@code from}·{@code to}
+ *                   와는 다른 축이다 — 그쪽은 시계열 구간이고 이쪽은 두 시점을 비교한 프리셋이라
+ *                   같은 날짜로 겹쳐 쓸 수 없다(S15P21A506-391).
  * @param sections   <b>더할 구역</b>({@code COMMUNITY} · {@code FEATURES}). 생략하면 생태계만.
  *                   생태계는 여기 넣지 않는다 — 끌 수 없는 것을 고를 수 있게 두면
  *                   "생태계 빼고 만들기" 라는 없는 상태가 생긴다.
+ * @param features   {@code sections} 에 {@code FEATURES} 를 넣었을 때, 세션이 들고 있는 완료
+ *                   기능 비교 결과(구상안 §13.1·§14.5). 서버는 이 값을 재조회하지 않고 그대로
+ *                   문서에 옮긴다({@code DEC-FEATURE-CACHE-20260917-01}) — 판정을 서버에
+ *                   영속화하지 않기 때문이다. {@code FEATURES} 를 골랐는데 이 값이 없으면
+ *                   (아직 분석을 실행하지 않은 경우) 그 사실을 문서와 응답({@code omitted})에
+ *                   적는다.
  */
 public record PdfGenerateRequest(
 	List<String> names,
 	LocalDate from,
 	LocalDate to,
 	LocalDate snapshotAt,
-	List<String> sections
+	String period,
+	List<String> sections,
+	FeatureComparisonPayload features
 ) {
 }

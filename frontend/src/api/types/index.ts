@@ -48,11 +48,11 @@ export type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure
 /** 0.1 — `names` 배열 상한. UI 의 최대 선택 수와 같은 값이다. 초과 시 V002. */
 export const MAX_NAMES = 3
 
-/** §4 — 추이 조회 기간 상한(주). 배열 상한 3 과 곱해져 응답 크기를 정한다. */
-export const MAX_WEEKS = 104
-
-/** §4 — `from` 생략 시 기본 구간(주). */
-export const DEFAULT_WEEKS = 26
+/*
+  §4 — 추이 조회 기간 상한(MAX_WEEKS 104)과 기본 구간(DEFAULT_WEEKS 26)이 여기 있었다.
+  서버에서 둘 다 없앴다 — `from`·`to` 를 생략하면 보유한 전 구간이 온다(S15P21A506-374).
+  화면이 상한을 알아야 할 이유가 사라져 상수도 함께 지웠다.
+*/
 
 /** §2.4 — `limit` 기본값·상한. */
 export const SEARCH_LIMIT_DEFAULT = 20
@@ -137,6 +137,32 @@ export interface PackagesOverviewResponse {
   not_found: string[]
 }
 
+/**
+ * `GET /api/packages/summary` — 생태계 탭 "한눈에 보기" 요약 (실험).
+ *
+ * 조합·기준일마다 서버가 한 번만 모델을 부르고 이후엔 캐시로 답한다.
+ * `status` 가 READY 가 아니면 문장이 없고 화면은 안내문을 보여준다.
+ */
+export type EcosystemSummaryStatus = 'READY' | 'UNAVAILABLE' | 'NO_DATA' | 'FAILED'
+
+export interface EcosystemSummaryResponse {
+  status: EcosystemSummaryStatus
+  snapshot_at: string | null
+  /** 공통 기능·쓰임새 1~2문장 */
+  common?: string
+  /** 다운로드·의존 등록 수 흐름 1~2문장 */
+  ecosystem?: string
+  /** 실험용 — 캐시 응답인지 */
+  cached?: boolean
+  /** 실험용 — 토큰·크레딧 */
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    reasoning_tokens: number
+    credits: number
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * 4·5. 추이 (downloads · dependents)
  * ------------------------------------------------------------------ */
@@ -209,7 +235,39 @@ export interface PdfGenerateRequest {
   from?: string
   to?: string
   snapshot_at?: string
+  /**
+   * 유지·유입·이탈 조회 구간. 생략하면 서버 기본값(3y) — `from`·`to`(생태계 조회 구간)와는
+   * 다른 축이라 그 값으로 대신할 수 없다. 화면이 지금 보여주고 있는 기간과 다르면 PDF가
+   * 화면과 다른 숫자를 담게 되므로, 호출부는 항상 현재 선택된 `TransitionPeriod`를 넘겨야
+   * 한다(S15P21A506-394).
+   */
+  period?: TransitionPeriodParam
   sections?: ReportSection[]
+  /**
+   * `sections`에 `FEATURES`를 넣었을 때, 세션이 들고 있는 완료 기능 비교 결과(구상안
+   * §13.1·§14.5). 서버는 판정을 영속화하지 않으므로(`DEC-FEATURE-CACHE-20260917-01`)
+   * 재조회하지 않고 이 값을 그대로 문서에 옮긴다. `toFeaturesPdfPayload`(rag-adapter.ts)로
+   * 만든다. `FEATURES`를 골랐는데 생략하면(아직 분석을 실행하지 않은 경우) 서버가 그 사실을
+   * 문서와 응답(`omitted`)에 적는다.
+   */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * PDF 요청이 싣는 기능 비교 결과(백엔드 `FeatureComparisonPayload`와 짝, S15P21A506-463).
+ * 2026-09-22 판정표를 없애고 공통점·패키지별 차이점 서술로 바꿨다.
+ *
+ * <b>`RagComparisonResult`(camelCase, `ai/rag/main.py` 계약)를 그대로 보내지 않는다.</b>
+ * 이 요청의 다른 필드(`snapshot_at`·`period`)처럼 백엔드 snake_case 전략을 따라야 하는
+ * 별개의 계약이다 — `toFeaturesPdfPayload`가 그 변환을 한 곳에서 한다.
+ */
+export interface PdfFeaturesPayload {
+  packages: { package_name: string; version: string }[]
+  /** 공통점 서술 */
+  common: string
+  /** 패키지별 차이점 서술. `packages` 순서 */
+  differences: { package_name: string; version: string; body: string }[]
+  limited: boolean
 }
 
 export interface PdfJob {
@@ -226,6 +284,37 @@ export interface PdfJob {
    * 요청했지만 문서에 못 채운 구역. **오류가 아니라** 그 분석 기능이 아직 없는 것이다.
    * 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를 알 수 없다.
    */
+  omitted: ReportSection[]
+}
+
+/* ------------------------------------------------------------------ *
+ * HAND-OFF — agent 친화적 Markdown 보고서 (S15P21A506-467)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `PdfGenerateRequest` 와 거의 같지만 **`sections` 가 없다** — HAND-OFF 는 항상 커뮤니티·기능
+ * 심화 분석 전부를 시도한다(구역 선택 UI를 두지 않는다는 기획 결정). agent 가 읽을 파일이라
+ * 인쇄 분량 걱정이 없고, 판단에 쓸 정보는 많을수록 낫다.
+ */
+export interface MarkdownGenerateRequest {
+  names: string[]
+  from?: string
+  to?: string
+  snapshot_at?: string
+  period?: TransitionPeriodParam
+  /** `PdfGenerateRequest.features` 와 같은 뜻·같은 변환(`toFeaturesPdfPayload`)을 쓴다. */
+  features?: PdfFeaturesPayload
+}
+
+/**
+ * `PdfJob` 과 같은 모양이되 `status` 가 없다 — Markdown 은 미리보기가 없어(텍스트라 그냥 열어
+ * 보면 된다) PDF 처럼 미래 비동기 전환을 대비해 상태를 미리 읽어 둘 필요가 아직 없다.
+ */
+export interface MarkdownJob {
+  report_id: string
+  file_name: string
+  bytes: number
+  created_at: string
   omitted: ReportSection[]
 }
 
@@ -316,9 +405,192 @@ export interface VersionShareResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * GET /packages/transitions — 유지·유입·이탈 (S15P21A506-361, S15P21A506-391)
+ *
+ * 근거: `backend/.../domain/packages/dto/TransitionsResponse.java`. 추이(Downloads·
+ * Dependents)와 다른 서버 개념이다 — 저건 임의 구간·주간 시계열(SnapshotWindow),
+ * 이건 프리셋 3개짜리 단일 스냅샷 비교(TransitionPeriod). 기간 선택기를 공유하지 않는다.
+ * ------------------------------------------------------------------ */
+
+export type TransitionPeriodParam = '1y' | '3y' | '5y'
+export type TransitionKindWire = 'regular' | 'peer' | 'optional'
+export type TransitionDataStatusWire = 'COMPLETE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface TransitionSeriesItem {
+  name: string
+  /** 요청한 이름마다 항상 이 순서로 3줄(regular·peer·optional) — 요청 안 해도 전부 온다. */
+  kind: TransitionKindWire
+  population: 'npm_all'
+  /**
+   * `data_status`가 행 전체를 지배한다 — COMPLETE·NO_DATA 면 여섯 숫자 필드가 실수치,
+   * OUT_OF_SCOPE·NOT_COMPUTED 면 전부 `null`이다(키는 남는다, `ALWAYS` 직렬화). 0 으로
+   * 바꾸지 않는다 — null 은 "몰라서 못 셌다", 0 은 "세어 보니 없었다"로 뜻이 다르다.
+   */
+  retained: number | null
+  /** 원시 유입. 93.8~97.5%가 신생 프로젝트라 그대로 "채택"으로 읽으면 안 된다. */
+  inflow: number | null
+  /** inflow 의 부분집합 — T1 시점엔 아직 존재하지도 않던 패키지. */
+  inflow_new: number | null
+  /** = inflow - inflow_new, 서버 계산값. 실제 채택 수 — 메인 지표로 쓸 값. */
+  inflow_adopted: number | null
+  outflow: number | null
+  /** 판정 불가(대표 릴리스가 구간 안에서 안 바뀜) — retained 에 합치면 안 된다. */
+  unobserved: number | null
+  /**
+   * `unobserved` 를 그 의존자의 **마지막 대표 릴리스가 t2 에서 얼마나 떨어졌는지**로 쪼갠
+   * 셋 (S15P21A506-421). 셋의 합은 언제나 `unobserved` 이며 서버에 DB CHECK 가 걸려 있다.
+   * 다섯 번째 범주가 아니라 한 칸의 분해다 — 유지·유입·이탈과 같은 줄에 더해 그리면
+   * 합이 두 번 세어진다.
+   *
+   * **`data_status` 와 독립적으로 `null` 일 수 있다.** 마이그레이션 배포와 88만 행 재적재
+   * 사이에는 `COMPLETE` 인데 이 셋만 `null` 인 행이 정상적으로 존재한다(2026-09-21 운영에서
+   * 약 30분, 다음 스냅샷 회차마다 다시 생긴다). 그때 0 으로 그리면 "5년 넘게 방치된
+   * 의존자가 0명" 이 되어 **숫자가 맞아 보이는 거짓**이 된다.
+   */
+  unobserved_recent: number | null
+  /** 마지막 대표 릴리스가 t2 기준 3~5년 전. */
+  unobserved_stale: number | null
+  /** 5년 초과 — 사실상 방치. **마지막 릴리스를 모르는 경우도 여기로 센다.** */
+  unobserved_dormant: number | null
+  data_status: TransitionDataStatusWire
+}
+
+export interface TransitionsResponse {
+  metric: 'dependent_transitions'
+  /** 요청이 생략했으면 서버가 적용한 기본값(3y)을 그대로 돌려준다. */
+  period: TransitionPeriodParam
+  /** NOT_COMPUTED 가 응답 전체(모든 행)에 해당하면 t1·t2 는 키 자체가 없다. */
+  t1?: string
+  t2?: string
+  series: TransitionSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-396. 이탈 사유 — 대체 동반 · 대체 없음
+ *
+ * 근거: `backend/.../domain/packages/dto/RemovalReasonsResponse.java`.
+ *
+ * **위 `transitions` 와 단위가 다르다.** 구간 프리셋·기본값·기준일은 같지만
+ * (서버가 같은 표에서 t1·t2 를 가져온다) 세는 단위가 다르다 —
+ * `transitions` 는 **패키지 수**, 이쪽은 **전이 건수**다. 한 의존자가 뺐다 넣었다
+ * 다시 뺐으면 `outflow` 는 1 이고 `removals` 는 2 다. **두 응답의 수를 더하거나
+ * 나누면 안 된다.**
+ * ------------------------------------------------------------------ */
+
+export interface RemovalReasonsSeriesItem {
+  name: string
+  population: 'npm_all'
+  /** 항상 `'transitions'`. 값으로 실려 오므로 캡션에 그대로 쓴다. */
+  unit: string
+  /**
+   * `data_status` 가 행 전체를 지배한다 — COMPLETE·NO_DATA 면 네 숫자가 실수치,
+   * OUT_OF_SCOPE·NOT_COMPUTED 면 전부 `null` 이다(키는 남는다). **0 으로 바꾸지 않는다.**
+   * 대상 97,745개 중 57,201개(58.5%)가 `NO_DATA` 이므로 이걸 `OUT_OF_SCOPE` 처럼 다루면
+   * 대부분의 패키지에 "분석 대상 아님" 이 뜬다.
+   */
+  removals: number | null
+  /** 빼고 아무것도 안 넣은 전이. 어느 구간에서나 약 70%가 여기다 — 이 지표의 결론. */
+  no_replacement: number | null
+  /** 뺀 릴리스에서 다른 것을 함께 넣은 전이. **같은 자리의 대체라는 보장은 없다.** */
+  with_replacement: number | null
+  /** 뺀 적 있는 의존자 수(중복 접음). `removals` 와 단위가 달라 나누지 않는다. */
+  dependents: number | null
+  data_status: TransitionDataStatusWire
+}
+
+export interface RemovalReasonsResponse {
+  metric: 'removal_reasons'
+  period: TransitionPeriodParam
+  /** 읽을 행이 없으면 키 자체가 없다 — 서버가 구간에서 날짜를 지어내지 않는다. */
+  t1?: string
+  t2?: string
+  /** **한 패키지가 한 줄이다** — `transitions` 와 달리 `kind` 분해가 없다. */
+  series: RemovalReasonsSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
+ * S15P21A506-424. 관측된 교체 흐름 — 어디로 갔나
+ *
+ * 근거: `backend/.../domain/packages/dto/MigrationPairsResponse.java`.
+ *
+ * **위 둘과 또 단위가 다르다.** `transitions` 는 패키지 수, `removal_reasons` 는
+ * 전이 건수, 이쪽은 **가중 표(votes)** 다. 셋을 더하거나 비율을 내면 안 된다.
+ *
+ * **구간(period)이 없다.** 시점 두 개를 비교하는 것이 아니라 연속한 릴리스를 전부 훑은
+ * 것이라 "몇 년치" 라는 축이 성립하지 않는다. 대신 `kind` 로 원천을 고른다.
+ * ------------------------------------------------------------------ */
+
+/** 어느 의존 칸에서 관측했나. 두 값은 **모집단이 다른 별개의 실행**이다. */
+export type DependencyKindParam = 'regular' | 'dev'
+
+export const DEFAULT_DEPENDENCY_KIND: DependencyKindParam = 'regular'
+
+export type MigrationDataStatusWire =
+  'COMPLETE' | 'INSUFFICIENT_EVIDENCE' | 'NO_DATA' | 'OUT_OF_SCOPE' | 'NOT_COMPUTED'
+
+export interface MigrationDestinationWire {
+  name: string
+  /** 가중 표. 정수가 아니다(소수 한 자리). */
+  votes: number
+  co_events: number
+  publisher_months: number
+  dependents: number
+  /** 모집단 대비 배수. **다른 `kind` 와 절댓값을 비교하지 말 것** — 분모가 그 실행의 전이 수다. */
+  lift: number
+  /** 점유율. 분모는 표가 아니라 (발행자 × 달) 의 수다. **합이 100 이 아니다** — 아래 참고. */
+  share_pm_pct: number
+  /** 표 기준 점유율. 등급 판정의 입력이라 함께 오지만 **화면에 쓰지 않는다.** */
+  share_pct: number
+  /**
+   * 그 패키지를 뺀 전이 중 이것을 함께 넣은 비율. **`share_pm_pct` 와 분모가 다르다** —
+   * 이쪽은 이탈 전체가 분모라 "뺀 사람 다섯 중 하나가 이걸 골랐다" 로 읽힌다.
+   */
+  a_pct: number
+  /** `strict` · `recommended` · `loose`. 행을 지우는 대신 붙이는 배지다. */
+  evidence: string
+  /** 양방향 관측. **같은 물건의 두 포장**일 수 있다(lodash ↔ lodash-es). 지우지 말고 구분만 한다. */
+  variant: boolean
+  first_seen: string
+  last_seen: string
+}
+
+/** 상위 밖을 접은 칸. 이름을 세우지 않는 이유는 꼬리의 82%가 일회성 추가라서다. */
+export interface MigrationEtcWire {
+  pairs: number
+  share_pm_pct: number
+  /** 그중 기본 필터에 못 미친 수. "근거가 약해 접었다" 를 말할 근거. */
+  below_filter: number
+}
+
+export interface MigrationSeriesItem {
+  name: string
+  /** 이 종류의 기준일. `kind` 마다 다르다(regular 08-31 · dev 09-16). 읽을 행이 없으면 null. */
+  snapshot_at: string | null
+  /** 항상 `'publisher_months'`. 점유율 분모가 표가 아니라는 표시다. 값으로 오므로 캡션에 쓴다. */
+  share_basis: string
+  /** 기본 필터를 통과한 상위 5개. `INSUFFICIENT_EVIDENCE` 면 빈 배열이다. */
+  destinations: MigrationDestinationWire[]
+  /** 접을 것이 없으면 null. */
+  etc: MigrationEtcWire | null
+  /** 필터 전 관측된 쌍의 수. 세어 보지 않은 상태면 null. */
+  observed_pairs: number | null
+  data_status: MigrationDataStatusWire
+}
+
+export interface MigrationPairsResponse {
+  metric: 'migration_pairs'
+  /** 요청이 생략했으면 서버가 적용한 기본값(regular)을 그대로 돌려준다. */
+  kind: DependencyKindParam
+  series: MigrationSeriesItem[]
+  not_found: string[]
+}
+
+/* ------------------------------------------------------------------ *
  * GitHub 커뮤니티 현황 (S15P21A506-316)
  *
- * 근거: `docs/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
+ * 보관 근거: `docs/history/0923_0917_pickage_final_set_archive/for_community/Pickage_GitHub커뮤니티_구현계획_260908.md` §6 +
  * 실제 `backend/.../domain/community` DTO(더 신뢰도 높은 근거). 위 섹션과 같은 이유로
  * snake_case 그대로 둔다 — camelCase 변환은 `routes/report/community/adapter.ts`가 한다.
  * ------------------------------------------------------------------ */
@@ -380,6 +652,12 @@ export interface CommunityRepository {
   full_name: string
   scope: CommunityRepositoryScope
   archived: boolean
+  /**
+   * 저장소 **전체** Issue 수(PR 제외)와 그중 열려 있는 수(S15P21A506-413). 요약한 Issue 몇 건이 아니라 저장소 규모다.
+   * 서버가 못 구했거나(`null`) 이 값을 더하기 전에 저장된 스냅샷이면(키 없음) 비어 있다 — 화면은 둘을 같게 다룬다.
+   */
+  issue_count?: number | null
+  open_issue_count?: number | null
 }
 
 export interface CommunitySummary {
@@ -387,10 +665,6 @@ export interface CommunitySummary {
   open_issue_count: number
   comment_count: number
   reaction_count: number
-}
-
-export interface CommunityFlowStep {
-  text: string
 }
 
 export interface CommunityMessage {
@@ -402,7 +676,25 @@ export interface CommunityMessage {
   text: string
 }
 
-/** Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다. */
+/**
+ * 어떤 본문 문자열 안의 강조 구간. 서버가 계산한 UTF-16 오프셋 `[start, end)` 라 JS `String.slice` 와 같은
+ * 단위다(S15P21A506-408). `KEY_TERM` 은 핵심어(굵게), `KEY_SENTENCE` 는 핵심 문장(형광펜)이다.
+ *
+ * 커뮤니티 요약(`summary_ko`)과 AI 기능 비교 차이점(`differences[].body`, S15P21A506-470) 둘 다 이
+ * 계약을 쓴다 — 렌더링도 `components/common/emphasized-text.tsx` 하나를 공유한다.
+ */
+export interface TextMark {
+  start: number
+  end: number
+  kind: 'KEY_TERM' | 'KEY_SENTENCE'
+}
+
+/**
+ * Issue 하나. `title_ko`/`summary_ko`가 없으면 요약이 실패한 것 — `title_original`만 보여준다.
+ *
+ * 논의 흐름(`flow`)은 없다. 화면이 그리지 않아 서버도 만들지도 내려주지도 않는다(S15P21A506-412).
+ * 옛 서버 응답에 남아 있어도 이 화면은 읽지 않는다.
+ */
 export interface CommunityTopic {
   issue_number: number
   state: 'OPEN' | 'CLOSED'
@@ -418,9 +710,10 @@ export interface CommunityTopic {
   collection_status: CommunityCollectionStatus
   summary_status: CommunitySummaryStatus
   summary_ko: string | null
-  flow: CommunityFlowStep[]
-  /** 최대 3개 */
+  /** 최대 4개 */
   messages: CommunityMessage[]
+  /** 요약문의 강조 구간. 없거나 비어 있으면 강조 없이 평문으로 보인다(이전 스냅샷) */
+  summary_marks: TextMark[]
 }
 
 export interface CommunityLimitation {
@@ -486,6 +779,21 @@ export interface CommunityStatusResponse {
 }
 
 /* ------------------------------------------------------------------ *
+ * 기능 비교 [확장] (S15P21A506-217)
+ *
+ * ⚠ pending API alignment — Notion API 명세에 아직 없다. 구상안 §7·§9·§10 과
+ * `ai/rag/main.py` 의 `/compare` 응답을 wire 규칙(snake_case)으로 옮긴 **임시안**이다.
+ * BE 연동(S15P21A506-130·313)이 확정되면 이 절을 명세에 맞춰 고친다. 화면은 이 타입이
+ * 아니라 `routes/report/features/adapter.ts` 가 만든 도메인 모델만 본다.
+ * ------------------------------------------------------------------ */
+
+/** 분석 요청·응답 모두에서 쓰는 (패키지, 정확한 버전) 쌍. */
+export interface FeatureTarget {
+  package_name: string
+  version: string
+}
+
+/* ------------------------------------------------------------------ *
  * 화면 전용 타입 (서버 스펙 아님)
  * ------------------------------------------------------------------ */
 
@@ -505,4 +813,108 @@ export interface PackageRef {
   name: string
   /** 사용자가 입력한 버전 레인지 (예: ^18.2.0). 미지정 시 null */
   range: string | null
+}
+
+/* ------------------------------------------------------------------ *
+ * 버전별 소비 조건 · 기능 비교 run (BE S15P21A506-130)
+ *
+ * 217 이 처음 잡았던 `FeatureComparisonResponse.environment` 와 다르다. 백엔드가 이 둘을
+ * **다른 엔드포인트**로 나눴기 때문이다 — 소비 조건은 배치가 미리 접어 둔 표를 키 조회하는
+ * 것이라 즉시 뜨고, 기능 비교는 LLM 생성이 붙어 분 단위로 간다. 묶으면 확인된 사실까지
+ * 생성이 끝날 때까지 못 보여 준다(기능-10-R06).
+ * ------------------------------------------------------------------ */
+
+/** `UNKNOWN` 은 판정 실패가 아니라 unpublish 된 버전이라 선언을 못 본 것이다. */
+export type PackageModuleFormat = 'CJS' | 'ESM_ONLY' | 'ESM_CJS' | 'UNKNOWN'
+
+export interface PackageEnvItemWire {
+  name: string
+  version: string
+  module_format: PackageModuleFormat
+  /** 거짓은 "타입 없음" 이 아니라 "이 패키지 안에는 없음" 이다 — `@types/xxx` 를 따로 깐다 */
+  types_bundled: boolean
+  /** 전이 의존이 아니다. null 은 0 이 아니라 모름(unpublish) */
+  direct_dependencies: number | null
+  /** 사용자가 이미 갖고 있어야 하는 조건. direct 와 더하지 않는다 */
+  peer_dependencies: number | null
+}
+
+/**
+ * `GET /api/packages/versions` — 기능 비교 버전 드롭다운 (기능-10-R02, BE S15P21A506-432).
+ *
+ * `GET /api/packages/version`(단수, major 지분)과 다른 API 다. 이쪽은 정확한 버전 문자열이다.
+ * 올라오는 버전은 **전부 소비 조건(`package_env`)이 있는 정식 버전**이라, 어느 것을 골라도
+ * 핵심 비교 요약이 채워진다.
+ */
+export interface FeatureVersionsResponse {
+  /** 요청한 순서 그대로 */
+  packages: {
+    package_name: string
+    /** 드롭다운 기본값. `versions` 의 맨 앞. 고를 버전이 없으면 null */
+    latest_stable: string | null
+    /** 서로 다른 major에서 고른 최신순 버전, 최대 3개 */
+    versions: string[]
+  }[]
+  /** `package` 에 이름 자체가 없는 것 */
+  not_found: string[]
+}
+
+export interface PackageEnvResponse {
+  /** 요청한 순서 그대로 */
+  items: PackageEnvItemWire[]
+  /** 표에 행이 없는 `이름@버전`. 일부가 없어도 200 이다 */
+  not_found: string[]
+}
+
+export type FeatureRunStatus = 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+/** 백엔드가 실제로 지나는 단계. 프런트의 여섯 칸과 대응하지 않는다 */
+export type FeatureRunPhase = 'PREPARING_DOCS' | 'COMPARING' | 'DONE'
+
+/** `VERIFICATION_FAILED` 는 재시도해도 같은 답이 나올 수 있다 — 재시도가 없는 파이프라인이다 */
+export type FeatureRunErrorCode =
+  'DOC_NOT_FOUND' | 'VERIFICATION_FAILED' | 'RAG_UNAVAILABLE' | 'INTERRUPTED'
+
+/**
+ * RAG 서버 응답 원본.
+ *
+ * **여기만 camelCase 다.** 백엔드가 이 값을 우리 타입으로 옮기지 않고 그대로 통과시킨다 —
+ * 계약의 주인이 `ai/rag/main.py` 이고, 옮기면 백엔드의 snake_case 전략이 `dataStatus` 를
+ * `data_status` 로 바꿔 AI 가 정한 이름과 달라진다.
+ */
+export interface RagComparisonResult {
+  dataStatus: 'COMPLETE' | 'COMPARISON_LIMITED'
+  packages: { package: string; version: string }[]
+  /** 공통점 서술 (2026-09-22, 판정표 대신) */
+  common: string
+  /** 패키지별 차이점 서술. 요청한 패키지 순서 */
+  differences: {
+    package: string
+    version: string
+    body: string
+    /** 핵심 문장 1개·핵심어 최대 3개의 강조 구간(S15P21A506-470). 없거나 비어 있으면 평문으로 보인다 */
+    marks: TextMark[]
+  }[]
+  /** 패키지별 인계 파일 상태. dataStatus 와 다른 축이다 */
+  sources: {
+    package: string
+    version: string
+    status: 'OK' | 'LIMITED' | 'NONE' | null
+    readmeBytes: number | null
+    proseChars: number | null
+  }[]
+}
+
+export interface FeatureRunResponse {
+  run_id: string
+  status: FeatureRunStatus
+  phase: FeatureRunPhase
+  /** `이름@버전` */
+  refs: string[]
+  elapsed_sec: number
+  /** COMPLETED 일 때만 */
+  result: RagComparisonResult | null
+  /** FAILED 일 때만 */
+  error_code: FeatureRunErrorCode | null
+  error_detail: unknown
 }

@@ -21,6 +21,9 @@ class FastPublisherIntegrationTests(key_tests.HistoricalDbKeyValidationIntegrati
     def setUp(self):
         super().setUp()
         self._sql('ALTER TABLE package_version_snapshot ALTER COLUMN dependents_count SET DEFAULT 0; ALTER TABLE package_version_snapshot ALTER COLUMN snapshot_at DROP DEFAULT;')
+        # 적재기의 서비스 표 계약에 V7 의 음수 금지 CHECK 가 들어갔다(4db8ee6). V1~V3 만 깐 이 DB 에도 붙인다.
+        self._sql('ALTER TABLE package_version_snapshot DROP CONSTRAINT IF EXISTS ck_package_version_snapshot_dependents_nonnegative;'
+                  ' ALTER TABLE package_version_snapshot ADD CONSTRAINT ck_package_version_snapshot_dependents_nonnegative CHECK (dependents_count >= 0);')
         self.schema = 'vd193_reload_'+uuid.uuid4().hex
         self.counts = self.root/'counts.tsv'
         self.counts.write_bytes(b'1\t1.0.0\t2026-08-31\t0\n1\t2.0.0\t2026-08-31\t4\n2\t1.0.0\t2026-08-31\t2\n')

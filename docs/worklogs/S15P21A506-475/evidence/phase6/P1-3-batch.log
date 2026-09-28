@@ -1,0 +1,49 @@
+START 2026-09-25T06:08:06Z
+[1/6] 코퍼스 확정
+  run_id=package-text-20260908-v3  run_path=collected_date=2026-09-08/run_id=package-text-20260908-v3
+[2/6] 모델 확정
+  v2  pickage-mlflow-artifacts/v7-v5clean
+[3/6] 중복 확인  model=v2/corpus=package-text-20260908-v3
+[4/6] 스테이징
+ Container pickage-data-minio-1  Recreate
+ Container pickage-data-minio-1  Recreated
+ Container pickage-data-minio-1  Starting
+ Container pickage-data-minio-1  Started
+`l/pickage-curated/ecosystems-keywords/v1/package-text/collected_date=2026-09-08/run_id=package-text-20260908-v3/data/package_text.parquet` -> `/work/in/package_text.parquet`
+`l/pickage-mlflow-artifacts/v7-v5clean/_SUCCESS.txt` -> `/work/in/model/_SUCCESS.txt`
+`l/pickage-mlflow-artifacts/v7-v5clean/tokenizer.json` -> `/work/in/model/tokenizer.json`
+`l/pickage-mlflow-artifacts/v7-v5clean/model.onnx` -> `/work/in/model/model.onnx`
+`l/pickage-mlflow-artifacts/v7-v5clean/run_manifest.json` -> `/work/in/model/run_manifest.json`
+`l/pickage-mlflow-artifacts/v7-v5clean/tokenizer_config.json` -> `/work/in/model/tokenizer_config.json`
+`l/pickage-curated/depsdev/v1/package-dependents-candidate-pool/snapshot=2026-08-31/run_id=package-dependents-candidate-pool-20260916-v1/data/package_dependents.parquet` -> `/work/in/package_dependents.parquet`
+total 144452
+drwxr-xr-x 2 1000 1000     4096 Sep 25 06:08 model
+-rw-r--r-- 1 1000 1000 61553105 Sep 25 06:08 package_dependents.parquet
+-rw-r--r-- 1 1000 1000 86359211 Sep 25 06:08 package_text.parquet
+[5/6] 배치
+[06:08:19] package_text: 922322 행 중 dependents>=5, download_rank<=100000 인 52342 행만 읽음  (/work/in/package_text.parquet)
+[06:08:19] 자격 필터: 52342 → 17807  (dependents<5 0, 12개월 초과 34410, deprecated/spam 125)
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+[06:08:21] ONNX 로드: /work/in/model  (model_ver=bge-small-v7-v5clean-batch32-step500)
+[06:08:21] 재임베딩 대상: 17807 / 17807 (변경·신규분)
+[06:30:37] 검색 top-30: 534210 쌍 (17807 base)
+[06:30:41] dependents(regular): 17807 개 패키지
+[06:30:41] dependents 커버리지: 17807/17807 (100.0%)
+[06:30:46] 구조적 관문: {'plugin_adapter': 58166, 'same_family': 119651, 'repo_archived': 1538, 'complement': 5136} → 349719 쌍 잔여
+[06:30:46] 인지도 관문(단계 (500000, 100000, 50000, 10000, 0)): base 별 최종 단계 분포 {500000: 14008, 100000: 895, 50000: 165, 10000: 292, 0: 956} → 176168 쌍 잔여
+[06:30:51] 채점 게이트: SKIPPED (51K holdout undefined (S15P21A506-169))
+[06:30:53] 게이트 미통과(SKIPPED) — _SUCCESS 미기록. 로더가 이 실행을 무시함
+[06:30:53] 완료 — 1353.1s
+      회수
+ Container pickage-data-minio-1  Running
+`/work/out/model=v2/corpus=package-text-20260908-v3/run_manifest.json` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v3/run_manifest.json`
+`/work/out/model=v2/corpus=package-text-20260908-v3/candidates.parquet` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v3/candidates.parquet`
+`/work/out/model=v2/corpus=package-text-20260908-v3/text_hash_state.parquet` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v3/text_hash_state.parquet`
+`/tmp/_SUCCESS` -> `l/pickage-vectors/model=v2/corpus=package-text-20260908-v3/_SUCCESS`
+[6/6] 포인터
+      manifest_sha256 계산
+ 0 B / ? 214 bytes -> `l/pickage-vectors/_current.json`
+      model=v2/corpus=package-text-20260908-v3  sha256=77af8546a0bb7ee8f76860ef6f9ca6eba5dc4cfeb6a8e3f2a7781edd31aa65eb
+완료: pickage-vectors/model=v2/corpus=package-text-20260908-v3
+EXIT=0
+END 2026-09-25T06:30:58Z

@@ -1,10 +1,12 @@
-import { CheckIcon, CircleAlertIcon, Loader2Icon } from 'lucide-react'
+import { CheckIcon, CircleAlertIcon, DownloadIcon, Loader2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { errorNotice } from '@/api/client'
+import { pdfDownloadUrl } from '@/api/endpoints'
 import { useGeneratePdf } from '@/api/queries'
-import type { PdfJob, ReportSection } from '@/api/types'
+import type { PdfJob, ReportSection, TransitionPeriodParam } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -14,7 +16,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  BLOCK_REASON_LABEL,
+  featuresExportable,
+  reportExportBlockReasons,
+  type BlockReason,
+} from '@/routes/report/_components/report-export-eligibility'
 import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
+import { TRANSITION_PERIODS } from '@/routes/report/ecosystem/transitions-model'
+import { toFeaturesPdfPayload } from '@/routes/report/features/rag-adapter'
 
 /**
  * PDF 내보내기 (기능-14 · Figma `485:1090`).
@@ -23,13 +33,10 @@ import type { AnalysisRun } from '@/routes/report/_components/use-analysis-run'
  * `BLOCKED`, 생성 시작 후 실패는 `FAILED`(구상안 §13.2·13.3). 창을 따로 띄우면 진행 중에
  * 뒤 화면이 바뀌고, 돌아왔을 때 무엇을 만들던 중이었는지 다시 알려줘야 한다.
  *
- * <h2>`BLOCKED` 사유는 아직 둘뿐이다</h2>
+ * <h2>`BLOCKED` 조건은 `report-export-eligibility.ts`에 있다</h2>
  *
- * 구상안 §13.2 의 차단 사유 다섯 중 클라이언트에서 지금 실제로 판단 가능한 건
- * `FEATURE_ANALYSIS_REQUIRED`(기능 비교 미실행)·`VERSION_RESULT_MISMATCH`(재분석 중,
- * `ANALYSIS_RUNNING`과 겹쳐 판단)뿐이다. 나머지 셋(`COMPARISON_NOT_CONFIRMED`·
- * `ECOSYSTEM_RESULT_INCOMPLETE`·`SNAPSHOT_CREATION_ERROR`)은 타입에는 있지만 판단할
- * 신호가 아직 없어 항상 통과시킨다 — 신호가 생기면 `blockReasonsFor` 안의 조건만 채운다.
+ * PDF·HAND-OFF(S15P21A506-467) 버튼이 같은 조건을 쓴다 — 자세한 설명(다섯 사유 중 왜 둘만
+ * 실제로 판단하는지)은 그 파일 주석을 본다. 여기서 다시 정의하지 않는다.
  *
  * <h2>진행 표시는 있는 신호만 쓴다</h2>
  *
@@ -44,6 +51,7 @@ export function PdfExportDialog({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   run,
   onPreview,
   onGoToFeatures,
@@ -54,6 +62,13 @@ export function PdfExportDialog({
   from?: string
   to?: string
   snapshotAt?: string
+  /**
+   * 화면이 지금 보고 있는 유지·유입·이탈 구간. 선택 사항으로 두면 안 넘기는 실수가 조용히
+   * 통과되고, 그러면 화면에서 1y·5y를 보다가 PDF를 내보내도 서버 기본값(3y)으로 문서가
+   * 조용히 달라진다 — 공통-R08(화면과 PDF 결과가 일치해야 한다)을 어기는 상황이라 필수로
+   * 둔다(S15P21A506-394).
+   */
+  transitionPeriod: TransitionPeriodParam
   /** 기능 비교 진행 상태 — BLOCKED 판단과 재분석 시 stale COMPLETE 방지에 쓴다. */
   run: AnalysisRun
   /** 미리보기 모달을 여는 일은 부모가 한다 — 이 모달은 닫히고 그쪽이 열려야 한다. */
@@ -64,8 +79,10 @@ export function PdfExportDialog({
   const [sections, setSections] = useState<ReportSection[]>([])
   const generate = useGeneratePdf()
   const job = generate.data
-  const blockReasons = blockReasonsFor(run)
+  const blockReasons = reportExportBlockReasons(run)
   const blocked = blockReasons.length > 0
+  /** 기능 비교 결과가 없거나 지금 고른 버전의 결과가 아니면 그 구역은 고를 수 없다 */
+  const featuresReady = featuresExportable(run)
 
   // 재분석이 새로 시작되면 이전 COMPLETE 파일을 더는 "지금 선택 버전 결과"로 보여주지
   // 않는다 — 실제로 있던 버그(다이얼로그가 report-page에 항상 마운트돼 있어 미리보기로
@@ -89,7 +106,22 @@ export function PdfExportDialog({
   }
 
   function submit() {
-    generate.mutate({ names: packages, from, to, snapshot_at: snapshotAt, sections })
+    generate.mutate({
+      names: packages,
+      from,
+      to,
+      snapshot_at: snapshotAt,
+      period: transitionPeriod,
+      // 기능 비교를 고를 수 없는 상태가 된 뒤 체크가 남아 있었어도 싣지 않는다
+      sections: featuresReady ? sections : sections.filter((s) => s !== 'FEATURES'),
+      // 서버는 판정을 저장하지 않는다(DEC-FEATURE-CACHE-20260917-01) — 세션이 들고 있는 완료
+      // 결과를 요청에 실어 보낸다(구상안 §13.1·§14.5). 아직 분석을 실행하지 않았으면
+      // rawResult가 없어 생략되고, 서버가 그 사실을 문서와 omitted로 알린다.
+      features:
+        featuresReady && sections.includes('FEATURES') && run.rawResult
+          ? toFeaturesPdfPayload(run.rawResult)
+          : undefined,
+    })
   }
 
   return (
@@ -116,7 +148,9 @@ export function PdfExportDialog({
             from={from}
             to={to}
             snapshotAt={snapshotAt}
-            sections={sections}
+            transitionPeriod={transitionPeriod}
+            sections={featuresReady ? sections : sections.filter((s) => s !== 'FEATURES')}
+            featuresReady={featuresReady}
             onToggle={toggle}
             onCancel={() => close(false)}
             onSubmit={submit}
@@ -130,31 +164,6 @@ export function PdfExportDialog({
 /* ------------------------------------------------------------------ *
  * BLOCKED — 적격성 실패 (구상안 §13.2)
  * ------------------------------------------------------------------ */
-
-type BlockReason =
-  | 'COMPARISON_NOT_CONFIRMED'
-  | 'ECOSYSTEM_RESULT_INCOMPLETE'
-  | 'SNAPSHOT_CREATION_ERROR'
-  | 'FEATURE_ANALYSIS_REQUIRED'
-  | 'VERSION_RESULT_MISMATCH'
-
-const BLOCK_REASON_LABEL: Record<BlockReason, string> = {
-  COMPARISON_NOT_CONFIRMED: '비교 대상이 아직 확정되지 않았습니다.',
-  ECOSYSTEM_RESULT_INCOMPLETE: '생태계 분석 결과가 아직 준비되지 않았습니다.',
-  SNAPSHOT_CREATION_ERROR: '보고서 스냅샷 생성 중 오류가 발생했습니다.',
-  FEATURE_ANALYSIS_REQUIRED: '기능 비교 분석이 아직 실행되지 않았습니다.',
-  VERSION_RESULT_MISMATCH: '기능 비교가 다시 실행되는 중입니다. 완료 후 다시 시도해 주세요.',
-}
-
-/**
- * 지금 실제로 판단 가능한 두 사유만 채운다. 나머지 셋은 신호가 없어 늘 통과한다 —
- * 자세한 사유는 이 파일 상단 주석 참고.
- */
-function blockReasonsFor(run: AnalysisRun): BlockReason[] {
-  if (!run.hasCompletedOnce) return ['FEATURE_ANALYSIS_REQUIRED']
-  if (run.status === 'RUNNING') return ['VERSION_RESULT_MISMATCH']
-  return []
-}
 
 function Blocked({
   reasons,
@@ -206,7 +215,9 @@ function Ready({
   from,
   to,
   snapshotAt,
+  transitionPeriod,
   sections,
+  featuresReady,
   onToggle,
   onCancel,
   onSubmit,
@@ -215,7 +226,9 @@ function Ready({
   from?: string
   to?: string
   snapshotAt?: string
+  transitionPeriod: TransitionPeriodParam
   sections: ReportSection[]
+  featuresReady: boolean
   onToggle: (section: ReportSection) => void
   onCancel: () => void
   onSubmit: () => void
@@ -231,14 +244,16 @@ function Ready({
 
       <dl className="flex flex-col divide-y rounded-lg border">
         <Row label="비교 대상" value={packages.join(' · ')} />
+        {/* 조건을 주지 않으면 화면의 기본값이다 — 전체 기간, 주 단위. 의존 수 그래프는 실제값으로 그린다. */}
         <Row
           label="생태계 조회 기간"
-          value={from && to ? `${from} ~ ${to}` : '서버 기본 구간 (최신 스냅샷 기준 26주)'}
+          value={from && to ? `${from} ~ ${to}` : '보유한 전 기간 · 매주'}
         />
-        <Row label="Version Share 기준일" value={snapshotAt ?? '최신 스냅샷'} />
+        <Row label="Version Share 기준일" value={snapshotAt ?? '가장 최근 집계'} />
+        <Row label="유지·유입·이탈 조회 기간" value={transitionPeriodLabel(transitionPeriod)} />
         <Row
           label="포함 내용"
-          value="Downloads · 직접 Dependency · Snapshot 증감 · Version Share · 자료 상태"
+          value="그래프와 수치 표 — Downloads · 의존 수(실제값) · Version Share · 유지·유입·이탈 · 자료 상태"
         />
       </dl>
 
@@ -260,15 +275,20 @@ function Ready({
         <SectionToggle
           section="COMMUNITY"
           label="커뮤니티 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note="기준 패키지의 GitHub 저장소 수치·핵심 논의·실제 논의 흐름이 실립니다. 자료가 아직 수집되지 않았다면 그 안내만 실립니다."
           checked={sections.includes('COMMUNITY')}
           onToggle={onToggle}
         />
         <SectionToggle
           section="FEATURES"
           label="기능 심화 분석"
-          note="아직 제공되지 않습니다. 구역 자리와 사유만 문서에 실립니다."
+          note={
+            featuresReady
+              ? '기능 비교의 공통점·차이점이 실려요.'
+              : '기능 비교 탭에서 분석을 마치면 고를 수 있어요.'
+          }
           checked={sections.includes('FEATURES')}
+          disabled={!featuresReady}
           onToggle={onToggle}
         />
       </fieldset>
@@ -294,18 +314,21 @@ function SectionToggle({
   label,
   note,
   checked,
+  disabled = false,
   onToggle,
 }: {
   section: ReportSection
   label: string
   note: string
   checked: boolean
+  disabled?: boolean
   onToggle: (section: ReportSection) => void
 }) {
   return (
-    <label className="flex items-start gap-3">
+    <label className={cn('flex items-start gap-3', disabled && 'opacity-60')}>
       <Checkbox
         checked={checked}
+        disabled={disabled}
         onCheckedChange={() => onToggle(section)}
         aria-label={label}
         className="mt-0.5"
@@ -325,6 +348,10 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="min-w-0 flex-1 font-mono">{value}</dd>
     </div>
   )
+}
+
+function transitionPeriodLabel(period: TransitionPeriodParam): string {
+  return TRANSITION_PERIODS.find((p) => p.key === period)?.label ?? period
 }
 
 /* ------------------------------------------------------------------ *
@@ -422,27 +449,46 @@ function Complete({
 
       {/*
         요청했지만 못 채운 구역. 조용히 넘어가면 사용자는 체크한 것이 사라진 이유를
-        알 수 없다 — 문서 안에도 같은 말이 적혀 있다.
+        알 수 없다 — 문서 안에도 같은 말이 적혀 있다. 이유는 구역마다 다르다.
       */}
       {job.omitted.length > 0 && (
-        <p className="rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
-          {job.omitted.map(sectionLabel).join(' · ')} 구역은 해당 분석 기능이 아직 없어 자리와
-          사유만 실렸습니다.
-        </p>
+        <ul className="flex flex-col gap-1 rounded-lg border border-dashed px-4 py-3 leading-relaxed text-muted-foreground">
+          {job.omitted.map((section) => (
+            <li key={section}>{omittedNote(section)}</li>
+          ))}
+        </ul>
       )}
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           닫기
         </Button>
-        <Button onClick={onPreview}>미리보기</Button>
+        <Button variant="outline" onClick={onPreview}>
+          미리보기
+        </Button>
+        {/*
+          미리보기를 거치지 않고 바로 받는다. 버튼이 아니라 링크다 — 서버가 attachment 로 보내므로 여는 것만으로
+          저장된다(미리보기 모달의 다운로드와 같은 방식). blob 을 만들면 같은 파일을 메모리에 한 번 더 들고 있어야 한다.
+        */}
+        <Button asChild>
+          <a href={pdfDownloadUrl(job.report_id)} download={job.file_name}>
+            <DownloadIcon className="size-4" aria-hidden />
+            다운로드
+          </a>
+        </Button>
       </DialogFooter>
     </>
   )
 }
 
-function sectionLabel(section: ReportSection): string {
-  return section === 'COMMUNITY' ? '커뮤니티 분석' : '기능 심화 분석'
+/**
+ * 채우지 못한 구역의 이유. 둘은 이유가 다르다 — 기능 심화 분석은 기능이 아직 없어서, 커뮤니티 분석은 이 패키지의
+ * 자료가 아직 수집되지 않아서다(기능은 있다). 같은 말로 안내하면 커뮤니티가 "미완성 기능"으로 읽힌다.
+ */
+function omittedNote(section: ReportSection): string {
+  return section === 'COMMUNITY'
+    ? '커뮤니티 분석: 이 패키지의 GitHub 자료가 아직 수집되지 않아 안내만 실렸습니다. GitHub 커뮤니티 탭을 한 번 연 뒤 다시 만들면 채워집니다.'
+    : '기능 심화 분석: 이 비교의 기능 비교를 아직 실행하지 않아 자리와 사유만 실렸습니다. 기능 비교 탭에서 분석을 완료한 뒤 다시 만들면 채워집니다.'
 }
 
 /** 크기는 사람이 읽는 값이라 반올림한다. 정확한 바이트 수가 필요한 화면이 아니다. */

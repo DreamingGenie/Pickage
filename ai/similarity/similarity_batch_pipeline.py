@@ -1,18 +1,33 @@
 """유사도 배치 파이프라인 (§4.1) — EC2 #1에서 cron이 배치 시각마다 1회성으로 실행.
 
-코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → 의미 검색(넓게) → 구조적 관문 → cos 정렬
-→ 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지 않는다(방식 C).
+코퍼스 자격 필터 → (변경분) ONNX 재임베딩 → 의미 검색(넓게) → 구조적 관문 → 인지도 관문
+→ cos 정렬 → 채점 게이트 → MinIO 산출물(_SUCCESS + manifest). PostgreSQL은 건드리지
+않는다(방식 C).
 
 모델 I/O·전처리 규격: ai/MODEL_CONTRACT.md
 설계: docs/Pickage_기능별_개발_구상안_0909.md §3.3, §4.1, §4.2
 2단계 랭커(넓게 검색 → 관문 → 정렬): 제안_유사후보_v1랭커_2단계분리_260910.md (2026-09-10 팀 승인)
 
 현재 구현 상태 (S15P21A506-168):
-  1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01)
+  1 자격 필터        구현 — deprecated 완전 제외 (DEC-RANK-20260909-01).
+                      --max-rank N(기본 100000, 생략해도 항상 적용)으로 download_rank 상한을
+                      건다 — download_rank 는 재계산되는 rank 가 아니라 registry·downloads
+                      가 실제로 수집된 고정 목록 기준이다 (S15P21A506-172, 정정 S15P21A506-402)
   2 변경분 재임베딩    구현 (--state 로 이전 text_hash 비교, 없으면 전수)
   3 의미 검색        구현 — --retrieve-k(기본 30) 개. 최종 노출(3)보다 넉넉히
-  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived drop (--gate, 기본 on,
-                      S15P21A506-333). 보완재 감점(dependents 교집합 >0.3)은 의존 그래프 필요 → TODO
+  4 구조적 관문      구현 — plugin/adapter·same-family·repo_archived·보완재(dependents 교집합
+                      >0.3, package_dependents.parquet 이 입력 옆에 있을 때) drop (--gate, 기본 on, S15P21A506-333·173)
+  4c 인지도 관문      구현 — downloads_last_month < --downloads-floor(기본 500,000) 인 후보 drop
+                      (S15P21A506-450). 정답 기준이 "기능 유사"에서 "기능 유사 + 인지도"로
+                      기획 개정된 데 따른 것 — 실측(eval_gate_ranking.py, 인지도 반영 정답지
+                      기준)으로 하한 미적용 대비 recall@3 이 0.130→0.332 로 개선됨을 확인하고
+                      50만을 채택함. cos 축은 절대 임계값을 안 쓰므로(DEC-RANK-20260910-01)
+                      이 하드컷은 downloads 축에만 건다.
+                      base 별 단계적 완화 구현 (S15P21A506-458) — 하드컷 하나만 쓰면 니치
+                      base 에서 관문 통과 후 후보가 3개 미만(0개 포함)이 되는 사례가 실측
+                      (로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 늘어나는 게 확인돼, base 별로
+                      500,000→100,000→50,000→10,000→0 순으로 3개가 채워질 때까지 완화한다
+                      (`apply_downloads_floor_with_fallback()`)
   4b 정렬           구현 — 관문 통과분을 cos 유사도 순. 다른 가·감점 없음.
                       move_lift·deprecated 지목 가산 없음
   5 채점 게이트       TODO — deprecated 51K 홀드아웃 정의 미확정 (S15P21A506-169)
@@ -32,6 +47,11 @@ from typing import Iterable
 
 import numpy as np
 
+try:  # cp949 등 UTF-8 이 아닌 콘솔에서 log() 의 한글·특수문자(—) 출력이 죽는 것을 막는다
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # onnxruntime · transformers · pyarrow 는 무겁고 배치 실행 노드에만 설치된다.
 # 순수 로직(자격 필터·top-K·재랭킹·게이트)을 numpy 만으로 테스트할 수 있도록
 # 각 호출부에서 지연 import 한다.
@@ -46,17 +66,68 @@ def log(msg: str) -> None:
 
 # ── 입력 ────────────────────────────────────────────────────────────────
 
-def load_package_text(path: str) -> list[dict]:
+def load_package_text(path: str, min_dependents: int, max_rank: int = 100000) -> list[dict]:
     """package_text parquet 를 행 dict 목록으로 읽는다.
 
     기대 컬럼: name, description, keywords, dependent_packages_count,
-    latest_release_published_at, status (일부는 없을 수 있음).
+    latest_release_published_at, status, download_rank (일부는 없을 수 있으나
+    `download_rank` 는 아래 자격 조건이 항상 쓰므로 반드시 있어야 한다 — 없는 parquet 는
+    build_package_text.py 구버전 산출물이니 다시 만들어야 한다, S15P21A506-402).
+
+    **`max_rank` — 리포트 가능 범위 안에서 추가로 더 좁힐 상한** (S15P21A506-172,
+    정정 S15P21A506-402). `download_rank` 는 `build_package_text.py` 가
+    `datasets/targets/rank_top100k_20260902.csv`(registry·downloads 수집기가 실제로
+    데이터를 모은 고정 목록)에서 조인한 값이다 — 그 목록 밖이면 NULL이고, 목록 안이면
+    1~100000 사이 값이다. **이 필터는 옵션이 아니라 항상 걸린다.** `max_rank` 를
+    생략해도 기본값 100000이 적용되어 목록 밖(NULL) 패키지는 절대 코퍼스에 들어오지
+    않는다 — 후보로 추천되고 나서야 리포트가 텅 빈 상태가 되는 사고를 옵션 하나에
+    맡기지 않기 위해서다.
+
+    (이전에는 `rank`—collect_keywords.py 가 `--run` 마다 ecosyste.ms 목록을 새로
+    호출해 얻는 그날그날의 순위—를 갖다 썼다. `rank` 는 실제 리포트 데이터 수집
+    범위와 날짜가 다르면 어긋난다. `download_rank` 는 그 어긋남 없이 정확히 같은
+    목록을 가리킨다.)
+
+    **dependents 하한·download_rank 상한을 읽기 단계에서 거른다** (S15P21A506-382,
+    -402). 전수를 파이썬 dict 로 펼치면 92만 행에서 최고점이 2,230 MB 가 되어
+    컨테이너 상한(2 GiB)을 넘고, 첫 로그 한 줄도 못 남긴 채 커널에 죽는다 —
+    2026-09-17 첫 실운영 실행이 그랬다. 실제로 쓰는 것은 자격 필터를 통과한 3%
+    뿐인데 나머지 97%를 먼저 다 올리기 때문이다. dependents 조건 하나로 92만 →
+    12.9만 행, 최고점 306 MB 가 된다.
+
+    **나머지 조건은 qualify() 에 그대로 둔다.** 릴리스 경과·deprecated·spam 까지
+    여기로 끌어오면 자격 판정의 주체가 둘로 갈린다. dependents 하한은 qualify()
+    의 규칙과 글자 그대로 같고, null 처리도 일치한다 — pyarrow 의 `>=` 는 null 을
+    통과시키지 않고 qualify 도 `dep is None` 을 버린다. 그래서 통과 집합과 그
+    순서가 수정 전후 동일하다(92만 코퍼스에서 29,164행 확인). `download_rank`
+    상한은 qualify() 에 대응하는 규칙이 없는 새 조건이다(리포트 가능 범위 자체를
+    정하는 것이라 코퍼스 자격과는 다른 층위다).
+
+    ⚠ `--batch-size`·`--query-block` 을 줄이는 것은 이 구간에 듣지 않는다. 그 둘은
+    임베딩·검색 단계를 지배하고 최고점은 그보다 앞이다 (compose.yaml 의 OOM 안내
+    주석이 그 둘을 먼저 줄이라고 하는데, 이 적재 구간은 해당하지 않는다).
     """
     import pyarrow.parquet as pq
 
-    table = pq.read_table(path)
+    # 전체 행수는 footer 만 읽어 온다(본문을 읽지 않으므로 비용이 없다). 이 수를 여기서
+    # 안 남기면 예선에서 걸린 행수가 **어느 로그에도 안 남는다** — qualify() 의 로그는
+    # 여기를 통과한 것만 세기 때문에 `dependents<N 0` 으로 찍혀, 읽는 사람이 그 규칙이
+    # 동작하지 않는다고 오해한다.
+    total = pq.read_metadata(path).num_rows
+    schema_names = pq.read_schema(path).names
+    if "download_rank" not in schema_names:
+        raise ValueError(
+            f"{path} 에 download_rank 컬럼이 없습니다 — build_package_text.py 구버전 산출물로 "
+            "보입니다. S15P21A506-402 반영 버전으로 package_text 를 다시 만들어야 합니다."
+        )
+    filters = [
+        ("dependent_packages_count", ">=", min_dependents),
+        ("download_rank", "<=", max_rank),
+    ]
+    cond = f"dependents>={min_dependents}, download_rank<={max_rank}"
+    table = pq.read_table(path, filters=filters)
     rows = table.to_pylist()
-    log(f"package_text: {len(rows)} 행  ({path})")
+    log(f"package_text: {total} 행 중 {cond} 인 {len(rows)} 행만 읽음  ({path})")
     return rows
 
 
@@ -135,6 +206,52 @@ def load_state(path: str | None) -> dict[str, dict]:
     return state
 
 
+DEPENDENTS_FILENAME = "package_dependents.parquet"
+
+
+def resolve_dependents_path(explicit: str | None, package_text_path: str) -> str | None:
+    """보완재 관문이 읽을 dependents parquet 경로 (S15P21A506-173).
+
+    --dependents 로 직접 지정하면 그 경로(없어도 그대로 — 경고는 호출부가 한다). 안 줬으면
+    --package-text 와 **같은 폴더**의 `package_dependents.parquet` 을 찾는다. 배치가
+    /work/in/ 에서 입력을 읽으므로 ai-stage 가 그 파일을 옆에 복사해 두기만 하면
+    인자를 안 넘겨도 관문이 돈다. 둘 다 없으면 None.
+    """
+    if explicit:
+        return explicit
+    sibling = os.path.join(os.path.dirname(os.path.abspath(package_text_path)), DEPENDENTS_FILENAME)
+    return sibling if os.path.exists(sibling) else None
+
+
+def load_dependents(
+    path: str | None, kind: str = "regular", names: Iterable[str] | None = None
+) -> dict[str, set[str]]:
+    """package_dependents 류 parquet(name·kind·dependents)를 name → dependents 집합으로.
+
+    데이터 팀이 후보 풀(29,310개) 기준으로 재계산해준 파일(2026-09-16, 100% 커버) 형태를
+    전제한다. kind 는 기본 'regular' — 실측(웹팩↔웹팩-cli 0.903 vs 웹팩↔롤업 0.075)으로
+    이 한 종류만으로도 보완재/대안 판별 신호가 뚜렷했다(S15P21A506-173). 파일이 없으면
+    빈 dict — 그러면 apply_gates() 의 보완재 관문이 자동으로 꺼진다(기존 호출부 그대로 둠).
+
+    **메모리**: 배열이 크다(regular 엣지 636만, `react` 하나가 19만). 배치 컨테이너는
+    mem_limit 2g·스왑 0 이라 넘으면 바로 OOM 이므로 파이썬 객체로 풀기 **전에** arrow 에서
+    줄인다 — ① `kind` 행만 읽는다(parquet 필터, 나머지 종류는 디코딩도 안 한다)
+    ② `names` 를 주면 그 이름의 행만 남긴다(이번 배치 패키지가 아닌 행은 어차피 안 쓴다).
+    """
+    if not path or not os.path.exists(path):
+        return {}
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    tbl = pq.read_table(path, columns=["name", "dependents"], filters=[("kind", "=", kind)])
+    if names is not None:
+        tbl = tbl.filter(pc.is_in(tbl["name"], value_set=pa.array(list(names), type=tbl.schema.field("name").type)))
+    deps = {r["name"]: set(r["dependents"] or []) for r in tbl.to_pylist()}
+    log(f"dependents({kind}): {len(deps)} 개 패키지")
+    return deps
+
+
 class OnnxEmbedder:
     """ai/MODEL_CONTRACT.md 규격: 입력 int64, 출력 last_hidden_state,
     후처리는 여기서 (CLS pooling + L2 정규화). ONNX 밖."""
@@ -194,8 +311,10 @@ def embed_corpus(
     log(f"재임베딩 대상: {len(to_embed)} / {len(rows)} (변경·신규분)")
 
     vectors = np.zeros((len(rows), 384), dtype=np.float32)
+    # set 은 루프 밖에서 한 번만 만든다. 반복마다 만들면 O(n^2) 이다 (29k 건에서 26초).
+    to_embed_set = set(to_embed)
     for i, r in enumerate(rows):
-        if i not in set(to_embed):
+        if i not in to_embed_set:
             vectors[i] = state[r["name"]]["vector"]
     if to_embed:
         fresh = embedder.encode([texts[i] for i in to_embed], batch_size=batch_size)
@@ -284,6 +403,12 @@ def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
 
     'eslint-plugin-react', 'css-loader', 'babel-preset-env', '@sveltejs/adapter-node',
     'eslint-config-airbnb' 처럼 다른 패키지에 얹혀 동작하는 것 = 대안이 아니다.
+
+    keyword 에서 자기 이름으로 시작하는 태그('markdown-it' 의 'markdown-it-plugin',
+    'heroku' 의 'heroku-cli-plugin')는 "이 패키지용 플러그인을 만들 때 쓰는 태그"라서
+    이 패키지가 호스트라는 뜻이지 플러그인이라는 뜻이 아니다 — 판정에서 뺀다.
+    스코프 있는 이름은 이 면제를 받지 않는다: '@unocss/vite' 는 스코프를 벗기면 'vite' 지만
+    vite 가 아니라 vite 플러그인이고, 그 태그 'vite-plugin' 은 자기 이름의 태그가 아니다.
     """
     base = name.rsplit("/", 1)[-1].lower()
     parts = base.replace("_", "-").split("-")
@@ -293,8 +418,11 @@ def is_plugin_adapter(name: str, keywords: list[str] | None) -> bool:
                 return True
             if p == "config" and i != len(parts) - 1:  # 'node-config'(단독) 오탐 방지
                 return True
+    own = None if name.startswith("@") else parts
     for k in keywords or []:
         toks = str(k).lower().replace("-", " ").split()
+        if own and len(toks) > len(own) and toks[: len(own)] == own:
+            continue  # 자기 이름 태그 — 호스트 표시
         if any(t in _PLUGIN_MARKERS for t in toks):
             return True
     return False
@@ -348,24 +476,62 @@ def is_repo_archived(value) -> bool:
     return bool(value)
 
 
+def is_complement(
+    base_dependents: set[str] | None,
+    cand_dependents: set[str] | None,
+    threshold: float = 0.3,
+    min_sample: int = 20,
+) -> bool:
+    """base 와 cand 가 자주 같이 쓰이는 보완재인가 (S15P21A506-173).
+
+    dependents(그 패키지를 쓰는 다른 패키지들) 집합의 겹침 비율 = 교집합 ÷ 둘 중
+    더 작은 쪽 크기(containment). 실측(2026-09-16, 후보 풀 29,310개 기준 dependents,
+    kind=regular)으로 이 계산이 보완재(webpack↔webpack-cli 0.903, express↔body-parser
+    0.873)와 진짜 대안(webpack↔rollup 0.075)을 뚜렷하게 갈라놓는 걸 확인했다. 큰 쪽
+    기준으로 나누면(예: webpack↔webpack-cli 0.237) 신호가 뭉개져 이 방식을 안 쓴다.
+
+    둘 중 하나라도 dependents 데이터가 없으면(빈 집합 포함) 판단하지 않고 False —
+    데이터 없다고 감점하면 안 되므로 통과가 기본값이다.
+
+    `min_sample`: 둘 중 더 작은 쪽의 dependents 수가 이보다 작으면 비율이 통계적으로
+    못 미더우니 판단을 보류한다(False). 실측(테스트 알테너티브 315쌍 교차검증) 중
+    `jest`↔`@japa/runner`가 dependents 7개짜리 우연한 겹침만으로 비율 0.571까지
+    나와 진짜 대안인데 오탐 위험이 있었던 걸 보고 추가한 안전장치 — 그 315쌍 중
+    이런 표본 부족 오탐은 이 사례 하나뿐이었고, 실제 보완재들은 전부 표본이 수백~
+    수만 규모라 20으로 잡아도 재현율에 영향이 없었다.
+    """
+    if not base_dependents or not cand_dependents:
+        return False
+    if min(len(base_dependents), len(cand_dependents)) < min_sample:
+        return False
+    inter = len(base_dependents & cand_dependents)
+    ratio = inter / min(len(base_dependents), len(cand_dependents))
+    return ratio > threshold
+
+
 def apply_gates(
     hits: list[tuple[int, int, float]],
     names: list[str],
     keywords_by_idx: dict[int, list],
     enabled: bool,
     archived_by_idx: dict[int, bool] | None = None,
+    dependents_by_idx: dict[int, set[str]] | None = None,
 ) -> tuple[list[tuple[int, int, float]], dict]:
     """--gate 시 hits 에서 구조적으로 대안이 아닌 (base, cand) 쌍을 제거한다.
 
     plugin/adapter·same-family(우산·하위모듈·스코프)에 더해, `archived_by_idx` 를 주면
-    GitHub 저장소가 archived 된 후보도 drop 한다(S15P21A506-333). 보완재 감점(의존 그래프)은
-    아직 미구현. enabled=False 면 무변경.
+    GitHub 저장소가 archived 된 후보도, `dependents_by_idx` 를 주면 보완재(dependents
+    교집합 > 0.3, S15P21A506-173)도 drop 한다. enabled=False 면 무변경.
+
+    `drops["complement"]` 는 항상 들어간다 — dependents 를 안 줘서 관문이 안 돌았으면 None,
+    돌았으면 걸러낸 쌍 수. manifest 에서 "0건 걸렀다" 와 "안 돌았다" 를 구분하려는 것이다.
     """
     if not enabled:
         return hits, {}
     drops = {"plugin_adapter": 0, "same_family": 0}
     if archived_by_idx is not None:
         drops["repo_archived"] = 0
+    drops["complement"] = 0 if dependents_by_idx is not None else None
     kept = []
     for base_idx, cand_idx, cos in hits:
         cand = names[cand_idx]
@@ -378,8 +544,115 @@ def apply_gates(
         if archived_by_idx is not None and is_repo_archived(archived_by_idx.get(cand_idx)):
             drops["repo_archived"] += 1
             continue
+        if dependents_by_idx is not None and is_complement(
+            dependents_by_idx.get(base_idx), dependents_by_idx.get(cand_idx)
+        ):
+            drops["complement"] += 1
+            continue
         kept.append((base_idx, cand_idx, cos))
     return kept, drops
+
+
+def dependents_coverage(names: list[str], dependents_map: dict[str, set[str]]) -> dict | None:
+    """이번 배치 패키지 중 dependents 행이 있는 비율 (S15P21A506-173).
+
+    보완재 관문은 dependents 가 없는 패키지가 낀 쌍을 판단하지 못하고 통과시킨다. dependents
+    파일이 만들어진 뒤 후보 풀이 바뀌면 그런 패키지가 늘어나도 결과는 겉으로 똑같아서, 이 비율을
+    manifest 에 남겨 파일이 낡았는지 볼 수 있게 한다.
+
+    "있음" 은 파일에 그 이름의 행이 있다는 뜻이다. 의존자가 0개인 패키지도 행은 있으므로
+    센다 — 그건 결측이 아니라 "의존자 없음" 이라는 범주다. dependents 를 안 줘서
+    (dependents_map 이 비어) 관문이 안 돌면 None.
+    """
+    if not dependents_map:
+        return None
+    covered = sum(1 for n in names if n in dependents_map)
+    return {
+        "pool": len(names),
+        "with_dependents": covered,
+        "ratio": round(covered / len(names), 4) if names else 0.0,
+    }
+
+
+# ── 4c. 인지도 관문 (§4.2, S15P21A506-450) ────────────────────────────
+#
+# 정답 기준이 "기능 유사"에서 "기능 유사 + 인지도"로 기획 개정됨에 따라 도입
+# (기존엔 "인기도·다운로드·채택도를 순위 신호로 쓰지 않는다"가 방침이었음 — ai/README.md
+# 갱신 필요). 구조적 관문(위)과 성격이 달라 별도 절로 둔다: 구조적 관문은 "대안 자체가
+# 아니다"를 걸러내는 것이고, 이건 "대안은 맞지만 너무 무명이다"를 거른다.
+#
+# cos 축은 절대 임계값을 쓰지 않기로 한 결정(DEC-RANK-20260910-01, 도메인마다 cos 스케일이
+# 달라 불안정)이 있어, 하드 컷오프는 downloads 축 하나에만 건다 — 두 축 모두 하드컷하면
+# 후보가 비는 위험이 커진다(브레인스토밍 결론).
+
+def apply_downloads_floor(
+    hits: list[tuple[int, int, float]],
+    downloads_by_idx: dict[int, int | None],
+    floor: int,
+) -> tuple[list[tuple[int, int, float]], int]:
+    """downloads_last_month < floor 인 후보(candidate)를 hits 에서 제거한다.
+
+    floor<=0 이면 무변경. downloads 정보가 없는 후보(None)는 **통과시키지 않는다** —
+    데이터 없다고 관대하게 봐주면 "실제로는 영세한데 그냥 몰라서 통과"하는 사례를 만든다
+    (보완재 관문은 반대로 데이터 없으면 통과가 기본값인데, 거긴 "감점 근거 없음=감점 안 함"이고
+    여기는 "자격 근거 없음=자격 불충분"이라 취지가 다르다).
+
+    실측(eval_gate_ranking.py, S15P21A506-450): "정답(B)도 인지도가 있어야 진짜 정답"으로
+    골드셋을 다시 채점했을 때, 하한 미적용 대비 recall@3 이 0.130→0.332(50만 하한)로
+    개선됨을 확인 — 순수 cos 정렬은 더 비슷하게 생긴 무명 패키지에 밀려 "인지도 있는 진짜
+    대안"조차 자주 놓치고 있었다.
+    """
+    if floor <= 0:
+        return hits, 0
+    kept, dropped = [], 0
+    for base_idx, cand_idx, cos in hits:
+        dl = downloads_by_idx.get(cand_idx)
+        if dl is None or dl < floor:
+            dropped += 1
+            continue
+        kept.append((base_idx, cand_idx, cos))
+    return kept, dropped
+
+
+DOWNLOADS_FLOOR_TIERS = (500_000, 100_000, 50_000, 10_000, 0)
+
+
+def apply_downloads_floor_with_fallback(
+    hits: list[tuple[int, int, float]],
+    downloads_by_idx: dict[int, int | None],
+    floors: tuple[int, ...] = DOWNLOADS_FLOOR_TIERS,
+    min_kept: int = 3,
+) -> tuple[list[tuple[int, int, float]], dict[int, int]]:
+    """base 별로 `floors`(내림차순, 엄격→완화)를 순서대로 시도해 `min_kept`개 이상
+    남는 첫 단계를 쓴다 (S15P21A506-458).
+
+    `apply_downloads_floor()` 하드컷 하나만으로는 관문 통과 후 후보가 3개 미만(또는
+    0개)이 되는 base 가 실측(로컬 92만 코퍼스 서브셋)으로 전체의 7.7%p 더 늘어나는 게
+    확인됐다 — 골드셋(유명 패키지 위주) 기준 측정에서는 거의 안 보이던 문제가, 코퍼스
+    전체(대부분 비유명 패키지)에서는 무시하기 힘든 규모였다.
+
+    base 마다 독립적으로 단계를 낮춰가며 재시도한다 — 어떤 base 는 최상위 하한에서도
+    3개가 다 남고, 어떤 base 는 훨씬 낮춰야 겨우 채워진다. **끝까지(보통 0, 하한 없음)
+    가도 `min_kept` 미만이면 그 결과라도 그대로 쓴다** — 애초에 없는 후보를 만들어낼
+    수는 없다(구조적 관문을 통과한 후보 자체가 1~2개뿐인 니치 base 가 그런 경우).
+
+    돌려주는 `tiers_used`(`{floor: base 개수}`)는 관측성용 — 실제 운영에서 완화가
+    얼마나 자주, 어느 단계까지 일어나는지 manifest 로 볼 수 있게 한다.
+    """
+    by_base: dict[int, list[tuple[int, int, float]]] = {}
+    for h in hits:
+        by_base.setdefault(h[0], []).append(h)
+
+    kept: list[tuple[int, int, float]] = []
+    tiers_used = {f: 0 for f in floors}
+    for cand_hits in by_base.values():
+        for floor in floors:
+            survivors, _ = apply_downloads_floor(cand_hits, downloads_by_idx, floor)
+            if len(survivors) >= min_kept or floor == floors[-1]:
+                kept.extend(survivors)
+                tiers_used[floor] += 1
+                break
+    return kept, tiers_used
 
 
 # ── 5. 채점 게이트 (§4.1) — TODO ──────────────────────────────────────
@@ -411,10 +684,19 @@ def write_output(
     out_dir: str,
     candidates: list[dict],
     rows: list[dict],
+    vectors: "np.ndarray",
     gate: dict,
     meta: dict,
     allow_gate_skip: bool,
 ) -> None:
+    """산출물 3종 + `text_hash_state.parquet`(다음 실행의 `--state` 입력)을 쓴다.
+
+    `vectors[i]` 는 `rows[i]` 의 임베딩과 같은 순서여야 한다(호출부가 보장 — `embed_corpus()`
+    반환값을 그대로 넘긴다). **`vector` 컬럼을 반드시 같이 써야 `load_state()`가 다음 실행에서
+    재사용할 수 있다** — 예전엔 `name`·`text_hash`만 쓰고 있어서 `load_state()`가
+    `KeyError: 'vector'`로 죽었다(S15P21A506-457, `--state`가 한 번도 실제로 동작한 적
+    없었을 가능성이 있는 원인).
+    """
     os.makedirs(out_dir, exist_ok=True)
 
     import pyarrow as pa
@@ -422,7 +704,10 @@ def write_output(
 
     pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
     pq.write_table(
-        pa.Table.from_pylist([{"name": r["name"], "text_hash": r["_text_hash"]} for r in rows]),
+        pa.Table.from_pylist([
+            {"name": r["name"], "text_hash": r["_text_hash"], "vector": vectors[i].tolist()}
+            for i, r in enumerate(rows)
+        ]),
         os.path.join(out_dir, "text_hash_state.parquet"),
     )
 
@@ -433,8 +718,8 @@ def write_output(
         "base_packages": len({c["base_package"] for c in candidates}),
         "scoring_gate": gate,
     }
-    json.dump(manifest, open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=2)
+    with open(os.path.join(out_dir, "run_manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
 
     if gate_allows_success(gate, allow_gate_skip):
         open(os.path.join(out_dir, "_SUCCESS"), "w").close()
@@ -453,13 +738,24 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p.add_argument("--raw-text-column", default=None,
                    help="이 컬럼을 모델 입력으로 그대로 사용 (샘플: description). 생략 시 description+keywords 조립")
     p.add_argument("--state", default=None, help="이전 실행의 text_hash_state.parquet (증분 재임베딩용)")
+    p.add_argument("--dependents", default=None,
+                   help="후보 풀 기준 package_dependents parquet (S15P21A506-173, 보완재 감점용). "
+                        f"생략하면 --package-text 와 같은 폴더의 {DEPENDENTS_FILENAME} 를 찾고, "
+                        "그것도 없으면 경고 후 보완재 관문만 건너뛴다")
     p.add_argument("--min-dependents", type=int, default=5)
+    p.add_argument("--max-rank", type=int, default=100000,
+                   help="package_text 의 download_rank(리포트 가능 고정 목록 기준 순위)가 이 값 "
+                        "이하인 행만 코퍼스로 쓴다. 생략해도 100000이 기본 적용된다 — 목록 밖"
+                        "(NULL)은 이 값을 아무리 키워도 통과하지 못한다. dependents 하한과 교집합이다")
     p.add_argument("--max-age-months", type=int, default=12)
     p.add_argument("--retrieve-k", type=int, default=30,
                    help="검색 단계 후보 수 (DEC-RANK: 최종보다 넉넉히 뽑아 관문으로 좁힌다)")
     p.add_argument("--user-k", type=int, default=20, help="재랭킹 후 산출할 상위 개수 (화면 노출은 rank<=3)")
     p.add_argument("--gate", action=argparse.BooleanOptionalAction, default=True,
                    help="구조적 관문(plugin/adapter·same-family drop). 기본 on, --no-gate 로 끔")
+    p.add_argument("--downloads-floor", type=int, default=500_000,
+                   help="이 값 미만 downloads_last_month 후보 drop (S15P21A506-450). 0이면 끔. "
+                        "package_text 에 downloads_last_month 컬럼이 없으면 경고 후 건너뜀")
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--query-block", type=int, default=2000)
     p.add_argument("--allow-gate-skip", action="store_true",
@@ -471,7 +767,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
     t0 = time.time()
 
-    rows = load_package_text(args.package_text)
+    rows = load_package_text(args.package_text, args.min_dependents, args.max_rank)
     rows = qualify(rows, args.min_dependents, args.max_age_months)
     if not rows:
         log("자격 통과 패키지 0개 — 중단")
@@ -489,9 +785,44 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     keywords_by_idx = {i: (rows[i].get("keywords") or []) for i in range(len(rows))}
     archived_by_idx = {i: rows[i].get("repo_archived") for i in range(len(rows))}
-    hits, gate_drops = apply_gates(hits, names, keywords_by_idx, args.gate, archived_by_idx)
+    dependents_path = resolve_dependents_path(args.dependents, args.package_text)
+    dependents_map = load_dependents(dependents_path, names=names)
+    if not dependents_map and args.gate:
+        log(
+            "경고: 보완재 관문 건너뜀 — dependents 데이터 없음 "
+            f"({dependents_path or '--package-text 옆 ' + DEPENDENTS_FILENAME + ' 없음'})"
+        )
+    dependents_by_idx = {i: dependents_map.get(names[i]) for i in range(len(names))} if dependents_map else None
+    coverage = dependents_coverage(names, dependents_map)
+    if coverage:
+        log(f"dependents 커버리지: {coverage['with_dependents']}/{coverage['pool']} ({coverage['ratio']:.1%})")
+    hits, gate_drops = apply_gates(
+        hits, names, keywords_by_idx, args.gate, archived_by_idx, dependents_by_idx
+    )
     if args.gate:
         log(f"구조적 관문: {gate_drops} → {len(hits)} 쌍 잔여")
+
+    downloads_floor = args.downloads_floor
+    downloads_floor_tiers: tuple[int, ...] | None = None
+    tiers_used: dict[int, int] | None = None
+    if downloads_floor > 0:
+        if rows and "downloads_last_month" not in rows[0]:
+            log("경고: 인지도 관문 건너뜀 — downloads_last_month 컬럼 없음 (구버전 package_text)")
+            downloads_floor = 0
+        else:
+            # downloads_floor 를 최상위 단계로 하고, 그 아래 표준 단계(DOWNLOADS_FLOOR_TIERS
+            # 중 그보다 낮은 것들)로 내려가며 완화한다. 항상 0으로 끝나 최후엔 하한 없이라도
+            # 있는 후보는 다 쓴다 (S15P21A506-458 — 하드컷 하나뿐이면 니치 base 에서 후보가
+            # 3개 미만·0개가 되는 사례가 실측으로 전체의 7.7%p 늘어나는 게 확인됨).
+            downloads_floor_tiers = tuple(dict.fromkeys(
+                [downloads_floor] + [f for f in DOWNLOADS_FLOOR_TIERS if f < downloads_floor]
+            ))
+            downloads_by_idx = {i: rows[i].get("downloads_last_month") for i in range(len(rows))}
+            hits, tiers_used = apply_downloads_floor_with_fallback(
+                hits, downloads_by_idx, downloads_floor_tiers
+            )
+            log(f"인지도 관문(단계 {downloads_floor_tiers}): base 별 최종 단계 분포 {tiers_used} "
+                f"→ {len(hits)} 쌍 잔여")
 
     candidates = rerank(hits, names, args.user_k)
 
@@ -504,16 +835,22 @@ def main(argv: Iterable[str] | None = None) -> int:
         "input_rows_qualified": len(rows),
         "params": {
             "min_dependents": args.min_dependents,
+            "max_rank": args.max_rank,
             "max_age_months": args.max_age_months,
             "retrieve_k": args.retrieve_k,
             "user_k": args.user_k,
             "gate": args.gate,
             "gate_drops": gate_drops,
+            "dependents": dependents_path,
+            "dependents_coverage": coverage,
+            "downloads_floor": downloads_floor,
+            "downloads_floor_tiers": downloads_floor_tiers,
+            "downloads_floor_tiers_used": tiers_used,
             "raw_text_column": args.raw_text_column,
         },
         "elapsed_sec": round(time.time() - t0, 1),
     }
-    write_output(args.out, candidates, rows, gate, meta, args.allow_gate_skip)
+    write_output(args.out, candidates, rows, vectors, gate, meta, args.allow_gate_skip)
     log(f"완료 — {meta['elapsed_sec']}s")
     return 0
 

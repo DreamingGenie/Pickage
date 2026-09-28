@@ -1,0 +1,5 @@
+5c7ecef357d4b88b0e52b19d314a839dc33163a10dca3c351ab660c44e5bf91f  corpus_current_before_P4_20260926T0538Z.json
+0b609802ce28116f3a57d6980f790340d2668d0fa39be99d68508edf0554b9fd  vectors_current_before_P4_20260926T0538Z.json
+{"run_path":"model=v2/corpus=package-text-20260908-v3","run_id":"package-text-20260908-v3","published_at":"2026-09-25T06:30:58Z","manifest_sha256":"77af8546a0bb7ee8f76860ef6f9ca6eba5dc4cfeb6a8e3f2a7781edd31aa65eb"}
+{"collected_date":"2026-09-08","manifest_sha256":"7a1a564c1104c3c2541aa916df4b45d7db5473daabe85e4979a63d05eb1624fe","run_id":"package-text-20260908-v3","run_path":"collected_date=2026-09-08/run_id=package-text-20260908-v3"}
+similar-package-modelv2-corpuspackage-text-20260908-v3-77af8546a0bb|77af8546a0bb7ee8f76860ef6f9ca6eba5dc4cfeb6a8e3f2a7781edd31aa65eb (etl_dataset_current, 게시 중)

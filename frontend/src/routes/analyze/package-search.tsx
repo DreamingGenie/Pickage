@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { usePackageAutocomplete } from '@/api/autocomplete'
 import { cn } from '@/lib/utils'
 
+const MAX_PACKAGE_SEARCH_LENGTH = 300
+
 /**
  * 패키지명 검색창.
  *
@@ -22,11 +24,15 @@ export function PackageSearch({
   value,
   onChange,
   onSubmit,
-  placeholder = '패키지명 하나 (예: winston)',
+  placeholder = '패키지 이름 (예: winston)',
   ariaLabel,
   disabled = false,
   autoFocus = false,
   className,
+  inputClassName,
+  icon = true,
+  invalid = false,
+  describedBy,
 }: {
   value: string
   onChange: (v: string) => void
@@ -37,6 +43,14 @@ export function PackageSearch({
   disabled?: boolean
   autoFocus?: boolean
   className?: string
+  /** 입력 요소 자체에 얹을 추가 스타일. 크기·모양이 다른 자리(인트로 히어로 등)에 재사용할 때 쓴다. */
+  inputClassName?: string
+  /** 왼쪽 돋보기 아이콘. 히어로처럼 오른쪽에 별도 제출 버튼을 두는 자리에서는 끈다. */
+  icon?: boolean
+  /** 호출 측이 들고 있는 오류 상태를 입력에 반영한다(`aria-invalid`). */
+  invalid?: boolean
+  /** 오류 문구 요소 id. `aria-describedby` 로 연결한다. */
+  describedBy?: string
 }) {
   const listId = useId()
   const [open, setOpen] = useState(false)
@@ -99,29 +113,46 @@ export function PackageSearch({
 
   return (
     <div ref={boxRef} className={cn('relative flex-1', className)}>
-      <SearchIcon
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <input
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value)
-          setOpen(true)
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
-        className="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 font-mono text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50"
-      />
+      {/*
+        아이콘은 입력창 높이에만 맞춘다. 예전에는 바깥 상자(아래 글자 수 줄까지 포함) 기준으로 가운데를 잡아
+        아이콘이 입력창보다 아래로 내려가 있었다.
+      */}
+      <div className="relative">
+        {icon && (
+          <SearchIcon
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+        )}
+        <input
+          value={value}
+          maxLength={MAX_PACKAGE_SEARCH_LENGTH}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={showList && suggestions.length ? `${listId}-${active}` : undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          spellCheck={false}
+          autoComplete="off"
+          className={cn(
+            'h-11 w-full rounded-lg border border-input bg-background pr-3 font-sans text-base transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:opacity-50',
+            icon ? 'pl-10' : 'pl-4',
+            inputClassName,
+          )}
+        />
+      </div>
 
       {showList && (
         <div className="absolute top-full right-0 left-0 z-30 mt-1.5 overflow-hidden rounded-xl border bg-background shadow-lg">
@@ -137,8 +168,8 @@ export function PackageSearch({
                   '찾는 중…'
                 ) : (
                   <>
-                    <span className="font-mono">{query}</span> 로 시작하는 패키지를 찾지 못했습니다.
-                    Enter 로 그대로 확인해 볼 수 있습니다.
+                    <span className="font-mono">{query}</span> 로 시작하는 패키지가 목록에 없어요.
+                    Enter 를 누르면 이 이름 그대로 확인해 볼게요.
                   </>
                 )}
               </li>
@@ -155,11 +186,7 @@ export function PackageSearch({
                     )}
                   >
                     <span className="truncate font-mono text-base">
-                      {/* 접두사 검색이라 강조 구간은 항상 앞에서부터 질의 길이만큼이다 */}
-                      <mark className="bg-transparent font-semibold underline underline-offset-2">
-                        {s.name.slice(0, query.length)}
-                      </mark>
-                      {s.name.slice(query.length)}
+                      <MatchedName name={s.name} query={query} />
                     </span>
                   </button>
                 </li>
@@ -179,5 +206,24 @@ export function PackageSearch({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * 이름에서 입력과 같은 글자가 **실제로 있는 자리**에 밑줄을 긋는다. 대소문자는 가리지 않는다.
+ * 예전에는 입력 길이만큼 늘 맨 앞을 칠해서, 서버가 돌려준 이름처럼 앞이 다른 결과에서는 엉뚱한 글자에 밑줄이 갔다.
+ * 겹치는 곳이 없으면 칠하지 않는다.
+ */
+function MatchedName({ name, query }: { name: string; query: string }) {
+  const at = query ? name.toLowerCase().indexOf(query.toLowerCase()) : -1
+  if (at < 0) return <>{name}</>
+  return (
+    <>
+      {name.slice(0, at)}
+      <mark className="bg-transparent font-semibold text-foreground underline underline-offset-2">
+        {name.slice(at, at + query.length)}
+      </mark>
+      {name.slice(at + query.length)}
+    </>
   )
 }

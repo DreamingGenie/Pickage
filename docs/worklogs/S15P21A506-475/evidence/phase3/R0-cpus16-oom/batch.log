@@ -1,0 +1,8 @@
+[02:18:41] package_text: 922322 행 중 dependents>=5, download_rank<=100000 인 52342 행만 읽음  (/work/in/package_text.parquet)
+[02:18:41] 자격 필터: 52342 → 17807  (dependents<5 0, 12개월 초과 34410, deprecated/spam 125)
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+[02:18:43] ONNX 로드: /work/in/model  (model_ver=bge-small-v7-v5clean-batch32-step500)
+[02:18:43] 재임베딩 대상: 17807 / 17807 (변경·신규분)
+Killed
+CGROUP_MEMORY_PEAK=2147483648
+BATCH_EXIT=137

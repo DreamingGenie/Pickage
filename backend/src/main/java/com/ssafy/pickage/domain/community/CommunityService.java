@@ -113,9 +113,24 @@ public class CommunityService {
     }
 
     private boolean isReusable(CommunitySnapshotRow row, Instant now) {
-        return CommunitySnapshotTtl.isFresh(row.collectedAt(), now)
+        return isFresh(row, now)
                 && (row.result().summaryRetryAt() == null
                         || now.isBefore(row.result().summaryRetryAt()));
+    }
+
+    /**
+     * 신선한가. 24시간 창 안이어도 <b>저장소 전체 Issue 수가 비어 있고 {@link CommunitySnapshotTtl#COUNTS_RETRY_WINDOW} 가 지났으면
+     * 아니다</b>(S15P21A506-415) — 그러면 화면이 다시 수집을 요청해 수치를 채운다. 이미 저장돼 있던 스냅샷(수치를 더하기 전, 또는
+     * 조회에 실패한 채 저장)이 하루를 기다리지 않고 복구되게 한다. 저장소를 확인하지 못한 종료 상태(저장소 없음)에는 해당 없다.
+     */
+    private static boolean isFresh(CommunitySnapshotRow row, Instant now) {
+        if (!CommunitySnapshotTtl.isFresh(row.collectedAt(), now)) return false;
+        var repository = row.result().repository();
+        boolean countsMissing =
+                repository != null
+                        && (repository.issueCount() == null || repository.openIssueCount() == null);
+        return !countsMissing
+                || now.isBefore(row.collectedAt().plus(CommunitySnapshotTtl.COUNTS_RETRY_WINDOW));
     }
 
     private CommunityStatusResponse response(String name, int id, RefreshInfoResponse rejection) {
@@ -145,11 +160,7 @@ public class CommunityService {
         return new CommunityStatusResponse(
                 name,
                 view,
-                row.map(
-                                r ->
-                                        CommunitySnapshotTtl.isFresh(r.collectedAt(), Instant.now())
-                                                ? Freshness.FRESH
-                                                : Freshness.STALE)
+                row.map(r -> isFresh(r, Instant.now()) ? Freshness.FRESH : Freshness.STALE)
                         .orElse(null),
                 refresh,
                 row.map(this::result).orElse(null));
@@ -220,12 +231,6 @@ public class CommunityService {
                                                         t.collectionStatus()),
                                                 SummaryStatus.valueOf(t.summaryStatus()),
                                                 t.summaryKo(),
-                                                t.flow().stream()
-                                                        .map(
-                                                                f ->
-                                                                        new DiscussionStepResponse(
-                                                                                f.text()))
-                                                        .toList(),
                                                 t.messages().stream()
                                                         .map(
                                                                 m ->
@@ -243,6 +248,14 @@ public class CommunityService {
                                                                                 m.kind(),
                                                                                 m.createdAt(),
                                                                                 m.text()))
+                                                        .toList(),
+                                                t.summaryMarks().stream()
+                                                        .map(
+                                                                k ->
+                                                                        new SummaryMarkResponse(
+                                                                                k.start(),
+                                                                                k.end(),
+                                                                                k.kind()))
                                                         .toList()))
                         .toList();
         var summary =
@@ -262,7 +275,13 @@ public class CommunityService {
                 r == null
                         ? null
                         : new RepositoryInfoResponse(
-                                r.owner(), r.name(), r.fullName(), r.scope(), r.archived()),
+                                r.owner(),
+                                r.name(),
+                                r.fullName(),
+                                r.scope(),
+                                r.archived(),
+                                r.issueCount(),
+                                r.openIssueCount()),
                 summary,
                 topics,
                 p.limitations().stream()
@@ -273,7 +292,7 @@ public class CommunityService {
                         p.lookbackDays(),
                         2,
                         100,
-                        3,
+                        CommunitySummaryValidator.MAX_MESSAGES,
                         CommunityPolicy.SOURCE_NOTE));
     }
 

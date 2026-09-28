@@ -1,0 +1,33 @@
+ws            (1060.6M) -> pusher 3.1M | partysocket 3.3M | rpc-websockets 9.6M
+axios         (490.0M) -> undici 660.8M | @algolia/requester-node-http 32.8M | @algolia/requester-browser-xhr 32.7M
+express       (529.9M) -> fastify 47.7M | @tinyhttp/app 1.9M | @hapi/hapi 6.3M
+koa           (32.9M) -> hono 236.4M | express 529.9M | fastify 47.7M
+socket.io     (69.3M) -> ws 1060.6M | fastify 47.7M | pusher 3.1M
+jest          (189.9M) -> mocha 58.1M | ava 2.1M | jasmine-core 23.0M
+zod           (1080.3M) -> joi 101.7M | ajv 1456.6M | @redocly/ajv 34.2M
+jsonwebtoken  (219.2M) -> fast-jwt 4.8M | @fastify/jwt 3.1M | jws 318.8M
+chalk         (1939.2M) -> yoctocolors 135.4M | @colors/colors 234.7M | colors-option 703K
+uuid          (1109.2M) -> short-uuid 3.6M | @bugsnag/cuid 5.2M | uuidv7 11.7M
+cheerio       (108.4M) -> htmlparser2 327.3M | node-html-parser 35.8M | sax-wasm 516K
+pino          (181.1M) -> bole 6.6M | roarr 41.8M | winston 103.8M
+winston       (103.8M) -> @graphile/logger 694K | @adonisjs/logger 504K | roarr 41.8M
+zustand       (209.9M) -> jotai 23.7M | @nanostores/react 2.7M | constate 807K
+yargs         (1017.3M) -> command-line-args 33.7M | cmd-ts 1.1M | type-flag 2.0M
+commander     (1999.5M) -> @adonisjs/ace 636K | argue-cli 9.5M | command-line-args 33.7M
+js-yaml       (1198.6M) -> @zkochan/js-yaml 34.7M | yaml 782.8M | yaml-eslint-parser 10.7M
+yaml          (782.8M) -> js-yaml 1198.6M | @zkochan/js-yaml 34.7M | read-yaml-file 27.0M
+dayjs         (276.5M) -> react-moment 697K | @js-joda/core 19.8M | @formatjs/intl-relativetimeformat 2.3M
+date-fns      (406.5M) -> @fluentui/date-time-utilities 1.1M | @js-joda/core 19.8M | chrono-node 12.1M
+lodash        (665.0M) -> min-dash 2.6M | remeda 37.7M | rollup 459.5M
+react         (659.4M) -> inferno 1.0M | @modern-js/utils 2.5M | @modern-js/node-bundle-require 2.8M
+vue           (58.1M) -> @nuxt/ui 2.1M | @fe6/water-pro 1.4M | @modern-js/utils 2.5M
+mongoose      (26.9M) -> @opentelemetry/instrumentation-mongoose 86.5M | mingo 1.1M | @mikro-orm/knex 2.6M
+sequelize     (11.7M) -> @mikro-orm/knex 2.6M | @mikro-orm/reflection 1.1M | @mikro-orm/mysql 1.0M
+webpack       (226.2M) -> @textlint/module-interop 6.2M | mlly 108.9M | current-module-paths 985K
+vite          (678.4M) -> @web/dev-server-core 1.2M | @web/dev-server 637K | @esbuild/android-arm 42.3M
+eslint        (645.4M) -> ts-pattern 29.0M | @eslint-community/regexpp 562.0M | @ast-grep/cli-linux-x64-gnu 3.3M
+prettier      (533.2M) -> @knapsack/prettier-config 104K | dprint 1.1M | @adonisjs/prettier-config 216K
+jsdom         (384.8M) -> @oozcitak/dom 89.2M | @types/web 2.6M | min-document 28.2M
+puppeteer     (45.9M) -> chrome-launcher 72.5M | @sparticuz/chromium 6.3M | @types/chrome-remote-interface 749K
+후보 없음: [('moment', '139.8M'), ('bcrypt', '22.8M'), ('redux', '170.3M'), ('node-fetch', '725.6M')]
+후보 93개 중 월 50만 미만 2개

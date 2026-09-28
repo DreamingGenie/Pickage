@@ -55,6 +55,18 @@ class ShardRunTests(unittest.TestCase):
         self.assertIsNone(DATED_RUN.fullmatch('run=2026-09-16-s1'))
         self.assertTrue(SHARD_RUN.fullmatch('run=2026-09-16-s1'))
 
+    def test_labelled_shard_run_is_swept(self):
+        """회차 이름에 라벨이 붙어도 선택되고 날짜로 묶인다 (run=2026-09-22-additions-s1).
+        라벨을 허용하기 전에는 네 폴더가 DATED_RUN·SHARD_RUN 어느 쪽에도 안 걸려 통째로 빠졌고,
+        입고가 'No collector runs selected' 로 끝났다 (S15P21A506-452)."""
+        self.assertTrue(SHARD_RUN.fullmatch('run=2026-09-22-additions-s1'))
+        self.assertEqual(shard_of('run=2026-09-22-additions-s1'), ('2026-09-22', 1))
+        # 라벨이 있어도 넷이 한 collected_date 로 묶여야 한다
+        dates = {shard_of(f'run=2026-09-22-additions-s{i}')[0] for i in range(1, 5)}
+        self.assertEqual(dates, {'2026-09-22'})
+        # 라벨을 넓혀도 smoke 는 여전히 제외다
+        self.assertIsNone(SHARD_RUN.fullmatch('run=smoke-2026-09-22-additions-s1'))
+
     def test_smoke_shard_not_swept(self):
         self.assertIsNone(SHARD_RUN.fullmatch('run=smoke-2026-09-16-s1'))
         self.assertIsNone(DATED_RUN.fullmatch('run=smoke-2026-09-16-s1'))

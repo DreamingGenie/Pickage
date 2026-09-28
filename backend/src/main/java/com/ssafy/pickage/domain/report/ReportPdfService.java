@@ -8,9 +8,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ssafy.pickage.domain.packages.PackageNames;
-import com.ssafy.pickage.domain.packages.PackageService;
-import com.ssafy.pickage.domain.packages.dto.PackagesOverviewResponse;
+import com.ssafy.pickage.domain.community.dto.CommunityStatusResponse;
+import com.ssafy.pickage.domain.report.dto.FeatureComparisonPayload;
 import com.ssafy.pickage.domain.report.dto.PdfGenerateRequest;
 import com.ssafy.pickage.domain.report.dto.PdfJobResponse;
 import com.ssafy.pickage.global.exception.BusinessException;
@@ -40,31 +39,29 @@ import lombok.RequiredArgsConstructor;
  * 없다. 지금 검사를 넣으면 <b>항상 BLOCKED 인 API</b> 가 되어 아무것도 확인할 수 없다.
  * 생태계 결과만으로 만들 수 있는 문서를 먼저 돌게 하고, 기능 비교가 붙을 때 적격성과
  * 문서 구역을 함께 더한다.
+ *
+ * <p>유지·유입·이탈도 같은 원칙이다 — {@code data_status}({@code NO_DATA}·{@code OUT_OF_SCOPE}·
+ * {@code NOT_COMPUTED})는 §13.2 가 이미 "차단 사유가 아니다" 라고 못 박은 화면의 결측 상태들과
+ * 같은 종류라 새 {@code BLOCKED} 사유를 추가하지 않는다. 문서에 상태를 그대로 적어 화면과
+ * 같은 규칙을 따른다(S15P21A506-394).
+ *
+ * <h2>조회는 {@link ReportSourcesAssembler} 와 나눠 쓴다</h2>
+ *
+ * "이름 검증 → 조회 → {@code Sources} 조립" 은 HAND-OFF Markdown({@link ReportMarkdownService})도
+ * 똑같이 밟는다(S15P21A506-466). 두 문서가 같은 재료를 보도록 그 단계를 공용 컴포넌트로 뺐다 —
+ * 이 클래스에는 PDF 만의 일(HTML 렌더 → PDF 변환 → 저장)만 남는다.
  */
 @Service
 @RequiredArgsConstructor
 public class ReportPdfService {
 
-	private final PackageService packages;
+	private final ReportSourcesAssembler assembler;
 	private final ReportHtmlRenderer renderer;
 	private final HtmlToPdf converter;
 	private final PdfStore store;
 
 	@Transactional(readOnly = true)
 	public PdfJobResponse generate(PdfGenerateRequest request) {
-		// 이름 검증은 조회와 같은 규칙을 쓴다 — 상한·형식·중복 제거가 갈라지면
-		// 화면에서는 되는 조합이 PDF 에서만 막힌다.
-		PackageNames names = PackageNames.of(request.names());
-
-		PackagesOverviewResponse overview = packages.getOverview(names);
-
-		// 이름이 하나도 살아남지 않으면 그릴 것이 없다. 빈 문서를 내보내면
-		// 사용자는 "만들어졌다" 고 읽고 파일을 열어 보고서야 알게 된다.
-		if (overview.items().isEmpty()) {
-			throw new BusinessException(ExceptionType.REQUIRED_PARAM_MISSING,
-				"보고서를 만들 수 있는 패키지가 없습니다. 이름을 확인해 주세요.");
-		}
-
 		/*
 		 * 고른 구역 중 지금 채울 수 있는 것이 하나도 없다.
 		 *
@@ -73,26 +70,37 @@ public class ReportPdfService {
 		 */
 		Set<ReportSection> requested = ReportSection.parse(request.sections());
 
-		ReportHtmlRenderer.Sources sources = new ReportHtmlRenderer.Sources(
-			names.values(),
-			request.from(),
-			request.to(),
-			overview,
-			packages.getDownloadsTrend(names, request.from(), request.to()),
-			packages.getDependentsTrend(names, request.from(), request.to()),
-			packages.getVersionShare(names, request.snapshotAt()),
-			requested);
+		ReportSourcesAssembler.Assembled assembled = assembler.assemble(
+			request.names(), request.from(), request.to(), request.snapshotAt(),
+			request.period(), requested, request.features());
 
 		// 한 번 그린 HTML 로 미리보기와 PDF 를 모두 만든다. 여기서 갈라지지 않는 것이
 		// "본 것과 받은 것이 같다" 의 전부다.
-		String html = renderer.render(sources);
+		String html = renderer.render(assembled.sources());
 		byte[] pdf = converter.convert(html);
 
 		String id = UUID.randomUUID().toString().replace("-", "");
-		PdfJobResponse meta = PdfStore.meta(id, fileName(names.values()), pdf.length,
-			requested.stream().map(Enum::name).toList());
+		PdfJobResponse meta = PdfStore.meta(id, fileName(assembled.sources().names()), pdf.length,
+			omitted(requested, assembled.communityStatus(), assembled.features()));
 		store.save(id, html, pdf, meta);
 		return meta;
+	}
+
+	/**
+	 * <b>요청했지만 문서에 채우지 못한 구역.</b> 기능 심화 분석은 요청이 판정 payload 를 안 실어 보내서
+	 * (아직 분석을 실행하지 않았거나 재분석이 필요해서), 커뮤니티 분석은 저장된 자료가 아직 없어서 빈다.
+	 * 채웠으면 여기 넣지 않는다 — 화면이 "자리와 사유만 실렸다" 고 안내하는 대상이다.
+	 */
+	static List<String> omitted(
+		Set<ReportSection> requested, CommunityStatusResponse communityStatus, FeatureComparisonPayload features
+	) {
+		return requested.stream()
+			.filter(section -> switch (section) {
+				case COMMUNITY -> !ReportCommunity.hasResult(communityStatus);
+				case FEATURES -> features == null;
+			})
+			.map(Enum::name)
+			.toList();
 	}
 
 	/** 미리보기 HTML. 다운로드할 PDF 와 같은 생성에서 나온 것이다. */

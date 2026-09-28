@@ -70,9 +70,13 @@ class FastCountLoader(HistoricalCountLoader):
         expected = [['package_id','integer',True,None], ['version','character varying(100)',True,None],
                     ['snapshot_at','date',True,None], ['dependents_count','integer',True,'0']]
         definitions = set(result['constraints'] or [])
+        # 음수 금지 CHECK 는 V7(2026-09-15, S15P21A506-341)이 서비스 표에 붙였다.
+        # 이 검사는 2026-09-12 에 쓰였으므로 그때는 없던 제약이다. 그대로 두면
+        # V7 이후의 모든 DB(운영 포함)가 "네 열 계약과 다르다"며 적재를 거부한다.
         required = {'PRIMARY KEY (package_id, version, snapshot_at)',
                     'FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)',
-                    'FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)'}
+                    'FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)',
+                    'CHECK ((dependents_count >= 0))'}
         if result['columns'] != expected or definitions != required or result['rls'] or result['rules'] or result['triggers']:
             raise ValueError('Service DDL differs from the verified four-column contract; review before reload')
         return result
