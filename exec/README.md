@@ -1,0 +1,25 @@
+# exec — 제출용 포팅 매뉴얼
+
+Pickage (S15P21A506) 의 제출 산출물이다. **폴더명 `exec` 는 제출 규격이라 바꾸지 않는다.**
+소스코드는 여기에 다시 넣지 않는다 — 저장소 전체가 곧 소스다.
+
+| # | 제출 규격 | 파일 |
+| --- | --- | --- |
+| 1 | 클론 이후 빌드·배포할 수 있게 정리한 문서<br>(JVM·웹서버·WAS 종류와 버전(IDE 포함), 빌드 환경변수, 배포 특이사항, 주요 계정·프로퍼티 파일 목록) | [`01_빌드_배포_매뉴얼.md`](01_빌드_배포_매뉴얼.md) |
+| 2 | 프로젝트에서 쓰는 외부 서비스 정보 | [`02_외부_서비스_정보.md`](02_외부_서비스_정보.md) |
+| 3 | DB 덤프 파일 최신본 | [`03_DB_덤프.md`](03_DB_덤프.md) + [`db/schema.sql`](db/schema.sql)<br>⚠ **전체 데이터 덤프는 없다** — DB 가 약 160 GB 라 올릴 수 없다. 이유는 03 §1 |
+| 4 | 시연 시나리오 | [`04_시연_시나리오.md`](04_시연_시나리오.md) |
+
+## 정본은 `deploy/` 다
+
+운영 절차·함정·결정 근거는 [`deploy/`](../deploy/) 에 있고, 이 폴더는 제출 규격에 맞춰
+**클론 → 빌드 → 배포** 한 줄기로 추린 것이다. 둘이 어긋나면 `deploy/` 를 따르고 여기를 고친다.
+
+| | |
+| --- | --- |
+| [`deploy/prod/README.md`](../deploy/prod/README.md) | `app` 노드 운영 (배포·롤백·백업) |
+| [`deploy/prod/data/README.md`](../deploy/prod/data/README.md) | `data` 노드 운영 (MinIO·MLflow·Spark·주간 수집) |
+| [`deploy/ci/README.md`](../deploy/ci/README.md) | GitLab Runner 와 파이프라인 |
+| [`deploy/local/README.md`](../deploy/local/README.md) | 로컬 개발 환경과 시드 |
+| [`AGENTS.md`](../AGENTS.md) 7번 | 로컬과 운영이 의도적으로 다른 지점 |
+

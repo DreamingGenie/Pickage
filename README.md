@@ -370,6 +370,7 @@ MR에서는 `.gitlab-ci.yml`의 프런트엔드, 백엔드 단위·통합, AI, R
 | `deploy/prod/` | 앱·데이터 노드 운영 compose, 배포·백업·복구 절차입니다. |
 | `deploy/ci/`, `.gitlab-ci.yml` | MR에서 실행하는 프런트 검사·빌드, 백엔드 단위·통합 시험, AI·RAG·pipeline smoke와 develop·main 배포 파이프라인입니다. 러너 절차는 `deploy/ci/README.md`에 있습니다. |
 | `docs/` | 기획·요구사항·수집 계획·검증 문서입니다. `docs/api & data/`는 데이터 수집 계획, `docs/history/`는 교체·폐기 문서, `docs/worklogs/`는 작업 근거를 보관합니다. |
+| `exec/` | **제출용 포팅 매뉴얼**입니다. 빌드·배포 매뉴얼, 외부 서비스 정보, DB 덤프, 시연 시나리오를 담습니다. 폴더명은 제출 규격이라 바꾸지 않으며, 운영 절차의 정본은 `deploy/` 쪽입니다. |
 | `scripts/` | Git hook 설치와 브랜치 생성 helper입니다. 브랜치명 규칙 구현은 `scripts/lib/check-branch-name.sh`에 있습니다. |
 | `.githooks/` | `commit-msg`는 커밋 형식·Jira 키를, `pre-push`는 새 브랜치 이름을 검사합니다. `setup-hooks`로 활성화합니다. |
 | `tests/` | 저장소 공통 계약과 정적 검증 자료입니다. |

@@ -576,7 +576,7 @@ def publish_pointer(s3, key, value, date_key):
             return 'created' if current is None else 'advanced'
         except Exception:
             # 오류 코드로 분류하지 않고 결과를 다시 읽어 판정한다 (storage.put_immutable 과
-            # 같은 방식). 로컬과 운영의 MinIO 버전이 달라 코드 문자열을 믿기 어렵다.
+            # 같은 방식). MinIO 의 오류 코드 문자열은 릴리스마다 바뀔 수 있어 믿기 어렵다.
             # 두 번째도 실패하면 원인을 감추지 않고 그대로 올린다 — 권한 오류를 경합으로
             # 둔갑시키면 운영자가 있지도 않은 동시 게시자를 찾는다.
             if attempt:
