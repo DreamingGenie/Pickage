@@ -23,9 +23,3 @@ Pickage (S15P21A506) 의 제출 산출물이다. **폴더명 `exec` 는 제출 �
 | [`deploy/local/README.md`](../deploy/local/README.md) | 로컬 개발 환경과 시드 |
 | [`AGENTS.md`](../AGENTS.md) 7번 | 로컬과 운영이 의도적으로 다른 지점 |
 
-## 아직 비어 있는 것
-
-| 무엇 | 어디 | 어디서 가져오나 |
-| --- | --- | --- |
-| GitHub PAT 발급 계정·만료일 | 02 §3 | 발급한 팀원 |
-
