@@ -63,6 +63,7 @@ Netdata 는 `/api/v1/allmetrics?format=prometheus` 로 **Prometheus 형식을 �
 | 포트를 `0.0.0.0` 에 열지 않는다 | `app` 은 **인터넷에 노출된 유일한 노드**다. Netdata 기본 포트 19999 는 **로그인이 없다** | [`../README.md`](../README.md) "하지 말 것" |
 | `env_file:` 을 쓰지 않고 `${}` 치환으로 받는다 | `env_file` 이면 `.env` 의 **아무 줄이나** 바뀔 때 컨테이너가 재생성된다 | [`../README.md`](../README.md) "환경변수만 고쳤을 때" |
 | dbengine 디스크 상한을 **명시**한다 | `/dev/root` 하나에 DB·백업·도커가 같이 산다. **09-18 실측 61%** 이고 늘고 있다 | [`../README.md`](../README.md) "백업" |
+| 이름이 매번 바뀌는 컨테이너(CI 러너 잡)는 netdata 에서 **뺀다** | 컨테이너 하나가 시계열 64개를 만들고, 사라진 뒤에도 보존 기간 동안 메타데이터가 메모리에 남는다. 열흘에 12.9만 개·509MB 로 512m 상한에 닿았다 (2026-09-29). 호스트 전체 부하는 `system.*` 에 그대로 보인다 | `app/netdata.conf` 의 `[plugin:cgroups]` — 확인 명령이 그 절에 있다 |
 | **별도 compose 프로젝트**로 띄운다 (`pickage-monitoring-app` · `pickage-monitoring-data`) | `app/compose.yaml` 에 넣으면 배포 잡이 돌 때마다 같이 재생성 후보가 된다. **배포가 흔들릴 때 모니터링은 살아 있어야 한다** | — |
 
 > ⚠ **`app/compose.yaml` 에 서비스를 추가하지 않는다.** 디렉터리를 따로 두는 이유가
