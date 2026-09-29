@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="description" content="Pickage의 Raw 수집부터 Curated 전처리, PostgreSQL 적재와 실패 복구까지 설명하는 실무 안내서">
+<title>파이프라인 탐색 · Pickage</title><style>:root{--ink:#1d2c2a;--muted:#526660;--green:#143b36;--line:#d5dfd9;--paper:#fff;--wash:#f2f7f4;--accent:#b7511f;--rail:244px}
+*{box-sizing:border-box}html{scroll-padding-top:88px}body{margin:0;background:#fafbf8;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;font-size:17px;line-height:1.8;word-break:keep-all;overflow-wrap:anywhere}a{color:var(--green);text-underline-offset:4px}a:hover{text-decoration-thickness:2px}button,summary{font:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:6px;background:white;padding:7px 14px;color:var(--green)}:focus-visible{outline:3px solid #c66a34;outline-offset:4px}.skip{position:fixed;top:-80px;left:16px;z-index:10;padding:10px;background:white}.skip:focus{top:10px}.topbar{height:68px;padding:0 36px;display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--line);background:#fafbf8;position:sticky;top:0;z-index:3}.wordmark{font-size:18px;font-weight:800;letter-spacing:1.5px;text-decoration:none}.wordmark span{font-size:10px;letter-spacing:1px;margin-left:10px;color:var(--muted)}.edition{margin-left:auto;font-size:11px;letter-spacing:2px;color:var(--muted)}#print{font-size:12px}.layout{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);max-width:1390px;margin:auto;gap:48px;padding:0 40px}aside{border-right:1px solid var(--line);padding-right:24px}.toc{position:sticky;top:98px;margin-top:40px;font-size:13px;max-height:calc(100vh - 125px);overflow:auto}.toc summary{font-weight:700;letter-spacing:.5px;cursor:pointer;margin-bottom:18px}.toc nav{display:grid;gap:3px}.toc nav a{display:block;padding:8px 10px;text-decoration:none;border-left:2px solid transparent;line-height:1.6}.toc nav a.active{background:#e7f0ea;border-color:var(--green);font-weight:700}.toc-note{font-size:12px;color:var(--muted);margin:30px 10px}main{min-width:0;max-width:920px;padding-bottom:60px}.hero{padding:62px 0 36px;border-bottom:2px solid var(--green)}.eyebrow{letter-spacing:2.1px;font-size:12px;font-weight:700;color:var(--accent);margin:0 0 24px}h1{font-size:clamp(36px,4.3vw,60px);line-height:1.22;letter-spacing:-2px;margin:0 0 24px;font-weight:800}.lead{font-size:18px;line-height:1.9;color:var(--muted);max-width:760px}.reading{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:30px 0}.reading span{font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--line)}.reading b{display:block;font-size:13px;color:var(--ink);margin-top:4px}.provenance{font-size:12px;color:var(--muted);margin:26px 0 0}h2{font-size:29px;line-height:1.4;letter-spacing:-.6px;margin:64px 0 25px;padding-top:10px}h3{font-size:21px;line-height:1.5;margin:38px 0 14px}h4{font-size:18px;margin:25px 0 10px}p{margin:16px 0}li{margin:8px 0}ul,ol{padding-left:24px}strong{font-weight:750}blockquote{border-left:3px solid var(--accent);padding:10px 22px;margin:24px 0;background:#fff4e9;font-size:16px}blockquote p{margin:6px 0}code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:.85em;background:#eaf0eb;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}pre{background:#142e2a;color:#e6f1ec;padding:22px;border-radius:8px;overflow:auto;font-size:14px;line-height:1.7;white-space:pre;word-break:normal}pre code{background:none;padding:0;color:inherit;font-size:inherit;overflow-wrap:normal}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.7}th{text-align:left;background:#eaf1ec;color:var(--green);font-weight:750}th,td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}td{min-width:100px}tbody tr:nth-child(even){background:#f6f8f4}.table-scroll{overflow-x:auto;margin:24px 0;border:1px solid var(--line);border-radius:8px}figure{margin:30px 0;padding:20px 14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}figure svg{display:block;width:100%;height:auto}figcaption{font-size:12px;color:var(--muted);text-align:center;padding:10px 4px 0}.diagram-small{display:none}article details{background:var(--wash);border:1px solid var(--line);border-radius:8px;margin:22px 0;padding:14px 20px}article summary{cursor:pointer;font-size:15px;font-weight:700;color:var(--green)}article details>*:last-child{margin-bottom:4px}hr{border:0;border-top:1px solid var(--line);margin:35px 0}footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);margin-top:60px;padding-top:24px}
+@media(max-width:1050px){:root{--rail:205px}.layout{gap:28px;padding:0 24px}.topbar{padding:0 24px}.toc nav a{padding:7px 4px;font-size:12px}}
+@media(max-width:780px){.topbar{height:58px;padding:0 18px}.wordmark{font-size:15px}.wordmark span,.edition{display:none}#print{margin-left:auto}.layout{display:block;padding:0 20px}aside{border-right:0;border-bottom:1px solid var(--line);padding:0}.toc{position:static;max-height:none;margin:14px 0;font-size:14px}.toc summary{margin-bottom:6px}.toc nav{grid-template-columns:1fr 1fr;gap:4px}.toc-note{display:none}.hero{padding-top:34px}h1{letter-spacing:-1.3px}.lead{font-size:16px}h2{font-size:25px;margin-top:48px}h3{font-size:20px}body{font-size:17px}.reading{gap:8px}.reading b{font-size:12px}.diagram-wide{display:none}.diagram-small{display:block}figure{padding:12px 6px}.table-scroll{font-size:13px}th,td{padding:10px}pre{font-size:12px;padding:16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+@media print{@page{size:A4;margin:15mm}html{scroll-padding-top:0}body{background:white;font-size:10pt;line-height:1.65;color:#000}.topbar,aside,.skip{display:none}.layout{display:block;padding:0;max-width:none}main{max-width:none;padding:0}.hero{padding-top:0}h1{font-size:30pt}h2{font-size:20pt;margin-top:24pt;break-after:avoid}h3,h4{break-after:avoid}p,li{orphans:3;widows:3}.lead{font-size:11pt}.reading{margin:14pt 0}.provenance{font-size:9pt}figure{break-inside:avoid;padding:6pt}.diagram-wide{display:block}.diagram-small{display:none}article details{background:white;border:0;padding:0}article details>summary{margin-top:12pt}.table-scroll{overflow:visible;border:0}table{font-size:9pt}tr{break-inside:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f2f2;color:#000;font-size:8pt;break-inside:auto}a{color:#000}footer{margin-top:20pt}}
+
+[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#explorer{max-width:1510px;margin:auto;padding:30px 36px 18px}.explorer-intro{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:22px}.explorer-intro .eyebrow{margin:0 0 8px;font-size:11px}.explorer-intro h1{font-size:32px;letter-spacing:-1px;margin:0 0 8px}.explorer-intro p:not(.eyebrow){font-size:14px;color:var(--muted);margin:0}.offline-badge{font-size:11px;border:1px solid var(--line);border-radius:30px;padding:7px 14px;white-space:nowrap;color:var(--muted)}
+#overview-rail{display:flex;gap:7px;align-items:center;padding:12px 0 24px;flex-wrap:wrap}#overview-rail button{background:transparent;font-size:12px;border-color:transparent;padding:6px 11px;border-radius:30px}#overview-rail button.current{color:white;background:var(--green)}#overview-rail .rail-arrow{font-size:12px;color:#91a69c}#overview-rail button.overview{border-color:var(--line);margin-right:12px}
+.explorer-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:22px;align-items:start}.map-card{min-width:0;background:white;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 4px 22px #143b3605}#breadcrumbs{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:14px 22px;background:#f5f8f4;border-bottom:1px solid var(--line);font-size:12px;min-height:50px}#breadcrumbs button{border:0;background:transparent;padding:3px 5px;font-size:12px}#breadcrumbs span{color:var(--muted)}#breadcrumbs [aria-current]{font-weight:750;color:var(--green)}.map-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;padding:24px 26px 5px}.map-heading h2{margin:0;font-size:25px;line-height:1.4;padding:0}.map-heading p{margin:8px 0;font-size:13px;color:var(--muted)}#map-kicker{font-size:10px;letter-spacing:1.5px;font-weight:750;color:var(--accent);margin:0 0 8px}.map-heading #up{font-size:12px;white-space:nowrap}.map-heading #up:disabled{opacity:.4;cursor:default}#map-surface{position:relative;margin:18px 26px 25px;min-height:180px}#connections{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}#nodes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:42px 25px;position:relative;z-index:1}.flow-node{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;min-width:0;min-height:142px;width:100%;text-align:left;background:#fff;border:1.5px solid #c9d9cf;border-radius:12px;padding:15px 16px;box-shadow:0 3px 0 #eaf0eb;color:var(--ink);line-height:1.55;transition:border-color .12s,background .12s}.flow-node:hover{border-color:#426f60;background:#f1f7f2}.flow-node.selected{border-color:var(--accent);background:#fff5e9;box-shadow:0 3px 0 #f1d7bd}.node-top{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:12px}.node-index{font:11px ui-monospace,monospace;color:#658074}.node-glyph{font-size:17px;color:var(--accent)}.node-title{font-size:16px;font-weight:750;line-height:1.5;display:block}.node-subtitle{font-size:11px;line-height:1.6;color:var(--muted);display:block;margin-top:5px}.node-action{margin-top:auto;padding-top:12px;font-size:10px;color:#3f6a5b;font-weight:650}.map-legend{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:13px 24px;background:#f5f8f4;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}.map-legend i{display:inline-block;width:20px;height:2px;background:#b96e3d;vertical-align:middle;margin-right:5px}.inspector{border:1px solid var(--line);background:white;border-radius:16px;padding:23px;position:sticky;top:88px;min-width:0}.inspector .eyebrow{font-size:10px;margin:0 0 9px}.inspector h2{font-size:24px;margin:0 0 12px;padding:0}.inspector>p:not(.eyebrow){font-size:13px;line-height:1.8;color:var(--muted);margin:0 0 19px}.detail-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:15px}.detail-tabs button{border:0;border-radius:0;background:transparent;padding:10px 9px;font-size:12px;white-space:nowrap;border-bottom:2px solid transparent}.detail-tabs button[aria-selected=true]{color:var(--green);font-weight:750;border-bottom-color:var(--green)}#detail-panel{font-size:14px;line-height:1.85;min-height:145px}#detail-panel ol{padding-left:21px;margin:0}#detail-panel li{margin:0 0 12px;padding-left:3px}.detail-source{border-top:1px solid var(--line);margin-top:20px;padding-top:16px;display:grid;gap:7px;font-size:10px;color:var(--muted)}.detail-source code{font-size:10px;background:var(--wash);padding:8px;line-height:1.6}#read-detail{width:100%;font-size:12px;margin-top:15px;padding:10px;background:#f5f8f4}.explorer-footnote{font-size:10px;color:var(--muted);margin:18px 0}
+#reference-dialog{width:min(920px,94vw);max-height:88vh;border:1px solid var(--line);border-radius:14px;padding:0;color:var(--ink);box-shadow:0 30px 120px #10292244}#reference-dialog::backdrop{background:#10292288}#reference-dialog>header{position:sticky;top:0;background:#f5f8f4;padding:15px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);z-index:2}#reference-title{font-size:17px;margin:0;padding:0}#close-reference{font-size:12px;white-space:nowrap}#reference-body{padding:10px 30px 30px;font-size:16px;line-height:1.9}#reference-body h2{margin:24px 0;font-size:26px}#reference-body h3{margin:20px 0;font-size:22px}#reference-body figure{display:none}
+@media(min-width:781px) and (max-width:1150px){.explorer-layout{grid-template-columns:minmax(0,1fr) 300px;gap:15px}#explorer{padding:24px 20px}.flow-node{padding:12px;min-height:150px}.node-title{font-size:14px}.inspector{padding:18px}.detail-tabs button{padding:9px 7px}#nodes{gap:38px 18px}.map-heading{padding:20px}#map-surface{margin:18px 20px}}
+@media(max-width:780px){#explorer{padding:23px 18px}.explorer-intro{display:block}.explorer-intro h1{font-size:26px}.explorer-intro p:not(.eyebrow){font-size:13px}.offline-badge{display:inline-block;margin-top:12px;padding:4px 10px;font-size:10px}.explorer-layout{grid-template-columns:1fr}.inspector{position:static;padding:20px}.map-heading{padding:18px 18px 0}.map-heading h2{font-size:22px}.map-heading p{font-size:12px}#map-surface{margin:18px}#nodes{grid-template-columns:1fr;gap:25px}.flow-node{min-height:106px;padding:13px 16px}.node-top{margin-bottom:5px}.node-title{font-size:16px}.node-action{padding-top:7px}.node-subtitle{font-size:12px}#breadcrumbs{padding:10px 14px}.map-legend{padding:12px 16px}#overview-rail{gap:3px;padding:0 0 17px}#overview-rail button{font-size:11px;padding:5px 7px}#overview-rail button.overview{margin-right:3px}.topbar{gap:8px}.topbar .wordmark{margin-right:auto}#view-toggle,#print{font-size:10px;padding:6px 8px;margin:0}#reference-body{padding:8px 18px 24px}#reference-dialog>header{padding:12px 16px}}
+@media print{#explorer,#reference-dialog{display:none!important}#reader[hidden]{display:block!important}}
+
+.term-hint{border-bottom:1px dotted #64887b;cursor:help;text-decoration:none;border-radius:2px}.term-hint:hover,.term-hint:focus-visible{background:#e2efe6;outline:2px solid #83a995;outline-offset:2px}.term-hint:focus-visible{border-bottom-color:transparent}
+#term-tooltip{position:fixed;z-index:1000;width:330px;max-width:calc(100vw - 20px);max-height:calc(100vh - 24px);overflow:auto;background:#163c35;color:#f6faf7;padding:15px 18px;border:1px solid #42685d;border-radius:10px;box-shadow:0 8px 30px #102b3330;font-size:13px;line-height:1.8;word-break:keep-all;overflow-wrap:anywhere;text-align:left}
+#term-tooltip strong{display:block;font-size:14px;color:#e7d2ae}#term-tooltip p{margin:5px 0 12px}#term-tooltip p:last-child{margin-bottom:0}.term-legend{font-size:11px;color:var(--muted)}
+@media print{#term-tooltip{display:none!important}.term-hint{border:0;background:none}}
+</style></head>
+<body><a class="skip" href="#main">본문으로 바로 가기</a>
+<header class="topbar"><a href="#map=overview" class="wordmark">PICKAGE <span>/ PIPELINE EXPLORER</span></a><span class="edition">구현 기준 862a9f4</span><button id="view-toggle" type="button" hidden>전체 설명서</button><button id="print" type="button" hidden>인쇄 / PDF</button></header>
+<section id="explorer" hidden aria-label="클릭하며 살펴보는 파이프라인">
+<div class="explorer-intro"><div><p class="eyebrow">FOLLOW THE DATA</p><h1>파이프라인을 따라가 보세요.</h1><p>상자를 클릭하면 내부 단계가 펼쳐집니다. 계산 방법과 실패 시 동작까지 한 단계씩 살펴보세요.</p></div><span class="offline-badge">설명용 구조도 · 실제 실행 없음</span></div>
+<p class="term-legend">점선 밑줄 용어에 마우스를 올리면 뜻이 나옵니다. 모바일에서는 용어를 탭하세요.</p><nav id="overview-rail" aria-label="전체 파이프라인 위치"></nav>
+<div class="explorer-layout"><section class="map-card" aria-labelledby="map-title"><nav id="breadcrumbs" aria-label="현재 단계 경로"></nav>
+<div class="map-heading"><div><p id="map-kicker"></p><h2 id="map-title" tabindex="-1"></h2><p id="map-description"></p></div><button id="up" type="button">상위로</button></div>
+<div id="map-surface"><svg id="connections" aria-hidden="true"></svg><div id="nodes"></div></div>
+<div class="map-legend"><span><i></i> 화살표: 처리 순서</span><span id="map-hint"></span></div></section>
+<section class="inspector" aria-labelledby="detail-title"><p class="eyebrow" id="detail-kicker"></p><h2 id="detail-title"></h2><p id="detail-summary"></p>
+<div class="detail-tabs" role="tablist" aria-label="단계 상세 정보">
+<button role="tab" id="tab-process" aria-controls="detail-panel" data-tab="process">처리</button><button role="tab" id="tab-input" aria-controls="detail-panel" data-tab="input">입력</button><button role="tab" id="tab-output" aria-controls="detail-panel" data-tab="output">결과</button><button role="tab" id="tab-checks" aria-controls="detail-panel" data-tab="checks">검증</button><button role="tab" id="tab-recovery" aria-controls="detail-panel" data-tab="recovery">실패 시</button>
+</div><div id="detail-panel" role="tabpanel" tabindex="0"></div><div class="detail-source"><span>구현 근거</span><code id="detail-source"></code></div><button id="read-detail" type="button">예제와 자세한 설명 읽기 ↗</button></section></div>
+<p class="explorer-footnote">2026-09-28 검토 · 구현과 과거 로컬 검증을 설명합니다. 운영 배포 완료나 실시간 상태를 표시하지 않습니다.</p><p id="navigation-status" class="sr-only" aria-live="polite"></p></section>
+<dialog id="reference-dialog" aria-labelledby="reference-title"><header><h2 id="reference-title">자세한 설명</h2><button id="close-reference" type="button">닫기 ✕</button></header><div id="reference-body"></div></dialog>
+<div id="reader" class="layout"><aside><details class="toc" open><summary>이 문서의 목차</summary><nav aria-label="문서 목차"><a href="#chapter-1">01. 한눈에 보는 흐름</a>
+<a href="#chapter-2">02. 누가 무엇을 실행하는가</a>
+<a href="#chapter-3">03. 스냅샷 하나의 여정</a>
+<a href="#chapter-4">04. 전처리 단계별 계산</a>
+<a href="#chapter-5">05. Curated 결과와 데이터 계약</a>
+<a href="#chapter-6">06. PostgreSQL 적재</a>
+<a href="#chapter-7">07. 자동 실행과 장애 복구</a>
+<a href="#chapter-8">08. 성능과 운영 자원</a>
+<a href="#chapter-9">09. 운영 확인 순서와 용어</a></nav><p class="toc-note">흐름을 먼저 읽고,<br>필요한 단계로 돌아오세요.</p></details></aside>
+<main id="main"><section class="hero" aria-labelledby="title"><p class="eyebrow">RAW → CURATED → POSTGRESQL</p><h1 id="title">스냅샷에서<br>서비스 데이터까지</h1><p class="lead">새 원천 데이터가 들어온 뒤, 계산하고 검증하고 DB에 반영하기까지.<br>Pickage 전처리·적재 파이프라인을 한 흐름으로 읽는 안내서입니다.</p>
+<div class="reading"><span>처음 읽기 <b>전체 흐름 → 작은 예제</b></span><span>구현 확인 <b>단계별 계산 → DB 적재</b></span><span>문제 해결 <b>실패·재개 → 운영 확인</b></span></div>
+<p class="provenance">구현 기준 <code>862a9f4</code> · 검토 기준일 2026-09-28<br>로컬 검증 기록과 운영 적용 여부를 구분합니다. 실시간 상태판이 아닙니다.</p></section>
+<article><p>이 문서는 새로운 raw 스냅샷이 들어온 뒤 Curated 결과를 만들고 PostgreSQL에 반영하는 전체 흐름을 설명합니다. 먼저 용어와 전체 여정을 읽고, 필요한 경우 각 단계의 계산 규칙과 운영 절차로 내려가면 됩니다.</p>
+<p>이 문서의 예시는 <code>alpha-kit</code>, <code>beta-lib</code>라는 가상의 npm 패키지로 설명합니다. 예시 숫자는 이해를 위한 값이며 실제 실행 결과가 아닙니다.</p>
+<h2 id="chapter-1" tabindex="-1">01. 한눈에 보는 흐름</h2>
+<p>Pickage의 데이터 흐름은 네 가지 경계를 지나갑니다.</p>
+<ol>
+<li>수집 팀이 BigQuery 등에서 raw 데이터를 받아 MinIO <code>pickage-raw</code>에 저장합니다.</li>
+<li>전처리 실행기가 특정 스냅샷의 raw manifest를 고정하고, 여섯 단계를 계산합니다.</li>
+<li>검증된 결과를 MinIO <code>pickage-curated</code>의 immutable bundle로 게시합니다.</li>
+<li>별도 Spring Boot 배치가 완료 bundle을 읽어 PostgreSQL에 한 스냅샷 단위로 반영합니다.</li>
+</ol>
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="650" viewBox="0 0 940 650" role="img" aria-labelledby="overview-desktop-title overview-desktop-desc">
+  <title id="overview-desktop-title">전체 파이프라인 개요</title>
+  <desc id="overview-desktop-desc">raw 수집 완료에서 Curated 게시와 PostgreSQL 적재까지의 세 단계 흐름</desc>
+  <defs>
+    <marker id="overview-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="overview-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">raw → curated → PostgreSQL</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">한 스냅샷을 검증하고, 계산 결과를 게시한 뒤 적재합니다.</text><rect x="40" y="145" width="240" height="150" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="177" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">1  수집 완료</text><text x="58" y="206" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">MinIO raw</text><text x="58" y="231" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest + _SUCCESS</text><rect x="350" y="145" width="240" height="150" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="368" y="177" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">2  전처리</text><text x="368" y="206" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">6개 단계 실행</text><text x="368" y="231" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">검증 후 bundle 게시</text><rect x="660" y="145" width="240" height="150" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="678" y="177" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">3  DB 적재</text><text x="678" y="206" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Spring Boot 배치</text><text x="678" y="231" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">PostgreSQL 트랜잭션 반영</text><path d="M 280 220 L 340 220" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#overview-desktop-arrow)"/><path d="M 590 220 L 650 220" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#overview-desktop-arrow)"/><rect x="40" y="370" width="860" height="145" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="58" y="402" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">공통 안전장치</text><text x="58" y="431" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">입력·코드 계약  |  단계별 checkpoint  |  실패 로그·재시도  |  완료 bundle만 소비</text><text x="40" y="570" font-family="Arial, Pretendard, sans-serif" font-size="19px" font-weight="700" fill="#143b36" text-anchor="start">읽는 법</text><text x="40" y="602" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">주황색 화살표는 데이터/제어 흐름, 점선은 직접 실행이 아닌 개념적 연결입니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="840" viewBox="0 0 340 840" role="img" aria-labelledby="overview-mobile-title overview-mobile-desc">
+  <title id="overview-mobile-title">전체 파이프라인 개요 모바일</title>
+  <desc id="overview-mobile-desc">스냅샷 처리의 세 단계와 공통 검증 장치</desc>
+  <defs>
+    <marker id="overview-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="overview-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">raw → curated → DB</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">스냅샷 하나의 처리 흐름</text><rect x="20" y="105" width="300" height="125" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="137" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">1  수집 완료</text><text x="38" y="166" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">MinIO raw</text><text x="38" y="191" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest + _SUCCESS</text><rect x="20" y="270" width="300" height="125" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="38" y="302" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">2  전처리</text><text x="38" y="331" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">6개 단계</text><text x="38" y="356" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">검증 후 bundle 게시</text><rect x="20" y="435" width="300" height="125" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="467" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">3  DB 적재</text><text x="38" y="496" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Spring Boot</text><text x="38" y="521" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">PostgreSQL 트랜잭션</text><path d="M 170 230 L 170 262" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#overview-mobile-arrow)"/><path d="M 170 395 L 170 427" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#overview-mobile-arrow)"/><rect x="20" y="600" width="300" height="125" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="38" y="632" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">항상 함께 검증</text><text x="38" y="661" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">계약·SHA·checkpoint</text><text x="38" y="686" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">로그·재시도·완료 marker</text><text x="20" y="790" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">주황색 선 = 흐름</text>
+</svg>
+</div><figcaption>전체 데이터 흐름과 실행 주체 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>경계</th>
+<th>기준</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>raw</td>
+<td>생산자 manifest, 파일 SHA, 실제 스냅샷 시각</td>
+<td>변경되지 않는 입력</td>
+</tr>
+<tr>
+<td>전처리</td>
+<td>실행 요청의 snapshot·run_id·코드 계약</td>
+<td>단계별 Parquet와 품질 기록</td>
+</tr>
+<tr>
+<td>Curated</td>
+<td>bundle manifest, 단계 manifest, <code>_SUCCESS</code></td>
+<td>DB가 소비할 완료 묶음</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>parent bundle, staging receipt, 트랜잭션</td>
+<td>서비스 테이블과 적재 이력</td>
+</tr>
+</tbody></table></div>
+<p><code>raw</code>는 수집 결과이고 <code>Curated</code>는 DB 적재에 맞춘 정제 결과입니다. Curated를 만들었다고 DB에 자동으로 들어간 것은 아닙니다. 전처리 실행기는 <code>pipeline/preprocessing/orchestration</code>에, Java 적재기는 <code>backend/src/main/java/com/ssafy/pickage/domain/curatedload</code>에 있습니다.</p>
+<p>전체 실행은 <code>snapshot → package_version → downloads → repository → package_snapshot → dependents</code> 순서입니다. 앞 단계의 manifest와 출력이 뒤 단계의 입력이 되므로, 중간 단계 하나만 임의로 최신 파일로 바꾸지 않습니다.</p>
+<h2 id="chapter-2" tabindex="-1">02. 누가 무엇을 실행하는가</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>주체</th>
+<th>하는 일</th>
+<th>저장소</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>weekly ingest</td>
+<td>raw 스냅샷과 producer manifest 수집</td>
+<td><code>pickage-raw</code></td>
+</tr>
+<tr>
+<td>Curated dispatcher</td>
+<td>완료 raw 회차 탐색, 순서 확인, 전처리 실행</td>
+<td><code>pickage-curated/_ops</code></td>
+</tr>
+<tr>
+<td>Python producers</td>
+<td>단계별 정규화·집계·검증·게시</td>
+<td>로컬 작업 디렉터리와 MinIO</td>
+</tr>
+<tr>
+<td>Spring Curated loader</td>
+<td>완료 bundle 검증, COPY/staging, 서비스 테이블 게시</td>
+<td>PostgreSQL</td>
+</tr>
+<tr>
+<td>timer/flock</td>
+<td>수집과 전처리의 단일 실행 순서 보장</td>
+<td>data 노드</td>
+</tr>
+</tbody></table></div>
+<p>구현된 weekly 실행 흐름은 수집이 종료된 뒤 dispatcher를 이어서 호출합니다. <code>deploy/prod/data/run-weekly-ingest.sh</code>의 인자 없는 실행이 이 연결을 담당합니다. 수집 명령이 실패해도 dispatcher는 호출되지만, 완료 입력이 확인된 회차만 처리합니다. 수집 종료 코드 0만으로 입고 완료를 판단하지 않습니다. timer의 확인 간격과 새 스냅샷이 생성되는 주기는 서로 다릅니다.</p>
+<p>배포 구성에서 전처리는 data 노드의 raw·MinIO 접근 경로에서 실행하고, Spring 적재기는 PostgreSQL에 접근할 수 있는 app 노드의 별도 배치로 실행하는 구성을 전제로 합니다. 두 프로세스의 실제 운영 배치와 timer 등록은 배포 설정에서 확정해야 하며, MR 병합만으로 운영 프로세스가 자동 시작되지는 않습니다.</p>
+<p>전처리 실행 명령의 형태는 다음과 같습니다. <strong>명령 설명용 날짜와 run ID</strong>이며, 실제 실행에는 최초 완료 baseline·해당 raw 입고·MinIO 설정이 먼저 필요합니다.</p>
+<pre><code class="language-powershell">python -m pipeline.preprocessing.orchestration weekly `
+  --snapshot 2026-09-07 `
+  --run-id weekly-20260907 `
+  --work-dir C:/pickage-work `
+  --repository-engine duckdb
+</code></pre>
+<p>DB 적재는 Curated bundle을 정확히 지정합니다. <code>mode=poll</code>은 <code>_current.json</code>의 parent 연결을 따라 오래된 미적재 bundle을 찾지만, 새 timer를 만드는 기능은 아닙니다. 설정 예시는 <code>backend/CURATED_LOAD.md</code>를 기준으로 합니다.</p>
+<p>현재 구현과 검증 범위를 구분합니다. 코드와 로컬 회귀 시험은 구현 근거이고, 작업 로그의 별도 DB·MinIO 시험은 검증 근거입니다. 운영 EC2에서 최신 raw를 처음부터 다시 돌린 결과와 운영 자동 배포는 아직 별도 확인 대상입니다.</p>
+<h2 id="chapter-3" tabindex="-1">03. 스냅샷 하나의 여정</h2>
+<p>아래 가상 입력을 하나의 스냅샷으로 추적합니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>버전</th>
+<th align="right">배포일</th>
+<th align="right">ordinal</th>
+<th>선언 의존성</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>alpha-kit</code></td>
+<td><code>1.0.0</code></td>
+<td align="right">2026-08-01</td>
+<td align="right">1</td>
+<td><code>beta-lib: ^2.0.0</code></td>
+</tr>
+<tr>
+<td><code>alpha-kit</code></td>
+<td><code>1.1.0</code></td>
+<td align="right">2026-09-10</td>
+<td align="right">2</td>
+<td><code>beta-lib: ^2.1.0</code></td>
+</tr>
+<tr>
+<td><code>beta-lib</code></td>
+<td><code>2.0.0</code></td>
+<td align="right">2026-07-01</td>
+<td align="right">1</td>
+<td>없음</td>
+</tr>
+</tbody></table></div>
+<p>스냅샷 날짜가 2026-09-07이면 <code>alpha-kit@1.1.0</code>은 아직 배포되지 않았으므로 version 결과에서 제외됩니다. <code>alpha-kit@1.0.0</code>과 <code>beta-lib@2.0.0</code>은 남습니다.</p>
+<ol>
+<li>raw manifest와 실제 파일 SHA를 확인합니다.</li>
+<li>Projects에서 실제 관측 시각과 스냅샷 후보를 만듭니다.</li>
+<li>유효 릴리스만 골라 package ID와 version 행을 만듭니다.</li>
+<li>직전 스냅샷과 현재 날짜 사이의 다운로드를 합산합니다.</li>
+<li>버전의 저장소 주소와 projects 통계를 연결합니다.</li>
+<li>패키지별 다운로드·stars·open issues를 package snapshot으로 만듭니다.</li>
+<li>선언된 범위를 실제 후보 버전에 적용해 dependents snapshot을 만듭니다.</li>
+<li>여섯 결과와 품질 파일을 다시 검증하고 Curated bundle을 게시합니다.</li>
+<li>Spring loader가 bundle을 읽고 초기/주간 경로에 따라 PostgreSQL 트랜잭션을 커밋합니다.</li>
+</ol>
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="620" viewBox="0 0 940 620" role="img" aria-labelledby="stages-desktop-title stages-desktop-desc">
+  <title id="stages-desktop-title">전처리 단계 흐름</title>
+  <desc id="stages-desktop-desc">6개 전처리 단계를 실제 실행 순서대로 보여주는 흐름</desc>
+  <defs>
+    <marker id="stages-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="stages-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">전처리 6단계</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">실제 실행 순서입니다. 각 단계는 승인된 산출물을 다음 단계에 넘깁니다.</text><rect x="40" y="140" width="250" height="112" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">1  기준일·달력</text><text x="58" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">기준일·달력</text><text x="58" y="226" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: snapshot</text><rect x="330" y="140" width="250" height="112" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="348" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">2  패키지·버전</text><text x="348" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">versions_min/full</text><text x="348" y="226" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: package_version</text><rect x="620" y="140" width="250" height="112" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="638" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">3  다운로드</text><text x="638" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">구간 다운로드</text><text x="638" y="226" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: downloads</text><rect x="620" y="355" width="250" height="112" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="638" y="387" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">4  저장소 지표</text><text x="638" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">저장소 지표</text><text x="638" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: repository</text><rect x="330" y="355" width="250" height="112" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="348" y="387" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">5  패키지 스냅샷</text><text x="348" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">다운로드·저장소 지표</text><text x="348" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: package_snapshot</text><rect x="40" y="355" width="250" height="112" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="387" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">6  역의존</text><text x="58" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">요구사항·버전·기준일</text><text x="58" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">stage: dependents</text><path d="M 290 196 L 320 196" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-desktop-arrow)"/><path d="M 580 196 L 610 196" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-desktop-arrow)"/><path d="M 745 252 L 745 345" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-desktop-arrow)"/><path d="M 620 411 L 590 411" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-desktop-arrow)"/><path d="M 330 411 L 300 411" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-desktop-arrow)"/><text x="40" y="555" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest와 _SUCCESS가 확인된 산출물만 다음 단계의 입력이 됩니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="850" viewBox="0 0 340 850" role="img" aria-labelledby="stages-mobile-title stages-mobile-desc">
+  <title id="stages-mobile-title">전처리 단계 흐름 모바일</title>
+  <desc id="stages-mobile-desc">6개 전처리 단계를 세로로 읽는 도식</desc>
+  <defs>
+    <marker id="stages-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="stages-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">전처리 6단계</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">실행 순서대로 읽습니다.</text><rect x="20" y="100" width="300" height="82" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="132" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">1  기준일·달력</text><text x="38" y="161" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Projects로 기준일 생성</text><path d="M 170 182 L 170 204" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-mobile-arrow)"/><rect x="20" y="212" width="300" height="82" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="244" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">2  패키지·버전</text><text x="38" y="273" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">versions와 요구사항</text><path d="M 170 294 L 170 316" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-mobile-arrow)"/><rect x="20" y="324" width="300" height="82" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="356" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">3  다운로드</text><text x="38" y="385" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">스냅샷 구간 집계</text><path d="M 170 406 L 170 428" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-mobile-arrow)"/><rect x="20" y="436" width="300" height="82" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="38" y="468" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">4  저장소 지표</text><text x="38" y="497" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">연결·품질 기록</text><path d="M 170 518 L 170 540" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-mobile-arrow)"/><rect x="20" y="548" width="300" height="82" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="580" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">5  패키지 스냅샷</text><text x="38" y="609" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">다운로드·저장소 지표</text><path d="M 170 630 L 170 652" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#stages-mobile-arrow)"/><rect x="20" y="660" width="300" height="82" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="692" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">6  역의존</text><text x="38" y="721" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">요구사항·버전·기준일</text><text x="20" y="805" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">단계마다 manifest와 marker 기록</text>
+</svg>
+</div><figcaption>전처리 단계의 입력과 연결 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<p>작은 예시에서 <code>alpha-kit@1.0.0</code>이 <code>beta-lib</code>를 선언했다는 것은 “alpha-kit의 이 버전이 beta-lib의 범위를 선언했다”는 뜻입니다. 이것이 곧 모든 프로젝트가 beta-lib를 설치했다는 뜻도, transitive dependency까지 포함한 사용량이라는 뜻도 아닙니다.</p>
+<h2 id="chapter-4" tabindex="-1">04. 전처리 단계별 계산</h2>
+<h3 id="stage-1">4.1 snapshot: 기준 날짜와 관측 시각</h3>
+<ul>
+<li>입력: raw Projects Parquet와 요청의 <code>snapshot</code> 날짜.</li>
+<li>계산: 승인된 Projects 행의 실제 <code>SnapshotAt</code>을 사용해 스냅샷 후보와 달력을 만듭니다. 폴더 이름을 임의의 자정 시각으로 바꾸지 않습니다.</li>
+<li>출력: snapshot candidate, Projects inventory, 날짜 SQL과 단계 manifest. 게시 prefix는 <code>depsdev/v1/snapshot-reference</code>입니다.</li>
+<li>검증: 입력 파일의 SHA·행 수·스냅샷 일치, 완료 marker, 날짜 계약을 확인합니다.</li>
+</ul>
+<p>예시에서 <code>2026-09-07</code>은 표시용 날짜이고 관측 시각은 <code>2026-09-07T21:01:10Z</code>처럼 별도로 보존됩니다. 같은 날짜라도 실제 관측 시각이 다른 입력을 섞지 않습니다.</p>
+<p>근거는 <code>pipeline/preprocessing/orchestration/stages.py</code>와 <code>pipeline/preprocessing/common/curated_input.py</code>입니다.</p>
+<h3 id="stage-2">4.2 package_version: 패키지·버전과 ID</h3>
+<ul>
+<li>입력: 최초 full 회차는 <code>versions_full</code>, 주간 회차는 <code>versions_min</code>과 requirements, 직전 완료 Curated의 ID·메타데이터를 사용합니다.</li>
+<li>계산: <code>is_release = true</code>이고 <code>published_at</code>이 NULL이거나 스냅샷 시각 이하인 버전만 남깁니다. <code>(Name, Version)</code>을 키로 requirements를 연결하고, 의존성 범위를 JSON으로 만듭니다. 이 마스터 포함 규칙과 dependents 계산의 적격 버전 규칙은 별개입니다.</li>
+<li>출력: <code>package/data</code>, <code>version/data</code>, <code>package_ids/data</code>, <code>changes/*</code>, <code>quality/*</code>.</li>
+<li>검증: 키 중복, NULL·길이·ordinal, 외래키, 출력 행 수와 Parquet 재조회 건수를 검사합니다.</li>
+</ul>
+<p>최초 실행은 이름순으로 새 ID를 부여합니다. 이후 실행은 기존 <code>name → package_id</code>를 재사용하고, 새 이름만 이전 최대 ID 다음에 추가합니다. 입력에서 사라진 이름도 <code>package_ids</code>에는 남을 수 있습니다.</p>
+<p>주간 입력에 없는 기존 package의 <code>repo_url</code>, 기존 version의 description/licenses는 유지합니다. 기존 패키지의 새 버전은 <strong>직전 완료 Curated에도 있고 현재 min에도 있는 낮은 ordinal 버전 중 가장 가까운 버전</strong>에서 description/licenses를 복사합니다. ordinal은 현재 스냅샷 기준이고 동률이면 버전 문자열 오름차순으로 고정합니다. 같은 회차 신규 버전끼리는 복사하지 않습니다. 후보가 없거나 후보 값이 NULL이면 NULL을 유지합니다. 신규 패키지의 저장소 URL과 신규 버전의 보완할 메타데이터는 비워 둡니다.</p>
+<p><code>dependencies</code>, <code>peerDependencies</code>, <code>optionalDependencies</code>의 범위 문자열은 특정 설치 버전으로 해석하지 않고 JSON으로 보존합니다. requirements 행이 없거나 내용이 충돌하면 version 행은 유지하되 <code>dependency</code>만 SQL NULL로 두고 품질 사유를 기록합니다. 빈 객체 <code>{}</code>는 확인된 빈 의존성이고 NULL은 누락·변환 불가이므로 서로 다릅니다.</p>
+<p>가상 예시에서 9월 7일 기준 <code>alpha-kit@1.1.0</code>은 제외되고 <code>alpha-kit@1.0.0</code>은 남습니다. <code>alpha-kit</code>의 기존 ID가 17이면 새 실행에서도 17입니다.</p>
+<p>근거는 <code>pipeline/preprocessing/curated/build.py</code>, <code>pipeline/preprocessing/curated/weekly_metadata.py</code>, <code>pipeline/preprocessing/package_snapshot/policy.py</code>입니다.</p>
+<h3 id="stage-3">4.3 downloads: 날짜 구간 합계</h3>
+<ul>
+<li>입력: 다운로드 Bronze의 대상 CSV·상태 Parquet·일별 Parquet, 승인 package 모집단과 snapshot calendar.</li>
+<li>계산: 달력에서 바로 앞 날짜 P 이상, 현재 날짜 S 미만인 <code>[P,S)</code>의 유효 일별 값을 패키지별로 합산합니다. 여러 raw 회차를 명시한 경우 현재 회차를 우선하고 지정 순서로 누락 날짜를 보완합니다.</li>
+<li>출력: 다운로드 구간 결과와 coverage·중복 품질 기록.</li>
+<li>검증: 동일 키 중복, 물리 날짜와 partition 날짜 불일치, 입력 manifest·행 수를 확인합니다.</li>
+</ul>
+<p>예를 들어 P=8월 31일, S=9월 7일이면 8월 31일~9월 6일의 7일을 계산합니다. 그중 <code>alpha-kit</code>의 유효 관측이 9월 1일 10회, 9월 2일 12회뿐이라면 <strong>합계 22, valid_days=2, expected_days=7, PARTIAL</strong>입니다. 누락된 5일을 0으로 채운 완전한 7일 합계가 아닙니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>일별 입력</th>
+<th>합산 여부</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>숫자이며 <code>imputed_gap=false</code></td>
+<td>포함</td>
+<td>실제 0도 유효한 관측</td>
+</tr>
+<tr>
+<td>NULL 또는 <code>imputed_gap=true</code></td>
+<td>제외</td>
+<td>관측 없음 또는 보완된 공백</td>
+</tr>
+<tr>
+<td>구간 전체에 유효 일자가 없음</td>
+<td>결과 NULL</td>
+<td><code>UNAVAILABLE</code></td>
+</tr>
+</tbody></table></div>
+<p>다운로드 수집 대상 목록은 전체 package 모집단과 다릅니다. 수집 대상 밖의 승인 패키지도 결과에서 삭제하지 않고 다운로드 NULL과 사유를 남깁니다.</p>
+<p>근거는 <code>pipeline/preprocessing/downloads_interval/aggregate.py</code>와 <code>pipeline/preprocessing/orchestration/README.md</code>의 주간 이력 규칙입니다.</p>
+<h3 id="stage-4">4.4 repository: 저장소 식별과 지표 연결</h3>
+<ul>
+<li>입력: 승인된 version의 <code>source_repo</code>, Projects 통계, package/version 연결 정보.</li>
+<li>계산: 버전 후보를 <code>ordinal DESC → published_at DESC NULLS LAST → version ASC</code>로 정렬해 유효한 저장소 URL을 선택합니다. provider와 전체 project path로 저장소를 식별하고, 현재 스냅샷과 정확히 같은 관측 시각의 Projects 지표를 패키지에 연결합니다.</li>
+<li>출력: repository 단계의 지표와 선택·충돌·품질 파일.</li>
+<li>검증: 키와 정확한 timestamp, 승인된 version join, 충돌·중복 집계, 결과 행 수를 확인합니다.</li>
+</ul>
+<p>기본 엔진은 DuckDB입니다. <code>native</code>와 <code>docker</code>는 비교 실험 경로입니다. URL 형식이 유효하다는 것만 검사하며 실제 저장소가 존재하는지 HTTP 접속으로 확인하지 않습니다.</p>
+<p><code>alpha-kit</code>의 선택 URL이 <code>https://github.com/example/alpha</code>이고 같은 시각의 Projects 값이 stars=31, open issues=4이면 그 값을 사용합니다. 같은 저장소에 연결된 여러 버전의 별 개수를 더하지 않습니다. GitHub 비교 경로는 소문자로 통일하고 GitLab은 대소문자를 유지합니다.</p>
+<p>같은 저장소·시각에 값이 충돌하면 두 지표를 NULL로 만들고 충돌 근거를 기록합니다. 완전히 같은 중복은 하나로 합칩니다. 유효한 저장소를 골랐지만 관측이 없으면 URL 선택은 유지하고 지표만 NULL로 둡니다. 주간 입력에서는 보존한 package 단위 URL로 파생 입력을 만들며 과거 version별 URL을 새로 수집한 것은 아닙니다.</p>
+<p>근거는 <code>pipeline/preprocessing/repository_metrics/duckdb_transform.py</code>, <code>repository_metrics/transform.py</code>, <code>repository_metrics/policy.py</code>입니다.</p>
+<h3 id="stage-5">4.5 package_snapshot: 패키지 단위 스냅샷</h3>
+<ul>
+<li>입력: package/version 결과, downloads 합계, repository 지표.</li>
+<li>계산: 패키지별 다운로드·stars·open issues를 현재 snapshot 날짜와 결합합니다. package master와 snapshot metric을 분리합니다.</li>
+<li>출력: package-snapshot 단계의 <code>data/</code>와 품질 기록. 한 행의 키는 <code>(package_id, snapshot_at)</code>입니다.</li>
+<li>검증: package ID 존재, snapshot 날짜 일치, 키 중복, 입력 단계와 결과 건수 일치를 확인합니다.</li>
+</ul>
+<p>가상 예시의 <code>alpha-kit</code>은 22 downloads, stars 31, open issues 4로 <code>package_snapshot</code>에 한 행을 갖습니다. 다음 스냅샷에는 같은 package ID로 새 날짜 행이 추가됩니다.</p>
+<p>근거는 <code>pipeline/preprocessing/package_snapshot/build.py</code>, <code>quality.py</code>, <code>quality_schema.py</code>입니다.</p>
+<h3 id="stage-6">4.6 dependents: 버전별 직접 역의존</h3>
+<ul>
+<li>입력: requirements의 선언 범위, 현재·과거의 적격 version, snapshot calendar.</li>
+<li>계산: 각 적격 원천 package-version이 선언한 범위를 그 시점의 후보에 적용하고, <strong>조건을 만족하는 가장 높은 정식 semver 버전 하나</strong>를 선택합니다. 이렇게 직접 연결된 원천 버전 수를 대상 버전별로 집계합니다. 원천 패키지의 대표 버전 하나만 골라 세는 방식은 아닙니다.</li>
+<li>출력: <code>version_dependents/data</code>와 <code>quality</code>, <code>version_snapshot</code>에 사용할 행.</li>
+<li>검증: 입력 키·정확한 timestamp, 승인된 version join, 범위 해석 결과, 출력 건수와 NULL 사유를 확인합니다.</li>
+</ul>
+<p>9월 7일에 후보가 <code>beta-lib@2.0.0</code>뿐이면 <code>alpha-kit@1.0.0</code>의 <code>^2.0.0</code>은 2.0.0으로 해석되어 그 버전의 count에 1을 더합니다. 나중에 적격 2.1.0이 생기면 같은 범위의 선택 결과는 2.1.0으로 바뀔 수 있습니다. 실제 사용자가 설치한 lockfile을 읽은 결과가 아니라 <strong>스냅샷 기준 선언 범위를 해석한 결과</strong>입니다.</p>
+<p>같은 원천 패키지의 적격 버전 두 개가 각각 해당 버전으로 해석되면 원천 버전 수는 2가 될 수 있습니다. 프로젝트 수, npm 설치 수, 간접(transitive) 사용량과는 다릅니다. prerelease·잘못된 semver·지원하지 않는 범위 등은 자격과 품질 규칙으로 구분합니다.</p>
+<p>해석하지 못한 선언은 별도의 품질 상태에 남깁니다. 서비스 결과에서 NULL은 대표적으로 대상 목록 밖(<code>NOT_TARGET</code>) 또는 적격 대상 버전이 아님(<code>INELIGIBLE_TARGET_VERSION</code>)을 뜻합니다. 적격 대상 버전은 해석된 연결이 없으면 0이 될 수 있으며, 미해석 선언 때문에 전체 품질이 PARTIAL인 경우도 있어 count와 품질 상태를 함께 읽어야 합니다. “미해석 선언 하나가 있으면 모든 결과를 NULL로 만든다”는 규칙은 아닙니다.</p>
+<p>DB 적재 시 <code>dependents_count IS NULL</code>인 <code>package_version_snapshot</code> 행만 제외하고, 실제 값 0은 저장합니다. package/version master와 Curated 원본은 유지합니다.</p>
+<p>기본 경로는 CPU resolver와 <code>weighted-events-v2</code> 집계이며 대상 묶음과 작업자 수를 고정합니다. <code>dependents_engine=legacy</code>는 비교용 oracle입니다.</p>
+<p>근거는 <code>pipeline/preprocessing/version_dependents/historical_reference.py</code>, <code>historical_production.py</code>, <code>pipeline/preprocessing/requirements_resolution</code>입니다.</p>
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="630" viewBox="0 0 940 630" role="img" aria-labelledby="records-desktop-title records-desktop-desc">
+  <title id="records-desktop-title">데이터 레코드 흐름</title>
+  <desc id="records-desktop-desc">raw 테이블이 curated 산출물과 MinIO bundle로 변환되는 개념도</desc>
+  <defs>
+    <marker id="records-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="records-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">raw 행이 curated 행이 되는 방식</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">설명용 작은 예시입니다. 실제 행 수와 값은 스냅샷마다 다릅니다.</text><rect x="40" y="135" width="210" height="155" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">raw 입력</text><text x="58" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">versions_min</text><text x="58" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">requirements</text><text x="58" y="246" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">projects</text><text x="58" y="271" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">downloads</text><path d="M 260 212 L 315 212" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-desktop-arrow)"/><rect x="325" y="135" width="230" height="155" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="343" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">curated 산출물</text><text x="343" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package_version</text><text x="343" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package_snapshot</text><text x="343" y="246" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">dependents</text><path d="M 565 212 L 620 212" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-desktop-arrow)"/><rect x="630" y="135" width="150" height="155" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="648" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO</text><text x="648" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">bundle</text><text x="648" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">_SUCCESS</text><path d="M 705 290 L 705 350" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-desktop-arrow)"/><rect x="40" y="360" width="860" height="145" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="58" y="392" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">PostgreSQL 결과</text><text x="58" y="421" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package·version 마스터</text><text x="58" y="446" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package_snapshot · package_version_snapshot</text><text x="58" y="471" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">dependents_count: NULL만 제외, 0은 저장</text><text x="40" y="560" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package는 이름·ID, version은 패키지 버전, snapshot은 관측 기준일로 식별합니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="820" viewBox="0 0 340 820" role="img" aria-labelledby="records-mobile-title records-mobile-desc">
+  <title id="records-mobile-title">데이터 레코드 흐름 모바일</title>
+  <desc id="records-mobile-desc">raw가 Curated bundle을 거쳐 PostgreSQL의 마스터와 snapshot 테이블로 반영되는 흐름</desc>
+  <defs>
+    <marker id="records-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="records-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">raw → curated → DB</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">데이터 형태의 변화</text><rect x="20" y="105" width="300" height="150" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="137" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">raw 입력</text><text x="38" y="166" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">versions_min</text><text x="38" y="191" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">requirements</text><text x="38" y="216" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">projects</text><text x="38" y="241" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">downloads</text><path d="M 170 275 L 170 300" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-mobile-arrow)"/><rect x="20" y="330" width="300" height="125" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="38" y="362" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">curated</text><text x="38" y="391" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package_version</text><text x="38" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">package_snapshot</text><text x="38" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">dependents</text><path d="M 170 470 L 170 495" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-mobile-arrow)"/><rect x="20" y="525" width="300" height="105" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="557" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO bundle</text><text x="38" y="586" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest + _SUCCESS</text><text x="38" y="611" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">SHA로 고정</text><path d="M 170 645 L 170 670" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#records-mobile-arrow)"/><rect x="20" y="700" width="300" height="105" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="38" y="732" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">PostgreSQL</text><text x="38" y="761" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">마스터·두 snapshot 테이블</text><text x="38" y="786" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">dependents NULL 제외</text>
+</svg>
+</div><figcaption>원천 데이터가 Curated와 DB 행으로 바뀌는 과정 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<h2 id="chapter-5" tabindex="-1">05. Curated 결과와 데이터 계약</h2>
+<p>완료 bundle은 <code>depsdev/v1/curated-bundle/snapshot=S/run_id=R/</code> 아래에 게시됩니다. 단계별 Parquet와 품질 파일은 attempt 아래에서 만들어지고, 최종 manifest가 승인된 파일 목록과 SHA를 가리킵니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>결과</th>
+<th>한 행의 의미</th>
+<th>DB 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>package/data</code></td>
+<td>현재 서비스 대상 package 하나</td>
+<td><code>package</code></td>
+</tr>
+<tr>
+<td><code>version/data</code></td>
+<td>package의 version 하나</td>
+<td><code>version</code></td>
+</tr>
+<tr>
+<td>package-snapshot 단계의 <code>data/</code></td>
+<td>package의 한 snapshot metric</td>
+<td><code>package_snapshot</code></td>
+</tr>
+<tr>
+<td>dependents 단계의 승인 서비스 파일</td>
+<td>version의 직접 dependents 관측</td>
+<td><code>package_version_snapshot</code></td>
+</tr>
+<tr>
+<td><code>changes/package_upserts</code></td>
+<td>신규·변경 package</td>
+<td>weekly upsert</td>
+</tr>
+<tr>
+<td><code>changes/version_upserts</code></td>
+<td>신규·변경 version</td>
+<td>weekly upsert</td>
+</tr>
+<tr>
+<td><code>quality/*</code></td>
+<td>제외·NULL·충돌·coverage 근거</td>
+<td>품질/로그</td>
+</tr>
+</tbody></table></div>
+<p>master와 snapshot을 구분합니다. <code>package/data</code>, <code>version/data</code>는 현재 스냅샷의 적격 모집단이며, <code>master_package/data</code>, <code>master_version/data</code>는 이전에 있었던 행까지 보존하는 누적 master입니다. snapshot 테이블은 날짜별 관측값입니다. <code>missing_previous_*</code>는 현재 입력에서 빠진 행을 알려주는 기록이며 삭제 명령이 아닙니다.</p>
+<p><strong>마스터 변경분을 만드는 것과 계산을 증분화하는 것은 다릅니다.</strong> package/version은 신규·변경 행을 별도 출력하지만 snapshot 지표는 매 회차 대상 모집단을 계산합니다. bundle은 파일을 한 폴더로 모두 복사한 압축 파일이 아니라 여섯 단계의 정확한 위치·SHA를 묶는 명세입니다.</p>
+<p>bundle 완료 순서는 모든 파일 업로드 → manifest 게시 → <code>_SUCCESS</code> 게시입니다. 소비자는 manifest SHA와 <code>_SUCCESS</code>를 모두 확인해야 합니다. <code>_current.json</code>은 완료 bundle을 가리키는 pointer이며, pointer만 보고 각 파일을 신뢰하지 않습니다.</p>
+<details>
+<summary>파일과 manifest의 연결 자세히 보기</summary>
+
+<pre><code class="language-text">pickage-curated/
+  depsdev/v1/curated-bundle/
+    _current.json                       ← 현재 완료 bundle 위치·SHA
+    snapshot=S/run_id=R/
+      [bundle manifest]                 ← 아래 6개 stage의 위치·SHA
+      _SUCCESS                          ← 완료된 manifest 승인
+  depsdev/v1/snapshot-reference/…
+  depsdev/v1/package-version/…
+  npm-downloads-interval/v1/…
+  depsdev/v1/repository-metrics/…
+  depsdev/v1/package-snapshot/…
+  depsdev/v1/version-dependents-single/…
+</code></pre>
+<p>위 트리는 관계를 보여주는 축약도입니다. 대괄호는 설명 표기이며 실제 파일명으로 입력하지 않습니다. 각 stage의 manifest가 승인하는 파일 경로·행 수·크기·SHA를 읽습니다. 같은 날짜라는 이유만으로 서로 다른 run의 최신 파일을 조합하지 않습니다.</p>
+</details>
+
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="640" viewBox="0 0 940 640" role="img" aria-labelledby="storage-desktop-title storage-desktop-desc">
+  <title id="storage-desktop-title">저장소와 작업 공간</title>
+  <desc id="storage-desktop-desc">raw, 작업 공간, curated, PostgreSQL의 저장 역할과 흐름</desc>
+  <defs>
+    <marker id="storage-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="storage-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">무엇을 어디에 보관하는가</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">영구 데이터와 실행 중 임시 공간을 구분합니다.</text><rect x="40" y="135" width="260" height="155" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO raw</text><text x="58" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">수집 원본</text><text x="58" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">영구 보관 대상</text><path d="M 310 212 L 365 212" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#storage-desktop-arrow)"/><rect x="375" y="135" width="260" height="155" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="393" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">작업 공간</text><text x="393" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">checkpoint·events</text><text x="393" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">임시 파일·spill</text><path d="M 645 212 L 700 212" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#storage-desktop-arrow)"/><rect x="710" y="135" width="190" height="155" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="728" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO curated</text><text x="728" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">완료 bundle</text><text x="728" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">영구 결과</text><rect x="40" y="370" width="860" height="150" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="58" y="402" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">처리용 공간 배정</text><text x="58" y="431" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">전처리 28GB  +  PostgreSQL 17GB  +  로더 4GB  +  로그 0.5GB  =  49.5GB</text><text x="58" y="456" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">이 계산은 처리용 합계이며, 영구 raw와 최종 Curated·DB 데이터는 제외합니다.</text><text x="40" y="575" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">PostgreSQL에는 서비스 테이블과 staging·receipt가 함께 사용됩니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="860" viewBox="0 0 340 860" role="img" aria-labelledby="storage-mobile-title storage-mobile-desc">
+  <title id="storage-mobile-title">저장소와 작업 공간 모바일</title>
+  <desc id="storage-mobile-desc">raw부터 PostgreSQL까지 저장 역할과 처리용 공간 배정을 보여주는 도식</desc>
+  <defs>
+    <marker id="storage-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="storage-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">저장소 역할</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">영구 데이터와 작업 공간을 구분</text><rect x="20" y="105" width="300" height="92" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="137" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO raw</text><text x="38" y="166" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">수집 원본·manifest</text><path d="M 170 212 L 170 237" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#storage-mobile-arrow)"/><rect x="20" y="262" width="300" height="110" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="38" y="294" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">작업 공간</text><text x="38" y="323" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">checkpoint·events</text><text x="38" y="348" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">임시 파일·spill</text><path d="M 170 387 L 170 412" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#storage-mobile-arrow)"/><rect x="20" y="437" width="300" height="92" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="469" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">MinIO curated</text><text x="38" y="498" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">완료 bundle·_SUCCESS</text><path d="M 170 544 L 170 569" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#storage-mobile-arrow)"/><rect x="20" y="594" width="300" height="108" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="38" y="626" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">PostgreSQL</text><text x="38" y="655" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">서비스·staging/receipt</text><rect x="20" y="730" width="300" height="100" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="762" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">처리용 합계</text><text x="38" y="791" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">합계 49.5GB</text><text x="38" y="816" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">영구 데이터 제외</text>
+</svg>
+</div><figcaption>처리용 공간 예산과 영구 데이터의 구분 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<p>Curated bundle은 <code>scope=RAW_TO_CURATED_ONLY</code>, <code>status=COMPLETE</code>, <code>calculation_complete=true</code>, <code>db_loaded=false</code> 계약을 가집니다. 실제 운영 게시 후 파일을 바꾸지 않는 immutable 입력이어야 합니다.</p>
+<h2 id="chapter-6" tabindex="-1">06. PostgreSQL 적재</h2>
+<p>Spring loader는 완료 bundle을 읽고 다음 순서로 처리합니다.</p>
+<ol>
+<li>bundle manifest SHA, <code>_SUCCESS</code>, 여섯 단계 manifest와 승인 파일 목록을 검증합니다.</li>
+<li>Parquet를 DuckDB로 읽고 DB COPY 입력으로 변환합니다. 초기 적재와 주간 적재는 아래처럼 처리 방식이 다릅니다.</li>
+<li>주간 적재는 파일별 staging 행과 receipt를 execution ID로 기록합니다.</li>
+<li>현재 DB bundle과 입력의 <code>parent_bundle</code>이 정확히 같은지 확인합니다.</li>
+<li>package/version master, snapshot 날짜, 두 snapshot 테이블을 하나의 트랜잭션으로 게시합니다.</li>
+<li>행 수·키·기존 값·NULL 정책을 검증하고 <code>PUBLISHED</code> 이력을 커밋합니다.</li>
+</ol>
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="640" viewBox="0 0 940 640" role="img" aria-labelledby="loading-desktop-title loading-desktop-desc">
+  <title id="loading-desktop-title">Curated bundle PostgreSQL 적재</title>
+  <desc id="loading-desktop-desc">검증과 변환을 거쳐 Spring Boot가 PostgreSQL에 트랜잭션으로 반영하는 흐름</desc>
+  <defs>
+    <marker id="loading-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="loading-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">Curated bundle → PostgreSQL</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Spring Boot 적재기는 게시된 bundle만 소비합니다.</text><rect x="40" y="135" width="230" height="145" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="58" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">공통 검증</text><text x="58" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest SHA</text><text x="58" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">marker·파일 목록</text><path d="M 280 207 L 345 207" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-desktop-arrow)"/><rect x="355" y="135" width="230" height="145" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="373" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">파일 변환</text><text x="373" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Parquet → TSV</text><text x="373" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">초기 적재는 64MiB</text><path d="M 595 207 L 660 207" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-desktop-arrow)"/><rect x="670" y="135" width="230" height="145" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="688" y="167" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">트랜잭션</text><text x="688" y="196" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">서비스 테이블</text><text x="688" y="221" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">한 스냅샷 단위</text><rect x="40" y="365" width="410" height="150" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="58" y="397" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">INITIAL  빈 DB</text><text x="58" y="426" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">64MiB 묶음 COPY</text><text x="58" y="451" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">실패하면 초기 적재부터 재실행</text><rect x="490" y="365" width="410" height="150" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="508" y="397" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">WEEKLY  기존 DB</text><text x="508" y="426" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">파일별 staging·receipt</text><text x="508" y="451" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">검증된 staging 재사용</text><text x="40" y="570" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">두 경로 모두 parent bundle과 현재 DB 기준을 확인한 뒤 트랜잭션을 확정합니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="730" viewBox="0 0 340 730" role="img" aria-labelledby="loading-mobile-title loading-mobile-desc">
+  <title id="loading-mobile-title">Curated bundle PostgreSQL 적재 모바일</title>
+  <desc id="loading-mobile-desc">초기 적재와 주간 적재 중 하나를 선택하는 Spring Boot 흐름</desc>
+  <defs>
+    <marker id="loading-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="loading-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">bundle → PostgreSQL</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Spring Boot 적재 흐름</text><rect x="20" y="105" width="300" height="88" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="137" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">1  공통 검증</text><text x="38" y="166" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">manifest SHA·marker</text><path d="M 170 208 L 170 233" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-mobile-arrow)"/><rect x="20" y="258" width="300" height="88" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="38" y="290" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">2  파일 변환</text><text x="38" y="319" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">Parquet → TSV</text><path d="M 170 361 L 90 395" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-mobile-arrow)"/><path d="M 170 361 L 250 395" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-mobile-arrow)"/><rect x="20" y="410" width="140" height="110" rx="16" fill="#ffffff" stroke="#143b36" stroke-width="2"/><text x="38" y="442" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">INITIAL</text><text x="38" y="471" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">빈 DB</text><text x="38" y="496" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">64MiB COPY</text><rect x="180" y="410" width="140" height="110" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="198" y="442" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">WEEKLY</text><text x="198" y="471" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">기존 DB</text><text x="198" y="496" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">staging</text><path d="M 90 530 L 170 565" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-mobile-arrow)"/><path d="M 250 530 L 170 565" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#loading-mobile-arrow)"/><rect x="20" y="580" width="300" height="88" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="612" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">3  최종 트랜잭션</text><text x="38" y="641" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">서비스 테이블 확정</text>
+</svg>
+</div><figcaption>최초 적재와 주간 적재의 차이 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<p>초기 적재는 부모가 없는 full bundle을 빈 DB에 넣습니다. 이미 데이터가 있는 DB는 데이터와 일치하는 full bundle을 <code>adopt-baseline</code>으로 검증한 뒤 기준 이력을 등록해야 합니다. 날짜가 같다는 이유만으로 baseline으로 채택하지 않습니다.</p>
+<p>주간 적재는 직전 DB bundle이 입력 parent와 같은지 확인합니다. package/version은 변경된 행만 upsert하고, snapshot 행은 현재 날짜를 추가합니다. 중간 날짜를 건너뛰거나 다른 parent를 자동으로 이어 붙이지 않습니다.</p>
+<p><code>dependents_count</code>가 NULL인 행은 <code>package_version_snapshot</code> 적재에서 제외됩니다. 0은 유효한 계산 결과이므로 저장합니다. description·licenses·dependency 같은 다른 nullable 컬럼에 같은 제외 규칙을 적용하지 않습니다.</p>
+<p>동일 bundle 재실행은 완료 이력을 확인해 건너뜁니다. 주간 적재 실패 후 같은 계약으로 재실행하면 검증된 staging receipt를 재사용합니다. 코드 계약이나 입력 SHA가 달라지면 기존 receipt를 억지로 재사용하지 않습니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>구분</th>
+<th>빈 DB 초기 적재</th>
+<th>이후 주간 적재</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>입력</td>
+<td>부모 없는 full bundle</td>
+<td>DB 현재 bundle과 parent가 일치하는 bundle</td>
+</tr>
+<tr>
+<td>중간 처리</td>
+<td>최대 64MiB TSV 묶음 → 임시 테이블 COPY → 서비스 테이블 INSERT</td>
+<td>파일별 영구 staging + receipt</td>
+</tr>
+<tr>
+<td>공간 절감</td>
+<td>처리한 TSV·임시 내용을 비움. 전체 baseline을 staging에 복제하지 않음</td>
+<td>검증된 파일 staging을 재사용하고 변경된 마스터만 UPDATE</td>
+</tr>
+<tr>
+<td>실패 시</td>
+<td>최종 트랜잭션 rollback, 처음부터 재실행</td>
+<td>서비스 변경 rollback, 검증된 staging은 재사용 가능</td>
+</tr>
+</tbody></table></div>
+<p>64MiB는 전체 로더 메모리 제한이 아니라 <strong>초기 COPY 파일 한 묶음의 크기 제한</strong>입니다. 최초 적재도 마지막 검증까지 성공해야 서비스 데이터와 완료 이력이 함께 확정됩니다. 기존 DB의 baseline 채택은 추가/갱신이 아니라 실제 값 일치 검증입니다.</p>
+<p>근거는 <code>backend/src/main/java/com/ssafy/pickage/domain/curatedload/CuratedBundleReader.java</code>, <code>CuratedBundlePublisher.java</code>, <code>backend/CURATED_LOAD.md</code>입니다.</p>
+<h2 id="chapter-7" tabindex="-1">07. 자동 실행과 장애 복구</h2>
+<p>dispatcher는 완료된 baseline 이후의 raw 회차를 날짜순으로 확인하고 한 호출에서 최대 한 회차를 실행합니다. 이전 회차가 끝나지 않으면 다음 회차를 앞질러 처리하지 않습니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>상태</th>
+<th>의미</th>
+<th>다음 동작</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WAITING_INPUT</code></td>
+<td>raw·baseline·pointer가 아직 없음</td>
+<td>실패 횟수 없이 다음 tick에서 재확인</td>
+</tr>
+<tr>
+<td><code>RUNNING</code></td>
+<td>실행 기록이 남아 있음</td>
+<td>잠금과 프로세스를 확인한 뒤 재개</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>일시 오류로 실행 실패</td>
+<td>10·20·40·60분, 이후 60분 간격 재시도. 연속 10회면 차단</td>
+</tr>
+<tr>
+<td><code>BLOCKED</code></td>
+<td>입력·계약 손상 또는 반복 실패</td>
+<td>자동 재시도 중단, 원인 해결 필요</td>
+</tr>
+<tr>
+<td><code>COMPLETE</code></td>
+<td>bundle과 raw 참조가 검증됨</td>
+<td>건너뜀</td>
+</tr>
+</tbody></table></div>
+<p>단계마다 <code>status.json</code>, <code>events/*.json</code>, manifest SHA, 시작·종료 시각과 예외를 기록합니다. 완료 checkpoint는 같은 입력·코드 계약·run_id·work-dir일 때만 파일을 재검증한 뒤 재사용합니다. 옵션이나 코드가 바뀌면 새 run_id가 필요합니다.</p>
+<figure><div class="diagram-wide"><svg xmlns="http://www.w3.org/2000/svg" width="940" height="780" viewBox="0 0 940 780" role="img" aria-labelledby="recovery-desktop-title recovery-desktop-desc">
+  <title id="recovery-desktop-title">실패와 재개 흐름</title>
+  <desc id="recovery-desktop-desc">입력 대기, 실행, 실패 재시도, 차단, 완료 상태의 개념적 흐름</desc>
+  <defs>
+    <marker id="recovery-desktop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="recovery-desktop-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="40" y="48" font-family="Arial, Pretendard, sans-serif" font-size="28px" font-weight="700" fill="#143b36" text-anchor="start">실패해도 이어갈 수 있는 실행</text><text x="40" y="79" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">상태와 증거를 남겨 원인을 고친 뒤 같은 입력을 재개합니다.</text><rect x="40" y="140" width="190" height="125" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="58" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">WAITING_INPUT</text><text x="58" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">입력·부모 대기</text><path d="M 240 202 L 290 202" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-desktop-arrow)"/><rect x="300" y="140" width="190" height="125" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="318" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">RUNNING</text><text x="318" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">단계 실행</text><text x="318" y="226" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">events 기록</text><path d="M 500 202 L 550 202" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-desktop-arrow)"/><rect x="560" y="140" width="190" height="125" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="578" y="172" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">COMPLETE</text><text x="578" y="201" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">bundle 게시</text><text x="578" y="226" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">다음 회차 허용</text><path d="M 360 270 L 360 345" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-desktop-arrow)"/><text x="375" y="315" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#d97736" text-anchor="start">일시 실패</text><rect x="300" y="355" width="190" height="125" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="318" y="387" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">FAILED</text><text x="318" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">재시도 대기</text><text x="318" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">10분~1시간</text><path d="M300 417 H260 V240 H290" fill="none" stroke="#d97736" stroke-width="3" marker-end="url(#recovery-desktop-arrow)"/><text x="155" y="335" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#143b36" text-anchor="start">재시도</text><path d="M470 265 V300 H710 V345" fill="none" stroke="#d97736" stroke-width="3" marker-end="url(#recovery-desktop-arrow)"/><text x="555" y="288" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#d97736" text-anchor="start">계약 오류</text><path d="M 500 417 L 610 417" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-desktop-arrow)"/><text x="510" y="450" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#d97736" text-anchor="start">연속 10회</text><rect x="620" y="355" width="220" height="125" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="638" y="387" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">BLOCKED</text><text x="638" y="416" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">자동 중단</text><text x="638" y="441" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">원인 해결 필요</text><rect x="40" y="550" width="860" height="120" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="58" y="582" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">재개 조건</text><text x="58" y="611" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">같은 run_id·입력·코드 계약일 때 checkpoint를 재검증하고 재사용합니다.</text><text x="40" y="715" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">계약 오류는 즉시 차단합니다. 일시 실패는 정해진 횟수까지만 재시도합니다.</text>
+</svg>
+</div><div class="diagram-small"><svg xmlns="http://www.w3.org/2000/svg" width="340" height="760" viewBox="0 0 340 760" role="img" aria-labelledby="recovery-mobile-title recovery-mobile-desc">
+  <title id="recovery-mobile-title">실패와 재개 흐름 모바일</title>
+  <desc id="recovery-mobile-desc">실행 상태와 재개 조건을 세로로 보여주는 개념도</desc>
+  <defs>
+    <marker id="recovery-mobile-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97736"/></marker>
+    <marker id="recovery-mobile-arrow-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5a706b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f2f7f4"/>
+  <text x="20" y="40" font-family="Arial, Pretendard, sans-serif" font-size="25px" font-weight="700" fill="#143b36" text-anchor="start">실패와 재개</text><text x="20" y="70" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">원인 해결 후 같은 실행 재개</text><rect x="20" y="105" width="300" height="78" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="137" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">WAITING_INPUT</text><text x="38" y="166" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">입력·부모 대기</text><path d="M 170 195 L 170 220" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-mobile-arrow)"/><rect x="20" y="245" width="300" height="78" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="277" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">RUNNING</text><text x="38" y="306" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">단계 실행·events</text><path d="M 170 335 L 170 360" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-mobile-arrow)"/><path d="M 170 360 L 90 380" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-mobile-arrow)"/><path d="M 170 360 L 250 380" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-mobile-arrow)"/><rect x="20" y="395" width="140" height="92" rx="16" fill="white" stroke="#143b36" stroke-width="2"/><text x="38" y="427" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">COMPLETE</text><text x="38" y="456" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">bundle 게시</text><rect x="180" y="395" width="140" height="92" rx="16" fill="#fff8f3" stroke="#143b36" stroke-width="2"/><text x="198" y="427" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">FAILED</text><text x="198" y="456" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">재시도 대기</text><path d="M320 440 H332 V285 H320" fill="none" stroke="#d97736" stroke-width="2" marker-end="url(#recovery-mobile-arrow)"/><path d="M 250 487 L 250 515" fill="none" stroke="#d97736" stroke-width="3" stroke-linecap="round" marker-end="url(#recovery-mobile-arrow)"/><rect x="180" y="525" width="140" height="105" rx="16" fill="#e7f0ec" stroke="#143b36" stroke-width="2"/><text x="198" y="557" font-family="Arial, Pretendard, sans-serif" font-size="21px" font-weight="700" fill="#1d2c2a" text-anchor="start">BLOCKED</text><text x="198" y="586" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">계약 오류</text><text x="198" y="611" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">연속10회</text><text x="20" y="665" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">checkpoint 재사용 조건: 동일 계약</text><text x="20" y="700" font-family="Arial, Pretendard, sans-serif" font-size="18px" font-weight="400" fill="#5a706b" text-anchor="start">BLOCKED는 원인 해결 후 수동 재개</text>
+</svg>
+</div><figcaption>실패와 재개를 판단하는 흐름 · 화면 너비에 맞춰 배치가 달라집니다.</figcaption></figure>
+<p>원천 manifest가 바뀌거나 완료 bundle 파일이 사라진 경우는 단순한 입력 대기가 아니라 차단 대상입니다. 다른 실행의 잠금을 지우지 않으며, dispatcher 재시도는 같은 원인이 해결된 경우에만 사용합니다. 운영 failover와 여러 호스트의 분산 잠금까지 보장하는 구조는 아닙니다.</p>
+<p>Curated 게시가 끝났지만 상태 기록만 실패한 경우 <code>_SUCCESS</code>와 manifest가 완료 사실의 기준입니다. 반대로 manifest 게시 전에 프로세스가 끝나면 소비자는 bundle을 완료로 보지 않습니다.</p>
+<h2 id="chapter-8" tabindex="-1">08. 성능과 운영 자원</h2>
+<p>repository 기본 엔진은 DuckDB입니다. 입력을 columnar Parquet로 읽고 조인·그룹 집계를 한 프로세스 안에서 수행하므로 작은 표본에서는 Spark의 executor 시작·직렬화·네트워크 비용을 피할 수 있습니다. Spark 경로는 <code>native</code>/<code>docker</code> 비교 실험으로 남아 있습니다.</p>
+<p>dependents는 대상 입력을 묶음으로 나누고 CPU 작업자에게 배분합니다. <code>--threads</code>와 <code>--memory-limit</code>은 전체 DuckDB 예산이고, 작업자 수가 늘면 작업자별 예산이 나뉩니다. Python·Node 메모리와 영구 중간 파일은 DuckDB 한도에 포함되지 않으므로 전체 컨테이너 상한을 별도로 잡아야 합니다.</p>
+<p>제한된 런타임의 처리용 공간은 전처리 28GB, PostgreSQL staging/WAL/temp 17GB, loader 4GB, 로그 0.5GB 예약으로 합계 49.5GB입니다. <strong>각 역할의 volume/container가 하나씩인 조건</strong>이며, 복수 실행을 추가하면 같은 총합을 보장하지 않습니다. 영구 raw와 최종 Curated·DB 데이터는 이 처리 예산에서 제외합니다. 일반 Python 명령에 이 물리 디스크 제한이 자동으로 적용되는 것은 아닙니다.</p>
+<p>메모리는 디스크와 별개의 제한입니다. DuckDB 한도, JVM heap, 컨테이너 전체 한도는 서로 다릅니다. 호스트 swap이 있어도 컨테이너가 swap을 허용하지 않으면 상한 초과를 구제하지 못합니다. 로더는 attempt 임시 작업 정리를 시도하고, 제한된 런타임은 소유한 scratch를 정리합니다. 재시도 증거·DB receipt 보존과 파일 정리를 구분하며 PostgreSQL의 WAL을 임의 삭제하지 않습니다.</p>
+<p>과거 로컬 검증에는 8/31 초기 적재 약 3시간 49분, 9/14 주간 적재 약 25분의 측정이 있습니다. 이 수치는 당시 입력·하드웨어·범위의 결과이며 운영 전체 파이프라인 시간이나 최신 EC2 성능을 보장하지 않습니다. 실제 운영 결정을 위해서는 고정 manifest, 같은 CPU·메모리·디스크 조건, 단계별 시간·peak 메모리·spill을 함께 측정해야 합니다.</p>
+<p>성능 로그는 단계 시간과 <code>CURATED_COPY_PROGRESS</code>, <code>CURATED_PUBLISH</code>를 분리해 봅니다. 저장소 지표의 결과 행 수가 최종 지표보다 클 수 있으며, 후보·선택 근거·관측 기록을 모두 검증하기 때문입니다. 전체 행을 다시 읽는 검증은 비용이 크므로 manifest·행 수·키 검증과 표본 검증의 범위를 명확히 기록합니다.</p>
+<h2 id="chapter-9" tabindex="-1">09. 운영 확인 순서와 용어</h2>
+<p>운영에서 처음 확인할 순서는 다음과 같습니다.</p>
+<ol>
+<li>raw producer manifest와 완료 marker의 snapshot·SHA·행 수를 확인합니다.</li>
+<li>Curated dispatcher의 <code>status.json</code>과 <code>_ops/preprocessing</code>을 확인합니다.</li>
+<li>bundle manifest, 단계 marker, <code>_SUCCESS</code>, <code>_current.json</code>의 parent 연결을 확인합니다.</li>
+<li>Spring loader 로그와 DB <code>etl_load_execution</code>, <code>etl_load_attempt</code>를 확인합니다.</li>
+<li>snapshot 날짜·행 수·NULL 제외 건수·package/version key를 조회합니다.</li>
+<li>실패 시 동일 run_id 재개 조건과 코드 계약 SHA를 비교합니다.</li>
+</ol>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>확인할 곳</th>
+<th>답할 수 있는 질문</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>전처리 <code>&lt;work-dir&gt;/&lt;run-id&gt;/status.json</code>, <code>events/*.json</code></td>
+<td>어느 단계가 실행·실패했는가?</td>
+</tr>
+<tr>
+<td>MinIO <code>pickage-curated/_ops/preprocessing/&lt;날짜&gt;/status.json</code></td>
+<td>재시도 예정인가, 차단됐는가?</td>
+</tr>
+<tr>
+<td>로더 작업 경로의 <code>last-run.json</code>, <code>poll-state.json</code></td>
+<td>어떤 bundle을 처리하고 있는가?</td>
+</tr>
+<tr>
+<td><code>CURATED_COPY_PROGRESS</code>, <code>CURATED_PUBLISH_SQL</code> 로그</td>
+<td>읽기와 SQL 중 어디에 시간이 걸리는가?</td>
+</tr>
+<tr>
+<td>DB <code>etl_load_execution</code>의 완료 이력</td>
+<td>실제 서비스 반영이 커밋됐는가?</td>
+</tr>
+</tbody></table></div>
+<p>운영 활성화 전에는 V14 staging 마이그레이션, 기존 DB의 baseline 일치, 자격증명과 노드별 자원 설정을 확인합니다. 이 문서 기준 최신 병합에서는 Docker가 꺼져 있어 DB 통합 시험을 다시 실행하지 못했습니다. 과거 로컬 DB 적재 성공과 최신 병합 후 단위 테스트 성공을 별도 증거로 봐야 합니다.</p>
+<p>주요 코드 길잡이:</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다"><table>
+<thead>
+<tr>
+<th>목적</th>
+<th>위치</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>전체 실행·재개</td>
+<td><code>pipeline/preprocessing/orchestration/dispatcher.py</code>, <code>runner.py</code></td>
+</tr>
+<tr>
+<td>단계 연결·manifest</td>
+<td><code>pipeline/preprocessing/orchestration/stages.py</code></td>
+</tr>
+<tr>
+<td>package/version</td>
+<td><code>pipeline/preprocessing/curated/build.py</code></td>
+</tr>
+<tr>
+<td>downloads</td>
+<td><code>pipeline/preprocessing/downloads_interval/aggregate.py</code></td>
+</tr>
+<tr>
+<td>repository</td>
+<td><code>pipeline/preprocessing/repository_metrics/duckdb_transform.py</code></td>
+</tr>
+<tr>
+<td>requirements</td>
+<td><code>pipeline/preprocessing/requirements_resolution</code></td>
+</tr>
+<tr>
+<td>dependents</td>
+<td><code>pipeline/preprocessing/version_dependents</code></td>
+</tr>
+<tr>
+<td>Java 읽기·게시</td>
+<td><code>backend/src/main/java/com/ssafy/pickage/domain/curatedload</code></td>
+</tr>
+</tbody></table></div>
+<p>용어를 짧게 정리하면 다음과 같습니다.</p>
+<ul>
+<li><strong>raw</strong>: 수집된 원천 파일과 producer manifest.</li>
+<li><strong>Curated</strong>: 정제·집계·검증을 끝낸 DB 소비용 bundle.</li>
+<li><strong>snapshot</strong>: 특정 관측 날짜 또는 실제 관측 timestamp.</li>
+<li><strong>master</strong>: package/version처럼 누적해서 유지하는 기준 데이터.</li>
+<li><strong>snapshot metric</strong>: 날짜별 downloads·stars·open issues·dependents 값.</li>
+<li><strong>bundle</strong>: 한 스냅샷의 모든 단계 결과와 manifest를 묶은 불변 단위.</li>
+<li><strong>parent bundle</strong>: 주간 bundle이 이어지는 직전 완료 bundle.</li>
+<li><strong>receipt</strong>: 특정 파일을 특정 loader 계약으로 staging했다는 DB 기록.</li>
+<li><strong>direct dependent</strong>: 선언된 requirements 범위로 직접 연결되는 source version.</li>
+<li><strong>transitive usage</strong>: 다른 의존성을 거쳐 간접으로 사용되는 관계이며 이 집계와 동일하지 않음.</li>
+</ul>
+<p>현재 문서에서 “구현됨”은 코드와 계약에 존재한다는 뜻이고, “로컬 검증됨”은 별도 로컬 fixture·DB·MinIO에서 확인했다는 뜻입니다. 운영 서버에서 최신 raw 전체를 성공시켰다는 의미로 확장하지 않습니다. 세부 측정과 검증 범위는 <code>docs/worklogs/raw-to-curated-pipeline</code>의 작업 로그에서 확인합니다.</p>
+</article><footer>Pickage · 전처리 및 적재 안내서<br>문구 정본: content.md · 그림 원본: diagrams/ · 실행 방법: README.md</footer></main></div>
+<script type="application/json" id="map-data">{"version":1,"root":["ingest","raw","preprocess","curated","load","database"],"nodes":{"ingest":{"title":"원천 수집","subtitle":"weekly ingest가 새 스냅샷을 MinIO에 입고","summary":"수집 담당 프로세스가 외부 원천 데이터를 raw 버킷에 저장하고 생산자 manifest를 남깁니다.","children":["ingest-source","ingest-manifest","ingest-publish"],"input":["BigQuery 등 원천 데이터","스냅샷 수집 요청"],"process":["weekly ingest 실행","파일별 행 수·SHA 기록"],"output":["MinIO pickage-raw 입력","producer manifest"],"checks":["수집 종료 코드","manifest의 스냅샷·행 수·SHA"],"recovery":["수집 실패는 전처리 완료로 간주하지 않음","다음 timer 실행에서 재확인"],"source":"deploy/prod/data/run-weekly-ingest.sh","reference":"chapter-2"},"ingest-source":{"title":"원천 조회","subtitle":"스냅샷에 필요한 원본 표를 수집","summary":"패키지·버전·requirements·Projects·downloads 등 전처리 입력을 수집합니다.","children":[],"input":["원천 저장소 조회"],"process":["스냅샷 기준으로 데이터 수집"],"output":["raw 파일 묶음"],"checks":["필수 파일 존재 여부"],"recovery":["누락 입력이면 전처리 대기"],"source":"pipeline/weekly-ingest","reference":"chapter-2"},"ingest-manifest":{"title":"생산자 manifest 기록","subtitle":"입고 파일의 정체성과 크기를 고정","summary":"각 raw 파일의 위치, 행 수, 크기, SHA를 기록해 이후 실행의 입력을 고정합니다.","children":[],"input":["raw 파일"],"process":["파일 목록·행 수·SHA 계산"],"output":["producer manifest"],"checks":["manifest와 실제 파일 일치"],"recovery":["manifest가 바뀌면 기존 실행을 재사용하지 않음"],"source":"pipeline/preprocessing/common/curated_input.py","reference":"chapter-2"},"ingest-publish":{"title":"raw 입고 완료","subtitle":"전처리 dispatcher가 소비할 수 있는 상태","summary":"수집이 끝나도 완료 입력이 검증될 때까지 다음 단계는 시작하지 않습니다.","children":[],"input":["raw 파일","producer manifest"],"process":["MinIO raw 버킷에 게시","완료 상태 확인"],"output":["전처리 대상 스냅샷"],"checks":["스냅샷 날짜·SHA·행 수"],"recovery":["WAITING_INPUT 상태로 다음 tick에서 재확인"],"source":"pipeline/preprocessing/orchestration/dispatcher.py","reference":"chapter-2"},"raw":{"title":"Raw 입력 고정","subtitle":"같은 입력을 다시 읽을 수 있도록 실행 단위를 확정","summary":"dispatcher가 완료 raw와 실행 요청을 확인하고, snapshot·run_id·코드 계약을 묶습니다.","children":["raw-inspect","raw-pin","raw-run"],"input":["완료된 raw manifest","snapshot 날짜","run_id"],"process":["입력 목록 검증","실행 계약 생성"],"output":["고정된 전처리 입력","실행 상태 기록"],"checks":["입력 파일 SHA·행 수","중복 실행 여부"],"recovery":["같은 계약이면 완료 checkpoint 재사용","계약이 다르면 새 run_id"],"source":"pipeline/preprocessing/orchestration/dispatcher.py","reference":"chapter-2"},"raw-inspect":{"title":"manifest 검사","subtitle":"파일이 실제로 존재하고 변하지 않았는지 확인","summary":"manifest가 가리키는 파일의 SHA와 행 수를 다시 확인합니다.","children":[],"input":["producer manifest","raw 파일"],"process":["파일 존재·SHA·행 수 확인"],"output":["검증된 입력 목록"],"checks":["누락·변조·중복 입력"],"recovery":["불일치면 BLOCKED"],"source":"pipeline/preprocessing/common/curated_input.py","reference":"chapter-2"},"raw-pin":{"title":"입력 pin","subtitle":"실행 중 최신 파일로 바뀌지 않도록 고정","summary":"한 실행은 지정된 snapshot과 raw manifest만 사용합니다.","children":[],"input":["검증된 입력 목록"],"process":["입력 manifest와 코드 계약을 실행 기록에 저장"],"output":["고정 입력 계약"],"checks":["snapshot·run_id·계약 SHA"],"recovery":["계약 변경 시 이전 결과를 섞지 않음"],"source":"pipeline/preprocessing/orchestration/runner.py","reference":"chapter-2"},"raw-run":{"title":"실행 순서 확정","subtitle":"단계 사이의 입력·출력 연결을 등록","summary":"snapshot부터 dependents까지 여섯 단계가 순서대로 실행되도록 checkpoint를 만듭니다.","children":[],"input":["고정 입력 계약"],"process":["단계별 상태·이벤트 기록","동시 실행 잠금"],"output":["전처리 실행 디렉터리"],"checks":["이전 단계 완료 여부"],"recovery":["완료 단계는 파일 재검증 후 재사용"],"source":"pipeline/preprocessing/orchestration/runner.py","reference":"chapter-2"},"preprocess":{"title":"전처리","subtitle":"raw를 DB 소비용 여섯 결과로 정제","summary":"앞 단계의 manifest와 결과를 다음 단계가 입력으로 사용하며, 각 단계는 품질 기록과 함께 게시됩니다.","children":["pre-snapshot","pre-package-version","pre-downloads","pre-repository","pre-package-snapshot","pre-dependents"],"input":["고정된 raw 입력"],"process":["snapshot → package_version → downloads → repository → package_snapshot → dependents"],"output":["단계별 Parquet","품질·manifest 기록"],"checks":["키·행 수·SHA·계약 검증"],"recovery":["단계별 checkpoint 재개","입력 계약 변경 시 새 run"],"source":"pipeline/preprocessing/orchestration/stages.py","reference":"chapter-4"},"pre-snapshot":{"title":"snapshot 기준일","subtitle":"관측 기준 날짜와 실제 시각 확정","summary":"요청 날짜를 실제 Projects 관측 시각과 연결해 스냅샷 달력을 만듭니다.","children":["snapshot-observation","snapshot-calendar","snapshot-output"],"input":["Projects Parquet","snapshot 날짜"],"process":["승인된 관측 행 선택","SnapshotAt 보존"],"output":["snapshot candidate","Projects inventory","단계 manifest"],"checks":["입력 SHA·행 수","실제 관측 시각 일치"],"recovery":["관측 시각이 없으면 실행 중단"],"source":"pipeline/preprocessing/orchestration/stages.py","reference":"stage-1"},"snapshot-observation":{"title":"관측 시각 선택","subtitle":"표시 날짜와 실제 timestamp를 분리","summary":"폴더 날짜를 임의의 자정 시각으로 바꾸지 않고 Projects의 SnapshotAt을 사용합니다.","children":[],"input":["Projects 관측 행"],"process":["스냅샷 날짜에 해당하는 승인 관측 선택"],"output":["실제 SnapshotAt"],"checks":["동일 날짜의 관측 혼합 여부"],"recovery":["후보가 없으면 품질 오류"],"source":"pipeline/preprocessing/common/curated_input.py","reference":"stage-1"},"snapshot-calendar":{"title":"스냅샷 달력 생성","subtitle":"이후 구간 계산의 기준 만들기","summary":"현재와 직전 스냅샷을 연결해 downloads와 history의 날짜 구간을 정의합니다.","children":[],"input":["현재 SnapshotAt","직전 완료 snapshot"],"process":["스냅샷 순서와 구간 계산"],"output":["snapshot calendar"],"checks":["날짜 순서·중복"],"recovery":["직전 기준이 없으면 초기 실행 경로"],"source":"pipeline/preprocessing/orchestration/stages.py","reference":"stage-1"},"snapshot-output":{"title":"snapshot 결과 게시","subtitle":"다음 단계가 동일한 기준을 사용","summary":"snapshot 후보·Projects inventory·날짜 SQL과 단계 manifest를 저장해 이후 단계 입력으로 넘깁니다.","children":[],"input":["snapshot candidate","calendar"],"process":["candidate·inventory·SQL 결과 작성","manifest 기록"],"output":["snapshot candidate","Projects inventory","날짜 SQL·단계 manifest"],"checks":["출력 행 수·키"],"recovery":["완료 파일 재검증 후 재사용"],"source":"pipeline/preprocessing/orchestration/stages.py","reference":"stage-1"},"pre-package-version":{"title":"패키지·버전 master","subtitle":"패키지·버전 master와 변경분 계산","summary":"유효 릴리스를 고르고 기존 ID와 메타데이터를 이어서 package와 version 결과를 만듭니다.","children":["pv-release-filter","pv-identity","pv-metadata","pv-quality"],"input":["versions_full 또는 versions_min","requirements","직전 Curated ID·메타데이터"],"process":["릴리스 필터","ID 재사용·신규 할당","dependency JSON 보존"],"output":["package/data","version/data","package_ids/data","changes/*"],"checks":["(Name, Version) 키","외래키·ordinal·NULL"],"recovery":["같은 입력 계약이면 master 결과 재사용"],"source":"pipeline/preprocessing/curated/build.py","reference":"stage-2"},"pv-release-filter":{"title":"유효 릴리스 필터","subtitle":"스냅샷 시점에 이미 배포된 버전만 선택","summary":"is_release가 참이고 published_at이 NULL이거나 스냅샷 시각 이하인 버전만 남깁니다.","children":[],"input":["versions 입력"],"process":["릴리스·published_at 조건 적용"],"output":["적격 version 행"],"checks":["중복 (Name, Version)"],"recovery":["잘못된 행은 품질 사유 기록"],"source":"pipeline/preprocessing/curated/build.py","reference":"stage-2"},"pv-identity":{"title":"ID 이어 붙이기","subtitle":"기존 package_id를 유지","summary":"기존 name→package_id 매핑을 재사용하고 새 이름에만 다음 ID를 부여합니다.","children":[],"input":["현재 package 이름","직전 package_ids"],"process":["기존 매핑 조회","신규 ID 순차 할당"],"output":["package_ids","package·version 키"],"checks":["ID 중복·외래키"],"recovery":["사라진 이름은 master에서 삭제하지 않음"],"source":"pipeline/preprocessing/curated/build.py","reference":"stage-2"},"pv-metadata":{"title":"메타데이터 보완","subtitle":"주간 입력의 누락을 이전 값으로 보완","summary":"신규 패키지는 비워 두고, 기존 package의 신규 버전은 현재 min에도 존재하는 이전 버전 중 직전 완료 Curated에서 가장 가까운 낮은 ordinal 후보로 description·licenses를 보완합니다.","children":[],"input":["versions_min","직전 Curated"],"process":["현재 min 존재·현재 ordinal 조건 적용","이전 Curated 후보 정렬","repo_url·description·licenses 유지 또는 복사"],"output":["보완된 package/version 행"],"checks":["동일 회차 신규 버전 간 복사 금지"],"recovery":["후보가 없으면 NULL 유지"],"source":"pipeline/preprocessing/curated/weekly_metadata.py","reference":"stage-2"},"pv-quality":{"title":"의존성 품질 기록","subtitle":"빈 객체와 NULL을 구분","summary":"requirements가 없거나 충돌하면 version은 유지하고 dependency만 NULL로 두며 사유를 기록합니다.","children":[],"input":["requirements 행","version 행"],"process":["dependencies·peerDependencies·optionalDependencies JSON 구성"],"output":["dependency 값","quality 사유"],"checks":["빈 객체 {}와 SQL NULL 구분"],"recovery":["변환 불가 선언은 품질 결과로 남김"],"source":"pipeline/preprocessing/package_snapshot/policy.py","reference":"stage-2"},"pre-downloads":{"title":"다운로드 구간 집계","subtitle":"직전 스냅샷 이후의 다운로드 합산","summary":"[직전 날짜, 현재 날짜)의 유효 일별 관측을 패키지별로 합산합니다.","children":["downloads-window","downloads-aggregate","downloads-quality"],"input":["일별 downloads","snapshot calendar","승인 package 모집단"],"process":["날짜 구간 필터","유효 관측 합산"],"output":["다운로드 구간 결과","coverage 품질"],"checks":["중복·partition 날짜·manifest"],"recovery":["전체 미관측은 NULL·UNAVAILABLE"],"source":"pipeline/preprocessing/downloads_interval/aggregate.py","reference":"stage-3"},"downloads-window":{"title":"날짜 구간 자르기","subtitle":"직전 포함·현재 제외","summary":"P=직전 날짜, S=현재 날짜일 때 [P,S)의 일별 데이터만 선택합니다.","children":[],"input":["일별 downloads","P·S"],"process":["물리 날짜와 partition 날짜 확인","구간 필터"],"output":["구간 내 관측"],"checks":["예상 일수와 실제 일수"],"recovery":["날짜 불일치 행 품질 기록"],"source":"pipeline/preprocessing/downloads_interval/aggregate.py","reference":"stage-3"},"downloads-aggregate":{"title":"패키지별 합산","subtitle":"실제 관측만 합계에 포함","summary":"숫자이고 imputed_gap이 아닌 관측을 패키지별로 더합니다. 실제 0은 유효합니다.","children":[],"input":["구간 내 관측"],"process":["package별 SUM","valid_days 계산"],"output":["downloads 합계·valid_days"],"checks":["NULL·보완 공백 제외"],"recovery":["누락 일자는 0으로 채우지 않음"],"source":"pipeline/preprocessing/downloads_interval/aggregate.py","reference":"stage-3"},"downloads-quality":{"title":"coverage 품질","subtitle":"PARTIAL과 UNAVAILABLE 구분","summary":"관측 일수와 예상 일수를 함께 기록해 부분 구간을 0으로 오해하지 않게 합니다.","children":[],"input":["합산 결과","expected_days"],"process":["coverage 상태 결정"],"output":["PARTIAL 또는 UNAVAILABLE 사유"],"checks":["대상 밖 package도 삭제하지 않음"],"recovery":["다음 raw 회차에서 누락 날짜 보완"],"source":"pipeline/preprocessing/downloads_interval/aggregate.py","reference":"stage-3"},"pre-repository":{"title":"저장소 지표 연결","subtitle":"저장소 식별과 Projects 지표 연결","summary":"version의 저장소 후보를 고르고 같은 관측 시각의 stars·open issues를 연결합니다.","children":["repo-select","repo-observe","repo-conflict","repo-output"],"input":["version source_repo","Projects 통계","snapshot timestamp"],"process":["후보 정렬","저장소 키 생성","정확한 시각 조인"],"output":["repository metrics","선택·충돌 품질"],"checks":["키·timestamp·승인 version join"],"recovery":["지표가 없으면 URL 유지·지표 NULL"],"source":"pipeline/preprocessing/repository_metrics/duckdb_transform.py","reference":"stage-4"},"repo-select":{"title":"저장소 후보 선택","subtitle":"대표 URL 하나를 고정","summary":"ordinal DESC, published_at DESC, version ASC 순서로 유효한 source_repo를 선택합니다.","children":[],"input":["version source_repo"],"process":["provider·project path 정규화","후보 정렬"],"output":["repository key·대표 URL"],"checks":["URL 형식·provider 규칙"],"recovery":["유효 후보가 없으면 metric NULL"],"source":"pipeline/preprocessing/repository_metrics/policy.py","reference":"stage-4"},"repo-observe":{"title":"Projects 지표 조인","subtitle":"동일 저장소·동일 관측 시각만 연결","summary":"같은 timestamp의 stars와 open issues를 repository key에 연결합니다.","children":[],"input":["대표 repository key","Projects inventory"],"process":["정확한 timestamp join"],"output":["stars·open issues"],"checks":["관측 시각 일치"],"recovery":["관측 없음은 NULL"],"source":"pipeline/preprocessing/repository_metrics/duckdb_transform.py","reference":"stage-4"},"repo-conflict":{"title":"충돌 집계","subtitle":"서로 다른 동일 관측을 품질 오류로 보존","summary":"같은 저장소·시각의 서로 다른 지표는 합산하지 않고 NULL과 충돌 근거로 남깁니다.","children":[],"input":["동일 repository·timestamp 관측"],"process":["완전 중복 제거","값 충돌 탐지"],"output":["충돌 품질 기록"],"checks":["중복·충돌 건수"],"recovery":["원천 수정 후 새 실행"],"source":"pipeline/preprocessing/repository_metrics/transform.py","reference":"stage-4"},"repo-output":{"title":"repository 결과 게시","subtitle":"package_snapshot 입력으로 전달","summary":"repository 단계의 metric과 선택 근거를 manifest로 고정합니다.","children":[],"input":["repository metric·quality"],"process":["Parquet·manifest 작성"],"output":["repository metrics stage"],"checks":["출력 행 수·키"],"recovery":["완료 파일 재검증 후 재사용"],"source":"pipeline/preprocessing/repository_metrics/duckdb_transform.py","reference":"stage-4"},"pre-package-snapshot":{"title":"패키지 snapshot","subtitle":"패키지 단위의 날짜별 metric 생성","summary":"package master에 downloads와 repository 지표를 snapshot 날짜와 결합합니다.","children":["ps-join","ps-key","ps-quality"],"input":["package/version 결과","downloads 합계","repository 지표"],"process":["package별 metric 결합"],"output":["package_snapshot data"],"checks":["(package_id, snapshot_at) 키","입력 단계 건수"],"recovery":["완료 stage 재검증 후 재사용"],"source":"pipeline/preprocessing/package_snapshot/build.py","reference":"stage-5"},"ps-join":{"title":"metric 결합","subtitle":"다운로드·stars·issues를 패키지로 모음","summary":"서로 다른 단계의 package 기준 결과를 현재 snapshot에 연결합니다.","children":[],"input":["package master","downloads","repository metrics"],"process":["package_id 기준 join"],"output":["패키지별 metric 후보"],"checks":["package ID 존재"],"recovery":["누락 metric은 품질 상태와 함께 보존"],"source":"pipeline/preprocessing/package_snapshot/build.py","reference":"stage-5"},"ps-key":{"title":"snapshot 키 생성","subtitle":"날짜별 관측 행으로 분리","summary":"같은 package도 snapshot_at이 다르면 별도 행으로 저장합니다.","children":[],"input":["metric 후보","SnapshotAt"],"process":["(package_id, snapshot_at) 키 구성"],"output":["package_snapshot 행"],"checks":["키 중복·날짜 일치"],"recovery":["중복이면 stage 실패"],"source":"pipeline/preprocessing/package_snapshot/quality.py","reference":"stage-5"},"ps-quality":{"title":"package snapshot 검증","subtitle":"입력과 결과의 범위 확인","summary":"package ID, snapshot 날짜, 단계별 입력 건수를 확인하고 품질 파일을 남깁니다.","children":[],"input":["package_snapshot 후보"],"process":["행 수·키·NULL 품질 검사"],"output":["package_snapshot 품질 기록"],"checks":["입력 단계와 건수 일치"],"recovery":["검증 실패 시 게시하지 않음"],"source":"pipeline/preprocessing/package_snapshot/quality.py","reference":"stage-5"},"pre-dependents":{"title":"직접 역의존 집계","subtitle":"버전별 직접 역의존 계산","summary":"requirements 선언 범위를 해당 시점의 후보 버전에 적용해 직접 dependents를 집계합니다.","children":["dep-candidates","dep-resolve","dep-aggregate","dep-quality"],"input":["requirements 범위","현재·과거 적격 version","snapshot calendar"],"process":["후보 버전 구성","semver 범위 해석","대상별 source version 수 집계"],"output":["version_dependents data","quality"],"checks":["키·timestamp·semver 결과·NULL 사유"],"recovery":["실패한 stage부터 재개","legacy engine은 비교용"],"source":"pipeline/preprocessing/version_dependents/historical_production.py","reference":"stage-6"},"dep-candidates":{"title":"후보 버전 구성","subtitle":"스냅샷 시점에 유효한 대상만 준비","summary":"각 snapshot의 적격 package version을 requirements 범위 해석 후보로 만듭니다.","children":[],"input":["version master","snapshot calendar"],"process":["릴리스·시점·semver 자격 필터"],"output":["대상별 후보 version 목록"],"checks":["적격 version 규칙"],"recovery":["후보가 없으면 대상 품질 상태 기록"],"source":"pipeline/preprocessing/version_dependents/historical_reference.py","reference":"stage-6"},"dep-resolve":{"title":"범위 해석","subtitle":"선언 범위가 가리키는 최고 버전 선택","summary":"각 source package-version의 선언 범위를 후보에 적용하고 만족하는 가장 높은 정식 semver를 선택합니다.","children":[],"input":["requirements 선언","후보 version"],"process":["범위 파싱·필터","최고 버전 선택"],"output":["source→target 직접 연결"],"checks":["prerelease·잘못된 범위"],"recovery":["해석 불가 선언은 품질 기록"],"source":"pipeline/preprocessing/requirements_resolution","reference":"stage-6"},"dep-aggregate":{"title":"직접 dependents 집계","subtitle":"원천 version 수를 대상 version별로 셈","summary":"직접 연결된 source version의 수를 대상 version별로 집계합니다.","children":[],"input":["직접 연결 목록"],"process":["대상 version별 count"],"output":["dependents_count"],"checks":["0과 NULL 구분"],"recovery":["NULL은 서비스 snapshot 적재에서 제외"],"source":"pipeline/preprocessing/version_dependents/historical_production.py","reference":"stage-6"},"dep-quality":{"title":"역의존 품질 상태","subtitle":"직접 사용량과 다른 의미를 명시","summary":"이 결과는 프로젝트 수·npm 설치 수·transitive usage가 아니라 선언 범위 기반 직접 연결입니다.","children":[],"input":["해석 결과","대상 목록"],"process":["NOT_TARGET·INELIGIBLE·PARTIAL 등 사유 기록"],"output":["quality 기록","NULL 제외 대상"],"checks":["키·행 수·NULL 사유"],"recovery":["입력 계약이 바뀌면 새 실행"],"source":"pipeline/preprocessing/version_dependents","reference":"stage-6"},"curated":{"title":"Curated 게시","subtitle":"검증된 결과를 불변 소비 단위로 묶기","summary":"여섯 단계 결과와 품질 파일을 manifest에 묶고 _SUCCESS 이후에만 DB 로더가 읽습니다.","children":["curated-verify","curated-manifest","curated-success"],"input":["여섯 전처리 stage 결과","단계 manifest"],"process":["bundle manifest 작성","파일 SHA 검증","완료 marker 게시"],"output":["MinIO pickage-curated immutable bundle","_current.json"],"checks":["manifest SHA·행 수·scope·status"],"recovery":["manifest 전 실패는 소비 불가","완료 후 상태 기록 실패는 marker 기준 확인"],"source":"pipeline/preprocessing/curated","reference":"chapter-5"},"curated-verify":{"title":"결과 검증","subtitle":"stage 결과를 bundle에 넣기 전 확인","summary":"각 stage의 승인 파일, 키, 행 수, 품질 결과를 다시 확인합니다.","children":[],"input":["stage manifest·Parquet"],"process":["SHA·행 수·키·계약 검증"],"output":["게시 승인 결과"],"checks":["여섯 stage 누락 여부"],"recovery":["실패하면 bundle을 완료로 표시하지 않음"],"source":"pipeline/preprocessing/curated","reference":"chapter-5"},"curated-manifest":{"title":"bundle manifest","subtitle":"한 스냅샷의 정확한 파일 목록","summary":"stage 위치·SHA·행 수를 하나의 manifest로 연결하고 parent 정보를 기록합니다.","children":[],"input":["검증된 stage 결과"],"process":["bundle manifest 생성·게시"],"output":["Curated bundle manifest"],"checks":["scope=RAW_TO_CURATED_ONLY","status=COMPLETE 조건"],"recovery":["manifest SHA가 바뀌면 기존 loader receipt 재사용 금지"],"source":"pipeline/preprocessing/curated","reference":"chapter-5"},"curated-success":{"title":"_SUCCESS와 pointer","subtitle":"소비자가 완료 여부를 판단하는 마지막 신호","summary":"모든 파일과 manifest를 게시한 뒤 _SUCCESS와 완료 bundle pointer를 게시합니다.","children":[],"input":["bundle manifest"],"process":["_SUCCESS 게시","_current.json 갱신"],"output":["DB loader가 읽을 완료 bundle"],"checks":["manifest SHA와 _SUCCESS 동시 확인"],"recovery":["pointer만 있고 파일이 없으면 차단"],"source":"pipeline/preprocessing/curated","reference":"chapter-5"},"load":{"title":"DB 적재","subtitle":"Spring Boot loader가 완료 bundle을 서비스 DB로 반영","summary":"완료 bundle을 검증한 뒤 초기 적재·baseline 채택·주간 적재 중 하나로 실행합니다.","children":["load-bootstrap","load-adopt","load-weekly","load-poll"],"mode":"branches","input":["Curated _SUCCESS bundle","현재 DB bundle 이력"],"process":["manifest 검증","COPY/staging","트랜잭션 게시"],"output":["서비스 테이블 반영","적재 실행 이력"],"checks":["parent bundle","행 수·키·NULL 정책","PUBLISHED 상태"],"recovery":["주간 staging receipt 재사용","서비스 트랜잭션 rollback"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload","reference":"chapter-6"},"load-bootstrap":{"title":"초기 적재","subtitle":"빈 DB에 full bundle 게시","summary":"부모가 없는 full bundle을 64MiB 단위 COPY 입력으로 처리해 서비스 테이블에 넣습니다.","children":["bootstrap-read","bootstrap-copy","bootstrap-publish"],"input":["부모 없는 full bundle","빈 PostgreSQL"],"process":["Parquet→TSV chunk","임시 테이블 COPY","서비스 테이블 insert"],"output":["초기 package/version/snapshot 데이터"],"checks":["최종 행 수·키·NULL 정책"],"recovery":["실패 시 최종 트랜잭션 rollback"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload","reference":"chapter-6"},"bootstrap-read":{"title":"초기 bundle 읽기","subtitle":"manifest 승인 파일만 스트리밍","summary":"bundle manifest와 _SUCCESS를 확인한 뒤 승인된 Parquet만 읽습니다.","children":[],"input":["full bundle"],"process":["manifest SHA·완료 marker 확인"],"output":["COPY 대상 스트림"],"checks":["파일 목록·행 수"],"recovery":["입력 오류면 DB 변경 전 중단"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload/CuratedBundleReader.java","reference":"chapter-6"},"bootstrap-copy":{"title":"64MiB COPY 처리","subtitle":"메모리보다 작은 임시 chunk 사용","summary":"초기 COPY 입력을 최대 64MiB TSV 묶음으로 만들고 처리 뒤 정리합니다.","children":[],"input":["Parquet 행"],"process":["TSV chunk 생성","PostgreSQL COPY","chunk 삭제"],"output":["임시 테이블 행"],"checks":["chunk 크기·처리 행 수"],"recovery":["현재 트랜잭션 rollback"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload","reference":"chapter-6"},"bootstrap-publish":{"title":"초기 서비스 게시","subtitle":"검증과 완료 이력을 함께 커밋","summary":"master와 snapshot 데이터를 검증한 뒤 PUBLISHED 이력을 같은 트랜잭션에 커밋합니다.","children":[],"input":["임시 테이블 행"],"process":["키·행 수 검증","서비스 테이블 insert","완료 이력 commit"],"output":["초기 DB baseline"],"checks":["PUBLISHED 상태"],"recovery":["검증 실패 시 전체 rollback"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload/CuratedBundlePublisher.java","reference":"chapter-6"},"load-adopt":{"title":"baseline 채택","subtitle":"이미 데이터가 있는 DB의 기준 bundle 등록","summary":"기존 DB 값과 full bundle이 실제로 일치하는지 검증한 뒤 parent 기준을 등록합니다.","children":["adopt-compare","adopt-record"],"input":["기존 서비스 DB","full bundle"],"process":["값·키 일치 검증","baseline 이력 등록"],"output":["후속 weekly의 parent 기준"],"checks":["날짜만 같은 bundle은 채택하지 않음"],"recovery":["불일치면 weekly 진행 차단"],"source":"backend/CURATED_LOAD.md","reference":"chapter-6"},"adopt-compare":{"title":"기존 DB 비교","subtitle":"추가 적재가 아닌 값 일치 확인","summary":"기존 package·version·snapshot 값과 bundle의 계약을 비교합니다.","children":[],"input":["기존 DB","full bundle"],"process":["키·값·행 수 비교"],"output":["일치 또는 불일치 결과"],"checks":["NULL과 0 구분"],"recovery":["불일치 원인 수정 후 재검증"],"source":"backend/CURATED_LOAD.md","reference":"chapter-6"},"adopt-record":{"title":"baseline 이력 기록","subtitle":"이후 parent 검증의 시작점","summary":"검증된 full bundle을 현재 DB bundle로 기록합니다.","children":[],"input":["일치 검증 결과"],"process":["적재 실행 이력 등록"],"output":["current bundle 기준"],"checks":["manifest SHA"],"recovery":["이력 등록 실패 시 weekly 실행하지 않음"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"},"load-weekly":{"title":"주간 적재","subtitle":"직전 bundle 이후 변경만 반영","summary":"입력 parent가 현재 DB bundle과 일치할 때 package/version 변경분과 새 snapshot을 게시합니다.","children":["weekly-stage","weekly-parent","weekly-publish"],"input":["parent가 있는 Curated bundle","현재 DB bundle"],"process":["staging·receipt","parent 확인","변경 master upsert","새 snapshot insert"],"output":["새 날짜의 DB snapshot","PUBLISHED 이력"],"checks":["parent·execution_id·행 수"],"recovery":["검증된 staging receipt 재사용"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload","reference":"chapter-6"},"weekly-parent":{"title":"parent bundle 확인","subtitle":"staging 후 게시 직전에 부모 확인","summary":"파일 staging이 끝난 뒤 주간 입력이 DB의 직전 완료 bundle을 정확히 부모로 가리키는지 확인합니다.","children":[],"input":["입력 manifest","현재 DB bundle 이력"],"process":["parent SHA·ID 비교"],"output":["적재 승인 또는 차단"],"checks":["다른 run 자동 연결 금지"],"recovery":["불일치면 BLOCKED"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload","reference":"chapter-6"},"weekly-stage":{"title":"파일별 staging","subtitle":"재시작 가능한 중간 적재","summary":"각 승인 파일을 execution_id와 receipt로 staging해 실패 후 같은 입력을 재사용합니다.","children":[],"input":["승인된 Curated 파일"],"process":["파일 읽기·COPY","receipt 기록"],"output":["staging 행·receipt"],"checks":["파일 SHA·계약 SHA·행 수"],"recovery":["계약이 같을 때만 receipt 재사용"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"},"weekly-publish":{"title":"주간 서비스 게시","subtitle":"변경 master와 새 snapshot을 함께 커밋","summary":"변경된 package/version만 upsert하고 현재 snapshot 행을 추가한 뒤 완료 이력을 커밋합니다.","children":[],"input":["staging receipt"],"process":["master upsert","snapshot insert","dependents NULL 제외","commit"],"output":["새로운 DB bundle 기준"],"checks":["0은 저장·NULL은 dependents snapshot에서 제외"],"recovery":["서비스 트랜잭션 rollback"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload/CuratedBundlePublisher.java","reference":"chapter-6"},"load-poll":{"title":"완료 bundle 탐색","subtitle":"poll 모드의 역할","summary":"_current.json과 parent 이력을 따라 아직 적재하지 않은 완료 bundle을 찾습니다.","children":["poll-current","poll-order"],"input":["MinIO _current.json","DB 적재 이력"],"process":["완료 bundle 탐색","날짜순 처리 대상 결정"],"output":["loader 실행 대상"],"checks":["_SUCCESS·manifest·parent"],"recovery":["입력 없으면 대기","불일치면 차단"],"source":"backend/CURATED_LOAD.md","reference":"chapter-6"},"poll-current":{"title":"현재 pointer 확인","subtitle":"완료 pointer만 소비","summary":"pointer가 가리키는 bundle의 manifest와 _SUCCESS를 모두 확인합니다.","children":[],"input":["_current.json"],"process":["pointer 위치 조회","완료 marker 검증"],"output":["후보 bundle"],"checks":["파일 SHA"],"recovery":["pointer만 있고 파일이 없으면 중단"],"source":"backend/src/main/java/com/ssafy/pickage/domain/curatedload/CuratedBundleReader.java","reference":"chapter-6"},"poll-order":{"title":"부모 순서 확인","subtitle":"중간 회차를 건너뛰지 않기","summary":"DB의 마지막 완료 bundle을 부모로 하는 다음 bundle만 실행 대상으로 선택합니다.","children":[],"input":["후보 bundle","DB current bundle"],"process":["parent chain 확인","처리 순서 결정"],"output":["순차 적재 대상"],"checks":["날짜·run 순서"],"recovery":["앞 회차 완료까지 대기"],"source":"backend/CURATED_LOAD.md","reference":"chapter-6"},"database":{"title":"서비스 DB","mode":"branches","subtitle":"master와 snapshot을 분리해 조회","summary":"적재가 완료되면 서비스는 누적 master와 날짜별 snapshot metric을 함께 사용합니다.","children":["db-master","db-snapshots","db-history"],"input":["PUBLISHED 적재 트랜잭션"],"process":["package/version master 유지","snapshot metric 누적"],"output":["서비스 조회용 PostgreSQL"],"checks":["적재 실행 이력·키·행 수"],"recovery":["완료 이력 기준으로 재실행 여부 판단"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"},"db-master":{"title":"master 테이블","subtitle":"패키지와 버전의 기준 정보","summary":"package와 version은 누적 기준 데이터로 유지하고 변경된 행만 주간 upsert합니다.","children":[],"input":["package/data","version/data","changes/*"],"process":["신규·변경 package/version 반영"],"output":["package","version"],"checks":["ID·외래키·중복"],"recovery":["트랜잭션 rollback"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"},"db-snapshots":{"title":"snapshot 테이블","subtitle":"날짜별 관측 metric","summary":"각 snapshot 날짜의 package metric과 version dependents를 별도 행으로 보존합니다.","children":[],"input":["package_snapshot","version_dependents"],"process":["현재 snapshot 행 추가","dependents NULL 행 제외"],"output":["package_snapshot","package_version_snapshot"],"checks":["snapshot key·0/NULL 의미"],"recovery":["완료 이력 확인 후 중복 실행 방지"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"},"db-history":{"title":"적재 이력","subtitle":"어떤 bundle이 DB에 반영됐는지 추적","summary":"execution·attempt·receipt로 처리 상태, 입력 SHA, parent, 완료 여부를 추적합니다.","children":[],"input":["loader 실행 정보","staging receipt"],"process":["RUNNING·FAILED·PUBLISHED 상태 기록"],"output":["재개·운영 확인용 이력"],"checks":["execution_id·manifest SHA"],"recovery":["검증된 receipt 재사용"],"source":"backend/src/main/resources/db/migration","reference":"chapter-6"}}}</script><script>const data = JSON.parse(document.querySelector('#map-data').textContent);
+const nodes = data.nodes;
+const parents = {};
+for (const [id, node] of Object.entries(nodes)) for (const child of node.children || []) parents[child] = id;
+for (const id of data.root) parents[id] = 'overview';
+nodes.overview = {
+  title: '전체 파이프라인', subtitle: '스냅샷 하나의 여정', children: data.root,
+  summary: '수집한 원천 데이터를 계산·검증한 뒤 서비스 DB에 반영합니다. 상자를 클릭해 내부 처리로 들어가세요.',
+  process: ['수집과 전처리는 기존 weekly 실행 흐름에서 이어집니다.', '전처리 결과는 MinIO에 완료 bundle로 게시됩니다.', '별도 Spring Boot 배치가 완료 bundle을 검증하고 PostgreSQL에 적재합니다.'],
+  input: ['스냅샷 원천 파일과 생산자의 완료 manifest', '이전 완료 Curated bundle과 고정된 대상 목록'],
+  output: ['Curated Parquet·품질 기록·bundle manifest', 'package/version 마스터와 두 snapshot 테이블'],
+  checks: ['파일 SHA와 완료 표시로 입력을 고정합니다.', 'Curated 완료와 DB 게시 완료는 서로 다른 상태입니다.'],
+  recovery: ['실패한 영역의 기록을 확인합니다. 완료된 다른 영역부터 무조건 다시 시작하지 않습니다.', '전처리 checkpoint·주간 DB staging은 검증 후 재사용합니다. 최초 DB 적재 실패는 전체 재실행입니다.'],
+  source: 'pipeline/preprocessing/orchestration/runner.py · backend/CURATED_LOAD.md', reference: 'chapter-1',
+};
+const $ = selector => document.querySelector(selector);
+const explorer = $('#explorer'), reader = $('#reader');
+const surface = $('#map-surface'), grid = $('#nodes');
+let current = 'overview', currentTab = 'process', reading = false;
+const tabNames = {process:'처리',input:'입력',output:'결과',checks:'검증',recovery:'실패 시'};
+function button(label, action, className) {
+  const el = document.createElement('button'); el.type = 'button'; el.textContent = label;
+  if (className) el.className = className;
+  el.addEventListener('click', action); return el;
+}
+function ancestors(id) {
+  const result = [id]; let cursor = id;
+  while (parents[cursor]) { cursor = parents[cursor]; result.unshift(cursor); }
+  return result;
+}
+function showReader(value) {
+  reading = value; explorer.hidden = value; reader.hidden = !value;
+  $('#view-toggle').textContent = value ? '구조도로 돌아가기' : '전체 설명서';
+  if (!value) requestAnimationFrame(drawConnections);
+}
+function navigate(id, push = true) {
+  if (!nodes[id]) id = 'overview';
+  current = id; currentTab = 'process'; showReader(false);
+  if (push && location.hash !== `#map=${id}`) history.pushState(null, '', `#map=${id}`);
+  render();
+  if (push) requestAnimationFrame(() => {
+    const title = nodes[id].children?.length ? $('#map-title') : $('#detail-title');
+    title.setAttribute('tabindex','-1'); title.focus({preventScroll:true});
+    if (innerWidth <= 780) (nodes[id].children?.length ? $('.map-card') : $('.inspector')).scrollIntoView({block:'start'});
+  });
+}
+function render() {
+  const selected = nodes[current];
+  const groupId = selected.children?.length ? current : parents[current];
+  const group = nodes[groupId];
+  const chain = ancestors(current);
+  $('#overview-rail').replaceChildren();
+  $('#overview-rail').append(button('전체 구조', () => navigate('overview'), `overview ${current === 'overview' ? 'current' : ''}`));
+  data.root.forEach((id, i) => {
+    if (i) { const arrow = document.createElement('span'); arrow.className='rail-arrow'; arrow.textContent='→'; $('#overview-rail').append(arrow); }
+    $('#overview-rail').append(button(nodes[id].title, () => navigate(id), chain.includes(id) ? 'current' : ''));
+  });
+  $('#breadcrumbs').replaceChildren();
+  chain.forEach((id, i) => {
+    if (i) { const sep=document.createElement('span'); sep.textContent='›'; $('#breadcrumbs').append(sep); }
+    const crumb=button(nodes[id].title, () => navigate(id));
+    if (id===current) crumb.setAttribute('aria-current','page');
+    $('#breadcrumbs').append(crumb);
+  });
+  const branch = group.mode === 'branches';
+  $('.map-card').classList.toggle('branches', branch);
+  $('#map-kicker').textContent = current === 'overview' ? 'PIPELINE MAP' : `LEVEL ${chain.length - 1} · ${groupId === 'database' ? '저장 데이터 구분' : branch ? '적재 방식과 실행 모드' : '내부 처리 흐름'}`;
+  $('#map-title').textContent = group.title;
+  $('#map-description').textContent = group.summary;
+  $('#up').disabled = current === 'overview';
+  $('#map-hint').textContent = groupId === 'database' ? '처리 순서가 아닌, 같은 DB에 저장되는 데이터 종류입니다.' : branch ? '초기·주간은 적재 방식, poll은 완료 입력을 찾는 실행 모드입니다.' : '↳ 표시가 있는 단계를 클릭하면 더 펼쳐집니다.';
+  $('.map-legend span:first-child').hidden = branch;
+  grid.replaceChildren();
+  group.children.forEach((id, i) => {
+    const node=nodes[id], hasChildren=!!node.children?.length;
+    const card=button('', () => navigate(id), `flow-node${current===id?' selected':''}`);
+    card.dataset.node=id; card.setAttribute('aria-label', `${node.title}: ${hasChildren ? '하위 단계 보기' : '세부 내용 보기'}`);
+    if (current===id) card.setAttribute('aria-current','step');
+    const top=document.createElement('span'); top.className='node-top';
+    const index=document.createElement('span'); index.className='node-index'; index.textContent=branch?'경로':String(i+1).padStart(2,'0');
+    const glyph=document.createElement('span'); glyph.className='node-glyph'; glyph.textContent=hasChildren?'↳':'＋';
+    top.append(index,glyph);card.append(top);
+    for (const [cls,text] of [['node-title',node.title],['node-subtitle',node.subtitle || ''],['node-action',hasChildren?`${node.children.length}개 세부 단계 보기`:'처리 · 입력 · 결과 확인']]) {
+      const span=document.createElement('span');span.className=cls;span.textContent=text;card.append(span);
+    }
+    grid.append(card);
+  });
+  $('#detail-title').textContent = selected.title;
+  $('#detail-kicker').textContent = selected.children?.length ? '선택한 영역' : '선택한 세부 처리';
+  $('#detail-summary').textContent = selected.summary;
+  $('#detail-source').textContent = selected.source || group.source || 'content.md의 구현 근거 참고';
+  $('#navigation-status').textContent = `${selected.title}. ${selected.children?.length || 0}개 하위 단계.`;
+  renderTab(); requestAnimationFrame(drawConnections);
+}
+function renderTab() {
+  document.querySelectorAll('[data-tab]').forEach(tab => {
+    const active=tab.dataset.tab===currentTab;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+  });
+  const panel=$('#detail-panel');panel.setAttribute('aria-labelledby',`tab-${currentTab}`);
+  const list=document.createElement('ol');
+  for (const value of nodes[current][currentTab] || ['상위 단계의 공통 계약을 따릅니다. 자세한 설명에서 해당 흐름을 확인하세요.']) {
+    const li=document.createElement('li');li.textContent=value;list.append(li);
+  }
+  panel.replaceChildren(list);
+}
+function drawConnections() {
+  if (reading) return;
+  const cards=[...grid.children];const cols=innerWidth>780?3:1;
+  cards.forEach((card,i)=>{const row=Math.floor(i/cols);card.style.gridRow=String(row+1);card.style.gridColumn=String(row%2===0?(i%cols)+1:cols-i%cols);});
+  const bounds=surface.getBoundingClientRect();const svg=$('#connections');
+  svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
+  svg.innerHTML='<defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b96e3d"/></marker></defs>';
+  const group=nodes[nodes[current].children?.length?current:parents[current]];
+  if(group.mode==='branches')return;
+  cards.slice(0,-1).forEach((card,i)=>{
+    const a=card.getBoundingClientRect(), b=cards[i+1].getBoundingClientRect();let x1,y1,x2,y2;
+    if(Math.abs(a.top-b.top)<2){const right=b.left>a.left;x1=right?a.right:a.left;y1=a.top+a.height/2;x2=right?b.left-3:b.right+3;y2=b.top+b.height/2;}
+    else{x1=a.left+a.width/2;y1=a.bottom;x2=b.left+b.width/2;y2=b.top-4;}
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${x1-bounds.left} ${y1-bounds.top} L${x2-bounds.left} ${y2-bounds.top}`);
+    path.setAttribute('stroke','#b96e3d');path.setAttribute('stroke-width','2');path.setAttribute('marker-end','url(#flow-arrow)');svg.append(path);
+  });
+}
+$('#up').addEventListener('click',()=>navigate(parents[current] || 'overview'));
+document.querySelectorAll('[data-tab]').forEach(tab=>{
+  tab.addEventListener('click',()=>{currentTab=tab.dataset.tab;renderTab();});
+  tab.addEventListener('keydown',event=>{
+    const keys=Object.keys(tabNames);let index=keys.indexOf(currentTab);
+    if(event.key==='ArrowRight')index=(index+1)%keys.length;
+    else if(event.key==='ArrowLeft')index=(index+keys.length-1)%keys.length;
+    else if(event.key==='Home')index=0;else if(event.key==='End')index=keys.length-1;else return;
+    event.preventDefault();currentTab=keys[index];renderTab();$(`#tab-${currentTab}`).focus();
+  });
+});
+$('#read-detail').addEventListener('click',()=>{
+  const ref=nodes[current].reference || nodes[parents[current]]?.reference || 'chapter-1';
+  const start=document.getElementById(ref);const body=$('#reference-body');body.replaceChildren();
+  if(start){let cursor=start;do{const clone=cursor.cloneNode(true);clone.removeAttribute?.('id');clone.querySelectorAll?.('[id]').forEach(el=>el.removeAttribute('id'));body.append(clone);cursor=cursor.nextElementSibling;}while(cursor && !(cursor.matches('h2') || (start.matches('h3') && cursor.matches('h3'))));}
+  $('#reference-title').textContent=`${nodes[current].title} · 자세한 설명`;
+  $('#reference-dialog').showModal();$('#reference-dialog').scrollTop=0;
+});
+$('#close-reference').addEventListener('click',()=>$('#reference-dialog').close());
+$('.skip').addEventListener('click',event=>{event.preventDefault();const target=reading?$('#main'):$('#map-title');target.setAttribute('tabindex','-1');target.focus();});
+$('#view-toggle').hidden=false;$('#view-toggle').addEventListener('click',()=>{showReader(!reading);window.scrollTo(0,0);});
+$('#print').hidden=false;$('#print').addEventListener('click',()=>window.print());
+let closed=[];addEventListener('beforeprint',()=>{closed=[...reader.querySelectorAll('details:not([open])')];closed.forEach(el=>el.open=true);});
+addEventListener('afterprint',()=>closed.forEach(el=>el.open=false));
+function fromHash(){if(location.hash.startsWith('#map='))navigate(location.hash.slice(5),false);else if(/^#(?:chapter|stage)-/.test(location.hash)){showReader(true);document.getElementById(location.hash.slice(1))?.scrollIntoView();}else navigate('overview',false);}
+addEventListener('popstate',fromHash);addEventListener('hashchange',fromHash);
+new ResizeObserver(()=>requestAnimationFrame(drawConnections)).observe(surface);
+fromHash();
+</script><script type="application/json" id="glossary-data">[{"term":"bundle manifest SHA","description":"한 스냅샷의 결과 묶음 명세 파일을 SHA-256으로 계산한 지문입니다. 적재기가 지정한 명세와 실제로 읽은 명세가 같은지 확인합니다."},{"term":"parent bundle","description":"이번 주간 결과가 이어지는 직전 완료 결과 묶음입니다. DB가 가진 마지막 묶음과 일치해야 중간 스냅샷을 건너뛰지 않고 적재할 수 있습니다."},{"term":"bundle manifest","description":"한 스냅샷의 여섯 전처리 단계가 어디에 저장됐고 어떤 SHA를 갖는지 연결하는 명세입니다. 결과 파일을 모두 합친 압축 파일은 아닙니다."},{"term":"SHA-256","aliases":["SHA256","SHA"],"description":"파일 내용으로 계산하는 디지털 지문입니다. 내용이 달라졌는지 비교하는 데 사용합니다. 지문이 같다는 검사는 계산식이나 데이터 의미까지 옳다는 검증은 아닙니다."},{"term":"manifest","description":"데이터 파일의 목록·위치·크기·행 수·SHA 등을 적은 명세서입니다. 실행마다 정확히 어떤 입력과 결과를 사용했는지 고정합니다."},{"term":"bundle","description":"한 스냅샷의 전처리 결과를 함께 승인하는 논리적 묶음입니다. 각 단계의 파일 위치와 해시를 연결하며 DB 로더는 이 묶음을 단위로 읽습니다."},{"term":"Curated","description":"수집한 원천 데이터를 정규화·집계·검증한 결과입니다. 이 프로젝트에서는 DB 적재용 Parquet과 품질 기록을 포함합니다. Curated 완료와 DB 적재 완료는 별개입니다."},{"term":"raw","aliases":["Bronze"],"description":"수집 담당 프로세스가 입고한 원천 데이터입니다. 전처리 계산 전의 파일과 생산자 명세를 뜻합니다."},{"term":"MinIO","description":"파일을 버킷과 객체 경로로 저장하는 저장소입니다. 이 파이프라인의 원천 파일과 Curated 파일을 보관하며 S3 호환 방식으로 읽고 씁니다."},{"term":"Parquet","description":"열 단위로 데이터를 저장하는 파일 형식입니다. 필요한 열을 읽고 대량 데이터를 집계할 때 사용합니다."},{"term":"DuckDB","description":"Parquet 같은 파일을 SQL로 조회·조인·집계하는 분석 엔진입니다. 현재 전처리와 로더 파일 변환에 사용하며 PostgreSQL 서비스 DB와는 역할이 다릅니다."},{"term":"PostgreSQL","description":"서비스가 조회할 패키지·버전·스냅샷 데이터와 적재 이력을 저장하는 관계형 데이터베이스입니다."},{"term":"Spring Boot","description":"Java 배치 프로그램을 구성하는 프레임워크입니다. 이 프로젝트의 DB 적재기는 HTTP API와 별도 프로세스로 실행합니다."},{"term":"snapshot","description":"특정 관측 시점의 데이터 상태입니다. 표시용 날짜와 실제 관측 timestamp를 구분해 보존합니다."},{"term":"timestamp","aliases":["SnapshotAt"],"description":"날짜뿐 아니라 시각까지 포함한 관측 기준입니다. 저장소 지표는 같은 날짜라도 이 시각이 다른 관측과 섞지 않습니다."},{"term":"baseline","description":"이후 주간 변경을 이어 붙일 출발점입니다. 기존 DB를 기준점으로 채택하려면 날짜뿐 아니라 실제 값이 full bundle과 일치하는지 검증합니다."},{"term":"staging","description":"최종 서비스 반영 전에 데이터를 받아 두는 중간 적재 영역입니다. 주간 적재는 파일별로 보관해 검증된 작업을 재사용합니다. 최초 적재는 별도 스트리밍 경로를 사용합니다."},{"term":"receipt","description":"특정 파일을 특정 로더 계약으로 staging에 넣었다는 DB 기록입니다. 입력·계약·행 수 등을 대조해 재실행 때 재사용할 수 있는지 판단합니다."},{"term":"checkpoint","description":"어느 단계나 작업 묶음까지 끝났는지 남긴 재개 지점입니다. 같은 입력·코드 계약에서 산출물을 재검증한 뒤 사용합니다."},{"term":"dispatcher","description":"입고된 회차를 확인하고 실행 순서·대기·재시도를 관리하는 전처리 실행 담당 프로그램입니다."},{"term":"poll","description":"완료된 새 입력이 있는지 일정 간격으로 확인하는 실행 모드입니다. 초기·주간 적재 계산 방식과는 별개의 개념입니다."},{"term":"run_id","aliases":["run ID"],"description":"하나의 전처리 실행을 구분하는 이름입니다. 재개 시 같은 입력·코드 계약·작업 디렉터리와 함께 대조합니다."},{"term":"_SUCCESS","description":"결과가 검증되어 게시 완료됐음을 나타내는 표시입니다. 표시만 보지 않고 연결된 manifest SHA와 승인 파일도 확인합니다."},{"term":"_current.json","description":"현재 완료된 bundle의 위치와 SHA를 가리키는 포인터 파일입니다. 실제 데이터 파일 자체는 아닙니다."},{"term":"semver","description":"1.2.3처럼 주·부·수 버전으로 표현하는 규칙입니다. 의존성 범위를 해석할 때 해당 시점에 적격이고 범위를 만족하는 가장 높은 정식 버전을 선택합니다."},{"term":"ordinal","description":"원천 버전 데이터가 제공하는 순서 값입니다. 저장소 후보 정렬과 신규 버전 메타데이터 보완에 사용하며 semver 문자열 비교와 동일하지 않습니다."},{"term":"dependents","description":"다른 패키지 버전들이 특정 버전에 직접 의존하는 관계입니다. 여기서는 선언 범위를 해석해 연결된 원천 버전 수를 세며 프로젝트 수나 실제 설치 수는 아닙니다."},{"term":"requirements","description":"패키지 버전이 선언한 의존 대상 이름과 버전 범위입니다. 예를 들어 beta-lib의 ^2.0.0을 요구한다는 정보이며 실제 설치 버전 기록은 아닙니다."},{"term":"upsert","description":"키가 없으면 새 행을 넣고, 이미 있으면 필요한 값을 갱신하는 처리입니다. 주간 적재에서는 변경된 마스터 데이터만 갱신합니다."},{"term":"COPY","description":"여러 행을 PostgreSQL에 대량으로 넣는 입력 방식입니다. 최초 적재는 최대 64MiB TSV 묶음을 만들어 COPY합니다."},{"term":"TSV","description":"열 사이를 탭 문자로 구분한 텍스트 데이터입니다. Parquet 결과를 PostgreSQL COPY 입력으로 전달할 때 사용합니다."},{"term":"WAL","description":"PostgreSQL이 변경 내용을 복구할 수 있도록 기록하는 로그입니다. 처리 공간을 사용하지만 임의로 지워도 되는 임시 파일은 아닙니다."},{"term":"spill","description":"메모리에서 다 처리하지 못한 중간 데이터를 디스크로 내보내는 동작입니다. 메모리뿐 아니라 처리용 디스크 공간도 필요한 이유입니다."},{"term":"NULL","description":"값이 없거나 계산 대상이 아니거나 관측할 수 없음을 표현합니다. 실제 값 0과 다릅니다. 정확한 사유는 해당 단계의 품질 기록을 함께 봅니다."},{"term":"PARTIAL","description":"일부 관측이나 해석만 확보된 상태입니다. 예를 들어 다운로드 7일 중 2일만 유효하면 합계를 내더라도 PARTIAL로 표시합니다."},{"term":"PUBLISHED","description":"DB 서비스 데이터와 적재 완료 이력이 확정된 상태입니다. 전처리의 Curated 완료 상태와 구분합니다."},{"term":"BLOCKED","description":"입력·계약 오류 또는 반복 실패로 자동 재시도를 멈춘 상태입니다. 원인을 해결한 뒤 적절한 복구 절차가 필요합니다."},{"term":"트랜잭션","description":"여러 DB 변경을 하나의 작업으로 묶는 경계입니다. 최종 검증까지 성공하면 함께 확정하고, 실패하면 해당 서비스 변경을 되돌립니다."},{"term":"rollback","description":"실패한 트랜잭션의 변경을 확정하지 않고 되돌리는 동작입니다. 별도 트랜잭션으로 기록된 주간 staging까지 모두 없어진다는 뜻은 아닙니다."},{"term":"coverage","description":"기대했던 관측 범위 중 실제로 얼마를 확보했는지 나타냅니다. 다운로드에서는 예상 일수와 유효 관측 일수를 함께 확인합니다."},{"term":"imputed_gap","description":"실제 관측값이 아니라 공백을 보완한 날짜임을 표시하는 값입니다. 다운로드 합계의 유효 관측에서 제외합니다."}]</script><script>// Text-node annotation preserves the original wording and never rewrites markup/code blocks.
+(() => {
+  const entries = JSON.parse(document.getElementById('glossary-data').textContent);
+  const byAlias = new Map();
+  for (const entry of entries) for (const alias of [entry.term, ...(entry.aliases || [])]) byAlias.set(alias.toLowerCase(), entry);
+  const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(?<![A-Za-z0-9_])(${[...byAlias.keys()].sort((a,b)=>b.length-a.length).map(escape).join('|')})(?![A-Za-z0-9_])`, 'gi');
+  const tip = document.createElement('div');tip.id='term-tooltip';tip.role='tooltip';tip.hidden=true;document.body.append(tip);
+  let anchor=null, timer=null;
+  function hide(){clearTimeout(timer);if(anchor)anchor.removeAttribute('aria-describedby');anchor=null;tip.hidden=true;}
+  function position(){
+    if(!anchor?.isConnected){hide();return;}
+    const r=anchor.getBoundingClientRect();
+    tip.style.left='0px';tip.style.top='0px';
+    const box=tip.getBoundingClientRect();
+    tip.style.left=`${Math.max(10,Math.min(r.left,innerWidth-box.width-10))}px`;
+    tip.style.top=`${Math.max(10,r.bottom+8+box.height<innerHeight?r.bottom+8:r.top-box.height-8)}px`;
+  }
+  function show(target, items){
+    hide();anchor=target;
+    const host=document.querySelector('dialog[open]') || document.body;host.append(tip);
+    tip.replaceChildren();
+    for(const item of items){const title=document.createElement('strong');title.textContent=item.term;const text=document.createElement('p');text.textContent=item.description;tip.append(title,text);}
+    tip.hidden=false;anchor.setAttribute('aria-describedby',tip.id);position();
+  }
+  function annotate(root){
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(text){
+      const el=text.parentElement;
+      if(!text.textContent.trim() || el.closest('script,style,pre,svg,a,.term-hint,.detail-source,.node-action,.node-top'))return NodeFilter.FILTER_REJECT;
+      if(el.closest('code') && /[/\\]/.test(el.closest('code').textContent))return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }});
+    const texts=[];while(walker.nextNode())texts.push(walker.currentNode);
+    for(const text of texts){
+      const matches=[...text.textContent.matchAll(pattern)];if(!matches.length)continue;
+      const fragment=document.createDocumentFragment();let offset=0;
+      for(const match of matches){
+        fragment.append(text.textContent.slice(offset,match.index));
+        const term=document.createElement('span');term.className='term-hint';term.dataset.term=match[0].toLowerCase();term.textContent=match[0];
+        // A flow node is already a button. Do not nest focusable controls inside it.
+        if(!text.parentElement.closest('button'))term.tabIndex=0;
+        fragment.append(term);offset=match.index+match[0].length;
+      }
+      fragment.append(text.textContent.slice(offset));text.replaceWith(fragment);
+    }
+  }
+  const roots=[...document.querySelectorAll('#nodes,#map-title,#map-description,#detail-title,#detail-summary,#detail-panel,#reference-body,#reader article')];
+  const observer=new MutationObserver(()=>{hide();refresh();});
+  function refresh(){observer.disconnect();roots.forEach(annotate);roots.forEach(root=>observer.observe(root,{childList:true,subtree:true,characterData:true}));}
+  refresh();
+  document.addEventListener('pointerover',event=>{const term=event.target.closest?.('.term-hint');if(term){clearTimeout(timer);show(term,[byAlias.get(term.dataset.term)]);}else if(tip.contains(event.target))clearTimeout(timer);});
+  document.addEventListener('pointerout',event=>{if(event.target.closest?.('.term-hint') || tip.contains(event.target))timer=setTimeout(hide,160);});
+  document.addEventListener('focusin',event=>{
+    const term=event.target.closest?.('.term-hint');
+    if(term)show(term,[byAlias.get(term.dataset.term)]);
+    else if(event.target.matches('.flow-node')){const items=[...new Set([...event.target.querySelectorAll('.term-hint')].map(el=>byAlias.get(el.dataset.term)))];if(items.length)show(event.target,items);else hide();}
+    else hide();
+  });
+  document.addEventListener('focusout',()=>{timer=setTimeout(hide,160);});
+  document.addEventListener('click',event=>{
+    const term=event.target.closest?.('.term-hint');
+    if(term){event.preventDefault();event.stopPropagation();show(term,[byAlias.get(term.dataset.term)]);}
+    else if(!tip.contains(event.target))hide();
+  },true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!tip.hidden){event.preventDefault();event.stopImmediatePropagation();hide();}},true);
+  addEventListener('scroll',event=>{if(!tip.contains(event.target))hide();},true);addEventListener('resize',hide);addEventListener('beforeprint',hide);
+  document.querySelector('#reference-dialog').addEventListener('close',hide);
+})();
+</script></body></html>
