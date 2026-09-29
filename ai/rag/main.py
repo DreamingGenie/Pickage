@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from ai.rag.generation import GmsCallError, GmsTimeoutError
 from ai.rag.pipeline import VerificationFailedError, compare_packages
@@ -22,8 +22,22 @@ class PackageRefIn(BaseModel):
     version: str
 
 
+# 백엔드 PackageRefs.MAX(=3) 와 같은 값이다 — 백엔드가 통과시킨 요청을 여기서 거부하지 않는다.
+MAX_COMPARE_PACKAGES = 3
+
+
 class CompareRequest(BaseModel):
-    packages: list[PackageRefIn]
+    """비교 요청. 개수·중복 검증은 LLM 호출 전에 끝낸다(위반 시 FastAPI 가 422)."""
+
+    packages: list[PackageRefIn] = Field(min_length=1, max_length=MAX_COMPARE_PACKAGES)
+
+    @field_validator("packages")
+    @classmethod
+    def _no_duplicate_names(cls, packages: list[PackageRefIn]) -> list[PackageRefIn]:
+        names = [p.package for p in packages]
+        if len(set(names)) != len(names):
+            raise ValueError("같은 패키지를 두 번 비교할 수 없음")
+        return packages
 
 
 def _serialize(result: ComparisonResult) -> dict:
