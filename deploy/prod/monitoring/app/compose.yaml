@@ -119,10 +119,13 @@ services:
     #   그러면 정작 서버가 아픈 순간에 차트가 비거나 멈춘다 — 가장 필요할 때 못 쓴다.
     #   차라리 깨끗하게 OOM 나고 restart 로 돌아오는 쪽이 낫다.
     #
-    # TODO Phase 4: parent 가 두 노드치를 보관하게 되면 다시 잰다.
-    #   docker stats --no-stream pickage-monitoring-app-netdata-1
-    mem_limit: 512m
-    memswap_limit: 512m
+    # 2026-09-29: 512m 에서 상한에 닿았다 — parent 가 두 노드치를 보관하는 데다 CI 러너 컨테이너의
+    #   시계열 메타데이터가 12.9만 개 쌓였다. 원인은 netdata.conf [plugin:cgroups] 로 막았고, 이미
+    #   쌓인 것은 보존 14d 가 지나야 빠진다. 768m 은 그 2주를 버티는 값이다. 정상 상태(라이브 메트릭
+    #   약 1만 개)는 150MB 안팎이라 그 뒤 512m 로 되돌려도 된다.
+    #   확인:  docker stats --no-stream pickage-monitoring-app-netdata-1   → 2주 뒤 200MiB 아래
+    mem_limit: 768m
+    memswap_limit: 768m
 
   # ── 파이프라인 모니터 — "데이터가 어디까지 왔나" 의 입구 ─────────────
   #
