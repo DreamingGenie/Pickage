@@ -992,7 +992,7 @@ docker builder prune -f --filter "until=168h"
 
 | | 왜 아직 없나 |
 | --- | --- |
-| **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m unittest discover -s pipeline/curated`, `python -m unittest pipeline.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
+| **파이썬(`pipeline/`) 시험** | 폴더마다 실행 방법이 다르다 — `python -m pipeline.preprocessing.tests`, `python -m unittest pipeline.preprocessing.tests.package_snapshot.test_input`, 그 폴더 안에서만 되는 import 까지 섞여 있다. 게다가 일부는 docker·Postgres 를 요구한다(`test_postgres`·`test_integration`). **어느 것을 CI 대상으로 삼을지 고르는 것 자체가 작업**이라 후속 이슈로 뺐다 |
 | **`data` 노드 *상주 서비스* 배포** | `deploy-ai` 는 유사도 배치 **이미지만** 굽는다. minio·mlflow·Spark 를 이 잡이 띄우려면 사람이 쓰는 디렉터리를 러너 작업 디렉터리로 옮기는 이관이 먼저다(위 "`up` 을 추가하지 말 것") — 그 이관은 MinIO 재생성을 한 번 치르는 일이라 따로 잡는다. `--wait` 를 쓸 수 없는 일회성 컨테이너(`minio-init`)도 같이 풀어야 한다 |
 | **MinIO → PostgreSQL 로더** | 아직 코드가 없다. 무엇을 돌릴지 정해지기 전에는 검사를 쓸 수 없다 ([`../prod/data/README.md`](../prod/data/README.md) 의 "아직 없는 것") |
 | **데이터 배치 수집기** | 위와 같다. 수집 cron 자체가 아직 안 섰다. 둘 다 서면 `ai-test`·`deploy-ai` 와 같은 모양으로 붙인다 — 경로 앵커 + `.rules-*` + 잡 하나 |

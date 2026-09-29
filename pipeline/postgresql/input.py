@@ -13,7 +13,11 @@ import re
 
 import duckdb
 
-from pipeline.curated.storage import download_files, read_optional
+from pipeline.preprocessing.curated.storage import download_files, read_optional
+from pipeline.preprocessing.common.curated_input import schema as _shared_schema
+from pipeline.preprocessing.common.curated_input import sql_path as _shared_sql_path
+from pipeline.preprocessing.common.curated_input import sql_paths as _shared_sql_paths
+from pipeline.preprocessing.common.curated_input import SCHEMAS as _CURATED_SCHEMAS
 
 
 CURATED_BUCKET = "pickage-curated"
@@ -28,13 +32,7 @@ DEFAULT_DEPENDENCY = {
 }
 DEFAULT_DEPENDENCY_JSON = json.dumps(DEFAULT_DEPENDENCY, ensure_ascii=False, separators=(",", ":"))
 
-_SCHEMAS = {
-    "package": [("package_id", "INTEGER"), ("name", "VARCHAR"), ("repo_url", "VARCHAR")],
-    "version": [("version", "VARCHAR"), ("package_id", "INTEGER"),
-                ("published_at", "TIMESTAMP"), ("ordinal", "BIGINT"),
-                ("description", "VARCHAR"), ("licenses", "JSON"),
-                ("deprecated", "VARCHAR"), ("dependency", "JSON")],
-}
+_SCHEMAS = _CURATED_SCHEMAS
 
 
 def _sha(body: bytes) -> str:
@@ -140,19 +138,15 @@ def select_run(s3, snapshot: str, run_id: str) -> dict:
 
 
 def _schema(con, path: Path, table: str) -> None:
-    rows = con.execute("DESCRIBE SELECT * FROM read_parquet(?, hive_partitioning=false)", [str(path)]).fetchall()
-    actual = [(row[0], row[1].upper()) for row in rows]
-    expected = _SCHEMAS[table]
-    if actual != expected:
-        raise ValueError(f"{table} Parquet schema mismatch: {path.name}")
+    _shared_schema(con, path, table, _SCHEMAS)
 
 
 def _sql_path(path: Path) -> str:
-    return "'" + str(path.resolve()).replace("'", "''") + "'"
+    return _shared_sql_path(path)
 
 
 def _sql_paths(paths: list[Path | str]) -> str:
-    return "[" + ",".join(_sql_path(Path(path)) for path in paths) + "]"
+    return _shared_sql_paths(paths)
 
 
 def _validate(con, paths: dict[str, list[Path]], expected: dict[str, int]) -> dict:

@@ -24,7 +24,7 @@ DEPRECATED = DATASETS['deprecated-replacement']
 class FakeS3:
     """조건부 PUT 을 표현하는 최소 fake.
 
-    pipeline/curated/test_storage.py 에 같은 역할의 것이 있지만 그 파일은 flat import 라
+    pipeline/preprocessing/tests/curated/test_storage.py 에 같은 역할의 것이 있지만 그 파일은 flat import 라
     이 스위트에서 불러올 수 없다. CAS 에 필요한 두 메서드만 둔다.
     """
 

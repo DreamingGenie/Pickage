@@ -1,0 +1,728 @@
+{
+  "actions": [
+    {
+      "group_id": "repository-profile:0019:_write:metric/data:parquet",
+      "label": "_write:metric/data:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "metric/data"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618046.6460528,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 10.578499842202291
+    },
+    {
+      "group_id": "repository-profile:0001:spark.startup",
+      "label": "spark.startup",
+      "callsite": [],
+      "time": 1789618021.1612508,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 5.538952443981543
+    },
+    {
+      "group_id": "repository-profile:0002:_read:package:count",
+      "label": "_read:package:count",
+      "callsite": [
+        {
+          "function": "_read",
+          "line": 30,
+          "source": "if frame.count() != expected:",
+          "dataset": "package"
+        },
+        {
+          "function": "transform",
+          "line": 76,
+          "source": "package, version = _read(spark, inputs, \"package\"), _read(spark, inputs, \"version\")",
+          "dataset": null
+        }
+      ],
+      "time": 1789618030.2110155,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 2.1336233830079436
+    },
+    {
+      "group_id": "repository-profile:0021:_write:quality/selection:parquet",
+      "label": "_write:quality/selection:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/selection"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618057.5824971,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 2.0666662969160825
+    },
+    {
+      "group_id": "repository-profile:0015:transform:121:count",
+      "label": "transform:121:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 121,
+          "source": "if matched.where(F.col(\"r.Name\").isNull()).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618040.6550066,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.807043557986617
+    },
+    {
+      "group_id": "repository-profile:0023:_write:quality/candidates:parquet",
+      "label": "_write:quality/candidates:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/candidates"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618059.9671078,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.2835954139009118
+    },
+    {
+      "group_id": "repository-profile:0014:transform:115:count",
+      "label": "transform:115:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 115,
+          "source": "if approved.count() != inputs[\"counts\"][\"version\"]:",
+          "dataset": null
+        }
+      ],
+      "time": 1789618039.28601,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.2556814779527485
+    },
+    {
+      "group_id": "repository-profile:0008:transform:101:count",
+      "label": "transform:101:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 101,
+          "source": "if package.groupBy(\"package_id\").count().where(\"count > 1\").limit(1).count() or package.groupBy(\"name\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618035.2436023,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 1.0018248478882015
+    },
+    {
+      "group_id": "repository-profile:0016:transform:123:count",
+      "label": "transform:123:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 123,
+          "source": "if matched.groupBy(\"v.package_id\", \"v.version\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618042.5211945,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.9134973478503525
+    },
+    {
+      "group_id": "repository-profile:0034:transform:210:collect",
+      "label": "transform:210:collect",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 210,
+          "source": "selection_reasons = {row.reason: row[\"count\"] for row in selection.groupBy(\"reason\").count().collect()}",
+          "dataset": null
+        }
+      ],
+      "time": 1789618064.7674067,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.8887055579107255
+    },
+    {
+      "group_id": "repository-profile:0027:_write:quality/project_conflicts:parquet",
+      "label": "_write:quality/project_conflicts:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/project_conflicts"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618062.4804373,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.8566668019630015
+    },
+    {
+      "group_id": "repository-profile:0035:transform:212:collect",
+      "label": "transform:212:collect",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 212,
+          "source": ".select(reason.alias(\"reason\")).groupBy(\"reason\").count().collect()}",
+          "dataset": null
+        }
+      ],
+      "time": 1789618065.697219,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.8519430190790445
+    },
+    {
+      "group_id": "repository-profile:0010:transform:103:count",
+      "label": "transform:103:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 103,
+          "source": "if version.groupBy(\"package_id\", \"version\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618036.9456105,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.8121012700721622
+    },
+    {
+      "group_id": "repository-profile:0006:transform:99:count",
+      "label": "transform:99:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 99,
+          "source": "if bad.limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618033.8627162,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.7609749401453882
+    },
+    {
+      "group_id": "repository-profile:0025:_write:quality/project_observations:parquet",
+      "label": "_write:quality/project_observations:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/project_observations"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618061.502528,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.7471622480079532
+    },
+    {
+      "group_id": "repository-profile:0038:transform:216:count",
+      "label": "transform:216:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 216,
+          "source": "\"null\": metric.where(F.col(\"stars\").isNull() & F.col(\"open_issues\").isNull()).count()},",
+          "dataset": null
+        }
+      ],
+      "time": 1789618067.3856783,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.681020078016445
+    },
+    {
+      "group_id": "repository-profile:0009:transform:101:count",
+      "label": "transform:101:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 101,
+          "source": "if package.groupBy(\"package_id\").count().where(\"count > 1\").limit(1).count() or package.groupBy(\"name\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618036.28075,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.5926391540560871
+    },
+    {
+      "group_id": "repository-profile:0039:transform:218:count",
+      "label": "transform:218:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 218,
+          "source": "\"candidate_reasons\": candidate_reasons, \"conflicts\": conflicts.count(),",
+          "dataset": null
+        }
+      ],
+      "time": 1789618068.0738277,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.5877741870936006
+    },
+    {
+      "group_id": "repository-profile:0011:transform:105:count",
+      "label": "transform:105:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 105,
+          "source": "if version.join(package.select(\"package_id\"), \"package_id\", \"left_anti\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618037.8270066,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.5716757669579238
+    },
+    {
+      "group_id": "repository-profile:0040:spark.shutdown",
+      "label": "spark.shutdown",
+      "callsite": [],
+      "time": 1789618068.6854265,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.546041714027524
+    },
+    {
+      "group_id": "repository-profile:0037:transform:215:count",
+      "label": "transform:215:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 215,
+          "source": "\"mapping\": {\"packages\": inputs[\"counts\"][\"package\"], \"selected\": selected.count(),",
+          "dataset": null
+        }
+      ],
+      "time": 1789618066.8833,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.4887337419204414
+    },
+    {
+      "group_id": "repository-profile:0017:transform:125:count",
+      "label": "transform:125:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 125,
+          "source": "if matched.where((~F.col(\"v.ordinal\").eqNullSafe(F.col(\"r.ordinal\"))) | (~F.col(\"v.published_at\").eqNullSafe(F.col(\"r.published_at\")))).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618043.4713783,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.4813185438979417
+    },
+    {
+      "group_id": "repository-profile:0007:transform:99:count",
+      "label": "transform:99:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 99,
+          "source": "if bad.limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618034.682428,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.4573291598353535
+    },
+    {
+      "group_id": "repository-profile:0018:transform:128:count",
+      "label": "transform:128:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 128,
+          "source": "(F.col(\"r.published_at\") > instant)).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618044.0254648,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.451902620960027
+    },
+    {
+      "group_id": "repository-profile:0012:transform:107:count",
+      "label": "transform:107:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 107,
+          "source": "if raw.where(F.col(\"SnapshotAt\").isNull() | (F.col(\"SnapshotAt\") != instant)).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618038.436927,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.42257088189944625
+    },
+    {
+      "group_id": "repository-profile:0033:transform:208:count",
+      "label": "transform:208:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 208,
+          "source": "if fresh.count() != package.count() or fresh.groupBy(\"package_id\", \"snapshot_at\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618064.3452983,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.4045527339912951
+    },
+    {
+      "group_id": "repository-profile:0003:_read:version:count",
+      "label": "_read:version:count",
+      "callsite": [
+        {
+          "function": "_read",
+          "line": 30,
+          "source": "if frame.count() != expected:",
+          "dataset": "version"
+        },
+        {
+          "function": "transform",
+          "line": 76,
+          "source": "package, version = _read(spark, inputs, \"package\"), _read(spark, inputs, \"version\")",
+          "dataset": null
+        }
+      ],
+      "time": 1789618032.5715554,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.346949604107067
+    },
+    {
+      "group_id": "repository-profile:0004:_read:versions_full:count",
+      "label": "_read:versions_full:count",
+      "callsite": [
+        {
+          "function": "_read",
+          "line": 30,
+          "source": "if frame.count() != expected:",
+          "dataset": "versions_full"
+        },
+        {
+          "function": "transform",
+          "line": 77,
+          "source": "raw, projects = _read(spark, inputs, \"versions_full\"), _read(spark, inputs, \"projects\")",
+          "dataset": null
+        }
+      ],
+      "time": 1789618033.1250517,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.32221941207535565
+    },
+    {
+      "group_id": "repository-profile:0036:transform:213:collect",
+      "label": "transform:213:collect",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 213,
+          "source": "candidate_reasons = {row.reason: row[\"count\"] for row in candidates.groupBy(\"reason\").count().collect()}",
+          "dataset": null
+        }
+      ],
+      "time": 1789618066.5640757,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.31773165613412857
+    },
+    {
+      "group_id": "repository-profile:0013:transform:109:count",
+      "label": "transform:109:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 109,
+          "source": "if projects.where(F.col(\"SnapshotAt\").isNull() | (F.col(\"SnapshotAt\") != instant)).limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618038.8791463,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.26015608408488333
+    },
+    {
+      "group_id": "repository-profile:0029:_write:quality/unmapped_projects:parquet",
+      "label": "_write:quality/unmapped_projects:parquet",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 44,
+          "source": "frame.write.mode(\"error\").option(\"maxRecordsPerFile\", 1_000_000).parquet(str(target))",
+          "dataset": "quality/unmapped_projects"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618063.5307708,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.2469811188057065
+    },
+    {
+      "group_id": "repository-profile:0020:_write:metric/data:count",
+      "label": "_write:metric/data:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "metric/data"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618057.36608,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.20876457588747144
+    },
+    {
+      "group_id": "repository-profile:0022:_write:quality/selection:count",
+      "label": "_write:quality/selection:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "quality/selection"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618059.7561302,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.20427060197107494
+    },
+    {
+      "group_id": "repository-profile:0005:_read:projects:count",
+      "label": "_read:projects:count",
+      "callsite": [
+        {
+          "function": "_read",
+          "line": 30,
+          "source": "if frame.count() != expected:",
+          "dataset": "projects"
+        },
+        {
+          "function": "transform",
+          "line": 77,
+          "source": "raw, projects = _read(spark, inputs, \"versions_full\"), _read(spark, inputs, \"projects\")",
+          "dataset": null
+        }
+      ],
+      "time": 1789618033.5802395,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.1848353890236467
+    },
+    {
+      "group_id": "repository-profile:0024:_write:quality/candidates:count",
+      "label": "_write:quality/candidates:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "quality/candidates"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618061.347357,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.14670649799518287
+    },
+    {
+      "group_id": "repository-profile:0031:transform:208:count",
+      "label": "transform:208:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 208,
+          "source": "if fresh.count() != package.count() or fresh.groupBy(\"package_id\", \"snapshot_at\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618064.0879786,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.13900272781029344
+    },
+    {
+      "group_id": "repository-profile:0030:_write:quality/unmapped_projects:count",
+      "label": "_write:quality/unmapped_projects:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "quality/unmapped_projects"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618063.8670812,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.1159551041200757
+    },
+    {
+      "group_id": "repository-profile:0026:_write:quality/project_observations:count",
+      "label": "_write:quality/project_observations:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "quality/project_observations"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618062.3705173,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.10488782403990626
+    },
+    {
+      "group_id": "repository-profile:0028:_write:quality/project_conflicts:count",
+      "label": "_write:quality/project_conflicts:count",
+      "callsite": [
+        {
+          "function": "_write",
+          "line": 45,
+          "source": "return frame.sparkSession.read.parquet(str(target)).count()",
+          "dataset": "quality/project_conflicts"
+        },
+        {
+          "function": "transform",
+          "line": 205,
+          "source": "counts[name] = _write(frame, output, name)",
+          "dataset": null
+        }
+      ],
+      "time": 1789618063.4243262,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.09810067084617913
+    },
+    {
+      "group_id": "repository-profile:0032:transform:208:count",
+      "label": "transform:208:count",
+      "callsite": [
+        {
+          "function": "transform",
+          "line": 208,
+          "source": "if fresh.count() != package.count() or fresh.groupBy(\"package_id\", \"snapshot_at\").count().where(\"count > 1\").limit(1).count():",
+          "dataset": null
+        }
+      ],
+      "time": 1789618064.2287307,
+      "event": "END",
+      "status": "COMPLETE",
+      "seconds": 0.09579084999859333
+    }
+  ],
+  "unfinished_actions": [],
+  "interpretation": "Wall time of existing actions, including upstream lazy evaluation; not isolated operator timings. Startup/shutdown are separate. No extra materialization."
+}

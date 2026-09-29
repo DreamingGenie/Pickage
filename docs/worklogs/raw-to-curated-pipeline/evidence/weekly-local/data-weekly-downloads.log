@@ -1,0 +1,19 @@
+======================================================================
+ERROR: test_prepare_aggregate_revalidate_resolves_history_rows_and_derived_sha (tests.test_downloads_interval_history.DownloadHistorySelectionTests.test_prepare_aggregate_revalidate_resolves_history_rows_and_derived_sha)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SSAFY\workspace\S15P21A506-raw-to-curated-pipeline\tests\test_downloads_interval_history.py", line 108, in test_prepare_aggregate_revalidate_resolves_history_rows_and_derived_sha
+    derived.write_bytes(derived.read_bytes() + b"x")
+                        ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SSAFY\miniforge3\Lib\pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SSAFY\miniforge3\Lib\pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\SSAFY\\AppData\\Local\\Temp\\tmpoq_88n9z\\cache\\bronze\\parquet\\downloads\\date=2026-08-24\\merged.parquet'
+
+----------------------------------------------------------------------
+Ran 26 tests in 2.960s
+
+FAILED (errors=1)

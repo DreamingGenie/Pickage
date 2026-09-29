@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ddf5f8db86c98cee786b8f85a82b57e227d42b7952704d195530ae773c1a790a",
+    "name": "/ec2-runtime-20260915-a1-worker-app",
+    "image": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+    "started_at": "2026-09-15T08:53:23.871320791Z",
+    "status": "running",
+    "oom_killed": false,
+    "memory": 2147483648,
+    "memory_swap": 2147483648,
+    "nano_cpus": 1000000000
+  }
+]

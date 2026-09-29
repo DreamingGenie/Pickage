@@ -276,12 +276,12 @@ class PostgresIntegrationTests(unittest.TestCase):
         self.assertEqual(self.sql("SELECT string_agg(status,',' ORDER BY created_at) FROM public.etl_load_attempt;"), "PUBLISHED,FAILED")
 
     def test_actual_curated_builder_to_loader_roundtrip(self):
-        from pipeline.curated import build
+        from pipeline.preprocessing.curated import build
         # The existing Curated test helpers use unittest discovery's local
         # imports; scope that search path to importing those existing fixtures.
-        with patch.object(sys, "path", [str(ROOT / "pipeline/curated")] + sys.path):
-            from pipeline.curated.test_build import _seed_bronze, _valid_inputs
-            from pipeline.curated.test_storage import FakeS3
+        with patch.object(sys, "path", [str(ROOT / "pipeline/preprocessing/curated")] + sys.path):
+            from pipeline.preprocessing.tests.curated.test_build import _seed_bronze, _valid_inputs
+            from pipeline.preprocessing.tests.curated.test_storage import FakeS3
         from pipeline.postgresql.load import run
 
         s3 = FakeS3()

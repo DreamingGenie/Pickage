@@ -50,7 +50,7 @@ INSERT INTO package (package_id, name, repo_url) VALUES
   (2, 'lodash',   'https://github.com/lodash/lodash'),
   (3, 'left-pad', NULL);                                  -- repo_url 이 없는 경우
 
--- dependency 는 pipeline/curated/transform.py 가 만드는 구조를 그대로 따른다.
+-- dependency 는 pipeline/preprocessing/curated/transform.py 가 만드는 구조를 그대로 따른다.
 --   json_object('dependencies', …, 'peerDependencies', …, 'optionalDependencies', …)
 --
 -- 의존성이 없는 버전도 세 키를 남기고 각각 {} 를 넣는다. 시드만 최상위에 평평하게 두면

@@ -1,0 +1,10 @@
+{
+  "platform": "linux/amd64",
+  "tag": "pickage-spark-experiment:runtime-3.5.3",
+  "build_args": {
+    "SPARK_IMAGE": "apache/spark@sha256:b2da01c5855fdf791328a6fa1267b406336a535d39abc05699214a48bee95955",
+    "NODE_IMAGE": "node@sha256:713cfbf4a0ac19f40e1bb9919893e126b74a5c8cf5d0623c9f89515c8f74c6fa",
+    "PYTHON_IMAGE": "python@sha256:b1add8a6f2aca6bcfcf0b9c9b522352f7ce0d62a3d556a2f2f32511aa0cca250"
+  },
+  "note": "Base manifests pinned on 2026-09-15. Apt packages and pip transitive dependencies are resolved at build time; freeze the resulting image ID for comparisons."
+}

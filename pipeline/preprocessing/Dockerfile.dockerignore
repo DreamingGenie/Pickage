@@ -1,0 +1,7 @@
+**
+!minio/
+!minio/requirements.txt
+!preprocessing/
+!preprocessing/curated/
+!preprocessing/curated/requirements.txt
+!preprocessing/Dockerfile

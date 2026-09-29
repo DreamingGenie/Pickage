@@ -7,6 +7,21 @@ plugins {
 group = 'com.ssafy'
 version = '0.0.1-SNAPSHOT'
 
+springBoot {
+	mainClass = 'com.ssafy.pickage.PickageApplication'
+}
+
+// Opt-in standalone loader; ordinary API bootJar and deployment remain unchanged.
+tasks.register('curatedBootJar', org.springframework.boot.gradle.tasks.bundling.BootJar) {
+	targetJavaVersion = JavaVersion.VERSION_21
+	group = 'build'
+	description = 'HTTP/JPA/Flyway 없는 Curated 적재 전용 Spring 실행 파일'
+	mainClass = 'com.ssafy.pickage.curatedbatch.CuratedLoadApplication'
+	classpath = sourceSets.main.runtimeClasspath
+	archiveFileName = 'curated-loader.jar'
+	destinationDirectory = layout.buildDirectory.dir('curated-loader')
+}
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
@@ -36,7 +51,8 @@ dependencies {
 	// 헬스체크를 무의미하게 만든다. 캐시가 실제로 필요해지는 시점에 되살릴 것.
 //	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 //	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
-	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.postgresql:postgresql'
+	implementation 'org.duckdb:duckdb_jdbc:1.5.5.1'
 
 	/* 스키마 마이그레이션 */
 	// 스키마는 db/migration 의 SQL 이 소유한다. 로컬과 운영이 같은 파일을 쓰므로

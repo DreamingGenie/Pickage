@@ -336,7 +336,7 @@ INSERT INTO version (package_id, version, published_at, ordinal, description, li
 --
 -- API v1 은 이 컬럼을 읽지 않는다(유저에게 의존성을 보여주는 용도 — V1 의 컬럼 주석).
 -- 그래도 몇 개는 채워 둔다. 전부 빈 객체이면 화면을 붙일 때 "구조가 이런 모양이구나" 를
--- 알 수 없고, 파이프라인이 만드는 세 키 구조(pipeline/curated/transform.py)를 여기서
+-- 알 수 없고, 파이프라인이 만드는 세 키 구조(pipeline/preprocessing/curated/transform.py)를 여기서
 -- 확인할 수도 없다.
 UPDATE version SET dependency = '{"dependencies":{"body-parser":"1.20.2","cookie":"0.6.0","qs":"6.11.0"},"peerDependencies":{},"optionalDependencies":{}}'
 WHERE package_id = 1 AND version = '4.19.2';

@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-09-15T08:17:02.724782+00:00",
+  "status": "VERIFIED",
+  "destination": "data server MinIO via task SSH tunnel 19002",
+  "bucket": "pickage-raw",
+  "key": "experiments/raw-benchmark-20260915/targets/dependents-targets.parquet",
+  "sha256": "ccc05cbdd12c1639a41d3fa3cc1757101b2c1b786b926e18f0028985c6dcc468",
+  "action": "CREATED",
+  "bytes": 1080529,
+  "schema": [
+    [
+      "name",
+      "VARCHAR"
+    ]
+  ],
+  "rows": 99996,
+  "unique_names": 99996,
+  "invalid_names": 0,
+  "verification": "GET_SHA256_AND_PARQUET_VALIDATION",
+  "server_sha256": "ccc05cbdd12c1639a41d3fa3cc1757101b2c1b786b926e18f0028985c6dcc468",
+  "request_reference_matches": true,
+  "finished_at": "2026-09-15T08:17:03.176283+00:00"
+}

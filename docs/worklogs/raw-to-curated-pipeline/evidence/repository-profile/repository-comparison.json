@@ -1,0 +1,613 @@
+{
+  "status": "EQUAL",
+  "comparison": "EXACT_CANONICAL_ROW_MULTISET",
+  "groups": {
+    "metric/data": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 1000,
+          "schema": [
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "snapshot_at",
+              "DATE"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 1000,
+          "schema": [
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "snapshot_at",
+              "DATE"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/selection": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 1000,
+          "schema": [
+            [
+              "comparison_project_path",
+              "VARCHAR"
+            ],
+            [
+              "mapping_status",
+              "VARCHAR"
+            ],
+            [
+              "observed_project_path",
+              "VARCHAR"
+            ],
+            [
+              "observed_timestamp",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 1000,
+          "schema": [
+            [
+              "comparison_project_path",
+              "VARCHAR"
+            ],
+            [
+              "mapping_status",
+              "VARCHAR"
+            ],
+            [
+              "observed_project_path",
+              "VARCHAR"
+            ],
+            [
+              "observed_timestamp",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/candidates": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 40417,
+          "schema": [
+            [
+              "eligible",
+              "BOOLEAN"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "published_at",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "selected",
+              "BOOLEAN"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "source_repo",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 40417,
+          "schema": [
+            [
+              "eligible",
+              "BOOLEAN"
+            ],
+            [
+              "ordinal",
+              "BIGINT"
+            ],
+            [
+              "package_id",
+              "INTEGER"
+            ],
+            [
+              "published_at",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_url",
+              "VARCHAR"
+            ],
+            [
+              "selected",
+              "BOOLEAN"
+            ],
+            [
+              "snapshot",
+              "VARCHAR"
+            ],
+            [
+              "snapshot_timestamp",
+              "VARCHAR"
+            ],
+            [
+              "source_repo",
+              "VARCHAR"
+            ],
+            [
+              "version",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/project_observations": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 672,
+          "schema": [
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "distinct_metric_pairs",
+              "BIGINT"
+            ],
+            [
+              "invalid",
+              "INTEGER"
+            ],
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 672,
+          "schema": [
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "distinct_metric_pairs",
+              "BIGINT"
+            ],
+            [
+              "invalid",
+              "INTEGER"
+            ],
+            [
+              "open_issues",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ],
+            [
+              "stars",
+              "INTEGER"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/project_conflicts": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 0,
+          "schema": [
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "invalid_metric",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 0,
+          "schema": [
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "invalid_metric",
+              "INTEGER"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ],
+            [
+              "source_rows",
+              "BIGINT"
+            ]
+          ]
+        }
+      ]
+    },
+    "quality/unmapped_projects": {
+      "equal": true,
+      "baseline_only_rows": 0,
+      "spark_only_rows": 0,
+      "logical_schema_equal": true,
+      "outputs": [
+        {
+          "engine": "baseline",
+          "rows": 0,
+          "schema": [
+            [
+              "ForksCount",
+              "BIGINT"
+            ],
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "Type",
+              "VARCHAR"
+            ],
+            [
+              "invalid_metric",
+              "BOOLEAN"
+            ],
+            [
+              "project_name",
+              "VARCHAR"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ]
+          ]
+        },
+        {
+          "engine": "spark",
+          "rows": 0,
+          "schema": [
+            [
+              "ForksCount",
+              "BIGINT"
+            ],
+            [
+              "OpenIssuesCount",
+              "BIGINT"
+            ],
+            [
+              "SnapshotAt",
+              "TIMESTAMP WITH TIME ZONE"
+            ],
+            [
+              "StarsCount",
+              "BIGINT"
+            ],
+            [
+              "Type",
+              "VARCHAR"
+            ],
+            [
+              "invalid_metric",
+              "BOOLEAN"
+            ],
+            [
+              "project_name",
+              "VARCHAR"
+            ],
+            [
+              "project_path",
+              "VARCHAR"
+            ],
+            [
+              "provider",
+              "VARCHAR"
+            ],
+            [
+              "reason",
+              "VARCHAR"
+            ],
+            [
+              "repo_key",
+              "VARCHAR"
+            ],
+            [
+              "source_project_path",
+              "VARCHAR"
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "previous_code_sha256": "e138f2e78b4263f3486107bc97497668fa868db52faa1cbfef2c1cbef298c7f9",
+  "current_code_sha256": "29a6ca9d7d13fd999feafd13f77cd792777c264176977be269e72c37abb0d343",
+  "input_identity": "99a4ed92c0976834b6178d9979fea4fc7a83cc0bec4786fe1d235aaf02e4648e",
+  "manifest_sha256": "47a2cea179b368577891005102785ca801ee413b3df6e9abf9118c4bd45c11f6",
+  "scope": "REPOSITORY_OUTPUTS_ONLY",
+  "db_loaded": false,
+  "production_publication": false
+}

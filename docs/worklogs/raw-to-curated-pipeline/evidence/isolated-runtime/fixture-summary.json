@@ -1,0 +1,2460 @@
+{
+  "scope": "FIXED_STAGE_INPUT_COMPARISON",
+  "image_id": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+  "trials": [
+    {
+      "order": [
+        "baseline",
+        "spark"
+      ],
+      "runs": {
+        "baseline": {
+          "process_seconds": 33.0569480000122,
+          "exit_code": 0,
+          "report": {
+            "code_sha256": "a32b412a8eec3fa19155315978e5a25be82aeea63165784fa27bdcb406f30d36",
+            "cpu_seconds": null,
+            "db_loaded": false,
+            "engine": "baseline",
+            "executor_memory_bytes": null,
+            "input_identity": "029cbaa8fd92822c2223164fc8e85767e1f761797bbed96506f06a6bd7f40de1",
+            "input_verification_seconds": 0.09452175699698273,
+            "job_seconds": 32.472824547003256,
+            "peak_process_memory_bytes": null,
+            "production_publication": false,
+            "python": "3.11.16",
+            "scope": "FIXED_STAGE_INPUT_COMPARISON",
+            "settings": {
+              "engine": "baseline",
+              "manifest": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/input.json",
+              "memory": "2GB",
+              "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline",
+              "partitions": 4,
+              "stages": "package_version,downloads,repository,package_snapshot,dependents",
+              "threads": 2
+            },
+            "stages": {
+              "dependents": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline/dependents",
+                "result": {
+                  "files": [
+                    {
+                      "path": "version_dependents.parquet",
+                      "role": "version_dependents",
+                      "row_count": 3,
+                      "schema": [
+                        [
+                          "package_id",
+                          "INTEGER"
+                        ],
+                        [
+                          "version",
+                          "VARCHAR"
+                        ],
+                        [
+                          "snapshot_at",
+                          "DATE"
+                        ],
+                        [
+                          "dependents_count",
+                          "BIGINT"
+                        ]
+                      ]
+                    },
+                    {
+                      "path": "quality.parquet",
+                      "role": "quality",
+                      "row_count": 3,
+                      "schema": [
+                        [
+                          "package_id",
+                          "INTEGER"
+                        ],
+                        [
+                          "version",
+                          "VARCHAR"
+                        ],
+                        [
+                          "snapshot_at",
+                          "DATE"
+                        ],
+                        [
+                          "dependents_count",
+                          "BIGINT"
+                        ],
+                        [
+                          "null_reason",
+                          "VARCHAR"
+                        ]
+                      ]
+                    },
+                    {
+                      "path": "resolution_lookup.parquet",
+                      "role": "resolution_lookup",
+                      "row_count": 1,
+                      "schema": [
+                        [
+                          "lookup_id",
+                          "BIGINT"
+                        ],
+                        [
+                          "start_index",
+                          "INTEGER"
+                        ],
+                        [
+                          "end_index",
+                          "INTEGER"
+                        ],
+                        [
+                          "status",
+                          "VARCHAR"
+                        ],
+                        [
+                          "normalized_range",
+                          "VARCHAR"
+                        ],
+                        [
+                          "target_package_id",
+                          "INTEGER"
+                        ],
+                        [
+                          "target_version",
+                          "VARCHAR"
+                        ]
+                      ]
+                    }
+                  ],
+                  "quality": {
+                    "aggregation": {
+                      "count_intervals": 1,
+                      "declarations": 1,
+                      "partition_id": 0,
+                      "resolved_declaration_events": 2,
+                      "sources": 1
+                    },
+                    "calculation_status": "COMPLETE",
+                    "null_rows": 1,
+                    "population": {
+                      "after_last_snapshot_versions": 0,
+                      "curated_versions": 3,
+                      "dense_target_snapshot_keys": 3,
+                      "eligible_sources": 3,
+                      "eligible_targets": 3,
+                      "invalid_semver_targets_excluded": 0,
+                      "null_publication_versions": 0,
+                      "prerelease_targets_excluded": 0,
+                      "selected_declarations_latest": 1,
+                      "source_snapshot_keys": 3,
+                      "unique_original_version_strings": 1
+                    },
+                    "resolution": {
+                      "candidate_checks": 1,
+                      "lookup_intervals": 1,
+                      "parsed_requirements": 1,
+                      "resolved_lookups": 1
+                    },
+                    "resolution_status": "PARTIAL",
+                    "rows": 3,
+                    "runtime": {
+                      "bounds": {
+                        "max_candidate_requirement_work": 2000000,
+                        "max_candidates": 100000,
+                        "max_frame_bytes": 7340032,
+                        "max_result_intervals": 20000,
+                        "max_snapshots": 4096,
+                        "max_unique_requirements": 512
+                      },
+                      "dependency_closure_sha256": "9dc6ad493229b3a01ff63383f915264b58549f807e884547234efca958d6abc1",
+                      "equal_precedence_tie": "original_version_utf16_ascending",
+                      "interval_end": "exclusive",
+                      "node_version": "v24.21.0",
+                      "options": {
+                        "includePrerelease": false,
+                        "loose": false
+                      },
+                      "package_arg_sha256": "f6b4669ceb6d88ad150dad9a23a5a335e8f45eebe207b79f53d61c2e3dcfb85f",
+                      "package_arg_version": "13.0.2",
+                      "semver_sha256": "2701d346abbbe9197ef298c53f75404ccabe24a0d7a8c549c24e08067662a96c",
+                      "semver_version": "7.8.5"
+                    },
+                    "snapshot_count": 1,
+                    "source_gaps": {
+                      "extraction_error": 0,
+                      "missing_requirements": 0,
+                      "null_dependency_list": 0,
+                      "unknown_extraction_status": 3
+                    },
+                    "unresolved_declarations": 0,
+                    "zero_rows": 1
+                  }
+                },
+                "seconds": 0.8805391639907612
+              },
+              "downloads": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline/downloads",
+                "result": {
+                  "files": [
+                    {
+                      "bytes": 3055,
+                      "path": "interval_downloads.parquet",
+                      "role": "interval_downloads",
+                      "row_count": 3,
+                      "sha256": "c9c5b6fd2a8ceb81e7437bd5ae61d6d0bbac6ac3a05c79dbfff37071868ae827"
+                    },
+                    {
+                      "bytes": 719,
+                      "path": "daily_quality.parquet",
+                      "role": "daily_quality",
+                      "row_count": 5,
+                      "sha256": "0b40b53f7306cf0330f42d5c3f36d0eb1564397cede293573afb12bdbeb37e00"
+                    },
+                    {
+                      "bytes": 743,
+                      "path": "unmatched_packages.parquet",
+                      "role": "unmatched_packages",
+                      "row_count": 1,
+                      "sha256": "5d77e2ba86f44d0eb8c4ee4f164fe5a53d55d7fcfa317cf24de9d0277d54e7d0"
+                    }
+                  ],
+                  "lineage": {
+                    "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427",
+                    "input_manifest_sha256": "3ab6931546e608282c5e5c609ef9cc569a5f1562ee7139c9ab061488b99ef69e",
+                    "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690"
+                  },
+                  "quality": {
+                    "complete_rows": 1,
+                    "daily_quality_rows": 5,
+                    "null_reason_counts": {
+                      "OUTSIDE_TARGET_LIST": 1
+                    },
+                    "package_rows": 3,
+                    "partial_rows": 1,
+                    "partial_zero_rows": 0,
+                    "target_duplicate_rows": 1,
+                    "target_rows": 3,
+                    "unavailable_rows": 1,
+                    "unmatched_names": 1,
+                    "zero_rows": 0
+                  },
+                  "schema": {
+                    "daily_quality": [
+                      {
+                        "name": "package_id",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "name",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "date",
+                        "type": "DATE"
+                      },
+                      {
+                        "name": "reason",
+                        "type": "VARCHAR"
+                      }
+                    ],
+                    "grain": "(package_id,snapshot_at)",
+                    "interval_downloads": [
+                      {
+                        "name": "package_id",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "snapshot_at",
+                        "type": "DATE"
+                      },
+                      {
+                        "name": "previous_snapshot_at",
+                        "type": "DATE"
+                      },
+                      {
+                        "name": "download_sum",
+                        "type": "BIGINT"
+                      },
+                      {
+                        "name": "expected_days",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "observed_days",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "valid_days",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "data_status",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "null_reason",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "quality_reasons",
+                        "type": "VARCHAR[]"
+                      },
+                      {
+                        "name": "input_manifest_sha256",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "policy_sha256",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "aggregation_policy_sha256",
+                        "type": "VARCHAR"
+                      }
+                    ],
+                    "unmatched_packages": [
+                      {
+                        "name": "name",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "input_status",
+                        "type": "VARCHAR"
+                      },
+                      {
+                        "name": "observed_days",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "reason",
+                        "type": "VARCHAR"
+                      }
+                    ]
+                  }
+                },
+                "seconds": 0.3536941589991329
+              },
+              "package_snapshot": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline/package_snapshot",
+                "result": {
+                  "files": [
+                    {
+                      "bytes": 729,
+                      "path": "package_snapshot.parquet",
+                      "role": "package_snapshot",
+                      "row_count": 3,
+                      "sha256": "deedb10cb51bcec880da0a9be4d755eb14f3177e31e0a6a896a4c0edbd3fff5c"
+                    },
+                    {
+                      "bytes": 348,
+                      "path": "package_identity.parquet",
+                      "role": "package_identity",
+                      "row_count": 3,
+                      "sha256": "61d60685c85c00acbe9ac49989e305c56ba9d40eb10b7fef053c88f85ef5e8ec"
+                    },
+                    {
+                      "bytes": 6033,
+                      "path": "quality.parquet",
+                      "role": "quality",
+                      "row_count": 3,
+                      "sha256": "295615b1398927183f14f885750d745cf58851b8b2f67c84e99a7180b6967f66"
+                    }
+                  ],
+                  "quality": {
+                    "detail_references": [
+                      {
+                        "bytes": 719,
+                        "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=ref/data/daily_quality.parquet",
+                        "role": "daily_quality",
+                        "row_count": 5,
+                        "sha256": "0b40b53f7306cf0330f42d5c3f36d0eb1564397cede293573afb12bdbeb37e00"
+                      },
+                      {
+                        "bytes": 743,
+                        "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=ref/data/unmatched_packages.parquet",
+                        "role": "unmatched_packages",
+                        "row_count": 1,
+                        "sha256": "5d77e2ba86f44d0eb8c4ee4f164fe5a53d55d7fcfa317cf24de9d0277d54e7d0"
+                      }
+                    ],
+                    "download_null_reason": {
+                      "OUTSIDE_TARGET_LIST": 1
+                    },
+                    "download_partial_sum": "4800",
+                    "download_status": {
+                      "COMPLETE": 1,
+                      "PARTIAL": 1,
+                      "UNAVAILABLE": 1
+                    },
+                    "download_sum": "4801",
+                    "nonnull": {
+                      "downloads": 2,
+                      "open_issues": 3,
+                      "stars": 3
+                    },
+                    "repository_reason": {
+                      "SELECTED": 3
+                    },
+                    "repository_selection_references": [
+                      {
+                        "bytes": 4491,
+                        "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=ref/attempts/0f6a3282972743ee914d0e00926b707b/outputs/quality/selection/part-00000-31c7a12f-81d2-4cb1-b57c-281930e379d5-c000.snappy.parquet",
+                        "role": "quality/selection",
+                        "row_count": 3,
+                        "sha256": "0487f809d3fb994102336e2daf5eec7b976734747af5c54b1f08582f70bc6fd4"
+                      }
+                    ],
+                    "rows": 3,
+                    "status": "PASSED",
+                    "verification": "ALL_KEYS_SCHEMA_COUNTS_VALUES_AND_QUALITY",
+                    "zero": {
+                      "downloads": 0,
+                      "open_issues": 1,
+                      "stars": 0
+                    }
+                  }
+                },
+                "seconds": 1.1982670269935625
+              },
+              "package_version": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline/package_version",
+                "result": {
+                  "excluded_future_versions": 0,
+                  "input_versions": 3,
+                  "invalid_or_unsupported_repo_values": 0,
+                  "invalid_requirements": 0,
+                  "missing_published_at": 0,
+                  "missing_requirements": 0,
+                  "new_packages": 2,
+                  "nonrelease_versions": 0,
+                  "nul_descriptions": 0,
+                  "ordinal_tie_groups": 0,
+                  "output_counts": {
+                    "package/data": 3,
+                    "package_ids/data": 3,
+                    "quality/dependency_issues": 0,
+                    "quality/excluded_versions": 0,
+                    "quality/metadata_issues": 0,
+                    "quality/repository_selection": 3,
+                    "version/data": 3
+                  },
+                  "packages": 3,
+                  "packages_without_repo": 0,
+                  "registry_packages": 3,
+                  "release_versions": 3,
+                  "snapshot_timestamp": "2026-08-31T21:01:10",
+                  "unknown_release_versions": 0,
+                  "versions": 3
+                },
+                "seconds": 0.4476486550120171
+              },
+              "repository": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-baseline/repository",
+                "result": {
+                  "candidate_reasons": {
+                    "VALID_REPOSITORY_CANDIDATE": 3
+                  },
+                  "conflicts": 0,
+                  "lineage": {
+                    "counts": {
+                      "package": 3,
+                      "projects": 3,
+                      "version": 3,
+                      "versions_full": 3
+                    },
+                    "snapshot": "2026-08-31",
+                    "snapshot_timestamp": "2026-08-31T21:01:10.000000Z"
+                  },
+                  "mapping": {
+                    "null": 0,
+                    "packages": 3,
+                    "selected": 3
+                  },
+                  "null_reasons": {},
+                  "output_counts": {
+                    "metric/data": 3,
+                    "quality/candidates": 3,
+                    "quality/project_conflicts": 0,
+                    "quality/project_observations": 3,
+                    "quality/selection": 3,
+                    "quality/unmapped_projects": 0
+                  },
+                  "selection_reasons": {
+                    "SELECTED": 3
+                  },
+                  "unsupported_project_rows": 0,
+                  "validation": "PASSED"
+                },
+                "seconds": 27.76013934900402
+              }
+            },
+            "startup_seconds": 1.73561863899522,
+            "status": "COMPUTED"
+          }
+        },
+        "spark": {
+          "process_seconds": 67.34563200001139,
+          "exit_code": 0,
+          "report": {
+            "application_id": "local-1789461380959",
+            "code_sha256": "a32b412a8eec3fa19155315978e5a25be82aeea63165784fa27bdcb406f30d36",
+            "cpu_seconds": null,
+            "db_loaded": false,
+            "engine": "spark",
+            "executor_memory_bytes": null,
+            "input_identity": "029cbaa8fd92822c2223164fc8e85767e1f761797bbed96506f06a6bd7f40de1",
+            "input_verification_seconds": 0.13845839900022838,
+            "job_seconds": 64.6943787610071,
+            "master": "local[2]",
+            "peak_process_memory_bytes": null,
+            "production_publication": false,
+            "python": "3.11.16",
+            "scope": "FIXED_STAGE_INPUT_COMPARISON",
+            "settings": {
+              "engine": "spark",
+              "manifest": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/input.json",
+              "memory": "2GB",
+              "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark",
+              "partitions": 4,
+              "stages": "package_version,downloads,repository,package_snapshot,dependents",
+              "threads": 2
+            },
+            "spark_version": "3.5.3",
+            "stages": {
+              "dependents": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/dependents",
+                "result": {
+                  "outputs": {
+                    "quality": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/dependents/quality",
+                    "resolution_lookup": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/dependents/resolution_lookup",
+                    "version_dependents": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/dependents/version_dependents"
+                  },
+                  "quality": {
+                    "calculation_status": "COMPLETE",
+                    "null_rows": 1,
+                    "resolution_status": "PARTIAL",
+                    "rows": 3,
+                    "snapshot": "2026-08-31",
+                    "source_gaps": {
+                      "extraction_error": 0,
+                      "missing_requirements": 0,
+                      "null_dependency_list": 0,
+                      "unknown_extraction_status": 3
+                    },
+                    "unresolved_declarations": 0,
+                    "zero_rows": 1
+                  },
+                  "resolution_lookup": {
+                    "rows": 1
+                  }
+                },
+                "seconds": 9.059605112997815
+              },
+              "downloads": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/downloads",
+                "result": {
+                  "files": [
+                    {
+                      "path": "interval_downloads.parquet",
+                      "role": "interval_downloads",
+                      "row_count": 3
+                    },
+                    {
+                      "path": "daily_quality.parquet",
+                      "role": "daily_quality",
+                      "row_count": 5
+                    },
+                    {
+                      "path": "unmatched_packages.parquet",
+                      "role": "unmatched_packages",
+                      "row_count": 1
+                    }
+                  ],
+                  "lineage": {
+                    "aggregation_policy_sha256": "d037ae76e351c6b8b1613a1e9e724c5b375350967620d7a133fa7a4b47037427",
+                    "input_manifest_sha256": "3ab6931546e608282c5e5c609ef9cc569a5f1562ee7139c9ab061488b99ef69e",
+                    "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690"
+                  },
+                  "quality": {
+                    "complete_rows": 1,
+                    "daily_quality_rows": 5,
+                    "package_rows": 3,
+                    "partial_rows": 1,
+                    "unavailable_rows": 1,
+                    "unmatched_names": 1
+                  }
+                },
+                "seconds": 10.715009580992046
+              },
+              "package_snapshot": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/package_snapshot",
+                "result": {
+                  "files": [
+                    {
+                      "path": "package_snapshot.parquet",
+                      "role": "package_snapshot",
+                      "row_count": 3
+                    },
+                    {
+                      "path": "package_identity.parquet",
+                      "role": "package_identity",
+                      "row_count": 3
+                    },
+                    {
+                      "path": "quality.parquet",
+                      "role": "quality",
+                      "row_count": 3
+                    }
+                  ],
+                  "quality": {
+                    "rows": 3,
+                    "status": "PASSED"
+                  }
+                },
+                "seconds": 4.743072743003722
+              },
+              "package_version": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/package_version",
+                "result": {
+                  "excluded_future_versions": 0,
+                  "input_versions": 3,
+                  "invalid_or_unsupported_repo_values": 0,
+                  "invalid_requirements": 0,
+                  "missing_published_at": 0,
+                  "missing_requirements": 0,
+                  "new_packages": 2,
+                  "nonrelease_versions": 0,
+                  "nul_descriptions": 0,
+                  "ordinal_tie_groups": 0,
+                  "output_counts": {
+                    "package/data": 3,
+                    "package_ids/data": 3,
+                    "quality/dependency_issues": 0,
+                    "quality/excluded_versions": 0,
+                    "quality/metadata_issues": 0,
+                    "quality/repository_selection": 3,
+                    "version/data": 3
+                  },
+                  "packages": 3,
+                  "packages_without_repo": 0,
+                  "registry_packages": 3,
+                  "release_versions": 3,
+                  "snapshot_timestamp": "2026-08-31T21:01:10",
+                  "unknown_release_versions": 0,
+                  "versions": 3
+                },
+                "seconds": 27.601765683997655
+              },
+              "repository": {
+                "output": "C:/Users/SSAFY/AppData/Local/Temp/px-y31l6gk0/i/b-d8f81b8e/r1-spark/repository",
+                "result": {
+                  "candidate_reasons": {
+                    "VALID_REPOSITORY_CANDIDATE": 3
+                  },
+                  "conflicts": 0,
+                  "lineage": {
+                    "counts": {
+                      "package": 3,
+                      "projects": 3,
+                      "version": 3,
+                      "versions_full": 3
+                    },
+                    "snapshot": "2026-08-31",
+                    "snapshot_timestamp": "2026-08-31T21:01:10.000000Z"
+                  },
+                  "mapping": {
+                    "null": 0,
+                    "packages": 3,
+                    "selected": 3
+                  },
+                  "null_reasons": {},
+                  "output_counts": {
+                    "metric/data": 3,
+                    "quality/candidates": 3,
+                    "quality/project_conflicts": 0,
+                    "quality/project_observations": 3,
+                    "quality/selection": 3,
+                    "quality/unmapped_projects": 0
+                  },
+                  "selection_reasons": {
+                    "SELECTED": 3
+                  },
+                  "unsupported_project_rows": 0,
+                  "validation": "PASSED"
+                },
+                "seconds": 9.939092419997905
+              }
+            },
+            "startup_seconds": 2.4585267910006223,
+            "status": "COMPUTED"
+          }
+        }
+      },
+      "comparison": {
+        "status": "EQUAL",
+        "groups": {
+          "dependents/version_dependents": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependents_count",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependents_count",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "dependents/quality": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependents_count",
+                    "BIGINT"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependents_count",
+                    "BIGINT"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "dependents/resolution_lookup": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 1,
+                "schema": [
+                  [
+                    "end_index",
+                    "INTEGER"
+                  ],
+                  [
+                    "lookup_id",
+                    "BIGINT"
+                  ],
+                  [
+                    "normalized_range",
+                    "VARCHAR"
+                  ],
+                  [
+                    "start_index",
+                    "INTEGER"
+                  ],
+                  [
+                    "status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "target_package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "target_version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 1,
+                "schema": [
+                  [
+                    "end_index",
+                    "INTEGER"
+                  ],
+                  [
+                    "lookup_id",
+                    "BIGINT"
+                  ],
+                  [
+                    "normalized_range",
+                    "VARCHAR"
+                  ],
+                  [
+                    "start_index",
+                    "INTEGER"
+                  ],
+                  [
+                    "status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "target_package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "target_version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "downloads/interval_downloads.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "aggregation_policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "data_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "download_sum",
+                    "BIGINT"
+                  ],
+                  [
+                    "expected_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "input_manifest_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "previous_snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "quality_reasons",
+                    "VARCHAR[]"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "valid_days",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "aggregation_policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "data_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "download_sum",
+                    "BIGINT"
+                  ],
+                  [
+                    "expected_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "input_manifest_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "previous_snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "quality_reasons",
+                    "VARCHAR[]"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "valid_days",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "downloads/daily_quality.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 5,
+                "schema": [
+                  [
+                    "date",
+                    "DATE"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 5,
+                "schema": [
+                  [
+                    "date",
+                    "DATE"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "downloads/unmatched_packages.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 1,
+                "schema": [
+                  [
+                    "input_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 1,
+                "schema": [
+                  [
+                    "input_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_snapshot/package_snapshot.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "downloads",
+                    "BIGINT"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "downloads",
+                    "BIGINT"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_snapshot/package_identity.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_snapshot/quality.parquet": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "aggregation_policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "data_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "download_sum",
+                    "BIGINT"
+                  ],
+                  [
+                    "expected_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "first_published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "input_manifest_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "previous_snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "quality_reasons",
+                    "VARCHAR[]"
+                  ],
+                  [
+                    "repository_comparison_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_mapping_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_observed_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_observed_timestamp",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "repository_ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "repository_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "selected_published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ],
+                  [
+                    "valid_days",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "aggregation_policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "data_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "download_sum",
+                    "BIGINT"
+                  ],
+                  [
+                    "expected_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "first_published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "input_manifest_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "null_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_days",
+                    "INTEGER"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "policy_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "previous_snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "quality_reasons",
+                    "VARCHAR[]"
+                  ],
+                  [
+                    "repository_comparison_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_mapping_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_observed_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_observed_timestamp",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "repository_ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "repository_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repository_version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "selected_published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ],
+                  [
+                    "valid_days",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/package/data": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/version/data": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependency",
+                    "JSON"
+                  ],
+                  [
+                    "deprecated",
+                    "VARCHAR"
+                  ],
+                  [
+                    "description",
+                    "VARCHAR"
+                  ],
+                  [
+                    "licenses",
+                    "JSON"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "dependency",
+                    "VARCHAR"
+                  ],
+                  [
+                    "deprecated",
+                    "VARCHAR"
+                  ],
+                  [
+                    "description",
+                    "VARCHAR"
+                  ],
+                  [
+                    "licenses",
+                    "VARCHAR"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/package_ids/data": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/quality/repository_selection": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_repo_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_repo_sha256",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/quality/excluded_versions": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/quality/dependency_issues": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "package_version/quality/metadata_issues": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "field",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 0,
+                "schema": [
+                  [
+                    "Name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "Version",
+                    "VARCHAR"
+                  ],
+                  [
+                    "field",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/metric/data": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "snapshot_at",
+                    "DATE"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/quality/selection": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "comparison_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "mapping_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_timestamp",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "comparison_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "mapping_status",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "observed_timestamp",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/quality/candidates": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "eligible",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "selected",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_repo",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "eligible",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "ordinal",
+                    "BIGINT"
+                  ],
+                  [
+                    "package_id",
+                    "INTEGER"
+                  ],
+                  [
+                    "published_at",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_url",
+                    "VARCHAR"
+                  ],
+                  [
+                    "selected",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "snapshot",
+                    "VARCHAR"
+                  ],
+                  [
+                    "snapshot_timestamp",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_repo",
+                    "VARCHAR"
+                  ],
+                  [
+                    "version",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/quality/project_observations": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 3,
+                "schema": [
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "distinct_metric_pairs",
+                    "BIGINT"
+                  ],
+                  [
+                    "invalid",
+                    "INTEGER"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_rows",
+                    "BIGINT"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 3,
+                "schema": [
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "distinct_metric_pairs",
+                    "BIGINT"
+                  ],
+                  [
+                    "invalid",
+                    "INTEGER"
+                  ],
+                  [
+                    "open_issues",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_rows",
+                    "BIGINT"
+                  ],
+                  [
+                    "stars",
+                    "INTEGER"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/quality/project_conflicts": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 0,
+                "schema": [
+                  [
+                    "OpenIssuesCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "StarsCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "invalid_metric",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_rows",
+                    "BIGINT"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 0,
+                "schema": [
+                  [
+                    "OpenIssuesCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "StarsCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "invalid_metric",
+                    "INTEGER"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_rows",
+                    "BIGINT"
+                  ]
+                ]
+              }
+            ]
+          },
+          "repository/quality/unmapped_projects": {
+            "equal": true,
+            "baseline_only_rows": 0,
+            "spark_only_rows": 0,
+            "logical_schema_equal": true,
+            "outputs": [
+              {
+                "engine": "baseline",
+                "rows": 0,
+                "schema": [
+                  [
+                    "OpenIssuesCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "StarsCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "Type",
+                    "VARCHAR"
+                  ],
+                  [
+                    "invalid_metric",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "project_name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ]
+                ]
+              },
+              {
+                "engine": "spark",
+                "rows": 0,
+                "schema": [
+                  [
+                    "OpenIssuesCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "SnapshotAt",
+                    "TIMESTAMP WITH TIME ZONE"
+                  ],
+                  [
+                    "StarsCount",
+                    "BIGINT"
+                  ],
+                  [
+                    "Type",
+                    "VARCHAR"
+                  ],
+                  [
+                    "invalid_metric",
+                    "BOOLEAN"
+                  ],
+                  [
+                    "project_name",
+                    "VARCHAR"
+                  ],
+                  [
+                    "project_path",
+                    "VARCHAR"
+                  ],
+                  [
+                    "provider",
+                    "VARCHAR"
+                  ],
+                  [
+                    "reason",
+                    "VARCHAR"
+                  ],
+                  [
+                    "repo_key",
+                    "VARCHAR"
+                  ],
+                  [
+                    "source_project_path",
+                    "VARCHAR"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "comparison": "EXACT_CANONICAL_ROW_MULTISET",
+        "normalizations": [
+          "JSON logical annotation/string and object key order",
+          "declared UTC timestamp representation",
+          "column order"
+        ],
+        "file_bytes_compared": false
+      },
+      "valid_result_comparison": true,
+      "speed_ratio_baseline_over_spark": 0.49085511588942554
+    }
+  ],
+  "limits": {
+    "cpus": 2,
+    "container_memory": "6g",
+    "engine_memory": "2GB"
+  },
+  "cache_policy": "fresh output/process; host and object-store caches uncontrolled",
+  "performance_claim": "NO_PRODUCTION_SPEEDUP_CLAIM",
+  "end_to_end_ingestion_measured": false,
+  "status": "VERIFIED"
+}

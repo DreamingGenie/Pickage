@@ -1,0 +1,88 @@
+{
+  "format_version": 1,
+  "kind": "synthetic_fixture",
+  "fixture_id": "hand-calculated-two-snapshots",
+  "tables": {
+    "public.package": [
+      {"package_id": 1, "name": "alpha", "repo_url": "https://example.test/alpha"},
+      {"package_id": 2, "name": "beta", "repo_url": "https://example.test/beta"},
+      {"package_id": 3, "name": "gamma", "repo_url": null}
+    ],
+    "public.package_snapshot": [
+      {"package_id": 1, "snapshot_at": "2026-01-01", "downloads": 0, "stars": 10, "open_issues": 2},
+      {"package_id": 2, "snapshot_at": "2026-01-01", "downloads": null, "stars": 4, "open_issues": 0},
+      {"package_id": 3, "snapshot_at": "2026-01-01", "downloads": 12, "stars": 0, "open_issues": null},
+      {"package_id": 1, "snapshot_at": "2026-02-01", "downloads": 10, "stars": 11, "open_issues": 1},
+      {"package_id": 2, "snapshot_at": "2026-02-01", "downloads": 0, "stars": 5, "open_issues": 0},
+      {"package_id": 3, "snapshot_at": "2026-02-01", "downloads": null, "stars": 1, "open_issues": null}
+    ],
+    "public.version": [
+      {"version": "1.0.0", "package_id": 1, "published_at": "2025-12-01 00:00:00.000001", "ordinal": 1, "description": "alpha stable", "licenses": "[\"MIT\"]", "deprecated": null, "dependency": "{}"},
+      {"version": "1.1.0", "package_id": 1, "published_at": "2026-01-15 12:30:00.123456", "ordinal": 2, "description": null, "licenses": "[\"MIT\"]", "deprecated": null, "dependency": "{\"beta\":\"^1.1.0\"}"},
+      {"version": "2.0.0", "package_id": 1, "published_at": "2026-03-01 00:00:00.000001", "ordinal": 3, "description": "future release", "licenses": null, "deprecated": null, "dependency": "{}"},
+      {"version": "1.0.0", "package_id": 2, "published_at": "2025-12-10 00:00:00.000001", "ordinal": 1, "description": "beta stable", "licenses": "[\"Apache-2.0\"]", "deprecated": null, "dependency": "{\"alpha\":\"^1.0.0\"}"},
+      {"version": "1.1.0", "package_id": 2, "published_at": "2026-01-20 08:00:00.654321", "ordinal": 2, "description": "beta minor", "licenses": "[\"Apache-2.0\"]", "deprecated": "maintenance only", "dependency": "{\"alpha\":\"^1.1.0\"}"},
+      {"version": "1.0.0", "package_id": 3, "published_at": "2025-11-20 00:00:00.000001", "ordinal": 1, "description": "gamma stable", "licenses": "[]", "deprecated": null, "dependency": "{}"},
+      {"version": "1.1.0", "package_id": 3, "published_at": "2026-01-31 23:59:59.000001", "ordinal": 2, "description": "gamma minor", "licenses": "[]", "deprecated": null, "dependency": "{}"}
+    ],
+    "public.snapshot": [
+      {"snapshot_at": "2026-01-01"},
+      {"snapshot_at": "2026-02-01"}
+    ],
+    "public.package_version_snapshot": [
+      {"package_id": 1, "version": "1.0.0", "snapshot_at": "2026-01-01", "dependents_count": 2},
+      {"package_id": 3, "version": "1.0.0", "snapshot_at": "2026-01-01", "dependents_count": 1},
+      {"package_id": 1, "version": "1.0.0", "snapshot_at": "2026-02-01", "dependents_count": 3},
+      {"package_id": 1, "version": "1.1.0", "snapshot_at": "2026-02-01", "dependents_count": 1},
+      {"package_id": 3, "version": "1.0.0", "snapshot_at": "2026-02-01", "dependents_count": 2}
+      ,{"package_id": 3, "version": "1.1.0", "snapshot_at": "2026-02-01", "dependents_count": 0}
+    ],
+    "validation.snapshot_context": [
+      {"snapshot_at": "2026-01-01", "snapshot_timestamp": "2026-01-01 00:00:00.000001"},
+      {"snapshot_at": "2026-02-01", "snapshot_timestamp": "2026-02-01 00:00:00.000001"}
+    ],
+    "validation.package_population": [
+      {"package_id": 1, "snapshot_at": "2026-01-01"}, {"package_id": 2, "snapshot_at": "2026-01-01"}, {"package_id": 3, "snapshot_at": "2026-01-01"},
+      {"package_id": 1, "snapshot_at": "2026-02-01"}, {"package_id": 2, "snapshot_at": "2026-02-01"}, {"package_id": 3, "snapshot_at": "2026-02-01"}
+    ],
+    "validation.target_population": [
+      {"package_id": 1, "version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"package_id": 3, "version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"package_id": 1, "version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"package_id": 1, "version": "1.1.0", "snapshot_at": "2026-02-01"},
+      {"package_id": 3, "version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"package_id": 3, "version": "1.1.0", "snapshot_at": "2026-02-01"}
+    ],
+    "validation.resolved_edges": [
+      {"source_package_id": 2, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"source_package_id": 2, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"source_package_id": 3, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"source_package_id": 2, "source_version": "1.0.0", "target_package_id": 3, "target_version": "1.0.0", "snapshot_at": "2026-01-01"},
+      {"source_package_id": 2, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"source_package_id": 2, "source_version": "1.1.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"source_package_id": 3, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"source_package_id": 3, "source_version": "1.0.0", "target_package_id": 1, "target_version": "1.1.0", "snapshot_at": "2026-02-01"},
+      {"source_package_id": 2, "source_version": "1.0.0", "target_package_id": 3, "target_version": "1.0.0", "snapshot_at": "2026-02-01"},
+      {"source_package_id": 2, "source_version": "1.1.0", "target_package_id": 3, "target_version": "1.0.0", "snapshot_at": "2026-02-01"}
+    ],
+    "validation.source_quality": [
+      {"snapshot_at": "2026-01-01", "calculation_status": "COMPLETE", "resolution_status": "PARTIAL", "unresolved_count": 1},
+      {"snapshot_at": "2026-02-01", "calculation_status": "COMPLETE", "resolution_status": "COMPLETE", "unresolved_count": 0}
+    ],
+    "validation.expected_package_metrics": [
+      {"package_id": 1, "snapshot_at": "2026-01-01", "downloads": 0, "stars": 10, "open_issues": 2},
+      {"package_id": 2, "snapshot_at": "2026-01-01", "downloads": null, "stars": 4, "open_issues": 0},
+      {"package_id": 3, "snapshot_at": "2026-01-01", "downloads": 12, "stars": 0, "open_issues": null},
+      {"package_id": 1, "snapshot_at": "2026-02-01", "downloads": 10, "stars": 11, "open_issues": 1},
+      {"package_id": 2, "snapshot_at": "2026-02-01", "downloads": 0, "stars": 5, "open_issues": 0},
+      {"package_id": 3, "snapshot_at": "2026-02-01", "downloads": null, "stars": 1, "open_issues": null}
+    ]
+  },
+  "expected_counts": {
+    "public.package": 3,
+    "public.package_snapshot": 6,
+    "public.version": 7,
+    "public.snapshot": 2,
+    "public.package_version_snapshot": 6
+  }
+}

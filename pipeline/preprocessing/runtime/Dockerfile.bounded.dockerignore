@@ -1,0 +1,13 @@
+# Compose uses the repository root; never send datasets, credentials or Git data.
+**
+!pipeline/
+!pipeline/minio/
+!pipeline/minio/requirements.txt
+!pipeline/preprocessing/
+!pipeline/preprocessing/curated/
+!pipeline/preprocessing/curated/requirements.txt
+!pipeline/preprocessing/runtime/
+!pipeline/preprocessing/runtime/Dockerfile.bounded
+!pipeline/preprocessing/runtime/bounded_workspace.sh
+!pipeline/preprocessing/runtime/resource_budget.sh
+!pipeline/preprocessing/runtime/workspace.role

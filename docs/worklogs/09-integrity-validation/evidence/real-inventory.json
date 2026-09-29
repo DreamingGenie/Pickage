@@ -1,0 +1,133 @@
+{
+  "tables": [
+    {
+      "oid": "87741",
+      "kind": "r",
+      "name": "package",
+      "bytes": 2569895936,
+      "estimated_rows": 11055765
+    },
+    {
+      "oid": "87756",
+      "kind": "r",
+      "name": "package_snapshot",
+      "bytes": 45146046464,
+      "estimated_rows": 603130240
+    },
+    {
+      "oid": "280767",
+      "kind": "p",
+      "name": "package_version_snapshot",
+      "bytes": 0,
+      "estimated_rows": -1
+    },
+    {
+      "oid": "87770",
+      "kind": "r",
+      "name": "snapshot",
+      "bytes": 57344,
+      "estimated_rows": 229
+    },
+    {
+      "oid": "87759",
+      "kind": "r",
+      "name": "version",
+      "bytes": 22222553088,
+      "estimated_rows": 54203656
+    }
+  ],
+  "current": [
+    {
+      "dataset": "package-version",
+      "snapshot_at": "2026-08-31",
+      "execution_id": "load-267-full-defaulted-v1",
+      "manifest_keys": [
+        "files",
+        "report",
+        "status",
+        "request",
+        "verification",
+        "contract_version"
+      ],
+      "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3"
+    },
+    {
+      "dataset": "package-snapshot",
+      "snapshot_at": "2026-08-31",
+      "execution_id": "load-288-20260831-v1",
+      "manifest_keys": [
+        "files",
+        "counts",
+        "policy",
+        "run_id",
+        "status",
+        "dataset",
+        "quality",
+        "interval",
+        "snapshot",
+        "policy_sha256",
+        "format_version",
+        "input_manifest",
+        "contract_sha256",
+        "snapshot_timestamp",
+        "input_manifest_sha256",
+        "required_remote_verification"
+      ],
+      "manifest_sha256": "53b04df38d126128b30e49bd31dde4cd0354b3711317753f8165b86d9c433357"
+    },
+    {
+      "dataset": "version-dependents",
+      "snapshot_at": "2026-08-31",
+      "execution_id": "vd193-fast-full-1b6c01042e43de9d-20260831",
+      "manifest_keys": [
+        "files",
+        "scope",
+        "lineage",
+        "quality",
+        "run_dir",
+        "calendar",
+        "snapshot_at",
+        "snapshot_timestamp",
+        "run_manifest_sha256",
+        "input_manifest_sha256",
+        "history_manifest_sha256"
+      ],
+      "manifest_sha256": "caee6c3a63126b9c92505fc02efdfb1780a38dde593527f3844ad7d31b525297"
+    }
+  ],
+  "database": "pickage_267_full_defaulted",
+  "read_only": "on",
+  "executions": [
+    {
+      "status": "PUBLISHED",
+      "dataset": "package-snapshot",
+      "last_date": "2026-08-31",
+      "executions": 229,
+      "first_date": "2022-05-08"
+    },
+    {
+      "status": "PUBLISHED",
+      "dataset": "package-version",
+      "last_date": "2026-08-31",
+      "executions": 1,
+      "first_date": "2026-08-31"
+    },
+    {
+      "status": "PUBLISHED",
+      "dataset": "snapshot-reference",
+      "last_date": null,
+      "executions": 1,
+      "first_date": null
+    },
+    {
+      "status": "PUBLISHED",
+      "dataset": "version-dependents",
+      "last_date": "2026-08-31",
+      "executions": 229,
+      "first_date": "2022-05-08"
+    }
+  ],
+  "server_version": "16.14",
+  "system_identifier": "7683005534478250019",
+  "other_active_sessions": 0
+}

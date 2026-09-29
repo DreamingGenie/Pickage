@@ -1,0 +1,211 @@
+{
+  "recorded_at": "2026-09-15T16:53:12.192337+09:00",
+  "stage1_inspection_complete": true,
+  "input_selection_status": "TWO_EC2_RUNTIME_VERIFIED_REAL_BENCHMARK_PENDING",
+  "ready_for_prepare": false,
+  "ready_for_benchmark": false,
+  "production_publication": false,
+  "db_loaded": false,
+  "snapshot": "2026-08-31",
+  "snapshot_timestamp_candidate": "2026-08-31T21:01:10.517131Z",
+  "timestamp_evidence": "Existing source-linked Curated manifest report; raw Projects timestamp validation deferred to prepare",
+  "scenario": "bootstrap reconstruction from a full real snapshot; no older package-version parent exists in server inventory",
+  "parent": null,
+  "observed_current_pointer": {
+    "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2",
+    "snapshot": "2026-08-31"
+  },
+  "raw_run_id": "bronze-20260907-v1",
+  "calendar_dates": [
+    "2026-08-24",
+    "2026-08-31"
+  ],
+  "raw_checks": [
+    {
+      "key": "depsdev/v1/projects/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "status": "PASSED",
+      "verification": "GET_SHA256_ALL_FILES",
+      "file_count": 12,
+      "data_bytes": 118279326,
+      "missing": [],
+      "size_mismatches": [],
+      "payload_sha256_rechecked": false
+    },
+    {
+      "key": "depsdev/v1/requirements/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "status": "PASSED",
+      "verification": "GET_SHA256_ALL_FILES",
+      "file_count": 790,
+      "data_bytes": 7187018109,
+      "missing": [],
+      "size_mismatches": [],
+      "payload_sha256_rechecked": false
+    },
+    {
+      "key": "depsdev/v1/versions_full/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "status": "PASSED",
+      "verification": "GET_SHA256_ALL_FILES",
+      "file_count": 362,
+      "data_bytes": 4743979451,
+      "missing": [],
+      "size_mismatches": [],
+      "payload_sha256_rechecked": false
+    },
+    {
+      "key": "depsdev/v1/projects/snapshot=2026-08-24/run_id=bronze-20260907-v1/run_manifest.json",
+      "status": "PASSED",
+      "verification": "GET_SHA256_ALL_FILES",
+      "file_count": 12,
+      "data_bytes": 117904926,
+      "missing": [],
+      "size_mismatches": [],
+      "payload_sha256_rechecked": false
+    }
+  ],
+  "raw_bytes": 12167181812,
+  "downloads": {
+    "location": "server MinIO data node and original local MinIO",
+    "run_id": "downloads-278-20260909-v1",
+    "manifest_sha256": "0617c12a1c810ecc11fcc01e281e375a8c1aa53bdb5ba57dab15a61120eec35d",
+    "native_markers_match": true,
+    "all_manifest_objects_present_and_size_match": true,
+    "payload_sha256_rechecked": true,
+    "full_run_bytes": 1597476963,
+    "full_file_count": 768,
+    "interval_start_inclusive": "2026-08-24",
+    "interval_end_exclusive": "2026-08-31",
+    "daily_files": [
+      {
+        "bytes": 2202892,
+        "max_date": "2026-08-24",
+        "min_date": "2026-08-24",
+        "path": "parquet/downloads/date=2026-08-24/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "efbd63a3323c43884a796c14c2bcfdcb74e6fb87708cd630d874eb3860557755"
+      },
+      {
+        "bytes": 2213797,
+        "max_date": "2026-08-25",
+        "min_date": "2026-08-25",
+        "path": "parquet/downloads/date=2026-08-25/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "a86bd0e519ae188e8db140859f9deb5755327a80b4db7be9dd2caa2221639a68"
+      },
+      {
+        "bytes": 2214790,
+        "max_date": "2026-08-26",
+        "min_date": "2026-08-26",
+        "path": "parquet/downloads/date=2026-08-26/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "94a757bc580b8a3fb115f5d401a5caa5be7773ab1bead947b8d16e07506a4448"
+      },
+      {
+        "bytes": 2213163,
+        "max_date": "2026-08-27",
+        "min_date": "2026-08-27",
+        "path": "parquet/downloads/date=2026-08-27/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "bacd22b6f3b9cbf68c1de90c52db005c1dcba8a043756c9c96e07a83ae1c24a7"
+      },
+      {
+        "bytes": 2201421,
+        "max_date": "2026-08-28",
+        "min_date": "2026-08-28",
+        "path": "parquet/downloads/date=2026-08-28/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "4500c1195650958e2a2009cc7b299f9d5b1d9a629a75e7c5d042c7ac9d556dc4"
+      },
+      {
+        "bytes": 2144598,
+        "max_date": "2026-08-29",
+        "min_date": "2026-08-29",
+        "path": "parquet/downloads/date=2026-08-29/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "22384ed7df3536312bb3bf9e1251144f2166df035a61de507d0487e21c635a50"
+      },
+      {
+        "bytes": 2144123,
+        "max_date": "2026-08-30",
+        "min_date": "2026-08-30",
+        "path": "parquet/downloads/date=2026-08-30/part-0.parquet",
+        "role": "daily_parquet",
+        "row_count": 99215,
+        "sha256": "bab7c798a81a436370b633fe9dc10139942a228e5b331127bc29f6fc78654f3f"
+      }
+    ],
+    "interval_daily_bytes": 15334784,
+    "status_counts": {
+      "NOT_FOUND": 781,
+      "READY": 99215
+    },
+    "target_unique_names": 99996,
+    "server_available": true,
+    "server_manifest_sha256": "0617c12a1c810ecc11fcc01e281e375a8c1aa53bdb5ba57dab15a61120eec35d",
+    "server_verification_report": "downloads-transfer.json",
+    "independent_server_check": "downloads-server-verification.json"
+  },
+  "targets": {
+    "source_bucket": "pickage-raw",
+    "source_key": "npm-downloads/v1/run_id=downloads-278-20260909-v1/data/targets_top100k_20260902.csv",
+    "source_sha256": "c21416d44bf8abaed63ddd35c44daae9c5d8ac915b388098eb8b1f7817f9525a",
+    "source_rows": 100000,
+    "output_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-raw-to-curated-pipeline\\data\\spark-experiment\\preflight-20260915\\dependents-targets.parquet",
+    "output_bytes": 1080529,
+    "output_sha256": "ccc05cbdd12c1639a41d3fa3cc1757101b2c1b786b926e18f0028985c6dcc468",
+    "rows": 99996,
+    "schema": [
+      [
+        "name",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "transformation": "SELECT DISTINCT name ORDER BY name; no trimming or exclusions",
+    "server_uploaded": true,
+    "proposed_server_key": "experiments/raw-benchmark-20260915/targets/dependents-targets.parquet",
+    "registered_at": "2026-09-15T17:17:03.176283+09:00",
+    "registration_report": "targets-registration.json",
+    "server_ref": {
+      "bucket": "pickage-raw",
+      "key": "experiments/raw-benchmark-20260915/targets/dependents-targets.parquet",
+      "sha256": "ccc05cbdd12c1639a41d3fa3cc1757101b2c1b786b926e18f0028985c6dcc468"
+    }
+  },
+  "resource_profile": {
+    "host": "data",
+    "cpu_limit": 2,
+    "container_memory_bytes": 6442450944,
+    "container_swap_bytes": 0,
+    "initial_engine_memory": "2GB",
+    "initial_working_disk_budget_bytes": 161061273600,
+    "full_run_fit_proven": false,
+    "recheck_host_before_run": true
+  },
+  "blockers": [
+    "Materialize and verify pinned real raw inputs for the experiment; configure experimental shared input/output without changing production paths",
+    "Connect full stage result comparison and process/container resource measurements; real raw performance remains unmeasured"
+  ],
+  "validation_limits": [
+    "deps.dev payloads remain metadata/size-checked only; downloads payloads now fully GET SHA-256 verified at source and destination",
+    "Versioning disabled on server: recheck hashes when materializing and before every benchmark",
+    "Current real snapshot supports bootstrap/reprocessing performance, not measured new-snapshot ID growth",
+    "No experiment or prepare process has been launched"
+  ],
+  "updated_at": "2026-09-15T08:59:02.4381302+00:00",
+  "local_runtime_verified": true,
+  "runtime_evidence": "../bounded-ec2-runtime/verification-summary.json",
+  "ec2_runtime_verified": true,
+  "production_runtime_modified": false,
+  "server_experiment_image_available": true,
+  "server_experiment_containers_running": false
+}

@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "run_id": "run-test",
+  "snapshot": "2026-08-31",
+  "snapshot_timestamp": "2026-08-31T21:00:00Z",
+  "bronze_run_id": "raw-test",
+  "raw_refs": {
+    "versions_full": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/versions_full/snapshot=2026-08-31/run_id=raw-test/run_manifest.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "requirements": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/requirements/snapshot=2026-08-31/run_id=raw-test/run_manifest.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "projects": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/projects/snapshot=2026-08-31/run_id=raw-test/run_manifest.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "downloads": {
+      "bucket": "pickage-raw",
+      "run_id": "dl-test",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "key": "npm-downloads/v1/run_id=dl-test/run_manifest.json"
+    }
+  },
+  "calendar_refs": [
+    {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/projects/snapshot=2026-08-31/run_id=raw-test/run_manifest.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshot": "2026-08-31",
+      "run_id": "raw-test"
+    }
+  ],
+  "parent": null,
+  "targets": {
+    "dependents": {
+      "bucket": "pickage-raw",
+      "key": "targets/test.parquet",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  },
+  "options": {
+    "workers": 2,
+    "threads": 2,
+    "memory_limit": "2GB",
+    "repository_engine": "duckdb"
+  }
+}

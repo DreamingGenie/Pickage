@@ -44,11 +44,11 @@ loader의 대상이 아니다. 후속 적재 작업에서 별도 계약으로 �
 리포 루트에서 기존 `.venv-bq`와 Curated 의존성을 재사용한다. 환경이 없는 팀원은 Python 3.12로 `.venv-bq` 가상환경을 먼저 만들고 아래 설치 명령을 실행한다. 별도 PostgreSQL Python 드라이버는 필요하지 않다.
 
 ```powershell
-.venv-bq\Scripts\python.exe -m pip install -r pipeline/curated/requirements.txt
+.venv-bq\Scripts\python.exe -m pip install -r pipeline/preprocessing/curated/requirements.txt
 .venv-bq\Scripts\python.exe -m pipeline.postgresql.load --help
 ```
 
-`pipeline/curated/requirements.txt`가 DuckDB와 MinIO 클라이언트 의존성을 제공한다.
+`pipeline/preprocessing/curated/requirements.txt`가 DuckDB와 MinIO 클라이언트 의존성을 제공한다.
 MinIO 접속 설정은 기존 `pipeline/minio/.env`와 `pipeline.minio.ingest_raw.client()`를
 재사용한다. `.env`, 비밀번호, access key는 Git에 커밋하지 않는다.
 

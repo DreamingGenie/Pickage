@@ -15,7 +15,7 @@ import uuid
 
 import duckdb
 
-from pipeline.curated.storage import json_bytes
+from pipeline.preprocessing.curated.storage import json_bytes
 from pipeline.minio.ingest_raw import client
 from pipeline.postgresql.input import prepare, select_run
 from pipeline.postgresql.postgres import PgLoader
@@ -30,6 +30,7 @@ def contract_sha256() -> str:
     digest = hashlib.sha256()
     paths = sorted(Path(__file__).parent.glob("*.py"))
     paths = [path for path in paths if not path.name.startswith("test_")]
+    paths += [ROOT / "pipeline/preprocessing/common/curated_input.py"]
     paths += sorted((ROOT / "backend/src/main/resources/db/migration").glob("V*.sql"))
     for path in paths:
         digest.update(path.relative_to(ROOT).as_posix().encode())

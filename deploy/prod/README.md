@@ -243,7 +243,7 @@ docker run --rm -m 100m --memory-swap 100m alpine cat /sys/fs/cgroup/memory.swap
 
 > **`mem_limit`·`memswap_limit`, `--memory`·`--memory-swap` 은 짝으로 쓴다.**
 > 한쪽만 쓰면 그것만 상한이 조용히 2배가 되고, 아무 경고도 없다.
-> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/repository_metrics/` 가 그렇다.
+> compose 밖에서 `docker run` 하는 코드도 같다 — `pipeline/preprocessing/repository_metrics/` 가 그렇다.
 > 짝이 빠진 곳을 찾는 명령:
 >
 > ```bash
