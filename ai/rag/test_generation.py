@@ -9,12 +9,19 @@
 
 from __future__ import annotations
 
+import io
 import json
+import os
+import socket
 import unittest
+import urllib.error
+from unittest import mock
 
 from ai.rag.generation import (
     PROMPT,
     GmsCallError,
+    GmsTimeoutError,
+    _call_gms,
     _build_gms_request_body,
     _RESPONSE_JSON_SCHEMA,
     _extract_gms_output_text,
@@ -195,6 +202,96 @@ class ExtractGmsOutputTextTests(unittest.TestCase):
         with self.assertRaises(GmsCallError):
             _extract_gms_output_text(envelope)
 
+
+_GMS_ENV = {
+    "GMS_API_KEY": "k",
+    "GMS_BASE_URL": "https://gms.example",
+    "GMS_REQUEST_PATH": "/v1/responses",
+    "GMS_AUTH_HEADER": "Authorization",
+    "GMS_AUTH_SCHEME": "Bearer",
+    "GMS_MODEL": "gpt-5.1",
+}
+_OK_ENVELOPE = json.dumps(
+    {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "PAYLOAD"}]}]}
+)
+
+
+class _FakeResponse:
+    def __init__(self, body: str) -> None:
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self) -> bytes:
+        return self._body.encode("utf-8")
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("https://gms.example", code, "err", {}, io.BytesIO(b'{"message":"x"}'))
+
+
+@mock.patch.dict(os.environ, _GMS_ENV)
+@mock.patch("ai.rag.generation.time.sleep")
+class CallGmsTests(unittest.TestCase):
+    """GMS 호출의 재시도·오류 변환 (S15P21A506-484)."""
+
+    def test_retries_on_429_then_succeeds(self, sleep):
+        with mock.patch("urllib.request.urlopen", side_effect=[_http_error(429), _FakeResponse(_OK_ENVELOPE)]) as urlopen:
+            text = _call_gms("sys", "user")
+
+        self.assertEqual(text, "PAYLOAD")
+        self.assertEqual(urlopen.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_gives_up_after_two_retries_on_persistent_5xx(self, sleep):
+        with mock.patch("urllib.request.urlopen", side_effect=[_http_error(503)] * 3) as urlopen:
+            with self.assertRaises(GmsCallError):
+                _call_gms("sys", "user")
+
+        self.assertEqual(urlopen.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_does_not_retry_on_client_error(self, sleep):
+        with mock.patch("urllib.request.urlopen", side_effect=[_http_error(400)]) as urlopen:
+            with self.assertRaises(GmsCallError):
+                _call_gms("sys", "user")
+
+        self.assertEqual(urlopen.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_timeout_becomes_gms_timeout_error_without_retry(self, sleep):
+        for exc in (socket.timeout("timed out"), urllib.error.URLError(socket.timeout("timed out"))):
+            with self.subTest(exc=type(exc).__name__):
+                with mock.patch("urllib.request.urlopen", side_effect=[exc]) as urlopen:
+                    with self.assertRaises(GmsTimeoutError):
+                        _call_gms("sys", "user")
+                self.assertEqual(urlopen.call_count, 1)
+
+    def test_network_error_becomes_gms_call_error(self, sleep):
+        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
+            with self.assertRaises(GmsCallError) as ctx:
+                _call_gms("sys", "user")
+
+        self.assertNotIsInstance(ctx.exception, GmsTimeoutError)
+
+    def test_malformed_envelope_becomes_gms_call_error(self, sleep):
+        with mock.patch("urllib.request.urlopen", return_value=_FakeResponse("not json")):
+            with self.assertRaises(GmsCallError):
+                _call_gms("sys", "user")
+
+
+class MalformedModelOutputTests(unittest.TestCase):
+    def test_non_json_model_output_becomes_gms_call_error(self):
+        with self.assertRaises(GmsCallError):
+            generate([PackageRef("a", "1")], [], llm_call=lambda s, u: "not json")
+
+    def test_missing_fields_in_model_output_become_gms_call_error(self):
+        with self.assertRaises(GmsCallError):
+            generate([PackageRef("a", "1")], [], llm_call=lambda s, u: json.dumps({"dataStatus": "COMPLETE"}))
 
 
 class DocumentStatusMessageTests(unittest.TestCase):

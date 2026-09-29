@@ -11,6 +11,7 @@ from typing import Callable
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from ai.rag.generation import GmsCallError, GmsTimeoutError
 from ai.rag.pipeline import VerificationFailedError, compare_packages
 from ai.rag.readme_source import InvalidPackageRefError, ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, PackageRef
@@ -78,6 +79,12 @@ def create_app(compare_fn: Callable[..., ComparisonResult] = compare_packages) -
                 status_code=404,
                 detail={"code": "DOC_NOT_FOUND", "package": exc.package, "version": exc.version},
             ) from exc
+        except GmsTimeoutError as exc:
+            # 내부 메시지(본문·키 가능성)는 싣지 않는다 — 코드만 알린다.
+            raise HTTPException(status_code=504, detail={"code": "GMS_TIMEOUT"}) from exc
+        except GmsCallError as exc:
+            # 502 는 백엔드(RagClient)가 "검증 실패"로만 읽는 값이라 쓰지 않는다 — GMS 장애는 503 이다.
+            raise HTTPException(status_code=503, detail={"code": "GMS_ERROR"}) from exc
         except VerificationFailedError as exc:
             raise HTTPException(status_code=502, detail={"violations": exc.violations}) from exc
         return _serialize(result)

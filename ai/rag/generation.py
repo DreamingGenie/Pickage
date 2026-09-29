@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import time
 from typing import Callable
 
 from ai.rag.marks import compute_marks
@@ -116,6 +118,16 @@ class GmsCallError(Exception):
     """GMS 호출·응답 해석 실패(네트워크 오류·비완료 status·형식 위반 전부 포함)."""
 
 
+class GmsTimeoutError(GmsCallError):
+    """GMS 가 제한 시간 안에 응답하지 않음 — 호출부가 502 와 구분해 504 로 알린다."""
+
+
+# 429·5xx 는 잠깐 뒤 다시 하면 되는 경우가 많다. 재시도는 이 횟수만큼(총 3회 시도)만 하고,
+# 타임아웃은 재시도하지 않는다(30초 × 3 = 요청이 90초 넘게 매달린다).
+_RETRY_DELAYS_SEC = (1.0, 2.0)
+_GMS_TIMEOUT_SEC = 30
+
+
 # types.py 의 ComparisonResult/PackageNote 와 손으로 맞춘 스키마다 — types.py 를 고치면 이것도 같이 고칠 것.
 # GMS strict 모드 요구사항(추가 속성 금지, 모든 필드 required)을 지킨다.
 _RESPONSE_JSON_SCHEMA = {
@@ -181,7 +193,10 @@ def _extract_gms_output_text(raw_response: str) -> str:
     `text.format`으로 강제한 JSON 문자열이 나온다(그 자체가 문자열이라 generate()가
     한 번 더 json.loads 한다).
     """
-    envelope = json.loads(raw_response)
+    try:
+        envelope = json.loads(raw_response)
+    except json.JSONDecodeError as exc:
+        raise GmsCallError("GMS 응답이 JSON 이 아님") from exc
     if envelope.get("status") != "completed":
         raise GmsCallError(f"GMS 응답 status가 completed가 아님: {envelope.get('status')!r}")
     for item in envelope.get("output", []):
@@ -213,13 +228,26 @@ def _call_gms(system_prompt: str, user_message: str) -> str:
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            raw_response = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        # GMS 에러 포맷은 OpenAI 표준({"error":{...}})이 아니라 자체 포맷
-        # ({"statusCode":..., "message":...}) — 본문 그대로 실어서 원인 보존.
-        raise GmsCallError(f"GMS 호출 실패: HTTP {exc.code} {exc.read().decode('utf-8', 'replace')}") from exc
+    raw_response = None
+    for attempt in range(len(_RETRY_DELAYS_SEC) + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=_GMS_TIMEOUT_SEC) as response:
+                raw_response = response.read().decode("utf-8")
+            break
+        except urllib.error.HTTPError as exc:
+            # GMS 에러 포맷은 OpenAI 표준({"error":{...}})이 아니라 자체 포맷
+            # ({"statusCode":..., "message":...}) — 본문 그대로 실어서 원인 보존.
+            retryable = exc.code == 429 or exc.code >= 500
+            if retryable and attempt < len(_RETRY_DELAYS_SEC):
+                time.sleep(_RETRY_DELAYS_SEC[attempt])
+                continue
+            raise GmsCallError(f"GMS 호출 실패: HTTP {exc.code} {exc.read().decode('utf-8', 'replace')}") from exc
+        except (socket.timeout, TimeoutError) as exc:
+            raise GmsTimeoutError(f"GMS 응답 시간 초과({_GMS_TIMEOUT_SEC}s)") from exc
+        except urllib.error.URLError as exc:
+            if isinstance(exc.reason, (socket.timeout, TimeoutError)):
+                raise GmsTimeoutError(f"GMS 응답 시간 초과({_GMS_TIMEOUT_SEC}s)") from exc
+            raise GmsCallError(f"GMS 연결 실패: {exc.reason}") from exc
     return _extract_gms_output_text(raw_response)
 
 
@@ -267,5 +295,9 @@ def generate(
     user_message = build_user_message(packages, evidence, sources=sources)
     call = llm_call or _call_gms
     raw_response = call(system_prompt, user_message)
-    data = json.loads(raw_response)
-    return _parse_comparison_result(data, packages)
+    try:
+        data = json.loads(raw_response)
+        return _parse_comparison_result(data, packages)
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
+        # 스키마를 강제해도 모델 출력이 깨질 수 있다 — 500 이 아니라 GMS 쪽 실패로 알린다.
+        raise GmsCallError(f"모델 출력을 해석하지 못함: {type(exc).__name__}: {exc}") from exc

@@ -14,6 +14,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from ai.rag.main import create_app
+from ai.rag.generation import GmsCallError, GmsTimeoutError
 from ai.rag.pipeline import VerificationFailedError
 from ai.rag.readme_source import InvalidPackageRefError, ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, Mark, PackageNote, PackageSource
@@ -158,6 +159,22 @@ class SourcesAndNotFoundTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], {"code": "INVALID_PACKAGE_REF", "field": "version"})
+
+    def test_gms_failure_is_503_and_timeout_is_504_without_internal_message(self):
+        for exc, status, code in (
+            (GmsCallError("HTTP 500 secret-internal-detail"), 503, "GMS_ERROR"),
+            (GmsTimeoutError("timed out secret-internal-detail"), 504, "GMS_TIMEOUT"),
+        ):
+            with self.subTest(status=status):
+                def compare_fails(packages, exc=exc):
+                    raise exc
+
+                client = TestClient(create_app(compare_fn=compare_fails))
+                response = client.post("/compare", json={"packages": [{"package": "a", "version": "1"}]})
+
+                self.assertEqual(response.status_code, status)
+                self.assertEqual(response.json()["detail"], {"code": code})
+                self.assertNotIn("secret-internal-detail", response.text)
 
 
 if __name__ == "__main__":
