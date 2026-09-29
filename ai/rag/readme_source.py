@@ -19,12 +19,48 @@ from ai.rag.readme_chunker import parse_data_team_envelope
 from ai.rag.types import DataTeamEnvelope
 
 
+class InvalidPackageRefError(ValueError):
+    """package·version 이 파일 경로로 쓰기에 안전하지 않을 때 (S15P21A506-484).
+
+    이 두 값은 /compare 요청에서 그대로 오므로, 그대로 경로에 붙이면 `../` 로 루트 밖 파일을
+    가리킬 수 있다. `field` 는 어느 값이 문제인지(응답 코드용)이고, 입력값 자체는 응답에 싣지 않는다.
+    """
+
+    def __init__(self, field: str, value: str) -> None:
+        super().__init__(f"{field} 값이 안전하지 않음: {value!r}")
+        self.field = field
+
+
+def _validate_ref(package: str, version: str) -> None:
+    """경로 구분자·`..`·NUL·빈 값을 거부한다. 스코프 이름(`@scope/name`)의 `/` 는 하나만 허용한다."""
+    for field, value in (("package", package), ("version", version)):
+        if not value or "\\" in value or "\x00" in value or ".." in value:
+            raise InvalidPackageRefError(field, value)
+    if package.startswith("@"):
+        scope, sep, name = package[1:].partition("/")
+        if not (scope and sep and name and "/" not in name):
+            raise InvalidPackageRefError("package", package)
+    elif "/" in package:
+        raise InvalidPackageRefError("package", package)
+    if "/" in version:
+        raise InvalidPackageRefError("version", version)
+
+
 def resolve_readme_path(package: str, version: str, root: str | Path) -> Path:
-    """(package, version)이 저장돼 있을 README 인계 파일 경로를 계산한다(파일 존재 여부는 확인 안 함)."""
+    """(package, version)이 저장돼 있을 README 인계 파일 경로를 계산한다(파일 존재 여부는 확인 안 함).
+
+    Raises:
+        InvalidPackageRefError: package·version 이 루트 밖을 가리킬 수 있는 값일 때.
+    """
+    _validate_ref(package, version)
     unscoped = package[1:] if package.startswith("@") else package
-    shard = unscoped[0].lower() if unscoped else "_"
+    shard = unscoped[0].lower()
     key = package.replace("/", "__") + "@" + version
-    return Path(root) / shard / f"{key}.md"
+    path = Path(root) / shard / f"{key}.md"
+    # 위 검사를 놓친 경우를 대비한 마지막 방어선 — 계산한 경로가 루트 아래인지 다시 확인한다.
+    if Path(root).resolve() not in path.resolve().parents:
+        raise InvalidPackageRefError("package", package)
+    return path
 
 
 class ReadmeSourceNotFoundError(Exception):

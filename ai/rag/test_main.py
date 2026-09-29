@@ -14,8 +14,9 @@ import unittest
 from fastapi.testclient import TestClient
 
 from ai.rag.main import create_app
+from ai.rag.generation import GmsCallError, GmsTimeoutError
 from ai.rag.pipeline import VerificationFailedError
-from ai.rag.readme_source import ReadmeSourceNotFoundError
+from ai.rag.readme_source import InvalidPackageRefError, ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, Mark, PackageNote, PackageSource
 
 
@@ -147,6 +148,73 @@ class SourcesAndNotFoundTests(unittest.TestCase):
             response.json()["detail"], {"code": "DOC_NOT_FOUND", "package": "yaml", "version": "2.9.1"}
         )
         self.assertNotIn("/srv/", response.text)
+
+    def test_unsafe_package_reference_is_400_with_a_machine_readable_code(self):
+        def compare_unsafe(packages):
+            raise InvalidPackageRefError("version", "../../secret")
+
+        client = TestClient(create_app(compare_fn=compare_unsafe))
+
+        response = client.post("/compare", json={"packages": [{"package": "react", "version": "../../secret"}]})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], {"code": "INVALID_PACKAGE_REF", "field": "version"})
+
+    def test_gms_failure_is_503_and_timeout_is_504_without_internal_message(self):
+        for exc, status, code in (
+            (GmsCallError("HTTP 500 secret-internal-detail"), 503, "GMS_ERROR"),
+            (GmsTimeoutError("timed out secret-internal-detail"), 504, "GMS_TIMEOUT"),
+        ):
+            with self.subTest(status=status):
+                def compare_fails(packages, exc=exc):
+                    raise exc
+
+                client = TestClient(create_app(compare_fn=compare_fails))
+                response = client.post("/compare", json={"packages": [{"package": "a", "version": "1"}]})
+
+                self.assertEqual(response.status_code, status)
+                self.assertEqual(response.json()["detail"], {"code": code})
+                self.assertNotIn("secret-internal-detail", response.text)
+
+
+class RequestValidationTests(unittest.TestCase):
+    """비교 요청은 1~3개, 중복 없이 (S15P21A506-484). 위반이면 LLM 을 부르기 전에 422 로 끝낸다."""
+
+    def _post(self, packages):
+        calls = []
+
+        def compare_fn(refs):
+            calls.append(refs)
+            return ComparisonResult(data_status="COMPLETE", packages=list(refs), common="c", differences=[])
+
+        client = TestClient(create_app(compare_fn=compare_fn))
+        return client.post("/compare", json={"packages": packages}), calls
+
+    @staticmethod
+    def _refs(*names):
+        return [{"package": n, "version": "1.0.0"} for n in names]
+
+    def test_one_to_three_distinct_packages_are_accepted(self):
+        for names in (("a",), ("a", "b"), ("a", "b", "c")):
+            with self.subTest(count=len(names)):
+                response, calls = self._post(self._refs(*names))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(len(calls), 1)
+
+    def test_empty_list_is_rejected_before_compare_runs(self):
+        response, calls = self._post([])
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(calls, [])
+
+    def test_more_than_three_packages_is_rejected_before_compare_runs(self):
+        response, calls = self._post(self._refs("a", "b", "c", "d"))
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(calls, [])
+
+    def test_duplicate_package_name_is_rejected_before_compare_runs(self):
+        response, calls = self._post(self._refs("a", "a"))
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":

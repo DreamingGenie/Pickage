@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 from ai.rag.readme_source import (
+    InvalidPackageRefError,
     ReadmeSourceNotFoundError,
     read_readme_envelope,
     resolve_readme_path,
@@ -40,6 +41,32 @@ class ResolveReadmePathTests(unittest.TestCase):
     def test_uppercase_in_name_is_preserved_only_shard_letter_lowercased(self):
         path = resolve_readme_path("Foo", "1.0.0", "/root")
         self.assertEqual(path, Path("/root/f/Foo@1.0.0.md"))
+
+
+class ResolveReadmePathRejectsUnsafeInputTests(unittest.TestCase):
+    """package·version 은 외부 입력이라 루트 밖 파일을 가리키게 만들 수 없어야 한다."""
+
+    def test_version_with_path_traversal_is_rejected(self):
+        for version in ("../../../secret", "1.0.0/../../x", "..\\..\\x", "1.0.0\x00"):
+            with self.subTest(version=version):
+                with self.assertRaises(InvalidPackageRefError):
+                    resolve_readme_path("react", version, "/root")
+
+    def test_package_with_path_traversal_is_rejected(self):
+        for package in ("../etc", "react/../../x", "a/b", "@scope/a/b", "a\\b", "re\x00act", ".."):
+            with self.subTest(package=package):
+                with self.assertRaises(InvalidPackageRefError):
+                    resolve_readme_path(package, "1.0.0", "/root")
+
+    def test_empty_package_or_version_is_rejected(self):
+        for package, version in (("", "1.0.0"), ("react", ""), ("@", "1.0.0"), ("@scope/", "1.0.0")):
+            with self.subTest(package=package, version=version):
+                with self.assertRaises(InvalidPackageRefError):
+                    resolve_readme_path(package, version, "/root")
+
+    def test_prerelease_and_build_versions_are_still_accepted(self):
+        path = resolve_readme_path("react", "19.0.0-rc.1+build.5", "/root")
+        self.assertEqual(path, Path("/root/r/react@19.0.0-rc.1+build.5.md"))
 
 
 class ReadReadmeEnvelopeTests(unittest.TestCase):

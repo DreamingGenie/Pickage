@@ -305,6 +305,62 @@ class WriteOutputStateRoundTrip(QuietMixin, unittest.TestCase):
         self.assertEqual(state["b"]["hash"], "h2")
 
 
+class StateModelVersion(QuietMixin, unittest.TestCase):
+    """S15P21A506-484: state 의 벡터는 만든 모델이 같을 때만 재사용한다.
+
+    text_hash 는 텍스트만 본다. 모델을 바꿔 --state 로 돌리면 텍스트가 같은 패키지가 옛 모델
+    벡터를 그대로 써서, 새·옛 벡터가 한 코퍼스에 섞인다(에러 없이 유사도가 무의미해진다).
+    """
+
+    ROWS = [{"name": "a", "_text_hash": "h1"}, {"name": "b", "_text_hash": "h2"}]
+    VECTORS = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
+    GATE = {"status": "SKIPPED", "reason": "test"}
+
+    def _write(self, d, model_ver):
+        meta = {"params": {}, "model_ver": model_ver}
+        sbp.write_output(d, [], self.ROWS, self.VECTORS, self.GATE, meta, allow_gate_skip=True)
+        return os.path.join(d, "text_hash_state.parquet")
+
+    def test_write_output_records_the_model_version_in_state(self):
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            table = pq.read_table(self._write(d, "v7"))
+        self.assertEqual(set(table.column("model_ver").to_pylist()), {"v7"})
+
+    def test_same_model_version_reuses_state(self):
+        with tempfile.TemporaryDirectory() as d:
+            state = sbp.load_state(self._write(d, "v7"), model_ver="v7")
+        self.assertEqual(set(state), {"a", "b"})
+
+    def test_different_model_version_discards_state(self):
+        with tempfile.TemporaryDirectory() as d:
+            state = sbp.load_state(self._write(d, "v7"), model_ver="v8")
+        self.assertEqual(state, {})
+
+    def test_legacy_state_without_model_version_is_discarded(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "state.parquet")
+            pq.write_table(pa.table({"name": ["p"], "text_hash": ["abc"], "vector": [[1.0, 2.0, 3.0]]}), path)
+            state = sbp.load_state(path, model_ver="v7")
+        self.assertEqual(state, {})
+
+    def test_unknown_model_version_is_never_trusted(self):
+        """run_manifest.json 이 없으면 model_ver 가 "unknown" 이다 — 같은 "unknown" 끼리는 같은 모델이라는 증거가 못 된다."""
+        with tempfile.TemporaryDirectory() as d:
+            path = self._write(d, "unknown")
+            self.assertEqual(sbp.load_state(path, model_ver="unknown"), {})
+            self.assertEqual(sbp.load_state(self._write(d, "v7"), model_ver="unknown"), {})
+
+    def test_without_model_version_argument_state_is_loaded_as_before(self):
+        with tempfile.TemporaryDirectory() as d:
+            state = sbp.load_state(self._write(d, "v7"))
+        self.assertEqual(set(state), {"a", "b"})
+
+
 class LoadDependents(QuietMixin, unittest.TestCase):
     """S15P21A506-173: package_dependents 류 parquet(name·kind·dependents) 로더."""
 

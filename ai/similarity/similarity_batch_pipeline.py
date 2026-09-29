@@ -56,6 +56,7 @@ except Exception:
 # 순수 로직(자격 필터·top-K·재랭킹·게이트)을 numpy 만으로 테스트할 수 있도록
 # 각 호출부에서 지연 import 한다.
 
+UNKNOWN_MODEL_VER = "unknown"  # run_manifest.json 이 없을 때 OnnxEmbedder 가 쓰는 값
 MAX_LENGTH = 512  # ai/MODEL_CONTRACT.md — SentenceTransformer.max_seq_length
 DEPRECATED_STATUSES = {"deprecated", "removed", "unpublished"}
 
@@ -194,14 +195,35 @@ def text_hash(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
-def load_state(path: str | None) -> dict[str, dict]:
-    """이전 실행의 name → {hash, vector} 상태. 없으면 빈 dict (전수 임베딩)."""
+def load_state(path: str | None, model_ver: str | None = None) -> dict[str, dict]:
+    """이전 실행의 name → {hash, vector} 상태. 없으면 빈 dict (전수 임베딩).
+
+    `model_ver` 를 주면 그 벡터를 만든 모델이 같을 때만 상태를 돌려준다 (S15P21A506-484).
+    text_hash 는 텍스트만 보므로, 모델이 바뀌었는데 상태를 재사용하면 텍스트가 같은 패키지가 옛
+    모델 벡터를 그대로 써서 새·옛 벡터가 한 코퍼스에 섞인다. 다음은 모두 버리고 전수 재임베딩한다:
+      - 상태에 model_ver 컬럼이 없음(이 검사가 생기기 전 산출물 — 어느 모델인지 알 수 없다)
+      - 저장된 model_ver 가 지금과 다름
+      - 어느 한쪽이 "unknown"(run_manifest.json 이 없을 때의 값) — 같은 "unknown" 끼리는
+        같은 모델이라는 증거가 못 된다
+    `model_ver` 를 안 주면 검사하지 않는다(예전 동작).
+    """
     if not path or not os.path.exists(path):
         return {}
     import pyarrow.parquet as pq
 
-    tbl = pq.read_table(path).to_pylist()
-    state = {r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)} for r in tbl}
+    table = pq.read_table(path)
+    if model_ver is not None:
+        stored = set(table.column("model_ver").to_pylist()) if "model_ver" in table.column_names else None
+        if stored is None:
+            log("이전 상태에 model_ver 없음 — 어느 모델의 벡터인지 알 수 없어 전수 재임베딩")
+            return {}
+        if stored != {model_ver} or model_ver == UNKNOWN_MODEL_VER:
+            log(f"이전 상태의 모델({sorted(map(str, stored))})이 지금({model_ver})과 달라 전수 재임베딩")
+            return {}
+    state = {
+        r["name"]: {"hash": r["text_hash"], "vector": np.array(r["vector"], dtype=np.float32)}
+        for r in table.to_pylist()
+    }
     log(f"이전 상태: {len(state)} 개 (재임베딩 생략 후보)")
     return state
 
@@ -272,10 +294,10 @@ class OnnxEmbedder:
         mf = os.path.join(model_dir, "run_manifest.json")
         if os.path.exists(mf):
             try:
-                return json.load(open(mf, encoding="utf-8")).get("model_ver", "unknown")
+                return json.load(open(mf, encoding="utf-8")).get("model_ver", UNKNOWN_MODEL_VER)
             except Exception:
                 pass
-        return "unknown"
+        return UNKNOWN_MODEL_VER
 
     def encode(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         out: list[np.ndarray] = []
@@ -705,7 +727,13 @@ def write_output(
     pq.write_table(pa.Table.from_pylist(candidates), os.path.join(out_dir, "candidates.parquet"))
     pq.write_table(
         pa.Table.from_pylist([
-            {"name": r["name"], "text_hash": r["_text_hash"], "vector": vectors[i].tolist()}
+            {
+                "name": r["name"],
+                "text_hash": r["_text_hash"],
+                "vector": vectors[i].tolist(),
+                # 이 벡터를 만든 모델 — load_state 가 모델이 바뀐 상태를 버리는 근거 (S15P21A506-484)
+                "model_ver": meta.get("model_ver"),
+            }
             for i, r in enumerate(rows)
         ]),
         os.path.join(out_dir, "text_hash_state.parquet"),
@@ -777,7 +805,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     names = [r["name"] for r in rows]
 
     embedder = OnnxEmbedder(args.model_dir)
-    state = load_state(args.state)
+    state = load_state(args.state, model_ver=embedder.model_ver)
     vectors = embed_corpus(rows, texts, embedder, state, args.batch_size)
 
     hits = top_k(vectors, names, args.retrieve_k, args.query_block)
