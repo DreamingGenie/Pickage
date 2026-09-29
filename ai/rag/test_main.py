@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from ai.rag.main import create_app
 from ai.rag.pipeline import VerificationFailedError
-from ai.rag.readme_source import ReadmeSourceNotFoundError
+from ai.rag.readme_source import InvalidPackageRefError, ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, Mark, PackageNote, PackageSource
 
 
@@ -147,6 +147,17 @@ class SourcesAndNotFoundTests(unittest.TestCase):
             response.json()["detail"], {"code": "DOC_NOT_FOUND", "package": "yaml", "version": "2.9.1"}
         )
         self.assertNotIn("/srv/", response.text)
+
+    def test_unsafe_package_reference_is_400_with_a_machine_readable_code(self):
+        def compare_unsafe(packages):
+            raise InvalidPackageRefError("version", "../../secret")
+
+        client = TestClient(create_app(compare_fn=compare_unsafe))
+
+        response = client.post("/compare", json={"packages": [{"package": "react", "version": "../../secret"}]})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], {"code": "INVALID_PACKAGE_REF", "field": "version"})
 
 
 if __name__ == "__main__":

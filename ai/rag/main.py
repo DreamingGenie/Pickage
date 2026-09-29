@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from ai.rag.pipeline import VerificationFailedError, compare_packages
-from ai.rag.readme_source import ReadmeSourceNotFoundError
+from ai.rag.readme_source import InvalidPackageRefError, ReadmeSourceNotFoundError
 from ai.rag.types import ComparisonResult, PackageRef
 
 
@@ -65,6 +65,12 @@ def create_app(compare_fn: Callable[..., ComparisonResult] = compare_packages) -
         packages = [PackageRef(name=p.package, version=p.version) for p in req.packages]
         try:
             result = compare_fn(packages)
+        except InvalidPackageRefError as exc:
+            # 경로로 쓸 수 없는 값 — 입력 오류다. 어느 필드인지만 알리고 값은 되돌려주지 않는다.
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "INVALID_PACKAGE_REF", "field": exc.field},
+            ) from exc
         except ReadmeSourceNotFoundError as exc:
             # 인계 파일이 없다 — 서버 오류가 아니라 "이 버전의 자료가 아직 없음"이다(스냅샷은
             # 특정 시점까지만 채워져 있다). 서버 내부 경로는 응답에 싣지 않는다.
