@@ -1,0 +1,890 @@
+{
+  "status": "PASS",
+  "measurements": [
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\old-1",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "7737f3adefeeee9a8a6add1cc566c38c4664945d3f8311c859285d1eba5d7f50",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2202447872,
+          "peak_scratch_bytes": 0,
+          "epoch": "b2c4fcd7e22041449a0275ccd3cabbfd"
+        },
+        "elapsed_seconds": 98.59551050001755,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 98.59783560002688,
+      "verify_seconds": 30.333499200001825,
+      "preprocessing_seconds": 128.9313348000287,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 112.25786930005415,
+        "aggregation_seconds": 51.164631100022234,
+        "finalize_cache_seconds": 6.588747978210449,
+        "write_dates_and_final_checks_seconds": 41.74791979789734,
+        "resolution_seconds": 37.74299869997776,
+        "normalize_seconds": 12.513043700164417,
+        "numeric_seconds": 10.891079699998954,
+        "interval_seconds": 6.322630799753824,
+        "mapping_seconds": 0.4758761999255512,
+        "insert_seconds": 6.870235999929719,
+        "candidate_read_seconds": 0.2623425000056159,
+        "lookup_read_seconds": 0.09757060004631057,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-base\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "old",
+      "repeat": 1,
+      "peak_tree_rss_bytes": 2479333376,
+      "peak_run_scratch_bytes": 0
+    },
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\new-1",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "5f82ebd4e2645d964e61c4e2e5494f0875c97dbf6adcd687ff575d7e654c6c38",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2471182336,
+          "peak_scratch_bytes": 0,
+          "epoch": "ebb0a128af5649f78ccfdff35b7006b9"
+        },
+        "elapsed_seconds": 30.62966299999971,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 30.63129459999618,
+      "verify_seconds": 13.31349770000088,
+      "preprocessing_seconds": 43.94479229999706,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 67.02173880001646,
+        "aggregation_seconds": 33.76067440002225,
+        "finalize_cache_seconds": 3.5897233486175537,
+        "write_dates_and_final_checks_seconds": 4.4833879470825195,
+        "resolution_seconds": 22.021993000031216,
+        "normalize_seconds": 6.856603200023528,
+        "numeric_seconds": 6.8938959001679905,
+        "interval_seconds": 3.8503360999457072,
+        "mapping_seconds": 0.24137039994820952,
+        "insert_seconds": 3.825889399886364,
+        "candidate_read_seconds": 0.10711059995810501,
+        "lookup_read_seconds": 0.06407370010856539,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "new",
+      "repeat": 1,
+      "peak_tree_rss_bytes": 2162466816,
+      "peak_run_scratch_bytes": 0,
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 25
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 1
+        }
+      }
+    },
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\new-2",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "22745b22e5b7eddc306974364197c70d09958eb458a2ab170211eae5b19d5b29",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2404564992,
+          "peak_scratch_bytes": 0,
+          "epoch": "f091e06034fa4614ab6dd2f440e8d0ae"
+        },
+        "elapsed_seconds": 31.163118500000564,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 31.16480710002361,
+      "verify_seconds": 13.770438999985345,
+      "preprocessing_seconds": 44.93524610000895,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 67.81387609997182,
+        "aggregation_seconds": 34.06120119994739,
+        "finalize_cache_seconds": 3.6282734870910645,
+        "write_dates_and_final_checks_seconds": 4.567761182785034,
+        "resolution_seconds": 22.4213692000194,
+        "normalize_seconds": 7.039419900014764,
+        "numeric_seconds": 6.909819299908122,
+        "interval_seconds": 3.873671599867521,
+        "mapping_seconds": 0.2157217999920249,
+        "insert_seconds": 4.0405176997883245,
+        "candidate_read_seconds": 0.1062275999574922,
+        "lookup_read_seconds": 0.060823299805633724,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "new",
+      "repeat": 2,
+      "peak_tree_rss_bytes": 2494042112,
+      "peak_run_scratch_bytes": 0
+    },
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\old-2",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "7b06ce9269fb86d8464b973371b067fbc9371b9fd4146b54ee7390fffd9c401d",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2285142016,
+          "peak_scratch_bytes": 0,
+          "epoch": "c8b5ccc2f9f14817a0ed1880a49d8e31"
+        },
+        "elapsed_seconds": 60.075402999995276,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 60.07750370001304,
+      "verify_seconds": 30.866751800000202,
+      "preprocessing_seconds": 90.94425550001324,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 67.2385238999268,
+        "aggregation_seconds": 31.59062560001621,
+        "finalize_cache_seconds": 3.460559129714966,
+        "write_dates_and_final_checks_seconds": 25.803168296813965,
+        "resolution_seconds": 21.96217150008306,
+        "normalize_seconds": 6.790553600061685,
+        "numeric_seconds": 6.859276999923168,
+        "interval_seconds": 3.9171953997865785,
+        "mapping_seconds": 0.20963339999434538,
+        "insert_seconds": 3.8021846999472473,
+        "candidate_read_seconds": 0.14003440010128543,
+        "lookup_read_seconds": 0.06492550001712516,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-base\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "old",
+      "repeat": 2,
+      "peak_tree_rss_bytes": 2501251072,
+      "peak_run_scratch_bytes": 0,
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 25
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 1
+        }
+      }
+    },
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\old-3",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "3f2e966568252d7fa68ee4c8263c5be5df7b74ade2b9870b19eb54b2100fea90",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2269958144,
+          "peak_scratch_bytes": 0,
+          "epoch": "9fcb8c1c46634e2b94a6fb793b70c945"
+        },
+        "elapsed_seconds": 58.773516599991126,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 58.77572259999579,
+      "verify_seconds": 31.299833800003398,
+      "preprocessing_seconds": 90.07555639999919,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 65.21910669992212,
+        "aggregation_seconds": 30.68647170002805,
+        "finalize_cache_seconds": 3.523752450942993,
+        "write_dates_and_final_checks_seconds": 24.80698800086975,
+        "resolution_seconds": 21.432685300067533,
+        "normalize_seconds": 6.591126699873712,
+        "numeric_seconds": 6.7375605999841355,
+        "interval_seconds": 3.849637100211112,
+        "mapping_seconds": 0.20636440010275692,
+        "insert_seconds": 3.668480000080308,
+        "candidate_read_seconds": 0.1321475000004284,
+        "lookup_read_seconds": 0.06741320012952201,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-base\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "old",
+      "repeat": 3,
+      "peak_tree_rss_bytes": 2536742912,
+      "peak_run_scratch_bytes": 0
+    },
+    {
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p3-repeat\\new-3",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "2a5248387f74fd9e2f19d9116996725dca6e57a2a03195f9995e2b72b9416a5c",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2493562880,
+          "peak_scratch_bytes": 0,
+          "epoch": "593bd89e26d14721973f5cca2b732a52"
+        },
+        "elapsed_seconds": 30.448909500002628,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "run_seconds": 30.450431899982505,
+      "verify_seconds": 13.165919499995653,
+      "preprocessing_seconds": 43.61635139997816,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 65.8862489000312,
+        "aggregation_seconds": 33.440878800000064,
+        "finalize_cache_seconds": 3.584388017654419,
+        "write_dates_and_final_checks_seconds": 4.5105977058410645,
+        "resolution_seconds": 21.345689899928402,
+        "normalize_seconds": 6.674162100069225,
+        "numeric_seconds": 6.643015899986494,
+        "interval_seconds": 3.7237009999225847,
+        "mapping_seconds": 0.23356589989271015,
+        "insert_seconds": 3.73880050011212,
+        "candidate_read_seconds": 0.09915860003093258,
+        "lookup_read_seconds": 0.06050750013673678,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "module_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\pipeline\\version_dependents\\historical_parallel.py",
+      "kind": "new",
+      "repeat": 3,
+      "peak_tree_rss_bytes": 2161713152,
+      "peak_run_scratch_bytes": 0,
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 128,
+          "right_files": 27
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 25
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 1
+        }
+      }
+    }
+  ],
+  "repeats": 3,
+  "workers": 4,
+  "resource_sampling": "1 second; scratch inside trial directory only; disk IO bytes not measured",
+  "scope": "32 targets, 229 dates; preparation measured separately once per implementation",
+  "summary": {
+    "old": {
+      "preparation_seconds": 92.89937179998378,
+      "run_seconds": {
+        "median": 60.07750370001304,
+        "minimum": 58.77572259999579,
+        "maximum": 98.59783560002688
+      },
+      "verify_seconds": {
+        "median": 30.866751800000202,
+        "minimum": 30.333499200001825,
+        "maximum": 31.299833800003398
+      },
+      "preparation_plus_run_verify": {
+        "median": 183.84362729999702,
+        "minimum": 182.97492819998297,
+        "maximum": 221.8307066000125
+      },
+      "dates_write_final_seconds": 25.803168296813965,
+      "peak_tree_rss_gib": 2.3625259399414062,
+      "peak_run_scratch_bytes": 0
+    },
+    "new": {
+      "preparation_seconds": 72.2045417999907,
+      "run_seconds": {
+        "median": 30.63129459999618,
+        "minimum": 30.450431899982505,
+        "maximum": 31.16480710002361
+      },
+      "verify_seconds": {
+        "median": 13.31349770000088,
+        "minimum": 13.165919499995653,
+        "maximum": 13.770438999985345
+      },
+      "preparation_plus_run_verify": {
+        "median": 116.14933409998775,
+        "minimum": 115.82089319996885,
+        "maximum": 117.13978789999965
+      },
+      "dates_write_final_seconds": 4.5105977058410645,
+      "peak_tree_rss_gib": 2.3227577209472656,
+      "peak_run_scratch_bytes": 0
+    }
+  },
+  "protected_file_counts": {
+    "data/vd-p0/baseline.json": 2640,
+    "data/vd-p3-base/baseline.json": 4557
+  },
+  "archived_source_count": 193,
+  "compared_groups_per_repeat": 13,
+  "positive_count_rows": 1875271,
+  "code_contract": {
+    "format": "historical-parallel-cpu-v2",
+    "input": {
+      "parallel_input_sha256": "4e002ebd6cb6ac6703404be51f88e0fc730e14e860a2272c3aef102ad2be0ccf",
+      "validation_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "validation_sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "base_input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      }
+    },
+    "production": {
+      "runner_sha256": "68f564c90fa616391adbc0785e99a2e997701e75c440346c0f031c495468e56b",
+      "resolver_adapter_sha256": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+      "sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      },
+      "h4_generation": {
+        "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+        "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+        "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+        "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+        "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+        "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+        "pipeline/requirements_resolution/bridge.py": "e17449af1c892f66973bb34d51a7518b2f175310c1d474aeb8ecbbd0ab228147",
+        "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+        "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f"
+      },
+      "h4_writer_sha256": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+      "production_writer_sha256": "eb33b7675c5c8d8e7937083389631aff3c30ae5ddb54118c5a8271ab107881ab",
+      "production_cache_sha256": "5c76d2a00e7934b6e1e1af6724d8ae4a33d9af135d3181de1d0ac0732c9512b3",
+      "production_daily_sha256": "78bc92c4bb9c9fc4f620e83544872a4e06ff24656718400efd5f1e5abb8b68ef",
+      "algorithm": "weighted-events-v2",
+      "weighted_events_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "weighted_quality_sha256": "1ce36a263531b18ab60f915fb6a54c709b7a45cdcefdc7303f5be495d2569ba4",
+      "resolver_backend": "cpu",
+      "resolver_generation": {
+        "historical_production_resolver.py": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+        "historical_gpu.py": "c5f206062cc9a564bc69c6f0dc94271f14ef8a53c893cfaf39aac5fbcde3bc25",
+        "historical_gpu_normalize.cjs": "f347afe8cd5e980a6d95f1e0a9411caff71d7db8afd07f6d6a790f4f96cfd664"
+      }
+    },
+    "code": {
+      "historical_parallel": "52fd5d959dd50757de6588b6beec32befc8e56f4774ab578571dc25711eb4e96",
+      "historical_parallel_worker": "a55eac98456dfeb8a5d08eef878863186f10e9d901b35a5f27af3bd5e32ef20d",
+      "historical_parallel_pool": "91fb95dba2ae74784f057d72b37f24231cf2cb625913e64cef17d18c1a2032f9",
+      "historical_parallel_writer": "69871e356dc49c67e79c6e88156a9d87fec2f6d536268ae4fa72c548d0b347a5",
+      "historical_parallel_verify": "f907b9b8bc9d07390b2f3bbae203b97e889a718244a8b3d29d0e11cdd60883e0"
+    }
+  },
+  "changed_parallel_ast_files": 12,
+  "tests": {
+    "integration_input_pool": {
+      "tests": 15,
+      "seconds": 50.849
+    },
+    "writer": {
+      "tests": 10,
+      "seconds": 11.253
+    }
+  },
+  "interpretation": "Preparation is one direct measurement per implementation; totals add it to repeated run and verification. Comparison queries are outside measured preprocessing. No whole-population ETA."
+}

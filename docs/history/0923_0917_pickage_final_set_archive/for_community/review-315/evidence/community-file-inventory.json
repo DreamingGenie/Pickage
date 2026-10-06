@@ -1,0 +1,961 @@
+[
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CollectedComment.java",
+    "sha256": "56446ebe54fcc1d1e05e68df51ad708de803e86b432e9a7f99300a2ce2ee5d1c",
+    "lines": 20,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CollectedIssue.java",
+    "sha256": "b5ce6c4e2399e9659f55dae00c31e166c2326ccb2a658ab1ae8796e883ab97ac",
+    "lines": 24,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentCollectionStatus.java",
+    "sha256": "674648192930d8330663d486c963813bff7bf69b6325732a5d105791f8cc9bb9",
+    "lines": 11,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentsPage.java",
+    "sha256": "fa984e83c9bdffee4e5de765c6060dca682f1ad5a1c64bdd7aa9af540e5a29e7",
+    "lines": 13,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentWindowResolver.java",
+    "sha256": "e0398d8b9abe46a5af1b705d0758c694eb0b7939754142ee5ef1d34adfad31dd",
+    "lines": 62,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/GitHubIssueCommentsClient.java",
+    "sha256": "02fc8c85b5203493cf35e6e5fd0d5d5651929d591e7c8437ea17d678a3efbbf9",
+    "lines": 179,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/GitHubIssueSearchClient.java",
+    "sha256": "bebcbfc39ae191102dbfb58f0e93d2b9ee7624d5684896b32daf92f5c641d2df",
+    "lines": 172,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueCollectionResult.java",
+    "sha256": "cb9509d44976c62bb0d2f4185fdbafd527a1b11b02daa2716f34b86e2b5e31da",
+    "lines": 20,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueCollectionService.java",
+    "sha256": "b5eb6730e7cb06000181fef8807a05aafb171422c1f85b62578beac6da4b5806",
+    "lines": 155,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueSelectionPolicy.java",
+    "sha256": "a0a98fdf2bea3a2525efec9c2ba8f92c8fb453834920353ef4e479df5b4d9e8d",
+    "lines": 43,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/SearchPage.java",
+    "sha256": "704e8e04754908089f6ff728d9fe74472c0ee28d5720fb8067ad0dd88d3eeb9d",
+    "lines": 14,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/SearchResultItem.java",
+    "sha256": "aac7c01464669627cd6a10aab7c423b1ce2d818036bbf62e83f48c80fb8d05fb",
+    "lines": 24,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityConfig.java",
+    "sha256": "e4b35dbd14a6b7d2dc3c6d10894871c800f7fe4073ad6e8d41f38ad666e21799",
+    "lines": 140,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityController.java",
+    "sha256": "779a05ace89b41c2bef72430fcd92faeed4c1dad3bba4066f181529a8a4ffc60",
+    "lines": 72,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityPackageLookup.java",
+    "sha256": "282b6d078ab62891c760067f7e7f9bd9bd9f4278ab5e980055254f1d20adc876",
+    "lines": 36,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityProperties.java",
+    "sha256": "c57f1c69dd269f75a755c0cddd4cd353ce0023a0392b024951343d72f8dff4a7",
+    "lines": 62,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityRefreshOrchestrator.java",
+    "sha256": "aea003748f2db664c9c5ade4aa5a9d19aec066ae4f2e54169d5ed54f2621f033",
+    "lines": 218,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityService.java",
+    "sha256": "7e2a592381fc240f49bad9c612d1dc27772a902cca48a0be9f339d89e29ce135",
+    "lines": 232,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotCleanupJob.java",
+    "sha256": "b643a9342f799d8e998587053c52ca5816043bed8f538851748abc1aa1c12018",
+    "lines": 47,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotPayloadException.java",
+    "sha256": "fce7ae2788234677106ce25662713597c49635b3535b7c31b8809cae1f746b03",
+    "lines": 16,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotRepository.java",
+    "sha256": "0cf52f8e12e25dd63e37d039ca99d0150580a28c5e47c9ad7ca3a38c1e4548c4",
+    "lines": 168,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotRow.java",
+    "sha256": "8836f6e391a20ab226610f9404abd88cf40591c0b73d33be46764180e68e21c3",
+    "lines": 21,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotTtl.java",
+    "sha256": "c9396910505bbc8f98026e1d9f087eaa1fec05662a5713659779e6bd4f4fcc27",
+    "lines": 41,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySummarizer.java",
+    "sha256": "f62115cf8fa5a8213119b1e9985c244387a3429d58a11fb2469d77ceaed19cc6",
+    "lines": 22,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/DataStatus.java",
+    "sha256": "8972f9a5c51bd8133dd574d5fa5347640466803cf375615b6b4b601c9187238f",
+    "lines": 17,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/AuthorRoleMapper.java",
+    "sha256": "1db649132cae101cda7f0a1a6982ecb6f7f60d4047560000b89166d9a91dcaca",
+    "lines": 34,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityErrorCode.java",
+    "sha256": "04c49fe2598f58f8a86bbedfb4e328a3a95441163bbd5afe279846e6ff0d127f",
+    "lines": 16,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityResultResponse.java",
+    "sha256": "0acebb9381a735b714c5ea52274bfb087183a60578cb100a5b64f32c1be2e8e8",
+    "lines": 26,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityStatusResponse.java",
+    "sha256": "0ab23e7a93ed9db46b9a32197a1d688309099226f2a9611a920c91d542cacf37",
+    "lines": 14,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunitySummaryResponse.java",
+    "sha256": "6797371c6a8debedeec9757b9af075c6f88076c011cdc220cd876419c02ec74d",
+    "lines": 13,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/DataLimitsResponse.java",
+    "sha256": "beac74a26110053ea22b7f6e877d3b94e656f7c885634f55665546c20c1d122b",
+    "lines": 5,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/DiscussionStepResponse.java",
+    "sha256": "11817ef1ae08c4d9982f43251453d49c683c0bac13b8c2beb7c9637e6a12a17f",
+    "lines": 5,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/Freshness.java",
+    "sha256": "95a1c963d37c670916d5f1df8505786fcfb42553c68a464e3834cea5428ca819",
+    "lines": 7,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/MessageResponse.java",
+    "sha256": "207a7629f704c94c93b8e76f45ca5e3e792cc5e2a4e0190ea66d3eac8604569c",
+    "lines": 18,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/RefreshInfoResponse.java",
+    "sha256": "6fd2ed4b1d2cb36dfe0206c1747d6165b78ee260b00156b5399a606217a7bb27",
+    "lines": 24,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/RepositoryInfoResponse.java",
+    "sha256": "0cfea695dcaa98a3cd1fffd9de13d2747bcc761f0c83a0e4ca9e2a14f28ec91c",
+    "lines": 5,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/SummaryStatus.java",
+    "sha256": "6b432d225ebd19a7442dd0c631c72dcde350a664943d01b3ae020caf87b1e5e5",
+    "lines": 9,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/TopicResponse.java",
+    "sha256": "2847cc6420f43329bbcf911b28647be7967df36fbf63fb09c334e397dda73179",
+    "lines": 23,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/ViewStatus.java",
+    "sha256": "a598087924bc9984b9e8824b21d7d0806721b5ead37daa03d07f85d7d82d1dab",
+    "lines": 8,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/FakeCommunitySummarizer.java",
+    "sha256": "69bae9f80bd6ebbd249e1fb2f66c88bcd92fad84ba50a39979030c4d90a51ec2",
+    "lines": 22,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/CommunityResultPayload.java",
+    "sha256": "77de2f0024187290fad78767a3f04db1427a7603282ed24f31ba4e30ab8ff237",
+    "lines": 34,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/DiscussionStepPayload.java",
+    "sha256": "68d134a7a7fb81b1bec062d6a96d1337baac268304603eee5372aa6534165cb7",
+    "lines": 14,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/MessagePayload.java",
+    "sha256": "1bbfcdfed2c39268f3754f4b0a83d0aaffcb453c9dc69b8446de656191d98569",
+    "lines": 37,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/RepositoryPayload.java",
+    "sha256": "ed4aeeba347876dce01fbaefa339aee5b16916c164f2663e973c9a6188860430",
+    "lines": 17,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/TopicPayload.java",
+    "sha256": "d518fcb4fbe99b9d96ac7a98dcc6dc8f5ea786e8dfcb950f1bc8afa478124484",
+    "lines": 40,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/AdmissionDecision.java",
+    "sha256": "ad8bd29095e7eac73b76f167652f1633a9f1ffe32819f086aceb5131012c08c2",
+    "lines": 21,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshAdmissionCoordinator.java",
+    "sha256": "2badf57913dab387ebfddbd449d8b1653bf952c588fd5600a576725e536dca21",
+    "lines": 192,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshStage.java",
+    "sha256": "922836e3ae88e667fb3ca683ee461811a0172c61f5b887f0ea077b6690777b30",
+    "lines": 40,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshStatus.java",
+    "sha256": "e694cb1d2f9aba3c1d788ca50d5a553d808183d8988422048b3d462419158034",
+    "lines": 11,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTask.java",
+    "sha256": "51123c3108c6ec56c48e383e929c85cd25017aa5ccf921fb4d508e0f9914a9e3",
+    "lines": 133,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTaskRegistry.java",
+    "sha256": "fcc5d89f3f67c45bd9099cf4bcefbb83fb2d72fe52a8c1307f9b386922b5c376",
+    "lines": 79,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTrigger.java",
+    "sha256": "c13485d89ff24bc69eccb392525a5146bcea9b1135d396042803c6a0887d8601",
+    "lines": 11,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/StartTokenBucket.java",
+    "sha256": "7f2ac3a9f38ff88dccbbf3d546f185c77a5e9719965f8d9dbde5a5a17939008c",
+    "lines": 63,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/TopicSummary.java",
+    "sha256": "eeb513f4d443e0695142866b063ba61ac36697f6e80412612bb0c71971787f26",
+    "lines": 27,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/BoundedHttpReader.java",
+    "sha256": "a81996eb6a7891894008b098756a198f8df4e6b0f34742b387a3baeed8958640",
+    "lines": 55,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/CandidateSelection.java",
+    "sha256": "a8b3d5bbd3b5ebcb593c3e673a02a43ca58c06f76ee1da7a087a71e20a6cb020",
+    "lines": 15,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/CandidateSource.java",
+    "sha256": "8387c264307fa7d86d1f24fe4930a2557cc185ad128b8093dafe9d8e2053c54d",
+    "lines": 30,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRateLimitException.java",
+    "sha256": "25f769c1efcc3cfbce557025f6e7fa32d1290c69d79e37380c528aa8279812a4",
+    "lines": 25,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryClient.java",
+    "sha256": "8209096248c559f3a466bb6095e26427d78ae14a3ac207e0362c5955cdbd411f",
+    "lines": 228,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryNotFoundException.java",
+    "sha256": "1de50a16e09004f85fed27ba9a894a40a033f2cf24f00268cb00782e6b229f6a",
+    "lines": 13,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/NpmLookupOutcome.java",
+    "sha256": "84960d247d07afa975378f2fecc4a0537e9149cb8f226e1d7f0ee9072c8f3a7c",
+    "lines": 16,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/NpmRepositoryLookup.java",
+    "sha256": "3f07aa8d0d6c1d3c4515b1c43c9c242a9e24302b67ea2ae596d0ecba6f72e092",
+    "lines": 125,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/PackageJsonNameCheck.java",
+    "sha256": "6eadf91ec327e96fc9a059c0c15b048b7429159aba59f620e31872c40e23e104",
+    "lines": 8,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryCandidatePolicy.java",
+    "sha256": "eb34743756655734cd0a2544872da0a55f8dd9b1ee1bfc2f7e793b25af9034e0",
+    "lines": 61,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryScope.java",
+    "sha256": "37520d682fce99582e8abeaa6df02536430f0b29f5cfb2393ac6d0dffe6e3452",
+    "lines": 26,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryScopePolicy.java",
+    "sha256": "f8355190f651ac36d5a92925fc0297bfe80aefbd704acb2fb06139ca32bf2dfe",
+    "lines": 58,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryUrlParser.java",
+    "sha256": "07abb7ed948e6826b468aa7f9fe577cb993e25a594ee8e86fed14ef239b86b01",
+    "lines": 124,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationResult.java",
+    "sha256": "e5f6f97878dc08ca11b0ae8a4b3a0d16aedee06c24b2adf296a0770c1719a5f6",
+    "lines": 44,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationService.java",
+    "sha256": "a560ea6942f52f3f971a62336849a051aff46d40484cd2b281e2229f7e29f550",
+    "lines": 129,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/ResolvedCandidate.java",
+    "sha256": "df6dcb8f58a646d572ca8df5da90afa693569c40c92740ca143d2289313339ba",
+    "lines": 18,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/UpstreamFetchException.java",
+    "sha256": "95b059a7796a8ccdb3112ec2ddcd71c22c2df1e3bf949e573bf58d55211c8964",
+    "lines": 21,
+    "source_set": "main",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/CommentWindowResolverTest.java",
+    "sha256": "b59f7b3f7923cff7043e5267524ba85b59bf5355efb5dabfb19db3a1205bd997",
+    "lines": 71,
+    "source_set": "test",
+    "test_methods": [
+      "마지막_page가_1이면_추가_호출이_필요_없다",
+      "마지막_page가_2면_그_page만_추가로_부른다_1페이지는_이미_있음",
+      "마지막_page가_3이상이면_마지막과_그_직전_page를_부른다",
+      "id_내림차순으로_100개만_남긴다",
+      "큰_ID도_BigInteger로_정확히_비교한다",
+      "겹치는_ID는_한_번만_남는다",
+      "상한_100개_이하면_전부_남는다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/CommunityDataLimitsContractTest.java",
+    "sha256": "a1a33f48330215f5b9db72b9c0ee30fecf6a1d301531167b38c603d964640e0b",
+    "lines": 29,
+    "source_set": "test",
+    "test_methods": [
+      "이슈_상한이_212와_같다",
+      "댓글_상한이_212와_같다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/GitHubIssueCommentsClientTest.java",
+    "sha256": "b2448a5164b74a6ebb6105d7d3acf43e3d8724b612c819e4db0e83f7d83de4ae",
+    "lines": 117,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "Link_헤더가_없으면_요청한_page를_마지막으로_본다",
+      "Link_헤더의_rel_last에서_마지막_page_번호를_읽는다",
+      "id를_십진_문자열로_보존한다",
+      "remaining_0인_403은_rate_limit_예외다",
+      "그_외_오류_상태는_UpstreamFetchException이다",
+      "id가_없으면_UpstreamFetchException이다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/GitHubIssueSearchClientTest.java",
+    "sha256": "668138a6f78a6ba157fc755200f00ac915735b00c364f3706e52faaa689d8bc1",
+    "lines": 121,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "정상_응답을_파싱한다",
+      "incomplete_results를_읽는다",
+      "Bot_작성자를_구분한다",
+      "remaining_0인_403은_rate_limit_예외다",
+      "HTTP_429는_rate_limit_예외다",
+      "그_외_오류_상태는_UpstreamFetchException이다",
+      "응답이_byte_상한을_넘으면_UpstreamFetchException이다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/IssueCollectionServiceTest.java",
+    "sha256": "f721f13b34cd152d9824185449fa4e28a7b70b067554e96e6fdcaf7aede8fe66",
+    "lines": 225,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "searchReturns",
+      "댓글_101개면_실제로_2page를_불러_최신_100개만_남긴다",
+      "댓글_301개면_마지막_두_page를_불러_최신_100개를_남긴다",
+      "PR이_포함된_응답에서도_이슈만_고른다",
+      "필터_후_0건이면_NoDiscussionData다",
+      "raw_0이면_365일로_한_번_확장한다",
+      "search_incomplete는_limitations에_남고_계속_진행한다",
+      "search_rate_limit이면_전체_수집을_중단한다",
+      "댓글_수집_page_실패는_그_이슈만_TRUNCATED로_표시하고_계속한다",
+      "댓글_수집_rate_limit은_전체_수집을_중단한다",
+      "이슈_처리_중_예산이_소진돼도_이미_모은_결과는_버리지_않는다",
+      "총_댓글_수는_수집한_100개가_아니라_원천_숫자를_그대로_쓴다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/IssueSelectionPolicyTest.java",
+    "sha256": "cc6019b1f9d689b84999a1a54526e3594631559a2c81bb7ff7cce4084a9098e6",
+    "lines": 86,
+    "source_set": "test",
+    "test_methods": [
+      "댓글_많은_순으로_최대_2건_고른다",
+      "PR은_제외한다",
+      "locked_이슈는_제외한다",
+      "Bot_작성_이슈는_제외한다",
+      "댓글_수가_같으면_최신_갱신_순으로_정렬한다",
+      "댓글_수와_갱신시각도_같으면_이슈번호_큰_순으로_정렬한다",
+      "필터_후_0건이면_빈_목록을_돌려준다_추가_조회_안_함",
+      "빈_입력은_빈_결과다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityRefreshOrchestratorTest.java",
+    "sha256": "a91d6041537a9f27c99c2d529acaf2280d79c50f7aa2ffc6188a5479b2e8de75",
+    "lines": 285,
+    "source_set": "test",
+    "test_methods": [
+      "검증_성공_수집_성공_제한없음이면_AVAILABLE로_게시하고_task를_완료한다",
+      "검색_불완전_제한이_있으면_PARTIAL로_게시한다",
+      "범위가_제한되고_archived면_REPOSITORY_WIDE_ARCHIVED_제한과_함께_PARTIAL로_게시한다",
+      "저장소_미확인이면_repository_없이_UNVERIFIED_REPOSITORY로_게시한다",
+      "host가_미지원이면_UNSUPPORTED_HOST로_게시한다",
+      "범위가_모호하면_owner_repo와_함께_AMBIGUOUS_SCOPE로_게시한다",
+      "논의가_없으면_검증된_저장소_정보와_함께_NO_DISCUSSION_DATA로_게시한다",
+      "검증에서_rate_limit이면_게시하지_않고_task를_GITHUB_RATE_LIMITED로_실패시킨다",
+      "검증에서_npm_통신_오류면_NPM_UNAVAILABLE로_실패시킨다",
+      "수집에서_시간_예산_소진이면_deadline_exceeded로_실패시킨다",
+      "이슈_요약이_실패해도_다른_이슈는_계속_진행하고_summary_retry_at을_채운다",
+      "게시_자체가_실패하면_PUBLISH_FAILED로_task를_실패시킨다",
+      "예상하지_못한_예외는_전체를_중단시키지_않고_실패로_귀결된다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityServiceTest.java",
+    "sha256": "37e0608f6b0e619fcd7993780f506a1765b7b39e4fab70aa21dff57e891033e9",
+    "lines": 210,
+    "source_set": "test",
+    "test_methods": [
+      "exhaustStartTokens",
+      "없는_패키지는_리소스를_찾을_수_없다는_예외를_던진다",
+      "결과도_작업도_없으면_FAILED_NOT_STARTED다",
+      "결과가_24시간_이내면_그대로_재사용하고_새_작업을_만들지_않는다",
+      "요약_FAILED_쿨다운이_지나지_않았으면_fresh해도_재사용한다",
+      "요약_FAILED_쿨다운이_지났으면_fresh해도_새_작업을_허용한다",
+      "결과가_24시간_지났으면_stale이라_새_작업을_허용한다",
+      "이미_진행_중인_작업이_있으면_참여시키고_새로_시작하지_않는다",
+      "용량이_초과되고_이전_결과가_없으면_FAILED_CAPACITY_LIMITED다",
+      "용량이_초과돼도_이전_결과가_있으면_그_결과와_함께_보여준다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunitySnapshotTtlTest.java",
+    "sha256": "30289f604a43efdc50a90a0af858b494037d490babe140b8e03a291492e97dd2",
+    "lines": 56,
+    "source_set": "test",
+    "test_methods": [
+      "isFresh_경계값_24시간_이내는_true",
+      "isFresh_24시간_1초_초과는_false",
+      "isServable_경계값_7일_이내는_true",
+      "isServable_7일_1초_초과는_false",
+      "isExpiredForCleanup_은_isServable_의_반대다",
+      "정리_배치가_지연돼도_TTL_판정은_항상_collectedAt_기준이다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/dto/AuthorRoleMapperTest.java",
+    "sha256": "2b9e9a26e4b2abde49f93a5c9f118f112232654946ca4f3efaedc8aac08ebe4f",
+    "lines": 37,
+    "source_set": "test",
+    "test_methods": [
+      "이슈_작성자면_association과_무관하게_ISSUE_AUTHOR다",
+      "OWNER는_REPOSITORY_OWNER로_옮긴다",
+      "MEMBER는_ORGANIZATION_MEMBER로_옮긴다",
+      "COLLABORATOR와_CONTRIBUTOR는_그대로_옮긴다",
+      "확인되지_않는_값은_추측하지_않고_null이다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/InMemoryCommunitySnapshotRepository.java",
+    "sha256": "c074914343bb72359d11abb0377ee0d8ca2b652855b77a04f899d2e66ecc1de0",
+    "lines": 41,
+    "source_set": "test",
+    "test_methods": [
+      "failNextUpsertWith",
+      "upsert"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/payload/CommunityResultPayloadJsonTest.java",
+    "sha256": "a0fb6cdc881b6017ed002d70270c069a5a1a2e5a1b1b7594ee3123ab67d1879f",
+    "lines": 118,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "저장_payload는_전역_snake_case_규칙을_그대로_쓴다",
+      "시각_필드는_epoch_숫자가_아니라_ISO_8601_문자열이다",
+      "직렬화_후_역직렬화하면_원래_값과_같다",
+      "대표_메시지의_재시작_복원용_필드가_모두_보존된다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshAdmissionCoordinatorTest.java",
+    "sha256": "18b78648c682098b17794231c740fd5a808ba8866b379492febafcd055f9ad9b",
+    "lines": 366,
+    "source_set": "test",
+    "test_methods": [
+      "실행기를_정리한다",
+      "await",
+      "permit이_있으면_즉시_실행하고_Started를_돌려준다",
+      "이미_진행_중인_task가_있으면_참여시킨다",
+      "동시_실행_상한을_넘으면_TAB_OPENED는_대기_큐에_들어간다",
+      "동시_실행_상한을_넘으면_ANALYSIS_CONFIRMED는_대기_없이_거절된다",
+      "대기_큐가_가득_차면_TAB_OPENED도_거절된다",
+      "대기_큐가_가득_차서_거절돼도_이미_쓴_토큰을_돌려받는다",
+      "registry_용량이_차면_거절한다",
+      "시작_토큰이_소진되면_permit_유무와_무관하게_거절한다",
+      "대기_중이던_작업은_permit_반납_시점에_자신의_고유한_콜백으로_실행된다",
+      "큐에서_대기_중_예산이_지나면_실행되지_않고_용량_제한으로_끝난다",
+      "이미_128개가_찬_상태에서도_그중_하나를_재시도하면_용량_초과로_보지_않는다",
+      "같은_package로_동시_요청이_경합해도_진_쪽의_시작_토큰은_돌려받는다",
+      "awaitUnchecked"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshStageTest.java",
+    "sha256": "37ad99ab7e28586d6c43bb7dd2d69c7a03287c6330b65589ebe26f0db313f6c3",
+    "lines": 24,
+    "source_set": "test",
+    "test_methods": [
+      "구현계획_예시와_일치하는_두_단계는_문자_그대로다",
+      "모든_단계가_wireName과_메시지를_갖는다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshTaskRegistryTest.java",
+    "sha256": "8cea7879f5967923277c60f57389a96efd5c626988c18e4352092ff7be34d789",
+    "lines": 96,
+    "source_set": "test",
+    "test_methods": [
+      "진행_중인_task가_있으면_그대로_참여시킨다",
+      "종료된_task는_참여_대상이_아니고_새로_만든다",
+      "서로_다른_package는_독립적이다",
+      "보존_기간이_지난_완료_task는_다음_접근에서_사라진다",
+      "동시에_같은_package로_경합해도_task는_하나만_만들어진다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/StartTokenBucketTest.java",
+    "sha256": "cdb53d3141b2cd0f9442f608cedca6f6f4624c84dd53591bc8cb6421930793e0",
+    "lines": 51,
+    "source_set": "test",
+    "test_methods": [
+      "burst_용량만큼은_즉시_연속으로_쓸_수_있다",
+      "시간이_지나면_분당_리필률만큼_다시_채워진다",
+      "리필은_burst_상한을_넘지_않는다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubCommunityPackageLookup.java",
+    "sha256": "f7f5614956d3a0d09257a3211bb3c06d571ef7a2d341c6a4230b4c9c01698466",
+    "lines": 20,
+    "source_set": "test",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubIssueCollectionService.java",
+    "sha256": "490def688f6d303b46c37f26250c52da4a9ba9c9ea04e22f8d1b4ccec6ff1d43",
+    "lines": 29,
+    "source_set": "test",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubRepositoryVerificationService.java",
+    "sha256": "29ff87fd2844300d98de8915f2a781e224c7235429bb13f3bf10f78fc3d4e6db",
+    "lines": 39,
+    "source_set": "test",
+    "test_methods": []
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/FakeHttpServer.java",
+    "sha256": "4d8d2411577b2af007c50268795c5f816d7ffb064be9af8dd86c9f4b0ec145b9",
+    "lines": 118,
+    "source_set": "test",
+    "test_methods": [
+      "respond",
+      "respondCapturingHeader",
+      "respondDynamic",
+      "close"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryClientTest.java",
+    "sha256": "e610a3ea6f10a01e6bff2f692f48c54ecca92a853d59b68243fbd20ce451e3e7",
+    "lines": 141,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "존재하는_저장소의_archived_여부를_읽는다",
+      "archived_true도_그대로_읽는다",
+      "저장소_404는_GitHubRepositoryNotFoundException이다",
+      "rate_limit_아닌_403은_GitHubRepositoryNotFoundException이다",
+      "remaining_0인_403은_GitHubRateLimitException이다",
+      "HTTP_429는_항상_GitHubRateLimitException이고_Retry_After를_읽는다",
+      "그_외_오류_상태는_UpstreamFetchException이다",
+      "루트_package_json_이름이_일치하면_MATCH다",
+      "루트_package_json_이름이_다르면_MISMATCH다",
+      "directory_경로의_package_json도_같은_방식으로_확인한다",
+      "package_json_경로가_404면_NOT_FOUND다",
+      "package_json_조회도_rate_limit을_구분한다",
+      "X_GitHub_Api_Version_헤더를_보낸다",
+      "respondPackageJson"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/NpmRepositoryLookupTest.java",
+    "sha256": "d5c64d28c49c38197bf1c6939e65d4d843e3ae9097c1e77212923e3f31ccbf4f",
+    "lines": 108,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "repository가_문자열이면_그대로_읽는다",
+      "repository가_객체면_url과_directory를_읽는다",
+      "repository_필드가_없으면_NoRepositoryField다",
+      "HTTP_404는_NotFound다",
+      "그_외_오류_상태는_UpstreamFetchException이다",
+      "응답이_상한을_넘으면_UpstreamFetchException이다",
+      "스코프_패키지_이름의_슬래시를_인코딩한다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryCandidatePolicyTest.java",
+    "sha256": "d76dc09e00d59f5ea00f20c32b3d1a74c2d0c02e5792200d2baf4df8acaf8ca5",
+    "lines": 86,
+    "source_set": "test",
+    "test_methods": [
+      "DB와_npm이_같은_저장소면_그대로_진행한다",
+      "서로_다르고_npm이_GitHub면_npm_후보로_진행하고_충돌을_표시한다",
+      "npm만_GitHub면_npm_후보로_진행한다",
+      "DB만_GitHub면_DB_후보로_진행하되_npm_교차검증_없음으로_표시한다",
+      "npm에_repository_필드가_없어도_DB_후보로_진행한다",
+      "npm이_명시적으로_비GitHub_host면_DB가_뭐든_중단한다",
+      "DB만_비GitHub이고_npm도_없으면_중단한다",
+      "둘_다_없으면_NoCandidate다",
+      "npm의_directory가_최종_후보에_보존된다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryScopePolicyTest.java",
+    "sha256": "6ca487c2b23edae79711b87e2b76bcc76f1f57bec020a353724c34ada8b14f21",
+    "lines": 93,
+    "source_set": "test",
+    "test_methods": [
+      "DB_only_루트_이름_일치하면_PACKAGE_SCOPED다",
+      "DB_only_루트_이름_불일치하면_UnverifiedRepository다_REPOSITORY_WIDE로_봐주지_않는다",
+      "npm_교차검증_directory_없음_루트_일치하면_PACKAGE_SCOPED다",
+      "npm_교차검증_directory_없음_루트_불일치해도_REPOSITORY_WIDE로_진행하고_한계표시한다",
+      "directory_지정되고_이름_일치하면_REPOSITORY_WIDE다_전용_증거는_아니므로",
+      "directory_경로가_404면_AMBIGUOUS_SCOPE다",
+      "directory_이름_불일치도_AMBIGUOUS_SCOPE다",
+      "archived_여부가_Verified에_그대로_실린다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryUrlParserTest.java",
+    "sha256": "f253d87c5011981da968f71496f15ee2a2e7b261f94d04b1f92c321001aac3a0",
+    "lines": 94,
+    "source_set": "test",
+    "test_methods": [
+      "https_URL을_owner_repo로_분리한다",
+      "끝의_dot_git을_제거한다",
+      "git_plus_https_접두사를_처리한다",
+      "scp_스타일_SSH_주소를_처리한다",
+      "directory를_그대로_전달한다",
+      "null_이나_공백은_Absent다",
+      "GitHub가_아닌_host는_NonGitHubHost다",
+      "서브도메인은_거부한다",
+      "IP_리터럴_host는_거부한다",
+      "명시적_포트는_거부한다",
+      "경로_탈출_세그먼트는_Absent다",
+      "세그먼트가_하나뿐이면_Absent다",
+      "대소문자만_다른_host는_허용한다"
+    ]
+  },
+  {
+    "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationServiceTest.java",
+    "sha256": "7febd53a636d4be4dc72fdb6e9e18ab2a92ae1e949e8ea626fe65d4b83b53666",
+    "lines": 243,
+    "source_set": "test",
+    "test_methods": [
+      "setUp",
+      "tearDown",
+      "npmRepository",
+      "npmNoRepository",
+      "githubRepo",
+      "githubPackageJson",
+      "npm이_유일한_후보이고_루트_이름이_일치하면_PACKAGE_SCOPED로_검증된다",
+      "DB와_npm이_달라도_npm_후보로_검증된다",
+      "npm이_명시적으로_비GitHub_host면_UnsupportedHost다",
+      "DB_only_루트_이름_불일치는_UnverifiedRepository다",
+      "workspaces_directory_이름_일치는_REPOSITORY_WIDE로_검증된다",
+      "directory_이름_불일치는_AmbiguousScope다",
+      "비공개_저장소_403은_UnverifiedRepository다",
+      "GitHub_rate_limit_429는_FetchLimited이고_terminal이_아니다",
+      "npm_registry_통신_오류는_FetchLimited다",
+      "npm에_패키지가_없으면_UnverifiedRepository다",
+      "DB_npm_둘_다_후보가_없으면_UnverifiedRepository다",
+      "archived_저장소도_검증은_통과하고_archived_플래그만_켜진다",
+      "예산이_이미_0이면_아무_외부_호출도_하지_않고_시간_예산_소진으로_끝난다",
+      "npm_조회가_예산을_넘게_느리면_자연_지연을_다_기다리지_않고_예산_안에서_끝난다"
+    ]
+  },
+  {
+    "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunityControllerIntegrationTest.java",
+    "sha256": "7040967ab1e4ac2c98778a7dbcf5958b405f7507e6d03475731c508b1942adba",
+    "lines": 290,
+    "source_set": "integrationTest",
+    "test_methods": [
+      "createDatabase",
+      "dropDatabase",
+      "setUp",
+      "cleanUpRows",
+      "seedPackage",
+      "GET_없는_패키지는_404_C006이다",
+      "GET_결과와_작업이_전혀_없으면_FAILED_NOT_STARTED다",
+      "GET_name이_없으면_400_V001이다",
+      "POST_trigger값이_이상하면_400_V004다",
+      "POST는_새_작업을_202로_수락하고_완료되면_GET에서_AVAILABLE_결과를_보여준다",
+      "awaitTaskTerminal"
+    ]
+  },
+  {
+    "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunitySnapshotMigrationIntegrationTest.java",
+    "sha256": "424f42cd1daf4a085a8d1aa671a209755ef1e87cb410fce9fc2c190900298a48",
+    "lines": 148,
+    "source_set": "integrationTest",
+    "test_methods": [
+      "createDatabase",
+      "dropDatabase",
+      "cleanUpRows",
+      "seedPackage",
+      "존재하지_않는_package_id는_FK_위반으로_거부된다",
+      "payload_version_0은_CHECK_위반으로_거부된다",
+      "허용되지_않은_data_status_문자열은_CHECK_위반으로_거부된다",
+      "result가_JSON_객체가_아니면_CHECK_위반으로_거부된다",
+      "두_행이_같은_snapshot_id를_쓸_수_없다",
+      "트랜잭션_중간_실패는_이전에_커밋된_행을_그대로_둔다"
+    ]
+  },
+  {
+    "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunitySnapshotRepositoryIntegrationTest.java",
+    "sha256": "d0fd5de417d4959a1819d556363ff693475ac30efc38de16c360cbc0940a0700",
+    "lines": 248,
+    "source_set": "integrationTest",
+    "test_methods": [
+      "createDatabase",
+      "dropDatabase",
+      "cleanUpRows",
+      "seedPackage",
+      "upsert_후_조회하면_재시작_복원용_필드까지_전부_그대로_돌아온다",
+      "두번째_upsert는_이전_행을_교체한다_원자적_교체",
+      "존재하지_않는_package를_조회하면_빈_값이다",
+      "같은_package의_advisory_lock을_이미_쥐고_있으면_2초_안에_실패한다"
+    ]
+  },
+  {
+    "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationRealNetworkTest.java",
+    "sha256": "e58e7faf73ea23b41267fa091cde6f41ab383b3f97ec5335082eedbe0397ff90",
+    "lines": 72,
+    "source_set": "integrationTest",
+    "test_methods": [
+      "pino의_실제_저장소_연결을_검증한다",
+      "일부러_낮춘_byte_상한이_실제_npm_응답에서도_동작한다",
+      "일부러_낮춘_byte_상한이_실제_GitHub_응답에서도_동작한다"
+    ]
+  }
+]

@@ -1,0 +1,360 @@
+{
+  "report_version": 1,
+  "generated_at": "2026-09-14T01:54:38.839909+00:00",
+  "scope": "real local read-only integrity validation",
+  "status": "PARTIAL",
+  "ready_for_load": false,
+  "ready_for_publication": false,
+  "task_09_complete": false,
+  "summary": {
+    "PASS": 252,
+    "FAIL": 1,
+    "NOT_RUN": 0
+  },
+  "failed_checks": [
+    "prepared_plan_generation"
+  ],
+  "report": {
+    "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506-09-integrity-validation\\data\\real-integration-20260914-01\\integrity-report-final.json",
+    "sha256": "066c5dd8345940d7a461f4d09384d083b3168811a3a0489cbea56d626b4db3b5"
+  },
+  "evidence": [
+    {
+      "id": "read_only_identity",
+      "status": "PASS",
+      "evidence": {
+        "expected": {
+          "current_database": "pickage_267_full_defaulted",
+          "system_identifier": "7683005534478250019"
+        },
+        "actual": {
+          "database": "pickage_267_full_defaulted",
+          "current_database": null,
+          "system_identifier": "7683005534478250019",
+          "read_only": "on"
+        }
+      }
+    },
+    {
+      "id": "calendar_and_reference_chain",
+      "status": "PASS",
+      "evidence": {
+        "expected_dates": 229,
+        "snapshot_dates": 229,
+        "reference_dates": 229,
+        "bad_timestamps": [],
+        "bad_predecessors": []
+      }
+    },
+    {
+      "id": "published_execution_coverage",
+      "status": "PASS",
+      "evidence": {
+        "required": {
+          "package_version": 1,
+          "snapshot_reference": 229,
+          "package_snapshot": 229,
+          "version_dependents": 229
+        },
+        "published": 460,
+        "duplicates": {}
+      }
+    },
+    {
+      "id": "execution_counts",
+      "status": "PASS",
+      "evidence": {
+        "failures": [],
+        "checked": 460
+      }
+    },
+    {
+      "id": "active_attempt_association",
+      "status": "PASS",
+      "evidence": {
+        "published_executions": 460,
+        "attempts": 460,
+        "duplicate_attempt_rows": [],
+        "failed_active_attempts": [
+          "load-full-history-288-20260909-v1-20220627"
+        ],
+        "prior_success_proven_by_association": false
+      }
+    },
+    {
+      "id": "current_published_pointer",
+      "status": "PASS",
+      "evidence": {
+        "pointers_present": {
+          "package-version": true,
+          "package-snapshot": true,
+          "version-dependents": true
+        }
+      }
+    },
+    {
+      "id": "manifest_lineage_and_quality",
+      "status": "PASS",
+      "evidence": {
+        "failures": []
+      }
+    },
+    {
+      "id": "cross_dataset_lineage",
+      "status": "PASS",
+      "evidence": {
+        "mismatches": [],
+        "pins_checked": 1374
+      }
+    },
+    {
+      "id": "partition_receipts",
+      "status": "PASS",
+      "evidence": {
+        "receipts": 229,
+        "expected": 229,
+        "failures": []
+      }
+    },
+    {
+      "id": "utc_and_download_interval_metadata",
+      "status": "PASS",
+      "evidence": {
+        "checked_executions": 459,
+        "failure_count": 0,
+        "failures": [],
+        "scope": "metadata timestamps and [P,S) boundaries; payload temporal eligibility not scanned"
+      }
+    },
+    {
+      "id": "package_full_rollup",
+      "status": "PASS",
+      "evidence": {
+        "rows": 11080940,
+        "null_published_at": null,
+        "failure_count": 0,
+        "failures": []
+      }
+    },
+    {
+      "id": "version_full_rollup",
+      "status": "PASS",
+      "evidence": {
+        "rows": 54188349,
+        "null_published_at": 7015400,
+        "failure_count": 0,
+        "failures": []
+      }
+    },
+    {
+      "id": "package_snapshot_full_rollup",
+      "status": "PASS",
+      "evidence": {
+        "dates": 229,
+        "rows": 646219939,
+        "comparison": "fresh full DB aggregate versus saved producer/load evidence",
+        "all_source_keys_values_proven": false,
+        "failure_count": 0,
+        "failures": []
+      }
+    },
+    {
+      "id": "package_version_snapshot_full_rollup",
+      "status": "PASS",
+      "evidence": {
+        "dates": 229,
+        "rows": 1007084608,
+        "comparison": "fresh full DB aggregate versus saved producer/load evidence",
+        "all_source_keys_values_proven": false,
+        "failure_count": 0,
+        "failures": []
+      }
+    },
+    {
+      "id": "pinned_source_run_manifest",
+      "status": "PASS",
+      "evidence": {
+        "manifest_sha256": "1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94",
+        "run_status": "COMPLETE",
+        "full_selection_executed": true
+      }
+    },
+    {
+      "id": "pinned_snapshot_candidate",
+      "status": "PASS",
+      "evidence": {
+        "manifest_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+        "linked_files": 2
+      }
+    },
+    {
+      "id": "prepared_plan_generation",
+      "status": "FAIL",
+      "evidence": {
+        "reason": "Reload code contract changed: version-dependents-reload.ps1",
+        "changed": [
+          "version-dependents-reload.ps1"
+        ],
+        "expected": {
+          "version-dependents-reload.ps1": "4ce2bdf008aa7704a2abf7d5c0ee60585ade33bb56b831cf1f3e8e9eec853ef9"
+        },
+        "actual": {
+          "version-dependents-reload.ps1": "f621183f79fa9c4332e3d620b96e97f2a54c35bd9fe7bcb3b52fd65c6ceabcc0"
+        },
+        "script_lf_sha256": "4ce2bdf008aa7704a2abf7d5c0ee60585ade33bb56b831cf1f3e8e9eec853ef9",
+        "only_script_line_endings_differ": true
+      }
+    },
+    {
+      "id": "package_snapshot_result_coverage",
+      "status": "PASS",
+      "evidence": {
+        "dates": 229
+      }
+    },
+    {
+      "id": "metadata_before_after_unchanged",
+      "status": "PASS",
+      "evidence": {
+        "changed_sections": [],
+        "transaction_scope": "separate read-only repeatable-read transaction per query",
+        "single_shared_mvcc_snapshot": false,
+        "unchanged_metadata_proves_no_concurrent_payload_writes": false
+      }
+    },
+    {
+      "id": "source_samples_bound_to_db_manifests",
+      "status": "PASS",
+      "evidence": {
+        "dates": [
+          "2022-05-08",
+          "2024-07-01",
+          "2026-08-31"
+        ],
+        "samples": 43,
+        "failures": [],
+        "source_bytes": 77848500,
+        "all_source_rows_proven": false
+      }
+    },
+    {
+      "id": "failed_active_prior_publication_evidence",
+      "status": "PASS",
+      "evidence": {
+        "proven": [
+          {
+            "execution_id": "load-full-history-288-20260909-v1-20220627",
+            "prior_successful_attempt_ids": [
+              "1a3c6292c16e43e59cc704f8f42ceac2"
+            ],
+            "failed_active_attempt_id": "7d25d35d393546bdb59ef564b4ee1977"
+          }
+        ],
+        "missing": [],
+        "failed_reverification_is_not_success": true
+      }
+    },
+    {
+      "id": "full_scan_completed",
+      "status": "PASS",
+      "evidence": {
+        "scope": "FULL_DATABASE_ROLLUPS",
+        "started_at": "2026-09-14T01:23:16.396699+00:00",
+        "read_only": true,
+        "parallel_workers": 0,
+        "results": {
+          "package": {
+            "status": "COMPLETE",
+            "elapsed_seconds": 2.861
+          },
+          "version": {
+            "status": "COMPLETE",
+            "elapsed_seconds": 15.611
+          },
+          "package_snapshot": {
+            "status": "COMPLETE",
+            "elapsed_seconds": 50.116
+          },
+          "package_version_snapshot": {
+            "status": "COMPLETE",
+            "elapsed_seconds": 83.214
+          }
+        },
+        "active_query": null,
+        "ended_at": "2026-09-14T01:25:48.215032+00:00",
+        "status": "COMPLETE"
+      }
+    }
+  ],
+  "source_checked_files": 463,
+  "validator_files": [
+    {
+      "path": "pipeline/integrity_validation/real_checks.py",
+      "sha256": "8b5ce02347c1a587a4848827bb1624f3985c70ee9332a5cdf83a631061aac0c6"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_db.py",
+      "sha256": "a24663afe1d5d4409df86850245c169544ad78051f680b4993a41de26c9422b7"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_report.py",
+      "sha256": "bdfd38f7a7cd960835033b37466c744cec14512a85cc30ebd6a04fd2d3ab2553"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_rollups.py",
+      "sha256": "f3fb61ef70fcc571e697e23c4f6a6aefcae9b18bf4ce9cf128ca539dee5f928b"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_samples.py",
+      "sha256": "b4a94ed0a10611efa5a21f3f7aaa2244e52a43e132c12e8857340b1ca19d3f91"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_scan.py",
+      "sha256": "99a3ec000873c523ace57f38c68c9d53891838f67caf94347e1ad3140de97468"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_sources.py",
+      "sha256": "f5f765b1755abc6cfa916918f4bd31363c0d842d11af588ba902ba249bfcd053"
+    },
+    {
+      "path": "pipeline/integrity_validation/real_time.py",
+      "sha256": "4e34e29b9c5c22bb0006f1a81f65f33b899cb134a6bb5ff1822f23248ea79c55"
+    },
+    {
+      "path": "pipeline/snapshot/policy.py",
+      "sha256": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae"
+    },
+    {
+      "path": "pipeline/package_snapshot/policy.py",
+      "sha256": "81963363344e2b4ceb37de54eb7a7afa281072cdaa2ab09ba2423b8468f9ad78"
+    },
+    {
+      "path": "pipeline/requirements_resolution/policy.py",
+      "sha256": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1"
+    },
+    {
+      "path": "pipeline/version_dependents/historical_db_reload.py",
+      "sha256": "b15d944c3af589ec96c33273eadbea3e9a8f921f5174e197e0c9769df3929401"
+    }
+  ],
+  "deferred": [
+    "legacy_build_contract_sha256",
+    "package_version_raw_manifest_and_payload",
+    "all_source_parquet_keys_values",
+    "remote_object_approval_recheck",
+    "native_generation_reuse_not_approved",
+    "full_source_key_value_and_temporal_eligibility_revalidation",
+    "full_dataset_failure_recovery_reexecution",
+    "representative_performance_benchmark"
+  ],
+  "tests": {
+    "portable_discovered": 100,
+    "portable_passed": 92,
+    "portable_skipped": 8,
+    "postgres_fixture_passed": 7,
+    "skip_reasons": [
+      "7 disposable PostgreSQL tests opt-in, separately run successfully",
+      "1 symlink creation unavailable on Windows"
+    ]
+  }
+}

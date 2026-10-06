@@ -1,0 +1,5 @@
+# Python 3.11 이상 필요 — targets.toml을 읽는 표준 tomllib이 3.11에 추가됐다.
+# Ubuntu 22.04 기본 파이썬은 3.10이므로 배포 전 `python3 --version`을 확인한다.
+# 버전 검사는 collector/__init__.py가 import 시점에 수행한다.
+requests>=2.31
+python-dotenv>=1.0

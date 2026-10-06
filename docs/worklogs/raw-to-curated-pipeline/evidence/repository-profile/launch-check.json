@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-09-17T04:07:48.550472+00:00",
+  "status": "RUNNING",
+  "phase": "baseline",
+  "error": null,
+  "cleanup_errors": null,
+  "weekly-guard.jsonl": {
+    "time": 1789618067.693704,
+    "monotonic": 1484300.557134459,
+    "container_id": "eba3dcef83eff40e96c2fc8bf7d94791f13e6841680c4e151548f66e6685bdf3",
+    "restarts": 0,
+    "phase": [
+      "downloads_weekly",
+      "\uc2dc\uc791"
+    ],
+    "checkpoint_age_seconds": 3.417264223098755,
+    "weekly_cpu_usage_usec": 185567122,
+    "weekly_anon_bytes": 137486336,
+    "available_memory_bytes": 12199399424,
+    "io_pressure_avg10": 0.02,
+    "memory_pressure_avg10": 0.0,
+    "issue": null
+  },
+  "guard.jsonl": {
+    "time": 1789618066.8140154,
+    "available_memory_bytes": 12215476224,
+    "service_seconds": 0.0013578720390796661,
+    "peer_service_seconds": 0.01675786403939128,
+    "issue": null,
+    "consecutive_issues": 0
+  },
+  "recent_log": [
+    "REPOSITORY_PROFILE repository-profile:0030:_write:quality/unmapped_projects:count COMPLETE 0.115955",
+    "OUTPUT_COUNT_VERIFIED quality/unmapped_projects rows=0",
+    "REPOSITORY_PROFILE repository-profile:0031:transform:208:count COMPLETE 0.139003",
+    "REPOSITORY_PROFILE repository-profile:0032:transform:208:count COMPLETE 0.095791",
+    "REPOSITORY_PROFILE repository-profile:0033:transform:208:count COMPLETE 0.404553",
+    "REPOSITORY_PROFILE repository-profile:0034:transform:210:collect COMPLETE 0.888706",
+    "REPOSITORY_PROFILE repository-profile:0035:transform:212:collect COMPLETE 0.851943",
+    "REPOSITORY_PROFILE repository-profile:0036:transform:213:collect COMPLETE 0.317732",
+    "REPOSITORY_PROFILE repository-profile:0037:transform:215:count COMPLETE 0.488734",
+    "REPOSITORY_PROFILE repository-profile:0038:transform:216:count COMPLETE 0.68102"
+  ]
+}

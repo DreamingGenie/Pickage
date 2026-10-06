@@ -1,0 +1,4132 @@
+{
+  "started_at": "2026-09-12T17:45:58.379255+00:00",
+  "status": "COMPLETE",
+  "target": "vd193_reload_20260912_ready01.package_version_snapshot",
+  "source_manifest_sha256": "1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94",
+  "cache_policy": "No cache clearing; first execution is not cold-cache evidence",
+  "version_selection": "lexicographic first/middle/last from latest snapshot",
+  "load_timing": {
+    "status": "COMPLETE",
+    "pid": 310612,
+    "started_at": "2026-09-12T14:58:09.304892+00:00",
+    "scope": "reload CLI including source, keys, per-date load, final verification and cleanup",
+    "excluded": [
+      "prior preflight",
+      "reset",
+      "future serving query benchmark"
+    ],
+    "config": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-db-reload-timed-20260912-2354\\config.json",
+    "last_phase": {
+      "at": "2026-09-12T17:28:37.114860+00:00",
+      "phase": "COMPLETE",
+      "pid": 310612,
+      "status": "READY_FOR_CUTOVER"
+    },
+    "full_load_complete": true,
+    "all_dates_newly_loaded": true,
+    "completed_dates": 229,
+    "completed_rows": 1007084608,
+    "per_date_seconds": 8843.12700000024,
+    "elapsed_seconds": 9028.416268700006,
+    "ended_at": "2026-09-12T17:28:37.741047+00:00",
+    "exit_code": 0,
+    "non_date_seconds": 185.28926869976567
+  },
+  "empty_packages": [],
+  "receipts": {
+    "dates": 229,
+    "rows": 1007084608
+  },
+  "environment": {
+    "version": "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "shared_buffers": "2GB",
+    "work_mem": "4MB",
+    "block_size": "8192",
+    "jit": "on",
+    "max_parallel_workers_per_gather": "2",
+    "read_only": "on"
+  },
+  "partition_count": 229,
+  "parent_indexes": [
+    "CREATE UNIQUE INDEX package_version_snapshot_pkey ON ONLY vd193_reload_20260912_ready01.package_version_snapshot USING btree (package_id, version, snapshot_at)"
+  ],
+  "prepared_generic": {
+    "name": "express",
+    "version": "0.14.0",
+    "first": {
+      "planning_ms": 7.11,
+      "execution_ms": 8.49,
+      "db_total_ms": 15.600000000000001,
+      "rows": 229,
+      "root_node": "Append",
+      "scan_nodes": {
+        "Index Scan": 229
+      },
+      "relations_planned": 229,
+      "relations_executed": 229,
+      "shared_hit_blocks": 916,
+      "shared_read_blocks": 0,
+      "temp_read_blocks": 0,
+      "temp_written_blocks": 0
+    },
+    "warm": [
+      {
+        "planning_ms": 0.276,
+        "execution_ms": 6.526,
+        "db_total_ms": 6.802,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.11,
+        "execution_ms": 6.314,
+        "db_total_ms": 6.424,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.166,
+        "execution_ms": 6.808,
+        "db_total_ms": 6.974,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.111,
+        "execution_ms": 6.502,
+        "db_total_ms": 6.6129999999999995,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.107,
+        "execution_ms": 5.914,
+        "db_total_ms": 6.021,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.102,
+        "execution_ms": 6.789,
+        "db_total_ms": 6.891,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.099,
+        "execution_ms": 6.534,
+        "db_total_ms": 6.633,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.094,
+        "execution_ms": 6.755,
+        "db_total_ms": 6.849,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.099,
+        "execution_ms": 6.566,
+        "db_total_ms": 6.665,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      {
+        "planning_ms": 0.103,
+        "execution_ms": 6.51,
+        "db_total_ms": 6.6129999999999995,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 916,
+        "shared_read_blocks": 0,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      }
+    ]
+  },
+  "summary": {
+    "packages": 16,
+    "cases": 48,
+    "first_db_ms": {
+      "n": 48,
+      "median": 41.103500000000004,
+      "p95_nearest_rank": 146.345,
+      "min": 13.654,
+      "max": 316.327
+    },
+    "warm_db_ms": {
+      "n": 144,
+      "median": 13.268500000000001,
+      "p95_nearest_rank": 15.399000000000001,
+      "min": 11.255,
+      "max": 20.296
+    },
+    "warm_planning_ms": {
+      "n": 144,
+      "median": 7.991,
+      "p95_nearest_rank": 9.263,
+      "min": 6.767,
+      "max": 15.371
+    },
+    "warm_execution_ms": {
+      "n": 144,
+      "median": 5.2105,
+      "p95_nearest_rank": 6.117,
+      "min": 4.126,
+      "max": 7.295
+    },
+    "select_receive_ms": {
+      "n": 144,
+      "median": 15.458100009709597,
+      "p95_nearest_rank": 18.69659998919815,
+      "min": 13.287900015711784,
+      "max": 26.62589997635223
+    },
+    "rows": {
+      "n": 48,
+      "median": 209.0,
+      "p95_nearest_rank": 229,
+      "min": 1,
+      "max": 229
+    },
+    "first_reads": {
+      "n": 48,
+      "median": 178.5,
+      "p95_nearest_rank": 679,
+      "min": 3,
+      "max": 907
+    },
+    "warm_reads": {
+      "n": 144,
+      "median": 0.0,
+      "p95_nearest_rank": 0,
+      "min": 0,
+      "max": 0
+    },
+    "all_scans": {
+      "Index Scan": 10992
+    }
+  },
+  "elapsed_seconds": 10.598552999988897,
+  "ended_at": "2026-09-12T17:46:08.786865+00:00",
+  "additional_summary": {
+    "full_229_cases": 19,
+    "full_229_first_db_ms": {
+      "n": 19,
+      "median": 105.60499999999999,
+      "p95_nearest_rank": 316.327,
+      "min": 17.174999999999997,
+      "max": 316.327
+    },
+    "full_229_warm_db_ms": {
+      "n": 57,
+      "median": 13.274000000000001,
+      "p95_nearest_rank": 15.577000000000002,
+      "min": 11.255,
+      "max": 16.458
+    },
+    "full_229_receive_ms": {
+      "n": 57,
+      "median": 15.481700014788657,
+      "p95_nearest_rank": 18.987400020705536,
+      "min": 13.770499994279817,
+      "max": 26.62589997635223
+    },
+    "generic_warm_ms": {
+      "n": 10,
+      "median": 6.649,
+      "p95_nearest_rank": 6.974,
+      "min": 6.021,
+      "max": 6.974
+    }
+  },
+  "case_summary": [
+    {
+      "package_id": 6620867,
+      "name": "express",
+      "version": "0.14.0",
+      "stratum": "popular",
+      "latest_version_count": 245,
+      "first": {
+        "planning_ms": 132.73,
+        "execution_ms": 183.597,
+        "db_total_ms": 316.327,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 9,
+        "shared_read_blocks": 907,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 6.767,
+          "execution_ms": 4.488,
+          "db_total_ms": 11.255,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 6.934,
+          "execution_ms": 4.52,
+          "db_total_ms": 11.454,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.293,
+          "execution_ms": 4.328,
+          "db_total_ms": 11.621,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        13.859300001058728,
+        14.025499986018986,
+        16.742599982535467
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 6620867,
+      "name": "express",
+      "version": "3.3.3",
+      "stratum": "popular",
+      "latest_version_count": 245,
+      "first": {
+        "planning_ms": 7.47,
+        "execution_ms": 69.413,
+        "db_total_ms": 76.883,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 635,
+        "shared_read_blocks": 281,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.41,
+          "execution_ms": 5.286,
+          "db_total_ms": 13.696,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.913,
+          "execution_ms": 5.319,
+          "db_total_ms": 13.232,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.583,
+          "execution_ms": 5.515,
+          "db_total_ms": 13.097999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.422499982174486,
+        14.521900011459365,
+        14.140899991616607
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 6620867,
+      "name": "express",
+      "version": "5.2.1",
+      "stratum": "popular",
+      "latest_version_count": 245,
+      "first": {
+        "planning_ms": 7.291,
+        "execution_ms": 27.509,
+        "db_total_ms": 34.8,
+        "rows": 40,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 595,
+        "shared_read_blocks": 132,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.298,
+          "execution_ms": 4.691,
+          "db_total_ms": 11.989,
+          "rows": 40,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 727,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.626,
+          "execution_ms": 4.126,
+          "db_total_ms": 11.752,
+          "rows": 40,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 727,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.605,
+          "execution_ms": 4.432,
+          "db_total_ms": 12.037,
+          "rows": 40,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 727,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        13.287900015711784,
+        14.144299988402054,
+        14.943899994250387
+      ],
+      "returned_rows": 40
+    },
+    {
+      "package_id": 7701305,
+      "name": "jquery",
+      "version": "1.11.0",
+      "stratum": "popular",
+      "latest_version_count": 46,
+      "first": {
+        "planning_ms": 8.092,
+        "execution_ms": 127.958,
+        "db_total_ms": 136.05,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 679,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.213,
+          "execution_ms": 5.005,
+          "db_total_ms": 13.218,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.49,
+          "execution_ms": 4.868,
+          "db_total_ms": 13.358,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.944,
+          "execution_ms": 4.77,
+          "db_total_ms": 12.713999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.554299996234477,
+        14.891800004988909,
+        14.909799996530637
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 7701305,
+      "name": "jquery",
+      "version": "2.2.1",
+      "stratum": "popular",
+      "latest_version_count": 46,
+      "first": {
+        "planning_ms": 7.237,
+        "execution_ms": 17.757,
+        "db_total_ms": 24.994,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 864,
+        "shared_read_blocks": 52,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.148,
+          "execution_ms": 5.201,
+          "db_total_ms": 13.349,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.872,
+          "execution_ms": 5.458,
+          "db_total_ms": 13.33,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.649,
+          "execution_ms": 5.913,
+          "db_total_ms": 14.562,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.67390001239255,
+        26.62589997635223,
+        14.896300010150298
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 7701305,
+      "name": "jquery",
+      "version": "4.0.0",
+      "stratum": "popular",
+      "latest_version_count": 46,
+      "first": {
+        "planning_ms": 8.508,
+        "execution_ms": 11.543,
+        "db_total_ms": 20.051,
+        "rows": 33,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 699,
+        "shared_read_blocks": 21,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.381,
+          "execution_ms": 4.464,
+          "db_total_ms": 11.845,
+          "rows": 33,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 720,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.633,
+          "execution_ms": 4.874,
+          "db_total_ms": 12.507,
+          "rows": 33,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 720,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 10.232,
+          "execution_ms": 6.716,
+          "db_total_ms": 16.948,
+          "rows": 33,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 720,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        20.97070001764223,
+        19.14809999288991,
+        22.51440001418814
+      ],
+      "returned_rows": 33
+    },
+    {
+      "package_id": 8006164,
+      "name": "lodash",
+      "version": "0.1.0",
+      "stratum": "popular",
+      "latest_version_count": 113,
+      "first": {
+        "planning_ms": 9.06,
+        "execution_ms": 135.211,
+        "db_total_ms": 144.27100000000002,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 239,
+        "shared_read_blocks": 677,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.321,
+          "execution_ms": 5.941,
+          "db_total_ms": 14.262,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.388,
+          "execution_ms": 6.297,
+          "db_total_ms": 13.684999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.11,
+          "execution_ms": 5.421,
+          "db_total_ms": 13.530999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.698600007453933,
+        14.488099986920133,
+        15.024199994513765
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 8006164,
+      "name": "lodash",
+      "version": "3.9.3",
+      "stratum": "popular",
+      "latest_version_count": 113,
+      "first": {
+        "planning_ms": 7.313,
+        "execution_ms": 33.566,
+        "db_total_ms": 40.879000000000005,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 786,
+        "shared_read_blocks": 130,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.395,
+          "execution_ms": 5.194,
+          "db_total_ms": 12.588999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.995,
+          "execution_ms": 5.31,
+          "db_total_ms": 13.305,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.043,
+          "execution_ms": 4.845,
+          "db_total_ms": 12.887999999999998,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.74049999564886,
+        18.987400020705536,
+        15.627000015228987
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 8006164,
+      "name": "lodash",
+      "version": "4.9.0",
+      "stratum": "popular",
+      "latest_version_count": 113,
+      "first": {
+        "planning_ms": 8.085,
+        "execution_ms": 26.952,
+        "db_total_ms": 35.037000000000006,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 804,
+        "shared_read_blocks": 112,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.499,
+          "execution_ms": 4.963,
+          "db_total_ms": 13.462,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.437,
+          "execution_ms": 4.993,
+          "db_total_ms": 13.43,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.523,
+          "execution_ms": 4.968,
+          "db_total_ms": 13.491,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.001000010874122,
+        15.191199985565618,
+        14.531099994201213
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 8405694,
+      "name": "next",
+      "version": "0.1.0",
+      "stratum": "popular",
+      "latest_version_count": 413,
+      "first": {
+        "planning_ms": 8.393,
+        "execution_ms": 121.408,
+        "db_total_ms": 129.801,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 679,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.538,
+          "execution_ms": 5.31,
+          "db_total_ms": 12.847999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.036,
+          "execution_ms": 5.124,
+          "db_total_ms": 12.16,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.843,
+          "execution_ms": 4.929,
+          "db_total_ms": 12.772,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        17.33649999368936,
+        15.481700014788657,
+        18.69659998919815
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 8405694,
+      "name": "next",
+      "version": "15.1.1",
+      "stratum": "popular",
+      "latest_version_count": 413,
+      "first": {
+        "planning_ms": 9.077,
+        "execution_ms": 46.784,
+        "db_total_ms": 55.861,
+        "rows": 89,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 554,
+        "shared_read_blocks": 222,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 10.001,
+          "execution_ms": 5.732,
+          "db_total_ms": 15.733,
+          "rows": 89,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 776,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.221,
+          "execution_ms": 5.089,
+          "db_total_ms": 13.31,
+          "rows": 89,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 776,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.094,
+          "execution_ms": 5.552,
+          "db_total_ms": 13.645999999999999,
+          "rows": 89,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 776,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.986300004646182,
+        16.646200005197898,
+        15.50810001208447
+      ],
+      "returned_rows": 89
+    },
+    {
+      "package_id": 8405694,
+      "name": "next",
+      "version": "9.5.5",
+      "stratum": "popular",
+      "latest_version_count": 413,
+      "first": {
+        "planning_ms": 8.283,
+        "execution_ms": 57.799,
+        "db_total_ms": 66.082,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 599,
+        "shared_read_blocks": 317,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.838,
+          "execution_ms": 5.119,
+          "db_total_ms": 12.957,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.681,
+          "execution_ms": 5.296,
+          "db_total_ms": 13.977,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.125,
+          "execution_ms": 4.597,
+          "db_total_ms": 12.722000000000001,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.00010000402108,
+        15.37169999210164,
+        15.315500000724569
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 9633488,
+      "name": "react",
+      "version": "0.0.1",
+      "stratum": "popular",
+      "latest_version_count": 138,
+      "first": {
+        "planning_ms": 7.842,
+        "execution_ms": 126.528,
+        "db_total_ms": 134.37,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 679,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.487,
+          "execution_ms": 5.622,
+          "db_total_ms": 14.109,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.311,
+          "execution_ms": 5.697,
+          "db_total_ms": 14.008,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.442,
+          "execution_ms": 5.225,
+          "db_total_ms": 12.667,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.395200014812872,
+        15.93029999639839,
+        15.286800015019253
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 9633488,
+      "name": "react",
+      "version": "16.1.0",
+      "stratum": "popular",
+      "latest_version_count": 138,
+      "first": {
+        "planning_ms": 7.769,
+        "execution_ms": 39.675,
+        "db_total_ms": 47.443999999999996,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 750,
+        "shared_read_blocks": 166,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.541,
+          "execution_ms": 4.998,
+          "db_total_ms": 12.539000000000001,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.774,
+          "execution_ms": 5.556,
+          "db_total_ms": 13.33,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.166,
+          "execution_ms": 5.418,
+          "db_total_ms": 12.584,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.058500012150034,
+        16.771399998106062,
+        15.314200019929558
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 9633488,
+      "name": "react",
+      "version": "19.2.8",
+      "stratum": "popular",
+      "latest_version_count": 138,
+      "first": {
+        "planning_ms": 8.189,
+        "execution_ms": 13.155,
+        "db_total_ms": 21.344,
+        "rows": 6,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 659,
+        "shared_read_blocks": 34,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.548,
+          "execution_ms": 4.776,
+          "db_total_ms": 12.324,
+          "rows": 6,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 693,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.627,
+          "execution_ms": 4.853,
+          "db_total_ms": 13.48,
+          "rows": 6,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 693,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.403,
+          "execution_ms": 4.683,
+          "db_total_ms": 12.085999999999999,
+          "rows": 6,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 693,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.89299998502247,
+        14.928900025552139,
+        14.31969998520799
+      ],
+      "returned_rows": 6
+    },
+    {
+      "package_id": 10602005,
+      "name": "typescript",
+      "version": "0.8.0",
+      "stratum": "popular",
+      "latest_version_count": 169,
+      "first": {
+        "planning_ms": 8.096,
+        "execution_ms": 129.898,
+        "db_total_ms": 137.994,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 679,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.099,
+          "execution_ms": 5.4,
+          "db_total_ms": 13.499,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.731,
+          "execution_ms": 5.321,
+          "db_total_ms": 13.052,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.957,
+          "execution_ms": 5.069,
+          "db_total_ms": 13.026,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.932500013150275,
+        15.95840000663884,
+        15.02950000576675
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 10602005,
+      "name": "typescript",
+      "version": "3.6.2",
+      "stratum": "popular",
+      "latest_version_count": 169,
+      "first": {
+        "planning_ms": 7.673,
+        "execution_ms": 42.736,
+        "db_total_ms": 50.409,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 721,
+        "shared_read_blocks": 195,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.283,
+          "execution_ms": 5.245,
+          "db_total_ms": 13.527999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.755,
+          "execution_ms": 5.463,
+          "db_total_ms": 14.218,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.841,
+          "execution_ms": 5.068,
+          "db_total_ms": 12.908999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.434500004630536,
+        15.832300006877631,
+        15.024599997559562
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 10602005,
+      "name": "typescript",
+      "version": "7.0.2",
+      "stratum": "popular",
+      "latest_version_count": 169,
+      "first": {
+        "planning_ms": 7.815,
+        "execution_ms": 18.926,
+        "db_total_ms": 26.741,
+        "rows": 8,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 636,
+        "shared_read_blocks": 59,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.702,
+          "execution_ms": 4.579,
+          "db_total_ms": 12.280999999999999,
+          "rows": 8,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 695,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.78,
+          "execution_ms": 5.129,
+          "db_total_ms": 12.908999999999999,
+          "rows": 8,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 695,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.437,
+          "execution_ms": 4.293,
+          "db_total_ms": 11.73,
+          "rows": 8,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 695,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.262200002325699,
+        14.027199998963624,
+        14.81900000362657
+      ],
+      "returned_rows": 8
+    },
+    {
+      "package_id": 10815776,
+      "name": "vue",
+      "version": "0.0.0",
+      "stratum": "popular",
+      "latest_version_count": 338,
+      "first": {
+        "planning_ms": 7.629,
+        "execution_ms": 112.333,
+        "db_total_ms": 119.962,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 251,
+        "shared_read_blocks": 665,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.92,
+          "execution_ms": 5.811,
+          "db_total_ms": 13.731,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 9.36,
+          "execution_ms": 5.659,
+          "db_total_ms": 15.018999999999998,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.952,
+          "execution_ms": 5.245,
+          "db_total_ms": 13.197,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.625699994619936,
+        14.483500010101125,
+        13.866000022972003
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 10815776,
+      "name": "vue",
+      "version": "2.7.3",
+      "stratum": "popular",
+      "latest_version_count": 338,
+      "first": {
+        "planning_ms": 7.733,
+        "execution_ms": 73.871,
+        "db_total_ms": 81.604,
+        "rows": 220,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 550,
+        "shared_read_blocks": 357,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.263,
+          "execution_ms": 5.63,
+          "db_total_ms": 13.893,
+          "rows": 220,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 907,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.141,
+          "execution_ms": 5.559,
+          "db_total_ms": 13.7,
+          "rows": 220,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 907,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.93,
+          "execution_ms": 5.797,
+          "db_total_ms": 13.727,
+          "rows": 220,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 907,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.36859999760054,
+        14.189200010150671,
+        15.41469999938272
+      ],
+      "returned_rows": 220
+    },
+    {
+      "package_id": 10815776,
+      "name": "vue",
+      "version": "3.5.9",
+      "stratum": "popular",
+      "latest_version_count": 338,
+      "first": {
+        "planning_ms": 9.493,
+        "execution_ms": 26.448,
+        "db_total_ms": 35.941,
+        "rows": 101,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 597,
+        "shared_read_blocks": 191,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.146,
+          "execution_ms": 4.533,
+          "db_total_ms": 11.679,
+          "rows": 101,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 788,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.561,
+          "execution_ms": 5.289,
+          "db_total_ms": 12.85,
+          "rows": 101,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 788,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.111,
+          "execution_ms": 4.447,
+          "db_total_ms": 11.558,
+          "rows": 101,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 788,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.59529998828657,
+        13.688699982594699,
+        14.62790000368841
+      ],
+      "returned_rows": 101
+    },
+    {
+      "package_id": 10886664,
+      "name": "webpack",
+      "version": "0.1.0",
+      "stratum": "popular",
+      "latest_version_count": 578,
+      "first": {
+        "planning_ms": 7.054,
+        "execution_ms": 114.052,
+        "db_total_ms": 121.10600000000001,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 269,
+        "shared_read_blocks": 647,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.221,
+          "execution_ms": 5.012,
+          "db_total_ms": 12.233,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.682,
+          "execution_ms": 5.592,
+          "db_total_ms": 13.274000000000001,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.456,
+          "execution_ms": 5.435,
+          "db_total_ms": 12.891,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.81030001398176,
+        14.690999989397824,
+        13.964800018584356
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 10886664,
+      "name": "webpack",
+      "version": "4.23.1",
+      "stratum": "popular",
+      "latest_version_count": 578,
+      "first": {
+        "planning_ms": 7.615,
+        "execution_ms": 97.99,
+        "db_total_ms": 105.60499999999999,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 462,
+        "shared_read_blocks": 454,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.516,
+          "execution_ms": 4.84,
+          "db_total_ms": 12.356,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.361,
+          "execution_ms": 4.944,
+          "db_total_ms": 12.305,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.474,
+          "execution_ms": 5.246,
+          "db_total_ms": 12.72,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.77300000260584,
+        13.770499994279817,
+        15.160200011450797
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 10886664,
+      "name": "webpack",
+      "version": "5.99.9",
+      "stratum": "popular",
+      "latest_version_count": 578,
+      "first": {
+        "planning_ms": 7.327,
+        "execution_ms": 25.094,
+        "db_total_ms": 32.421,
+        "rows": 67,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 496,
+        "shared_read_blocks": 258,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.1,
+          "execution_ms": 4.64,
+          "db_total_ms": 11.739999999999998,
+          "rows": 67,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 754,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.069,
+          "execution_ms": 4.411,
+          "db_total_ms": 11.48,
+          "rows": 67,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 754,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.576,
+          "execution_ms": 4.93,
+          "db_total_ms": 13.506,
+          "rows": 67,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 754,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.27250002254732,
+        13.416700006928295,
+        14.086200011661276
+      ],
+      "returned_rows": 67
+    },
+    {
+      "package_id": 9932763,
+      "name": "sax-ts",
+      "version": "1.2.11",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 8,
+      "first": {
+        "planning_ms": 7.099,
+        "execution_ms": 113.63,
+        "db_total_ms": 120.729,
+        "rows": 211,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 661,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.15,
+          "execution_ms": 4.693,
+          "db_total_ms": 11.843,
+          "rows": 211,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 898,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.987,
+          "execution_ms": 4.787,
+          "db_total_ms": 12.774000000000001,
+          "rows": 211,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 898,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.781,
+          "execution_ms": 7.295,
+          "db_total_ms": 16.076,
+          "rows": 211,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 898,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.827600000193343,
+        14.613800012739375,
+        15.256799990311265
+      ],
+      "returned_rows": 211
+    },
+    {
+      "package_id": 9932763,
+      "name": "sax-ts",
+      "version": "1.2.6",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 8,
+      "first": {
+        "planning_ms": 8.525,
+        "execution_ms": 13.033,
+        "db_total_ms": 21.558,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 889,
+        "shared_read_blocks": 27,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.868,
+          "execution_ms": 4.952,
+          "db_total_ms": 12.82,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 9.242,
+          "execution_ms": 6.335,
+          "db_total_ms": 15.577000000000002,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 9.309,
+          "execution_ms": 7.149,
+          "db_total_ms": 16.458,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        19.399100012378767,
+        18.375799991190434,
+        17.962400015676394
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 9932763,
+      "name": "sax-ts",
+      "version": "1.2.9",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 8,
+      "first": {
+        "planning_ms": 9.963,
+        "execution_ms": 7.212,
+        "db_total_ms": 17.174999999999997,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 911,
+        "shared_read_blocks": 5,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.272,
+          "execution_ms": 6.17,
+          "db_total_ms": 14.442,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.46,
+          "execution_ms": 5.172,
+          "db_total_ms": 13.632000000000001,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.443,
+          "execution_ms": 4.984,
+          "db_total_ms": 12.427,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.261300013866276,
+        15.78789998893626,
+        15.317900018999353
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 7911573,
+      "name": "lefthook-windows-arm64",
+      "version": "0.0.2",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 179,
+      "first": {
+        "planning_ms": 7.152,
+        "execution_ms": 94.815,
+        "db_total_ms": 101.967,
+        "rows": 222,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 407,
+        "shared_read_blocks": 502,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.237,
+          "execution_ms": 5.562,
+          "db_total_ms": 12.799,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.615,
+          "execution_ms": 5.406,
+          "db_total_ms": 13.021,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.016,
+          "execution_ms": 5.175,
+          "db_total_ms": 12.190999999999999,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.043599996715784,
+        17.710500018438324,
+        17.21170000382699
+      ],
+      "returned_rows": 222
+    },
+    {
+      "package_id": 7911573,
+      "name": "lefthook-windows-arm64",
+      "version": "1.4.9",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 179,
+      "first": {
+        "planning_ms": 8.524,
+        "execution_ms": 29.125,
+        "db_total_ms": 37.649,
+        "rows": 161,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 738,
+        "shared_read_blocks": 110,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.025,
+          "execution_ms": 5.127,
+          "db_total_ms": 13.152000000000001,
+          "rows": 161,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 848,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.621,
+          "execution_ms": 6.054,
+          "db_total_ms": 14.675,
+          "rows": 161,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 848,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.116,
+          "execution_ms": 5.525,
+          "db_total_ms": 13.641,
+          "rows": 161,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 848,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        18.108499993104488,
+        17.45159999700263,
+        15.814299986232072
+      ],
+      "returned_rows": 161
+    },
+    {
+      "package_id": 7911573,
+      "name": "lefthook-windows-arm64",
+      "version": "2.1.9",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 179,
+      "first": {
+        "planning_ms": 10.548,
+        "execution_ms": 12.937,
+        "db_total_ms": 23.485,
+        "rows": 14,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 670,
+        "shared_read_blocks": 31,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.592,
+          "execution_ms": 5.852,
+          "db_total_ms": 14.444,
+          "rows": 14,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 701,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.115,
+          "execution_ms": 4.512,
+          "db_total_ms": 12.626999999999999,
+          "rows": 14,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 701,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.973,
+          "execution_ms": 4.858,
+          "db_total_ms": 12.831,
+          "rows": 14,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 701,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.308399994159117,
+        15.14790000510402,
+        14.801500015892088
+      ],
+      "returned_rows": 14
+    },
+    {
+      "package_id": 3679039,
+      "name": "@veramo/credential-w3c",
+      "version": "0.0.42",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 29,
+      "first": {
+        "planning_ms": 8.809,
+        "execution_ms": 159.545,
+        "db_total_ms": 168.35399999999998,
+        "rows": 229,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 236,
+        "shared_read_blocks": 680,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 9.263,
+          "execution_ms": 6.324,
+          "db_total_ms": 15.587,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 9.491,
+          "execution_ms": 5.857,
+          "db_total_ms": 15.347999999999999,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.192,
+          "execution_ms": 5.556,
+          "db_total_ms": 13.748000000000001,
+          "rows": 229,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 916,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        17.638999997870997,
+        16.962000023340806,
+        18.021600000793114
+      ],
+      "returned_rows": 229
+    },
+    {
+      "package_id": 3679039,
+      "name": "@veramo/credential-w3c",
+      "version": "4.2.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 29,
+      "first": {
+        "planning_ms": 8.497,
+        "execution_ms": 12.846,
+        "db_total_ms": 21.343,
+        "rows": 199,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 858,
+        "shared_read_blocks": 28,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.169,
+          "execution_ms": 5.514,
+          "db_total_ms": 13.683,
+          "rows": 199,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 886,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.414,
+          "execution_ms": 5.492,
+          "db_total_ms": 13.905999999999999,
+          "rows": 199,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 886,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.336,
+          "execution_ms": 5.541,
+          "db_total_ms": 13.877,
+          "rows": 199,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 886,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.352100006770343,
+        16.0162000101991,
+        15.423000004375353
+      ],
+      "returned_rows": 199
+    },
+    {
+      "package_id": 3679039,
+      "name": "@veramo/credential-w3c",
+      "version": "7.0.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 29,
+      "first": {
+        "planning_ms": 7.53,
+        "execution_ms": 7.033,
+        "db_total_ms": 14.563,
+        "rows": 31,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 709,
+        "shared_read_blocks": 9,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.882,
+          "execution_ms": 5.487,
+          "db_total_ms": 13.369,
+          "rows": 31,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 718,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.011,
+          "execution_ms": 5.396,
+          "db_total_ms": 13.407,
+          "rows": 31,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 718,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.061,
+          "execution_ms": 4.874,
+          "db_total_ms": 12.934999999999999,
+          "rows": 31,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 718,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.914899995550513,
+        15.3924000042025,
+        14.694999990751967
+      ],
+      "returned_rows": 31
+    },
+    {
+      "package_id": 5087844,
+      "name": "c2pa",
+      "version": "0.10.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 90,
+      "first": {
+        "planning_ms": 7.765,
+        "execution_ms": 111.787,
+        "db_total_ms": 119.552,
+        "rows": 219,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 237,
+        "shared_read_blocks": 669,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 9.282,
+          "execution_ms": 6.117,
+          "db_total_ms": 15.399000000000001,
+          "rows": 219,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 906,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.817,
+          "execution_ms": 5.522,
+          "db_total_ms": 13.339,
+          "rows": 219,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 906,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.794,
+          "execution_ms": 5.477,
+          "db_total_ms": 13.271,
+          "rows": 219,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 906,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.25899999635294,
+        16.381299996282905,
+        15.552700002444908
+      ],
+      "returned_rows": 219
+    },
+    {
+      "package_id": 5087844,
+      "name": "c2pa",
+      "version": "0.21.1",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 90,
+      "first": {
+        "planning_ms": 7.53,
+        "execution_ms": 16.273,
+        "db_total_ms": 23.803,
+        "rows": 116,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 745,
+        "shared_read_blocks": 58,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.056,
+          "execution_ms": 5.339,
+          "db_total_ms": 13.395,
+          "rows": 116,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 803,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.813,
+          "execution_ms": 4.662,
+          "db_total_ms": 12.475,
+          "rows": 116,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 803,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.867,
+          "execution_ms": 5.204,
+          "db_total_ms": 13.071,
+          "rows": 116,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 803,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.365199990104884,
+        14.952099998481572,
+        16.990400006761774
+      ],
+      "returned_rows": 116
+    },
+    {
+      "package_id": 5087844,
+      "name": "c2pa",
+      "version": "0.9.2",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 90,
+      "first": {
+        "planning_ms": 8.124,
+        "execution_ms": 17.159,
+        "db_total_ms": 25.283,
+        "rows": 222,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 847,
+        "shared_read_blocks": 62,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.423,
+          "execution_ms": 5.649,
+          "db_total_ms": 14.072,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.039,
+          "execution_ms": 5.854,
+          "db_total_ms": 13.893,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.844,
+          "execution_ms": 5.267,
+          "db_total_ms": 14.111,
+          "rows": 222,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 909,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.64280001912266,
+        15.42049998533912,
+        14.763400016818196
+      ],
+      "returned_rows": 222
+    },
+    {
+      "package_id": 2039140,
+      "name": "@microsoft.azure/openapi-validator-rulesets",
+      "version": "1.0.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 43,
+      "first": {
+        "planning_ms": 7.232,
+        "execution_ms": 139.113,
+        "db_total_ms": 146.345,
+        "rows": 203,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 236,
+        "shared_read_blocks": 654,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.481,
+          "execution_ms": 5.134,
+          "db_total_ms": 12.615,
+          "rows": 203,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 890,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.946,
+          "execution_ms": 5.721,
+          "db_total_ms": 13.667,
+          "rows": 203,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 890,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.175,
+          "execution_ms": 5.155,
+          "db_total_ms": 12.33,
+          "rows": 203,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 890,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.028599998913705,
+        16.285299992887303,
+        14.922200003638864
+      ],
+      "returned_rows": 203
+    },
+    {
+      "package_id": 2039140,
+      "name": "@microsoft.azure/openapi-validator-rulesets",
+      "version": "2.0.4",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 43,
+      "first": {
+        "planning_ms": 7.608,
+        "execution_ms": 9.413,
+        "db_total_ms": 17.021,
+        "rows": 123,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 784,
+        "shared_read_blocks": 26,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.213,
+          "execution_ms": 4.482,
+          "db_total_ms": 12.695,
+          "rows": 123,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 810,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.954,
+          "execution_ms": 5.475,
+          "db_total_ms": 13.428999999999998,
+          "rows": 123,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 810,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.519,
+          "execution_ms": 4.71,
+          "db_total_ms": 12.229,
+          "rows": 123,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 810,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.480799997225404,
+        20.463599998038262,
+        14.089900010731071
+      ],
+      "returned_rows": 123
+    },
+    {
+      "package_id": 2039140,
+      "name": "@microsoft.azure/openapi-validator-rulesets",
+      "version": "2.2.6",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 43,
+      "first": {
+        "planning_ms": 7.447,
+        "execution_ms": 6.207,
+        "db_total_ms": 13.654,
+        "rows": 22,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 701,
+        "shared_read_blocks": 8,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.321,
+          "execution_ms": 4.39,
+          "db_total_ms": 12.710999999999999,
+          "rows": 22,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 709,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.443,
+          "execution_ms": 4.862,
+          "db_total_ms": 12.305,
+          "rows": 22,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 709,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.048,
+          "execution_ms": 4.735,
+          "db_total_ms": 12.783000000000001,
+          "rows": 22,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 709,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.022499981569126,
+        14.38800001051277,
+        14.147300011245534
+      ],
+      "returned_rows": 22
+    },
+    {
+      "package_id": 2863661,
+      "name": "@react-native-community/cli-platform-android",
+      "version": "10.0.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 155,
+      "first": {
+        "planning_ms": 7.26,
+        "execution_ms": 115.416,
+        "db_total_ms": 122.676,
+        "rows": 198,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 236,
+        "shared_read_blocks": 649,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.453,
+          "execution_ms": 5.077,
+          "db_total_ms": 13.53,
+          "rows": 198,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 885,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.827,
+          "execution_ms": 5.395,
+          "db_total_ms": 13.222,
+          "rows": 198,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 885,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.499,
+          "execution_ms": 5.045,
+          "db_total_ms": 12.544,
+          "rows": 198,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 885,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.297199996188283,
+        15.879400016274303,
+        16.867400001501665
+      ],
+      "returned_rows": 198
+    },
+    {
+      "package_id": 2863661,
+      "name": "@react-native-community/cli-platform-android",
+      "version": "17.0.1",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 155,
+      "first": {
+        "planning_ms": 7.4,
+        "execution_ms": 16.761,
+        "db_total_ms": 24.161,
+        "rows": 43,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 666,
+        "shared_read_blocks": 64,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.723,
+          "execution_ms": 4.967,
+          "db_total_ms": 13.690000000000001,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.542,
+          "execution_ms": 5.683,
+          "db_total_ms": 14.225,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.91,
+          "execution_ms": 5.421,
+          "db_total_ms": 13.331,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.925600008107722,
+        15.708299994003028,
+        14.686099981190637
+      ],
+      "returned_rows": 43
+    },
+    {
+      "package_id": 2863661,
+      "name": "@react-native-community/cli-platform-android",
+      "version": "9.3.4",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 155,
+      "first": {
+        "planning_ms": 8.143,
+        "execution_ms": 33.185,
+        "db_total_ms": 41.328,
+        "rows": 166,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 694,
+        "shared_read_blocks": 159,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.231,
+          "execution_ms": 4.782,
+          "db_total_ms": 13.013,
+          "rows": 166,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 853,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.751,
+          "execution_ms": 5.634,
+          "db_total_ms": 13.385000000000002,
+          "rows": 166,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 853,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.415,
+          "execution_ms": 5.272,
+          "db_total_ms": 13.687,
+          "rows": 166,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 853,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.902599989203736,
+        14.769100002013147,
+        16.067599994130433
+      ],
+      "returned_rows": 166
+    },
+    {
+      "package_id": 1461396,
+      "name": "@intlayer/config",
+      "version": "1.0.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 298,
+      "first": {
+        "planning_ms": 8.48,
+        "execution_ms": 99.857,
+        "db_total_ms": 108.337,
+        "rows": 125,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 236,
+        "shared_read_blocks": 576,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 15.371,
+          "execution_ms": 4.925,
+          "db_total_ms": 20.296,
+          "rows": 125,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 812,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.439,
+          "execution_ms": 5.05,
+          "db_total_ms": 12.489,
+          "rows": 125,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 812,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.894,
+          "execution_ms": 4.918,
+          "db_total_ms": 12.812000000000001,
+          "rows": 125,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 812,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.328100020065904,
+        14.288200007285923,
+        15.642999991541728
+      ],
+      "returned_rows": 125
+    },
+    {
+      "package_id": 1461396,
+      "name": "@intlayer/config",
+      "version": "7.0.7",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 298,
+      "first": {
+        "planning_ms": 9.086,
+        "execution_ms": 18.381,
+        "db_total_ms": 27.467,
+        "rows": 43,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 641,
+        "shared_read_blocks": 89,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.737,
+          "execution_ms": 5.217,
+          "db_total_ms": 13.954,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.98,
+          "execution_ms": 5.879,
+          "db_total_ms": 14.859,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.421,
+          "execution_ms": 5.714,
+          "db_total_ms": 14.135,
+          "rows": 43,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 730,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.75969997793436,
+        15.992100001312792,
+        16.242199984844774
+      ],
+      "returned_rows": 43
+    },
+    {
+      "package_id": 1461396,
+      "name": "@intlayer/config",
+      "version": "9.4.1",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 298,
+      "first": {
+        "planning_ms": 9.719,
+        "execution_ms": 7.241,
+        "db_total_ms": 16.96,
+        "rows": 1,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 680,
+        "shared_read_blocks": 8,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.374,
+          "execution_ms": 5.241,
+          "db_total_ms": 13.615,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 7.885,
+          "execution_ms": 4.925,
+          "db_total_ms": 12.809999999999999,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.12,
+          "execution_ms": 5.652,
+          "db_total_ms": 13.771999999999998,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        15.93900000443682,
+        15.526399976806715,
+        16.581300005782396
+      ],
+      "returned_rows": 1
+    },
+    {
+      "package_id": 1820056,
+      "name": "@launchdarkly/openfeature-node-server",
+      "version": "0.1.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 26,
+      "first": {
+        "planning_ms": 7.551,
+        "execution_ms": 110.216,
+        "db_total_ms": 117.767,
+        "rows": 207,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 245,
+        "shared_read_blocks": 649,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.968,
+          "execution_ms": 5.331,
+          "db_total_ms": 13.299,
+          "rows": 207,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 894,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.233,
+          "execution_ms": 5.033,
+          "db_total_ms": 13.266000000000002,
+          "rows": 207,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 894,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.434,
+          "execution_ms": 6.066,
+          "db_total_ms": 14.5,
+          "rows": 207,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 894,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        17.290000017965212,
+        16.52870001271367,
+        15.224000002490357
+      ],
+      "returned_rows": 207
+    },
+    {
+      "package_id": 1820056,
+      "name": "@launchdarkly/openfeature-node-server",
+      "version": "0.6.3",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 26,
+      "first": {
+        "planning_ms": 8.346,
+        "execution_ms": 11.317,
+        "db_total_ms": 19.663,
+        "rows": 118,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 785,
+        "shared_read_blocks": 20,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 8.609,
+          "execution_ms": 4.582,
+          "db_total_ms": 13.190999999999999,
+          "rows": 118,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 805,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.297,
+          "execution_ms": 5.399,
+          "db_total_ms": 13.696000000000002,
+          "rows": 118,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 805,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 9.052,
+          "execution_ms": 5.149,
+          "db_total_ms": 14.201,
+          "rows": 118,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 805,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        16.9774999958463,
+        15.05170000018552,
+        17.0429999998305
+      ],
+      "returned_rows": 118
+    },
+    {
+      "package_id": 1820056,
+      "name": "@launchdarkly/openfeature-node-server",
+      "version": "1.4.0",
+      "stratum": "name_sha_sample",
+      "latest_version_count": 26,
+      "first": {
+        "planning_ms": 7.667,
+        "execution_ms": 6.435,
+        "db_total_ms": 14.102,
+        "rows": 1,
+        "root_node": "Append",
+        "scan_nodes": {
+          "Index Scan": 229
+        },
+        "relations_planned": 229,
+        "relations_executed": 229,
+        "shared_hit_blocks": 685,
+        "shared_read_blocks": 3,
+        "temp_read_blocks": 0,
+        "temp_written_blocks": 0
+      },
+      "warm": [
+        {
+          "planning_ms": 7.542,
+          "execution_ms": 4.566,
+          "db_total_ms": 12.108,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.3,
+          "execution_ms": 4.738,
+          "db_total_ms": 13.038,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        },
+        {
+          "planning_ms": 8.375,
+          "execution_ms": 4.866,
+          "db_total_ms": 13.241,
+          "rows": 1,
+          "root_node": "Append",
+          "scan_nodes": {
+            "Index Scan": 229
+          },
+          "relations_planned": 229,
+          "relations_executed": 229,
+          "shared_hit_blocks": 688,
+          "shared_read_blocks": 0,
+          "temp_read_blocks": 0,
+          "temp_written_blocks": 0
+        }
+      ],
+      "select_receive_ms": [
+        14.471700007561594,
+        14.259299990953878,
+        13.622300000861287
+      ],
+      "returned_rows": 1
+    }
+  ],
+  "result_checks": {
+    "repeated_values_match": true,
+    "dates_unique_and_sorted": true,
+    "count_nonnegative": true,
+    "prepared_values_match": true,
+    "source_recount_performed": false
+  }
+}

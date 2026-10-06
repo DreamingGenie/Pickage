@@ -1,0 +1,4 @@
+Command: C:\Users\SSAFY\workspace\S15P21A506\.venv-bq\Scripts\python.exe -B -m pipeline.integrity_validation.real_report --original-root C:\Users\SSAFY\workspace\S15P21A506 --plan C:\Users\SSAFY\workspace\S15P21A506\data\vd-db-reload-timed-20260912-2354\prepared-plan.json --evidence-dir data\real-integration-20260914-01 --samples data\real-integration-20260914-01\source-samples-v2.json --output data\real-integration-20260914-01\integrity-report-final.json
+
+Exit code: 2
+{"status": "PARTIAL", "summary": {"PASS": 252, "FAIL": 1, "NOT_RUN": 0}, "failed_checks": ["prepared_plan_generation"]}

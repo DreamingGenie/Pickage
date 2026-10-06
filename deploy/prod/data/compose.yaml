@@ -1,0 +1,542 @@
+# Pickage 운영 — `data` 노드 (j15a506a.p.ssafy.io)
+#
+#   cd deploy/prod/data
+#   docker compose up -d
+#
+# ⚠ 처음 올릴 때는 순서가 있다. 손으로 띄워 둔 컨테이너를 먼저 없애야 한다 —
+#   README.md 의 "손으로 띄운 것에서 넘어오기" 를 볼 것.
+#   두 컨테이너가 같은 데이터 디렉터리를 동시에 쓰면 데이터가 깨진다.
+#
+# ⚠ `app` 노드는 j15a506 이다 — 뒤에 a 가 없다 (deploy/prod/app/).
+
+name: pickage-data
+
+services:
+  minio:
+    # 지금 이 서버에서 돌고 있는 것과 같은 이미지다. 일부러 안 올린다.
+    # 루트 compose.yaml 의 로컬 MinIO 도 같은 릴리스다 — 바꿀 때는 같이 바꾼다.
+    #
+    # MinIO 는 커뮤니티 빌드의 웹 콘솔 기능을 축소한 이력이 있다. 이 버전은
+    # 콘솔이 온전한 것을 직접 확인하고 고정한 것이다 — `latest` 로 두면
+    # 어느 날 콘솔이 사라져 있을 수 있고, 그러면 팀원이 브라우저로 확인할 길이 없어진다.
+    # 기동 로그에 "You are running an older version" 이 떠도 무시한다.
+    #
+    # 올릴 때는 (1) 백업 먼저 (2) 콘솔이 뜨는지 확인 (3) compose 이관과 같은 날 하지 않는다.
+    # 버전과 감독 방식을 한꺼번에 바꾸면 뭐가 깨졌는지 가릴 수 없다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address :9001
+    restart: unless-stopped
+    env_file: ./.env
+    ports:
+      # 루프백에만 묶는다. 서버 밖에서는 SSH 터널로만 닿는다.
+      #
+      #   ssh -L 9000:localhost:9000 -L 9001:localhost:9001 <user>@j15a506a.p.ssafy.io
+      #
+      # `127.0.0.1:` 접두사를 지우면 0.0.0.0 에 붙어 서버 밖에서 접근 가능해진다.
+      # S3 API 는 인증만 통과하면 버킷 전체를 읽고 쓴다 — 자격증명이 새면 수집 데이터가 통째로 나간다.
+      - "127.0.0.1:9000:9000"   # S3 API — 사람이 터널로 붙는 통로
+      # app 노드의 Spark executor 가 s3a 로 읽으려면 다른 호스트에서 닿아야 한다.
+      # 다른 호스트는 이 노드의 compose 네트워크 이름(minio)을 풀 수 없다.
+      # 사설 IP 라서 VPC 밖에서는 안 보이고 보안그룹도 막고 있다.
+      - "${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것 — hostname -I 의 172.26.x.x}:9000:9000"
+      - "127.0.0.1:9001:9001"   # 웹 콘솔 — 브라우저로 확인
+    volumes:
+      # 이름은 minio-data 지만 실제 데이터는 호스트의 /srv/minio/data 에 있다.
+      # 경로 정의는 파일 맨 아래 volumes: 블록에 한 군데만 있다.
+      - minio-data:/data
+    healthcheck:
+      # minio 이미지에 mc 가 들어 있다. 별도 이미지가 필요 없다.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 1g
+    # memswap_limit 을 mem_limit 과 **같게** 두는 것은 "이 컨테이너에 스왑을 0 준다" 는 뜻이다.
+    # 이 줄을 빼면 Docker 가 총량을 mem_limit 의 2배로 잡아서, 호스트에 스왑이 생긴 뒤로는
+    # **1g 짜리 상한이 조용히 2g 가 된다.** 이유와 확인 방법은 ../README.md 의 "Swap".
+    memswap_limit: 1g
+    # ↑ 배치 시각에 이 노드는 Spark master(1g) + worker①(10g) 를 함께 든다.
+    #   **driver 를 따로 세지 않는다** — spark-submit 을 worker① 컨테이너에서 exec 하므로
+    #   데몬·driver·executor 가 전부 그 10g 안에 있다. 합계 1 + 1 + 10 = 12g / 15Gi.
+    #   여유가 얇다 — 상한을 안 걸면 커널이 무엇을 죽일지 우리가 못 고른다.
+    #   상한을 넘겨 MinIO 가 죽어도 restart 로 돌아오고, 적재 스크립트가 멱등해서
+    #   같은 run 으로 재개하면 빠진 파일만 다시 보낸다.
+    #   **스왑을 주지 않는 쪽을 골랐다** — 죽는 쪽은 재개가 멱등해서 값이 싸지만,
+    #   스왑으로 밀린 MinIO 의 읽기 지연은 배치 전체를 늘리고 원인도 안 보인다.
+
+  minio-init:
+    # 없는 버킷만 만든다. 한 번 돌고 끝나는 일회성 컨테이너다.
+    # Exited (0) 이 정상 — 초기화 성공을 뜻한다.
+    #
+    # 로컬과 **같은 스크립트**를 쓴다. 버킷 이름이 두 환경에서 갈라질 수 없다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - ../../../pipeline/minio/init-buckets.sh:/init-buckets.sh:ro
+
+  # ── MLflow (모델 레지스트리) ───────────────────────────────────
+  #
+  # GPU(jupyter05)가 학습한 ONNX 를 @candidate 로 등록하고, 평가를 통과한 것을
+  # @production 으로 승격한다. 유사도 배치는 @production 이 가리키는 모델을 받아 쓴다.
+  #
+  # 상주다. 배치 때만 필요한 게 아니라 GPU 가 학습을 끝낼 때마다 붙는다.
+  mlflow:
+    # 공식 이미지. 태그를 고정한다 — latest 로 두면 스키마 마이그레이션이
+    # 어느 날 저절로 돌아 버린다(아래 backend store 주석 참고).
+    image: ghcr.io/mlflow/mlflow:v3.1.0
+    restart: unless-stopped
+    command:
+      - mlflow
+      - server
+      - --host
+      - "0.0.0.0"          # 컨테이너 안에서만 0.0.0.0 이다. 호스트 노출은 ports: 가 정한다
+      - --port
+      - "5000"
+      - --workers
+      - "2"                # 4(기본)에서 2 로 줄였다. 실측 518MiB → 318MiB
+      # ── backend store: 실험·런·등록모델·별칭이 사는 곳 ──
+      #
+      # ⚠ **이 파일이 "무엇이 @production 인가" 를 아는 유일한 곳이다.**
+      #   날리면 모델 파일은 MinIO 에 남아 있는데 어느 게 운영인지 모르게 된다.
+      #   PostgreSQL 을 쓸 수도 있지만 그러면 app 노드의 5432 를 열어야 한다 —
+      #   그 포트를 닫아 두기로 한 결정(로더를 app 노드에 두는 선택)과 맞바꾸게 된다.
+      #   지금 규모(학습 몇 회/일)에서 sqlite 로 충분하다.
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      # ── artifact store: 모델 파일이 사는 곳 ──
+      #
+      # 서버는 이 주소를 **문자열로만 들고 있는다.** 실제 업로드·다운로드는
+      # 클라이언트(GPU·배치)가 자기 자격증명으로 MinIO 에 직접 한다.
+      - --default-artifact-root
+      - s3://pickage-mlflow-artifacts/mlflow
+      # ⚠ 이 플래그가 위 문장을 성립시킨다. 빼면(기본값이 serve-artifacts 다)
+      #   서버가 아티팩트를 중계하려 하고 **boto3 를 찾다가 실패한다** —
+      #   공식 이미지에 boto3 가 없다(확인함). 그때는 커스텀 이미지를 만들어야 한다.
+      - --no-serve-artifacts
+    ports:
+      # 루프백만. GPU 는 SSH 터널로 붙는다 (ai/training/run_pipeline.sh 가
+      # -L 5000:localhost:5000 을 연다). 같은 노드의 배치는 compose 네트워크
+      # 이름으로 붙으므로 포트가 필요 없다.
+      #
+      # 사설 IP 에 묶지 않는다 — app 노드에서 MLflow 를 볼 일이 없다.
+      # 이 노드에 "외부로 열린 포트가 없다" 는 전제가 그대로 유지된다.
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflowdb:/mlflow
+    healthcheck:
+      # ⚠ 이 이미지에는 curl 도 wget 도 없다(확인함). python 만 있다.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health',timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      # 첫 기동에서 alembic 이 스키마를 처음부터 만든다 — 30초쯤 걸린다.
+      # 짧게 두면 정상 기동 중인 컨테이너가 unhealthy 로 죽는다.
+      start_period: 90s
+    # minio 에 depends_on 을 걸지 않는다. --no-serve-artifacts 라서 서버는
+    # S3 를 아예 건드리지 않는다 — 없는 의존을 적으면 기동 순서만 묶인다.
+    mem_limit: 512m
+    memswap_limit: 512m   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 실측 318MiB(워커 2개) 위의 여유. 이 노드는 배치 시각에 12g 를 이미 쓴다.
+
+  # ── Spark (배치) ───────────────────────────────────────────────
+  #
+  # ⚠ network_mode: host 다. 이 셋은 compose 네트워크에 없다.
+  #
+  # 왜: master 와 executor·driver 는 **서로를 되부른다.** bridge 네트워크에서는
+  # 컨테이너가 자기 컨테이너 IP(172.18.x.x)를 광고하는데 상대 호스트는 그 주소로
+  # 라우팅할 수 없다. job 이 시작은 하고 executor 붙는 데서 **조용히 멈춘다.**
+  # 포트를 하나씩 고정해 매핑하는 방법도 있지만 동적 포트가 많아 실패 지점이 늘어난다.
+  #
+  # 대가: 웹 UI 가 0.0.0.0 에 붙는다. 막는 건 보안그룹뿐이다 —
+  # 이 노드는 22 만 열려 있음을 확인했다. 포트를 더 열게 되면 이 줄을 다시 볼 것.
+
+  spark-master:
+    profiles: ["batch", "all"]
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    restart: unless-stopped
+    # sbin/start-master.sh 는 데몬으로 떠서 컨테이너가 바로 끝난다.
+    # spark-class 로 포그라운드 실행해야 컨테이너가 살아 있다.
+    #
+    # --host 를 명시하는 이유: 이 서버에는 docker0(172.17.0.1)도 있어서
+    # Spark 가 자동 탐지하면 그 주소를 광고할 수 있다. 그러면 app 노드의
+    # worker 가 master 를 못 찾는다.
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - ${PRIVATE_IP:?.env 에 이 노드의 사설 IP 를 넣을 것}
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    volumes:
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+    env_file: ./.env
+    mem_limit: 1g
+    memswap_limit: 1g   # 스왑 0. 위 minio 의 주석 참고
+
+  spark-worker-1:
+    profiles: ["batch", "all"]
+    image: apache/spark:3.5.3-python3
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://${PRIVATE_IP:?}:7077
+      - --cores
+      - "${SPARK_WORKER_CORES:?.env 에 넣을 것 — nproc 으로 확인한 값 이하}"
+      - --memory
+      # ⚠ mem_limit 10g 에서 데몬·driver·비힙 몫을 뺀 값이다. .env.example 의 산수를 볼 것.
+      - "${SPARK_WORKER_MEMORY:?.env 에 넣을 것 — 예: 7g}"
+      # master 가 executor 를 띄우라고 이 포트로 되연결한다. 고정하지 않으면
+      # 임의 포트라 방화벽을 통과하지 못하고 job 이 조용히 멈춘다.
+      - --port
+      - "40020"
+      - --webui-port
+      - "8081"
+    environment:
+      # 자동 탐지에 맡기면 docker0 주소를 광고할 수 있다.
+      SPARK_LOCAL_IP: ${PRIVATE_IP:?}
+    volumes:
+      - ../spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../spark/spark-env.sh:/opt/spark/conf/spark-env.sh:ro
+      # 잡 코드. driver 를 여기서 띄운다.
+      - ../../../pipeline:/opt/work
+      - sparkivy:/opt/work/.ivy2
+    working_dir: /opt/work
+    env_file: ./.env
+    mem_limit: 10g
+    memswap_limit: 10g
+    # ↑ 이 10g 안에 **셋이 같이** 들어간다 — worker 데몬, executor, 그리고 **driver**.
+    #   spark-submit 을 이 컨테이너에서 exec 하므로 driver 도 같은 cgroup 이다
+    #   (README.md 의 "스모크 잡" 명령을 볼 것). driver 를 바깥에서 따로 세면 안 된다.
+    #
+    #     executor 힙 7g + 비힙 ~0.7g + driver 1g + 데몬 ~1g ≈ 9.7g   vs   10g
+    #
+    #   SPARK_WORKER_MEMORY 는 worker 가 광고하는 **풀 크기**이므로 그 값이 곧 executor
+    #   힙의 상한이다. 위 합이 10g 을 넘게 두면 **첫 풀사이즈 executor 에서 OOM Kill** 이다 —
+    #   광고하는 풀과 상한 중 하나만 올리면 그렇게 된다.
+    #
+    #   배치 중에 실측해서 이 산수를 확인한다:
+    #     docker stats --no-stream pickage-data-spark-worker-1-1
+    #
+    #   넘기면 완충 없이 OOM Kill 이다 — **일부러 그렇게 뒀다.**
+    #
+    #   Spark 에 스왑을 주면 안 되는 이유: JVM 힙이 스왑으로 밀리면 GC 가 디스크를
+    #   기다린다. 잡이 죽는 게 아니라 **한없이 느려지다가 heartbeat 타임아웃으로
+    #   executor 가 떨어진다.** 이 파일 곳곳에 적어 둔 "조용히 멈춘다" 와 증상이
+    #   똑같아서, 스왑을 허용하면 구별할 수 없는 실패 모드가 하나 더 생긴다.
+    #   깨끗하게 OOM 나고 재시도하는 쪽이 진단 가능하다.
+    #
+    #   호스트 스왑 2g 는 이 노드에서 MinIO 데이터·Docker·셔플과 **같은 파티션**을
+    #   쓴다. 스왑 I/O 를 허용하면 MinIO 읽기와 셔플 쓰기의 IOPS 를 같이 갉아먹는다.
+
+  # ── 유사도 배치 (1회성) ────────────────────────────────────────
+  #
+  # ⚠ **상주 서비스가 아니다.** 한 번 돌고 끝난다 — minio-init 과 같은 성격이라
+  #   profiles 에 넣었다. `up -d` 로는 뜨지 않는다.
+  #
+  #   docker compose run --rm ai-similarity --package-text ... --model-dir ... --out ...
+  #
+  #   `run` 은 서비스 이름을 직접 대면 profiles 를 알아서 켠다. `--rm` 을 빼면
+  #   돌린 횟수만큼 Exited 컨테이너가 쌓여 `ps -a` 를 못 읽게 된다.
+  #
+  # ⚠ **인자가 필수다.** ENTRYPOINT 라서 `run` 뒤에 붙인 것이 그대로 넘어가고,
+  #   --package-text·--model-dir·--out 이 없으면 argparse 가 바로 종료한다.
+  #   그래서 `command:` 를 두지 않는다 — 두면 기본 인자가 되어 이 형태를 가린다.
+  #   전체 목록: `docker compose run --rm ai-similarity --help`
+  #
+  # 앞뒤의 MinIO 왕복도 compose 서비스다 — ai-stage / ai-collect. `docker run` 으로
+  # 빼지 않는 이유는 그 셋(네트워크·볼륨 이름·env_file)을 손으로 다시 대야 하고,
+  # **자격증명을 넘기는 데서 실제로 틀렸기 때문이다.** minio-init 과 같은 모양으로 둔다.
+
+  ai-stage:
+    # 1/3. MinIO → aiwork. 배치가 S3 를 못 읽어서(이미지에 boto3 없음) 사람 대신 옮긴다.
+    profiles: ["batch", "all"]
+    # minio 와 **같은 핀**을 쓴다. 여기만 올리면 mc 하위 명령이 갈라진다.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        # ⚠ 자격증명은 $$ 로 둔다 — **컨테이너 안의 셸이 런타임에** env_file 에서 읽는다.
+        #   $ 하나로 쓰면 compose 가 먼저 먹어서 비밀이 **명령줄 문자열에 박힌다.**
+        #   그러면 docker inspect 의 Entrypoint 와 프로세스 목록에까지 값이 남는다.
+        #   (env_file 때문에 `compose config` 의 environment 블록에는 어차피 보인다 —
+        #    이건 이 파일의 모든 서비스가 그렇고, $$ 로 막히는 문제가 아니다.)
+        #
+        #
+        # ⚠ **경로도 $$ 다.** 날짜·모델 버전이 박힌 값이라 compose 가 아니라
+        #   run-similarity-batch.sh 가 포인터를 읽어 확정하고 -e 로 넘긴다.
+        #   이 파일에 날짜도 버전도 없는 것이 의도다 — 회차마다 고칠 것이 없어야 한다.
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        : "$${AI_CORPUS_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        : "$${AI_MODEL_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        rm -rf /work/in /work/out
+        mkdir -p /work/in /work/out
+        mc cp --recursive "l/$$AI_CORPUS_PATH/" /work/in/
+        mc cp --recursive "l/$$AI_MODEL_PATH/" /work/in/model/
+        # 보완재 관문 입력 (S15P21A506-173). 배치는 --package-text 와 같은 폴더의
+        # package_dependents.parquet 을 찾으므로 **이 이름으로** 받는다. 경로는 .env 의
+        # AI_DEPENDENTS_PATH (버킷/키 형태) — 아직 최신을 가리키는 포인터가 없어서
+        # 코퍼스·모델과 달리 .env 에 둔다.
+        # ⚠ 없거나 못 받아도 **배치를 멈추지 않는다.** 배치가 파일이 없으면 경고하고
+        #   보완재 관문만 건너뛴다. set -e 라 `||` 로 받아야 여기서 죽지 않는다.
+        if [ -n "$${AI_DEPENDENTS_PATH:-}" ]; then
+          mc cp "l/$$AI_DEPENDENTS_PATH" /work/in/package_dependents.parquet \
+            || echo "경고: dependents 를 못 받음 ($$AI_DEPENDENTS_PATH) — 보완재 관문은 건너뛴다" >&2
+        else
+          echo "경고: AI_DEPENDENTS_PATH 가 비어 있음 — 보완재 관문은 건너뛴다" >&2
+        fi
+        # ⚠ 배치는 uid 1000 으로 돈다. mc 는 root 로 받으므로 넘겨주지 않으면
+        #   배치가 --out 쓰기에서 Permission denied 로 죽는다.
+        chown -R 1000:1000 /work
+        ls -ln /work/in
+
+  ai-collect:
+    # 3/3. aiwork → MinIO. 잡이 s3:// 를 직접 쓰게 되면 이 서비스는 사라진다.
+    profiles: ["batch", "all"]
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: ./.env
+    volumes:
+      - aiwork:/work
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set l http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        : "$${AI_RESULT_PATH:?run-similarity-batch.sh 가 -e 로 넘긴다. 직접 run 하지 말 것}"
+        # /work/out 아래의 model=vN/corpus=<run> 구조를 그대로 올린다.
+        mc cp --recursive /work/out/ "l/$$AI_RESULT_PATH/"
+        # ⚠ 완료 표시. 이게 있어야 다음 회차가 "이미 했다" 를 판단한다 —
+        #   없으면 같은 run 을 계속 다시 돈다.
+        touch /tmp/_SUCCESS
+        for d in /work/out/*/*; do
+          [ -d "$$d" ] || continue
+          mc cp /tmp/_SUCCESS "l/$$AI_RESULT_PATH/$${d#/work/out/}/_SUCCESS"
+        done
+
+  ai-similarity:
+    # 2/3.
+    profiles: ["batch", "all"]
+    # 레지스트리가 없어서 build 를 같이 둔다. `compose build` 가 만든 이미지에
+    # 곧바로 이 태그가 붙는다 — app 노드의 api·web 과 같은 방식이다.
+    # 롤백은 AI_TAG 를 이전 SHA 로 되돌리는 것이 전부다.
+    #
+    # 굽는 것은 `deploy-ai` 잡이다 (S15P21A506-339). ⚠ **그 잡은 `--profile batch` 를
+    # 붙인다.** 이 서비스가 profiles 에 있어서 그냥 `docker compose build` 로는
+    # 대상에서 빠지는데, 그때 "No services to build" 를 찍고 **0 으로 끝난다** —
+    # 손으로 칠 때도 같다. 굽는 시늉만 하고 초록불이 되는 자리라 여기 적어 둔다.
+    image: pickage-ai-similarity:${AI_TAG:?.env 에 AI_TAG 를 채울 것 — api·web 과 같은 규칙(커밋 SHA)}
+    build:
+      # ⚠ context 가 `ai/` 가 아니라 `ai/similarity/` 다. 잡마다 디렉터리가 따로 있고
+      #   .dockerignore 도 그 디렉터리 기준이다. AI 파트 소유이므로 여기서 바꾸지 말 것.
+      context: ../../../ai/similarity
+    restart: "no"
+    # minio 에 depends_on 을 걸지 않는다. **이 잡은 S3 를 아예 안 쓴다** —
+    # 이미지에 boto3 가 없고(requirements.txt 는 numpy·onnxruntime·pyarrow·transformers),
+    # 입출력이 전부 로컬 경로다. 산출물의 s3:// 출력은 후속 작업이다
+    # (similarity_batch_pipeline.py 의 "현재 구현 상태" 6번).
+    #
+    # 그래서 MinIO·MLflow 자격증명도 주지 않는다. 줘도 쓸 코드가 없고,
+    # 안 쓰는 비밀을 컨테이너에 넣는 것은 노출만 늘린다.
+    volumes:
+      # 입력(코퍼스 parquet·ONNX 모델)과 산출물이 여기를 지난다.
+      # MinIO 에서 꺼내 오고 다시 넣는 것은 **사람이 한다** — README 의 "유사도 배치 돌리기".
+      - aiwork:/work
+    mem_limit: 8g
+    memswap_limit: 8g   # 스왑 0. 위 minio 의 주석 참고 — 두 값은 반드시 짝으로 바꾼다
+    # ↑ 2g 로는 한 번도 완주하지 못했다(S15P21A506-384). data 노드 커널 기록에
+    #   09-17 05:22(2g)·05:47(4g)·09-19 13:12(2g) 세 번 OOM 이 남아 있고, 성공한 회차는
+    #   상한을 손으로 올려 다시 돌린 것이다. 8g 는 09-17 운영 완주값(최고 5.236 GiB).
+    #   로컬 재현(S15P21A506-475, 16 스레드라 EC2 보다 큰 상한값): 현재 코퍼스 4.68 GiB,
+    #   확장 코퍼스 2.9만 5.02 GiB. 최고점은 임베딩 구간이다 — 적재 구간은 382 로 줄었다.
+    #
+    # ⚠ 상한 합계는 이 노드(15 GiB)를 넘는다 — Spark worker① 10g 가 천장이라서다.
+    #   Spark 는 09-09 스모크 이후 이 노드에서 돈 적이 없고 worker① 실사용은 약 300 MiB 라
+    #   worker 상한은 그대로 두고, **Spark 앱이 없고 주간 수집이 쉬고 있을 때만 배치를
+    #   돌린다**(README "Spark 배치와 시간을 겹치지 말 것" 의 점검 명령).
+    #
+    #   10만건 재임베딩 실측 ~20.7분(batch 32). OOM 이 나면 상한을 더 올리기 전에
+    #   --batch-size 를 줄여 본다 — 임베딩 구간 메모리가 배치 크기를 따른다.
+
+  # ── 주간 수집 (1회성) ──────────────────────────────────────────
+  #
+  # ⚠ **상주 서비스가 아니다.** systemd 타이머가 10분마다 한 번 띄우고, 할 일이 없으면
+  #   MinIO 객체를 하나 읽고 0 으로 끝난다. `up -d` 로는 뜨지 않는다(profiles).
+  #
+  #   sh run-weekly-ingest.sh                      # 타이머가 부르는 것
+  #   docker compose run --rm ingest-weekly --help # 인자 목록
+  #
+  # 09-15 재설계로 app 노드에서 여기로 옮겼다. app 노드에는 서비스가 직접 쓰는 것만 둔다 —
+  # DB 적재 전 전처리용 Parquet 은 거기 속하지 않는다. 옮기면서 Bronze 업로드의 노드 간
+  # 왕복이 사라졌다(아래 PICKAGE_MINIO_ENV 주석).
+  ingest-weekly:
+    profiles: ["ingest", "all"]
+    # 레지스트리가 없어서 build 를 같이 둔다 — ai-similarity·api·web 과 같은 방식이다.
+    #
+    # ⚠ 다만 여기는 **태그로 롤백하지 않는다.** 이 이미지에는 코드가 없고(런타임만),
+    #   `pipeline/` 은 아래에서 마운트한다. 되돌리는 방법은 `git checkout` 이다.
+    #   그래서 커밋 SHA 태그를 쓰지 않는다 — 쓰면 태그가 거동을 가리키는 것처럼 보인다.
+    image: pickage-ingest-weekly:runtime
+    build:
+      # context 가 `pipeline/` 이다. Dockerfile 이 collectors·minio 의 requirements 를
+      # 상대경로로 집는다.
+      context: ../../../pipeline
+    restart: "no"
+    # minio 에 depends_on 을 걸지 않는다. `run` 은 depends_on 을 따라 서비스를 띄우는데,
+    # minio 는 어차피 상주(`up -d`)라 이미 떠 있고, 걸어 두면 타이머가 깨울 때마다
+    # 의존성 판정이 한 번 더 돈다. 없으면 수집이 S3 오류로 실패하고 다음 발화가 이어받는다.
+    environment:
+      # 입고기와 상태 계층이 읽을 자격증명 **파일 이름**. 환경변수가 아니라 파일이다
+      # (pipeline/minio/ingest_raw.py 의 client()).
+      #
+      # 이 노드에서는 그 파일이 PICKAGE_S3_ENDPOINT=http://minio:9000 을 가리킨다 —
+      # **같은 호스트의 compose 네트워크 안**이라 서비스 이름으로 붙는다. app 노드에서
+      # 돌 때는 사설 IP 로 수 GB 를 보냈다. 그 왕복이 사라지는 지점이 여기다.
+      PICKAGE_MINIO_ENV: .env.data
+      # downloads 수집기의 User-Agent 연락처. 비어 있으면 시작하지 않는다.
+      OSS_SHIFT_UA_CONTACT: ${OSS_SHIFT_UA_CONTACT:?.env 에 채울 것 — 수집기 User-Agent 연락처}
+    volumes:
+      # 저장소를 통째로 넣는다. 코드·대상 CSV(datasets/)·자격증명 파일이 전부 여기 있다.
+      # spark-worker-1 이 pipeline/ 을 마운트하는 것과 같은 방식이고, 이유는
+      # pipeline/Dockerfile 의 "이 이미지에는 코드가 없다" 를 볼 것.
+      - ../../..:/opt/work
+      # ⚠ **산출물 바인드의 컨테이너 쪽 지점이 `<repo>/data` 여야 한다.**
+      #   pipeline/minio/ingest_raw.py 와 pipeline/downloads/load.py 가 ROOT 를
+      #   `Path(__file__).resolve().parents[2]` 로 잡고 `ROOT/'data/raw'` 를 훑는다.
+      #   경로를 바꿀 인자가 없다. 어긋나면 입고기가 "No source snapshots selected" 로
+      #   죽는다 — 원본이 없는 것과 구별되지 않아서 진단이 오래 걸린다.
+      #
+      #   위의 저장소 마운트를 이 줄이 덮어쓴다(더 깊은 경로가 이긴다). 그래서 호스트
+      #   저장소의 data/ 가 아니라 /srv/pickage/ingest-work 가 보인다 — 의도다.
+      #   주당 약 10 GB 라 저장소 안에 두지 않는다.
+      #
+      #   ⚠ 디렉터리를 uid 1000 소유로 만들어 두어야 한다. 컨테이너가 uid 1000 으로
+      #     돌고(Dockerfile), 없으면 Docker 가 root 소유로 만들어 쓰기가 막힌다.
+      #       sudo mkdir -p /srv/pickage/ingest-work
+      #       sudo chown -R 1000:1000 /srv/pickage/ingest-work
+      #
+      #     **부모 /srv/pickage 는 건드리지 않는다.** 배포 러너의 data.env 가 거기 있다.
+      - /srv/pickage/ingest-work:/opt/work/data
+      # GCP 서비스 계정 키. 파이썬 클라이언트와 gcloud CLI 가 **둘 다** 이 파일을 본다
+      # (Dockerfile 의 ENV 둘). 읽기 전용으로 넣는다.
+      - /srv/pickage/secrets:/opt/work/secrets:ro
+    mem_limit: 3g
+    memswap_limit: 3g   # 스왑 0. 위 minio 의 주석 참고
+    # ↑ 수집기는 네트워크 바운드이고 가장 무거운 구간이 duckdb 의 Parquet 메타데이터
+    #   읽기다. app 노드에서 systemd MemoryMax 로 잡았던 값과 같다.
+    #
+    #   평소에는 여유롭다 — 이 노드의 상주는 minio 1g + mlflow 512m 뿐이고 Spark 셋과
+    #   유사도 배치는 전부 profiles 안이라 뜨지 않는다.
+    #
+    #   ⚠ **유사도 배치와 겹치면 안 된다.** 그때는 Spark 셋 12g + 배치 2g 가 이미 올라가
+    #     있어서 3g 를 더 얹을 자리가 없다. 수집 창(화 10:00 ~ 수 09:00 KST) 밖으로
+    #     배치 시각을 잡는다 — 유사도 타이머가 아직 없으므로 지금 정해 두면 된다.
+    #
+    #   ⚠ `docker compose run` 이 이 상한을 실제로 먹는지 확인할 것. 안 먹으면 상한 없이
+    #     도는 것이라, 이 노드에서 커널이 무엇을 죽일지 우리가 못 고른다.
+
+  # ── Curated 전처리 dispatcher (1회성) ─────────────────────────
+  # 수집 뒤 같은 호스트 잠금 안에서 순차 호출한다. 수집이 실패해도 이전에
+  # 완료된 raw 회차의 전처리 재시도를 놓치지 않도록 별도로 실행한다.
+  curated-dispatch:
+    profiles: ["ingest", "all"]
+    image: pickage-curated:bounded-runtime
+    build:
+      context: ../../..
+      dockerfile: pipeline/preprocessing/runtime/Dockerfile.bounded
+    restart: "no"
+    command: ["python", "-m", "pipeline.preprocessing.orchestration.dispatcher"]
+    environment:
+      PICKAGE_MINIO_ENV: .env.data
+    privileged: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /run:size=16m
+    volumes:
+      - ../../..:/opt/work:ro
+      - curated-bounded-work:/var/lib/pickage-bounded
+    working_dir: /opt/work
+    mem_limit: 8g
+    memswap_limit: 8g
+    cpus: 2.0
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+# named volumes
+volumes:
+  # named volume 이지만 데이터는 Docker 영역이 아니라 호스트 경로에 있다.
+  # 손으로 띄운 컨테이너가 쓰던 그 디렉터리를 그대로 가리켜야 **기존 데이터가 보인다.**
+  #
+  # ⚠ device 경로를 바꾸거나 driver_opts 를 지우면 MinIO 는 빈 스토리지로 뜨고
+  #   버킷이 사라진 것처럼 보인다. 실제 데이터는 /srv/minio/data 에 그대로 있는데
+  #   컨테이너가 다른 곳을 보고 있는 상태다. 확인:
+  #     docker volume inspect pickage-data_minio-data --format '{{.Options.device}}'
+  #
+  # `docker compose down -v` 는 이 볼륨 정의만 지우고 /srv/minio/data 의 파일은
+  # 건드리지 않는다 (확인함). 그래도 습관으로 치지 말 것 — 누가 driver_opts 를
+  # 지운 뒤라면 진짜로 지워진다.
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /srv/minio/data
+      o: bind
+
+  # 내려받은 JAR 캐시. 없으면 배치를 돌릴 때마다 Maven 에서 다시 받는다.
+  sparkivy:
+
+  # Curated dispatcher scratch is mounted into the bounded supervisor only.
+  curated-bounded-work:
+
+  # MLflow 의 sqlite 파일. **모델 파일이 아니라 "어느 모델이 @production 인가" 다.**
+  #
+  # ⚠ 이걸 잃으면 MinIO 의 모델 파일은 그대로 남는데 어느 게 운영인지 모르게 된다.
+  #   위 `하지 말 것` 의 `down -v` 경고가 이 볼륨에는 **글자 그대로 적용된다** —
+  #   minio-data 처럼 호스트 경로로 도망갈 곳이 없다.
+  #
+  # 백업(학습을 돌린 날 한 번): 절차는 README.md 의 "mlflow.db 는 모델 파일이 아니다".
+  #
+  # ⚠ 파일만 복사하지 말 것. journal_mode=delete 라 쓰는 중에는 일관된 상태가
+  #   mlflow.db 와 mlflow.db-journal 에 나뉘어 있다 — .db 만 떠 가면 찢어진 사본이
+  #   나올 수 있다. sqlite 온라인 백업 API(Connection.backup)를 쓴다.
+  mlflowdb:
+
+  # 유사도 배치의 작업 공간. 입력(parquet·ONNX 모델)과 산출물이 여기 있다.
+  #
+  # ⚠ 컨테이너가 uid 1000(appuser)로 도는데 **새 볼륨은 root 소유로 만들어진다.**
+  #   그대로 돌리면 --out 쓰기에서 Permission denied 다. 처음 한 번 소유권을 넘긴다 —
+  #   README 의 "유사도 배치 돌리기" 에 명령이 있다.
+  #
+  # 산출물은 사람이 MinIO 로 올린다. **여기 있는 것은 중간 산출물이라 백업 대상이 아니다** —
+  # 다시 돌리면 나온다. 지워도 되는 유일한 볼륨이다.
+  aiwork:

@@ -1,0 +1,676 @@
+{
+  "status": "PASSED",
+  "checked_at": "2026-09-09T05:09:10.322954+00:00",
+  "verification": "GET_SHA256_SELECTED_FILES_AND_LOCAL_PARQUET_COUNTS",
+  "inputs": {
+    "population": {
+      "prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2",
+      "manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3"
+    },
+    "downloads": {
+      "prefix": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1",
+      "manifest_sha256": "7dfc0cb5b76102d35f9baa28e03d7370bbd0d9a241b9c4a58ba3de8a95906377"
+    },
+    "repository_metrics": {
+      "prefix": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3",
+      "manifest_sha256": "ca92eaa351fcd2ecd7d9355d3b5ee0635d9046ffecdb8fc946d28b226ecc0f30"
+    }
+  },
+  "candidate_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+  "candidate_check": "read_candidate inventory/footer validation, no full raw data byte scan",
+  "interval": {
+    "snapshot_at": "2026-08-31",
+    "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+    "source_timestamps": [
+      "2026-08-31T21:01:10.517131Z"
+    ],
+    "previous_snapshot_at": "2026-08-24",
+    "previous_snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+    "download_start_inclusive": "2026-08-24",
+    "download_end_exclusive": "2026-08-31",
+    "interval_days": 7,
+    "interval_reason": null
+  },
+  "files": [
+    {
+      "group": "package",
+      "key": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2/attempts/1fc06062562448e1b7278aa03b964fff/package/data/data_0.parquet",
+      "bytes": 27867881,
+      "sha256": "03ea5df67190cc825efc0e17b39ff7dd03fdd0234c9d57edd327a9b16f690464"
+    },
+    {
+      "group": "package",
+      "key": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2/attempts/1fc06062562448e1b7278aa03b964fff/package/data/data_1.parquet",
+      "bytes": 27793270,
+      "sha256": "8a592c710270fe981ee9714bf78cb0a2ce57c6321c9a68e09e313b2d3cfbe5c3"
+    },
+    {
+      "group": "package",
+      "key": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2/attempts/1fc06062562448e1b7278aa03b964fff/package/data/data_2.parquet",
+      "bytes": 26471035,
+      "sha256": "5d91726bc4e2054d387bb28baadf4d2498160589363d0e5194605028dbc47593"
+    },
+    {
+      "group": "package",
+      "key": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=curated-20260907-v2/attempts/1fc06062562448e1b7278aa03b964fff/package/data/data_3.parquet",
+      "bytes": 25297281,
+      "sha256": "373d1947581e2f8b3eac955c7b0304e7665d207bd6aad55eb0ff6b049f752bb1"
+    },
+    {
+      "group": "interval_downloads",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/interval_downloads.parquet",
+      "bytes": 46433960,
+      "sha256": "40f4af5949a53a1d1001adc16f671b91f350cf0126e2cac93d4c0764f61e8f37"
+    },
+    {
+      "group": "daily_quality",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/daily_quality.parquet",
+      "bytes": 42399,
+      "sha256": "3e2d2c7c29e3ef9db99537db031e917034888b3f903f595b1fee1c4790505409"
+    },
+    {
+      "group": "unmatched_packages",
+      "key": "npm-downloads-interval/v1/snapshot=2026-08-31/run_id=downloads-interval-278-20260909-v1/data/unmatched_packages.parquet",
+      "bytes": 34368,
+      "sha256": "c980da55a323ed1369ec6cf146d60dda821301f11a359b9a3f4bcc081ec98572"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00000-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1914301,
+      "sha256": "f8898a43459c0a1bb3190fb4e0ab74a039c116b65c2dc3ff36267db35f8dba57"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00001-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2434371,
+      "sha256": "a4f7df99f86ed1a598a54fa86ad7d60010afcfe0721f8f005ae990063bbe5c82"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00002-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1525296,
+      "sha256": "d325d02521224a82ad15c077c4596007cb9657ab3f090636451446b29c755bd8"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00003-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2294860,
+      "sha256": "d5e9bbedf65ddc7f93e2fa7dec1dc13c432c2ca28fafb2f83852021b43fbc9fa"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00004-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2047356,
+      "sha256": "c9734b2449031588e6e93c32235eba6db3006925c8bbfe486199b14a4f481a50"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00005-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1945944,
+      "sha256": "3f39ce1640e704e0320cd44989d19b7d438e0008442ef3da214daff1b0212d58"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00006-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1964430,
+      "sha256": "5fed8198e962b6f8463792740a1f361408e88fd9bcf6727168d5908e43a347bc"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00007-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2993862,
+      "sha256": "da858f204203eaf7116c284dad62e7cad8c395addc6798f027935b414a1c8da3"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00008-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2378218,
+      "sha256": "9f02e17ecd1b7815099b37349ef202c4ae10ea8d8ce1a4e5c954a1c1a9aba829"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00009-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2231871,
+      "sha256": "b014bd1a5806bfd6a551b2e905ba2c78c12ee4c4feb08b966115c1bc4454c40f"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00010-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 4012684,
+      "sha256": "dc1422896b8274a3fe17f185d884994c0cd5a6c446641589f675e945494788b5"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00010-73dc8641-9758-427b-9891-9d761ab4238f-c001.snappy.parquet",
+      "bytes": 4012678,
+      "sha256": "4a0dbabd9426667120cb9b278a3bc0882a2231d410644822bcabd4a2ccbf851d"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00010-73dc8641-9758-427b-9891-9d761ab4238f-c002.snappy.parquet",
+      "bytes": 4109796,
+      "sha256": "cbffe260d7f7e24222c6161d59fdb93231151fbdeaaefb80d7e02ed1b319d32f"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00010-73dc8641-9758-427b-9891-9d761ab4238f-c003.snappy.parquet",
+      "bytes": 2557339,
+      "sha256": "b68686d241c9f2b5b5be220bb79644f24ff8accf998f209fde60a82b00570ce3"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00011-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1845873,
+      "sha256": "c6f7d025d2f1add6cf6ff3e940f9bfdf68147aed79c6047edaa156b84f705dfa"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00012-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2710691,
+      "sha256": "7aee6cf5ae27a416a684201d426b9e71ee6c1d27c605a2c797a0674700bfe529"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00013-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2151295,
+      "sha256": "7a577666c55c4e366f9bccbfcbaf81418f64b9fefaede47db89c02cbd1522867"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00014-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 1880126,
+      "sha256": "58caa1e7081da9998d7589eacc52e3607ebb5cfad9bc7c350bd5cf6f46f99393"
+    },
+    {
+      "group": "repository_metric",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/metric/data/part-00015-73dc8641-9758-427b-9891-9d761ab4238f-c000.snappy.parquet",
+      "bytes": 2274246,
+      "sha256": "1c1db6acfc40defe646debf9362077900b3bc7a4a40724fcc3c3e6f24e9eacba"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00000-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11267846,
+      "sha256": "c619357557dc265ee33055cff43774bcda7d55dbd5cf1626c841b11552d6114b"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00001-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 12163995,
+      "sha256": "dfce6154272f76251bcebe52854198c58c749004b45f2afce4722581b7e956b2"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00002-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 10392879,
+      "sha256": "14b72d7f691a81a3a4b13e9ddd5465a65cc720eaf4127c0d89094afd5ed132f0"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00003-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11965999,
+      "sha256": "f050554368def2e7c4b95316ce47af7e36bfee63b390545649c2ec83f7a30f57"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00004-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11388920,
+      "sha256": "7612a33318ccee38611a19bd7b60905802d4e91cc9a307a5bf365200287c1a11"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00005-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11183342,
+      "sha256": "b74d7919fefbc9bc2526a86b5996299c5dfce40c62d7efe9553b322d2eb39411"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00006-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11372092,
+      "sha256": "615e8890689cd41faa71ce2dd81c73e2b70af5b344ef07dd3cb80dd66824e471"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00007-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 12616755,
+      "sha256": "e72018e489db4b5a7879f6c3139d713e7793d329df207e20cc7d66ff4bef7c1e"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00008-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 12691969,
+      "sha256": "0534197134ca5a45210e9ebcd7688182bcd6c76e35979040aab41ea83faded4a"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00009-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11846362,
+      "sha256": "010213e8e8fc7904de4add9969c12c244ca65aaee37ceb4e3fd35425010f2240"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 4045331,
+      "sha256": "23c8efe08c7ddf1afedf657f4a272e9610465d42d2cdb54c9357d75bb9c3c3b6"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c001.snappy.parquet",
+      "bytes": 4045325,
+      "sha256": "2b6c70a95bc604b9c0a0a5693a91d09e44e429213efb8f59f1387ff318e93cda"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c002.snappy.parquet",
+      "bytes": 6528695,
+      "sha256": "92358672fad0eebac53a000e18436f1c05463a62baedd5463b6381ea1e7932cd"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00010-92237917-0be9-4524-a8da-465bb06a211d-c003.snappy.parquet",
+      "bytes": 11063456,
+      "sha256": "db3f210c1daa2a704fcce49cbf5a5f9cd8af1bd0455237838650cf1351becdbe"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00011-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11148907,
+      "sha256": "b574c3136319b422d55c95943c18d17d784aa9c9408dcec560e6d1a2ac3e2454"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00012-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 12668318,
+      "sha256": "5a390237b5c15d90d9982cec32716308a75bfabf1e70fae85eb3b4a717f9af08"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00013-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11759396,
+      "sha256": "889d36496b527684cfbbd22c8280a5ccf04ed63ef25707ccde14f9f6c3a4722f"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00014-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11117322,
+      "sha256": "0ecfc2fd87e4a2dd993bd84afdce8bf643d76338ac630d19549588748e341648"
+    },
+    {
+      "group": "repository_selection",
+      "key": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3/attempts/f0f679c39fb04c8d8c33c2e1347342cf/outputs/quality/selection/part-00015-92237917-0be9-4524-a8da-465bb06a211d-c000.snappy.parquet",
+      "bytes": 11750014,
+      "sha256": "c0b53dda390f267543a14c8c8421fbdadcea17ff4fdb279ff1f4b295558d2b4f"
+    }
+  ],
+  "counts": {
+    "package": 11080940,
+    "interval_downloads": 11080940,
+    "daily_quality": 6759,
+    "unmatched_packages": 2251,
+    "repository_metric": 11080940,
+    "repository_selection": 11080940
+  },
+  "joined_rows": 11080940,
+  "quality": {
+    "download_status": {
+      "COMPLETE": 97091,
+      "UNAVAILABLE": 10983212,
+      "PARTIAL": 637
+    },
+    "repository_reason": {
+      "SELECTED": 7150485,
+      "NO_EXACT_OBSERVATION": 1152136,
+      "NO_VALID_REPOSITORY": 2778319
+    },
+    "downloads_nonnull": 97728,
+    "download_sum": "213093115787",
+    "repository_both_null": 3930455,
+    "observed_timestamp_bounds": [
+      "2026-08-31 21:01:10.517131+00",
+      "2026-08-31 21:01:10.517131+00"
+    ]
+  },
+  "schemas": {
+    "package": [
+      [
+        "package_id",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "name",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "repo_url",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "interval_downloads": [
+      [
+        "package_id",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "snapshot_at",
+        "DATE",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "previous_snapshot_at",
+        "DATE",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "download_sum",
+        "BIGINT",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "expected_days",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "observed_days",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "valid_days",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "data_status",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "null_reason",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "quality_reasons",
+        "VARCHAR[]",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "input_manifest_sha256",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "policy_sha256",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "aggregation_policy_sha256",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "daily_quality": [
+      [
+        "package_id",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "name",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "date",
+        "DATE",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "reason",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "unmatched_packages": [
+      [
+        "name",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "input_status",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "observed_days",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "reason",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "repository_metric": [
+      [
+        "package_id",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "snapshot_at",
+        "DATE",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "stars",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "open_issues",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ],
+    "repository_selection": [
+      [
+        "package_id",
+        "INTEGER",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "version",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "ordinal",
+        "BIGINT",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "repo_url",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "provider",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "project_path",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "comparison_project_path",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "observed_project_path",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "snapshot",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "snapshot_timestamp",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "observed_timestamp",
+        "TIMESTAMP WITH TIME ZONE",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "reason",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ],
+      [
+        "mapping_status",
+        "VARCHAR",
+        "YES",
+        null,
+        null,
+        null
+      ]
+    ]
+  }
+}

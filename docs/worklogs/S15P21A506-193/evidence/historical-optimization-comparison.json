@@ -1,0 +1,111 @@
+{
+  "at": "2026-09-10T13:46:32.847855+00:00",
+  "status": "PASS",
+  "output": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\optimization-examples\\run_id=h3-20260910T134625831970Z",
+  "scope": "Synthetic golden and repeated lookup fixture only; not real historical performance",
+  "legacy_files_verified_unchanged": 30,
+  "code_sha256": {
+    "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+    "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+    "docs/worklogs/S15P21A506-193/evidence/historical-optimization-check.py": "60657dcafb6ac7040aba9087148bbbad5650ac0b54585063e1cdf3b4ce1ba465"
+  },
+  "cases": [
+    {
+      "fixture": "golden",
+      "fixture_sha256": "d0b683f19f52c3a3b59f88ff6b99190237d0a5ced546a6133893d68ebdb558f3",
+      "snapshots": 3,
+      "versions": 6,
+      "timings_seconds": {
+        "reference": [
+          0.17199999999138527
+        ],
+        "optimized": [
+          0.23399999999674037
+        ]
+      },
+      "median_seconds": {
+        "reference": 0.17199999999138527,
+        "optimized": 0.23399999999674037
+      },
+      "observed_speedup": 0.7350427350161591,
+      "all_counts_states_quality_match": true,
+      "runtime_fingerprints_match": true,
+      "metrics": {
+        "candidate_checks": 10,
+        "parsed_requirements": 4,
+        "worker_requests": 3,
+        "resolved_declaration_intervals": 7,
+        "merged_edge_intervals": 5,
+        "target_delta_events": 6,
+        "unique_lookups": 4,
+        "lookup_intervals": 7,
+        "declaration_intervals": 7,
+        "source_intervals": 6,
+        "sparse_count_rows": 6,
+        "reference_resolution_calls": 14
+      },
+      "saved": {
+        "reference": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\optimization-examples\\run_id=h3-20260910T134625831970Z\\golden-reference.json",
+          "sha256": "5e1c2f7dbdae62a32b92a717850a0c7d793f041b891f7e22d271326316201247"
+        },
+        "optimized": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\optimization-examples\\run_id=h3-20260910T134625831970Z\\golden-optimized.json",
+          "sha256": "d5b0dc13d4556ff5ae4dafc27b08ef1dfe1ec27e2a49ad7c2bf4f6459a38b9ad"
+        }
+      }
+    },
+    {
+      "fixture": "repeated",
+      "fixture_sha256": "cc39084fcba45989bf8038c126897a7235e714a6f3df03cd4814b5d2204adabc",
+      "snapshots": 16,
+      "versions": 124,
+      "timings_seconds": {
+        "reference": [
+          2.1089999999967404,
+          1.8589999999967404,
+          1.812999999994645
+        ],
+        "optimized": [
+          0.21900000001187436,
+          0.2340000000112923,
+          0.21799999999348074
+        ]
+      },
+      "median_seconds": {
+        "reference": 1.8589999999967404,
+        "optimized": 0.21900000001187436
+      },
+      "observed_speedup": 8.488584474410702,
+      "all_counts_states_quality_match": true,
+      "runtime_fingerprints_match": true,
+      "metrics": {
+        "candidate_checks": 8,
+        "parsed_requirements": 2,
+        "worker_requests": 2,
+        "resolved_declaration_intervals": 960,
+        "merged_edge_intervals": 480,
+        "target_delta_events": 8,
+        "unique_lookups": 2,
+        "lookup_intervals": 8,
+        "declaration_intervals": 960,
+        "source_intervals": 124,
+        "sparse_count_rows": 16,
+        "reference_resolution_calls": 3840
+      },
+      "saved": {
+        "reference": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\optimization-examples\\run_id=h3-20260910T134625831970Z\\repeated-reference.json",
+          "sha256": "6381c23344dbba5e82003381b078173be434735855816a49789757e4cd603565"
+        },
+        "optimized": {
+          "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\optimization-examples\\run_id=h3-20260910T134625831970Z\\repeated-optimized.json",
+          "sha256": "cdd45f9100468be4df7797e63fcd88264a2ab6affe08e141776d88223df59325"
+        }
+      }
+    }
+  ],
+  "actual_229_snapshot_count_executed": false,
+  "database_access": false,
+  "ready_for_load": false
+}

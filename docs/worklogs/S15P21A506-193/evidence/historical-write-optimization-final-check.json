@@ -1,0 +1,17 @@
+{
+  "tested_code_unchanged": true,
+  "previous_production_modules_changed": [
+    "pipeline/version_dependents/historical_production.py"
+  ],
+  "old_h4_profile_input_code_preserved": true,
+  "links_checked": 88,
+  "full_selected_executed": false,
+  "server_access_performed": false,
+  "spark_migration_performed": false,
+  "db_written": false,
+  "committed": false,
+  "pushed": false,
+  "branch": "data/feat/S15P21A506-193-dependents-count",
+  "head": "d3bddc15d7c2c158734d29039020f652348aef56",
+  "staged_files": []
+}

@@ -1,0 +1,30 @@
+{
+  "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-weighted-six-0911",
+  "run_status": "COMPLETE",
+  "scope": "SAMPLE",
+  "run_manifest_sha256": "255b98a9e9c1bfa20121ecf3951babb8fff4a2acb55d3b6c5720752517b59648",
+  "cache_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-weighted-six-0911\\finalizations\\788f228fffb7440eab47c4acaf8d036a\\cache",
+  "cache_sha256": "9c118c9be5a00ba36dc90e6536d1b1d8619c22a3c8702a25a2ce65e74c4b6931",
+  "written_partitions": [
+    0,
+    1,
+    2
+  ],
+  "reused_partitions": [],
+  "worker_metrics": {
+    "requests": 6,
+    "request_utf8_bytes": 1125867,
+    "response_utf8_bytes": 1137471,
+    "max_request_utf8_bytes": 1123141,
+    "max_response_utf8_bytes": 1123282,
+    "request_seconds": 0.21899999999732245
+  },
+  "elapsed_seconds": 29.796999999991385,
+  "memory": {
+    "rss_bytes": 82321408,
+    "os_peak_rss_bytes": 146182144,
+    "private_bytes": 69029888
+  },
+  "full_selection_executed": false,
+  "ready_for_load": false
+}

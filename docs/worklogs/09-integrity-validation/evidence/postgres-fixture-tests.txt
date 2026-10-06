@@ -1,0 +1,16 @@
+Command:
+$env:INTEGRITY_TEST_CONTAINER='integrity09-fixture-20260914-01'; .venv-bq/Scripts/python.exe -B -m unittest pipeline.integrity_validation.test_postgres_fixture -v
+
+Result:
+Ran 7 tests in 6.600s
+OK
+
+Coverage:
+- all CHECKS return zero for the loaded normal fixture
+- blank package identity and missing population evidence are detected
+- ordered composite FK and primary key violations are rejected
+- read-only transaction write returns SQLSTATE 25006
+- rollback restores the original row count
+
+The test used only the explicitly named disposable container and fixed database
+integrity09_fixture. No existing Pickage container or database was accessed.

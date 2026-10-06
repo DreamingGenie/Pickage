@@ -1,0 +1,34 @@
+{
+  "recorded_at_utc": "2026-09-10T07:14:25.463930+00:00",
+  "command": [
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+    "-B",
+    "-m",
+    "unittest",
+    "pipeline.version_dependents.test_aggregate",
+    "pipeline.version_dependents.test_artifact",
+    "-v"
+  ],
+  "exit_code": 0,
+  "tests_run": 39,
+  "test_seconds": 12.383,
+  "process_seconds": 12.586,
+  "ast_files": 6,
+  "source_sha256": {
+    "pipeline/version_dependents/__init__.py": "909caecbb0b310450e16dc3ef59c14fbcd4fd9d058ebdb29482d5d8663426fae",
+    "pipeline/version_dependents/__main__.py": "cebbcb58035294052c01d3c6571d34f82b7eef2d432074696489f7d39275667f",
+    "pipeline/version_dependents/aggregate.py": "0760e5da1b345c9d27ead5d9ce61982c2fc360487369bdf272b8dc551c76bca8",
+    "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+    "pipeline/version_dependents/test_aggregate.py": "3a49f4921b6f866ef44ade81c67d9eb3873d5adc1389b4c444dbb71b05ee62d8",
+    "pipeline/version_dependents/test_artifact.py": "d25584d90cb0f6b236ad98ec472da33cf0f8bd39ee817e3fcd5c230413332120"
+  },
+  "source_unchanged_during_validation": true,
+  "log_sha256": "9fdad0afef30d2120ece8e6cbcbb3b315292032d52ee075456a540cf6fa66198",
+  "synthetic_only": true,
+  "real_input_full_scan": false,
+  "database_access": false,
+  "remote_publication": false,
+  "output_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\check-20260910T071425463930Z",
+  "raw_log_sha256": "22f9905ddc01bbbbdf79de166b8650adfee8d8cc4c95f11d3106b70ae7b94d16",
+  "log_normalization": "CRLF to LF for repository storage; raw log retained in output_dir/tests.log"
+}

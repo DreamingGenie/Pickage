@@ -1,0 +1,10 @@
+# ai/rag/main.py — 130(백엔드)이 호출하는 HTTP 서버 실행에 필요한 의존성.
+# 2026-09-18, HTTP 서버 상시 대기로 결정(ai/similarity의 일회성 배치 컨테이너와 다름).
+#
+# python:3.11-slim-bookworm(Dockerfile의 FROM과 동일 대상)에서 설치·기동까지 확인함.
+#
+# ⚠ pytest/httpx는 일부러 안 넣는다 — httpx는 FastAPI TestClient 전용(테스트에서만
+#   필요), pytest도 마찬가지. 여기 넣으면 서버 컨테이너가 쓰지도 않을 걸 신는다
+#   (ai/similarity/requirements.txt의 같은 관례 — CI에서만 별도 설치).
+fastapi==0.141.1
+uvicorn==0.53.0

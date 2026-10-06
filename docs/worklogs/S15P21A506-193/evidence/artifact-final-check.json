@@ -1,0 +1,42 @@
+{
+  "recorded_at_utc": "2026-09-10T07:21:13.780412+00:00",
+  "status": "CLEAR",
+  "markdown_files": 10,
+  "local_links": 78,
+  "source_and_log_hashes_match": true,
+  "git_diff_check_exit_code": 0,
+  "existing_kernel_unchanged": true,
+  "changed_tracked_paths": [
+    "docs/worklogs/S15P21A506-193/01-scope.md",
+    "docs/worklogs/S15P21A506-193/02-plan.md",
+    "docs/worklogs/S15P21A506-193/03-issues.md",
+    "docs/worklogs/S15P21A506-193/04-work-log.md",
+    "docs/worklogs/S15P21A506-193/05-results.md",
+    "docs/worklogs/S15P21A506-193/06-decisions.md",
+    "docs/worklogs/S15P21A506-193/07-input-contract.md",
+    "docs/worklogs/S15P21A506-193/README.md",
+    "pipeline/version_dependents/README.md"
+  ],
+  "new_owned_paths": [
+    "docs/worklogs/S15P21A506-193/08-artifact-results.md",
+    "docs/worklogs/S15P21A506-193/evidence/artifact-demo.json",
+    "docs/worklogs/S15P21A506-193/evidence/artifact-final-check.json",
+    "docs/worklogs/S15P21A506-193/evidence/artifact-tests.log",
+    "docs/worklogs/S15P21A506-193/evidence/artifact-validation.json",
+    "pipeline/version_dependents/__main__.py",
+    "pipeline/version_dependents/artifact.py",
+    "pipeline/version_dependents/test_artifact.py"
+  ],
+  "preserved_unrelated_paths": [
+    ".omx/plans/db-loading-jira-roadmap-20260908.md",
+    ".omx/plans/downloads-data-profile-20260908.md",
+    "J15A506T.pem",
+    "pipeline/duckdb_ui.py"
+  ],
+  "independent_review": "No blocking findings in final local-artifact scope; production input approval remains deferred",
+  "commit_performed_this_step": false,
+  "push_performed": false,
+  "real_input_full_scan": false,
+  "database_access": false,
+  "errors": []
+}

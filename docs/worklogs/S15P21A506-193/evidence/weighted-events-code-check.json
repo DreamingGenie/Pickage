@@ -1,0 +1,77 @@
+{
+  "baseline": "data\\vd-weighted-baseline-20260911T034610Z\\baseline.json",
+  "baseline_sha256": "31bf303fc6c0ec05f5c273415ce13282b1c687ff8847c95bfe64d296231dca18",
+  "existing_code_files": 41,
+  "unchanged_existing_code_files": 40,
+  "changed_existing_code_files": [
+    "pipeline/version_dependents/historical_production.py"
+  ],
+  "h4_generation_unchanged": true,
+  "python_ast_count": 46,
+  "weighted_generation_contract": {
+    "runner_sha256": "77d5c810c47eed6d85d8eb2ffbf50c20bf601421c7992cdd91b3930dad9ab76d",
+    "sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+    "input_contract": {
+      "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+      "profile_generation": {
+        "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+        "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+        "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+        "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+        "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+        "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+        "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+        "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+        "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+        "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+        "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+        "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+      },
+      "duckdb_version": "1.5.5"
+    },
+    "h4_generation": {
+      "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+      "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+      "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+      "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+      "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+      "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+      "pipeline/requirements_resolution/bridge.py": "e17449af1c892f66973bb34d51a7518b2f175310c1d474aeb8ecbbd0ab228147",
+      "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+      "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f"
+    },
+    "h4_writer_sha256": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+    "production_writer_sha256": "890917d487e3f11a36151a8a40bf2437f091267cf17dde47d1a9e861fb94164a",
+    "algorithm": "weighted-events-v2",
+    "weighted_events_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+    "weighted_quality_sha256": "1ce36a263531b18ab60f915fb6a54c709b7a45cdcefdc7303f5be495d2569ba4"
+  },
+  "full_selection_executed": false,
+  "db_load_executed": false,
+  "scratch_peak_bytes": null,
+  "scratch_peak_status": "NOT_MEASURED",
+  "previous_run_manifests_not_rewritten": true,
+  "prepared_inputs_not_rewritten": true,
+  "tests": {
+    "count": 229,
+    "elapsed_seconds": 100.673,
+    "status": "PASS",
+    "log_sha256": "8eb29b0f08faf84183b756a7a97f2d42426fdf191d3ba0a7004c6862fad4cd5b"
+  },
+  "independent_code_review": {
+    "status": "APPROVE",
+    "scope": "A0-A3",
+    "remaining_correctness_blockers": 0,
+    "closed_findings": [
+      "bounded cross-lookup event buffer and single ordered reader",
+      "LEFT JOIN missing lookup and null-safe raw spec validation",
+      "different fallback target versions and nonmonotonic resolution tests"
+    ]
+  },
+  "final_checks": {
+    "stored_sample_generation_matches_current_code": true,
+    "worklog_local_links_checked": 8,
+    "new_python_files_whitespace_checked": 6,
+    "tracked_diff_check": "PASS"
+  }
+}

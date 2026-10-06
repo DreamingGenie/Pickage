@@ -1,0 +1,1403 @@
+{
+  "status": "COMPLETE",
+  "verification": {
+    "snapshots_verified": 229,
+    "dense_target_snapshot_keys": 6971338953,
+    "ready_for_load": false,
+    "verification_scope": "LOCAL_POPULATION_ARTIFACT"
+  },
+  "statistics": {
+    "after_last_snapshot_versions": 0,
+    "curated_versions": 54188349,
+    "dense_target_snapshot_keys": 6971338953,
+    "eligible_sources": 47172949,
+    "eligible_targets": 47172771,
+    "invalid_semver_targets_excluded": 178,
+    "null_publication_versions": 7015400,
+    "prerelease_targets_excluded": 0,
+    "selected_declarations_latest": 289214123,
+    "source_snapshot_keys": 6971379715,
+    "unique_original_version_strings": 844355
+  },
+  "snapshot_populations": [
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-05-08",
+      "source_versions": 18341585,
+      "target_versions": 18341407,
+      "declarations": 105776361
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-05-15",
+      "source_versions": 18436267,
+      "target_versions": 18436089,
+      "declarations": 106367524
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-05-22",
+      "source_versions": 18528419,
+      "target_versions": 18528241,
+      "declarations": 106958495
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-05-29",
+      "source_versions": 18618077,
+      "target_versions": 18617899,
+      "declarations": 107531387
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-06-05",
+      "source_versions": 18700721,
+      "target_versions": 18700543,
+      "declarations": 108058404
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-06-13",
+      "source_versions": 18801997,
+      "target_versions": 18801819,
+      "declarations": 108714997
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-06-20",
+      "source_versions": 18892153,
+      "target_versions": 18891975,
+      "declarations": 109279912
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-06-27",
+      "source_versions": 18980361,
+      "target_versions": 18980183,
+      "declarations": 109830043
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-07-04",
+      "source_versions": 19069233,
+      "target_versions": 19069055,
+      "declarations": 110383363
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-07-12",
+      "source_versions": 19172522,
+      "target_versions": 19172344,
+      "declarations": 111034510
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-07-18",
+      "source_versions": 19248223,
+      "target_versions": 19248045,
+      "declarations": 111510691
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-07-26",
+      "source_versions": 19341983,
+      "target_versions": 19341805,
+      "declarations": 112072405
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-08-01",
+      "source_versions": 19455528,
+      "target_versions": 19455350,
+      "declarations": 112691066
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-08-08",
+      "source_versions": 19566018,
+      "target_versions": 19565840,
+      "declarations": 113289672
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-08-15",
+      "source_versions": 19669705,
+      "target_versions": 19669527,
+      "declarations": 113860166
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-08-22",
+      "source_versions": 19764827,
+      "target_versions": 19764649,
+      "declarations": 114444458
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-08-29",
+      "source_versions": 19857870,
+      "target_versions": 19857692,
+      "declarations": 115051068
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-09-05",
+      "source_versions": 19954498,
+      "target_versions": 19954320,
+      "declarations": 115674388
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-09-13",
+      "source_versions": 20061082,
+      "target_versions": 20060904,
+      "declarations": 116400915
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-09-19",
+      "source_versions": 20136980,
+      "target_versions": 20136802,
+      "declarations": 116874007
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-09-26",
+      "source_versions": 20230300,
+      "target_versions": 20230122,
+      "declarations": 117452153
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-10-03",
+      "source_versions": 20325278,
+      "target_versions": 20325100,
+      "declarations": 118052789
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-10-10",
+      "source_versions": 20410032,
+      "target_versions": 20409854,
+      "declarations": 118593647
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-10-17",
+      "source_versions": 20501410,
+      "target_versions": 20501232,
+      "declarations": 119160729
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-10-24",
+      "source_versions": 20594964,
+      "target_versions": 20594786,
+      "declarations": 119763352
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-10-31",
+      "source_versions": 20688192,
+      "target_versions": 20688014,
+      "declarations": 120391664
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-11-07",
+      "source_versions": 20793487,
+      "target_versions": 20793309,
+      "declarations": 121006418
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-11-14",
+      "source_versions": 20882725,
+      "target_versions": 20882547,
+      "declarations": 121571431
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-11-21",
+      "source_versions": 20976125,
+      "target_versions": 20975947,
+      "declarations": 122223607
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-11-28",
+      "source_versions": 21067978,
+      "target_versions": 21067800,
+      "declarations": 122820468
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-12-05",
+      "source_versions": 21164872,
+      "target_versions": 21164694,
+      "declarations": 123481162
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-12-12",
+      "source_versions": 21262692,
+      "target_versions": 21262514,
+      "declarations": 124119013
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-12-19",
+      "source_versions": 21352827,
+      "target_versions": 21352649,
+      "declarations": 124699986
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2022-12-26",
+      "source_versions": 21431359,
+      "target_versions": 21431181,
+      "declarations": 125211016
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-01-02",
+      "source_versions": 21498011,
+      "target_versions": 21497833,
+      "declarations": 125590797
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-01-09",
+      "source_versions": 21590592,
+      "target_versions": 21590414,
+      "declarations": 126154535
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-01-16",
+      "source_versions": 21688762,
+      "target_versions": 21688584,
+      "declarations": 126747434
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-01-23",
+      "source_versions": 21775375,
+      "target_versions": 21775197,
+      "declarations": 127292884
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-01-29",
+      "source_versions": 21854222,
+      "target_versions": 21854044,
+      "declarations": 127784911
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-02-06",
+      "source_versions": 21979005,
+      "target_versions": 21978827,
+      "declarations": 128557456
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-02-13",
+      "source_versions": 22084236,
+      "target_versions": 22084058,
+      "declarations": 129256390
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-02-20",
+      "source_versions": 22192709,
+      "target_versions": 22192531,
+      "declarations": 129994281
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-02-27",
+      "source_versions": 22304695,
+      "target_versions": 22304517,
+      "declarations": 130703325
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-03-06",
+      "source_versions": 22416403,
+      "target_versions": 22416225,
+      "declarations": 131423536
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-03-13",
+      "source_versions": 22522051,
+      "target_versions": 22521873,
+      "declarations": 132132544
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-03-21",
+      "source_versions": 22654863,
+      "target_versions": 22654685,
+      "declarations": 132980753
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-03-27",
+      "source_versions": 22752113,
+      "target_versions": 22751935,
+      "declarations": 133607675
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-04-03",
+      "source_versions": 22877856,
+      "target_versions": 22877678,
+      "declarations": 134342940
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-04-10",
+      "source_versions": 22977179,
+      "target_versions": 22977001,
+      "declarations": 134960151
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-04-17",
+      "source_versions": 23086621,
+      "target_versions": 23086443,
+      "declarations": 135608415
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-04-20",
+      "source_versions": 23135340,
+      "target_versions": 23135162,
+      "declarations": 135896992
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-01",
+      "source_versions": 23301079,
+      "target_versions": 23300901,
+      "declarations": 136892944
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-02",
+      "source_versions": 23326168,
+      "target_versions": 23325990,
+      "declarations": 137052351
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-08",
+      "source_versions": 23418453,
+      "target_versions": 23418275,
+      "declarations": 137620097
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-15",
+      "source_versions": 23519452,
+      "target_versions": 23519274,
+      "declarations": 138244857
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-22",
+      "source_versions": 23624192,
+      "target_versions": 23624014,
+      "declarations": 138888500
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-05-29",
+      "source_versions": 23728695,
+      "target_versions": 23728517,
+      "declarations": 139554598
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-06-05",
+      "source_versions": 23837095,
+      "target_versions": 23836917,
+      "declarations": 140235771
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-06-12",
+      "source_versions": 23945365,
+      "target_versions": 23945187,
+      "declarations": 140947764
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-06-20",
+      "source_versions": 24066252,
+      "target_versions": 24066074,
+      "declarations": 141754961
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-06-26",
+      "source_versions": 24145553,
+      "target_versions": 24145375,
+      "declarations": 142317744
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-07-03",
+      "source_versions": 24245959,
+      "target_versions": 24245781,
+      "declarations": 142973092
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-07-10",
+      "source_versions": 24349278,
+      "target_versions": 24349100,
+      "declarations": 143622818
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-07-17",
+      "source_versions": 24456828,
+      "target_versions": 24456650,
+      "declarations": 144342136
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-07-24",
+      "source_versions": 24556960,
+      "target_versions": 24556782,
+      "declarations": 144997694
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-07-31",
+      "source_versions": 24658922,
+      "target_versions": 24658744,
+      "declarations": 145738548
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-08-07",
+      "source_versions": 24768885,
+      "target_versions": 24768707,
+      "declarations": 146455033
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-08-14",
+      "source_versions": 24874011,
+      "target_versions": 24873833,
+      "declarations": 147190960
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-08-21",
+      "source_versions": 24974314,
+      "target_versions": 24974136,
+      "declarations": 147870668
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-08-28",
+      "source_versions": 25077249,
+      "target_versions": 25077071,
+      "declarations": 148566098
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-09-04",
+      "source_versions": 25180945,
+      "target_versions": 25180767,
+      "declarations": 149215145
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-09-11",
+      "source_versions": 25289739,
+      "target_versions": 25289561,
+      "declarations": 149938912
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-09-18",
+      "source_versions": 25397375,
+      "target_versions": 25397197,
+      "declarations": 150637754
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-09-26",
+      "source_versions": 25530349,
+      "target_versions": 25530171,
+      "declarations": 151523968
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-10-02",
+      "source_versions": 25611781,
+      "target_versions": 25611603,
+      "declarations": 152050360
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-10-09",
+      "source_versions": 25712018,
+      "target_versions": 25711840,
+      "declarations": 152694050
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-10-16",
+      "source_versions": 25814212,
+      "target_versions": 25814034,
+      "declarations": 153347761
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-10-23",
+      "source_versions": 25931344,
+      "target_versions": 25931166,
+      "declarations": 154055697
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-10-30",
+      "source_versions": 26033409,
+      "target_versions": 26033231,
+      "declarations": 154751253
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-11-06",
+      "source_versions": 26135299,
+      "target_versions": 26135121,
+      "declarations": 155403529
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-11-13",
+      "source_versions": 26250107,
+      "target_versions": 26249929,
+      "declarations": 156128592
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-11-20",
+      "source_versions": 26356156,
+      "target_versions": 26355978,
+      "declarations": 156841420
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-11-27",
+      "source_versions": 26457726,
+      "target_versions": 26457548,
+      "declarations": 157491955
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-12-04",
+      "source_versions": 26561619,
+      "target_versions": 26561441,
+      "declarations": 158275908
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-12-11",
+      "source_versions": 26666539,
+      "target_versions": 26666361,
+      "declarations": 158993978
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-12-18",
+      "source_versions": 26768281,
+      "target_versions": 26768103,
+      "declarations": 159693653
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2023-12-25",
+      "source_versions": 26859128,
+      "target_versions": 26858950,
+      "declarations": 160313669
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-01-01",
+      "source_versions": 26929104,
+      "target_versions": 26928926,
+      "declarations": 160788615
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-01-08",
+      "source_versions": 27023204,
+      "target_versions": 27023026,
+      "declarations": 161383098
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-01-15",
+      "source_versions": 27121113,
+      "target_versions": 27120935,
+      "declarations": 162008264
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-01-22",
+      "source_versions": 27227210,
+      "target_versions": 27227032,
+      "declarations": 162701019
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-01-29",
+      "source_versions": 27331473,
+      "target_versions": 27331295,
+      "declarations": 163401896
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-02-05",
+      "source_versions": 27437230,
+      "target_versions": 27437052,
+      "declarations": 164161432
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-02-12",
+      "source_versions": 27532306,
+      "target_versions": 27532128,
+      "declarations": 164810223
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-02-19",
+      "source_versions": 27638086,
+      "target_versions": 27637908,
+      "declarations": 165521381
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-02-26",
+      "source_versions": 27749666,
+      "target_versions": 27749488,
+      "declarations": 166282383
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-03-04",
+      "source_versions": 27861199,
+      "target_versions": 27861021,
+      "declarations": 167065982
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-03-05",
+      "source_versions": 27880126,
+      "target_versions": 27879948,
+      "declarations": 167192203
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-03-11",
+      "source_versions": 27993439,
+      "target_versions": 27993261,
+      "declarations": 167977176
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-03-18",
+      "source_versions": 28123292,
+      "target_versions": 28123114,
+      "declarations": 169001289
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-03-25",
+      "source_versions": 28261740,
+      "target_versions": 28261562,
+      "declarations": 171714582
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-04-01",
+      "source_versions": 28406615,
+      "target_versions": 28406437,
+      "declarations": 174201601
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-04-09",
+      "source_versions": 28567329,
+      "target_versions": 28567151,
+      "declarations": 176338472
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-04-15",
+      "source_versions": 28661262,
+      "target_versions": 28661084,
+      "declarations": 177152404
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-04-21",
+      "source_versions": 28765903,
+      "target_versions": 28765725,
+      "declarations": 178141517
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-04-29",
+      "source_versions": 28913239,
+      "target_versions": 28913061,
+      "declarations": 179534739
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-05-09",
+      "source_versions": 29099922,
+      "target_versions": 29099744,
+      "declarations": 181205189
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-05-13",
+      "source_versions": 29178865,
+      "target_versions": 29178687,
+      "declarations": 181889309
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-05-20",
+      "source_versions": 29316912,
+      "target_versions": 29316734,
+      "declarations": 183090142
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-05-27",
+      "source_versions": 29464541,
+      "target_versions": 29464363,
+      "declarations": 184396096
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-06-03",
+      "source_versions": 29585721,
+      "target_versions": 29585543,
+      "declarations": 185526820
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-06-10",
+      "source_versions": 29711233,
+      "target_versions": 29711055,
+      "declarations": 186534172
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-06-17",
+      "source_versions": 29831188,
+      "target_versions": 29831010,
+      "declarations": 187502787
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-06-24",
+      "source_versions": 29962359,
+      "target_versions": 29962181,
+      "declarations": 188314378
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-01",
+      "source_versions": 30077607,
+      "target_versions": 30077429,
+      "declarations": 189130848
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-08",
+      "source_versions": 30194239,
+      "target_versions": 30194061,
+      "declarations": 189914009
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-09",
+      "source_versions": 30219227,
+      "target_versions": 30219049,
+      "declarations": 190060951
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-15",
+      "source_versions": 30316698,
+      "target_versions": 30316520,
+      "declarations": 190707437
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-23",
+      "source_versions": 30446608,
+      "target_versions": 30446430,
+      "declarations": 191598130
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-07-29",
+      "source_versions": 30542986,
+      "target_versions": 30542808,
+      "declarations": 192278303
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-08-05",
+      "source_versions": 30659037,
+      "target_versions": 30658859,
+      "declarations": 193191740
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-08-12",
+      "source_versions": 30764604,
+      "target_versions": 30764426,
+      "declarations": 193947706
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-08-19",
+      "source_versions": 30873382,
+      "target_versions": 30873204,
+      "declarations": 194702715
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-08-29",
+      "source_versions": 31030302,
+      "target_versions": 31030124,
+      "declarations": 195774224
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-09-02",
+      "source_versions": 31094751,
+      "target_versions": 31094573,
+      "declarations": 196196527
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-09-09",
+      "source_versions": 31204332,
+      "target_versions": 31204154,
+      "declarations": 196928565
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-09-16",
+      "source_versions": 31314652,
+      "target_versions": 31314474,
+      "declarations": 197706587
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-09-23",
+      "source_versions": 31419779,
+      "target_versions": 31419601,
+      "declarations": 198443779
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-09-30",
+      "source_versions": 31526744,
+      "target_versions": 31526566,
+      "declarations": 199192036
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-10-07",
+      "source_versions": 31624698,
+      "target_versions": 31624520,
+      "declarations": 199909108
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-10-14",
+      "source_versions": 31732277,
+      "target_versions": 31732099,
+      "declarations": 200658216
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-10-21",
+      "source_versions": 31840977,
+      "target_versions": 31840799,
+      "declarations": 201413214
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-10-28",
+      "source_versions": 31974824,
+      "target_versions": 31974646,
+      "declarations": 202228041
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-11-04",
+      "source_versions": 32079780,
+      "target_versions": 32079602,
+      "declarations": 202918514
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-11-11",
+      "source_versions": 32183176,
+      "target_versions": 32182998,
+      "declarations": 203638750
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-11-19",
+      "source_versions": 32291800,
+      "target_versions": 32291622,
+      "declarations": 204399733
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-11-25",
+      "source_versions": 32401467,
+      "target_versions": 32401289,
+      "declarations": 205150666
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-12-02",
+      "source_versions": 32504361,
+      "target_versions": 32504183,
+      "declarations": 205825633
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-12-09",
+      "source_versions": 32615304,
+      "target_versions": 32615126,
+      "declarations": 206551457
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-12-16",
+      "source_versions": 32722711,
+      "target_versions": 32722533,
+      "declarations": 207327786
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-12-23",
+      "source_versions": 32829313,
+      "target_versions": 32829135,
+      "declarations": 208023612
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2024-12-30",
+      "source_versions": 32906033,
+      "target_versions": 32905855,
+      "declarations": 208479149
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-01-06",
+      "source_versions": 32987391,
+      "target_versions": 32987213,
+      "declarations": 209000974
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-01-13",
+      "source_versions": 33093096,
+      "target_versions": 33092918,
+      "declarations": 209709832
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-01-20",
+      "source_versions": 33203748,
+      "target_versions": 33203570,
+      "declarations": 210469581
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-01-27",
+      "source_versions": 33314472,
+      "target_versions": 33314294,
+      "declarations": 211188049
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-02-03",
+      "source_versions": 33415854,
+      "target_versions": 33415676,
+      "declarations": 211865238
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-02-10",
+      "source_versions": 33527507,
+      "target_versions": 33527329,
+      "declarations": 212605920
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-02-18",
+      "source_versions": 33650667,
+      "target_versions": 33650489,
+      "declarations": 213391633
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-02-25",
+      "source_versions": 33771259,
+      "target_versions": 33771081,
+      "declarations": 214186850
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-03-03",
+      "source_versions": 33897236,
+      "target_versions": 33897058,
+      "declarations": 214948641
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-03-10",
+      "source_versions": 34016777,
+      "target_versions": 34016599,
+      "declarations": 215698324
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-03-18",
+      "source_versions": 34137045,
+      "target_versions": 34136867,
+      "declarations": 216490986
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-03-24",
+      "source_versions": 34252986,
+      "target_versions": 34252808,
+      "declarations": 217254518
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-03-31",
+      "source_versions": 34371093,
+      "target_versions": 34370915,
+      "declarations": 218029490
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-04-07",
+      "source_versions": 34481911,
+      "target_versions": 34481733,
+      "declarations": 218777735
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-04-14",
+      "source_versions": 34599646,
+      "target_versions": 34599468,
+      "declarations": 219526615
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-04-22",
+      "source_versions": 34709990,
+      "target_versions": 34709812,
+      "declarations": 220229293
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-04-28",
+      "source_versions": 34827550,
+      "target_versions": 34827372,
+      "declarations": 221067204
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-05-05",
+      "source_versions": 34926902,
+      "target_versions": 34926724,
+      "declarations": 221726632
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-05-12",
+      "source_versions": 35043642,
+      "target_versions": 35043464,
+      "declarations": 222503779
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-05-19",
+      "source_versions": 35161333,
+      "target_versions": 35161155,
+      "declarations": 223251680
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-05-26",
+      "source_versions": 35276432,
+      "target_versions": 35276254,
+      "declarations": 224006509
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-06-02",
+      "source_versions": 35391356,
+      "target_versions": 35391178,
+      "declarations": 224735773
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-06-09",
+      "source_versions": 35511442,
+      "target_versions": 35511264,
+      "declarations": 225516335
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-06-16",
+      "source_versions": 35626289,
+      "target_versions": 35626111,
+      "declarations": 226294342
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-06-23",
+      "source_versions": 35749072,
+      "target_versions": 35748894,
+      "declarations": 227078054
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-06-30",
+      "source_versions": 35874210,
+      "target_versions": 35874032,
+      "declarations": 227901316
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-07-07",
+      "source_versions": 36017161,
+      "target_versions": 36016983,
+      "declarations": 228885073
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-07-14",
+      "source_versions": 36138288,
+      "target_versions": 36138110,
+      "declarations": 229658033
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-07-21",
+      "source_versions": 36259988,
+      "target_versions": 36259810,
+      "declarations": 230469546
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-07-28",
+      "source_versions": 36378658,
+      "target_versions": 36378480,
+      "declarations": 231254663
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-08-04",
+      "source_versions": 36496199,
+      "target_versions": 36496021,
+      "declarations": 232091855
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-08-11",
+      "source_versions": 36616655,
+      "target_versions": 36616477,
+      "declarations": 232895491
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-08-18",
+      "source_versions": 36733004,
+      "target_versions": 36732826,
+      "declarations": 233639067
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-08-25",
+      "source_versions": 36852602,
+      "target_versions": 36852424,
+      "declarations": 234438624
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-09-01",
+      "source_versions": 36966935,
+      "target_versions": 36966757,
+      "declarations": 235203573
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-09-08",
+      "source_versions": 37086908,
+      "target_versions": 37086730,
+      "declarations": 235987461
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-09-15",
+      "source_versions": 37214586,
+      "target_versions": 37214408,
+      "declarations": 236787047
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-09-22",
+      "source_versions": 37340078,
+      "target_versions": 37339900,
+      "declarations": 237598794
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-09-29",
+      "source_versions": 37462259,
+      "target_versions": 37462081,
+      "declarations": 238397771
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-10-06",
+      "source_versions": 37573910,
+      "target_versions": 37573732,
+      "declarations": 239098435
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-10-13",
+      "source_versions": 37693682,
+      "target_versions": 37693504,
+      "declarations": 239878480
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-10-20",
+      "source_versions": 37812438,
+      "target_versions": 37812260,
+      "declarations": 240653445
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-10-27",
+      "source_versions": 37936882,
+      "target_versions": 37936704,
+      "declarations": 241476182
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-11-03",
+      "source_versions": 38065094,
+      "target_versions": 38064916,
+      "declarations": 242307708
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-11-10",
+      "source_versions": 38195269,
+      "target_versions": 38195091,
+      "declarations": 243158655
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-11-17",
+      "source_versions": 38327393,
+      "target_versions": 38327215,
+      "declarations": 244017114
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-11-24",
+      "source_versions": 38467492,
+      "target_versions": 38467314,
+      "declarations": 244953173
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-12-01",
+      "source_versions": 38596136,
+      "target_versions": 38595958,
+      "declarations": 245748943
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-12-08",
+      "source_versions": 38738734,
+      "target_versions": 38738556,
+      "declarations": 246655576
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-12-15",
+      "source_versions": 38866333,
+      "target_versions": 38866155,
+      "declarations": 247435916
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-12-22",
+      "source_versions": 38997041,
+      "target_versions": 38996863,
+      "declarations": 248305306
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2025-12-29",
+      "source_versions": 39094918,
+      "target_versions": 39094740,
+      "declarations": 248857206
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-01-05",
+      "source_versions": 39196335,
+      "target_versions": 39196157,
+      "declarations": 249420922
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-01-12",
+      "source_versions": 39336187,
+      "target_versions": 39336009,
+      "declarations": 250251972
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-01-19",
+      "source_versions": 39487340,
+      "target_versions": 39487162,
+      "declarations": 251204222
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-01-26",
+      "source_versions": 39645417,
+      "target_versions": 39645239,
+      "declarations": 252131185
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-02-13",
+      "source_versions": 40080715,
+      "target_versions": 40080537,
+      "declarations": 254716397
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-02-16",
+      "source_versions": 40159695,
+      "target_versions": 40159517,
+      "declarations": 255145140
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-02-23",
+      "source_versions": 40339155,
+      "target_versions": 40338977,
+      "declarations": 256171388
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-02",
+      "source_versions": 40541611,
+      "target_versions": 40541433,
+      "declarations": 257255541
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-09",
+      "source_versions": 40752143,
+      "target_versions": 40751965,
+      "declarations": 258440678
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-10",
+      "source_versions": 40765459,
+      "target_versions": 40765281,
+      "declarations": 258506103
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-16",
+      "source_versions": 40973094,
+      "target_versions": 40972916,
+      "declarations": 259617227
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-23",
+      "source_versions": 41202320,
+      "target_versions": 41202142,
+      "declarations": 260835308
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-03-30",
+      "source_versions": 41444929,
+      "target_versions": 41444751,
+      "declarations": 262068776
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-04-06",
+      "source_versions": 41668045,
+      "target_versions": 41667867,
+      "declarations": 263233556
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-04-13",
+      "source_versions": 41903727,
+      "target_versions": 41903549,
+      "declarations": 264453621
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-04-14",
+      "source_versions": 41914219,
+      "target_versions": 41914041,
+      "declarations": 264508224
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-04-20",
+      "source_versions": 42141005,
+      "target_versions": 42140827,
+      "declarations": 265654764
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-04-28",
+      "source_versions": 42375303,
+      "target_versions": 42375125,
+      "declarations": 266879041
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-05-05",
+      "source_versions": 42599022,
+      "target_versions": 42598844,
+      "declarations": 267987057
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-05-11",
+      "source_versions": 42831456,
+      "target_versions": 42831278,
+      "declarations": 269146480
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-05-18",
+      "source_versions": 43082338,
+      "target_versions": 43082160,
+      "declarations": 270354715
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-06-01",
+      "source_versions": 43553053,
+      "target_versions": 43552875,
+      "declarations": 272613532
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-06-11",
+      "source_versions": 43934295,
+      "target_versions": 43934117,
+      "declarations": 274428458
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-06-15",
+      "source_versions": 44060672,
+      "target_versions": 44060494,
+      "declarations": 274992165
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-06-23",
+      "source_versions": 44323959,
+      "target_versions": 44323781,
+      "declarations": 276257784
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-06-29",
+      "source_versions": 44538329,
+      "target_versions": 44538151,
+      "declarations": 277290449
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-07-06",
+      "source_versions": 44797836,
+      "target_versions": 44797658,
+      "declarations": 278506138
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-07-13",
+      "source_versions": 45070400,
+      "target_versions": 45070222,
+      "declarations": 279779137
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-07-20",
+      "source_versions": 45364376,
+      "target_versions": 45364198,
+      "declarations": 281108374
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-07-27",
+      "source_versions": 45663905,
+      "target_versions": 45663727,
+      "declarations": 282529316
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-08-03",
+      "source_versions": 45965825,
+      "target_versions": 45965647,
+      "declarations": 283939470
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-08-10",
+      "source_versions": 46258912,
+      "target_versions": 46258734,
+      "declarations": 285230721
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-08-17",
+      "source_versions": 46555730,
+      "target_versions": 46555552,
+      "declarations": 286519448
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-08-24",
+      "source_versions": 46865404,
+      "target_versions": 46865226,
+      "declarations": 287854310
+    },
+    {
+      "CAST(snapshot_at AS VARCHAR)": "2026-08-31",
+      "source_versions": 47172949,
+      "target_versions": 47172771,
+      "declarations": 289214123
+    }
+  ],
+  "output": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\historical-inputs\\observed=2026-08-31\\run_id=population-20260831-v2",
+  "manifest_sha256": "572c5585bfdbec0b2b9ca1fd0bbf53b9241f4b742d36963120cb78c628a66762",
+  "count_status": "NOT_COMPUTED",
+  "ready_for_load": false,
+  "at_utc": "2026-09-10T11:56:24.838245+00:00"
+}

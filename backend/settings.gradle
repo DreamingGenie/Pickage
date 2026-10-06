@@ -1,0 +1,21 @@
+// 툴체인 자동 내려받기.
+//
+// build.gradle 이 Java 21 을 요구하는데, Gradle 은 PC 에 설치된 JDK 중에서만 찾는다.
+// 없으면 이렇게 끝난다:
+//
+//   Cannot find a Java installation on your machine matching: {languageVersion=21, …}
+//   Toolchain download repositories have not been configured.
+//
+// 이 플러그인이 있으면 Gradle 이 필요한 JDK 를 직접 받아 쓴다. 팀원마다 JDK 를 설치하고
+// JAVA_HOME 을 맞추는 과정이 사라지고, **누가 어떤 JDK 를 깔았든 빌드가 같은 21 로 돈다.**
+// 로컬에 21 이 이미 있으면 그것을 쓰고 아무것도 받지 않는다.
+//
+// Docker 빌드(eclipse-temurin:21-jdk)에는 영향이 없다 — 거기엔 이미 21 이 있다.
+//
+// 플러그인 블록은 반드시 파일 맨 위에 있어야 한다. rootProject.name 아래로 내리면
+// "only Settings scripts can contain a plugins {} block at the top" 로 실패한다.
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'pickage'

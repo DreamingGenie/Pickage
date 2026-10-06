@@ -1,0 +1,126 @@
+#!/bin/sh
+#
+# commit-msg — 커밋 메시지 규칙 훅
+#
+# 규칙 (노션 "커밋 컨벤션" + 브랜치 규칙):
+#   1) 제목은 "type: subject" 형식. 콜론 뒤에만 공백을 둔다.
+#   2) 제목 끝에 마침표를 붙이지 않는다.
+#   3) 제목은 50자 이내 (Jira 키 제외) — 경고만 한다.
+#   4) 브랜치명에 Jira 키가 있으면 제목 맨 끝 "(S15P21A506-<번호>)" 로 붙는다.
+#      없으면 브랜치 키를 자동 삽입한다.
+#
+#   예) feat: deps.dev BigQuery 수집기 추가 (S15P21A506-122)
+#
+# 활성화: git config core.hooksPath .githooks
+#   (또는 scripts/setup-hooks.sh / setup-hooks.bat 실행)
+#
+# 예외가 꼭 필요하면: git commit --no-verify
+
+MSG_FILE="$1"
+PROJECT_KEY="S15P21A506"
+KEY_RE="${PROJECT_KEY}-[0-9][0-9]*"
+TYPES="feat fix refactor test chore docs style config"
+TYPE_ALT=$(printf '%s' "$TYPES" | tr ' ' '|')
+SUBJECT_MAX=50
+
+SUBJECT=$(head -n 1 "$MSG_FILE")
+
+# --- 예외: 검사를 건너뛰는 커밋 ---------------------------------------------
+case "$SUBJECT" in
+  "Merge "*|"Revert "*|"fixup!"*|"squash!"*|"amend!"*|"#"*|"")
+    exit 0
+    ;;
+esac
+
+# --- 1) "type: subject" 형식 검사 -------------------------------------------
+if ! printf '%s' "$SUBJECT" | grep -qE "^(${TYPE_ALT}): [^[:space:]]"; then
+  echo "" >&2
+  echo "커밋이 거부되었습니다: 제목 형식이 규칙과 다릅니다." >&2
+  echo "" >&2
+  echo "  현재: $SUBJECT" >&2
+  echo "  규칙: type: subject   — 콜론 뒤에만 공백" >&2
+  echo "  예시: feat: deps.dev BigQuery 수집기 추가" >&2
+  echo "" >&2
+
+  # 어디가 틀렸는지 짚어 준다
+  if printf '%s' "$SUBJECT" | grep -qE "^(${TYPE_ALT}) +:"; then
+    echo "  · 콜론 앞에 공백이 있습니다. 'type: subject' 로 붙여 씁니다." >&2
+  elif printf '%s' "$SUBJECT" | grep -qE "^(${TYPE_ALT}):[^ ]"; then
+    echo "  · 콜론 뒤에 공백이 없습니다." >&2
+  elif printf '%s' "$SUBJECT" | grep -qE "^[A-Za-z]+:"; then
+    BAD_TYPE=$(printf '%s' "$SUBJECT" | cut -d: -f1)
+    echo "  · type 이 '${BAD_TYPE}' 입니다. 허용: ${TYPES}" >&2
+  else
+    echo "  · type 과 콜론이 없습니다. 허용: ${TYPES}" >&2
+  fi
+  echo "" >&2
+  exit 1
+fi
+
+# --- 2) 제목 끝 마침표 검사 --------------------------------------------------
+# 이미 Jira 키가 붙어 있으면 키를 떼고 판단한다.
+SUBJECT_CORE=$(printf '%s' "$SUBJECT" | sed -E "s/[[:space:]]*\(${KEY_RE}\)[[:space:]]*$//")
+
+if printf '%s' "$SUBJECT_CORE" | grep -qE '\.$'; then
+  echo "" >&2
+  echo "커밋이 거부되었습니다: 제목 끝에 마침표를 붙이지 않습니다." >&2
+  echo "" >&2
+  echo "  현재: $SUBJECT" >&2
+  echo "" >&2
+  exit 1
+fi
+
+# --- 3) 제목 길이 경고 (거부하지 않음) ---------------------------------------
+# UTF-8 문자 수 = 바이트 수 - 연속 바이트(0x80~0xBF) 수. 로케일에 의존하지 않는다.
+count_chars() {
+  _bytes=$(printf '%s' "$1" | wc -c | tr -d ' ')
+  _cont=$(printf '%s' "$1" | LC_ALL=C tr -dc '\200-\277' | wc -c | tr -d ' ')
+  echo $((_bytes - _cont))
+}
+SUBJECT_LEN=$(count_chars "$SUBJECT_CORE")
+if [ "$SUBJECT_LEN" -gt "$SUBJECT_MAX" ]; then
+  echo "[commit-msg] 참고: 제목이 ${SUBJECT_LEN}자입니다 (권장 ${SUBJECT_MAX}자 이내). 상세한 설명은 본문에 씁니다." >&2
+fi
+
+# --- 4) 브랜치명에 키가 없으면 키 검사를 적용하지 않는다 ----------------------
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+BRANCH_KEY=$(printf '%s' "$BRANCH" | grep -oE "${KEY_RE}" | head -n 1)
+
+if [ -z "$BRANCH_KEY" ]; then
+  exit 0
+fi
+
+# --- 4a) 제목 끝에 키가 있으면 통과 -----------------------------------------
+if printf '%s' "$SUBJECT" | grep -qE "\(${KEY_RE}\)[[:space:]]*$"; then
+  # 브랜치 키와 다른 키를 썼다면 경고만 (의도적인 경우가 있으므로 막지 않음)
+  MSG_KEY=$(printf '%s' "$SUBJECT" | grep -oE "${KEY_RE}" | tail -n 1)
+  if [ "$MSG_KEY" != "$BRANCH_KEY" ]; then
+    echo "[commit-msg] 참고: 메시지 키(${MSG_KEY})가 브랜치 키(${BRANCH_KEY})와 다릅니다. 그대로 진행합니다."
+  fi
+  exit 0
+fi
+
+# --- 4b) 키는 있는데 위치가 틀림 -> 거부 -------------------------------------
+if printf '%s' "$SUBJECT" | grep -qE "${KEY_RE}"; then
+  echo "" >&2
+  echo "커밋이 거부되었습니다: Jira 키의 위치가 규칙과 다릅니다." >&2
+  echo "" >&2
+  echo "  현재: $SUBJECT" >&2
+  echo "  규칙: 제목 맨 끝에 괄호로 — 예) feat: 수집기 추가 (${BRANCH_KEY})" >&2
+  echo "" >&2
+  exit 1
+fi
+
+# --- 4c) 브랜치 키를 제목 끝에 자동 삽입 -------------------------------------
+NEW_SUBJECT=$(printf '%s' "$SUBJECT" | sed 's/[[:space:]]*$//')
+NEW_SUBJECT="${NEW_SUBJECT} (${BRANCH_KEY})"
+
+TMP_FILE="${MSG_FILE}.jira.tmp"
+{
+  printf '%s\n' "$NEW_SUBJECT"
+  tail -n +2 "$MSG_FILE"
+} > "$TMP_FILE"
+mv "$TMP_FILE" "$MSG_FILE"
+
+echo "[commit-msg] 브랜치 '${BRANCH}' 에서 Jira 키를 자동 삽입했습니다 → (${BRANCH_KEY})"
+exit 0

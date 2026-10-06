@@ -1,0 +1,118 @@
+{
+  "checked_at": "2026-09-09T13:54:37.123738+09:00",
+  "status": "PASSED_WITH_INHERITED_WHITESPACE_NOTE",
+  "branch": "feat/S15P21A506-288-package_snapshot-postgresql",
+  "merge_commit": "f951c541e034e5d58b113892bf02552646e1b8d4",
+  "parents": [
+    "110ba9c481558cbcf82c809ec4a5179dca588ce8",
+    "885f897858370632df0f8bad3e897eac02a2f4f3"
+  ],
+  "incoming_files": [
+    "docs/worklogs/05-repository-metrics/00-workspace.md",
+    "docs/worklogs/05-repository-metrics/01-scope-plan.md",
+    "docs/worklogs/05-repository-metrics/02-progress-results.md",
+    "docs/worklogs/05-repository-metrics/03-measured-evidence.json",
+    "docs/worklogs/05-repository-metrics/check_github_case.py",
+    "docs/worklogs/05-repository-metrics/verify_actual.py",
+    "pipeline/repository_metrics/README.md",
+    "pipeline/repository_metrics/__init__.py",
+    "pipeline/repository_metrics/build.py",
+    "pipeline/repository_metrics/docker_runtime.py",
+    "pipeline/repository_metrics/input.py",
+    "pipeline/repository_metrics/policy.py",
+    "pipeline/repository_metrics/requirements.txt",
+    "pipeline/repository_metrics/runtime.py",
+    "pipeline/repository_metrics/spark_job.py",
+    "pipeline/repository_metrics/test_build.py",
+    "pipeline/repository_metrics/test_input.py",
+    "pipeline/repository_metrics/test_transform.py",
+    "pipeline/repository_metrics/transform.py"
+  ],
+  "additional_merge_change": ".gitattributes: pipeline/repository_metrics/*.py text eol=lf",
+  "unmerged_entries": 0,
+  "source_tracked_content_preserved": true,
+  "premerge_worklog_changes_excluded_from_commit": true,
+  "local_tests": {
+    "started_at": "2026-09-09T13:48:02.820216+09:00",
+    "finished_at": "2026-09-09T13:48:17.488616+09:00",
+    "elapsed_seconds": 14.672,
+    "suites": [
+      "pipeline.repository_metrics.test_input",
+      "pipeline.repository_metrics.test_build",
+      "pipeline.downloads_interval.test_input",
+      "pipeline.downloads_interval.test_aggregate",
+      "pipeline.downloads_interval.test_load.LoadTests"
+    ],
+    "tests": 70,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true,
+    "log_sha256": "914e1dd2e5bfd72a3c937c1d1f98f65cef99d16e8ba2956828479cd3dcbdfe86",
+    "environment": "existing .venv-bq; no new dependencies",
+    "external_services": "None; fake MinIO and temporary local fixtures only"
+  },
+  "spark_tests": {
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_seconds": 154.546,
+    "log_sha256": "0504b6c5ee57a2f87e1843906709322646906c2fb57af4d603855b8c67b6b9f6",
+    "image": "apache/spark@sha256:936ff39fd63e2bb5ed064f0fbe1518198473f1cdbfa2f863d087a9a8e58116ba",
+    "cpus": 2,
+    "memory": "6g",
+    "network": "none",
+    "workspace_mount": "read-only",
+    "suite": "pipeline.repository_metrics.test_transform"
+  },
+  "lf_recheck": {
+    "started_at": "2026-09-09T13:51:15.410943+09:00",
+    "finished_at": "2026-09-09T13:51:18.475699+09:00",
+    "elapsed_seconds": 3.062,
+    "suites": [
+      "pipeline.repository_metrics.test_input",
+      "pipeline.repository_metrics.test_build"
+    ],
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "success": true,
+    "log_sha256": "a2d2a5d3b246e8c6c65e804bf7c145acf325370888c4ccac92feb3924dc4a77b"
+  },
+  "distinct_tests_passed": 83,
+  "repeat_tests_passed": 18,
+  "metrics_contract_before_lf_fix": "c6705ad77e9831478a79be651a53d73f9d62521e5c145c7ad28c10a5ba107995",
+  "metrics_contract_after_lf_fix": "c880d0c4265a253d4fa651095f5db7bf68e53612b526078b42b2cbc1a017c98b",
+  "downloads_contract_sha256": "6174089e272c8a694463763230b3d7112a23b5f9004958d194df751556f73469",
+  "both_contracts_match_published": true,
+  "documentation": {
+    "local_links": 41,
+    "broken_links": 0,
+    "unstarted_steps": 7,
+    "sha256": {
+      "docs/worklogs/S15P21A506-288/01-scope.md": "b9cd9703e6165d6ede66cbb4d39af04782570fe700e2d87c30b1d04f84631ded",
+      "docs/worklogs/S15P21A506-288/02-plan.md": "dd9b450df58e0c32d928ba701662572498f88345c3e089210df5786202fbb13e",
+      "docs/worklogs/S15P21A506-288/03-issues.md": "1b6a0a176315664f87551b699b82c6ef93f75fc2f532a2a74ff73a09973817d0",
+      "docs/worklogs/S15P21A506-288/04-work-log.md": "7bd402d75f135df2f800f2e208a3ae8b4850ca14bec21b5df161501c3ece8e72",
+      "docs/worklogs/S15P21A506-288/05-results.md": "60153a446c4a1602c8eec85ac8dc0f7636a80b56ce8c33c037e9d1164e1f3707",
+      "docs/worklogs/S15P21A506-288/06-load-contract.md": "35c58490a7a59afacfdb3c8697d2cafd03f6104444a081705a254adc86772183",
+      "docs/worklogs/S15P21A506-288/README.md": "83457ec3c9b05a2ee56c3648999890b266e5b597cc6b857eb37d2110d6de9513",
+      "docs/README.md": "0cae8287253b068fd0795ed3883027fa7c5425b9994b63f03d30ef0f80f4bde2"
+    }
+  },
+  "whitespace_note": "pipeline/repository_metrics/__init__.py:2: new blank line at EOF.",
+  "whitespace_except_inherited_blank_eof": "PASSED",
+  "not_executed": [
+    "No package_snapshot implementation or actual aggregation",
+    "No new dependencies",
+    "No MinIO access or PostgreSQL execution",
+    "No push or remote Jira update"
+  ],
+  "preserved_before_document_updates": {
+    "count": 687,
+    "sha256": "ed3b5b044caeb163381a2b1d0273aa3bffee5c0a8bef3da345549ce2a200c190",
+    "verified_after_automatic_merge": true
+  }
+}

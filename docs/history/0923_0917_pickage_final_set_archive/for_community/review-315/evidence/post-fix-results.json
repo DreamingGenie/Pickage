@@ -1,0 +1,2015 @@
+{
+  "commit": "ce4dd912ef4bcd29defb1dd0c6ba1fe876bb92ea",
+  "commands": [
+    "gradlew.bat test build integrationTest --console=plain",
+    "npm.cmd run typecheck",
+    "npm.cmd run build"
+  ],
+  "suites": {
+    "test": {
+      "counts": {
+        "PASS": 243,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "cases": [
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+          "test": "R04_latestWindowMustUseTimeThenNumericIdAscending()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+          "test": "R03_incompleteZeroMustNotExpandOrBecomeNoData()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CollectionContractReviewTest",
+          "test": "R04_101CommentsMustBeTruncated()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "큰_ID도_BigInteger로_정확히_비교한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "같은_시각은_ID_오름차순으로_최신_100개를_남긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "겹치는_ID는_한_번만_남는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "상한_100개_이하면_전부_남는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "마지막_page가_2면_그_page만_추가로_부른다_1페이지는_이미_있음()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "마지막_page가_1이면_추가_호출이_필요_없다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommentWindowResolverTest",
+          "test": "마지막_page가_3이상이면_마지막_page를_먼저_부른다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommunityDataLimitsContractTest",
+          "test": "이슈_상한이_212와_같다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.CommunityDataLimitsContractTest",
+          "test": "댓글_상한이_212와_같다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "Link_헤더의_rel_last에서_마지막_page_번호를_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "remaining_0인_403은_rate_limit_예외다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "id가_없으면_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "id를_십진_문자열로_보존한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "Link_헤더가_없으면_요청한_page를_마지막으로_본다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueCommentsClientTest",
+          "test": "그_외_오류_상태는_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "remaining_0인_403은_rate_limit_예외다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "HTTP_429는_rate_limit_예외다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "incomplete_results를_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "정상_응답을_파싱한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "응답이_byte_상한을_넘으면_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "그_외_오류_상태는_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.GitHubIssueSearchClientTest",
+          "test": "Bot_작성자를_구분한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "raw_0이면_365일로_한_번_확장한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "댓글_수집_rate_limit은_전체_수집을_중단한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "search_rate_limit이면_전체_수집을_중단한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "이슈_처리_중_예산이_소진돼도_이미_모은_결과는_버리지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "search_incomplete는_limitations에_남고_계속_진행한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "댓글_수집_page_실패는_그_이슈만_TRUNCATED로_표시하고_계속한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "댓글_101개면_실제로_2page를_불러_최신_100개만_남긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "댓글_301개면_마지막_두_page를_불러_최신_100개를_남긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "PR이_포함된_응답에서도_이슈만_고른다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "필터_후_0건이면_NoDiscussionData다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueCollectionServiceTest",
+          "test": "총_댓글_수는_수집한_100개가_아니라_원천_숫자를_그대로_쓴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "빈_입력은_빈_결과다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "필터_후_0건이면_빈_목록을_돌려준다_추가_조회_안_함()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "댓글_수와_갱신시각도_같으면_이슈번호_큰_순으로_정렬한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "PR은_제외한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "댓글_수가_같으면_최신_갱신_순으로_정렬한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "댓글_많은_순으로_최대_2건_고른다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "Bot_작성_이슈는_제외한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.collection.IssueSelectionPolicyTest",
+          "test": "locked_이슈는_제외한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R11_collectedAtMustBeWorkerStart()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R08_completedStageMustBeNull()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_summaryCannotInventSourceOrAuthorMetadata()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R07_recentFailureMustRejectNewRefresh()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R06_typedPayloadMustRejectMissingRequiredFields()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_mixedSummariesMustBePartial()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R11_failedTaskMustNotPublishLateResult()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R10_failureLogsContainOnlySafeIdentifiers()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_sourceBudgetCountsUnicodeCharactersAndExcludesDroppedSources()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R07_exact24HoursMustBeStale()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_partialSummaryMustNotScheduleFiveMinuteRetry()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R08_initialGetMustBeIdleWithNullRefresh()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_modelMarkupCannotPassPlainTextContract()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_summaryTimeoutCancelsWorkerAndPoolCanRecover()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R08_fullResultKeysMustMatchContract()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R07_exact7DaysMustNotBeServed()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R08_staleWithActiveMustKeepResultView()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityContractReviewTest",
+          "test": "R05_fakeForExistingTopicsMustReportFailure()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "검증에서_npm_통신_오류면_NPM_UNAVAILABLE로_실패시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "예상하지_못한_예외는_전체를_중단시키지_않고_실패로_귀결된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "논의가_없으면_검증된_저장소_정보와_함께_NO_DISCUSSION_DATA로_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "검증에서_rate_limit이면_게시하지_않고_task를_GITHUB_RATE_LIMITED로_실패시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "이슈_요약이_실패해도_다른_이슈는_계속_진행하고_summary_retry_at을_채운다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "범위가_제한되고_archived면_REPOSITORY_WIDE_ARCHIVED_제한과_함께_AVAILABLE로_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "host가_미지원이면_UNSUPPORTED_HOST로_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "검증_성공_수집_성공_제한없음이면_AVAILABLE로_게시하고_task를_완료한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "저장소_미확인이면_repository_없이_UNVERIFIED_REPOSITORY로_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "검색_불완전_제한이_있으면_PARTIAL로_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "게시_자체가_실패하면_PUBLISH_FAILED로_task를_실패시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "수집에서_시간_예산_소진이면_deadline_exceeded로_실패시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityRefreshOrchestratorTest",
+          "test": "범위가_모호하면_repository_null로_AMBIGUOUS_SCOPE를_게시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "요약_FAILED_쿨다운이_지났으면_fresh해도_새_작업을_허용한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "결과가_24시간_이내면_그대로_재사용하고_새_작업을_만들지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "용량이_초과되고_이전_결과가_없으면_FAILED_CAPACITY_LIMITED다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "용량이_초과돼도_이전_결과가_있으면_그_결과와_함께_보여준다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "요약_FAILED_쿨다운이_지나지_않았으면_fresh해도_재사용한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "결과도_작업도_없으면_IDLE이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "없는_패키지는_리소스를_찾을_수_없다는_예외를_던진다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "이미_진행_중인_작업이_있으면_참여시키고_새로_시작하지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityServiceTest",
+          "test": "결과가_24시간_지났으면_stale이라_새_작업을_허용한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "isServable_7일_1초_초과는_false()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "정리_배치가_지연돼도_TTL_판정은_항상_collectedAt_기준이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "isServable_경계값_7일은_false()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "isExpiredForCleanup_은_isServable_의_반대다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "isFresh_24시간_1초_초과는_false()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotTtlTest",
+          "test": "isFresh_경계값_24시간은_false()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.dto.AuthorRoleMapperTest",
+          "test": "이슈_작성자면_association과_무관하게_ISSUE_AUTHOR다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.dto.AuthorRoleMapperTest",
+          "test": "확인되지_않는_값은_추측하지_않고_null이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.dto.AuthorRoleMapperTest",
+          "test": "MEMBER는_ORGANIZATION_MEMBER로_옮긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.dto.AuthorRoleMapperTest",
+          "test": "OWNER는_REPOSITORY_OWNER로_옮긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.dto.AuthorRoleMapperTest",
+          "test": "COLLABORATOR와_CONTRIBUTOR는_그대로_옮긴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.payload.CommunityResultPayloadJsonTest",
+          "test": "대표_메시지의_재시작_복원용_필드가_모두_보존된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.payload.CommunityResultPayloadJsonTest",
+          "test": "시각_필드는_epoch_숫자가_아니라_ISO_8601_문자열이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.payload.CommunityResultPayloadJsonTest",
+          "test": "직렬화_후_역직렬화하면_원래_값과_같다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.payload.CommunityResultPayloadJsonTest",
+          "test": "저장_payload는_전역_snake_case_규칙을_그대로_쓴다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_queuedTaskMustNotHaveWorkerStartTime()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_workerGetsFullBudgetAfterQueueWait()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_shutdownRejectsNewTasksWithoutLeakingRegistry()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_queuedDeadlineMustExpireWithoutWorkerCompletion()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_rejectedPrefetchMustNotConsumeStartToken()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_fiftyDifferentPackagesRespectTwoWorkersFourQueued()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_registryAdmissionMustBeAtomicAt128()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_fiftySamePackageRequestsShareOneTask()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_shutdownFinishesQueuedTasksWithoutStartingThem()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.ConcurrencyContractReviewTest",
+          "test": "R09_terminalTaskMustNotBecomeRunningAgain()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "같은_package로_동시_요청이_경합해도_진_쪽의_시작_토큰은_돌려받는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "대기_큐가_가득_차면_TAB_OPENED도_거절된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "이미_128개가_찬_상태에서도_그중_하나를_재시도하면_용량_초과로_보지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "동시_실행_상한을_넘으면_TAB_OPENED는_대기_큐에_들어간다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "시작_토큰이_소진되면_permit_유무와_무관하게_거절한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "이미_진행_중인_task가_있으면_참여시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "permit이_있으면_즉시_실행하고_Started를_돌려준다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "대기_중이던_작업은_permit_반납_시점에_자신의_고유한_콜백으로_실행된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "registry_용량이_차면_거절한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "대기_큐가_가득_차서_거절돼도_이미_쓴_토큰을_돌려받는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "큐에서_대기_중_예산이_지나면_실행되지_않고_deadline_실패로_끝난다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshAdmissionCoordinatorTest",
+          "test": "동시_실행_상한을_넘으면_ANALYSIS_CONFIRMED는_대기_없이_거절된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshStageTest",
+          "test": "모든_단계가_wireName과_메시지를_갖는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshStageTest",
+          "test": "구현계획_예시와_일치하는_두_단계는_문자_그대로다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistryTest",
+          "test": "동시에_같은_package로_경합해도_task는_하나만_만들어진다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistryTest",
+          "test": "진행_중인_task가_있으면_그대로_참여시킨다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistryTest",
+          "test": "보존_기간이_지난_완료_task는_다음_접근에서_사라진다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistryTest",
+          "test": "서로_다른_package는_독립적이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.RefreshTaskRegistryTest",
+          "test": "종료된_task는_참여_대상이_아니고_새로_만든다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.StartTokenBucketTest",
+          "test": "burst_용량만큼은_즉시_연속으로_쓸_수_있다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.StartTokenBucketTest",
+          "test": "시간이_지나면_분당_리필률만큼_다시_채워진다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.refresh.StartTokenBucketTest",
+          "test": "리필은_burst_상한을_넘지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "존재하는_저장소의_archived_여부를_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "저장소_404는_GitHubRepositoryNotFoundException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "rate_limit_아닌_403은_GitHubRepositoryNotFoundException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "remaining_0인_403은_GitHubRateLimitException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "archived_true도_그대로_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "HTTP_429는_항상_GitHubRateLimitException이고_Retry_After를_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "X_GitHub_Api_Version_헤더를_보낸다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "directory_경로의_package_json도_같은_방식으로_확인한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "루트_package_json_이름이_일치하면_MATCH다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "루트_package_json_이름이_다르면_MISMATCH다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "그_외_오류_상태는_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "package_json_경로가_404면_NOT_FOUND다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.GitHubRepositoryClientTest",
+          "test": "package_json_조회도_rate_limit을_구분한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "스코프_패키지_이름의_슬래시를_인코딩한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "repository가_문자열이면_그대로_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "repository_필드가_없으면_NoRepositoryField다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "HTTP_404는_NotFound다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "그_외_오류_상태는_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "repository가_객체면_url과_directory를_읽는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.NpmRepositoryLookupTest",
+          "test": "응답이_상한을_넘으면_UpstreamFetchException이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "npm에_repository_필드가_없어도_DB_후보로_진행한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "둘_다_없으면_NoCandidate다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "DB와_npm이_같은_저장소면_그대로_진행한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "DB만_비GitHub이고_npm도_없으면_중단한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "npm만_GitHub면_npm_후보로_진행한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "서로_다르고_npm이_GitHub면_npm_후보로_진행하고_충돌을_표시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "DB만_GitHub면_DB_후보로_진행하되_npm_교차검증_없음으로_표시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "npm이_명시적으로_비GitHub_host면_DB가_뭐든_중단한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryCandidatePolicyTest",
+          "test": "npm의_directory가_최종_후보에_보존된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "npm_교차검증_directory_없음_루트_불일치해도_REPOSITORY_WIDE로_진행하고_한계표시한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "directory_경로가_404면_AMBIGUOUS_SCOPE다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "directory_지정되고_이름_일치하면_REPOSITORY_WIDE다_전용_증거는_아니므로()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "directory_이름_불일치도_AMBIGUOUS_SCOPE다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "DB_only_루트_이름_일치하면_PACKAGE_SCOPED다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "npm_교차검증_directory_없음_루트_일치하면_PACKAGE_SCOPED다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "archived_여부가_Verified에_그대로_실린다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryScopePolicyTest",
+          "test": "DB_only_루트_이름_불일치하면_AmbiguousScope다_REPOSITORY_WIDE로_봐주지_않는다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "https_URL을_owner_repo로_분리한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "scp_스타일_SSH_주소를_처리한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "대소문자만_다른_host는_허용한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "GitHub가_아닌_host는_NonGitHubHost다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "끝의_dot_git을_제거한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "서브도메인은_거부한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "경로_탈출_세그먼트는_Invalid다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "세그먼트가_하나뿐이면_Invalid다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "명시적_포트는_거부한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "null은_Absent이고_명시된_공백은_Invalid다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "IP_리터럴_host는_거부한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "directory를_그대로_전달한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryUrlParserTest",
+          "test": "git_plus_https_접두사를_처리한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "npm에_패키지가_없으면_UnverifiedRepository다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "npm_registry_통신_오류는_FetchLimited다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "DB와_npm이_달라도_npm_후보로_검증된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "예산이_이미_0이면_아무_외부_호출도_하지_않고_시간_예산_소진으로_끝난다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "DB_only_루트_이름_불일치는_AmbiguousScope다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "workspaces_directory_이름_일치는_REPOSITORY_WIDE로_검증된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "GitHub_rate_limit_429는_FetchLimited이고_terminal이_아니다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "npm이_명시적으로_비GitHub_host면_UnsupportedHost다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "npm이_유일한_후보이고_루트_이름이_일치하면_PACKAGE_SCOPED로_검증된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "directory_이름_불일치는_AmbiguousScope다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "비공개_저장소_403은_UnverifiedRepository다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "archived_저장소도_검증은_통과하고_archived_플래그만_켜진다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "DB_npm_둘_다_후보가_없으면_UnverifiedRepository다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationServiceTest",
+          "test": "npm_조회가_예산을_넘게_느리면_자연_지연을_다_기다리지_않고_예산_안에서_끝난다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R01_privateRepositoryMustNotBeAcceptedAsPublic()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R09_secondaryWithoutHeadersBlocksAllResources()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R01_dbOnlyNameMismatchMustBeAmbiguous()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R09_successfulLastTokenBlocksOnlyItsResourceAndIsShared()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R01_malformedNpmMustNotFallBackToDb()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R09_plainForbiddenDoesNotPoisonTokenGate()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R01_httpsCredentialsMustBeRejected()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R09_rateHeadersSurviveBodyTimeout()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R10_bodyReadMustRespectRequestBudget()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.VerificationContractReviewTest",
+          "test": "R01_directoryTraversalMustBeRejected()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "§4 — downloads 는 버전으로 쪼갤 수 없어 major 가 없다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "0.2 — 전부 못 찾아도 items 는 빈 배열이다 (404 가 아니다)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "§5 — 점이 없는 패키지는 major 가 null 인 빈 시리즈 하나다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "§5 — 같은 이름이 major 개수만큼 갈라지고, SQL 이 준 순서를 그대로 지킨다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "UC4 — 정보를 못 찾은 후보도 목록에서 빠지지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "0.5 — 스냅샷 미수신은 not_found 가 아니라 items 안의 null 이다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "0.5 — items 는 DB 순서가 아니라 요청한 이름 순서로 나간다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "298 — 스냅샷이 하나도 없으면 추이 둘 다 500 이 아니라 빈 시리즈다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "§5 — major 별 값을 날짜마다 더하면 쪼개기 전 합계와 같다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "UC4 — 기준 이름 자체가 없으면 not_found 에 담긴다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "UC4 — 후보는 rank 순서로 나가고, 정보 조회 순서에 흔들리지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "298 — 기본 구간은 최신 스냅샷에서 26주를 거꾸로 센다 (양 끝 포함)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "UC4 — 후보가 아직 없는 것은 not_found 가 아니라 NO_DATA 다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "UC4 — 후보가 3개를 넘어도 정보 조회가 막히지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "0.1 — 중복은 제거되고, 응답도 한 번만 나온다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "298 — 스냅샷이 없으면 버전 분포는 snapshot_at 이 null 이고 조각이 비어 있다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "version 행이 없는 패키지는 not_found 로 간다 (현재 동작 — 바꾸려면 프론트 타입도 함께)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "298 — 적재 전 개요의 snapshot_at 은 null 이다 (날짜를 지어내지 않는다)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "0.2 — 일부를 못 찾아도 나머지는 그대로 나가고 not_found 에 담긴다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "published_at 은 UTC 로 나간다 — 시스템 시간대(KST)로 해석하면 9시간이 밀린다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.packages.PackageServiceTest",
+          "test": "298 — 스냅샷이 없어도 from·to 를 명시하면 그 구간 그대로 조회한다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.PdfStoreTest",
+          "test": "미리보기로 읽은 문서는 다운로드 전에 밀려나지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.PdfStoreTest",
+          "test": "기한이 지나면 사라진다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.PdfStoreTest",
+          "test": "상한을 넘으면 가장 오래 안 쓴 것부터 버린다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.PdfStoreTest",
+          "test": "없는 식별자는 빈 값이다 (예외가 아니다)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.PdfStoreTest",
+          "test": "저장한 파일과 정보를 그대로 돌려준다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportHtmlRendererTest",
+          "test": "결측을 빈칸이 아니라 글자로 적는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportHtmlRendererTest",
+          "test": "고른 구역은 비어 있어도 제목과 사유를 적는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportHtmlRendererTest",
+          "test": "폰트 이름이 변환기와 같다 (다르면 PDF 에서 한글이 빠진다)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportHtmlRendererTest",
+          "test": "PDF 로 변환될 수 있는 형태다 (태그가 모두 닫힌다)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportHtmlRendererTest",
+          "test": "남의 문자열이 태그로 해석되지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "보내는 순서·중복과 무관하게 문서 구성이 같다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "생태계는 고를 수 있는 구역이 아니다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "§13.6 — 이름을 하이픈으로 잇고 날짜를 붙인다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "스코프 이름의 @ 와 / 는 파일명에 남지 않는다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "생략하면 더할 구역이 없다 (생태계만)",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "이름이 길어도 잘라내고 날짜는 남긴다",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.report.ReportPdfServiceTest",
+          "test": "모르는 구역은 조용히 무시하지 않고 거절한다",
+          "status": "PASS"
+        }
+      ]
+    },
+    "integrationTest": {
+      "counts": {
+        "PASS": 33,
+        "FAIL": 0,
+        "SKIP": 3
+      },
+      "cases": [
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R14_allSharedSeedScriptsExecuteWithCommunityForeignKey()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R06_corruptSupportedSnapshotReturnsSafeError()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R12_actualRuntimeSnakeCaseAndNullKeys()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R06_unsupportedPolicyMustBeIgnored()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R12_existingPackageSearchStillWorks()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R08_blankNameMustBeV001()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R08_malformedNameMustBeV004()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R14_existingSeedTruncateMustRemainExecutable()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R06_unsupportedPayloadMustBeIgnored()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R11_lateConnectionIsClosedWithoutPublication()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R12_restartPreservesCompleteWireContract()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R08_errorMustAlsoBeNoStore()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R11_cancelledTaskCannotReplaceOldResult()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R06_invalidSupportedPayloadMustBeRejected()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R11_realTransactionRollbackKeepsPreviousRow()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R11_publisherLockTimeoutPreservesOldResultAndRecovers()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityAcceptanceIntegrationTest",
+          "test": "R08_realApplicationInitialWire()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityControllerIntegrationTest",
+          "test": "GET_name이_없으면_400_V001이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityControllerIntegrationTest",
+          "test": "GET_결과와_작업이_전혀_없으면_IDLE이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityControllerIntegrationTest",
+          "test": "POST는_새_작업을_202로_수락하고_완료되면_GET에서_AVAILABLE_결과를_보여준다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityControllerIntegrationTest",
+          "test": "GET_없는_패키지는_404_C006이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunityControllerIntegrationTest",
+          "test": "POST_trigger값이_이상하면_400_V004다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "result가_JSON_객체가_아니면_CHECK_위반으로_거부된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "트랜잭션_중간_실패는_이전에_커밋된_행을_그대로_둔다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "허용되지_않은_data_status_문자열은_CHECK_위반으로_거부된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "두_행이_같은_snapshot_id를_쓸_수_없다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "payload_version_0은_CHECK_위반으로_거부된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotMigrationIntegrationTest",
+          "test": "존재하지_않는_package_id는_FK_위반으로_거부된다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotRepositoryIntegrationTest",
+          "test": "존재하지_않는_package를_조회하면_빈_값이다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotRepositoryIntegrationTest",
+          "test": "같은_package의_advisory_lock을_이미_쥐고_있으면_2초_안에_실패한다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotRepositoryIntegrationTest",
+          "test": "두번째_upsert는_이전_행을_교체한다_원자적_교체()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.CommunitySnapshotRepositoryIntegrationTest",
+          "test": "upsert_후_조회하면_재시작_복원용_필드까지_전부_그대로_돌아온다()",
+          "status": "PASS"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationRealNetworkTest",
+          "test": "일부러_낮춘_byte_상한이_실제_npm_응답에서도_동작한다()",
+          "status": "SKIP"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationRealNetworkTest",
+          "test": "pino의_실제_저장소_연결을_검증한다()",
+          "status": "SKIP"
+        },
+        {
+          "class": "com.ssafy.pickage.domain.community.verification.RepositoryVerificationRealNetworkTest",
+          "test": "일부러_낮춘_byte_상한이_실제_GitHub_응답에서도_동작한다()",
+          "status": "SKIP"
+        },
+        {
+          "class": "com.ssafy.pickage.PickageApplicationTests",
+          "test": "contextLoads()",
+          "status": "PASS"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/BoundedCommunitySummarizer.java",
+      "sha256_lf": "53c57cd86280085c3d6872dd6d000832dd3728c99aa88354922f5236c0b8cd1c",
+      "lines": 40
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CollectedComment.java",
+      "sha256_lf": "f02600d0ff2d977a3b40a09f01c0bbac48b1103da5bdc5361a63f76ae6adff85",
+      "lines": 17
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CollectedIssue.java",
+      "sha256_lf": "a8fc086c6ed5a43c70fb5b22e41c2f8de0f9d058be529774892b8c7aac34bdb3",
+      "lines": 24
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentCollectionStatus.java",
+      "sha256_lf": "674648192930d8330663d486c963813bff7bf69b6325732a5d105791f8cc9bb9",
+      "lines": 11
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentsPage.java",
+      "sha256_lf": "fa984e83c9bdffee4e5de765c6060dca682f1ad5a1c64bdd7aa9af540e5a29e7",
+      "lines": 13
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/CommentWindowResolver.java",
+      "sha256_lf": "da4dea539f65096f1a7e9bf2e87cb2ea4ffa6f07c0e2cd11a8fd65eff49323de",
+      "lines": 30
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/GitHubIssueCommentsClient.java",
+      "sha256_lf": "ef667feb830879f84cee5801089e2fbb5a3d2edc58e5c28b390d99a59b3c8f36",
+      "lines": 201
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/GitHubIssueSearchClient.java",
+      "sha256_lf": "2378879f6115e43db1c0cb96c7e26416d91e14da460f55e46badbbcac2684fc1",
+      "lines": 197
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueCollectionResult.java",
+      "sha256_lf": "ea70171a308a9cf35e99e23f360988df08d7e569fba206d59b2839e269016d9e",
+      "lines": 19
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueCollectionService.java",
+      "sha256_lf": "be8073135e71d1b51570a6b5c042d12c78455c3aa87083da1b92bd297d78dde4",
+      "lines": 150
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/IssueSelectionPolicy.java",
+      "sha256_lf": "a0a98fdf2bea3a2525efec9c2ba8f92c8fb453834920353ef4e479df5b4d9e8d",
+      "lines": 43
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/SearchPage.java",
+      "sha256_lf": "704e8e04754908089f6ff728d9fe74472c0ee28d5720fb8067ad0dd88d3eeb9d",
+      "lines": 14
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/collection/SearchResultItem.java",
+      "sha256_lf": "ee45f603d854289eb5cd8551226f20c0f89204a2b54a7d736a39f310d096eb76",
+      "lines": 25
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityConfig.java",
+      "sha256_lf": "f283508b4fc91322ff2a75b2af2ac789c0c7971090f827cb60db2c7231cd7ac1",
+      "lines": 129
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityController.java",
+      "sha256_lf": "779a05ace89b41c2bef72430fcd92faeed4c1dad3bba4066f181529a8a4ffc60",
+      "lines": 72
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityNoStoreFilter.java",
+      "sha256_lf": "bd4bc6b07a229745c305d78e345f8ae52f23bfe320f89a7aed4ff93883c8ec14",
+      "lines": 23
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityPackageLookup.java",
+      "sha256_lf": "282b6d078ab62891c760067f7e7f9bd9bd9f4278ab5e980055254f1d20adc876",
+      "lines": 36
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityPolicy.java",
+      "sha256_lf": "151caea3539dbb4985cf73557cc8f26575a5d7e59721d801a4b9aaf6d31e4906",
+      "lines": 64
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityProperties.java",
+      "sha256_lf": "c97db6ed0155d6f3a5ca4b0ddcd2b7bd6d5f7a6b630e72370d9cfac653f334e0",
+      "lines": 62
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityReadiness.java",
+      "sha256_lf": "0c4937e77533e114728e6649f32f1db61d81ee9face526e0fe0efd750033a9b3",
+      "lines": 8
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityRefreshOrchestrator.java",
+      "sha256_lf": "6307c981efea39b6be103780b3d2d23d03cff750e5ca95e6839505d46dc3ec62",
+      "lines": 213
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunityService.java",
+      "sha256_lf": "27819758ae9ee9014eca81e857192ddff4bff8059099df1b3c8c249ee5a39601",
+      "lines": 285
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotCleanupJob.java",
+      "sha256_lf": "26d011a03916a4cb18123b7c09ebf5fe1d9db71143dc3f1a8791f0d9efcb2f39",
+      "lines": 43
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotPayloadException.java",
+      "sha256_lf": "ed2fbf3c0e633df15a4a611e1c0027fc54fed7a1ca189921cf2971bbbde58ef3",
+      "lines": 16
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotPublisher.java",
+      "sha256_lf": "cb912527258fc8e95a1ae8aee470800b31ae54c9ebf1e05d77b31a459f5db9a9",
+      "lines": 122
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotRepository.java",
+      "sha256_lf": "56968b2a4e1cbff4f55d83bb9d8d994ba25f5e4ceec7f0c1862fc2a645680aac",
+      "lines": 151
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotRow.java",
+      "sha256_lf": "81734af4d7ec3229266bce5576f7929a5343d0dd902a10d97fb28ef47558a584",
+      "lines": 21
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotTtl.java",
+      "sha256_lf": "a6c9e234a3300a06f2eaf3472b5a12dc4c61db8e590046cbeedc122e2884782b",
+      "lines": 39
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySnapshotValidator.java",
+      "sha256_lf": "b0e0378c916f2fcb5730d6677749f1193d555717a5c2f4f1bda2f78505d43912",
+      "lines": 241
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySummarizer.java",
+      "sha256_lf": "f62115cf8fa5a8213119b1e9985c244387a3429d58a11fb2469d77ceaed19cc6",
+      "lines": 22
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySummarySourceBundle.java",
+      "sha256_lf": "62f9d86cd0daf2c689bfc4813f526850d4e130f990f0ad8a73a8f5895bd48546",
+      "lines": 66
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/CommunitySummaryValidator.java",
+      "sha256_lf": "9ac3e3c6af46a5113bc1f1f47eab677befa3369213692d8770979438f4b8d429",
+      "lines": 102
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/DataStatus.java",
+      "sha256_lf": "0c1b9852ffa294de6cf3d97fc7472e12b4e5a7e0bef2a33436003a4df6cde70a",
+      "lines": 17
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/AuthorRoleMapper.java",
+      "sha256_lf": "1db649132cae101cda7f0a1a6982ecb6f7f60d4047560000b89166d9a91dcaca",
+      "lines": 34
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityErrorCode.java",
+      "sha256_lf": "a2fe190ef88479fe746b296367c5e8ed99d4c0586c54480452a6876508b91598",
+      "lines": 14
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityResultResponse.java",
+      "sha256_lf": "9b25e7c78a5fb102d16a0e940a38c2a8da5bfa9d0ff09fbb627f82616a6c5ee9",
+      "lines": 22
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunityStatusResponse.java",
+      "sha256_lf": "0ab23e7a93ed9db46b9a32197a1d688309099226f2a9611a920c91d542cacf37",
+      "lines": 14
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/CommunitySummaryResponse.java",
+      "sha256_lf": "fdac44cdc106ce8cd61f9013d32d6f9ac3c6f97139fc526231d750b47da52088",
+      "lines": 5
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/DataLimitsResponse.java",
+      "sha256_lf": "76d1bb4988f796219399645dff95175809a2efb0361142405fc2cac3bbdb56bb",
+      "lines": 10
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/DiscussionStepResponse.java",
+      "sha256_lf": "f900ce9bc4773fa39eca6d74bca75e7a07cbd273faa607e6de08cc662c60a145",
+      "lines": 4
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/Freshness.java",
+      "sha256_lf": "95a1c963d37c670916d5f1df8505786fcfb42553c68a464e3834cea5428ca819",
+      "lines": 7
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/LimitationResponse.java",
+      "sha256_lf": "55a360b62e8dbcfa0ef5b371b7630205d45607acd2dcb9bc08fa2a93d0033119",
+      "lines": 4
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/MessageResponse.java",
+      "sha256_lf": "a6003b588e0bf3901aa2ef6fd51d1cd8c20a7b095c0d59472d61e546fe7104c9",
+      "lines": 7
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/RefreshInfoResponse.java",
+      "sha256_lf": "6fd2ed4b1d2cb36dfe0206c1747d6165b78ee260b00156b5399a606217a7bb27",
+      "lines": 24
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/RepositoryInfoResponse.java",
+      "sha256_lf": "03de65c4d2fa6d2a707e3fd52e48e1ca724c44e5b3f4c666f2f82290c5e06ad9",
+      "lines": 5
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/SummaryStatus.java",
+      "sha256_lf": "6b432d225ebd19a7442dd0c631c72dcde350a664943d01b3ae020caf87b1e5e5",
+      "lines": 9
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/TopicResponse.java",
+      "sha256_lf": "9aebf4f310e742083c1841a6ecb772ba2e5efffc3e34966cfa814a8f402a5a09",
+      "lines": 22
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/dto/ViewStatus.java",
+      "sha256_lf": "0015abc0d72ae34b59a2b076fd7190055a04b2753b3d78e99653cce53149cd87",
+      "lines": 9
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/FakeCommunitySummarizer.java",
+      "sha256_lf": "e4ab6e3bab469ced5c3f2b72cda40a5b15fb1cf24b2ae3cd145d9c581a741a7a",
+      "lines": 10
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/CommunityResultPayload.java",
+      "sha256_lf": "db73f8ba2a5e1b123f703c4628cf754d77447caf29b1022bd3d16d3b188e3f1e",
+      "lines": 19
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/DiscussionStepPayload.java",
+      "sha256_lf": "92af689892992289987f0a2da1f4ad31ae72bbdee9efcc6c21c70e2d9d39590e",
+      "lines": 4
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/LimitationPayload.java",
+      "sha256_lf": "ab4c09942a4b9dd42b317b1a103eb6da7e1fc2e04cb359ab3bbc695f652e4f2b",
+      "lines": 4
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/MessagePayload.java",
+      "sha256_lf": "2be2674dc04ae22c7f7e27e0045105cabfb04592b8de6268ba052f988548506c",
+      "lines": 13
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/RepositoryPayload.java",
+      "sha256_lf": "8baf1d25226f27693eb9fd722885753d0f12b1e34df3ba19cdc081b0f093c144",
+      "lines": 5
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/payload/TopicPayload.java",
+      "sha256_lf": "9bcb7602d2a0b215b096a897a476370bde8c898d17779d20c3f060fcd5ad9e5c",
+      "lines": 21
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/AdmissionDecision.java",
+      "sha256_lf": "e9a36caaea60c5c318c9dccd9c16e8379488b1f7e51f8770cb48961cb7a42e41",
+      "lines": 17
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshAdmissionCoordinator.java",
+      "sha256_lf": "a185c52d1877426af5b6eaa466b11f817bd79447b2aad6c5a83f8b60c5eb0ff5",
+      "lines": 175
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshStage.java",
+      "sha256_lf": "8ff6c61f467fb9ffc594bd38afe82cfa349eac4d9ad9b39b261c1ec9215f7812",
+      "lines": 24
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshStatus.java",
+      "sha256_lf": "66671b8b7237431d7d76841a88468f3a066065d14e971577876c47221299d7a7",
+      "lines": 10
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTask.java",
+      "sha256_lf": "03d229b0c1ea65af81e0b2a550c89828ddfbfc63d4ba6a9c23baec01e8cb3fa7",
+      "lines": 144
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTaskRegistry.java",
+      "sha256_lf": "43124f6161d342e885ae84fbc8a577e55ccda8717ed11f098574b46e393496e0",
+      "lines": 85
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/RefreshTrigger.java",
+      "sha256_lf": "c13485d89ff24bc69eccb392525a5146bcea9b1135d396042803c6a0887d8601",
+      "lines": 11
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/refresh/StartTokenBucket.java",
+      "sha256_lf": "7f2ac3a9f38ff88dccbbf3d546f185c77a5e9719965f8d9dbde5a5a17939008c",
+      "lines": 63
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/TopicSummary.java",
+      "sha256_lf": "359b6af0674496258e9f02400077938ac9cc75b3ae7434cc7a0bfe6b4e3abd84",
+      "lines": 23
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/BoundedHttpReader.java",
+      "sha256_lf": "5f8dc8debfe929ac97c0f2e9f9591ba624396e625cf53e804866ff34b59b6083",
+      "lines": 161
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/CandidateSelection.java",
+      "sha256_lf": "50d947981aafa391703127834ceed125eda300f8f11148de323bb8ce25261091",
+      "lines": 15
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/CandidateSource.java",
+      "sha256_lf": "571b80d4199552cbd78db0092c13b107137cba2ca61f23b63760fe4f1e355e26",
+      "lines": 27
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRateGate.java",
+      "sha256_lf": "7cbe07f5c27493bf8656ab94eb7d02a3cfb0c27bb214754564b174ec73b13358",
+      "lines": 120
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRateLimitException.java",
+      "sha256_lf": "08be08782694df772622bfcc10d33d6c6fba4108bc018aa003e94ff05412b7a4",
+      "lines": 25
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryClient.java",
+      "sha256_lf": "835b8378616cd8cab443b9d54959a6fa0f399692245488f60b9c66fe9983dd7c",
+      "lines": 245
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryNotFoundException.java",
+      "sha256_lf": "4cec145f45996217e1688123c563aee02a6b3c7b26ee0c6a7dd7ae514bd80159",
+      "lines": 13
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/NpmLookupOutcome.java",
+      "sha256_lf": "409bc749ab19de5c5c6e93cf8f77316dc1dc956ad76b1dce440e63a39603cfb9",
+      "lines": 16
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/NpmRepositoryLookup.java",
+      "sha256_lf": "829cc529934bc013fa24e096e050e5f7a4e7a9bf461027ec82c6751877b2f8a0",
+      "lines": 137
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/PackageJsonNameCheck.java",
+      "sha256_lf": "4ca74f1903f7ef15f61eb4eb607c8a56952e63036295744be8876e515e1d1454",
+      "lines": 8
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryCandidatePolicy.java",
+      "sha256_lf": "c455a72af211ff0762378dc004ebfa329addae9720c5157bc2e3ffebddad834e",
+      "lines": 62
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryScope.java",
+      "sha256_lf": "56bca7a9f9a12ee4eb91e3cbec291f95bfcd4dbf19aa214d69afe68d1785409e",
+      "lines": 26
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryScopePolicy.java",
+      "sha256_lf": "c249cd47fabe92ad07669807cba3c3e35e709d88f87044c898b8fdb8971eeff3",
+      "lines": 42
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryUrlParser.java",
+      "sha256_lf": "d046970cb8ef7195507057ddfeb0a1d3a73d81f5a9d44a6cbfe5d9b55d488c68",
+      "lines": 62
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationResult.java",
+      "sha256_lf": "e482e93bd5fbd3d47a823a428f4da2244334181d425428a9abae2c391baa53a5",
+      "lines": 45
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationService.java",
+      "sha256_lf": "7657a321d807cd9409d012596f255a454484da98b4d2692ae735b675902975c7",
+      "lines": 135
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/ResolvedCandidate.java",
+      "sha256_lf": "f0a24207d2677d389cc8fa82733a6840ffc8e3bccbb0537cbfeff37fd1491e27",
+      "lines": 18
+    },
+    {
+      "path": "backend/src/main/java/com/ssafy/pickage/domain/community/verification/UpstreamFetchException.java",
+      "sha256_lf": "41db1bfcf9479b482b1e79c76e4f96f9beabcedaf957569cb17fede6f272b620",
+      "lines": 26
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/CollectionContractReviewTest.java",
+      "sha256_lf": "0d10e5b9b903b4d6f5918b612fc8960cbd5ecd6031c0bae78f1085ed1f089bc9",
+      "lines": 95
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/CommentWindowResolverTest.java",
+      "sha256_lf": "375deda87755b31fcae16a8c70996c9990b0762a2828a65f1a8ab2fb4489ad1c",
+      "lines": 75
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/CommunityDataLimitsContractTest.java",
+      "sha256_lf": "a1a33f48330215f5b9db72b9c0ee30fecf6a1d301531167b38c603d964640e0b",
+      "lines": 29
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/GitHubIssueCommentsClientTest.java",
+      "sha256_lf": "b2448a5164b74a6ebb6105d7d3acf43e3d8724b612c819e4db0e83f7d83de4ae",
+      "lines": 117
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/GitHubIssueSearchClientTest.java",
+      "sha256_lf": "72e9986b100adb7fd8954e1e88dc3a424cebdf213ca75eaca15d021ad64cbb94",
+      "lines": 145
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/IssueCollectionServiceTest.java",
+      "sha256_lf": "9efbb1c100544fc0cbfdcd7aa9d34d2483cf4219a8eede71cd71a685e20338c3",
+      "lines": 286
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/collection/IssueSelectionPolicyTest.java",
+      "sha256_lf": "5cb5d997e3b1e118968f35a457318ad4ca89d8b99784fe6a56bfcf3c01536b87",
+      "lines": 164
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityContractReviewTest.java",
+      "sha256_lf": "614989003a7e07725e1c1e04a0172f1ef4a730794a6a3873801b7058c791695e",
+      "lines": 418
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityRefreshOrchestratorTest.java",
+      "sha256_lf": "2789394689dbf619529dbc30a05522b8e7bf284662b2ebac8d0ffcd08e43ed59",
+      "lines": 375
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityServiceTest.java",
+      "sha256_lf": "3b86aab16eb7a94441dfcc8a086bf56a5447d924dd251f3c30feeee4f36c32a9",
+      "lines": 302
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunitySnapshotTtlTest.java",
+      "sha256_lf": "89103bc2c8ff0c00657e0207006c39de29caf35e6547ad0d22940eec3a7c0331",
+      "lines": 56
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/CommunityTestFixtures.java",
+      "sha256_lf": "a0876b632f4555c78db61fcd5281ef8868fccc8caa57266a440c6b1f44c81222",
+      "lines": 51
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/dto/AuthorRoleMapperTest.java",
+      "sha256_lf": "2b9e9a26e4b2abde49f93a5c9f118f112232654946ca4f3efaedc8aac08ebe4f",
+      "lines": 37
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/InMemoryCommunitySnapshotRepository.java",
+      "sha256_lf": "bdb2492421d9abbe724603c5fd5132f2d6f59f8d53baa6b2c32d1ad49af6b97f",
+      "lines": 42
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/payload/CommunityResultPayloadJsonTest.java",
+      "sha256_lf": "5663c3eae0d2e8075e2c1ac6bab2a5e08746c544eecc74214d2502a410c7c4b4",
+      "lines": 142
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/ConcurrencyContractReviewTest.java",
+      "sha256_lf": "19e9ee37892ad8b5db3778fad1fcfd0248d899b7d120fb48cca66c8b8cd3a253",
+      "lines": 236
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshAdmissionCoordinatorTest.java",
+      "sha256_lf": "d95fd58ca0588816c40bc54d886800c333ae70bd184207c3cbea31895c63f912",
+      "lines": 471
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshStageTest.java",
+      "sha256_lf": "c1d9960efe46762e945f653023b17080d5a1728b5b798ee7e7ca9e82838792d5",
+      "lines": 24
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/RefreshTaskRegistryTest.java",
+      "sha256_lf": "8cea7879f5967923277c60f57389a96efd5c626988c18e4352092ff7be34d789",
+      "lines": 96
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/refresh/StartTokenBucketTest.java",
+      "sha256_lf": "cdb53d3141b2cd0f9442f608cedca6f6f4624c84dd53591bc8cb6421930793e0",
+      "lines": 51
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubCommunityPackageLookup.java",
+      "sha256_lf": "f7f5614956d3a0d09257a3211bb3c06d571ef7a2d341c6a4230b4c9c01698466",
+      "lines": 20
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubIssueCollectionService.java",
+      "sha256_lf": "cf904d9b96fff70845c2ffe5c6caa826c7294788e381e18fd70dc412bcaf950c",
+      "lines": 36
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/StubRepositoryVerificationService.java",
+      "sha256_lf": "29ff87fd2844300d98de8915f2a781e224c7235429bb13f3bf10f78fc3d4e6db",
+      "lines": 39
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/FakeHttpServer.java",
+      "sha256_lf": "9ad91c628fb3962b301359bc317a7e542e4be2dd8565a950db9050c5770dfac9",
+      "lines": 126
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/GitHubRepositoryClientTest.java",
+      "sha256_lf": "14c782ab4c7105d0a20d89acdfc42eabc4e7920ff7327e4bafe2c6e44bdaba57",
+      "lines": 153
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/NpmRepositoryLookupTest.java",
+      "sha256_lf": "fed9010e369531c5444706d399cbf0b3a1f3ea1ed436b256285e5f625781a2e9",
+      "lines": 119
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryCandidatePolicyTest.java",
+      "sha256_lf": "b0e3f604fff53fc99bf98cd206fd8b6f8b0aa7657a725a57f61dcddea532de4e",
+      "lines": 86
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryScopePolicyTest.java",
+      "sha256_lf": "32ee26a0bbb4fa5e66ef2d04692f7a914401c9c0fa060b029376dfef55dd5678",
+      "lines": 130
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryUrlParserTest.java",
+      "sha256_lf": "4e6f4e49dab568f55f28e1c97b6e67763a604d220a0994cae275735dca4f3116",
+      "lines": 99
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationServiceTest.java",
+      "sha256_lf": "b74c09da38f2a60100e2774610ad4e00fec2a35fe2fbf6fc8f029eb20e613503",
+      "lines": 270
+    },
+    {
+      "path": "backend/src/test/java/com/ssafy/pickage/domain/community/verification/VerificationContractReviewTest.java",
+      "sha256_lf": "f21fcc56721215e3786ce65b0bb724fccb4f5d3f37f35df63e64f86472420df0",
+      "lines": 198
+    },
+    {
+      "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunityAcceptanceIntegrationTest.java",
+      "sha256_lf": "3c92fa8822c3b4b03169429cb1ccb8c173cfd16bbfb1b9a0365122e7a33b68b6",
+      "lines": 423
+    },
+    {
+      "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunityControllerIntegrationTest.java",
+      "sha256_lf": "864451b4a4fb881ac142995c6fafcd0f0bc4b414338938b14d8a612c35a5b356",
+      "lines": 339
+    },
+    {
+      "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunitySnapshotMigrationIntegrationTest.java",
+      "sha256_lf": "d017054a701e490d2a07b4d79e2e4805d2abb8902cfb2ec41a1337318beef0fc",
+      "lines": 148
+    },
+    {
+      "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/CommunitySnapshotRepositoryIntegrationTest.java",
+      "sha256_lf": "9c1580625e0b0a37cfc2ef3bc62117b3f67608fedbd3ac295f2c1840aaeb3b83",
+      "lines": 292
+    },
+    {
+      "path": "backend/src/integrationTest/java/com/ssafy/pickage/domain/community/verification/RepositoryVerificationRealNetworkTest.java",
+      "sha256_lf": "be16e642b8c78b436a792c816c15d07609edcc94ed524f20096baea3b3ed45cd",
+      "lines": 72
+    }
+  ]
+}

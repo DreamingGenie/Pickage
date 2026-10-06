@@ -1,0 +1,22 @@
+{
+  "baseline_cache": "data\\vd-speed-run-20260911\\finalizations\\21eb675da75e4ef3a23d85a6134e019c\\cache",
+  "weighted_cache": "data\\vd-weighted-six-0911\\finalizations\\788f228fffb7440eab47c4acaf8d036a\\cache",
+  "compared": "all columns and row multiplicities",
+  "checks": [
+    {
+      "file": "count_intervals.parquet",
+      "rows": 402,
+      "differences": 0
+    },
+    {
+      "file": "quality.parquet",
+      "rows": 229,
+      "differences": 0
+    },
+    {
+      "file": "target_population.parquet",
+      "rows": 49936,
+      "differences": 0
+    }
+  ]
+}

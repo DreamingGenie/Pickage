@@ -1,0 +1,126 @@
+{
+  "started_at": "2026-09-08T13:02:05.901144+00:00",
+  "database": "pickage_267_full_defaulted",
+  "container": "pickage-267-validation",
+  "execution_id": "snapshot-history-269-projects-v1",
+  "status": "COMMITTED_AND_REVERIFIED",
+  "service_ready": false,
+  "scope": "reference execution history and V3 on existing local validation DB",
+  "before": {
+    "package_executions": "6fee09591e59128f9e79ccb206b88b856d3f22dabdbff99bdbffd216c9eb0840",
+    "package_attempts": "9643f0ee19993c9b8769f1f9f097b9a6845a3c61c807d7111de6fd1eec3f8dfc",
+    "current": "fa3f461a9c8f26a739447044c2edd9a74455d156de1ddcd3d60bfc95d0a969c6",
+    "service_columns": "4e2d7d65eaeea97bf1631c88b3d619ae7fc6a8907dde6bb3979c4f1cbfea2df5",
+    "snapshot_count": 229,
+    "dates_sha256": "9f65f8a79d0205d212f444e022463f3c032e0b5eec7d45778a0e0f9f705605db",
+    "package_contracts": {
+      "load-267-full-defaulted-v1": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2"
+    }
+  },
+  "migration": {
+    "file": "backend/src/main/resources/db/migration/V3__add_snapshot_reference_execution.sql",
+    "sha256": "a05793116d227e0d14071e8ef853d8487e14e37f29867c20b3871ee772361cfd",
+    "method": "psql -X ON_ERROR_STOP=1 --single-transaction; local validation DB without Flyway history",
+    "applied_at": "2026-09-08T13:02:06.604265+00:00"
+  },
+  "attempt_1": {
+    "dataset": "snapshot-reference",
+    "execution_id": "snapshot-history-269-projects-v1",
+    "attempt_id": "f165300b25f8449d870af51c0812a21f",
+    "started_at": "2026-09-08T13:02:06.607833+00:00",
+    "status": "PUBLISHED",
+    "phase": "COMPLETE",
+    "mode": "LOAD",
+    "candidate_path": "data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json",
+    "contract_sha256": "2957db677d90b89834c79bc8f4f893e0833e30f7f760ed9ae19b0e4ec1fb2d34",
+    "service_ready": false,
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\snapshot\\executions\\snapshot-history-269-projects-v1\\f165300b25f8449d870af51c0812a21f\\execution_report.json",
+    "input": {
+      "dataset": "snapshot-reference",
+      "manifest_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+      "run_prefix": "data/snapshot/S15P21A506-269/projects-v1",
+      "counts": {
+        "snapshot": 229
+      },
+      "input_metadata_sha256": "df251c599e8a3460b27cba044a3dfa18d287d1222655a2f3d07e7e0d5717233b",
+      "prior_date_load_receipt_sha256": "03174fc43d7bd7b55c8ba559ee04aa03032d75d78c486c5d87afe5b2ef54ac8c",
+      "inventory_sha256": "edf247908c3e320f4afa41683a720a0757efd070d8b07a703d655804f9d455f0",
+      "policy_version": "snapshot-time-v1"
+    },
+    "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690",
+    "action": "LINKED_EXISTING",
+    "counts": {
+      "snapshot": 229,
+      "inserted": 0,
+      "existing": 229,
+      "reference_rows": 229
+    },
+    "db_verification": {
+      "database": "pickage_267_full_defaulted",
+      "status": "PUBLISHED",
+      "attempt_status": "PUBLISHED",
+      "reference_rows": 229
+    },
+    "finished_at": "2026-09-08T13:02:15.080394+00:00",
+    "elapsed_seconds": 8.469
+  },
+  "attempt_2": {
+    "dataset": "snapshot-reference",
+    "execution_id": "snapshot-history-269-projects-v1",
+    "attempt_id": "9af6c856b77f4f84812a4524f1f5e25f",
+    "started_at": "2026-09-08T13:02:15.123017+00:00",
+    "status": "PUBLISHED",
+    "phase": "COMPLETE",
+    "mode": "LOAD",
+    "candidate_path": "data/snapshot/S15P21A506-269/projects-v1/snapshot-candidate.json",
+    "contract_sha256": "2957db677d90b89834c79bc8f4f893e0833e30f7f760ed9ae19b0e4ec1fb2d34",
+    "service_ready": false,
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\snapshot\\executions\\snapshot-history-269-projects-v1\\9af6c856b77f4f84812a4524f1f5e25f\\execution_report.json",
+    "input": {
+      "dataset": "snapshot-reference",
+      "manifest_sha256": "d22099ce22031deb47993f5c66b633d3754fd0625dbb1dcbaafc60070f8afaa7",
+      "run_prefix": "data/snapshot/S15P21A506-269/projects-v1",
+      "counts": {
+        "snapshot": 229
+      },
+      "input_metadata_sha256": "df251c599e8a3460b27cba044a3dfa18d287d1222655a2f3d07e7e0d5717233b",
+      "prior_date_load_receipt_sha256": "03174fc43d7bd7b55c8ba559ee04aa03032d75d78c486c5d87afe5b2ef54ac8c",
+      "inventory_sha256": "edf247908c3e320f4afa41683a720a0757efd070d8b07a703d655804f9d455f0",
+      "policy_version": "snapshot-time-v1"
+    },
+    "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690",
+    "action": "REVERIFIED",
+    "counts": {
+      "snapshot": 229,
+      "inserted": 0,
+      "existing": 229,
+      "reference_rows": 229
+    },
+    "db_verification": {
+      "database": "pickage_267_full_defaulted",
+      "status": "PUBLISHED",
+      "attempt_status": "REVERIFIED",
+      "reference_rows": 229
+    },
+    "finished_at": "2026-09-08T13:02:23.318748+00:00",
+    "elapsed_seconds": 8.188
+  },
+  "after": {
+    "package_executions": "6fee09591e59128f9e79ccb206b88b856d3f22dabdbff99bdbffd216c9eb0840",
+    "package_attempts": "9643f0ee19993c9b8769f1f9f097b9a6845a3c61c807d7111de6fd1eec3f8dfc",
+    "current": "fa3f461a9c8f26a739447044c2edd9a74455d156de1ddcd3d60bfc95d0a969c6",
+    "service_columns": "4e2d7d65eaeea97bf1631c88b3d619ae7fc6a8907dde6bb3979c4f1cbfea2df5",
+    "snapshot_count": 229,
+    "dates_sha256": "9f65f8a79d0205d212f444e022463f3c032e0b5eec7d45778a0e0f9f705605db"
+  },
+  "protected_history_and_service_schema_unchanged": true,
+  "snapshot_dates_unchanged": true,
+  "completed_at": "2026-09-08T13:02:23.975540+00:00",
+  "exact_calendar_verified": true,
+  "calendar_sha256": "339576216628ebd9ab2d98eea60e3e50220e34ce4106b1cee23e25602f55779c",
+  "reference_rows": 229,
+  "detailed_receipt": {
+    "path": "data/snapshot/S15P21A506-269/history-db-load-full.json",
+    "sha256": "f9bbe0f84a5abff7412dec19f84a209c35f4484650a2155af7c72c656680d138"
+  }
+}

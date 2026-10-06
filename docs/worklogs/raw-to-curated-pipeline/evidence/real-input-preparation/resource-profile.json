@@ -1,0 +1,67 @@
+{
+  "status": "PLANNED_NOT_BENCHMARKED",
+  "image_id": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+  "raw_run": "raw-freeze-20260915-b1",
+  "aggregate_cpu_limit": 3,
+  "aggregate_memory_gib": 5.5,
+  "baseline": [
+    {
+      "host": "data",
+      "role": "job",
+      "cpus": 3,
+      "memory_gib": 5.5
+    }
+  ],
+  "spark_local": [
+    {
+      "host": "data",
+      "role": "job",
+      "cpus": 3,
+      "memory_gib": 5.5
+    }
+  ],
+  "spark_two_ec2": [
+    {
+      "host": "data",
+      "role": "master",
+      "cpus": 0.25,
+      "memory_gib": 0.5
+    },
+    {
+      "host": "data",
+      "role": "driver",
+      "cpus": 0.75,
+      "memory_gib": 1
+    },
+    {
+      "host": "data",
+      "role": "worker",
+      "cpus": 1,
+      "memory_gib": 2
+    },
+    {
+      "host": "app",
+      "role": "worker",
+      "cpus": 1,
+      "memory_gib": 2
+    }
+  ],
+  "swap_bytes": 0,
+  "measurement_interval_seconds": 1,
+  "input_routes": {
+    "baseline": "data host frozen local files",
+    "spark_two_ec2": "MinIO shared s3a paths"
+  },
+  "limits": [
+    "These are container ceilings, not reserved hardware; production shares both hosts.",
+    "Local versus MinIO IO differs. Report topology and IO separately from engine speed.",
+    "Resource fit on full raw input is not yet established. OOM is a failed run, not a throughput result.",
+    "Measure master, driver and both workers; sum CPU and report per-container and simultaneous aggregate memory.",
+    "Host-network traffic includes other services; never call it isolated experiment traffic.",
+    "Record transfer, baseline reference preparation, hash validation, startup, stage compute and comparison separately.",
+    "Recheck host resources, service health and empty experiment paths immediately before step 3."
+  ],
+  "code_sha256": "ea240f1c44e72c72387f7056f6ad14cef4fe87a0d1520b927e34c5afc93513cd",
+  "input_identity": "9ccbbae874773a165b678e13dee3b1103549deb3fc8bf00672d59c2aaa952970",
+  "raw_manifest_sha256": "f5408949993f6e2f2c53edab74e8c30848aa98db1a1843ff6b89f1868a0b0de7"
+}

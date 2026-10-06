@@ -1,0 +1,12 @@
+FROM eclipse-temurin:21-jre-jammy
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bash e2fsprogs util-linux coreutils \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1000 --create-home --shell /usr/sbin/nologin pickage
+COPY pipeline/preprocessing/runtime/bounded_workspace.sh /usr/local/bin/bounded_workspace
+COPY pipeline/preprocessing/runtime/resource_budget.sh /usr/local/bin/resource_budget.sh
+RUN printf 'loader\n' > /usr/local/bin/workspace.role
+COPY pipeline/preprocessing/runtime/run_loader.sh /usr/local/bin/run_loader
+RUN chmod 0755 /usr/local/bin/bounded_workspace /usr/local/bin/run_loader
+WORKDIR /opt/work
+ENTRYPOINT ["/usr/local/bin/bounded_workspace"]

@@ -1,0 +1,32 @@
+{
+  "source": "server specification supplied by user; local read-only CIM observation",
+  "servers": [
+    {
+      "vcpu": 4,
+      "memory_reported": "15GiB",
+      "cpu": "Intel Xeon Platinum 8175M",
+      "root_filesystem_reported": "309G",
+      "swap_bytes": 0
+    },
+    {
+      "vcpu": 4,
+      "memory_reported": "15GiB",
+      "cpu": "Intel Xeon Platinum 8259CL",
+      "root_filesystem_reported": "309G",
+      "swap_bytes": 0
+    }
+  ],
+  "local": {
+    "cpu": "Intel Core Ultra 9 185H",
+    "cores": 16,
+    "logical_processors": 22,
+    "physical_memory_bytes": 68186861568
+  },
+  "configured_current_duckdb": {
+    "threads": 4,
+    "memory_limit": "4GB"
+  },
+  "spark_cluster_benchmarked": false,
+  "server_access_performed": false,
+  "disk_iops_and_network_measured": false
+}

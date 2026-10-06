@@ -1,0 +1,145 @@
+{
+  "checked_at": "2026-09-10T23:50:59.381784+00:00",
+  "scope": "Independent stored H5-A profile validation: output hashes and full row scans, per-package aggregates compared against H1 populations; no historical count build",
+  "status": "PASS",
+  "seconds": 12.778010599999106,
+  "job_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\historical-profiles\\observed=2026-08-31\\run_id=profile-20260910T203912020724Z-unlimited",
+  "checks": {
+    "h1_manifest_pin": {
+      "passed": true,
+      "value": null
+    },
+    "lookup_workload.parquet_identity": {
+      "passed": true,
+      "value": null
+    },
+    "package_workload.parquet_identity": {
+      "passed": true,
+      "value": null
+    },
+    "source_population.parquet_h1_identity": {
+      "passed": true,
+      "value": null
+    },
+    "target_population.parquet_h1_identity": {
+      "passed": true,
+      "value": null
+    },
+    "package_input_records_complete": {
+      "passed": true,
+      "value": null
+    },
+    "package_input_sha_data_0.parquet": {
+      "passed": true,
+      "value": null
+    },
+    "package_input_sha_data_1.parquet": {
+      "passed": true,
+      "value": null
+    },
+    "package_input_sha_data_2.parquet": {
+      "passed": true,
+      "value": null
+    },
+    "package_input_sha_data_3.parquet": {
+      "passed": true,
+      "value": null
+    },
+    "lookups_schema": {
+      "passed": true,
+      "value": null
+    },
+    "lookups_row_count": {
+      "passed": true,
+      "value": 11051014
+    },
+    "packages_schema": {
+      "passed": true,
+      "value": null
+    },
+    "packages_row_count": {
+      "passed": true,
+      "value": 4134640
+    },
+    "lookup_fields_and_birth_range": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "lookup_ids_follow_condition_order": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "unique_lookup_conditions": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "unique_package_names": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "package_required_values": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "declaration_conservation": {
+      "passed": true,
+      "value": 289214123
+    },
+    "lookup_conservation": {
+      "passed": true,
+      "value": 11051014
+    },
+    "candidate_conservation": {
+      "passed": true,
+      "value": 47172771
+    },
+    "per_package_lookup_counts_exact": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "per_package_candidate_counts_and_payload_exact": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "empty_package_aggregates": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "known_package_mapping": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    },
+    "active_candidate_flag": {
+      "passed": true,
+      "value": {
+        "mismatches": 0
+      }
+    }
+  },
+  "source_versions": 47172949,
+  "declarations": 289214123,
+  "unique_lookups": 11051014,
+  "package_workload_rows": 4134640,
+  "target_versions": 47172771,
+  "count_status": "NOT_COMPUTED",
+  "ready_for_load": false,
+  "limits": "Did not recompute raw requirement-to-lookup grouping or historical semver resolution; initial job recorded in-process EXCEPT ALL verification and revalidated inputs before completion."
+}

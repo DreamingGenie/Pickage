@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-10T13:51:44.043634+00:00",
+  "status": "PASS",
+  "tests": 121,
+  "final_test_code_hashes_match": true,
+  "saved_example_hashes_and_full_results_match": true,
+  "legacy_code_files_unchanged": 30,
+  "docs_checked": 10,
+  "local_links_checked": 155,
+  "docs_sha256": {
+    "pipeline/version_dependents/README.md": "7c6b16afdf7a6c44606a989d82d96cd5b01e4379bead59fcf0afc8d65a406bc7",
+    "docs/worklogs/S15P21A506-193/README.md": "689e97bfa8990ae4b466183f2fdd6520c67a33a8cc776e194631606855c2f6fa",
+    "docs/worklogs/S15P21A506-193/02-plan.md": "daa9a36cf76f8d0432c2c3b1c87a74d11bfc790a8d8a741720bc0ffac1b30512",
+    "docs/worklogs/S15P21A506-193/03-issues.md": "44c3ba856db0d347776b95a4004eedcc2ef471a4bdf70691223de67dd6e1d127",
+    "docs/worklogs/S15P21A506-193/04-work-log.md": "5a834d2af0c650b9ffa90cc75aa84b988c438c391dcdf0529588f533f5a9260b",
+    "docs/worklogs/S15P21A506-193/05-results.md": "d12dfd485623bc74d72f700c2d73239085666034d4f28d2361f49bd5ed3237b3",
+    "docs/worklogs/S15P21A506-193/06-decisions.md": "c1897f27ecd233d3e9e3de745fb078e4b9ecfc9ca044bc9595ae049660f0ed31",
+    "docs/worklogs/S15P21A506-193/10-historical-count-plan.md": "e31007f4580f9c1d27ecd3ca42608e5cd19c69f878dc6e9c01513fb2a1f6a4c4",
+    "docs/worklogs/S15P21A506-193/13-historical-optimization-results.md": "5e86b08ba17c6ea88d9253767cb5e3580eb6c2426627123b6e967f669608eb36",
+    "docs/worklogs/S15P21A506-193/evidence/historical-optimization-review.md": "aa1a16ca9f198610d6f3ee6942e6a02bed53269f965f8aaf64c8a02069e542df"
+  },
+  "actual_229_snapshot_count_executed": false,
+  "database_access": false,
+  "jira_access": false,
+  "commit_or_push": false
+}

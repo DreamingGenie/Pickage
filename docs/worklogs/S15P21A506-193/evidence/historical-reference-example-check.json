@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "saved_result_sha256": "53218e71cc1481db19c2847765bc31e16164712c4224ebe6a0adefc06cdeec8f",
+  "manual_example_snapshot_count": 3,
+  "target_rows": [
+    3,
+    5,
+    6
+  ],
+  "distinct_edges": [
+    3,
+    4,
+    4
+  ],
+  "legacy_files_verified_unchanged": 27,
+  "actual_historical_count_computed": false,
+  "database_access": false,
+  "jira_access": false
+}

@@ -1,0 +1,88 @@
+"""Detached H7 full load; one committed date at a time, no global time limit."""
+from pathlib import Path
+import ctypes
+from datetime import datetime, timezone
+import json
+import os
+import sys
+import threading
+import time
+import traceback
+
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parents[1]
+sys.path[:0] = [str(REPO), str(REPO / '.venv-bq' / 'Lib' / 'site-packages')]
+
+
+def main():
+    os.chdir(REPO)
+    from pipeline.version_dependents.historical_artifact import _run_lock
+    from pipeline.version_dependents.historical_job import _status
+    from pipeline.version_dependents.historical_db_load import load, contract
+    from pipeline.requirements_resolution.input import file_sha256
+
+    with _run_lock(ROOT):
+        started = time.monotonic()
+        stop = threading.Event()
+        state_lock = threading.Lock()
+        state = {'status': 'RUNNING', 'pid': os.getpid(),
+                 'started_at': datetime.now(timezone.utc).isoformat(),
+                 'database': 'pickage_267_full_defaulted',
+                 'container': 'pickage-267-validation',
+                 'expected_dates': 229, 'expected_rows': 1007084608,
+                 'global_timeout_seconds': None, 'publish': True}
+
+        def update(**values):
+            with state_lock:
+                state.update(values)
+                state.update(updated_at=datetime.now(timezone.utc).isoformat(),
+                             elapsed_seconds=round(time.monotonic()-started, 3))
+                _status(ROOT/'process.json', state)
+
+        def heartbeat():
+            while not stop.wait(30):
+                update()
+
+        api = ctypes.WinDLL('kernel32', use_last_error=True)
+        api.SetThreadExecutionState.argtypes = [ctypes.c_uint32]
+        api.SetThreadExecutionState.restype = ctypes.c_uint32
+        thread = None
+        try:
+            if not api.SetThreadExecutionState(0x80000001):
+                raise ctypes.WinError(ctypes.get_last_error())
+            generation = contract()
+            evidence = json.loads((REPO/'docs/worklogs/S15P21A506-193/evidence/full-db-preflight-results.json').read_bytes())
+            if evidence['final_loader_contract'] != generation:
+                raise ValueError('Loader differs from the verified implementation')
+            _status(ROOT/'launch.json', {**state, 'loader_contract': generation,
+                'launcher_sha256': file_sha256(Path(__file__)),
+                'source_run_manifest_sha256': '1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94',
+                'unmapped_names': 2251, 'mapped_packages': 97745,
+                'sleep_prevention': 'ES_CONTINUOUS|ES_SYSTEM_REQUIRED'})
+            update()
+            thread = threading.Thread(target=heartbeat,daemon=True)
+            thread.start()
+            result = load(run_dir=REPO/'data/vd-full-20260912-01/run',
+                manifest_sha256='1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94',
+                output=ROOT/'load',
+                command=['docker','exec','-i','pickage-267-validation','psql','-U','postgres','-d','pickage_267_full_defaulted'],
+                publish=True, execution_prefix='vd193-full')
+            rows = sum(d['counts']['package_version_snapshot'] for d in result['dates'])
+            if result['status'] != 'PUBLISHED' or len(result['dates']) != 229 or rows != 1007084608:
+                raise ValueError('Completed result does not cover the expected full calendar/population')
+            update(status='COMPLETE', published_dates=len(result['dates']), verified_rows=rows,
+                   resolution_status='PARTIAL', result_path=str(ROOT/'load/result.json'))
+            print(json.dumps(state,ensure_ascii=False),flush=True)
+        except BaseException as error:
+            traceback.print_exc()
+            update(status='FAILED',error_type=type(error).__name__,error=str(error))
+            raise
+        finally:
+            stop.set()
+            if thread:
+                thread.join()
+            api.SetThreadExecutionState(0x80000000)
+
+
+if __name__ == '__main__':
+    main()

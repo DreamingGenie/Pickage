@@ -1,0 +1,35 @@
+{
+  "scope": "FRESH_EMPTY_PARTITION_TARGET_ALL_229_DATES_INCLUDING_PRIOR_43",
+  "total_rows": 1007084608,
+  "dates": 229,
+  "min_date_rows": 2169881.0,
+  "max_date_rows": 7822819,
+  "shared_startup_seconds": 71.28476320000482,
+  "daily_input_projection_seconds": 1664.5622578385921,
+  "daily_probe_projection_seconds": 6406.142677718395,
+  "extra_precommit_recheck_projection_seconds": 877.565304098515,
+  "central_seconds": 9019.555002855506,
+  "paired_sensitivity_seconds": [
+    8791.272717845444,
+    9245.276197667523
+  ],
+  "all_dates_at_slowest_largest_day_seconds": 13070.397674000793,
+  "recommended_planning_hours": [
+    3,
+    4
+  ],
+  "planning_range_is_not_guaranteed": true,
+  "all_existing_rows_were_only_included_in_estimate": true,
+  "actual_full_reload_executed": false,
+  "exclusions": [
+    "Parquet aggregation from raw requirements",
+    "Actual deployment/cutover or removing old loaded data",
+    "Unimplemented production ETL integration and accumulated-partition workload"
+  ],
+  "notes": [
+    "Primary result is immutable and retained; this adds measured original precommit source.recheck cost once per date.",
+    "All-date slowest scenario is not a statistical upper bound.",
+    "Model below small sample extrapolates 43 earliest dates; observed min population is near sample size.",
+    "Probe setup/source COPY/legacy fixture/reverification/cleanup are conservatively charged every date; production may remove part of these."
+  ]
+}

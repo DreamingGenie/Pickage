@@ -1,0 +1,18 @@
+test_2701_conditions_are_all_batched (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_2701_conditions_are_all_batched) ... ok
+test_gpu_times_sum_and_memory_peaks_take_maximum (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_gpu_times_sum_and_memory_peaks_take_maximum) ... ok
+test_insert_does_not_truncate_stream_after_first_batch (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_insert_does_not_truncate_stream_after_first_batch) ... ok
+test_multibyte_frame_and_empty_lookup_candidate_guard (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_multibyte_frame_and_empty_lookup_candidate_guard) ... ok
+test_options_and_generation (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_options_and_generation) ... ok
+test_rejects_candidate_rank_birth_requirement_and_runtime_drift (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_rejects_candidate_rank_birth_requirement_and_runtime_drift) ... ok
+test_zero_lookup_validates_candidates_without_numeric_work (pipeline.version_dependents.test_historical_production_resolver.ProductionResolverTests.test_zero_lookup_validates_candidates_without_numeric_work) ... ok
+test_cpu_does_not_import_torch (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_cpu_does_not_import_torch) ... ok
+test_cpu_partial_partition_then_complete_resume (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_cpu_partial_partition_then_complete_resume) ... ok
+test_gpu_matches_npm_and_can_complete_resume (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_gpu_matches_npm_and_can_complete_resume) ... ok
+test_gpu_unavailable_fails_before_output_creation (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_gpu_unavailable_fails_before_output_creation) ... ok
+test_npm_and_cpu_have_identical_complete_outputs (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_npm_and_cpu_have_identical_complete_outputs) ... ok
+test_resume_rejects_backend_batch_workspace_runtime_and_generation_changes (pipeline.version_dependents.test_historical_production_backends.ProductionBackendTests.test_resume_rejects_backend_batch_workspace_runtime_and_generation_changes) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 27.400s
+
+OK

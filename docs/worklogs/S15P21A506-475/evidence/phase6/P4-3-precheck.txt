@@ -1,0 +1,8 @@
+8g:
+1
+activeapps 0
+weekly: inactive
+13 GiB available
+AI_TAG=f416bde3
+1
+no server running on /tmp/tmux-1000/default

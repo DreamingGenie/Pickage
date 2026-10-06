@@ -1,0 +1,113 @@
+{
+  "status": "PASS",
+  "scope": "ISOLATED_H6_REAL_DATA_PILOT",
+  "sample_manifest_sha256": "e4b25ee810a3f67685b4010208090e8a647a27b27e440fc30c3a6e82df8ed34e",
+  "names": [
+    "@types/lodash.get",
+    "is-number",
+    "left-pad"
+  ],
+  "dates": [
+    "2022-05-08",
+    "2026-08-31"
+  ],
+  "rows": 78,
+  "positive_rows": 53,
+  "zero_rows": 25,
+  "insert": {
+    "rows": 78,
+    "changed_rows": 78,
+    "seconds": 0.354
+  },
+  "repeat": {
+    "rows": 78,
+    "changed_rows": 0,
+    "seconds": 0.361
+  },
+  "row_by_row_match": true,
+  "unrelated_package_snapshot_preserved": true,
+  "existing_database_package_version_snapshot_still_empty": true,
+  "probe_database": "pickage_193_probe_ed1d089ded214a3fa34594c35555925c",
+  "container": "pickage-267-validation",
+  "resolution_status": "PARTIAL",
+  "ready_for_load": false,
+  "public_database_load_executed": false,
+  "code_sha256": {
+    "pipeline/version_dependents/historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+    "pipeline/version_dependents/historical_db_probe.py": "38b8722491cdea7fca086057511f7c858079df30030c034de297500dfeef89ec"
+  },
+  "preparation_seconds": 8.037,
+  "source_generation_unchanged": true,
+  "input_scope_limit": {
+    "packages": 32,
+    "dates": 4,
+    "rows": 100000
+  },
+  "db_schema_check": {
+    "primary_key": [
+      "package_id",
+      "version",
+      "snapshot_at"
+    ],
+    "foreign_keys": [
+      "version(package_id,version)",
+      "snapshot(snapshot_at)"
+    ],
+    "dependents_count": "INT NOT NULL DEFAULT 0"
+  },
+  "full_database_target_rows_including_zero": 1007084608,
+  "full_database_positive_rows": 296325102,
+  "full_database_zero_rows": 710759506,
+  "full_load_performed": false,
+  "review": "bounded read-only review: no must-fix findings",
+  "artifacts": {
+    "data\\vd-h6-20260912-02\\sample_manifest.json": "e4b25ee810a3f67685b4010208090e8a647a27b27e440fc30c3a6e82df8ed34e",
+    "data\\vd-h6-20260912-02\\counts.parquet": "462c702f08e291a2abaf0c9b601d3cf11be7e426f4fbdd5bab3c3f655a5e911e",
+    "data\\vd-h6-20260912-02\\source_quality.parquet": "8ca4b54ba6b2260b3cbedd10eb3250e5c546bc51341a4b685c7391ac9859e568",
+    "data\\vd-h6-20260912-02\\probe_result.json": "00bca21f09088804760e1b4a3983d3b3333ff5abfb455a0257438e679c6c8b81"
+  },
+  "examples": [
+    {
+      "package_id": 3581967,
+      "version": "4.4.0",
+      "snapshot_at": "2022-05-08",
+      "dependents_count": 0
+    },
+    {
+      "package_id": 3581967,
+      "version": "4.4.0",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 0
+    },
+    {
+      "package_id": 3581967,
+      "version": "4.4.1",
+      "snapshot_at": "2022-05-08",
+      "dependents_count": 0
+    },
+    {
+      "package_id": 7651591,
+      "version": "7.0.0",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 12448
+    },
+    {
+      "package_id": 7911499,
+      "version": "1.3.0",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 4657
+    },
+    {
+      "package_id": 7911499,
+      "version": "1.3.0",
+      "snapshot_at": "2022-05-08",
+      "dependents_count": 4262
+    }
+  ],
+  "tests": {
+    "count": 15,
+    "seconds": 10.688,
+    "status": "PASS",
+    "postgresql_integration_executed": true
+  }
+}

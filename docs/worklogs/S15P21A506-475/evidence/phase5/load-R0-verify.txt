@@ -1,0 +1,10 @@
+전송 파일 준비: 273781 행 (C:\Users\mypc\Desktop\S15P21A506\data\rehearsal475\loader-work\rehearsal-R0\a4a75ccf43d5412ba8c6752d85d5cfa5\candidates.copy.tsv)
+{
+  "loaded_rows": 273781,
+  "staged_rows": 273781,
+  "loaded_bases": 16325,
+  "staged_bases": 16325,
+  "unresolved_bases": 0,
+  "unresolved_candidates": 0
+}
+검증만 하고 되돌렸다 — C:\Users\mypc\Desktop\S15P21A506\data\rehearsal475\loader-work\rehearsal-R0\a4a75ccf43d5412ba8c6752d85d5cfa5

@@ -1,0 +1,27 @@
+{
+  "input_attempt_v1": {
+    "path": "data/version-dependents/historical-production-inputs/sample-20260911-v1",
+    "status": "FAILED",
+    "stage": "EXTRACT_SELECTED_DECLARATIONS",
+    "reason": "DuckDB max_temp_directory_size=40GB reached with lateral UNNEST WITH ORDINALITY",
+    "complete_manifest_exists": false,
+    "resolution": "SELECT unnest + generate_subscripts; identical limits; v2 succeeded in 60.625s"
+  },
+  "run_attempt_v2": {
+    "path": "data/version-dependents/historical-production-runs/sample-20260911-v2",
+    "status": "FAILED",
+    "stage": "WRITE_SNAPSHOT_PARQUETS",
+    "reason": "Windows path length 282 for atomic snapshot manifest temporary filename",
+    "resolution": "validate longest path before computation; v3 short output path completed"
+  },
+  "independent_verifier_adapter": {
+    "issues": [
+      "Existing diagnostic uses resolved_dependents_count",
+      "run_id is a path partition column, absent with hive_partitioning=false"
+    ],
+    "resolution": "Use six physical columns and exact snapshot date/time validation; targeted final 7 tests passed"
+  },
+  "full_selection_executed": false,
+  "db_written": false,
+  "old_failed_outputs_preserved": true
+}

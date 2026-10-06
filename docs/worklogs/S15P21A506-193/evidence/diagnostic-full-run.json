@@ -1,0 +1,256 @@
+{
+  "recorded_at_utc": "2026-09-10T07:58:03.182681+00:00",
+  "result": {
+    "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\diagnostic-runs\\snapshot=2026-08-31\\run_id=resolved-20260831-v1",
+    "output_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\diagnostic-runs\\snapshot=2026-08-31\\run_id=resolved-20260831-v1\\outputs",
+    "manifest_sha256": "c4f977469045b80003767f9de02981383251d1f2b4720d3e7aa17736958732ec",
+    "dataset_status": "PARTIAL",
+    "ready_for_load": false,
+    "statistics": {
+      "input_edge_rows": 280232217,
+      "distinct_edges": 280232217,
+      "duplicate_edges": 0,
+      "target_versions": 6156555,
+      "max_resolved_dependents_count": 2606910
+    },
+    "timings": {
+      "input_verification_seconds": 23.834888099998352,
+      "aggregation_seconds": 48.518059100002574,
+      "output_write_seconds": 1.1201658999998472,
+      "input_reverification_seconds": 2.817297300003702,
+      "output_verification_seconds": 0.9539236999989953,
+      "total_seconds": 82.57715850000386
+    }
+  },
+  "execution": {
+    "command": [
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pipeline.version_dependents.diagnostic",
+      "build",
+      "--source-run",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1",
+      "--candidate-manifest",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\recovery_candidate-20260909T235450Z.json",
+      "--candidate-sha256",
+      "432d3b59f17a7be883aa6350deefa85362371c99398b91513df4deec590ef618",
+      "--snapshot-at",
+      "2026-08-31",
+      "--output-root",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\diagnostic-runs",
+      "--run-id",
+      "resolved-20260831-v1",
+      "--threads",
+      "8",
+      "--memory-limit",
+      "8GB"
+    ],
+    "started_at_utc": "2026-09-10T07:53:11.364972+00:00",
+    "status": "COMPLETE",
+    "exit_code": 0,
+    "finished_at_utc": "2026-09-10T07:54:34.243227+00:00",
+    "wall_seconds": 82.87784809999721
+  },
+  "independent_verification": {
+    "command": [
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pipeline.version_dependents.diagnostic",
+      "verify",
+      "--output-dir",
+      "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\diagnostic-runs\\snapshot=2026-08-31\\run_id=resolved-20260831-v1\\outputs",
+      "--manifest-sha256",
+      "c4f977469045b80003767f9de02981383251d1f2b4720d3e7aa17736958732ec"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 1.0476172999988194,
+    "verified_at_utc": "2026-09-10T07:55:52.334145+00:00",
+    "build_log_note": "DuckDB progress preceded the JSON result; build subprocess exited 0. Parent log display failed in cp949; result recovered from original UTF-8 log without changing any artifact."
+  },
+  "input": {
+    "candidate_manifest": "C:\\Users\\SSAFY\\workspace\\S15P21A506-283-requirements-snapshot\\data\\requirements-resolution\\runs\\requirements-20260831-v1\\recovery_candidate-20260909T235450Z.json",
+    "candidate_sha256": "432d3b59f17a7be883aa6350deefa85362371c99398b91513df4deec590ef618",
+    "snapshot_at": "2026-08-31",
+    "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+    "upstream_run_id": "requirements-20260831-v1",
+    "input_sha256": "d673d51c73b9245ea897d5b910dc7a90c8e905930a7d05040d07ae9d3e9418e5",
+    "policy_sha256": "721c9d968f75429497b5e30b86ba0137998ea6a6ab1766bfb274d5661da52ef8",
+    "verification_scope": "PINNED_RESOLVED_EDGE_FILES",
+    "full_source_target_population_verified": false,
+    "selected_declarations": 289214123,
+    "resolved_declarations": 280232217,
+    "unresolved_declarations": 8981906,
+    "recovery_gaps": [
+      "initial_code_sha256_not_persisted",
+      "initial_runtime_identity_not_persisted",
+      "original_post_finalize_host_checks_not_observed"
+    ],
+    "recovery_output_hash_semantics": "Post-reboot validation baseline; no pre-interruption output hash was persisted"
+  },
+  "verified_input_files": 1152,
+  "verified_input_bytes": 1987003284,
+  "input_data_validation": "PASSED",
+  "output_files": [
+    {
+      "bytes": 14445935,
+      "path": "resolved_counts.parquet",
+      "rows": 6156555,
+      "schema": [
+        [
+          "package_id",
+          "INTEGER"
+        ],
+        [
+          "version",
+          "VARCHAR"
+        ],
+        [
+          "snapshot_at",
+          "DATE"
+        ],
+        [
+          "snapshot_timestamp",
+          "TIMESTAMP WITH TIME ZONE"
+        ],
+        [
+          "resolved_dependents_count",
+          "INTEGER"
+        ],
+        [
+          "dataset_status",
+          "VARCHAR"
+        ]
+      ],
+      "schema_sha256": "4a4d7f1f7f44e267a0edddab65260ffca6022c80ea57f50fdb75de99093ba7cb",
+      "sha256": "d3403ad40f2ba576139c18c029652c28d11f9579cd3366322493bb2c268fee15"
+    },
+    {
+      "bytes": 3491,
+      "path": "lineage.parquet",
+      "rows": 1,
+      "schema": [
+        [
+          "run_id",
+          "VARCHAR"
+        ],
+        [
+          "snapshot_at",
+          "DATE"
+        ],
+        [
+          "snapshot_timestamp",
+          "TIMESTAMP WITH TIME ZONE"
+        ],
+        [
+          "upstream_run_id",
+          "VARCHAR"
+        ],
+        [
+          "candidate_sha256",
+          "VARCHAR"
+        ],
+        [
+          "input_sha256",
+          "VARCHAR"
+        ],
+        [
+          "policy_sha256",
+          "VARCHAR"
+        ],
+        [
+          "curated_run_id",
+          "VARCHAR"
+        ],
+        [
+          "bronze_run_id",
+          "VARCHAR"
+        ],
+        [
+          "verification_scope",
+          "VARCHAR"
+        ],
+        [
+          "recovery_gaps_json",
+          "VARCHAR"
+        ]
+      ],
+      "schema_sha256": "029686f3f4887e0542f333c8a9f03531c72ea21efc47432487e1ae295b0670a7",
+      "sha256": "a8173bbdcaffb8ecb7a8e7dd1c04fdc8496ba2a2128f5b8a0d5bc9db6a8eceaf"
+    },
+    {
+      "bytes": 3404,
+      "path": "quality.parquet",
+      "rows": 1,
+      "schema": [
+        [
+          "run_id",
+          "VARCHAR"
+        ],
+        [
+          "snapshot_at",
+          "DATE"
+        ],
+        [
+          "snapshot_timestamp",
+          "TIMESTAMP WITH TIME ZONE"
+        ],
+        [
+          "dataset_status",
+          "VARCHAR"
+        ],
+        [
+          "ready_for_load",
+          "BOOLEAN"
+        ],
+        [
+          "input_edge_rows",
+          "BIGINT"
+        ],
+        [
+          "distinct_edges",
+          "BIGINT"
+        ],
+        [
+          "duplicate_edges",
+          "BIGINT"
+        ],
+        [
+          "target_versions",
+          "BIGINT"
+        ],
+        [
+          "max_resolved_dependents_count",
+          "BIGINT"
+        ],
+        [
+          "upstream_quality_json",
+          "VARCHAR"
+        ],
+        [
+          "full_source_target_population_verified",
+          "BOOLEAN"
+        ]
+      ],
+      "schema_sha256": "1c784507e066b0d44b2d1257cf8b6a6a648445b104daa8cb32c0c9ecea9aef7c",
+      "sha256": "5cf85170da157c5c44ef975a2e888808eab906b97beecd621c30a3c170e4ddb1"
+    }
+  ],
+  "output_manifest_bytes": 787413,
+  "executed_code_sha256": {
+    "../requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+    "../snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+    "artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+    "diagnostic.py": "fe07395fae3117f3b8b4a1d6a2d34b73469139b8c2330d4d950b965345ba79bf",
+    "diagnostic_input.py": "5f21be78cb41df254b6c8133719b81b627c3937165eb8c03c22cbab227da8278"
+  },
+  "executed_source_copy": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\executions\\resolved-20260831-v1\\executed-code",
+  "resource_peak_measurements": "NOT_MEASURED",
+  "post_run_logging_fix": "Disabled DuckDB progress bar on the build connection so future CLI stdout contains JSON only. No calculation logic changed; completed data not rerun or modified.",
+  "limitations": [
+    "PARTIAL diagnostic counts only; not ready for DB loading",
+    "Only target versions appearing in resolved edges; no full-population zeros",
+    "Upstream unresolved declarations/source-target population/resolver semantic correctness not fully revalidated"
+  ]
+}

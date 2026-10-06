@@ -1,0 +1,31 @@
+R0   관문 없음(운영 09-19) top3 cos 평균 0.6527 <0.55 0.181  R0와 top3 동일 1.000  3개미만 937
+R1a  인지도만           top3 cos 평균 0.6203 <0.55 0.292  R0와 top3 동일 0.270  3개미만 937
+R1b  보완재만           top3 cos 평균 0.6501 <0.55 0.186  R0와 top3 동일 0.936  3개미만 955
+R1   둘 다(6-A)       top3 cos 평균 0.6173 <0.55 0.300  R0와 top3 동일 0.244  3개미만 955
+glob {'R0': ['minimatch', 'globby', 'picomatch'], 'R1a': ['minimatch', 'globby', 'picomatch'], 'R1b': ['globby', 'zeptomatch', 'gex'], 'R1': ['globby', 'zeptomatch', 'fflate']}
+semver {'R0': ['libnpmversion', '@semantic-release/npm', 'nopt'], 'R1a': ['libnpmversion', '@semantic-release/npm', 'nopt'], 'R1b': ['@semantic-release/npm', 'js-interpreter', '@rushstack/ts-command-line'], 'R1': ['@semantic-release/npm', '@rushstack/ts-command-line', '@lezer/lr']}
+string-width {'R0': ['widest-line', '@types/string-pixel-width', 'cli-truncate'], 'R1a': ['widest-line', 'cli-truncate', 'string-length'], 'R1b': ['@types/string-pixel-width', 'ellipsize', 'ascii-table3'], 'R1': ['ellipsize', 'sql-formatter', '@antv/g2']}
+lodash {'R0': ['flex-tools', '@stdlib/utils', '@contrail/types'], 'R1a': ['min-dash', 'remeda', 'rollup'], 'R1b': ['flex-tools', '@stdlib/utils', '@contrail/types'], 'R1': ['min-dash', 'remeda', 'rollup']}
+react {'R0': ['carbon-react', 'inferno', '@mantine/core'], 'R1a': ['inferno', '@mantine/core', 'next'], 'R1b': ['carbon-react', 'inferno', 'blade'], 'R1': ['inferno', '@modern-js/utils', '@modern-js/node-bundle-require']}
+ws {'R0': ['eiows', 'websocket13', 'pusher'], 'R1a': ['pusher', 'partysocket', 'rpc-websockets'], 'R1b': ['eiows', 'websocket13', 'pusher'], 'R1': ['pusher', 'partysocket', 'rpc-websockets']}
+minimatch {'R0': ['zeptomatch', 'picomatch', 'globby'], 'R1a': ['zeptomatch', 'picomatch', 'globby'], 'R1b': ['zeptomatch', 'globby', 'cspell-glob'], 'R1': ['zeptomatch', 'globby', 'cspell-glob']}
+chalk {'R0': ['ansi-styles', 'yoctocolors', 'supports-color'], 'R1a': ['ansi-styles', 'yoctocolors', 'supports-color'], 'R1b': ['yoctocolors', '@colors/colors', 'colors-option'], 'R1': ['yoctocolors', '@colors/colors', 'colors-option']}
+express {'R0': ['restana', 'fastify', '@tinyhttp/app'], 'R1a': ['fastify', '@tinyhttp/app', '@hapi/hapi'], 'R1b': ['restana', 'fastify', '@tinyhttp/app'], 'R1': ['fastify', '@tinyhttp/app', '@hapi/hapi']}
+zod {'R0': ['schemastery', 'joi', 'decoders'], 'R1a': ['joi', '@sinclair/typebox', 'ajv'], 'R1b': ['schemastery', 'joi', 'decoders'], 'R1': ['joi', 'ajv', '@redocly/ajv']}
+R0 in@3 0.2419 in@20 0.6774 hitq 9
+R1a in@3 0.2742 in@20 0.5645 hitq 12
+R1b in@3 0.2419 in@20 0.6774 hitq 9
+R1 in@3 0.2903 in@20 0.5645 hitq 12
+R0   기준 16325  top3에 cos<0.5 후보가 있는 기준 1764 (0.108)  1위 대비 0.15 넘게 떨어지는 후보가 있는 기준 1578 (0.097)
+R1a  기준 16325  top3에 cos<0.5 후보가 있는 기준 3194 (0.196)  1위 대비 0.15 넘게 떨어지는 후보가 있는 기준 1507 (0.092)
+R1b  기준 16316  top3에 cos<0.5 후보가 있는 기준 1804 (0.111)  1위 대비 0.15 넘게 떨어지는 후보가 있는 기준 1549 (0.095)
+R1   기준 16316  top3에 cos<0.5 후보가 있는 기준 3276 (0.201)  1위 대비 0.15 넘게 떨어지는 후보가 있는 기준 1446 (0.089)
+R0   하한 None: 3개 미만 기준 937 (0개 0)  in-scope recall@3 0.242
+R0   하한 0.5: 3개 미만 기준 2652 (0개 616)  in-scope recall@3 0.242
+R0   하한 0.45: 3개 미만 기준 1358 (0개 107)  in-scope recall@3 0.242
+R1a  하한 None: 3개 미만 기준 937 (0개 0)  in-scope recall@3 0.274
+R1a  하한 0.5: 3개 미만 기준 4082 (0개 1402)  in-scope recall@3 0.274
+R1a  하한 0.45: 3개 미만 기준 2097 (0개 386)  in-scope recall@3 0.274
+R1   하한 None: 3개 미만 기준 955 (0개 0)  in-scope recall@3 0.290
+R1   하한 0.5: 3개 미만 기준 4182 (0개 1435)  in-scope recall@3 0.290
+R1   하한 0.45: 3개 미만 기준 2137 (0개 388)  in-scope recall@3 0.290

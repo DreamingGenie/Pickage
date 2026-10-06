@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-09-10T06:49:58.279147+00:00",
+  "status": "PASS",
+  "markdown_files": 9,
+  "local_links": 62,
+  "python_ast_files": 3,
+  "historical_document_check_preserved": true,
+  "source_and_test_log_hashes_match": true,
+  "new_code_scope": "pipeline/version_dependents/",
+  "documentation_scope": "docs/worklogs/S15P21A506-193/",
+  "out_of_scope_tracked_changes": [],
+  "independent_code_review": "CLEAR for small synthetic kernel scope; production adapter and full data unverified",
+  "code_unit_tests_repeated_for_doc_changes": false
+}

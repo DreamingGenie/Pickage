@@ -1,0 +1,2984 @@
+{
+  "policy_version": "snapshot-time-v1",
+  "policy_sha256": "2ceb32a89212705db607d97e83a4cda96cc301e80c30d17da439d8f4b5579690",
+  "source_inventory_sha256": "edf247908c3e320f4afa41683a720a0757efd070d8b07a703d655804f9d455f0",
+  "calendar": [
+    {
+      "download_end_exclusive": "2022-05-08",
+      "download_start_inclusive": null,
+      "interval_days": null,
+      "interval_reason": "NO_PREVIOUS_SNAPSHOT",
+      "previous_snapshot_at": null,
+      "previous_snapshot_timestamp": null,
+      "snapshot_at": "2022-05-08",
+      "snapshot_timestamp": "2022-05-08T02:05:29.029028Z",
+      "source_timestamps": [
+        "2022-05-08T02:05:29.029028Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-05-15",
+      "download_start_inclusive": "2022-05-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-05-08",
+      "previous_snapshot_timestamp": "2022-05-08T02:05:29.029028Z",
+      "snapshot_at": "2022-05-15",
+      "snapshot_timestamp": "2022-05-15T23:00:01.333164Z",
+      "source_timestamps": [
+        "2022-05-15T23:00:01.333164Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-05-22",
+      "download_start_inclusive": "2022-05-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-05-15",
+      "previous_snapshot_timestamp": "2022-05-15T23:00:01.333164Z",
+      "snapshot_at": "2022-05-22",
+      "snapshot_timestamp": "2022-05-22T23:00:01.587111Z",
+      "source_timestamps": [
+        "2022-05-22T23:00:01.587111Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-05-29",
+      "download_start_inclusive": "2022-05-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-05-22",
+      "previous_snapshot_timestamp": "2022-05-22T23:00:01.587111Z",
+      "snapshot_at": "2022-05-29",
+      "snapshot_timestamp": "2022-05-29T23:00:02.672717Z",
+      "source_timestamps": [
+        "2022-05-29T23:00:02.672717Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-06-05",
+      "download_start_inclusive": "2022-05-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-05-29",
+      "previous_snapshot_timestamp": "2022-05-29T23:00:02.672717Z",
+      "snapshot_at": "2022-06-05",
+      "snapshot_timestamp": "2022-06-05T23:00:01.658498Z",
+      "source_timestamps": [
+        "2022-06-05T23:00:01.658498Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-06-13",
+      "download_start_inclusive": "2022-06-05",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-06-05",
+      "previous_snapshot_timestamp": "2022-06-05T23:00:01.658498Z",
+      "snapshot_at": "2022-06-13",
+      "snapshot_timestamp": "2022-06-13T21:00:02.211099Z",
+      "source_timestamps": [
+        "2022-06-13T21:00:02.211099Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-06-20",
+      "download_start_inclusive": "2022-06-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-06-13",
+      "previous_snapshot_timestamp": "2022-06-13T21:00:02.211099Z",
+      "snapshot_at": "2022-06-20",
+      "snapshot_timestamp": "2022-06-20T21:00:03.118511Z",
+      "source_timestamps": [
+        "2022-06-20T21:00:03.118511Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-06-27",
+      "download_start_inclusive": "2022-06-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-06-20",
+      "previous_snapshot_timestamp": "2022-06-20T21:00:03.118511Z",
+      "snapshot_at": "2022-06-27",
+      "snapshot_timestamp": "2022-06-27T21:00:03.995533Z",
+      "source_timestamps": [
+        "2022-06-27T21:00:03.995533Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-07-04",
+      "download_start_inclusive": "2022-06-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-06-27",
+      "previous_snapshot_timestamp": "2022-06-27T21:00:03.995533Z",
+      "snapshot_at": "2022-07-04",
+      "snapshot_timestamp": "2022-07-04T21:00:05.144258Z",
+      "source_timestamps": [
+        "2022-07-04T21:00:05.144258Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-07-12",
+      "download_start_inclusive": "2022-07-04",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-07-04",
+      "previous_snapshot_timestamp": "2022-07-04T21:00:05.144258Z",
+      "snapshot_at": "2022-07-12",
+      "snapshot_timestamp": "2022-07-12T21:00:03.388273Z",
+      "source_timestamps": [
+        "2022-07-12T21:00:03.388273Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-07-18",
+      "download_start_inclusive": "2022-07-12",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-07-12",
+      "previous_snapshot_timestamp": "2022-07-12T21:00:03.388273Z",
+      "snapshot_at": "2022-07-18",
+      "snapshot_timestamp": "2022-07-18T21:00:02.532413Z",
+      "source_timestamps": [
+        "2022-07-18T21:00:02.532413Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-07-26",
+      "download_start_inclusive": "2022-07-18",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-07-18",
+      "previous_snapshot_timestamp": "2022-07-18T21:00:02.532413Z",
+      "snapshot_at": "2022-07-26",
+      "snapshot_timestamp": "2022-07-26T00:47:43.143546Z",
+      "source_timestamps": [
+        "2022-07-26T00:47:43.143546Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-08-01",
+      "download_start_inclusive": "2022-07-26",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-07-26",
+      "previous_snapshot_timestamp": "2022-07-26T00:47:43.143546Z",
+      "snapshot_at": "2022-08-01",
+      "snapshot_timestamp": "2022-08-01T21:00:03.386881Z",
+      "source_timestamps": [
+        "2022-08-01T21:00:03.386881Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-08-08",
+      "download_start_inclusive": "2022-08-01",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-08-01",
+      "previous_snapshot_timestamp": "2022-08-01T21:00:03.386881Z",
+      "snapshot_at": "2022-08-08",
+      "snapshot_timestamp": "2022-08-08T22:31:32.067865Z",
+      "source_timestamps": [
+        "2022-08-08T22:31:32.067865Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-08-15",
+      "download_start_inclusive": "2022-08-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-08-08",
+      "previous_snapshot_timestamp": "2022-08-08T22:31:32.067865Z",
+      "snapshot_at": "2022-08-15",
+      "snapshot_timestamp": "2022-08-15T22:51:43.440063Z",
+      "source_timestamps": [
+        "2022-08-15T22:51:43.440063Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-08-22",
+      "download_start_inclusive": "2022-08-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-08-15",
+      "previous_snapshot_timestamp": "2022-08-15T22:51:43.440063Z",
+      "snapshot_at": "2022-08-22",
+      "snapshot_timestamp": "2022-08-22T21:00:02.555091Z",
+      "source_timestamps": [
+        "2022-08-22T21:00:02.555091Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-08-29",
+      "download_start_inclusive": "2022-08-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-08-22",
+      "previous_snapshot_timestamp": "2022-08-22T21:00:02.555091Z",
+      "snapshot_at": "2022-08-29",
+      "snapshot_timestamp": "2022-08-29T21:01:17.835295Z",
+      "source_timestamps": [
+        "2022-08-29T21:01:17.835295Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-09-05",
+      "download_start_inclusive": "2022-08-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-08-29",
+      "previous_snapshot_timestamp": "2022-08-29T21:01:17.835295Z",
+      "snapshot_at": "2022-09-05",
+      "snapshot_timestamp": "2022-09-05T21:01:29.547187Z",
+      "source_timestamps": [
+        "2022-09-05T21:01:29.547187Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-09-13",
+      "download_start_inclusive": "2022-09-05",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-09-05",
+      "previous_snapshot_timestamp": "2022-09-05T21:01:29.547187Z",
+      "snapshot_at": "2022-09-13",
+      "snapshot_timestamp": "2022-09-13T21:01:33.519860Z",
+      "source_timestamps": [
+        "2022-09-13T21:01:33.519860Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-09-19",
+      "download_start_inclusive": "2022-09-13",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-09-13",
+      "previous_snapshot_timestamp": "2022-09-13T21:01:33.519860Z",
+      "snapshot_at": "2022-09-19",
+      "snapshot_timestamp": "2022-09-19T21:01:19.294376Z",
+      "source_timestamps": [
+        "2022-09-19T21:01:19.294376Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-09-26",
+      "download_start_inclusive": "2022-09-19",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-09-19",
+      "previous_snapshot_timestamp": "2022-09-19T21:01:19.294376Z",
+      "snapshot_at": "2022-09-26",
+      "snapshot_timestamp": "2022-09-26T21:01:26.800683Z",
+      "source_timestamps": [
+        "2022-09-26T21:01:26.800683Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-10-03",
+      "download_start_inclusive": "2022-09-26",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-09-26",
+      "previous_snapshot_timestamp": "2022-09-26T21:01:26.800683Z",
+      "snapshot_at": "2022-10-03",
+      "snapshot_timestamp": "2022-10-03T21:01:24.108828Z",
+      "source_timestamps": [
+        "2022-10-03T21:01:24.108828Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-10-10",
+      "download_start_inclusive": "2022-10-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-10-03",
+      "previous_snapshot_timestamp": "2022-10-03T21:01:24.108828Z",
+      "snapshot_at": "2022-10-10",
+      "snapshot_timestamp": "2022-10-10T21:01:10.578435Z",
+      "source_timestamps": [
+        "2022-10-10T21:01:10.578435Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-10-17",
+      "download_start_inclusive": "2022-10-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-10-10",
+      "previous_snapshot_timestamp": "2022-10-10T21:01:10.578435Z",
+      "snapshot_at": "2022-10-17",
+      "snapshot_timestamp": "2022-10-17T21:01:07.246371Z",
+      "source_timestamps": [
+        "2022-10-17T21:01:07.246371Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-10-24",
+      "download_start_inclusive": "2022-10-17",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-10-17",
+      "previous_snapshot_timestamp": "2022-10-17T21:01:07.246371Z",
+      "snapshot_at": "2022-10-24",
+      "snapshot_timestamp": "2022-10-24T21:01:23.341514Z",
+      "source_timestamps": [
+        "2022-10-24T21:01:23.341514Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-10-31",
+      "download_start_inclusive": "2022-10-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-10-24",
+      "previous_snapshot_timestamp": "2022-10-24T21:01:23.341514Z",
+      "snapshot_at": "2022-10-31",
+      "snapshot_timestamp": "2022-10-31T21:01:28.839593Z",
+      "source_timestamps": [
+        "2022-10-31T21:01:28.839593Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-11-07",
+      "download_start_inclusive": "2022-10-31",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-10-31",
+      "previous_snapshot_timestamp": "2022-10-31T21:01:28.839593Z",
+      "snapshot_at": "2022-11-07",
+      "snapshot_timestamp": "2022-11-07T23:34:06.221221Z",
+      "source_timestamps": [
+        "2022-11-07T23:34:06.221221Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-11-14",
+      "download_start_inclusive": "2022-11-07",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-11-07",
+      "previous_snapshot_timestamp": "2022-11-07T23:34:06.221221Z",
+      "snapshot_at": "2022-11-14",
+      "snapshot_timestamp": "2022-11-14T21:01:14.270552Z",
+      "source_timestamps": [
+        "2022-11-14T21:01:14.270552Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-11-21",
+      "download_start_inclusive": "2022-11-14",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-11-14",
+      "previous_snapshot_timestamp": "2022-11-14T21:01:14.270552Z",
+      "snapshot_at": "2022-11-21",
+      "snapshot_timestamp": "2022-11-21T21:01:27.023620Z",
+      "source_timestamps": [
+        "2022-11-21T21:01:27.023620Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-11-28",
+      "download_start_inclusive": "2022-11-21",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-11-21",
+      "previous_snapshot_timestamp": "2022-11-21T21:01:27.023620Z",
+      "snapshot_at": "2022-11-28",
+      "snapshot_timestamp": "2022-11-28T21:01:09.625652Z",
+      "source_timestamps": [
+        "2022-11-28T21:01:09.625652Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-12-05",
+      "download_start_inclusive": "2022-11-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-11-28",
+      "previous_snapshot_timestamp": "2022-11-28T21:01:09.625652Z",
+      "snapshot_at": "2022-12-05",
+      "snapshot_timestamp": "2022-12-05T21:01:17.494537Z",
+      "source_timestamps": [
+        "2022-12-05T21:01:17.494537Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-12-12",
+      "download_start_inclusive": "2022-12-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-12-05",
+      "previous_snapshot_timestamp": "2022-12-05T21:01:17.494537Z",
+      "snapshot_at": "2022-12-12",
+      "snapshot_timestamp": "2022-12-12T21:01:43.046625Z",
+      "source_timestamps": [
+        "2022-12-12T21:01:43.046625Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-12-19",
+      "download_start_inclusive": "2022-12-12",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-12-12",
+      "previous_snapshot_timestamp": "2022-12-12T21:01:43.046625Z",
+      "snapshot_at": "2022-12-19",
+      "snapshot_timestamp": "2022-12-19T21:01:21.375809Z",
+      "source_timestamps": [
+        "2022-12-19T21:01:21.375809Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2022-12-26",
+      "download_start_inclusive": "2022-12-19",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-12-19",
+      "previous_snapshot_timestamp": "2022-12-19T21:01:21.375809Z",
+      "snapshot_at": "2022-12-26",
+      "snapshot_timestamp": "2022-12-26T21:01:20.571777Z",
+      "source_timestamps": [
+        "2022-12-26T21:01:20.571777Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-01-02",
+      "download_start_inclusive": "2022-12-26",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2022-12-26",
+      "previous_snapshot_timestamp": "2022-12-26T21:01:20.571777Z",
+      "snapshot_at": "2023-01-02",
+      "snapshot_timestamp": "2023-01-02T21:01:21.557660Z",
+      "source_timestamps": [
+        "2023-01-02T21:01:21.557660Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-01-09",
+      "download_start_inclusive": "2023-01-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-01-02",
+      "previous_snapshot_timestamp": "2023-01-02T21:01:21.557660Z",
+      "snapshot_at": "2023-01-09",
+      "snapshot_timestamp": "2023-01-09T21:01:25.349203Z",
+      "source_timestamps": [
+        "2023-01-09T21:01:25.349203Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-01-16",
+      "download_start_inclusive": "2023-01-09",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-01-09",
+      "previous_snapshot_timestamp": "2023-01-09T21:01:25.349203Z",
+      "snapshot_at": "2023-01-16",
+      "snapshot_timestamp": "2023-01-16T21:01:22.391534Z",
+      "source_timestamps": [
+        "2023-01-16T21:01:22.391534Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-01-23",
+      "download_start_inclusive": "2023-01-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-01-16",
+      "previous_snapshot_timestamp": "2023-01-16T21:01:22.391534Z",
+      "snapshot_at": "2023-01-23",
+      "snapshot_timestamp": "2023-01-23T21:01:23.825470Z",
+      "source_timestamps": [
+        "2023-01-23T21:01:23.825470Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-01-29",
+      "download_start_inclusive": "2023-01-23",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-01-23",
+      "previous_snapshot_timestamp": "2023-01-23T21:01:23.825470Z",
+      "snapshot_at": "2023-01-29",
+      "snapshot_timestamp": "2023-01-29T21:01:25.532982Z",
+      "source_timestamps": [
+        "2023-01-29T21:01:25.532982Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-02-06",
+      "download_start_inclusive": "2023-01-29",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-01-29",
+      "previous_snapshot_timestamp": "2023-01-29T21:01:25.532982Z",
+      "snapshot_at": "2023-02-06",
+      "snapshot_timestamp": "2023-02-06T21:01:27.369245Z",
+      "source_timestamps": [
+        "2023-02-06T21:01:27.369245Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-02-13",
+      "download_start_inclusive": "2023-02-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-02-06",
+      "previous_snapshot_timestamp": "2023-02-06T21:01:27.369245Z",
+      "snapshot_at": "2023-02-13",
+      "snapshot_timestamp": "2023-02-13T21:01:25.907285Z",
+      "source_timestamps": [
+        "2023-02-13T21:01:25.907285Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-02-20",
+      "download_start_inclusive": "2023-02-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-02-13",
+      "previous_snapshot_timestamp": "2023-02-13T21:01:25.907285Z",
+      "snapshot_at": "2023-02-20",
+      "snapshot_timestamp": "2023-02-20T21:01:34.242898Z",
+      "source_timestamps": [
+        "2023-02-20T21:01:34.242898Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-02-27",
+      "download_start_inclusive": "2023-02-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-02-20",
+      "previous_snapshot_timestamp": "2023-02-20T21:01:34.242898Z",
+      "snapshot_at": "2023-02-27",
+      "snapshot_timestamp": "2023-02-27T22:08:24.544370Z",
+      "source_timestamps": [
+        "2023-02-27T22:08:24.544370Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-03-06",
+      "download_start_inclusive": "2023-02-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-02-27",
+      "previous_snapshot_timestamp": "2023-02-27T22:08:24.544370Z",
+      "snapshot_at": "2023-03-06",
+      "snapshot_timestamp": "2023-03-06T21:01:36.557032Z",
+      "source_timestamps": [
+        "2023-03-06T21:01:36.557032Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-03-13",
+      "download_start_inclusive": "2023-03-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-03-06",
+      "previous_snapshot_timestamp": "2023-03-06T21:01:36.557032Z",
+      "snapshot_at": "2023-03-13",
+      "snapshot_timestamp": "2023-03-13T21:01:32.197398Z",
+      "source_timestamps": [
+        "2023-03-13T21:01:32.197398Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-03-21",
+      "download_start_inclusive": "2023-03-13",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-03-13",
+      "previous_snapshot_timestamp": "2023-03-13T21:01:32.197398Z",
+      "snapshot_at": "2023-03-21",
+      "snapshot_timestamp": "2023-03-21T22:57:30.751005Z",
+      "source_timestamps": [
+        "2023-03-21T22:57:30.751005Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-03-27",
+      "download_start_inclusive": "2023-03-21",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-03-21",
+      "previous_snapshot_timestamp": "2023-03-21T22:57:30.751005Z",
+      "snapshot_at": "2023-03-27",
+      "snapshot_timestamp": "2023-03-27T21:01:40.779901Z",
+      "source_timestamps": [
+        "2023-03-27T21:01:40.779901Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-04-03",
+      "download_start_inclusive": "2023-03-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-03-27",
+      "previous_snapshot_timestamp": "2023-03-27T21:01:40.779901Z",
+      "snapshot_at": "2023-04-03",
+      "snapshot_timestamp": "2023-04-03T21:01:36.257226Z",
+      "source_timestamps": [
+        "2023-04-03T21:01:36.257226Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-04-10",
+      "download_start_inclusive": "2023-04-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-04-03",
+      "previous_snapshot_timestamp": "2023-04-03T21:01:36.257226Z",
+      "snapshot_at": "2023-04-10",
+      "snapshot_timestamp": "2023-04-10T21:01:49.219309Z",
+      "source_timestamps": [
+        "2023-04-10T21:01:49.219309Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-04-17",
+      "download_start_inclusive": "2023-04-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-04-10",
+      "previous_snapshot_timestamp": "2023-04-10T21:01:49.219309Z",
+      "snapshot_at": "2023-04-17",
+      "snapshot_timestamp": "2023-04-17T21:01:41.079793Z",
+      "source_timestamps": [
+        "2023-04-17T21:01:41.079793Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-04-20",
+      "download_start_inclusive": "2023-04-17",
+      "interval_days": 3,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-04-17",
+      "previous_snapshot_timestamp": "2023-04-17T21:01:41.079793Z",
+      "snapshot_at": "2023-04-20",
+      "snapshot_timestamp": "2023-04-20T06:16:52.570650Z",
+      "source_timestamps": [
+        "2023-04-20T06:16:52.570650Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-01",
+      "download_start_inclusive": "2023-04-20",
+      "interval_days": 11,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-04-20",
+      "previous_snapshot_timestamp": "2023-04-20T06:16:52.570650Z",
+      "snapshot_at": "2023-05-01",
+      "snapshot_timestamp": "2023-05-01T05:09:36.045813Z",
+      "source_timestamps": [
+        "2023-05-01T05:09:36.045813Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-02",
+      "download_start_inclusive": "2023-05-01",
+      "interval_days": 1,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-01",
+      "previous_snapshot_timestamp": "2023-05-01T05:09:36.045813Z",
+      "snapshot_at": "2023-05-02",
+      "snapshot_timestamp": "2023-05-02T21:01:39.243165Z",
+      "source_timestamps": [
+        "2023-05-02T21:01:39.243165Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-08",
+      "download_start_inclusive": "2023-05-02",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-02",
+      "previous_snapshot_timestamp": "2023-05-02T21:01:39.243165Z",
+      "snapshot_at": "2023-05-08",
+      "snapshot_timestamp": "2023-05-08T21:01:30.919088Z",
+      "source_timestamps": [
+        "2023-05-08T21:01:30.919088Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-15",
+      "download_start_inclusive": "2023-05-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-08",
+      "previous_snapshot_timestamp": "2023-05-08T21:01:30.919088Z",
+      "snapshot_at": "2023-05-15",
+      "snapshot_timestamp": "2023-05-15T21:01:27.866594Z",
+      "source_timestamps": [
+        "2023-05-15T21:01:27.866594Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-22",
+      "download_start_inclusive": "2023-05-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-15",
+      "previous_snapshot_timestamp": "2023-05-15T21:01:27.866594Z",
+      "snapshot_at": "2023-05-22",
+      "snapshot_timestamp": "2023-05-22T21:01:29.746426Z",
+      "source_timestamps": [
+        "2023-05-22T21:01:29.746426Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-05-29",
+      "download_start_inclusive": "2023-05-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-22",
+      "previous_snapshot_timestamp": "2023-05-22T21:01:29.746426Z",
+      "snapshot_at": "2023-05-29",
+      "snapshot_timestamp": "2023-05-29T21:01:38.282067Z",
+      "source_timestamps": [
+        "2023-05-29T21:01:38.282067Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-06-05",
+      "download_start_inclusive": "2023-05-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-05-29",
+      "previous_snapshot_timestamp": "2023-05-29T21:01:38.282067Z",
+      "snapshot_at": "2023-06-05",
+      "snapshot_timestamp": "2023-06-05T21:01:37.724475Z",
+      "source_timestamps": [
+        "2023-06-05T21:01:37.724475Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-06-12",
+      "download_start_inclusive": "2023-06-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-06-05",
+      "previous_snapshot_timestamp": "2023-06-05T21:01:37.724475Z",
+      "snapshot_at": "2023-06-12",
+      "snapshot_timestamp": "2023-06-12T21:01:39.091573Z",
+      "source_timestamps": [
+        "2023-06-12T21:01:39.091573Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-06-20",
+      "download_start_inclusive": "2023-06-12",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-06-12",
+      "previous_snapshot_timestamp": "2023-06-12T21:01:39.091573Z",
+      "snapshot_at": "2023-06-20",
+      "snapshot_timestamp": "2023-06-20T21:01:37.028600Z",
+      "source_timestamps": [
+        "2023-06-20T21:01:37.028600Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-06-26",
+      "download_start_inclusive": "2023-06-20",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-06-20",
+      "previous_snapshot_timestamp": "2023-06-20T21:01:37.028600Z",
+      "snapshot_at": "2023-06-26",
+      "snapshot_timestamp": "2023-06-26T21:01:38.702142Z",
+      "source_timestamps": [
+        "2023-06-26T21:01:38.702142Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-07-03",
+      "download_start_inclusive": "2023-06-26",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-06-26",
+      "previous_snapshot_timestamp": "2023-06-26T21:01:38.702142Z",
+      "snapshot_at": "2023-07-03",
+      "snapshot_timestamp": "2023-07-03T21:01:30.072045Z",
+      "source_timestamps": [
+        "2023-07-03T21:01:30.072045Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-07-10",
+      "download_start_inclusive": "2023-07-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-07-03",
+      "previous_snapshot_timestamp": "2023-07-03T21:01:30.072045Z",
+      "snapshot_at": "2023-07-10",
+      "snapshot_timestamp": "2023-07-10T21:01:26.494006Z",
+      "source_timestamps": [
+        "2023-07-10T21:01:26.494006Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-07-17",
+      "download_start_inclusive": "2023-07-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-07-10",
+      "previous_snapshot_timestamp": "2023-07-10T21:01:26.494006Z",
+      "snapshot_at": "2023-07-17",
+      "snapshot_timestamp": "2023-07-17T21:01:27.538690Z",
+      "source_timestamps": [
+        "2023-07-17T21:01:27.538690Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-07-24",
+      "download_start_inclusive": "2023-07-17",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-07-17",
+      "previous_snapshot_timestamp": "2023-07-17T21:01:27.538690Z",
+      "snapshot_at": "2023-07-24",
+      "snapshot_timestamp": "2023-07-24T21:01:27.035185Z",
+      "source_timestamps": [
+        "2023-07-24T21:01:27.035185Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-07-31",
+      "download_start_inclusive": "2023-07-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-07-24",
+      "previous_snapshot_timestamp": "2023-07-24T21:01:27.035185Z",
+      "snapshot_at": "2023-07-31",
+      "snapshot_timestamp": "2023-07-31T21:01:30.722347Z",
+      "source_timestamps": [
+        "2023-07-31T21:01:30.722347Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-08-07",
+      "download_start_inclusive": "2023-07-31",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-07-31",
+      "previous_snapshot_timestamp": "2023-07-31T21:01:30.722347Z",
+      "snapshot_at": "2023-08-07",
+      "snapshot_timestamp": "2023-08-07T21:01:27.909109Z",
+      "source_timestamps": [
+        "2023-08-07T21:01:27.909109Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-08-14",
+      "download_start_inclusive": "2023-08-07",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-08-07",
+      "previous_snapshot_timestamp": "2023-08-07T21:01:27.909109Z",
+      "snapshot_at": "2023-08-14",
+      "snapshot_timestamp": "2023-08-14T21:01:22.219852Z",
+      "source_timestamps": [
+        "2023-08-14T21:01:22.219852Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-08-21",
+      "download_start_inclusive": "2023-08-14",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-08-14",
+      "previous_snapshot_timestamp": "2023-08-14T21:01:22.219852Z",
+      "snapshot_at": "2023-08-21",
+      "snapshot_timestamp": "2023-08-21T21:01:25.918039Z",
+      "source_timestamps": [
+        "2023-08-21T21:01:25.918039Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-08-28",
+      "download_start_inclusive": "2023-08-21",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-08-21",
+      "previous_snapshot_timestamp": "2023-08-21T21:01:25.918039Z",
+      "snapshot_at": "2023-08-28",
+      "snapshot_timestamp": "2023-08-28T21:01:21.433477Z",
+      "source_timestamps": [
+        "2023-08-28T21:01:21.433477Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-09-04",
+      "download_start_inclusive": "2023-08-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-08-28",
+      "previous_snapshot_timestamp": "2023-08-28T21:01:21.433477Z",
+      "snapshot_at": "2023-09-04",
+      "snapshot_timestamp": "2023-09-04T21:01:22.928703Z",
+      "source_timestamps": [
+        "2023-09-04T21:01:22.928703Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-09-11",
+      "download_start_inclusive": "2023-09-04",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-09-04",
+      "previous_snapshot_timestamp": "2023-09-04T21:01:22.928703Z",
+      "snapshot_at": "2023-09-11",
+      "snapshot_timestamp": "2023-09-11T21:01:25.316347Z",
+      "source_timestamps": [
+        "2023-09-11T21:01:25.316347Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-09-18",
+      "download_start_inclusive": "2023-09-11",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-09-11",
+      "previous_snapshot_timestamp": "2023-09-11T21:01:25.316347Z",
+      "snapshot_at": "2023-09-18",
+      "snapshot_timestamp": "2023-09-18T21:01:30.362173Z",
+      "source_timestamps": [
+        "2023-09-18T21:01:30.362173Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-09-26",
+      "download_start_inclusive": "2023-09-18",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-09-18",
+      "previous_snapshot_timestamp": "2023-09-18T21:01:30.362173Z",
+      "snapshot_at": "2023-09-26",
+      "snapshot_timestamp": "2023-09-26T21:01:21.933650Z",
+      "source_timestamps": [
+        "2023-09-26T21:01:21.933650Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-10-02",
+      "download_start_inclusive": "2023-09-26",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-09-26",
+      "previous_snapshot_timestamp": "2023-09-26T21:01:21.933650Z",
+      "snapshot_at": "2023-10-02",
+      "snapshot_timestamp": "2023-10-02T21:01:29.638850Z",
+      "source_timestamps": [
+        "2023-10-02T21:01:29.638850Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-10-09",
+      "download_start_inclusive": "2023-10-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-10-02",
+      "previous_snapshot_timestamp": "2023-10-02T21:01:29.638850Z",
+      "snapshot_at": "2023-10-09",
+      "snapshot_timestamp": "2023-10-09T21:01:28.717411Z",
+      "source_timestamps": [
+        "2023-10-09T21:01:28.717411Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-10-16",
+      "download_start_inclusive": "2023-10-09",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-10-09",
+      "previous_snapshot_timestamp": "2023-10-09T21:01:28.717411Z",
+      "snapshot_at": "2023-10-16",
+      "snapshot_timestamp": "2023-10-16T21:01:27.811395Z",
+      "source_timestamps": [
+        "2023-10-16T21:01:27.811395Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-10-23",
+      "download_start_inclusive": "2023-10-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-10-16",
+      "previous_snapshot_timestamp": "2023-10-16T21:01:27.811395Z",
+      "snapshot_at": "2023-10-23",
+      "snapshot_timestamp": "2023-10-23T21:01:31.784324Z",
+      "source_timestamps": [
+        "2023-10-23T21:01:31.784324Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-10-30",
+      "download_start_inclusive": "2023-10-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-10-23",
+      "previous_snapshot_timestamp": "2023-10-23T21:01:31.784324Z",
+      "snapshot_at": "2023-10-30",
+      "snapshot_timestamp": "2023-10-30T21:01:29.113369Z",
+      "source_timestamps": [
+        "2023-10-30T21:01:29.113369Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-11-06",
+      "download_start_inclusive": "2023-10-30",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-10-30",
+      "previous_snapshot_timestamp": "2023-10-30T21:01:29.113369Z",
+      "snapshot_at": "2023-11-06",
+      "snapshot_timestamp": "2023-11-06T21:01:31.793088Z",
+      "source_timestamps": [
+        "2023-11-06T21:01:31.793088Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-11-13",
+      "download_start_inclusive": "2023-11-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-11-06",
+      "previous_snapshot_timestamp": "2023-11-06T21:01:31.793088Z",
+      "snapshot_at": "2023-11-13",
+      "snapshot_timestamp": "2023-11-13T21:01:19.984825Z",
+      "source_timestamps": [
+        "2023-11-13T21:01:19.984825Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-11-20",
+      "download_start_inclusive": "2023-11-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-11-13",
+      "previous_snapshot_timestamp": "2023-11-13T21:01:19.984825Z",
+      "snapshot_at": "2023-11-20",
+      "snapshot_timestamp": "2023-11-20T21:01:25.361772Z",
+      "source_timestamps": [
+        "2023-11-20T21:01:25.361772Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-11-27",
+      "download_start_inclusive": "2023-11-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-11-20",
+      "previous_snapshot_timestamp": "2023-11-20T21:01:25.361772Z",
+      "snapshot_at": "2023-11-27",
+      "snapshot_timestamp": "2023-11-27T21:01:22.307765Z",
+      "source_timestamps": [
+        "2023-11-27T21:01:22.307765Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-12-04",
+      "download_start_inclusive": "2023-11-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-11-27",
+      "previous_snapshot_timestamp": "2023-11-27T21:01:22.307765Z",
+      "snapshot_at": "2023-12-04",
+      "snapshot_timestamp": "2023-12-04T21:01:27.023695Z",
+      "source_timestamps": [
+        "2023-12-04T21:01:27.023695Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-12-11",
+      "download_start_inclusive": "2023-12-04",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-12-04",
+      "previous_snapshot_timestamp": "2023-12-04T21:01:27.023695Z",
+      "snapshot_at": "2023-12-11",
+      "snapshot_timestamp": "2023-12-11T21:01:29.260471Z",
+      "source_timestamps": [
+        "2023-12-11T21:01:29.260471Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-12-18",
+      "download_start_inclusive": "2023-12-11",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-12-11",
+      "previous_snapshot_timestamp": "2023-12-11T21:01:29.260471Z",
+      "snapshot_at": "2023-12-18",
+      "snapshot_timestamp": "2023-12-18T21:01:16.759656Z",
+      "source_timestamps": [
+        "2023-12-18T21:01:16.759656Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2023-12-25",
+      "download_start_inclusive": "2023-12-18",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-12-18",
+      "previous_snapshot_timestamp": "2023-12-18T21:01:16.759656Z",
+      "snapshot_at": "2023-12-25",
+      "snapshot_timestamp": "2023-12-25T21:01:28.602414Z",
+      "source_timestamps": [
+        "2023-12-25T21:01:28.602414Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-01-01",
+      "download_start_inclusive": "2023-12-25",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2023-12-25",
+      "previous_snapshot_timestamp": "2023-12-25T21:01:28.602414Z",
+      "snapshot_at": "2024-01-01",
+      "snapshot_timestamp": "2024-01-01T21:01:38.824466Z",
+      "source_timestamps": [
+        "2024-01-01T21:01:38.824466Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-01-08",
+      "download_start_inclusive": "2024-01-01",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-01-01",
+      "previous_snapshot_timestamp": "2024-01-01T21:01:38.824466Z",
+      "snapshot_at": "2024-01-08",
+      "snapshot_timestamp": "2024-01-08T21:01:26.160683Z",
+      "source_timestamps": [
+        "2024-01-08T21:01:26.160683Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-01-15",
+      "download_start_inclusive": "2024-01-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-01-08",
+      "previous_snapshot_timestamp": "2024-01-08T21:01:26.160683Z",
+      "snapshot_at": "2024-01-15",
+      "snapshot_timestamp": "2024-01-15T21:01:26.488818Z",
+      "source_timestamps": [
+        "2024-01-15T21:01:26.488818Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-01-22",
+      "download_start_inclusive": "2024-01-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-01-15",
+      "previous_snapshot_timestamp": "2024-01-15T21:01:26.488818Z",
+      "snapshot_at": "2024-01-22",
+      "snapshot_timestamp": "2024-01-22T21:01:22.816853Z",
+      "source_timestamps": [
+        "2024-01-22T21:01:22.816853Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-01-29",
+      "download_start_inclusive": "2024-01-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-01-22",
+      "previous_snapshot_timestamp": "2024-01-22T21:01:22.816853Z",
+      "snapshot_at": "2024-01-29",
+      "snapshot_timestamp": "2024-01-29T21:01:27.701381Z",
+      "source_timestamps": [
+        "2024-01-29T21:01:27.701381Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-02-05",
+      "download_start_inclusive": "2024-01-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-01-29",
+      "previous_snapshot_timestamp": "2024-01-29T21:01:27.701381Z",
+      "snapshot_at": "2024-02-05",
+      "snapshot_timestamp": "2024-02-05T21:01:31.228897Z",
+      "source_timestamps": [
+        "2024-02-05T21:01:31.228897Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-02-12",
+      "download_start_inclusive": "2024-02-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-02-05",
+      "previous_snapshot_timestamp": "2024-02-05T21:01:31.228897Z",
+      "snapshot_at": "2024-02-12",
+      "snapshot_timestamp": "2024-02-12T21:01:24.944861Z",
+      "source_timestamps": [
+        "2024-02-12T21:01:24.944861Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-02-19",
+      "download_start_inclusive": "2024-02-12",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-02-12",
+      "previous_snapshot_timestamp": "2024-02-12T21:01:24.944861Z",
+      "snapshot_at": "2024-02-19",
+      "snapshot_timestamp": "2024-02-19T21:01:24.170247Z",
+      "source_timestamps": [
+        "2024-02-19T21:01:24.170247Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-02-26",
+      "download_start_inclusive": "2024-02-19",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-02-19",
+      "previous_snapshot_timestamp": "2024-02-19T21:01:24.170247Z",
+      "snapshot_at": "2024-02-26",
+      "snapshot_timestamp": "2024-02-26T21:01:17.318111Z",
+      "source_timestamps": [
+        "2024-02-26T21:01:17.318111Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-03-04",
+      "download_start_inclusive": "2024-02-26",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-02-26",
+      "previous_snapshot_timestamp": "2024-02-26T21:01:17.318111Z",
+      "snapshot_at": "2024-03-04",
+      "snapshot_timestamp": "2024-03-04T21:01:24.886520Z",
+      "source_timestamps": [
+        "2024-03-04T21:01:24.886520Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-03-05",
+      "download_start_inclusive": "2024-03-04",
+      "interval_days": 1,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-03-04",
+      "previous_snapshot_timestamp": "2024-03-04T21:01:24.886520Z",
+      "snapshot_at": "2024-03-05",
+      "snapshot_timestamp": "2024-03-05T21:01:18.902911Z",
+      "source_timestamps": [
+        "2024-03-05T21:01:18.902911Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-03-11",
+      "download_start_inclusive": "2024-03-05",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-03-05",
+      "previous_snapshot_timestamp": "2024-03-05T21:01:18.902911Z",
+      "snapshot_at": "2024-03-11",
+      "snapshot_timestamp": "2024-03-11T21:01:18.845328Z",
+      "source_timestamps": [
+        "2024-03-11T21:01:18.845328Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-03-18",
+      "download_start_inclusive": "2024-03-11",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-03-11",
+      "previous_snapshot_timestamp": "2024-03-11T21:01:18.845328Z",
+      "snapshot_at": "2024-03-18",
+      "snapshot_timestamp": "2024-03-18T21:01:22.972057Z",
+      "source_timestamps": [
+        "2024-03-18T21:01:22.972057Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-03-25",
+      "download_start_inclusive": "2024-03-18",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-03-18",
+      "previous_snapshot_timestamp": "2024-03-18T21:01:22.972057Z",
+      "snapshot_at": "2024-03-25",
+      "snapshot_timestamp": "2024-03-25T21:01:01.106972Z",
+      "source_timestamps": [
+        "2024-03-25T21:01:01.106972Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-04-01",
+      "download_start_inclusive": "2024-03-25",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-03-25",
+      "previous_snapshot_timestamp": "2024-03-25T21:01:01.106972Z",
+      "snapshot_at": "2024-04-01",
+      "snapshot_timestamp": "2024-04-01T21:00:40.312251Z",
+      "source_timestamps": [
+        "2024-04-01T21:00:40.312251Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-04-09",
+      "download_start_inclusive": "2024-04-01",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-04-01",
+      "previous_snapshot_timestamp": "2024-04-01T21:00:40.312251Z",
+      "snapshot_at": "2024-04-09",
+      "snapshot_timestamp": "2024-04-09T21:00:42.728418Z",
+      "source_timestamps": [
+        "2024-04-09T21:00:42.728418Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-04-15",
+      "download_start_inclusive": "2024-04-09",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-04-09",
+      "previous_snapshot_timestamp": "2024-04-09T21:00:42.728418Z",
+      "snapshot_at": "2024-04-15",
+      "snapshot_timestamp": "2024-04-15T21:00:43.991061Z",
+      "source_timestamps": [
+        "2024-04-15T21:00:43.991061Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-04-21",
+      "download_start_inclusive": "2024-04-15",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-04-15",
+      "previous_snapshot_timestamp": "2024-04-15T21:00:43.991061Z",
+      "snapshot_at": "2024-04-21",
+      "snapshot_timestamp": "2024-04-21T21:00:46.839235Z",
+      "source_timestamps": [
+        "2024-04-21T21:00:46.839235Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-04-29",
+      "download_start_inclusive": "2024-04-21",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-04-21",
+      "previous_snapshot_timestamp": "2024-04-21T21:00:46.839235Z",
+      "snapshot_at": "2024-04-29",
+      "snapshot_timestamp": "2024-04-29T21:00:44.480401Z",
+      "source_timestamps": [
+        "2024-04-29T21:00:44.480401Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-05-09",
+      "download_start_inclusive": "2024-04-29",
+      "interval_days": 10,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-04-29",
+      "previous_snapshot_timestamp": "2024-04-29T21:00:44.480401Z",
+      "snapshot_at": "2024-05-09",
+      "snapshot_timestamp": "2024-05-09T02:54:23.193328Z",
+      "source_timestamps": [
+        "2024-05-09T02:54:23.193328Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-05-13",
+      "download_start_inclusive": "2024-05-09",
+      "interval_days": 4,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-05-09",
+      "previous_snapshot_timestamp": "2024-05-09T02:54:23.193328Z",
+      "snapshot_at": "2024-05-13",
+      "snapshot_timestamp": "2024-05-13T21:00:43.991195Z",
+      "source_timestamps": [
+        "2024-05-13T21:00:43.991195Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-05-20",
+      "download_start_inclusive": "2024-05-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-05-13",
+      "previous_snapshot_timestamp": "2024-05-13T21:00:43.991195Z",
+      "snapshot_at": "2024-05-20",
+      "snapshot_timestamp": "2024-05-20T21:51:05.132838Z",
+      "source_timestamps": [
+        "2024-05-20T21:51:05.132838Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-05-27",
+      "download_start_inclusive": "2024-05-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-05-20",
+      "previous_snapshot_timestamp": "2024-05-20T21:51:05.132838Z",
+      "snapshot_at": "2024-05-27",
+      "snapshot_timestamp": "2024-05-27T21:00:47.968297Z",
+      "source_timestamps": [
+        "2024-05-27T21:00:47.968297Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-06-03",
+      "download_start_inclusive": "2024-05-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-05-27",
+      "previous_snapshot_timestamp": "2024-05-27T21:00:47.968297Z",
+      "snapshot_at": "2024-06-03",
+      "snapshot_timestamp": "2024-06-03T21:00:39.949274Z",
+      "source_timestamps": [
+        "2024-06-03T21:00:39.949274Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-06-10",
+      "download_start_inclusive": "2024-06-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-06-03",
+      "previous_snapshot_timestamp": "2024-06-03T21:00:39.949274Z",
+      "snapshot_at": "2024-06-10",
+      "snapshot_timestamp": "2024-06-10T21:00:37.438065Z",
+      "source_timestamps": [
+        "2024-06-10T21:00:37.438065Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-06-17",
+      "download_start_inclusive": "2024-06-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-06-10",
+      "previous_snapshot_timestamp": "2024-06-10T21:00:37.438065Z",
+      "snapshot_at": "2024-06-17",
+      "snapshot_timestamp": "2024-06-17T21:00:40.373236Z",
+      "source_timestamps": [
+        "2024-06-17T21:00:40.373236Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-06-24",
+      "download_start_inclusive": "2024-06-17",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-06-17",
+      "previous_snapshot_timestamp": "2024-06-17T21:00:40.373236Z",
+      "snapshot_at": "2024-06-24",
+      "snapshot_timestamp": "2024-06-24T21:00:41.505481Z",
+      "source_timestamps": [
+        "2024-06-24T21:00:41.505481Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-01",
+      "download_start_inclusive": "2024-06-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-06-24",
+      "previous_snapshot_timestamp": "2024-06-24T21:00:41.505481Z",
+      "snapshot_at": "2024-07-01",
+      "snapshot_timestamp": "2024-07-01T21:00:42.720159Z",
+      "source_timestamps": [
+        "2024-07-01T21:00:42.720159Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-08",
+      "download_start_inclusive": "2024-07-01",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-01",
+      "previous_snapshot_timestamp": "2024-07-01T21:00:42.720159Z",
+      "snapshot_at": "2024-07-08",
+      "snapshot_timestamp": "2024-07-08T21:00:39.655598Z",
+      "source_timestamps": [
+        "2024-07-08T21:00:39.655598Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-09",
+      "download_start_inclusive": "2024-07-08",
+      "interval_days": 1,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-08",
+      "previous_snapshot_timestamp": "2024-07-08T21:00:39.655598Z",
+      "snapshot_at": "2024-07-09",
+      "snapshot_timestamp": "2024-07-09T21:00:41.447203Z",
+      "source_timestamps": [
+        "2024-07-09T21:00:41.447203Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-15",
+      "download_start_inclusive": "2024-07-09",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-09",
+      "previous_snapshot_timestamp": "2024-07-09T21:00:41.447203Z",
+      "snapshot_at": "2024-07-15",
+      "snapshot_timestamp": "2024-07-15T21:00:40.317251Z",
+      "source_timestamps": [
+        "2024-07-15T21:00:40.317251Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-23",
+      "download_start_inclusive": "2024-07-15",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-15",
+      "previous_snapshot_timestamp": "2024-07-15T21:00:40.317251Z",
+      "snapshot_at": "2024-07-23",
+      "snapshot_timestamp": "2024-07-23T21:00:40.525402Z",
+      "source_timestamps": [
+        "2024-07-23T21:00:40.525402Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-07-29",
+      "download_start_inclusive": "2024-07-23",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-23",
+      "previous_snapshot_timestamp": "2024-07-23T21:00:40.525402Z",
+      "snapshot_at": "2024-07-29",
+      "snapshot_timestamp": "2024-07-29T21:00:43.758331Z",
+      "source_timestamps": [
+        "2024-07-29T21:00:43.758331Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-08-05",
+      "download_start_inclusive": "2024-07-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-07-29",
+      "previous_snapshot_timestamp": "2024-07-29T21:00:43.758331Z",
+      "snapshot_at": "2024-08-05",
+      "snapshot_timestamp": "2024-08-05T21:01:03.246241Z",
+      "source_timestamps": [
+        "2024-08-05T21:01:03.246241Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-08-12",
+      "download_start_inclusive": "2024-08-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-08-05",
+      "previous_snapshot_timestamp": "2024-08-05T21:01:03.246241Z",
+      "snapshot_at": "2024-08-12",
+      "snapshot_timestamp": "2024-08-12T21:00:54.797809Z",
+      "source_timestamps": [
+        "2024-08-12T21:00:54.797809Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-08-19",
+      "download_start_inclusive": "2024-08-12",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-08-12",
+      "previous_snapshot_timestamp": "2024-08-12T21:00:54.797809Z",
+      "snapshot_at": "2024-08-19",
+      "snapshot_timestamp": "2024-08-19T21:00:43.354481Z",
+      "source_timestamps": [
+        "2024-08-19T21:00:43.354481Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-08-29",
+      "download_start_inclusive": "2024-08-19",
+      "interval_days": 10,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-08-19",
+      "previous_snapshot_timestamp": "2024-08-19T21:00:43.354481Z",
+      "snapshot_at": "2024-08-29",
+      "snapshot_timestamp": "2024-08-29T04:39:16.121656Z",
+      "source_timestamps": [
+        "2024-08-29T04:39:16.121656Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-09-02",
+      "download_start_inclusive": "2024-08-29",
+      "interval_days": 4,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-08-29",
+      "previous_snapshot_timestamp": "2024-08-29T04:39:16.121656Z",
+      "snapshot_at": "2024-09-02",
+      "snapshot_timestamp": "2024-09-02T21:00:45.355914Z",
+      "source_timestamps": [
+        "2024-09-02T21:00:45.355914Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-09-09",
+      "download_start_inclusive": "2024-09-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-09-02",
+      "previous_snapshot_timestamp": "2024-09-02T21:00:45.355914Z",
+      "snapshot_at": "2024-09-09",
+      "snapshot_timestamp": "2024-09-09T21:00:43.146231Z",
+      "source_timestamps": [
+        "2024-09-09T21:00:43.146231Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-09-16",
+      "download_start_inclusive": "2024-09-09",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-09-09",
+      "previous_snapshot_timestamp": "2024-09-09T21:00:43.146231Z",
+      "snapshot_at": "2024-09-16",
+      "snapshot_timestamp": "2024-09-16T21:00:53.364153Z",
+      "source_timestamps": [
+        "2024-09-16T21:00:53.364153Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-09-23",
+      "download_start_inclusive": "2024-09-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-09-16",
+      "previous_snapshot_timestamp": "2024-09-16T21:00:53.364153Z",
+      "snapshot_at": "2024-09-23",
+      "snapshot_timestamp": "2024-09-23T21:00:54.033651Z",
+      "source_timestamps": [
+        "2024-09-23T21:00:54.033651Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-09-30",
+      "download_start_inclusive": "2024-09-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-09-23",
+      "previous_snapshot_timestamp": "2024-09-23T21:00:54.033651Z",
+      "snapshot_at": "2024-09-30",
+      "snapshot_timestamp": "2024-09-30T21:00:51.181638Z",
+      "source_timestamps": [
+        "2024-09-30T21:00:51.181638Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-10-07",
+      "download_start_inclusive": "2024-09-30",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-09-30",
+      "previous_snapshot_timestamp": "2024-09-30T21:00:51.181638Z",
+      "snapshot_at": "2024-10-07",
+      "snapshot_timestamp": "2024-10-07T21:00:48.571004Z",
+      "source_timestamps": [
+        "2024-10-07T21:00:48.571004Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-10-14",
+      "download_start_inclusive": "2024-10-07",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-10-07",
+      "previous_snapshot_timestamp": "2024-10-07T21:00:48.571004Z",
+      "snapshot_at": "2024-10-14",
+      "snapshot_timestamp": "2024-10-14T22:02:03.172493Z",
+      "source_timestamps": [
+        "2024-10-14T22:02:03.172493Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-10-21",
+      "download_start_inclusive": "2024-10-14",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-10-14",
+      "previous_snapshot_timestamp": "2024-10-14T22:02:03.172493Z",
+      "snapshot_at": "2024-10-21",
+      "snapshot_timestamp": "2024-10-21T21:00:52.159063Z",
+      "source_timestamps": [
+        "2024-10-21T21:00:52.159063Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-10-28",
+      "download_start_inclusive": "2024-10-21",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-10-21",
+      "previous_snapshot_timestamp": "2024-10-21T21:00:52.159063Z",
+      "snapshot_at": "2024-10-28",
+      "snapshot_timestamp": "2024-10-28T21:00:48.902523Z",
+      "source_timestamps": [
+        "2024-10-28T21:00:48.902523Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-11-04",
+      "download_start_inclusive": "2024-10-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-10-28",
+      "previous_snapshot_timestamp": "2024-10-28T21:00:48.902523Z",
+      "snapshot_at": "2024-11-04",
+      "snapshot_timestamp": "2024-11-04T21:00:49.434887Z",
+      "source_timestamps": [
+        "2024-11-04T21:00:49.434887Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-11-11",
+      "download_start_inclusive": "2024-11-04",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-11-04",
+      "previous_snapshot_timestamp": "2024-11-04T21:00:49.434887Z",
+      "snapshot_at": "2024-11-11",
+      "snapshot_timestamp": "2024-11-11T21:01:03.908177Z",
+      "source_timestamps": [
+        "2024-11-11T21:01:03.908177Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-11-19",
+      "download_start_inclusive": "2024-11-11",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-11-11",
+      "previous_snapshot_timestamp": "2024-11-11T21:01:03.908177Z",
+      "snapshot_at": "2024-11-19",
+      "snapshot_timestamp": "2024-11-19T01:09:39.173206Z",
+      "source_timestamps": [
+        "2024-11-19T01:09:39.173206Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-11-25",
+      "download_start_inclusive": "2024-11-19",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-11-19",
+      "previous_snapshot_timestamp": "2024-11-19T01:09:39.173206Z",
+      "snapshot_at": "2024-11-25",
+      "snapshot_timestamp": "2024-11-25T21:00:47.803342Z",
+      "source_timestamps": [
+        "2024-11-25T21:00:47.803342Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-12-02",
+      "download_start_inclusive": "2024-11-25",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-11-25",
+      "previous_snapshot_timestamp": "2024-11-25T21:00:47.803342Z",
+      "snapshot_at": "2024-12-02",
+      "snapshot_timestamp": "2024-12-02T21:00:47.202858Z",
+      "source_timestamps": [
+        "2024-12-02T21:00:47.202858Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-12-09",
+      "download_start_inclusive": "2024-12-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-12-02",
+      "previous_snapshot_timestamp": "2024-12-02T21:00:47.202858Z",
+      "snapshot_at": "2024-12-09",
+      "snapshot_timestamp": "2024-12-09T21:00:55.118844Z",
+      "source_timestamps": [
+        "2024-12-09T21:00:55.118844Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-12-16",
+      "download_start_inclusive": "2024-12-09",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-12-09",
+      "previous_snapshot_timestamp": "2024-12-09T21:00:55.118844Z",
+      "snapshot_at": "2024-12-16",
+      "snapshot_timestamp": "2024-12-16T21:00:46.341394Z",
+      "source_timestamps": [
+        "2024-12-16T21:00:46.341394Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-12-23",
+      "download_start_inclusive": "2024-12-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-12-16",
+      "previous_snapshot_timestamp": "2024-12-16T21:00:46.341394Z",
+      "snapshot_at": "2024-12-23",
+      "snapshot_timestamp": "2024-12-23T21:00:50.237782Z",
+      "source_timestamps": [
+        "2024-12-23T21:00:50.237782Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2024-12-30",
+      "download_start_inclusive": "2024-12-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-12-23",
+      "previous_snapshot_timestamp": "2024-12-23T21:00:50.237782Z",
+      "snapshot_at": "2024-12-30",
+      "snapshot_timestamp": "2024-12-30T21:00:45.311751Z",
+      "source_timestamps": [
+        "2024-12-30T21:00:45.311751Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-01-06",
+      "download_start_inclusive": "2024-12-30",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2024-12-30",
+      "previous_snapshot_timestamp": "2024-12-30T21:00:45.311751Z",
+      "snapshot_at": "2025-01-06",
+      "snapshot_timestamp": "2025-01-06T21:00:51.199464Z",
+      "source_timestamps": [
+        "2025-01-06T21:00:51.199464Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-01-13",
+      "download_start_inclusive": "2025-01-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-01-06",
+      "previous_snapshot_timestamp": "2025-01-06T21:00:51.199464Z",
+      "snapshot_at": "2025-01-13",
+      "snapshot_timestamp": "2025-01-13T21:00:47.444982Z",
+      "source_timestamps": [
+        "2025-01-13T21:00:47.444982Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-01-20",
+      "download_start_inclusive": "2025-01-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-01-13",
+      "previous_snapshot_timestamp": "2025-01-13T21:00:47.444982Z",
+      "snapshot_at": "2025-01-20",
+      "snapshot_timestamp": "2025-01-20T21:00:44.111089Z",
+      "source_timestamps": [
+        "2025-01-20T21:00:44.111089Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-01-27",
+      "download_start_inclusive": "2025-01-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-01-20",
+      "previous_snapshot_timestamp": "2025-01-20T21:00:44.111089Z",
+      "snapshot_at": "2025-01-27",
+      "snapshot_timestamp": "2025-01-27T21:00:45.143469Z",
+      "source_timestamps": [
+        "2025-01-27T21:00:45.143469Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-02-03",
+      "download_start_inclusive": "2025-01-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-01-27",
+      "previous_snapshot_timestamp": "2025-01-27T21:00:45.143469Z",
+      "snapshot_at": "2025-02-03",
+      "snapshot_timestamp": "2025-02-03T21:00:46.983251Z",
+      "source_timestamps": [
+        "2025-02-03T21:00:46.983251Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-02-10",
+      "download_start_inclusive": "2025-02-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-02-03",
+      "previous_snapshot_timestamp": "2025-02-03T21:00:46.983251Z",
+      "snapshot_at": "2025-02-10",
+      "snapshot_timestamp": "2025-02-10T21:00:55.990900Z",
+      "source_timestamps": [
+        "2025-02-10T21:00:55.990900Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-02-18",
+      "download_start_inclusive": "2025-02-10",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-02-10",
+      "previous_snapshot_timestamp": "2025-02-10T21:00:55.990900Z",
+      "snapshot_at": "2025-02-18",
+      "snapshot_timestamp": "2025-02-18T02:19:20.096623Z",
+      "source_timestamps": [
+        "2025-02-18T02:19:20.096623Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-02-25",
+      "download_start_inclusive": "2025-02-18",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-02-18",
+      "previous_snapshot_timestamp": "2025-02-18T02:19:20.096623Z",
+      "snapshot_at": "2025-02-25",
+      "snapshot_timestamp": "2025-02-25T04:59:51.105884Z",
+      "source_timestamps": [
+        "2025-02-25T04:59:51.105884Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-03-03",
+      "download_start_inclusive": "2025-02-25",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-02-25",
+      "previous_snapshot_timestamp": "2025-02-25T04:59:51.105884Z",
+      "snapshot_at": "2025-03-03",
+      "snapshot_timestamp": "2025-03-03T21:00:57.347700Z",
+      "source_timestamps": [
+        "2025-03-03T21:00:57.347700Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-03-10",
+      "download_start_inclusive": "2025-03-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-03-03",
+      "previous_snapshot_timestamp": "2025-03-03T21:00:57.347700Z",
+      "snapshot_at": "2025-03-10",
+      "snapshot_timestamp": "2025-03-10T21:00:49.413275Z",
+      "source_timestamps": [
+        "2025-03-10T21:00:49.413275Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-03-18",
+      "download_start_inclusive": "2025-03-10",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-03-10",
+      "previous_snapshot_timestamp": "2025-03-10T21:00:49.413275Z",
+      "snapshot_at": "2025-03-18",
+      "snapshot_timestamp": "2025-03-18T02:21:58.234836Z",
+      "source_timestamps": [
+        "2025-03-18T02:21:58.234836Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-03-24",
+      "download_start_inclusive": "2025-03-18",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-03-18",
+      "previous_snapshot_timestamp": "2025-03-18T02:21:58.234836Z",
+      "snapshot_at": "2025-03-24",
+      "snapshot_timestamp": "2025-03-24T21:00:44.947280Z",
+      "source_timestamps": [
+        "2025-03-24T21:00:44.947280Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-03-31",
+      "download_start_inclusive": "2025-03-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-03-24",
+      "previous_snapshot_timestamp": "2025-03-24T21:00:44.947280Z",
+      "snapshot_at": "2025-03-31",
+      "snapshot_timestamp": "2025-03-31T21:00:52.680431Z",
+      "source_timestamps": [
+        "2025-03-31T21:00:52.680431Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-04-07",
+      "download_start_inclusive": "2025-03-31",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-03-31",
+      "previous_snapshot_timestamp": "2025-03-31T21:00:52.680431Z",
+      "snapshot_at": "2025-04-07",
+      "snapshot_timestamp": "2025-04-07T21:00:51.568589Z",
+      "source_timestamps": [
+        "2025-04-07T21:00:51.568589Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-04-14",
+      "download_start_inclusive": "2025-04-07",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-04-07",
+      "previous_snapshot_timestamp": "2025-04-07T21:00:51.568589Z",
+      "snapshot_at": "2025-04-14",
+      "snapshot_timestamp": "2025-04-14T21:00:44.479352Z",
+      "source_timestamps": [
+        "2025-04-14T21:00:44.479352Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-04-22",
+      "download_start_inclusive": "2025-04-14",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-04-14",
+      "previous_snapshot_timestamp": "2025-04-14T21:00:44.479352Z",
+      "snapshot_at": "2025-04-22",
+      "snapshot_timestamp": "2025-04-22T01:04:30.709280Z",
+      "source_timestamps": [
+        "2025-04-22T01:04:30.709280Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-04-28",
+      "download_start_inclusive": "2025-04-22",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-04-22",
+      "previous_snapshot_timestamp": "2025-04-22T01:04:30.709280Z",
+      "snapshot_at": "2025-04-28",
+      "snapshot_timestamp": "2025-04-28T21:00:54.101204Z",
+      "source_timestamps": [
+        "2025-04-28T21:00:54.101204Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-05-05",
+      "download_start_inclusive": "2025-04-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-04-28",
+      "previous_snapshot_timestamp": "2025-04-28T21:00:54.101204Z",
+      "snapshot_at": "2025-05-05",
+      "snapshot_timestamp": "2025-05-05T21:00:52.349351Z",
+      "source_timestamps": [
+        "2025-05-05T21:00:52.349351Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-05-12",
+      "download_start_inclusive": "2025-05-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-05-05",
+      "previous_snapshot_timestamp": "2025-05-05T21:00:52.349351Z",
+      "snapshot_at": "2025-05-12",
+      "snapshot_timestamp": "2025-05-12T21:00:54.017604Z",
+      "source_timestamps": [
+        "2025-05-12T21:00:54.017604Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-05-19",
+      "download_start_inclusive": "2025-05-12",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-05-12",
+      "previous_snapshot_timestamp": "2025-05-12T21:00:54.017604Z",
+      "snapshot_at": "2025-05-19",
+      "snapshot_timestamp": "2025-05-19T21:00:47.037017Z",
+      "source_timestamps": [
+        "2025-05-19T21:00:47.037017Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-05-26",
+      "download_start_inclusive": "2025-05-19",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-05-19",
+      "previous_snapshot_timestamp": "2025-05-19T21:00:47.037017Z",
+      "snapshot_at": "2025-05-26",
+      "snapshot_timestamp": "2025-05-26T21:00:50.971133Z",
+      "source_timestamps": [
+        "2025-05-26T21:00:50.971133Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-06-02",
+      "download_start_inclusive": "2025-05-26",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-05-26",
+      "previous_snapshot_timestamp": "2025-05-26T21:00:50.971133Z",
+      "snapshot_at": "2025-06-02",
+      "snapshot_timestamp": "2025-06-02T21:00:54.697419Z",
+      "source_timestamps": [
+        "2025-06-02T21:00:54.697419Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-06-09",
+      "download_start_inclusive": "2025-06-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-06-02",
+      "previous_snapshot_timestamp": "2025-06-02T21:00:54.697419Z",
+      "snapshot_at": "2025-06-09",
+      "snapshot_timestamp": "2025-06-09T21:00:58.818792Z",
+      "source_timestamps": [
+        "2025-06-09T21:00:58.818792Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-06-16",
+      "download_start_inclusive": "2025-06-09",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-06-09",
+      "previous_snapshot_timestamp": "2025-06-09T21:00:58.818792Z",
+      "snapshot_at": "2025-06-16",
+      "snapshot_timestamp": "2025-06-16T21:01:03.770571Z",
+      "source_timestamps": [
+        "2025-06-16T21:01:03.770571Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-06-23",
+      "download_start_inclusive": "2025-06-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-06-16",
+      "previous_snapshot_timestamp": "2025-06-16T21:01:03.770571Z",
+      "snapshot_at": "2025-06-23",
+      "snapshot_timestamp": "2025-06-23T21:00:50.778946Z",
+      "source_timestamps": [
+        "2025-06-23T21:00:50.778946Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-06-30",
+      "download_start_inclusive": "2025-06-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-06-23",
+      "previous_snapshot_timestamp": "2025-06-23T21:00:50.778946Z",
+      "snapshot_at": "2025-06-30",
+      "snapshot_timestamp": "2025-06-30T21:00:51.468070Z",
+      "source_timestamps": [
+        "2025-06-30T21:00:51.468070Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-07-07",
+      "download_start_inclusive": "2025-06-30",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-06-30",
+      "previous_snapshot_timestamp": "2025-06-30T21:00:51.468070Z",
+      "snapshot_at": "2025-07-07",
+      "snapshot_timestamp": "2025-07-07T21:01:02.713548Z",
+      "source_timestamps": [
+        "2025-07-07T21:01:02.713548Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-07-14",
+      "download_start_inclusive": "2025-07-07",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-07-07",
+      "previous_snapshot_timestamp": "2025-07-07T21:01:02.713548Z",
+      "snapshot_at": "2025-07-14",
+      "snapshot_timestamp": "2025-07-14T21:00:49.349510Z",
+      "source_timestamps": [
+        "2025-07-14T21:00:49.349510Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-07-21",
+      "download_start_inclusive": "2025-07-14",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-07-14",
+      "previous_snapshot_timestamp": "2025-07-14T21:00:49.349510Z",
+      "snapshot_at": "2025-07-21",
+      "snapshot_timestamp": "2025-07-21T21:00:48.043077Z",
+      "source_timestamps": [
+        "2025-07-21T21:00:48.043077Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-07-28",
+      "download_start_inclusive": "2025-07-21",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-07-21",
+      "previous_snapshot_timestamp": "2025-07-21T21:00:48.043077Z",
+      "snapshot_at": "2025-07-28",
+      "snapshot_timestamp": "2025-07-28T21:00:58.578114Z",
+      "source_timestamps": [
+        "2025-07-28T21:00:58.578114Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-08-04",
+      "download_start_inclusive": "2025-07-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-07-28",
+      "previous_snapshot_timestamp": "2025-07-28T21:00:58.578114Z",
+      "snapshot_at": "2025-08-04",
+      "snapshot_timestamp": "2025-08-04T20:50:46.937416Z",
+      "source_timestamps": [
+        "2025-08-04T20:50:46.937416Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-08-11",
+      "download_start_inclusive": "2025-08-04",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-08-04",
+      "previous_snapshot_timestamp": "2025-08-04T20:50:46.937416Z",
+      "snapshot_at": "2025-08-11",
+      "snapshot_timestamp": "2025-08-11T21:00:53.835801Z",
+      "source_timestamps": [
+        "2025-08-11T21:00:53.835801Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-08-18",
+      "download_start_inclusive": "2025-08-11",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-08-11",
+      "previous_snapshot_timestamp": "2025-08-11T21:00:53.835801Z",
+      "snapshot_at": "2025-08-18",
+      "snapshot_timestamp": "2025-08-18T21:00:47.234749Z",
+      "source_timestamps": [
+        "2025-08-18T21:00:47.234749Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-08-25",
+      "download_start_inclusive": "2025-08-18",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-08-18",
+      "previous_snapshot_timestamp": "2025-08-18T21:00:47.234749Z",
+      "snapshot_at": "2025-08-25",
+      "snapshot_timestamp": "2025-08-25T21:00:59.054033Z",
+      "source_timestamps": [
+        "2025-08-25T21:00:59.054033Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-09-01",
+      "download_start_inclusive": "2025-08-25",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-08-25",
+      "previous_snapshot_timestamp": "2025-08-25T21:00:59.054033Z",
+      "snapshot_at": "2025-09-01",
+      "snapshot_timestamp": "2025-09-01T21:00:44.151556Z",
+      "source_timestamps": [
+        "2025-09-01T21:00:44.151556Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-09-08",
+      "download_start_inclusive": "2025-09-01",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-09-01",
+      "previous_snapshot_timestamp": "2025-09-01T21:00:44.151556Z",
+      "snapshot_at": "2025-09-08",
+      "snapshot_timestamp": "2025-09-08T21:00:47.280833Z",
+      "source_timestamps": [
+        "2025-09-08T21:00:47.280833Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-09-15",
+      "download_start_inclusive": "2025-09-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-09-08",
+      "previous_snapshot_timestamp": "2025-09-08T21:00:47.280833Z",
+      "snapshot_at": "2025-09-15",
+      "snapshot_timestamp": "2025-09-15T21:00:46.898898Z",
+      "source_timestamps": [
+        "2025-09-15T21:00:46.898898Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-09-22",
+      "download_start_inclusive": "2025-09-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-09-15",
+      "previous_snapshot_timestamp": "2025-09-15T21:00:46.898898Z",
+      "snapshot_at": "2025-09-22",
+      "snapshot_timestamp": "2025-09-22T21:00:45.818658Z",
+      "source_timestamps": [
+        "2025-09-22T21:00:45.818658Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-09-29",
+      "download_start_inclusive": "2025-09-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-09-22",
+      "previous_snapshot_timestamp": "2025-09-22T21:00:45.818658Z",
+      "snapshot_at": "2025-09-29",
+      "snapshot_timestamp": "2025-09-29T21:00:46.603370Z",
+      "source_timestamps": [
+        "2025-09-29T21:00:46.603370Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-10-06",
+      "download_start_inclusive": "2025-09-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-09-29",
+      "previous_snapshot_timestamp": "2025-09-29T21:00:46.603370Z",
+      "snapshot_at": "2025-10-06",
+      "snapshot_timestamp": "2025-10-06T21:01:04.782994Z",
+      "source_timestamps": [
+        "2025-10-06T21:01:04.782994Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-10-13",
+      "download_start_inclusive": "2025-10-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-10-06",
+      "previous_snapshot_timestamp": "2025-10-06T21:01:04.782994Z",
+      "snapshot_at": "2025-10-13",
+      "snapshot_timestamp": "2025-10-13T21:00:49.546507Z",
+      "source_timestamps": [
+        "2025-10-13T21:00:49.546507Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-10-20",
+      "download_start_inclusive": "2025-10-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-10-13",
+      "previous_snapshot_timestamp": "2025-10-13T21:00:49.546507Z",
+      "snapshot_at": "2025-10-20",
+      "snapshot_timestamp": "2025-10-20T21:00:57.247655Z",
+      "source_timestamps": [
+        "2025-10-20T21:00:57.247655Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-10-27",
+      "download_start_inclusive": "2025-10-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-10-20",
+      "previous_snapshot_timestamp": "2025-10-20T21:00:57.247655Z",
+      "snapshot_at": "2025-10-27",
+      "snapshot_timestamp": "2025-10-27T21:00:50.599754Z",
+      "source_timestamps": [
+        "2025-10-27T21:00:50.599754Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-11-03",
+      "download_start_inclusive": "2025-10-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-10-27",
+      "previous_snapshot_timestamp": "2025-10-27T21:00:50.599754Z",
+      "snapshot_at": "2025-11-03",
+      "snapshot_timestamp": "2025-11-03T21:00:51.537760Z",
+      "source_timestamps": [
+        "2025-11-03T21:00:51.537760Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-11-10",
+      "download_start_inclusive": "2025-11-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-11-03",
+      "previous_snapshot_timestamp": "2025-11-03T21:00:51.537760Z",
+      "snapshot_at": "2025-11-10",
+      "snapshot_timestamp": "2025-11-10T21:00:54.219074Z",
+      "source_timestamps": [
+        "2025-11-10T21:00:54.219074Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-11-17",
+      "download_start_inclusive": "2025-11-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-11-10",
+      "previous_snapshot_timestamp": "2025-11-10T21:00:54.219074Z",
+      "snapshot_at": "2025-11-17",
+      "snapshot_timestamp": "2025-11-17T21:00:58.014746Z",
+      "source_timestamps": [
+        "2025-11-17T21:00:58.014746Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-11-24",
+      "download_start_inclusive": "2025-11-17",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-11-17",
+      "previous_snapshot_timestamp": "2025-11-17T21:00:58.014746Z",
+      "snapshot_at": "2025-11-24",
+      "snapshot_timestamp": "2025-11-24T23:20:46.207140Z",
+      "source_timestamps": [
+        "2025-11-24T23:20:46.207140Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-12-01",
+      "download_start_inclusive": "2025-11-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-11-24",
+      "previous_snapshot_timestamp": "2025-11-24T23:20:46.207140Z",
+      "snapshot_at": "2025-12-01",
+      "snapshot_timestamp": "2025-12-01T21:00:50.611233Z",
+      "source_timestamps": [
+        "2025-12-01T21:00:50.611233Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-12-08",
+      "download_start_inclusive": "2025-12-01",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-12-01",
+      "previous_snapshot_timestamp": "2025-12-01T21:00:50.611233Z",
+      "snapshot_at": "2025-12-08",
+      "snapshot_timestamp": "2025-12-08T22:01:08.045082Z",
+      "source_timestamps": [
+        "2025-12-08T22:01:08.045082Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-12-15",
+      "download_start_inclusive": "2025-12-08",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-12-08",
+      "previous_snapshot_timestamp": "2025-12-08T22:01:08.045082Z",
+      "snapshot_at": "2025-12-15",
+      "snapshot_timestamp": "2025-12-15T21:00:04.272709Z",
+      "source_timestamps": [
+        "2025-12-15T21:00:04.272709Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-12-22",
+      "download_start_inclusive": "2025-12-15",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-12-15",
+      "previous_snapshot_timestamp": "2025-12-15T21:00:04.272709Z",
+      "snapshot_at": "2025-12-22",
+      "snapshot_timestamp": "2025-12-22T23:27:30.149879Z",
+      "source_timestamps": [
+        "2025-12-22T23:27:30.149879Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2025-12-29",
+      "download_start_inclusive": "2025-12-22",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-12-22",
+      "previous_snapshot_timestamp": "2025-12-22T23:27:30.149879Z",
+      "snapshot_at": "2025-12-29",
+      "snapshot_timestamp": "2025-12-29T21:00:46.883758Z",
+      "source_timestamps": [
+        "2025-12-29T21:00:46.883758Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-01-05",
+      "download_start_inclusive": "2025-12-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2025-12-29",
+      "previous_snapshot_timestamp": "2025-12-29T21:00:46.883758Z",
+      "snapshot_at": "2026-01-05",
+      "snapshot_timestamp": "2026-01-05T23:35:17.553094Z",
+      "source_timestamps": [
+        "2026-01-05T23:35:17.553094Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-01-12",
+      "download_start_inclusive": "2026-01-05",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-01-05",
+      "previous_snapshot_timestamp": "2026-01-05T23:35:17.553094Z",
+      "snapshot_at": "2026-01-12",
+      "snapshot_timestamp": "2026-01-12T21:59:12.210323Z",
+      "source_timestamps": [
+        "2026-01-12T21:59:12.210323Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-01-19",
+      "download_start_inclusive": "2026-01-12",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-01-12",
+      "previous_snapshot_timestamp": "2026-01-12T21:59:12.210323Z",
+      "snapshot_at": "2026-01-19",
+      "snapshot_timestamp": "2026-01-19T21:00:50.572817Z",
+      "source_timestamps": [
+        "2026-01-19T21:00:50.572817Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-01-26",
+      "download_start_inclusive": "2026-01-19",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-01-19",
+      "previous_snapshot_timestamp": "2026-01-19T21:00:50.572817Z",
+      "snapshot_at": "2026-01-26",
+      "snapshot_timestamp": "2026-01-26T21:00:56.002597Z",
+      "source_timestamps": [
+        "2026-01-26T21:00:56.002597Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-02-13",
+      "download_start_inclusive": "2026-01-26",
+      "interval_days": 18,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-01-26",
+      "previous_snapshot_timestamp": "2026-01-26T21:00:56.002597Z",
+      "snapshot_at": "2026-02-13",
+      "snapshot_timestamp": "2026-02-13T03:08:14.454364Z",
+      "source_timestamps": [
+        "2026-02-13T03:08:14.454364Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-02-16",
+      "download_start_inclusive": "2026-02-13",
+      "interval_days": 3,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-02-13",
+      "previous_snapshot_timestamp": "2026-02-13T03:08:14.454364Z",
+      "snapshot_at": "2026-02-16",
+      "snapshot_timestamp": "2026-02-16T21:00:52.067362Z",
+      "source_timestamps": [
+        "2026-02-16T21:00:52.067362Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-02-23",
+      "download_start_inclusive": "2026-02-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-02-16",
+      "previous_snapshot_timestamp": "2026-02-16T21:00:52.067362Z",
+      "snapshot_at": "2026-02-23",
+      "snapshot_timestamp": "2026-02-23T21:00:56.375217Z",
+      "source_timestamps": [
+        "2026-02-23T21:00:56.375217Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-02",
+      "download_start_inclusive": "2026-02-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-02-23",
+      "previous_snapshot_timestamp": "2026-02-23T21:00:56.375217Z",
+      "snapshot_at": "2026-03-02",
+      "snapshot_timestamp": "2026-03-02T21:00:54.639250Z",
+      "source_timestamps": [
+        "2026-03-02T21:00:54.639250Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-09",
+      "download_start_inclusive": "2026-03-02",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-02",
+      "previous_snapshot_timestamp": "2026-03-02T21:00:54.639250Z",
+      "snapshot_at": "2026-03-09",
+      "snapshot_timestamp": "2026-03-09T21:00:59.259379Z",
+      "source_timestamps": [
+        "2026-03-09T21:00:59.259379Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-10",
+      "download_start_inclusive": "2026-03-09",
+      "interval_days": 1,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-09",
+      "previous_snapshot_timestamp": "2026-03-09T21:00:59.259379Z",
+      "snapshot_at": "2026-03-10",
+      "snapshot_timestamp": "2026-03-10T08:29:57.595617Z",
+      "source_timestamps": [
+        "2026-03-10T08:29:57.595617Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-16",
+      "download_start_inclusive": "2026-03-10",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-10",
+      "previous_snapshot_timestamp": "2026-03-10T08:29:57.595617Z",
+      "snapshot_at": "2026-03-16",
+      "snapshot_timestamp": "2026-03-16T21:54:53.176709Z",
+      "source_timestamps": [
+        "2026-03-16T21:54:53.176709Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-23",
+      "download_start_inclusive": "2026-03-16",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-16",
+      "previous_snapshot_timestamp": "2026-03-16T21:54:53.176709Z",
+      "snapshot_at": "2026-03-23",
+      "snapshot_timestamp": "2026-03-23T21:01:01.160347Z",
+      "source_timestamps": [
+        "2026-03-23T21:01:01.160347Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-03-30",
+      "download_start_inclusive": "2026-03-23",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-23",
+      "previous_snapshot_timestamp": "2026-03-23T21:01:01.160347Z",
+      "snapshot_at": "2026-03-30",
+      "snapshot_timestamp": "2026-03-30T21:01:01.879088Z",
+      "source_timestamps": [
+        "2026-03-30T21:01:01.879088Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-04-06",
+      "download_start_inclusive": "2026-03-30",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-03-30",
+      "previous_snapshot_timestamp": "2026-03-30T21:01:01.879088Z",
+      "snapshot_at": "2026-04-06",
+      "snapshot_timestamp": "2026-04-06T21:00:48.099008Z",
+      "source_timestamps": [
+        "2026-04-06T21:00:48.099008Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-04-13",
+      "download_start_inclusive": "2026-04-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-04-06",
+      "previous_snapshot_timestamp": "2026-04-06T21:00:48.099008Z",
+      "snapshot_at": "2026-04-13",
+      "snapshot_timestamp": "2026-04-13T21:00:58.670264Z",
+      "source_timestamps": [
+        "2026-04-13T21:00:58.670264Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-04-14",
+      "download_start_inclusive": "2026-04-13",
+      "interval_days": 1,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-04-13",
+      "previous_snapshot_timestamp": "2026-04-13T21:00:58.670264Z",
+      "snapshot_at": "2026-04-14",
+      "snapshot_timestamp": "2026-04-14T05:32:47.278417Z",
+      "source_timestamps": [
+        "2026-04-14T05:32:47.278417Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-04-20",
+      "download_start_inclusive": "2026-04-14",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-04-14",
+      "previous_snapshot_timestamp": "2026-04-14T05:32:47.278417Z",
+      "snapshot_at": "2026-04-20",
+      "snapshot_timestamp": "2026-04-20T21:00:53.072495Z",
+      "source_timestamps": [
+        "2026-04-20T21:00:53.072495Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-04-28",
+      "download_start_inclusive": "2026-04-20",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-04-20",
+      "previous_snapshot_timestamp": "2026-04-20T21:00:53.072495Z",
+      "snapshot_at": "2026-04-28",
+      "snapshot_timestamp": "2026-04-28T01:42:12.100133Z",
+      "source_timestamps": [
+        "2026-04-28T01:42:12.100133Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-05-05",
+      "download_start_inclusive": "2026-04-28",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-04-28",
+      "previous_snapshot_timestamp": "2026-04-28T01:42:12.100133Z",
+      "snapshot_at": "2026-05-05",
+      "snapshot_timestamp": "2026-05-05T01:20:05.943302Z",
+      "source_timestamps": [
+        "2026-05-05T01:20:05.943302Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-05-11",
+      "download_start_inclusive": "2026-05-05",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-05-05",
+      "previous_snapshot_timestamp": "2026-05-05T01:20:05.943302Z",
+      "snapshot_at": "2026-05-11",
+      "snapshot_timestamp": "2026-05-11T21:00:51.136754Z",
+      "source_timestamps": [
+        "2026-05-11T21:00:51.136754Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-05-18",
+      "download_start_inclusive": "2026-05-11",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-05-11",
+      "previous_snapshot_timestamp": "2026-05-11T21:00:51.136754Z",
+      "snapshot_at": "2026-05-18",
+      "snapshot_timestamp": "2026-05-18T21:00:52.746634Z",
+      "source_timestamps": [
+        "2026-05-18T21:00:52.746634Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-06-01",
+      "download_start_inclusive": "2026-05-18",
+      "interval_days": 14,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-05-18",
+      "previous_snapshot_timestamp": "2026-05-18T21:00:52.746634Z",
+      "snapshot_at": "2026-06-01",
+      "snapshot_timestamp": "2026-06-01T21:00:47.508265Z",
+      "source_timestamps": [
+        "2026-06-01T21:00:47.508265Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-06-11",
+      "download_start_inclusive": "2026-06-01",
+      "interval_days": 10,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-06-01",
+      "previous_snapshot_timestamp": "2026-06-01T21:00:47.508265Z",
+      "snapshot_at": "2026-06-11",
+      "snapshot_timestamp": "2026-06-11T22:24:59.160977Z",
+      "source_timestamps": [
+        "2026-06-11T22:24:59.160977Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-06-15",
+      "download_start_inclusive": "2026-06-11",
+      "interval_days": 4,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-06-11",
+      "previous_snapshot_timestamp": "2026-06-11T22:24:59.160977Z",
+      "snapshot_at": "2026-06-15",
+      "snapshot_timestamp": "2026-06-15T21:00:56.616609Z",
+      "source_timestamps": [
+        "2026-06-15T21:00:56.616609Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-06-23",
+      "download_start_inclusive": "2026-06-15",
+      "interval_days": 8,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-06-15",
+      "previous_snapshot_timestamp": "2026-06-15T21:00:56.616609Z",
+      "snapshot_at": "2026-06-23",
+      "snapshot_timestamp": "2026-06-23T13:18:31.091955Z",
+      "source_timestamps": [
+        "2026-06-23T13:18:31.091955Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-06-29",
+      "download_start_inclusive": "2026-06-23",
+      "interval_days": 6,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-06-23",
+      "previous_snapshot_timestamp": "2026-06-23T13:18:31.091955Z",
+      "snapshot_at": "2026-06-29",
+      "snapshot_timestamp": "2026-06-29T21:01:04.666572Z",
+      "source_timestamps": [
+        "2026-06-29T21:01:04.666572Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-07-06",
+      "download_start_inclusive": "2026-06-29",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-06-29",
+      "previous_snapshot_timestamp": "2026-06-29T21:01:04.666572Z",
+      "snapshot_at": "2026-07-06",
+      "snapshot_timestamp": "2026-07-06T21:01:02.173393Z",
+      "source_timestamps": [
+        "2026-07-06T21:01:02.173393Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-07-13",
+      "download_start_inclusive": "2026-07-06",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-07-06",
+      "previous_snapshot_timestamp": "2026-07-06T21:01:02.173393Z",
+      "snapshot_at": "2026-07-13",
+      "snapshot_timestamp": "2026-07-13T21:01:00.508977Z",
+      "source_timestamps": [
+        "2026-07-13T21:01:00.508977Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-07-20",
+      "download_start_inclusive": "2026-07-13",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-07-13",
+      "previous_snapshot_timestamp": "2026-07-13T21:01:00.508977Z",
+      "snapshot_at": "2026-07-20",
+      "snapshot_timestamp": "2026-07-20T21:01:01.867879Z",
+      "source_timestamps": [
+        "2026-07-20T21:01:01.867879Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-07-27",
+      "download_start_inclusive": "2026-07-20",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-07-20",
+      "previous_snapshot_timestamp": "2026-07-20T21:01:01.867879Z",
+      "snapshot_at": "2026-07-27",
+      "snapshot_timestamp": "2026-07-27T21:01:02.499118Z",
+      "source_timestamps": [
+        "2026-07-27T21:01:02.499118Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-08-03",
+      "download_start_inclusive": "2026-07-27",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-07-27",
+      "previous_snapshot_timestamp": "2026-07-27T21:01:02.499118Z",
+      "snapshot_at": "2026-08-03",
+      "snapshot_timestamp": "2026-08-03T21:01:38.660317Z",
+      "source_timestamps": [
+        "2026-08-03T21:01:38.660317Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-08-10",
+      "download_start_inclusive": "2026-08-03",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-08-03",
+      "previous_snapshot_timestamp": "2026-08-03T21:01:38.660317Z",
+      "snapshot_at": "2026-08-10",
+      "snapshot_timestamp": "2026-08-10T21:00:59.972346Z",
+      "source_timestamps": [
+        "2026-08-10T21:00:59.972346Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-08-17",
+      "download_start_inclusive": "2026-08-10",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-08-10",
+      "previous_snapshot_timestamp": "2026-08-10T21:00:59.972346Z",
+      "snapshot_at": "2026-08-17",
+      "snapshot_timestamp": "2026-08-17T21:00:56.611755Z",
+      "source_timestamps": [
+        "2026-08-17T21:00:56.611755Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-08-24",
+      "download_start_inclusive": "2026-08-17",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-08-17",
+      "previous_snapshot_timestamp": "2026-08-17T21:00:56.611755Z",
+      "snapshot_at": "2026-08-24",
+      "snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+      "source_timestamps": [
+        "2026-08-24T21:01:08.477988Z"
+      ]
+    },
+    {
+      "download_end_exclusive": "2026-08-31",
+      "download_start_inclusive": "2026-08-24",
+      "interval_days": 7,
+      "interval_reason": null,
+      "previous_snapshot_at": "2026-08-24",
+      "previous_snapshot_timestamp": "2026-08-24T21:01:08.477988Z",
+      "snapshot_at": "2026-08-31",
+      "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+      "source_timestamps": [
+        "2026-08-31T21:01:10.517131Z"
+      ]
+    }
+  ]
+}

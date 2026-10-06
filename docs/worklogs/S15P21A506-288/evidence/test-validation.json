@@ -1,0 +1,27 @@
+{
+  "status": "PASSED",
+  "recorded_at": "2026-09-09T05:44:17.032519+00:00",
+  "command": ".venv-bq/Scripts/python.exe -m unittest discover -s pipeline/package_snapshot -t . -v",
+  "environment": {
+    "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER": "pickage-267-validation"
+  },
+  "tests": 36,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 53.508,
+  "groups": {
+    "curated_input_and_build": 14,
+    "load_input": 9,
+    "isolated_postgresql": 13
+  },
+  "log_sha256": "9d36d2029a68ed5e482ec0d060788fe3e7a7e98b13ec80c05f8852c56fc46bbf",
+  "build_contract_sha256": "17d36e03b7ef96d2fb7a6a28580b8d0d66b5945ab069fe893ec33e941b4a2231",
+  "load_contract_sha256": "2bbb495af5e5fc99dae36730d83dc88ba37cff5e1c124c2f197d4dec1e4c7b19",
+  "independent_reviews": [
+    "PostgreSQL loader and load input: no confirmed P1/P2 findings",
+    "Curated input/build/policy: no confirmed P1/P2 findings"
+  ],
+  "test_database_scope": "Generated pickage_288_test_<UUID> databases only; each removed after test; no fixture writes to pickage_267_full_defaulted",
+  "additional_regression": "Reference writer inserts a snapshot while this loader waits for the reference lock; lock order avoids a cross-loader deadlock"
+}

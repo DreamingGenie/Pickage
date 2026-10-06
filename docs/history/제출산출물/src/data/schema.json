@@ -1,0 +1,1463 @@
+[
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_name",
+    "notnull": true,
+    "type": "character varying(255)"
+   },
+   {
+    "comment": null,
+    "default": "CURRENT_TIMESTAMP",
+    "name": "created_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id)",
+    "name": "available_package_pkey",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id) ON DELETE CASCADE",
+    "name": "fk_available_package_package",
+    "type": "f"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "available_package"
+ },
+ {
+  "columns": [
+   {
+    "comment": "패키지당 최신 결과 한 행만 보관한다(PK). package 삭제 시 함께 지운다",
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "응답 버전 식별과 동시 갱신 결과 구분용. 원문·source ID는 여기 넣지 않는다",
+    "default": null,
+    "name": "snapshot_id",
+    "notnull": true,
+    "type": "uuid"
+   },
+   {
+    "comment": "배포 후 오래된 result JSON 형식을 안전하게 판별한다. 1부터 시작",
+    "default": null,
+    "name": "payload_version",
+    "notnull": true,
+    "type": "smallint"
+   },
+   {
+    "comment": "24시간 재사용·7일 제공·매시간 정리 배치 판정의 유일한 기준 시각",
+    "default": null,
+    "name": "collected_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": "AVAILABLE·PARTIAL·UNVERIFIED_REPOSITORY·AMBIGUOUS_SCOPE·UNSUPPORTED_HOST·NO_DISCUSSION_DATA 중 하나. 일시적 외부 호출 실패·진행 중 상태는 이 테이블에 저장하지 않는다",
+    "default": null,
+    "name": "data_status",
+    "notnull": true,
+    "type": "character varying(30)"
+   },
+   {
+    "comment": "검증된 저장소 식별자·이슈 최대 2개·논의 흐름·대표 메시지·제한 사유. 원문 본문·댓글·prompt·hash는 넣지 않는다",
+    "default": null,
+    "name": "result",
+    "notnull": true,
+    "type": "jsonb"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id)",
+    "name": "PK_COMMUNITY_SNAPSHOT",
+    "type": "p"
+   },
+   {
+    "def": "UNIQUE (snapshot_id)",
+    "name": "UK_COMMUNITY_SNAPSHOT_SNAPSHOT_ID",
+    "type": "u"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id) ON DELETE CASCADE",
+    "name": "FK_PACKAGE_COMMUNITY_SNAPSHOT",
+    "type": "f"
+   },
+   {
+    "def": "CHECK ((payload_version > 0))",
+    "name": "CK_COMMUNITY_SNAPSHOT_PAYLOAD_VERSION",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((data_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'PARTIAL'::character varying, 'UNVERIFIED_REPOSITORY'::character varying, 'AMBIGUOUS_SCOPE'::character varying, 'UNSUPPORTED_HOST'::character varying, 'NO_DISCUSSION_DATA'::character varying])::text[])))",
+    "name": "CK_COMMUNITY_SNAPSHOT_DATA_STATUS",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((jsonb_typeof(result) = 'object'::text))",
+    "name": "CK_COMMUNITY_SNAPSHOT_RESULT_OBJECT",
+    "type": "c"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE UNIQUE INDEX \"UK_COMMUNITY_SNAPSHOT_SNAPSHOT_ID\" ON public.community_snapshot USING btree (snapshot_id)",
+    "name": "UK_COMMUNITY_SNAPSHOT_SNAPSHOT_ID"
+   },
+   {
+    "def": "CREATE INDEX idx_community_snapshot_collected_at ON public.community_snapshot USING btree (collected_at)",
+    "name": "idx_community_snapshot_collected_at"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "community_snapshot"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "구간 프리셋. 1y · 3y · 5y. dependent_transition 과 같은 값이며 같은 t2 에서 끝난다",
+    "default": null,
+    "name": "period",
+    "notnull": true,
+    "type": "character varying(8)"
+   },
+   {
+    "comment": "X 를 뺀 전이의 수. 패키지 수가 아니다 — 한 의존자가 여러 번 빼면 여러 건이다",
+    "default": null,
+    "name": "removals",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "뺀 릴리스에서 아무것도 새로 넣지 않은 전이",
+    "default": null,
+    "name": "no_replacement",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "뺀 릴리스에서 다른 것을 함께 넣은 전이. 같은 자리의 대체라는 보장은 없다",
+    "default": null,
+    "name": "with_replacement",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "X 를 뺀 적 있는 의존자 수(중복 접음). removals 와 단위가 다르므로 나누지 말 것",
+    "default": null,
+    "name": "dependents",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "구간 시작. period 로 정해지는 상수",
+    "default": null,
+    "name": "t1",
+    "notnull": true,
+    "type": "timestamp without time zone"
+   },
+   {
+    "comment": "구간 끝 = 원천 스냅샷 날짜. 오늘이 아니다",
+    "default": null,
+    "name": "t2",
+    "notnull": true,
+    "type": "timestamp without time zone"
+   }
+  ],
+  "comment": "구간별 이탈 사유 — 대체 동반/대체 없음 (기능-08). 단위는 전이 건수다",
+  "constraints": [
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_DEPENDENT_REMOVAL_REASON",
+    "type": "f"
+   },
+   {
+    "def": "PRIMARY KEY (package_id, period)",
+    "name": "PK_DEPENDENT_REMOVAL_REASON",
+    "type": "p"
+   },
+   {
+    "def": "CHECK (((period)::text = ANY ((ARRAY['1y'::character varying, '3y'::character varying, '5y'::character varying])::text[])))",
+    "name": "CK_DEPENDENT_REMOVAL_REASON_PERIOD",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((removals > 0) AND (no_replacement >= 0) AND (with_replacement >= 0) AND (dependents > 0)))",
+    "name": "CK_DEPENDENT_REMOVAL_REASON_COUNTS",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((no_replacement + with_replacement) = removals))",
+    "name": "CK_DEPENDENT_REMOVAL_REASON_SPLIT",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((dependents <= removals))",
+    "name": "CK_DEPENDENT_REMOVAL_REASON_DEPENDENTS",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((t1 < t2))",
+    "name": "CK_DEPENDENT_REMOVAL_REASON_RANGE",
+    "type": "c"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "dependent_removal_reason"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "구간 프리셋. 1y · 3y · 5y",
+    "default": null,
+    "name": "period",
+    "notnull": true,
+    "type": "character varying(8)"
+   },
+   {
+    "comment": "선언 종류. regular · peer · optional",
+    "default": null,
+    "name": "kind",
+    "notnull": true,
+    "type": "character varying(16)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "retained",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "inflow",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "유입 중 T1 때 아직 없던 패키지. inflow 의 부분집합이며 채택이 아니라 생태계 성장",
+    "default": null,
+    "name": "inflow_new",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "outflow",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "구간 안에 대표 릴리스가 안 바뀌어 판정할 수 없는 dependent. 유지로 세면 안 된다",
+    "default": null,
+    "name": "unobserved",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "구간 시작. period 로 정해지는 상수",
+    "default": null,
+    "name": "t1",
+    "notnull": true,
+    "type": "timestamp without time zone"
+   },
+   {
+    "comment": "구간 끝 = 원천 스냅샷 날짜. 오늘이 아니다",
+    "default": null,
+    "name": "t2",
+    "notnull": true,
+    "type": "timestamp without time zone"
+   },
+   {
+    "comment": "관측불가 중 마지막 대표 릴리스가 t2 기준 3년 안. 3y·5y 구간에서는 정의상 0",
+    "default": null,
+    "name": "unobserved_recent",
+    "notnull": false,
+    "type": "integer"
+   },
+   {
+    "comment": "관측불가 중 마지막 대표 릴리스가 t2 기준 3~5년 전. 5y 구간에서는 정의상 0",
+    "default": null,
+    "name": "unobserved_stale",
+    "notnull": false,
+    "type": "integer"
+   },
+   {
+    "comment": "관측불가 중 마지막 대표 릴리스가 t2 기준 5년 초과. 사실상 방치된 프로젝트다",
+    "default": null,
+    "name": "unobserved_dormant",
+    "notnull": false,
+    "type": "integer"
+   }
+  ],
+  "comment": "구간 양 끝의 dependent 선언 집합 비교 (기능-08)",
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id, period, kind)",
+    "name": "PK_DEPENDENT_TRANSITION",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_DEPENDENT_TRANSITION",
+    "type": "f"
+   },
+   {
+    "def": "CHECK (((period)::text = ANY ((ARRAY['1y'::character varying, '3y'::character varying, '5y'::character varying])::text[])))",
+    "name": "CK_DEPENDENT_TRANSITION_PERIOD",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((kind)::text = ANY ((ARRAY['regular'::character varying, 'peer'::character varying, 'optional'::character varying])::text[])))",
+    "name": "CK_DEPENDENT_TRANSITION_KIND",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((retained >= 0) AND (inflow >= 0) AND (inflow_new >= 0) AND (outflow >= 0) AND (unobserved >= 0)))",
+    "name": "CK_DEPENDENT_TRANSITION_COUNTS",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((inflow_new <= inflow))",
+    "name": "CK_DEPENDENT_TRANSITION_INFLOW_NEW",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((t1 < t2))",
+    "name": "CK_DEPENDENT_TRANSITION_RANGE",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((((unobserved_recent IS NULL) AND (unobserved_stale IS NULL) AND (unobserved_dormant IS NULL)) OR ((unobserved_recent >= 0) AND (unobserved_stale >= 0) AND (unobserved_dormant >= 0) AND (((unobserved_recent + unobserved_stale) + unobserved_dormant) = unobserved))))",
+    "name": "CK_DEPENDENT_TRANSITION_UNOBSERVED_SPLIT",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((unobserved_recent IS NULL) OR ((period)::text = '1y'::text) OR (((period)::text = '3y'::text) AND (unobserved_recent = 0)) OR (((period)::text = '5y'::text) AND (unobserved_recent = 0) AND (unobserved_stale = 0))))",
+    "name": "CK_DEPENDENT_TRANSITION_UNOBSERVED_PERIOD",
+    "type": "c"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "dependent_transition"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "dataset",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "execution_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "manifest_sha256",
+    "notnull": true,
+    "type": "character varying(64)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "manifest",
+    "notnull": true,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": "clock_timestamp()",
+    "name": "published_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   }
+  ],
+  "comment": "DB에 원자적으로 게시한 dataset별 현재 입력. MinIO _current.json과 별도",
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (dataset)",
+    "name": "etl_dataset_current_pkey",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (dataset, execution_id, snapshot_at, manifest_sha256) REFERENCES etl_load_execution(dataset, execution_id, snapshot_at, manifest_sha256)",
+    "name": "etl_dataset_current_dataset_execution_id_snapshot_at_manif_fkey",
+    "type": "f"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "etl_dataset_current"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "attempt_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "execution_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "status",
+    "notnull": true,
+    "type": "character varying(20)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "phase",
+    "notnull": true,
+    "type": "character varying(50)"
+   },
+   {
+    "comment": null,
+    "default": "'{}'::jsonb",
+    "name": "actual_counts",
+    "notnull": true,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": "'{}'::jsonb",
+    "name": "quality_report",
+    "notnull": true,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "error_message",
+    "notnull": false,
+    "type": "text"
+   },
+   {
+    "comment": null,
+    "default": "clock_timestamp()",
+    "name": "created_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "completed_at",
+    "notnull": false,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": "이번 시도에서 검증한 코드·스키마 계약. 최초 게시 execution.contract_sha256은 보존",
+    "default": null,
+    "name": "validation_contract_sha256",
+    "notnull": false,
+    "type": "character varying(64)"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "CHECK (((status)::text = ANY ((ARRAY['PREPARING'::character varying, 'FAILED'::character varying, 'PUBLISHED'::character varying, 'REVERIFIED'::character varying])::text[])))",
+    "name": "etl_load_attempt_status_check",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((((status)::text = 'PREPARING'::text) AND (completed_at IS NULL)) OR (((status)::text <> 'PREPARING'::text) AND (completed_at IS NOT NULL))))",
+    "name": "etl_load_attempt_check",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (attempt_id)",
+    "name": "etl_load_attempt_pkey",
+    "type": "p"
+   },
+   {
+    "def": "UNIQUE (execution_id, attempt_id)",
+    "name": "etl_load_attempt_execution_id_attempt_id_key",
+    "type": "u"
+   },
+   {
+    "def": "FOREIGN KEY (execution_id) REFERENCES etl_load_execution(execution_id)",
+    "name": "etl_load_attempt_execution_id_fkey",
+    "type": "f"
+   },
+   {
+    "def": "CHECK (((validation_contract_sha256)::text ~ '^[0-9a-f]{64}$'::text))",
+    "name": "etl_load_attempt_validation_contract_sha256_check",
+    "type": "c"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE UNIQUE INDEX etl_load_attempt_execution_id_attempt_id_key ON public.etl_load_attempt USING btree (execution_id, attempt_id)",
+    "name": "etl_load_attempt_execution_id_attempt_id_key"
+   },
+   {
+    "def": "CREATE INDEX ix_etl_load_attempt_execution ON public.etl_load_attempt USING btree (execution_id, created_at)",
+    "name": "ix_etl_load_attempt_execution"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "etl_load_attempt"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "execution_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "dataset",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "status",
+    "notnull": true,
+    "type": "character varying(20)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": false,
+    "type": "date"
+   },
+   {
+    "comment": "Curated report 공급자 관측 시각: 원천의 timezone 없는 마이크로초 값 보존",
+    "default": null,
+    "name": "snapshot_timestamp",
+    "notnull": false,
+    "type": "timestamp without time zone"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "curated_run_id",
+    "notnull": false,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "run_prefix",
+    "notnull": true,
+    "type": "text"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "manifest_sha256",
+    "notnull": true,
+    "type": "character varying(64)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "contract_sha256",
+    "notnull": true,
+    "type": "character varying(64)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "input_metadata",
+    "notnull": true,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "expected_counts",
+    "notnull": true,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "actual_counts",
+    "notnull": false,
+    "type": "jsonb"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "error_message",
+    "notnull": false,
+    "type": "text"
+   },
+   {
+    "comment": null,
+    "default": "clock_timestamp()",
+    "name": "created_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": null,
+    "default": "clock_timestamp()",
+    "name": "updated_at",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "active_attempt_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "CHECK (((status)::text = ANY ((ARRAY['PREPARING'::character varying, 'FAILED'::character varying, 'PUBLISHED'::character varying])::text[])))",
+    "name": "etl_load_execution_status_check",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((manifest_sha256)::text ~ '^[0-9a-f]{64}$'::text))",
+    "name": "etl_load_execution_manifest_sha256_check",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((contract_sha256)::text ~ '^[0-9a-f]{64}$'::text))",
+    "name": "etl_load_execution_contract_sha256_check",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (execution_id)",
+    "name": "etl_load_execution_pkey",
+    "type": "p"
+   },
+   {
+    "def": "UNIQUE (dataset, execution_id, snapshot_at, manifest_sha256)",
+    "name": "etl_load_execution_dataset_execution_id_snapshot_at_manifes_key",
+    "type": "u"
+   },
+   {
+    "def": "FOREIGN KEY (execution_id, active_attempt_id) REFERENCES etl_load_attempt(execution_id, attempt_id) DEFERRABLE INITIALLY DEFERRED",
+    "name": "fk_etl_active_attempt",
+    "type": "f"
+   },
+   {
+    "def": "UNIQUE (dataset, execution_id)",
+    "name": "uq_etl_execution_dataset",
+    "type": "u"
+   },
+   {
+    "def": "CHECK (((((dataset)::text = 'snapshot-reference'::text) AND (snapshot_at IS NULL) AND (snapshot_timestamp IS NULL) AND (curated_run_id IS NULL)) OR (((dataset)::text <> 'snapshot-reference'::text) AND (snapshot_at IS NOT NULL) AND (snapshot_timestamp IS NOT NULL) AND (curated_run_id IS NOT NULL))))",
+    "name": "ck_etl_execution_snapshot_scope",
+    "type": "c"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE UNIQUE INDEX etl_load_execution_dataset_execution_id_snapshot_at_manifes_key ON public.etl_load_execution USING btree (dataset, execution_id, snapshot_at, manifest_sha256)",
+    "name": "etl_load_execution_dataset_execution_id_snapshot_at_manifes_key"
+   },
+   {
+    "def": "CREATE INDEX ix_etl_load_execution_input ON public.etl_load_execution USING btree (dataset, manifest_sha256, status)",
+    "name": "ix_etl_load_execution_input"
+   },
+   {
+    "def": "CREATE UNIQUE INDEX uq_etl_execution_dataset ON public.etl_load_execution USING btree (dataset, execution_id)",
+    "name": "uq_etl_execution_dataset"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "etl_load_execution"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "execution_id",
+    "notnull": true,
+    "type": "character varying(200)"
+   },
+   {
+    "comment": null,
+    "default": "'snapshot-reference'::character varying",
+    "name": "dataset",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_timestamp",
+    "notnull": true,
+    "type": "timestamp with time zone"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "previous_snapshot_at",
+    "notnull": false,
+    "type": "date"
+   },
+   {
+    "comment": null,
+    "default": "(snapshot_at - previous_snapshot_at)",
+    "name": "interval_days",
+    "notnull": false,
+    "type": "integer"
+   }
+  ],
+  "comment": "Projects 기준 목록의 실행별 날짜/원천 시각/직전 날짜 계보. 지표 준비 완료를 의미하지 않음",
+  "constraints": [
+   {
+    "def": "CHECK (((dataset)::text = 'snapshot-reference'::text))",
+    "name": "etl_snapshot_reference_dataset_check",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((((snapshot_timestamp AT TIME ZONE 'UTC'::text))::date = snapshot_at))",
+    "name": "etl_snapshot_reference_check",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((previous_snapshot_at IS NULL) OR (previous_snapshot_at < snapshot_at)))",
+    "name": "etl_snapshot_reference_check1",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (execution_id, snapshot_at)",
+    "name": "etl_snapshot_reference_pkey",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+    "name": "etl_snapshot_reference_snapshot_at_fkey",
+    "type": "f"
+   },
+   {
+    "def": "FOREIGN KEY (dataset, execution_id) REFERENCES etl_load_execution(dataset, execution_id)",
+    "name": "etl_snapshot_reference_dataset_execution_id_fkey",
+    "type": "f"
+   },
+   {
+    "def": "FOREIGN KEY (execution_id, previous_snapshot_at) REFERENCES etl_snapshot_reference(execution_id, snapshot_at)",
+    "name": "etl_snapshot_reference_execution_id_previous_snapshot_at_fkey",
+    "type": "f"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE INDEX ix_etl_snapshot_reference_date ON public.etl_snapshot_reference USING btree (snapshot_at)",
+    "name": "ix_etl_snapshot_reference_date"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "etl_snapshot_reference"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "from_package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "도착 패키지 이름. package 에 없을 수 있다 — FK 가 아닌 이유는 파일 머리말 참고",
+    "default": null,
+    "name": "to_package_name",
+    "notnull": true,
+    "type": "character varying(300)"
+   },
+   {
+    "comment": "의존 종류이자 원천. regular=deps.dev 전수 · dev=registry 상위 10만. 모집단이 달라 합치지 않는다",
+    "default": null,
+    "name": "dep_kind",
+    "notnull": true,
+    "type": "character varying(16)"
+   },
+   {
+    "comment": "한 전이에서 함께 들어온 후보가 k 개면 1/k 씩 나눠 준 표의 합. 건수가 아니다",
+    "default": null,
+    "name": "votes",
+    "notnull": true,
+    "type": "numeric(10,1)"
+   },
+   {
+    "comment": "X 를 빼면서 Y 를 넣은 전이 수. votes 와 달리 나누지 않은 건수",
+    "default": null,
+    "name": "co_events",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "X 를 뺀 전이 수 전체. 이 쌍의 분모다",
+    "default": null,
+    "name": "removal_events",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "서로 다른 (배포주체, 달) 조합 수. 한 조직의 일괄 변경을 걸러 내는 핵심 값이다",
+    "default": null,
+    "name": "publisher_months",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "이 이동을 한 의존자 수(중복 접음)",
+    "default": null,
+    "name": "dependents",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "co_events / removal_events × 100. X 를 뺀 사람 중 Y 를 넣은 비율",
+    "default": null,
+    "name": "a_pct",
+    "notnull": true,
+    "type": "numeric(5,2)"
+   },
+   {
+    "comment": "모집단에서 Y 가 추가되는 기준율 × 100. lift 의 분모",
+    "default": null,
+    "name": "b_pct",
+    "notnull": true,
+    "type": "numeric(6,4)"
+   },
+   {
+    "comment": "a_pct / b_pct. 우연 대비 몇 배인가. **모집단이 다르면 절댓값을 비교할 수 없다**",
+    "default": null,
+    "name": "lift",
+    "notnull": true,
+    "type": "numeric(14,1)"
+   },
+   {
+    "comment": "출발 패키지의 표 합 중 이 도착지 비율. 라벨 필터용이며 화면에는 쓰지 않는다",
+    "default": null,
+    "name": "share_pct",
+    "notnull": true,
+    "type": "numeric(4,1)"
+   },
+   {
+    "comment": "조직·달 수 기준 점유율. **화면 점유율은 이것을 쓴다**(S15P21A506-136 3번)",
+    "default": null,
+    "name": "share_pm_pct",
+    "notnull": true,
+    "type": "numeric(4,1)"
+   },
+   {
+    "comment": "(Y, X) 쌍도 loose 를 통과한다. 같은 물건의 두 포장(lodash↔lodash-es)일 수 있어 지우지 않고 변종으로 표시한다",
+    "default": null,
+    "name": "bidirectional",
+    "notnull": true,
+    "type": "boolean"
+   },
+   {
+    "comment": "이 이동이 처음 관측된 날",
+    "default": null,
+    "name": "first_seen",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": "마지막으로 관측된 날",
+    "default": null,
+    "name": "last_seen",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": "이 회차가 어디까지 본 원천인지. dep_kind 로 정해지는 상수이며 두 원천이 서로 다르다",
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   }
+  ],
+  "comment": "관측된 교체 흐름 — X 를 빼고 Y 를 넣은 쌍 (확장-02). 단위는 쌍이다",
+  "constraints": [
+   {
+    "def": "CHECK (((votes <= (co_events)::numeric) AND (co_events <= removal_events)))",
+    "name": "CK_MIGRATION_PAIR_UNITS",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (from_package_id, dep_kind, to_package_name)",
+    "name": "PK_MIGRATION_PAIR",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (from_package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_MIGRATION_PAIR",
+    "type": "f"
+   },
+   {
+    "def": "CHECK (((dep_kind)::text = ANY ((ARRAY['regular'::character varying, 'dev'::character varying])::text[])))",
+    "name": "CK_MIGRATION_PAIR_DEP_KIND",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((to_package_name)::text <> ''::text))",
+    "name": "CK_MIGRATION_PAIR_TO_NAME",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((lift >= (5)::numeric) AND (votes >= (3)::numeric)))",
+    "name": "CK_MIGRATION_PAIR_LOOSE",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((co_events > 0) AND (removal_events > 0) AND (publisher_months > 0) AND (dependents > 0)))",
+    "name": "CK_MIGRATION_PAIR_COUNTS",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((a_pct >= (0)::numeric) AND (a_pct <= (100)::numeric) AND (b_pct >= (0)::numeric) AND (b_pct <= (100)::numeric) AND (share_pct >= (0)::numeric) AND (share_pct <= (100)::numeric) AND (share_pm_pct >= (0)::numeric) AND (share_pm_pct <= (100)::numeric)))",
+    "name": "CK_MIGRATION_PAIR_PCT_RANGE",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((first_seen <= last_seen))",
+    "name": "CK_MIGRATION_PAIR_RANGE",
+    "type": "c"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "migration_pair"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "name",
+    "notnull": true,
+    "type": "character varying(300)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "repo_url",
+    "notnull": false,
+    "type": "character varying(200)"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id)",
+    "name": "PK_PACKAGE",
+    "type": "p"
+   },
+   {
+    "def": "UNIQUE (name)",
+    "name": "UK_PACKAGE_NAME",
+    "type": "u"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE UNIQUE INDEX \"UK_PACKAGE_NAME\" ON public.package USING btree (name)",
+    "name": "UK_PACKAGE_NAME"
+   },
+   {
+    "def": "CREATE INDEX idx_package_name_prefix ON public.package USING btree (name text_pattern_ops)",
+    "name": "idx_package_name_prefix"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "package"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "version",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": "어떻게 불러오는가. CJS · ESM_ONLY · ESM_CJS(듀얼) · UNKNOWN(unpublish)",
+    "default": null,
+    "name": "module_format",
+    "notnull": true,
+    "type": "character varying(16)"
+   },
+   {
+    "comment": "타입 선언이 패키지에 동봉됐는가. 거짓은 @types 별도 설치를 뜻하며 타입 없음이 아니다",
+    "default": null,
+    "name": "types_bundled",
+    "notnull": true,
+    "type": "boolean"
+   },
+   {
+    "comment": "dependencies 선언 수. 전이 포함 아님. NULL 은 unpublish 라 모름이며 0 이 아니다",
+    "default": null,
+    "name": "direct_dependencies",
+    "notnull": false,
+    "type": "integer"
+   },
+   {
+    "comment": "peerDependencies 선언 수. 사용자가 직접 맞춰야 하는 조건. NULL 은 모름",
+    "default": null,
+    "name": "peer_dependencies",
+    "notnull": false,
+    "type": "integer"
+   }
+  ],
+  "comment": "버전별 소비 조건 — 모듈 방식·타입·의존 조건 (기능-11 첫 결과 카드)",
+  "constraints": [
+   {
+    "def": "CHECK (((module_format)::text = ANY ((ARRAY['CJS'::character varying, 'ESM_ONLY'::character varying, 'ESM_CJS'::character varying, 'UNKNOWN'::character varying])::text[])))",
+    "name": "CK_PACKAGE_ENV_MODULE_FORMAT",
+    "type": "c"
+   },
+   {
+    "def": "CHECK ((((direct_dependencies IS NULL) OR (direct_dependencies >= 0)) AND ((peer_dependencies IS NULL) OR (peer_dependencies >= 0))))",
+    "name": "CK_PACKAGE_ENV_COUNTS",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (package_id, version)",
+    "name": "PK_PACKAGE_ENV",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)",
+    "name": "FK_VERSION_PACKAGE_ENV",
+    "type": "f"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "package_env"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "downloads",
+    "notnull": false,
+    "type": "bigint"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "stars",
+    "notnull": false,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "open_issues",
+    "notnull": false,
+    "type": "integer"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id, snapshot_at)",
+    "name": "PK_PACKAGE_SNAPSHOT",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_PACKAGE_SNAPSHOT",
+    "type": "f"
+   },
+   {
+    "def": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+    "name": "FK_SNAPSHOT_PACKAGE_SNAPSHOT",
+    "type": "f"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "package_snapshot"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "version",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   },
+   {
+    "comment": null,
+    "default": "0",
+    "name": "dependents_count",
+    "notnull": true,
+    "type": "integer"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "CHECK ((dependents_count >= 0))",
+    "name": "ck_package_version_snapshot_dependents_nonnegative",
+    "type": "c"
+   },
+   {
+    "def": "PRIMARY KEY (package_id, version, snapshot_at)",
+    "name": "pk_package_version_snapshot",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id, version) REFERENCES version(package_id, version)",
+    "name": "fk_version_package_version_snapshot",
+    "type": "f"
+   },
+   {
+    "def": "FOREIGN KEY (snapshot_at) REFERENCES snapshot(snapshot_at)",
+    "name": "fk_snapshot_package_version_snapshot",
+    "type": "f"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE INDEX idx_pvs_pkg_snapshot ON ONLY public.package_version_snapshot USING btree (package_id, snapshot_at)",
+    "name": "idx_pvs_pkg_snapshot"
+   }
+  ],
+  "kind": "p",
+  "partitions": 0,
+  "partkey": "RANGE (snapshot_at)",
+  "table": "package_version_snapshot"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "similar_package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "순위",
+    "default": null,
+    "name": "rank",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": "종합 점수(유사도+기타)",
+    "default": null,
+    "name": "score",
+    "notnull": true,
+    "type": "double precision"
+   },
+   {
+    "comment": "판정 모델 버전",
+    "default": null,
+    "name": "model_ver",
+    "notnull": true,
+    "type": "character varying(50)"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id, similar_package_id)",
+    "name": "PK_SIMILAR_PACKAGE",
+    "type": "p"
+   },
+   {
+    "def": "UNIQUE (package_id, rank)",
+    "name": "UK_SIMILAR_PACKAGE_RANK",
+    "type": "u"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_SIMILAR_PACKAGE",
+    "type": "f"
+   },
+   {
+    "def": "FOREIGN KEY (similar_package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_SIMILAR_PACKAGE_CANDIDATE",
+    "type": "f"
+   },
+   {
+    "def": "CHECK ((package_id <> similar_package_id))",
+    "name": "CK_SIMILAR_PACKAGE_SELF",
+    "type": "c"
+   },
+   {
+    "def": "CHECK (((rank >= 1) AND (rank <= 50)))",
+    "name": "CK_SIMILAR_PACKAGE_RANK",
+    "type": "c"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE UNIQUE INDEX \"UK_SIMILAR_PACKAGE_RANK\" ON public.similar_package USING btree (package_id, rank)",
+    "name": "UK_SIMILAR_PACKAGE_RANK"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "similar_package"
+ },
+ {
+  "columns": [
+   {
+    "comment": "BigQuery의 snapshot 테이블 값을 기준으로 함",
+    "default": "'2026-08-31'::date",
+    "name": "snapshot_at",
+    "notnull": true,
+    "type": "date"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (snapshot_at)",
+    "name": "PK_SNAPSHOT",
+    "type": "p"
+   }
+  ],
+  "indexes": null,
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "snapshot"
+ },
+ {
+  "columns": [
+   {
+    "comment": null,
+    "default": null,
+    "name": "version",
+    "notnull": true,
+    "type": "character varying(100)"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "package_id",
+    "notnull": true,
+    "type": "integer"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "published_at",
+    "notnull": false,
+    "type": "timestamp without time zone"
+   },
+   {
+    "comment": null,
+    "default": "0",
+    "name": "ordinal",
+    "notnull": true,
+    "type": "bigint"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "description",
+    "notnull": false,
+    "type": "text"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "licenses",
+    "notnull": false,
+    "type": "json"
+   },
+   {
+    "comment": null,
+    "default": null,
+    "name": "deprecated",
+    "notnull": false,
+    "type": "text"
+   },
+   {
+    "comment": "유저에게 의존성 보여주는 용도, 따로 계산할때 쓰진 않음",
+    "default": "'{\n        \"dependencies\": {},\n        \"peerDependencies\": {},\n        \"optionalDependencies\": {}\n    }'::json",
+    "name": "dependency",
+    "notnull": true,
+    "type": "json"
+   }
+  ],
+  "comment": null,
+  "constraints": [
+   {
+    "def": "PRIMARY KEY (package_id, version)",
+    "name": "PK_VERSION",
+    "type": "p"
+   },
+   {
+    "def": "FOREIGN KEY (package_id) REFERENCES package(package_id)",
+    "name": "FK_PACKAGE_VERSION",
+    "type": "f"
+   }
+  ],
+  "indexes": [
+   {
+    "def": "CREATE INDEX idx_version_pkg_ordinal ON public.version USING btree (package_id, ordinal DESC)",
+    "name": "idx_version_pkg_ordinal"
+   }
+  ],
+  "kind": "r",
+  "partitions": 0,
+  "partkey": null,
+  "table": "version"
+ }
+]

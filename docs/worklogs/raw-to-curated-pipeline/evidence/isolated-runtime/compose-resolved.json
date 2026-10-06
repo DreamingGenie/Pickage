@@ -1,0 +1,157 @@
+{
+  "name": "pickage-runtime-local-20260915",
+  "networks": {
+    "spark-experiment": {
+      "name": "pickage-runtime-local-20260915_spark-experiment",
+      "driver": "bridge",
+      "ipam": {},
+      "internal": true
+    }
+  },
+  "services": {
+    "driver": {
+      "profiles": [
+        "smoke"
+      ],
+      "cpus": 1,
+      "command": null,
+      "depends_on": {
+        "master": {
+          "condition": "service_healthy",
+          "required": true
+        },
+        "worker1": {
+          "condition": "service_started",
+          "required": true
+        },
+        "worker2": {
+          "condition": "service_started",
+          "required": true
+        }
+      },
+      "entrypoint": [
+        "python3",
+        "/experiment/code/cluster_smoke.py"
+      ],
+      "environment": {
+        "SPARK_MASTER_URL": "spark://master:7077",
+        "SPARK_PARALLELISM": "2",
+        "SPARK_RESULT_PATH": "/experiment/output/cluster-smoke.json",
+        "SPARK_WORKER_COUNT": "2"
+      },
+      "image": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+      "mem_limit": "1073741824",
+      "memswap_limit": "1073741824",
+      "networks": {
+        "spark-experiment": null
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "C:\\Users\\SSAFY\\workspace\\S15P21A506-raw-to-curated-pipeline\\pipeline\\spark_experiment\\runtime\\cluster_smoke.py",
+          "target": "/experiment/code/cluster_smoke.py",
+          "read_only": true
+        },
+        {
+          "type": "bind",
+          "source": "C:/tmp/pickage-runtime-20260915-output",
+          "target": "/experiment/output"
+        }
+      ]
+    },
+    "master": {
+      "cpus": 0.5,
+      "command": [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "master",
+        "--port",
+        "7077",
+        "--webui-port",
+        "8080"
+      ],
+      "entrypoint": null,
+      "environment": {
+        "SPARK_NO_DAEMONIZE": "true"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8080/json/', timeout=2)"
+        ],
+        "timeout": "3s",
+        "interval": "3s",
+        "retries": 20
+      },
+      "image": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+      "mem_limit": "536870912",
+      "memswap_limit": "536870912",
+      "networks": {
+        "spark-experiment": null
+      }
+    },
+    "worker1": {
+      "cpus": 1,
+      "command": [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://master:7077",
+        "--host",
+        "worker1",
+        "--cores",
+        "1",
+        "--memory",
+        "1536M"
+      ],
+      "depends_on": {
+        "master": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "SPARK_NO_DAEMONIZE": "true"
+      },
+      "image": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+      "mem_limit": "2147483648",
+      "memswap_limit": "2147483648",
+      "networks": {
+        "spark-experiment": null
+      }
+    },
+    "worker2": {
+      "cpus": 1,
+      "command": [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://master:7077",
+        "--host",
+        "worker2",
+        "--cores",
+        "1",
+        "--memory",
+        "1536M"
+      ],
+      "depends_on": {
+        "master": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "SPARK_NO_DAEMONIZE": "true"
+      },
+      "image": "sha256:e3ca9ccf92c2c9fa0022920acab1713e6d35a0529e5ab6ac4f0a38428f955479",
+      "mem_limit": "2147483648",
+      "memswap_limit": "2147483648",
+      "networks": {
+        "spark-experiment": null
+      }
+    }
+  }
+}

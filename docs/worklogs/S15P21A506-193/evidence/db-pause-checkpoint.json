@@ -1,0 +1,818 @@
+{
+  "status": "PAUSED_BY_USER",
+  "captured_at": "2026-09-12T03:58:46.184427+00:00",
+  "published_dates": 43,
+  "published_rows": 106346692,
+  "last_published_date": "2023-02-27",
+  "next_date": "2023-03-06",
+  "remaining_dates": [
+    "2023-03-06",
+    "2023-03-13",
+    "2023-03-21",
+    "2023-03-27",
+    "2023-04-03",
+    "2023-04-10",
+    "2023-04-17",
+    "2023-04-20",
+    "2023-05-01",
+    "2023-05-02",
+    "2023-05-08",
+    "2023-05-15",
+    "2023-05-22",
+    "2023-05-29",
+    "2023-06-05",
+    "2023-06-12",
+    "2023-06-20",
+    "2023-06-26",
+    "2023-07-03",
+    "2023-07-10",
+    "2023-07-17",
+    "2023-07-24",
+    "2023-07-31",
+    "2023-08-07",
+    "2023-08-14",
+    "2023-08-21",
+    "2023-08-28",
+    "2023-09-04",
+    "2023-09-11",
+    "2023-09-18",
+    "2023-09-26",
+    "2023-10-02",
+    "2023-10-09",
+    "2023-10-16",
+    "2023-10-23",
+    "2023-10-30",
+    "2023-11-06",
+    "2023-11-13",
+    "2023-11-20",
+    "2023-11-27",
+    "2023-12-04",
+    "2023-12-11",
+    "2023-12-18",
+    "2023-12-25",
+    "2024-01-01",
+    "2024-01-08",
+    "2024-01-15",
+    "2024-01-22",
+    "2024-01-29",
+    "2024-02-05",
+    "2024-02-12",
+    "2024-02-19",
+    "2024-02-26",
+    "2024-03-04",
+    "2024-03-05",
+    "2024-03-11",
+    "2024-03-18",
+    "2024-03-25",
+    "2024-04-01",
+    "2024-04-09",
+    "2024-04-15",
+    "2024-04-21",
+    "2024-04-29",
+    "2024-05-09",
+    "2024-05-13",
+    "2024-05-20",
+    "2024-05-27",
+    "2024-06-03",
+    "2024-06-10",
+    "2024-06-17",
+    "2024-06-24",
+    "2024-07-01",
+    "2024-07-08",
+    "2024-07-09",
+    "2024-07-15",
+    "2024-07-23",
+    "2024-07-29",
+    "2024-08-05",
+    "2024-08-12",
+    "2024-08-19",
+    "2024-08-29",
+    "2024-09-02",
+    "2024-09-09",
+    "2024-09-16",
+    "2024-09-23",
+    "2024-09-30",
+    "2024-10-07",
+    "2024-10-14",
+    "2024-10-21",
+    "2024-10-28",
+    "2024-11-04",
+    "2024-11-11",
+    "2024-11-19",
+    "2024-11-25",
+    "2024-12-02",
+    "2024-12-09",
+    "2024-12-16",
+    "2024-12-23",
+    "2024-12-30",
+    "2025-01-06",
+    "2025-01-13",
+    "2025-01-20",
+    "2025-01-27",
+    "2025-02-03",
+    "2025-02-10",
+    "2025-02-18",
+    "2025-02-25",
+    "2025-03-03",
+    "2025-03-10",
+    "2025-03-18",
+    "2025-03-24",
+    "2025-03-31",
+    "2025-04-07",
+    "2025-04-14",
+    "2025-04-22",
+    "2025-04-28",
+    "2025-05-05",
+    "2025-05-12",
+    "2025-05-19",
+    "2025-05-26",
+    "2025-06-02",
+    "2025-06-09",
+    "2025-06-16",
+    "2025-06-23",
+    "2025-06-30",
+    "2025-07-07",
+    "2025-07-14",
+    "2025-07-21",
+    "2025-07-28",
+    "2025-08-04",
+    "2025-08-11",
+    "2025-08-18",
+    "2025-08-25",
+    "2025-09-01",
+    "2025-09-08",
+    "2025-09-15",
+    "2025-09-22",
+    "2025-09-29",
+    "2025-10-06",
+    "2025-10-13",
+    "2025-10-20",
+    "2025-10-27",
+    "2025-11-03",
+    "2025-11-10",
+    "2025-11-17",
+    "2025-11-24",
+    "2025-12-01",
+    "2025-12-08",
+    "2025-12-15",
+    "2025-12-22",
+    "2025-12-29",
+    "2026-01-05",
+    "2026-01-12",
+    "2026-01-19",
+    "2026-01-26",
+    "2026-02-13",
+    "2026-02-16",
+    "2026-02-23",
+    "2026-03-02",
+    "2026-03-09",
+    "2026-03-10",
+    "2026-03-16",
+    "2026-03-23",
+    "2026-03-30",
+    "2026-04-06",
+    "2026-04-13",
+    "2026-04-14",
+    "2026-04-20",
+    "2026-04-28",
+    "2026-05-05",
+    "2026-05-11",
+    "2026-05-18",
+    "2026-06-01",
+    "2026-06-11",
+    "2026-06-15",
+    "2026-06-23",
+    "2026-06-29",
+    "2026-07-06",
+    "2026-07-13",
+    "2026-07-20",
+    "2026-07-27",
+    "2026-08-03",
+    "2026-08-10",
+    "2026-08-17",
+    "2026-08-24",
+    "2026-08-31"
+  ],
+  "remaining_rows": 900737916,
+  "interrupted_date_visible_rows": 0,
+  "load_backend_gone": true,
+  "previous_commits_unchanged": true,
+  "loader_contract": {
+    "historical_db_load.py": "f2434a39b4cccccd5b677d87b91eef5fe4c06497e601b75bb43a1a1a58d65a92",
+    "historical_db_source.py": "e57fd47b4c1a4f93178832896f35c130a445c34ac81b20160dc66ead9544de54",
+    "historical_db_keys.py": "e8e9a5b89945e80c8a7818cd104ed5e05a6fa3dcbb5726da471766bc91e2dca4",
+    "historical_db_publish.py": "748ba87d4bc6d0057e8f7d8fa8397f3a9305f41bedeb4eaafde5fe901ec6e55d",
+    "historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+    "postgres.py": "58cf10af376351b85022517fd3e2d456629fe1c68a5116ef080d629fa83af91a"
+  },
+  "load_plan": {
+    "contract": {
+      "historical_db_keys.py": "e8e9a5b89945e80c8a7818cd104ed5e05a6fa3dcbb5726da471766bc91e2dca4",
+      "historical_db_load.py": "f2434a39b4cccccd5b677d87b91eef5fe4c06497e601b75bb43a1a1a58d65a92",
+      "historical_db_prepare.py": "188595517779b265efb61bd29471ef79a6e4b754663afc668f25dfbec924024d",
+      "historical_db_publish.py": "748ba87d4bc6d0057e8f7d8fa8397f3a9305f41bedeb4eaafde5fe901ec6e55d",
+      "historical_db_source.py": "e57fd47b4c1a4f93178832896f35c130a445c34ac81b20160dc66ead9544de54",
+      "postgres.py": "58cf10af376351b85022517fd3e2d456629fe1c68a5116ef080d629fa83af91a"
+    },
+    "dates": null,
+    "db_command": [
+      "docker",
+      "exec",
+      "-i",
+      "pickage-267-validation",
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "pickage_267_full_defaulted"
+    ],
+    "execution_prefix": "vd193-full",
+    "source_run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-full-20260912-01\\run",
+    "source_run_manifest_sha256": "1b6c01042e43de9da897a647b52dc1a76ef555385d4716bab91c8e934a32bc94"
+  },
+  "executions": [
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220508",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-05-08",
+      "manifest_sha256": "b65e0ba2e884d113f16cd5b0f5ce62c701f9838e43837f60af9fb50302ba58af",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2169881,
+        "package_version_snapshot": 2169881
+      },
+      "active_attempt_id": "39fbea6a3c5d4d338d4326e6d32df3d7"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220515",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-05-15",
+      "manifest_sha256": "eb359488d3d4bfa2fbf5a7a08c141a5315869044fc41b0362da0ce480023cb99",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2184591,
+        "package_version_snapshot": 2184591
+      },
+      "active_attempt_id": "cb5585be2f274e5a88b03e61a53b7ee3"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220522",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-05-22",
+      "manifest_sha256": "1e13bfab8dd75150fe4b518f69dc49aae96271b60636931317c1fe351865295a",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2198885,
+        "package_version_snapshot": 2198885
+      },
+      "active_attempt_id": "9774cc47827d45259b70be22ae75ccf6"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220529",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-05-29",
+      "manifest_sha256": "4423e5bf17dc0ddfa4e6a7adbf7177d3d0693a279a499e170c42ebbc62108169",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2212238,
+        "package_version_snapshot": 2212238
+      },
+      "active_attempt_id": "2542d32d661d4926926b3c9abcdcfd48"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220605",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-06-05",
+      "manifest_sha256": "89d5b66a5749b86c49088d117502c54f786e17e5ad95b6e423234bee29f20dcb",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2224532,
+        "package_version_snapshot": 2224532
+      },
+      "active_attempt_id": "2ec7c8ab782e40bb93b8e24000ef1ac6"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220613",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-06-13",
+      "manifest_sha256": "81228a4c2042275f0c0fd8a2c94b80886bf57f17226f54f9111fb0ad6856c70e",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2240636,
+        "package_version_snapshot": 2240636
+      },
+      "active_attempt_id": "41a41fe2dc694fa48077fbba0b85359c"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220620",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-06-20",
+      "manifest_sha256": "69d00da4db4739e7fe814c20851688ec4cab9fc2e214284280fb018d3244dbf6",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2254666,
+        "package_version_snapshot": 2254666
+      },
+      "active_attempt_id": "0bfafcc8295f4d6e84e291baef69da32"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220627",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-06-27",
+      "manifest_sha256": "d638dcfdae88e2e64cdf1eb69c9df91971cced9377c3ceb99b588e3ebad851c3",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2268099,
+        "package_version_snapshot": 2268099
+      },
+      "active_attempt_id": "cb3ac6057f184e44a4cbe3307f0b8d26"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220704",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-07-04",
+      "manifest_sha256": "da23777c1e87e0a842767bc976cdd5d6709ee23687fc0fc879b96186d2a9f2a2",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2281372,
+        "package_version_snapshot": 2281372
+      },
+      "active_attempt_id": "48e682422a1e47c69e08e86fc2917f0c"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220712",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-07-12",
+      "manifest_sha256": "baa4896bb3872b0504461f9ac213e898d5d556ed19d21ee52256637820988585",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2297287,
+        "package_version_snapshot": 2297287
+      },
+      "active_attempt_id": "56366f03491e491f8b5061eceadfc87d"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220718",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-07-18",
+      "manifest_sha256": "c64732db4d2978a0031827311e92855a922c98bc63587bf145c50233d2b3e9cf",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2308691,
+        "package_version_snapshot": 2308691
+      },
+      "active_attempt_id": "fe92e6f68c9745d1ae7b3d0e582e36da"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220726",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-07-26",
+      "manifest_sha256": "af484b49457527f5adbf48555b358ed2ffe92e27fb82257bc5786b98c0c29429",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2322100,
+        "package_version_snapshot": 2322100
+      },
+      "active_attempt_id": "e79d8f334d01430aa65fc56026f2b58e"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220801",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-08-01",
+      "manifest_sha256": "764aa8b31618df7911a88adf90dbf0b45119de1699fc15b20d52ff2f6427ddea",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2336133,
+        "package_version_snapshot": 2336133
+      },
+      "active_attempt_id": "9d0580f4eb364fbbbc1a2ddb18d16633"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220808",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-08-08",
+      "manifest_sha256": "62c1cd8770cbcda7c828dce15b57893c9ca1777455a9cb0c2505ac37df0fbf71",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2350521,
+        "package_version_snapshot": 2350521
+      },
+      "active_attempt_id": "f5a84c5cc6f8479685651a070f8aec73"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220815",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-08-15",
+      "manifest_sha256": "447484b5572669f1956e0bf3aa9e534ac6939591e8a71ba9bda320cd4552b33f",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2364107,
+        "package_version_snapshot": 2364107
+      },
+      "active_attempt_id": "87822fb958a34778a9ef62b64158e537"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220822",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-08-22",
+      "manifest_sha256": "449a16b7d7f4e09232d04801a65364d0613e789fe0c3164bb3c97b503cf675e1",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2377853,
+        "package_version_snapshot": 2377853
+      },
+      "active_attempt_id": "1772d507df0048778ac5d67f5065c9c1"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220829",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-08-29",
+      "manifest_sha256": "197f9ec2a8e6d7cc021768d37846739a915a714e7129fed6850eb02a3c74156a",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2392609,
+        "package_version_snapshot": 2392609
+      },
+      "active_attempt_id": "81e01156e4894924849d5ebf9a297459"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220905",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-09-05",
+      "manifest_sha256": "72eeaff514923a506d8ed4e3c065d30aa8529273b46b4d49a14cf34f8fd3f3c6",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2407433,
+        "package_version_snapshot": 2407433
+      },
+      "active_attempt_id": "382a5d22dc884dbe98f376c8d93e2877"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220913",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-09-13",
+      "manifest_sha256": "27d46c3e08240f7cb846332bb24b1a4a71321323c9f5ee081c7644169d536fb2",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2425342,
+        "package_version_snapshot": 2425342
+      },
+      "active_attempt_id": "e27ea081bb0d42da8629f8a0da11cfd7"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220919",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-09-19",
+      "manifest_sha256": "291b3beeaf19af2bad4399fd0a92b5bd0b0e7f770b5959d3c772162ba6d860b9",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2437371,
+        "package_version_snapshot": 2437371
+      },
+      "active_attempt_id": "beed31a5a5e74d0293d63e812ee917f3"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20220926",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-09-26",
+      "manifest_sha256": "87eb372e476903998609b0e47f9bea3a9b09f2cb393ad134e08b1615729c37a4",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2451495,
+        "package_version_snapshot": 2451495
+      },
+      "active_attempt_id": "3f8348cb82a6484aac07e2c9957098eb"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221003",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-10-03",
+      "manifest_sha256": "016db977ba3df9ab32aa2f62c09213308782ef252f33e619633b9f5fe56a980c",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2467899,
+        "package_version_snapshot": 2467899
+      },
+      "active_attempt_id": "c51f182dab58403dbf0d583c86a3c5fa"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221010",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-10-10",
+      "manifest_sha256": "3ef2c62cef02baa6da0b284ec8233e98ebe067fa7b19c1524f906212d02be122",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2483302,
+        "package_version_snapshot": 2483302
+      },
+      "active_attempt_id": "f2484b64a0b44d049b4fcf5d804138d2"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221017",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-10-17",
+      "manifest_sha256": "5eed3f6139166b7f026c71e7094867aeb287c67532066c4127d94ab0b42b4eac",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2497272,
+        "package_version_snapshot": 2497272
+      },
+      "active_attempt_id": "658eb178ddca42db89a6a92ddcdd6850"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221024",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-10-24",
+      "manifest_sha256": "a2dc6c0b9bd5c393d56ff36fba6d721fd056a17ffa5972da93f6dd2def632ae5",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2512932,
+        "package_version_snapshot": 2512932
+      },
+      "active_attempt_id": "50ae12745a03427bb78d60d03e271328"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221031",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-10-31",
+      "manifest_sha256": "2d31849c4c73b8149768e692a7d74210427a770e423c2d4b1418bcb9256340f0",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2528974,
+        "package_version_snapshot": 2528974
+      },
+      "active_attempt_id": "8cf0f17d53444ed7b9a7417d3c33feef"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221107",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-11-07",
+      "manifest_sha256": "0b5ef28d71388a8431bc4fdcb08099fdab18989e5b504298eb737d5a43bcd296",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2544479,
+        "package_version_snapshot": 2544479
+      },
+      "active_attempt_id": "0d6070d901a34b608d1d453330eb5aae"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221114",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-11-14",
+      "manifest_sha256": "7f36cd5df27e0b91e2c2eb52af10c649f3d7bb5e87572e17c23e2e87d9f45eb1",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2558854,
+        "package_version_snapshot": 2558854
+      },
+      "active_attempt_id": "a7f6771cfe924b3eb086d0c27331569c"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221121",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-11-21",
+      "manifest_sha256": "ed5f58f44781e31affd22a25641e802c952e3e2c6348ff025a3f3e34f04f5318",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2575892,
+        "package_version_snapshot": 2575892
+      },
+      "active_attempt_id": "3f3b11f2339a4d8185ace99410c8b907"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221128",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-11-28",
+      "manifest_sha256": "18787f2d97da129457284ea4bcf10e143ce532901270caf1c7f8477511b954d2",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2589136,
+        "package_version_snapshot": 2589136
+      },
+      "active_attempt_id": "2eac1108a39841f79cca1b29291d0b39"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221205",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-12-05",
+      "manifest_sha256": "ddae81d589025156021e061f94b8c1523e1d9b8279ca8a7a6f2af24c8d738edc",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2605083,
+        "package_version_snapshot": 2605083
+      },
+      "active_attempt_id": "9b6be4e902084bb2bb6b2254c6acef11"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221212",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-12-12",
+      "manifest_sha256": "7a2cd06d07a71887407e3d1613ccd11afb4d5c19e05c096d56170ab0008922ed",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2621053,
+        "package_version_snapshot": 2621053
+      },
+      "active_attempt_id": "b939a6ff97114f6c9ec440c8ac4b6843"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221219",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-12-19",
+      "manifest_sha256": "fb84d4d673ff8eab84bb8694f4a4b0c0a56052b45bf1cb7ba51c42a7368d4546",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2636996,
+        "package_version_snapshot": 2636996
+      },
+      "active_attempt_id": "e6fd8f4df9b44259931e157110434fef"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20221226",
+      "status": "PUBLISHED",
+      "snapshot_at": "2022-12-26",
+      "manifest_sha256": "2842260f1cc6228b245e746a828095444c87e1bb9198cdc66133720508c73cda",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2650244,
+        "package_version_snapshot": 2650244
+      },
+      "active_attempt_id": "e59613fce57440ce8f3d7dacf07ca173"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230102",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-01-02",
+      "manifest_sha256": "bea6748a8fcd6370af80fa1a55e0a19e316c695c56462e8337fb062a5ee8d6b8",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2659255,
+        "package_version_snapshot": 2659255
+      },
+      "active_attempt_id": "83d35e9b87e0492fa9e01eeccc5dc942"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230109",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-01-09",
+      "manifest_sha256": "d18bbdc8d83960573c54ec0040c1aafcf785524a45be2c768b9b55ec64aee426",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2673298,
+        "package_version_snapshot": 2673298
+      },
+      "active_attempt_id": "84a127b8512148049ff91055e4875de6"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230116",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-01-16",
+      "manifest_sha256": "eba020aa26cb5449dd355861302733f35b127cd9e9e950de9ce43697c23461c8",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2688862,
+        "package_version_snapshot": 2688862
+      },
+      "active_attempt_id": "f4ee74c11b924d23985953ed90e957bf"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230123",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-01-23",
+      "manifest_sha256": "a0ab91274a80f5515ff5c8bf236a477139d18ad5312076c1430537785af14d56",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2706188,
+        "package_version_snapshot": 2706188
+      },
+      "active_attempt_id": "a07e518608fe4608bc7b62e23cb4b355"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230129",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-01-29",
+      "manifest_sha256": "8367c5c96b7fbe3571f234eddb53224ea0882d3723dc77cc5a76df91a98fdead",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2725281,
+        "package_version_snapshot": 2725281
+      },
+      "active_attempt_id": "8cd6ab155a34498d9e1cef3dc9b3fabe"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230206",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-02-06",
+      "manifest_sha256": "d3d3c2f2114dbcb09e1f074fb88678e9f362c218458bdc83758354be64ead6ea",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2749767,
+        "package_version_snapshot": 2749767
+      },
+      "active_attempt_id": "cbbc25624ff944e7aa1f34703e5cc6de"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230213",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-02-13",
+      "manifest_sha256": "1247adfd7ba65ca50b20c600c45079d65ad6ee8c78add1b85c24a907e293f5ae",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2769582,
+        "package_version_snapshot": 2769582
+      },
+      "active_attempt_id": "7388f8fd56ec4d5aa7167b9b5ac4df00"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230220",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-02-20",
+      "manifest_sha256": "0a84aaa1b0d665faa8a66a9b899d95b946bfa7561c8267ecc97e89519cf1c883",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2789064,
+        "package_version_snapshot": 2789064
+      },
+      "active_attempt_id": "727332af5a464644a9222d23633690cb"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230227",
+      "status": "PUBLISHED",
+      "snapshot_at": "2023-02-27",
+      "manifest_sha256": "1c4b52aed8edb464c102459dfbd7f0a21b65d9fb2f12ecba51f5fb82a188e8e2",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": {
+        "identities": 97745,
+        "verified_rows": 2807437,
+        "package_version_snapshot": 2807437
+      },
+      "active_attempt_id": "8bf917c16f674390acfb8ddfc15cf55e"
+    },
+    {
+      "execution_id": "vd193-full-1b6c01042e43de9d-20230306",
+      "status": "FAILED",
+      "snapshot_at": "2023-03-06",
+      "manifest_sha256": "2537b040e57372a209590a0f68ff25879217859b7c0e8c391a071d8cf45f7323",
+      "contract_sha256": "068251e3b08121819591425deff23b06bfa0cf036f16de3c73ce194d018ce818",
+      "actual_counts": null,
+      "active_attempt_id": "bfda0d67319845b9a03da702f84ef61f"
+    }
+  ],
+  "process_after": {
+    "container": "pickage-267-validation",
+    "database": "pickage_267_full_defaulted",
+    "elapsed_seconds": 12956.062,
+    "error": "psql failed during COPY: ERROR:  canceling statement due to user request | CONTEXT:  SQL statement \"SELECT 1 FROM ONLY \"public\".\"version\" x WHERE \"package_id\" OPERATOR(pg_catalog.=) $1 AND \"version\"::pg_catalog.text OPERATOR(pg_catalog.=) $2::pg_catalog.text FOR KEY SHARE OF x\"",
+    "error_type": "RuntimeError",
+    "expected_dates": 229,
+    "expected_rows": 1007084608,
+    "global_timeout_seconds": null,
+    "pid": 309304,
+    "publish": true,
+    "started_at": "2026-09-12T00:21:23.582377+00:00",
+    "status": "FAILED",
+    "updated_at": "2026-09-12T03:57:19.643903+00:00"
+  }
+}

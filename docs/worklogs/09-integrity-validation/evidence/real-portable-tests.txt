@@ -1,0 +1,7 @@
+Command: C:\Users\SSAFY\workspace\S15P21A506\.venv-bq\Scripts\python.exe -B -m unittest discover -s pipeline/integrity_validation -t . -p test_*.py
+
+.......................................sssssss...............................s......................
+----------------------------------------------------------------------
+Ran 100 tests in 8.644s
+
+OK (skipped=8)

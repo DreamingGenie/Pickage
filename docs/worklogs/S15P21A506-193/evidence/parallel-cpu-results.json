@@ -1,0 +1,633 @@
+{
+  "status": "PASS",
+  "baseline_commit": "1ec693cfe2f77b2757d072a95a0c84abd2702ea2",
+  "protected_files_unchanged": 2640,
+  "baseline_inventory_sha256": "4575f16e21eb57426c26b500a92e2526bc7bd323870f9574005515341938a716",
+  "generation_contract": {
+    "format": "historical-parallel-cpu-v1",
+    "input": {
+      "parallel_input_sha256": "bc6663612652f6ac59cc295a070b3298a721bc2258c754bb1ad28e5ccf830c50",
+      "validation_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "validation_sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "base_input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      }
+    },
+    "production": {
+      "runner_sha256": "68f564c90fa616391adbc0785e99a2e997701e75c440346c0f031c495468e56b",
+      "resolver_adapter_sha256": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+      "sql_sha256": "e4b230aabc08b8079e7fff0fdd343934ab5a2d0ce9fc47e6c4f8e9790cb3aeab",
+      "input_contract": {
+        "input_adapter_sha256": "daa0ff5273cb543eaed8448ffa79be009e104977d06411e6a9cfc12d31f9ae17",
+        "profile_generation": {
+          "pipeline/version_dependents/historical_profile.py": "e1a9ff88abdcb8a82c5409f737c66d8356e399ff14ff5e9675591f88b4d18eff",
+          "pipeline/version_dependents/historical_profile_queries.py": "28e293fd781cc86ccac6aabe3ac68ed86c4d639908fd7b55d1ce02970b886041",
+          "pipeline/version_dependents/historical_job.py": "bb7be0ef6cc84e5d0cbad86d1d085334a1cecc4622d2dbf0fc6ce238f346edea",
+          "pipeline/version_dependents/historical_input.py": "a871dd0ce39abc3d9fed72712e0e464bfabc59d94d0282ded522bddbaf77e11f",
+          "pipeline/version_dependents/historical_artifact.py": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+          "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+          "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f",
+          "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+          "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+          "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+          "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+          "pipeline/postgresql/input.py": "7e83f8aa2675cf534483ab502ee28422c805c3a4479215f0a635c5dfb8b348f4"
+        },
+        "duckdb_version": "1.5.5"
+      },
+      "h4_generation": {
+        "pipeline/version_dependents/historical_cache.py": "0305babee60b96b9953f880def8cea2dcbd7b9e299fb79f30938debcb452f1f8",
+        "pipeline/version_dependents/historical.py": "d8968f62c4eb8b1c5b92b5edb8112ddb39ae2d1db64978ef450d245312b96457",
+        "pipeline/version_dependents/historical_semver_worker.cjs": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+        "pipeline/version_dependents/historical_reference.py": "5bf12f0e5e6663d7856d9706c2fd0d5c48a18e79f07bf35d0fd4ace82fcb64ee",
+        "pipeline/snapshot/policy.py": "cbef740f4f2eaa82f8c7a654aec79b7e2b0023de9f1583e103681fd84e3b36ae",
+        "pipeline/requirements_resolution/policy.py": "16486bd59dc3d899a82297d064aad6dfa886ccd87a0cb04d81333a3e175affa1",
+        "pipeline/requirements_resolution/bridge.py": "e17449af1c892f66973bb34d51a7518b2f175310c1d474aeb8ecbbd0ab228147",
+        "pipeline/requirements_resolution/input.py": "0b809d0c20d23c1370aed83596f09e7c3b4ccbe90cdae09bc04286e8c546661a",
+        "pipeline/version_dependents/artifact.py": "860690bcce42de13940ed44f1070e2e9a2a1af53f37c5ee572d85d083542250f"
+      },
+      "h4_writer_sha256": "219d46b3cbd11bd4ec596911eb4b83b24e7b60f9ea938feaaa4e626dfa942ffd",
+      "production_writer_sha256": "eb33b7675c5c8d8e7937083389631aff3c30ae5ddb54118c5a8271ab107881ab",
+      "production_cache_sha256": "5c76d2a00e7934b6e1e1af6724d8ae4a33d9af135d3181de1d0ac0732c9512b3",
+      "production_daily_sha256": "78bc92c4bb9c9fc4f620e83544872a4e06ff24656718400efd5f1e5abb8b68ef",
+      "algorithm": "weighted-events-v2",
+      "weighted_events_sha256": "b90f301ffdfb11a72a59e9c860b9ccc5ad38e47d0effb65b6ccb0b5f5f6209b8",
+      "weighted_quality_sha256": "1ce36a263531b18ab60f915fb6a54c709b7a45cdcefdc7303f5be495d2569ba4",
+      "resolver_backend": "cpu",
+      "resolver_generation": {
+        "historical_production_resolver.py": "519ceec1567e662da966e97d7accbf5ad7852a76be647fdd808d7e10b5bb4bbe",
+        "historical_gpu.py": "c5f206062cc9a564bc69c6f0dc94271f14ef8a53c893cfaf39aac5fbcde3bc25",
+        "historical_gpu_normalize.cjs": "f347afe8cd5e980a6d95f1e0a9411caff71d7db8afd07f6d6a790f4f96cfd664"
+      }
+    },
+    "code": {
+      "historical_parallel": "df97186414ac52a2bade705e71036d8c0d89c6557139085f55285207f475489d",
+      "historical_parallel_worker": "b788ab79378ae630f8fe98001c825913be34740a4f555e01b35af5d888f89755",
+      "historical_parallel_pool": "91fb95dba2ae74784f057d72b37f24231cf2cb625913e64cef17d18c1a2032f9"
+    }
+  },
+  "input_preparation": {
+    "seconds": 104.2461411000113,
+    "result": {
+      "prepared_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-ps32",
+      "manifest_sha256": "225799494c6cc754afc9f718ffe587f910a2d33777f6b79f49bede63525aec25"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 1,
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p32a\\w1-r1",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "d0c02b739c4e136c7e0db8a899da45386a9f55256f9b37f01a030d113e11873d",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 1148256256,
+          "peak_scratch_bytes": 0,
+          "epoch": "7160beccda25468dbcae7b02f55c5f96"
+        },
+        "elapsed_seconds": 99.12338520001504,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 229
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 229
+        }
+      },
+      "run_seconds": 99.12546719997772,
+      "verify_seconds": 31.574304400011897,
+      "preprocessing_seconds": 130.69977159998962,
+      "comparison_seconds": 27.72109360000468,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 50.00908719992731,
+        "aggregation_seconds": 16.76381380003295,
+        "finalize_cache_seconds": 3.860356569290161,
+        "write_dates_and_final_checks_seconds": 28.167108297348022,
+        "resolution_seconds": 21.643443799985107,
+        "normalize_seconds": 6.209659599902807,
+        "numeric_seconds": 6.247461400052998,
+        "interval_seconds": 3.5203524000535253,
+        "mapping_seconds": 0.2710768999531865,
+        "insert_seconds": 5.056054299959214,
+        "candidate_read_seconds": 0.1268190000555478,
+        "lookup_read_seconds": 0.042551999882562086,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "resources": {
+        "peak_tree_rss_bytes": 3316162560,
+        "peak_scratch_bytes": 0,
+        "cpu_seconds": 262.359375
+      }
+    },
+    {
+      "workers": 2,
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p32a\\w2-r1",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "581980e89b1ed78cb80c017e74b56b81c7886317aec3a0a46eb04a5187c9323f",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 1563295744,
+          "peak_scratch_bytes": 0,
+          "epoch": "b93ca27b78ec4bac96b8ff20844dc404"
+        },
+        "elapsed_seconds": 75.28320979999262,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 229
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 229
+        }
+      },
+      "run_seconds": 75.28515720000723,
+      "verify_seconds": 32.39327400000184,
+      "preprocessing_seconds": 107.67843120000907,
+      "comparison_seconds": 28.725275800010422,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 57.01629250004771,
+        "aggregation_seconds": 24.54431379993912,
+        "finalize_cache_seconds": 3.791041374206543,
+        "write_dates_and_final_checks_seconds": 27.325981855392456,
+        "resolution_seconds": 20.463868699909654,
+        "normalize_seconds": 6.189862600149354,
+        "numeric_seconds": 6.274763799941866,
+        "interval_seconds": 3.5037236999487504,
+        "mapping_seconds": 0.2617190999444574,
+        "insert_seconds": 3.8578940999286715,
+        "candidate_read_seconds": 0.16962750008678995,
+        "lookup_read_seconds": 0.0370861001429148,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "resources": {
+        "peak_tree_rss_bytes": 3332558848,
+        "peak_scratch_bytes": 0,
+        "cpu_seconds": 266.59375
+      }
+    },
+    {
+      "workers": 4,
+      "result": {
+        "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-p32a\\w4-r1",
+        "run_status": "COMPLETE",
+        "run_manifest_sha256": "03f22b29bae540d3a6f9e10fc0383a11d23fdc0d9da8f057b34f933113b12139",
+        "written_partitions": [
+          0,
+          9,
+          12,
+          14,
+          15,
+          18,
+          26,
+          29,
+          34,
+          42,
+          43,
+          48,
+          49,
+          68,
+          74,
+          75,
+          84,
+          88,
+          92,
+          94,
+          107,
+          108,
+          109,
+          112,
+          116,
+          118,
+          122
+        ],
+        "reused_partitions": [],
+        "resources": {
+          "peak_tree_rss_bytes": 2382233600,
+          "peak_scratch_bytes": 0,
+          "epoch": "43041d893e144460b5b59e22118c2705"
+        },
+        "elapsed_seconds": 63.60332359999302,
+        "ready_for_load": false
+      },
+      "verification": {
+        "verified": true,
+        "scope": "SAMPLE",
+        "partitions": 27,
+        "snapshots": 229,
+        "ready_for_load": false
+      },
+      "comparison": {
+        "input/target_names": {
+          "equal": true,
+          "rows": 32,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/lookups": {
+          "equal": true,
+          "rows": 40701,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "input/declarations": {
+          "equal": true,
+          "rows": 10118750,
+          "left_files": 1,
+          "right_files": 128
+        },
+        "partition/lookup_intervals": {
+          "equal": true,
+          "rows": 502119,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/counts": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/source_summary": {
+          "equal": true,
+          "rows": 10117734,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "partition/status_deltas": {
+          "equal": true,
+          "rows": 6993,
+          "left_files": 27,
+          "right_files": 27
+        },
+        "cache/target_population": {
+          "equal": true,
+          "rows": 141607,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/count_intervals": {
+          "equal": true,
+          "rows": 49111,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "cache/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 1,
+          "right_files": 1
+        },
+        "daily/counts": {
+          "equal": true,
+          "rows": 1875271,
+          "left_files": 229,
+          "right_files": 229
+        },
+        "daily/quality": {
+          "equal": true,
+          "rows": 229,
+          "left_files": 229,
+          "right_files": 229
+        }
+      },
+      "run_seconds": 63.60527169998386,
+      "verify_seconds": 30.953741800010903,
+      "preprocessing_seconds": 94.55901349999476,
+      "comparison_seconds": 27.707132300012745,
+      "phases": {
+        "partitions": 27,
+        "partition_total_seconds": 72.08515380008612,
+        "aggregation_seconds": 33.26093860002584,
+        "finalize_cache_seconds": 3.8166613578796387,
+        "write_dates_and_final_checks_seconds": 27.089824199676514,
+        "resolution_seconds": 23.363260699959937,
+        "normalize_seconds": 7.333209299802547,
+        "numeric_seconds": 7.082818000082625,
+        "interval_seconds": 4.094418800028507,
+        "mapping_seconds": 0.2535214000963606,
+        "insert_seconds": 4.193812900077319,
+        "candidate_read_seconds": 0.14820409985259175,
+        "lookup_read_seconds": 0.06488939982955344,
+        "host_preparation_seconds": 0,
+        "h2d_seconds": 0,
+        "compute_seconds": 0,
+        "d2h_seconds": 0,
+        "resolved_lookups": 40701,
+        "lookup_intervals": 502119,
+        "zero_lookup_packages": 2,
+        "peak_allocated_bytes": 0,
+        "peak_reserved_bytes": 0
+      },
+      "resources": {
+        "peak_tree_rss_bytes": 3337891840,
+        "peak_scratch_bytes": 0,
+        "cpu_seconds": 262.828125
+      }
+    }
+  ],
+  "repeats": 1,
+  "test_evidence": {
+    "integration_and_process_tests": {
+      "tests": 13,
+      "seconds": 50.435,
+      "failures": 0,
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\docs\\worklogs\\S15P21A506-193\\evidence\\parallel-tests.log",
+      "sha256": "457827f29faf264f7034677dd87f2d41a470229f923c247b58937fd46421c9ac"
+    },
+    "final_input_tests": {
+      "tests": 5,
+      "seconds": 8.542,
+      "failures": 0,
+      "path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\docs\\worklogs\\S15P21A506-193\\evidence\\parallel-input-final-tests.log",
+      "sha256": "8030028b7735ca08a41742517eaa89e1457c39ee779857ec51cf30f49e417de2"
+    }
+  },
+  "code_sha256": {
+    "pipeline\\version_dependents\\historical_parallel.py": "df97186414ac52a2bade705e71036d8c0d89c6557139085f55285207f475489d",
+    "pipeline\\version_dependents\\historical_parallel_benchmark.py": "5bc1b977609f816b4ec50971d56207fd393d018580314df092d4e2ceaf5c32f4",
+    "pipeline\\version_dependents\\historical_parallel_input.py": "bc6663612652f6ac59cc295a070b3298a721bc2258c754bb1ad28e5ccf830c50",
+    "pipeline\\version_dependents\\historical_parallel_pool.py": "91fb95dba2ae74784f057d72b37f24231cf2cb625913e64cef17d18c1a2032f9",
+    "pipeline\\version_dependents\\historical_parallel_worker.py": "b788ab79378ae630f8fe98001c825913be34740a4f555e01b35af5d888f89755",
+    "pipeline\\version_dependents\\test_historical_parallel.py": "3211de854bdc39fe129036581605ffa08e8a371c4918f62bdecc466acf085cba",
+    "pipeline\\version_dependents\\test_historical_parallel_input.py": "6c4ddb73c0f4a8f754db07a0fa675e1db34e991dd233a047499a9cc744429b0b",
+    "pipeline\\version_dependents\\test_historical_parallel_pool.py": "5a066aa3a01ddd66ad4ba59c26ff8e75613ca383b3aa130b983b45cbc589fff9"
+  },
+  "benchmark_results_sha256": "95cba9aab9abf95ef92f53e5f9ce98d4d897786aeecb75221a95d4a93d82ac46",
+  "all_source_declarations_preserved": true,
+  "full_selection_executed": false,
+  "scope": "32 targets x 229 snapshots",
+  "measurement_limitations": [
+    "One observation per configuration; no randomized repeats",
+    "Scratch metrics cover run directory, not verifier system temp directory",
+    "Disk read/write byte counters were not collected",
+    "Historical baseline was not retimed in this experiment"
+  ],
+  "historical_cpu_comparison": {
+    "source": "docs/worklogs/S15P21A506-193/24-cpu-gpu-production-integration.md",
+    "prepare_seconds": 64.300537,
+    "run_seconds": 74.686698,
+    "verify_seconds": 17.147533,
+    "total_seconds": 156.134768,
+    "retimed_in_this_experiment": false
+  }
+}

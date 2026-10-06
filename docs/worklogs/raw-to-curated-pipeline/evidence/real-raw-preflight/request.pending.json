@@ -1,0 +1,60 @@
+{
+  "format_version": 1,
+  "run_id": "benchmark-raw-20260915",
+  "snapshot": "2026-08-31",
+  "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+  "bronze_run_id": "bronze-20260907-v1",
+  "raw_refs": {
+    "versions_full": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/versions_full/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "sha256": "3157a73434228145059cb92b9ba03972f3a053eca11d463b8e91f66f80711984"
+    },
+    "requirements": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/requirements/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "sha256": "0d2b47a2829d1b46aebfa1616a21b9ea24ed5b2bf3cbc442d40f6163a47d4bc0"
+    },
+    "projects": {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/projects/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "sha256": "2a0f934f2949ef870ec218b5f620dfebd6b9e19d1ff20baa39d777b5c4832ee2"
+    },
+    "downloads": {
+      "bucket": "pickage-raw",
+      "key": "npm-downloads/v1/run_id=downloads-278-20260909-v1/run_manifest.json",
+      "sha256": "0617c12a1c810ecc11fcc01e281e375a8c1aa53bdb5ba57dab15a61120eec35d",
+      "run_id": "downloads-278-20260909-v1"
+    }
+  },
+  "calendar_refs": [
+    {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/projects/snapshot=2026-08-24/run_id=bronze-20260907-v1/run_manifest.json",
+      "sha256": "b66b92381f8ca9bed884894a9c2930bcfe8080c076b6cde33db9e7359cf3f5a3",
+      "snapshot": "2026-08-24",
+      "run_id": "bronze-20260907-v1"
+    },
+    {
+      "bucket": "pickage-raw",
+      "key": "depsdev/v1/projects/snapshot=2026-08-31/run_id=bronze-20260907-v1/run_manifest.json",
+      "sha256": "2a0f934f2949ef870ec218b5f620dfebd6b9e19d1ff20baa39d777b5c4832ee2",
+      "snapshot": "2026-08-31",
+      "run_id": "bronze-20260907-v1"
+    }
+  ],
+  "parent": null,
+  "targets": {
+    "dependents": {
+      "bucket": "pickage-raw",
+      "key": "experiments/raw-benchmark-20260915/targets/dependents-targets.parquet",
+      "sha256": "ccc05cbdd12c1639a41d3fa3cc1757101b2c1b786b926e18f0028985c6dcc468"
+    }
+  },
+  "options": {
+    "workers": 2,
+    "threads": 2,
+    "memory_limit": "2GB",
+    "repository_engine": "docker"
+  }
+}

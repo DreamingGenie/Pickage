@@ -1,0 +1,72 @@
+{
+  "date": "2026-09-10",
+  "issue": "S15P21A506-288",
+  "base_commit": "728d00871563fb5982955075dda2aae19df1cf3b",
+  "scope": [
+    "same-input published retry contract",
+    "shared quality schema and legacy artifact readers",
+    "backend handoff documentation only"
+  ],
+  "suites": [
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_input pipeline.package_snapshot.test_build pipeline.package_snapshot.test_load pipeline.package_snapshot.test_history_build pipeline.package_snapshot.test_quality pipeline.package_snapshot.test_history_resume pipeline.package_snapshot.test_contract -q",
+      "tests": 54,
+      "seconds": 15.721,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "command": ".venv-bq/Scripts/python.exe -B -m unittest pipeline.package_snapshot.test_postgres pipeline.package_snapshot.test_history_postgres -q",
+      "environment": {
+        "PICKAGE_PACKAGE_SNAPSHOT_TEST_CONTAINER": "pickage-267-validation"
+      },
+      "tests": 23,
+      "seconds": 101.738,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "final_targeted_rerun": {
+    "module": "pipeline.package_snapshot.test_contract",
+    "tests": 3,
+    "seconds": 0.025,
+    "status": "PASSED",
+    "already_counted_in_suites": true
+  },
+  "syntax_checked_files": 16,
+  "diff_check": "PASSED",
+  "remaining_test_databases": [],
+  "source_revision": "a8c25ec744ec9039a60a7c63e9735530acc232c1",
+  "source_hash_basis": "UTF-8 text with CRLF and CR normalized to LF, then SHA-256",
+  "source_hash_correction": "기존 증거는 작업 트리의 원시 바이트를 해시했습니다. 기록된 테스트 실행 결과는 유지하고, 당시 소스 커밋의 Git blob을 개행 정규화한 해시로 다시 계산했습니다.",
+  "source_sha256": {
+    "pipeline/package_snapshot/build.py": "2aee2cd113c45f8611fdd62ce3211edbbe7562e23ac9c538b1bd8872eae84a2f",
+    "pipeline/package_snapshot/history.py": "5fb82858d8f93e96e5b19dad7eeb6a0b1c03ed58800ad48ab0c432c5904900ff",
+    "pipeline/package_snapshot/history_build.py": "b75fd9d77bf47663d5422361c2042b524609df1828983dd1ee89e86dc7bd2eef",
+    "pipeline/package_snapshot/history_load.py": "918c1332eb0b112fe39ca4618b555a4e6176e951bc69181799e5fcbbf51fbc51",
+    "pipeline/package_snapshot/history_policy.py": "577fa1efa1bc5a2d171811e56e475bfe2eb7547ab668ead931f65682949576a6",
+    "pipeline/package_snapshot/load.py": "ba8d0feee8c43ae6f5aaa4881aa2780d6901b36dc09fd92dad09954535608a86",
+    "pipeline/package_snapshot/policy.py": "30721fbcb7d9c794a4413f11f2168093125e99d9eba999c26d204461771a2aaa",
+    "pipeline/package_snapshot/postgres.py": "635fa24eb8d80669bcdacb58aa62357a0cfb8e8de3859cf2b6e695d42f29811f",
+    "pipeline/package_snapshot/quality.py": "cd11e3bf9da971e0be79997ec9ea8428f2c63eb59c6dad64c484f98c762074e4",
+    "pipeline/package_snapshot/test_build.py": "e846c622075e4f070bfe7e4179ecfafed0ac3b21d63f1234700276dab22783fa",
+    "pipeline/package_snapshot/test_contract.py": "d41e5520a2e8b80564ead19f40b7996f3c94e31beb479a24c037071f5a77c6c0",
+    "pipeline/package_snapshot/test_history_build.py": "1185e83760d47186eb6072c0fc844a7647d4a12cfd2008798313452d744acdcc",
+    "pipeline/package_snapshot/test_history_resume.py": "d2888b7c73107e4812df60b59a1555882c45f8641880a08681de5a4f862de2a9",
+    "pipeline/package_snapshot/test_load.py": "209605e155ef0fcc8539a870dfe8713542432877ef295f4c4b84d95477e64acc",
+    "pipeline/package_snapshot/test_postgres.py": "4deddbffa2bcdff7118fb0a29253c4d99dfe0bca0745b23312871ae00e321439",
+    "pipeline/package_snapshot/test_quality.py": "854dcfe47a03c9843886b1c462a547e5e927ee41aa32b5bdcae14a8a40a80c94"
+  },
+  "boundaries": {
+    "legacy_compatibility": "isolated fixtures matching old producer schemas",
+    "history_resume": "real copy validation; remote publication and DB dispatch replaced in unit fixture",
+    "postgres_tests": "disposable databases only",
+    "existing_full_history_reverified": false,
+    "existing_data_reloaded": false,
+    "backend_api_modified": false,
+    "server_deployed": false
+  },
+  "distinct_tests_passed": 77
+}

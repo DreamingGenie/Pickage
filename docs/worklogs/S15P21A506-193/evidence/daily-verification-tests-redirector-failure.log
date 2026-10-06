@@ -1,0 +1,26 @@
+.......................................................................................................................................................................................................................E.................................
+======================================================================
+ERROR: test_lock_is_released_after_child_process_termination (pipeline.version_dependents.test_historical_publication.HistoricalPublicationTests.test_lock_is_released_after_child_process_termination)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SSAFY\workspace\S15P21A506\pipeline\version_dependents\historical_artifact.py", line 66, in _run_lock
+    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+PermissionError: [Errno 13] Permission denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\SSAFY\workspace\S15P21A506\pipeline\version_dependents\test_historical_publication.py", line 74, in test_lock_is_released_after_child_process_termination
+    with _run_lock(run_dir):
+         ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SSAFY\miniforge3\Lib\contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "C:\Users\SSAFY\workspace\S15P21A506\pipeline\version_dependents\historical_artifact.py", line 71, in _run_lock
+    raise RuntimeError("Another writer holds this historical run lock") from error
+RuntimeError: Another writer holds this historical run lock
+
+----------------------------------------------------------------------
+Ran 249 tests in 161.098s
+
+FAILED (errors=1)

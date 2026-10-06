@@ -1,0 +1,10 @@
+ARG POSTGRES_BASE=postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+FROM ${POSTGRES_BASE}
+RUN apt-get update && apt-get install -y --no-install-recommends e2fsprogs util-linux && rm -rf /var/lib/apt/lists/*
+COPY pipeline/preprocessing/runtime/bounded_postgres.sh /usr/local/bin/bounded_postgres
+COPY pipeline/preprocessing/runtime/resource_budget.sh /usr/local/bin/resource_budget.sh
+COPY pipeline/preprocessing/runtime/postgres_import_wal.sh /usr/local/bin/postgres_import_wal
+RUN chmod 0755 /usr/local/bin/bounded_postgres
+RUN chmod 0755 /usr/local/bin/postgres_import_wal
+ENTRYPOINT ["/usr/local/bin/bounded_postgres"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 CMD test -f /run/pickage-postgres-ready && pg_isready -h 127.0.0.1 -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}"

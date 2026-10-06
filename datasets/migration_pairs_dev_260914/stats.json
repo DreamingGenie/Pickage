@@ -1,0 +1,94 @@
+{
+  "releases": 7959511,
+  "packages_total": 97736,
+  "transitions": 7303556,
+  "packages_with_transition": 93299,
+  "transitions_with_dep_change": 255125,
+  "transitions_removed_and_added": 63022,
+  "reclassified_to_other_kinds": 27802,
+  "removal_events": 191276,
+  "removed_pkgs_distinct": 17627,
+  "dependents_with_event": 25566,
+  "removal_by_period": {
+    "1y": {
+      "removals": 68986,
+      "no_replacement": 34250,
+      "with_replacement": 34736,
+      "pkgs": 8080
+    },
+    "3y": {
+      "removals": 156121,
+      "no_replacement": 78041,
+      "with_replacement": 78080,
+      "pkgs": 14572
+    },
+    "5y": {
+      "removals": 233133,
+      "no_replacement": 117847,
+      "with_replacement": 115286,
+      "pkgs": 19329
+    }
+  },
+  "transitions_after_t2": 117077,
+  "removed_pkgs_any": 26817,
+  "removals_total": 358866,
+  "removals_no_replacement_total": 167590,
+  "candidate_pairs_all": 404461,
+  "strict_pairs": 775,
+  "strict_from_pkgs": 311,
+  "strict_to_pkgs": 237,
+  "strict_adopters_of_from_pkgs": 69839,
+  "loose_pairs": 6792,
+  "loose_from_pkgs": 1607,
+  "loose_to_pkgs": 1285,
+  "loose_adopters_of_from_pkgs": 72893,
+  "count_votes5_pm3_pairs": 3044,
+  "count_votes5_pm3_from_pkgs": 805,
+  "count_votes12_pairs": 1114,
+  "count_votes12_from_pkgs": 446,
+  "removal_stats_rows_csv": 8988,
+  "recommended_pairs": 508,
+  "recommended_from_pkgs": 377,
+  "file_bytes": {
+    "migration_pairs_strict.csv": 81507,
+    "migration_pairs_all.csv": 706572,
+    "migration_pairs_recommended.csv": 55521,
+    "removal_stats.csv": 514560,
+    "removal_by_year.csv": 1048523,
+    "removal_by_period.csv": 1523302,
+    "removal_stats.parquet": 537874,
+    "removal_by_year.parquet": 327908,
+    "removal_by_period.parquet": 282968,
+    "migration_events.parquet": 4741499,
+    "migration_events.csv": 36195763,
+    "migration_pairs.duckdb": 1033121792
+  },
+  "input_bytes": {
+    "versions_full_parquet": 4743980087,
+    "registry_versions_parquet": 452806976
+  },
+  "periods": {
+    "1y": {
+      "t1": "2025-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    },
+    "3y": {
+      "t1": "2023-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    },
+    "5y": {
+      "t1": "2021-08-31 23:59:59",
+      "t2": "2026-08-31 23:59:59"
+    }
+  },
+  "source": "registry",
+  "kind": "dev",
+  "dep_column": "DevDependencies",
+  "reclassify_columns": [
+    "Dependencies",
+    "PeerDependencies",
+    "OptionalDependencies"
+  ],
+  "reclassify_legacy": false,
+  "elapsed_sec": 508
+}

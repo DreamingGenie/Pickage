@@ -1,0 +1,117 @@
+PUBLISHED: /tmp/weekly-csx16vwj/fixture/bronze-work/orchestration-fixture-downloads/5d3bb81b2780453383bfe6b248be1ff2/execution_report.json
+Curated run: fixture-first; snapshot: 2026-08-28
+Input: verifying versions_full (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-28/run_id=fixture-first", "report": {"input_versions": 999, "release_versions": 999, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-28T21:01:10", "versions": 999, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 999, "registry_packages": 999, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 999, "packages_without_repo": 0, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 999, "version/data": 999, "package_ids/data": 999, "quality/repository_selection": 999, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": null}}
+PUBLISHED: /tmp/weekly-csx16vwj/work/fixture-first/downloads/fixture-first/e7550bde142a402c8223e60d5baa0eae/execution_report.json
+test_real_stages_and_recovery (tests.test_weekly_integration.WeeklyIntegrationTests.test_real_stages_and_recovery) ... Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/09/16 07:18:25 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+26/09/16 07:18:25 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+INPUT_COUNT_VERIFIED package rows=999
+INPUT_COUNT_VERIFIED version rows=999
+INPUT_COUNT_VERIFIED versions_full rows=999
+INPUT_COUNT_VERIFIED projects rows=1
+KEYS_AND_EXACT_TIMESTAMPS_VERIFIED
+APPROVED_VERSION_JOIN_VERIFIED
+BRONZE_VERSION_JOIN_VERIFIED
+WRITING_OUTPUT metric/data
+
+[Stage 75:=======>                                                 (2 + 1) / 16]
+
+[Stage 75:==============>                                          (4 + 1) / 16]
+
+[Stage 75:========================>                                (7 + 1) / 16]
+
+[Stage 75:======================================>                 (11 + 1) / 16]
+
+[Stage 75:=================================================>      (14 + 1) / 16]
+
+                                                                                
+OUTPUT_COUNT_VERIFIED metric/data rows=999
+WRITING_OUTPUT quality/selection
+OUTPUT_COUNT_VERIFIED quality/selection rows=999
+WRITING_OUTPUT quality/candidates
+OUTPUT_COUNT_VERIFIED quality/candidates rows=999
+WRITING_OUTPUT quality/project_observations
+OUTPUT_COUNT_VERIFIED quality/project_observations rows=1
+WRITING_OUTPUT quality/project_conflicts
+OUTPUT_COUNT_VERIFIED quality/project_conflicts rows=0
+WRITING_OUTPUT quality/unmapped_projects
+OUTPUT_COUNT_VERIFIED quality/unmapped_projects rows=0
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 40274), raddr=('127.0.0.1', 42113)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 38108), raddr=('127.0.0.1', 40815)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 58042), raddr=('127.0.0.1', 44603)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+Validating complete input keys and building integrated Parquet
+Curated run: weekly-test; snapshot: 2026-08-31
+Input: verifying versions_min (1 files)
+Input: verifying requirements (1 files)
+Transform: filtering versions
+Transform: normalizing repository candidates
+Transform: assembling declared dependency JSON
+Transform: writing validated Parquet outputs
+Publishing: uploading and GET-verifying Curated files
+{"status": "PASSED", "run_prefix": "depsdev/v1/package-version/snapshot=2026-08-31/run_id=weekly-test", "report": {"input_versions": 1002, "release_versions": 1002, "nonrelease_versions": 0, "unknown_release_versions": 0, "excluded_future_versions": 0, "snapshot_timestamp": "2026-08-31T21:01:10", "versions": 1002, "missing_published_at": 0, "nul_descriptions": 0, "new_packages": 2, "registry_packages": 1001, "invalid_or_unsupported_repo_values": 0, "ordinal_tie_groups": 0, "packages": 1000, "packages_without_repo": 2, "invalid_requirements": 0, "missing_requirements": 0, "output_counts": {"package/data": 1000, "version/data": 1002, "package_ids/data": 1001, "quality/repository_selection": 998, "quality/excluded_versions": 0, "quality/dependency_issues": 0, "quality/metadata_issues": 0}, "changes": {"output_dir": "/tmp/weekly-csx16vwj/work/weekly-test/package-version/weekly-test-n7vew6v0/outputs/changes", "files": {"package_upserts": {"path": "/tmp/weekly-csx16vwj/work/weekly-test/package-version/weekly-test-n7vew6v0/outputs/changes/package_upserts.parquet", "sha256": "0a7656bb09e28fb8282f3ed73a29e547a2914908f2ff3d51b68be9123b334cdb", "bytes": 579, "rows": 2}, "missing_previous": {"package": {"path": "/tmp/weekly-csx16vwj/work/weekly-test/package-version/weekly-test-n7vew6v0/outputs/changes/missing_previous_package.parquet", "sha256": "c321a2756af4b07daa8fb19ae42d0ec69d484d8626792c228cf3f980dad50069", "bytes": 834, "rows": 1}, "version": {"path": "/tmp/weekly-csx16vwj/work/weekly-test/package-version/weekly-test-n7vew6v0/outputs/changes/missing_previous_version.parquet", "sha256": "e58a7e7310380aba39365487f3b7d51a44da3d6ee21dc5b6ab608e61b7bc63cc", "bytes": 1644, "rows": 1}}, "version_upserts": {"path": "/tmp/weekly-csx16vwj/work/weekly-test/package-version/weekly-test-n7vew6v0/outputs/changes/version_upserts.parquet", "sha256": "caddebdb28a46e15faf6940d1a6afe81ee3c05c3e34001cce5260bb61235718a", "bytes": 4877, "rows": 1002}}, "threads": 2, "memory_limit": "1GB"}}}
+PUBLISHED: /tmp/weekly-csx16vwj/work/weekly-test/downloads/weekly-test/6b7bc76027374e088e2c61faf2e64aba/execution_report.json
+INPUT_COUNT_VERIFIED package rows=1000
+INPUT_COUNT_VERIFIED version rows=1002
+INPUT_COUNT_VERIFIED versions_full rows=1002
+INPUT_COUNT_VERIFIED projects rows=3
+KEYS_AND_EXACT_TIMESTAMPS_VERIFIED
+APPROVED_VERSION_JOIN_VERIFIED
+BRONZE_VERSION_JOIN_VERIFIED
+WRITING_OUTPUT metric/data
+
+[Stage 75:=====================>                                   (6 + 2) / 16]
+
+[Stage 75:===================================>                    (10 + 2) / 16]
+
+[Stage 75:=================================================>      (14 + 2) / 16]
+
+                                                                                
+OUTPUT_COUNT_VERIFIED metric/data rows=1000
+WRITING_OUTPUT quality/selection
+OUTPUT_COUNT_VERIFIED quality/selection rows=1000
+WRITING_OUTPUT quality/candidates
+OUTPUT_COUNT_VERIFIED quality/candidates rows=1002
+WRITING_OUTPUT quality/project_observations
+OUTPUT_COUNT_VERIFIED quality/project_observations rows=3
+WRITING_OUTPUT quality/project_conflicts
+OUTPUT_COUNT_VERIFIED quality/project_conflicts rows=0
+WRITING_OUTPUT quality/unmapped_projects
+OUTPUT_COUNT_VERIFIED quality/unmapped_projects rows=0
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 50524), raddr=('127.0.0.1', 35677)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 52172), raddr=('127.0.0.1', 34083)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/local/lib/python3.11/socket.py:789: ResourceWarning: unclosed <socket.socket fd=11, family=2, type=1, proto=6, laddr=('127.0.0.1', 43072), raddr=('127.0.0.1', 42885)>
+  self._sock = None
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+Validating complete input keys and building integrated Parquet
+{
+  "status": "COMPLETE",
+  "run_id": "weekly-test",
+  "prefix": "depsdev/v1/curated-bundle/snapshot=2026-08-31/run_id=weekly-test",
+  "request": "/tmp/weekly-csx16vwj/work/requests/weekly-test.json",
+  "db_loaded": false
+}
+WEEKLY_EVIDENCE {"status": "PASSED", "fixture": "SYNTHETIC_FULL_TO_MIN", "packages": 1000, "stages": ["dependents", "downloads", "package_snapshot", "package_version", "repository", "snapshot"], "baseline_complete": "COMPLETE", "weekly_complete": "COMPLETE", "failure_recovery": true, "replay_no_stage_execution": true, "local_minio": true, "db_loaded": false}
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 59.359s
+
+OK

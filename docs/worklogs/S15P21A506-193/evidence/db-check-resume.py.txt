@@ -1,0 +1,36 @@
+"""Read-only checks before resuming the paused H7 job. Does not launch a load."""
+from pathlib import Path
+import json
+import subprocess
+import sys
+
+ROOT=Path(__file__).resolve().parent
+REPO=ROOT.parents[1]
+sys.path[:0]=[str(REPO),str(REPO/'.venv-bq/Lib/site-packages')]
+from pipeline.version_dependents.historical_db_load import contract
+from pipeline.version_dependents.historical_artifact import _run_lock
+from pipeline.requirements_resolution.input import file_sha256
+
+with _run_lock(ROOT):
+    checkpoint=json.loads((ROOT/'pause-checkpoint.json').read_bytes())
+    plan=json.loads((ROOT/'load/load-plan.json').read_bytes())
+    if plan != checkpoint['load_plan'] or contract()!=checkpoint['loader_contract']:
+        raise ValueError('Resume code/plan changed: review compatibility; do not overwrite the old contract')
+    if file_sha256(Path(plan['source_run_dir'])/'run_manifest.json')!=plan['source_run_manifest_sha256']:
+        raise ValueError('Calculation manifest changed')
+    if file_sha256(ROOT/'launch.py') != json.loads((ROOT/'launch.json').read_bytes())['launcher_sha256']:
+        raise ValueError('Original launcher changed')
+    command=plan['db_command']+['-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-w']
+    query="SELECT coalesce(json_agg(row_to_json(t)),'[]'::json) FROM (SELECT execution_id,status,snapshot_at,manifest_sha256,contract_sha256,actual_counts FROM public.etl_load_execution WHERE dataset='version-dependents') t;"
+    result=subprocess.run(command,input=query.encode(),capture_output=True,check=True,timeout=30)
+    live={r['execution_id']:r for r in json.loads(result.stdout)}
+    for saved in checkpoint['executions']:
+        if saved['status']!='PUBLISHED':continue
+        actual=live.get(saved['execution_id'])
+        if actual is None or any(actual[k]!=saved[k] for k in ('status','snapshot_at','manifest_sha256','contract_sha256','actual_counts')):
+            raise ValueError('Previously published date history changed: '+saved['execution_id'])
+    if any(r['status']=='PREPARING' for r in live.values()):
+        raise ValueError('Another load attempt is preparing; inspect it before resuming')
+    print(json.dumps({'status':'RESUME_CHECK_PASSED','published_dates_at_pause':checkpoint['published_dates'],
+        'published_rows_at_pause':checkpoint['published_rows'],'next_unfinished_at_pause':checkpoint['next_date'],
+        'load_started':False,'note':'Original loader re-verifies completed dates before inserting unfinished dates.'}))

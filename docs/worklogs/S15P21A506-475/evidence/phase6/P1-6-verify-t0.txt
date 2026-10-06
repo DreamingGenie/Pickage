@@ -1,0 +1,17 @@
+health: 200 0.021480s
+ws: ['pusher', 'partysocket', 'rpc-websockets'] COMPLETE HTTP200 0.024802s
+express: ['fastify', '@tinyhttp/app', '@hapi/hapi'] COMPLETE HTTP200 0.038529s
+zod: ['joi', 'ajv', '@redocly/ajv'] COMPLETE HTTP200 0.044167s
+js-yaml: ['@zkochan/js-yaml', 'yaml', 'yaml-eslint-parser'] COMPLETE HTTP200 0.049858s
+yaml: ['js-yaml', '@zkochan/js-yaml', 'read-yaml-file'] COMPLETE HTTP200 0.030572s
+axios: ['undici', '@algolia/requester-node-http', '@algolia/requester-browser-xhr'] COMPLETE HTTP200 0.039876s
+react: ['inferno', '@modern-js/utils', '@modern-js/node-bundle-require'] COMPLETE HTTP200 0.036348s
+lodash: ['min-dash', 'remeda', 'rollup'] COMPLETE HTTP200 0.043013s
+search: 400
+pickage-app-similarity-loader-1	Up 56 minutes
+pickage-app-rag-api-1	Up 56 minutes
+pickage-app-api-1	Up 17 hours (healthy)
+pickage-app-web-1	Up 2 days (healthy)
+pickage-app-postgres-1	Up 9 days (healthy)
+0
+app available 12 GiB

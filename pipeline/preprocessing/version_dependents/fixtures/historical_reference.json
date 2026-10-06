@@ -1,0 +1,33 @@
+{
+  "observed_snapshot_timestamp": "2026-08-31T12:00:00Z",
+  "calendar": [
+    {"snapshot_at": "2026-08-10", "snapshot_timestamp": "2026-08-10T12:00:00Z"},
+    {"snapshot_at": "2026-08-21", "snapshot_timestamp": "2026-08-21T12:00:00Z"},
+    {"snapshot_at": "2026-08-31", "snapshot_timestamp": "2026-08-31T12:00:00Z"}
+  ],
+  "packages": [
+    {"package_id": 1, "name": "app"},
+    {"package_id": 2, "name": "dep"},
+    {"package_id": 3, "name": "util"}
+  ],
+  "versions": [
+    {"package_id": 1, "version": "1.0.0", "published_at": "2026-08-01T00:00:00Z", "dependency_error": false},
+    {"package_id": 1, "version": "2.0.0", "published_at": "2026-08-20T00:00:00Z", "dependency_error": false},
+    {"package_id": 2, "version": "1.0.0", "published_at": "2026-08-01T00:00:00Z", "dependency_error": false},
+    {"package_id": 2, "version": "1.2.0", "published_at": "2026-08-15T00:00:00Z", "dependency_error": false},
+    {"package_id": 2, "version": "1.1.0", "published_at": "2026-08-25T00:00:00Z", "dependency_error": false},
+    {"package_id": 3, "version": "1.0.0", "published_at": "2026-08-01T00:00:00Z", "dependency_error": false}
+  ],
+  "requirements": [
+    {"package_id": 1, "version": "1.0.0", "dependencies": [
+      {"name": "dep", "requirement": "^1.0.0"},
+      {"name": "dep", "requirement": ">=1 <2"},
+      {"name": "util", "requirement": "1.0.0"}
+    ]},
+    {"package_id": 1, "version": "2.0.0", "dependencies": [{"name": "dep", "requirement": "~1.2"}]},
+    {"package_id": 2, "version": "1.0.0", "dependencies": [{"name": "util", "requirement": "1.0.0"}]},
+    {"package_id": 2, "version": "1.2.0", "dependencies": []},
+    {"package_id": 2, "version": "1.1.0", "dependencies": []},
+    {"package_id": 3, "version": "1.0.0", "dependencies": []}
+  ]
+}

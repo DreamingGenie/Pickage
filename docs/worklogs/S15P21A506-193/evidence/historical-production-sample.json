@@ -1,0 +1,234 @@
+{
+  "scope": "SIX_SELECTED_TARGETS_ALL_229_DATES_ALL_MATCHING_H1_SOURCES",
+  "prepared_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\version-dependents\\historical-production-inputs\\sample-20260911-v2",
+  "prepared_manifest_sha256": "00d3fabed0ca2b031436de5d5b60e86f12b273d2d520a3210723a19a963336e8",
+  "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-sample-20260911-v3",
+  "run_manifest_sha256": "d8957b643ad555049ebdbad9ad9a41dbca8fedded8d72f2064dfe1e955876ae9",
+  "execution": {
+    "cache_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-sample-20260911-v3\\finalizations\\ede8a864685c46b5ae16dbb2b18487ed\\cache",
+    "cache_sha256": "2250c35549d6debc01bc81850115a93412845d79cf0b847df7728e57fd59b2e7",
+    "elapsed_seconds": 33.21899999999732,
+    "full_selection_executed": false,
+    "memory": {
+      "os_peak_rss_bytes": 155320320,
+      "private_bytes": 55496704,
+      "rss_bytes": 81625088
+    },
+    "ready_for_load": false,
+    "reused_partitions": [],
+    "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-sample-20260911-v3",
+    "run_manifest_sha256": "d8957b643ad555049ebdbad9ad9a41dbca8fedded8d72f2064dfe1e955876ae9",
+    "run_status": "COMPLETE",
+    "scope": "SAMPLE",
+    "worker_metrics": {
+      "max_request_utf8_bytes": 1123141,
+      "max_response_utf8_bytes": 1123282,
+      "request_seconds": 0.2019999999902211,
+      "request_utf8_bytes": 1125867,
+      "requests": 6,
+      "response_utf8_bytes": 1137471
+    },
+    "written_partitions": [
+      0,
+      1,
+      2
+    ]
+  },
+  "preparation_seconds": 60.625,
+  "input_rows": {
+    "declarations": 12630,
+    "lookups": 50,
+    "target_names": 6,
+    "target_population": 49936
+  },
+  "original_declarations": 12630,
+  "distinct_source_versions": 12630,
+  "distinct_source_packages": 362,
+  "outside_selection_source_versions": 6546,
+  "selected_names": [
+    "@adguard/dnr-rulesets",
+    "@types/lodash.get",
+    "angularx-flatpickr",
+    "carrot-scan",
+    "ddp-underscore-patched",
+    "less-plugin-autoprefix"
+  ],
+  "candidate_counts": [
+    [
+      "@adguard/dnr-rulesets",
+      22185
+    ],
+    [
+      "@types/lodash.get",
+      10
+    ],
+    [
+      "angularx-flatpickr",
+      27
+    ],
+    [
+      "carrot-scan",
+      27703
+    ],
+    [
+      "less-plugin-autoprefix",
+      11
+    ]
+  ],
+  "count_intervals": 402,
+  "positive_version_date_rows": 2875,
+  "sum_counts_over_dates": 1384728,
+  "eligible_version_date_keys_including_zero": 2385895,
+  "latest_positive_versions": 14,
+  "latest_counts": [
+    [
+      "@types/lodash.get",
+      "4.4.9",
+      4183
+    ],
+    [
+      "less-plugin-autoprefix",
+      "1.5.1",
+      1189
+    ],
+    [
+      "less-plugin-autoprefix",
+      "2.0.0",
+      723
+    ],
+    [
+      "angularx-flatpickr",
+      "6.6.0",
+      569
+    ],
+    [
+      "@types/lodash.get",
+      "4.4.6",
+      367
+    ],
+    [
+      "angularx-flatpickr",
+      "8.1.0",
+      44
+    ],
+    [
+      "@types/lodash.get",
+      "4.4.7",
+      30
+    ],
+    [
+      "angularx-flatpickr",
+      "7.3.0",
+      29
+    ],
+    [
+      "@types/lodash.get",
+      "4.4.8",
+      24
+    ],
+    [
+      "@types/lodash.get",
+      "4.4.3",
+      18
+    ],
+    [
+      "angularx-flatpickr",
+      "4.0.1",
+      11
+    ],
+    [
+      "less-plugin-autoprefix",
+      "1.4.0",
+      10
+    ],
+    [
+      "@types/lodash.get",
+      "4.4.5",
+      4
+    ],
+    [
+      "less-plugin-autoprefix",
+      "1.0.1",
+      1
+    ]
+  ],
+  "earliest_quality": {
+    "snapshot_index": 0,
+    "declaration_status_counts": {
+      "RESOLVED": 4953,
+      "UNMAPPED_TARGET_PACKAGE": 30,
+      "UNSUPPORTED_GIT": 16
+    },
+    "distinct_edges": 4953,
+    "duplicate_resolved_declarations": 0,
+    "excluded_kind_declarations": {
+      "optional_dependencies": 0,
+      "peer_dependencies": 0
+    },
+    "prefiltered_exclusion_counts": "NOT_ORIGINAL_POPULATION_COUNTS",
+    "quality_scope": "SELECTED_TARGET_DECLARATIONS_FROM_H1_ELIGIBLE_SOURCES",
+    "resolution_status": "PARTIAL",
+    "resolved_declarations": 4953,
+    "selected_declarations": 4999,
+    "source_future_excluded": 7631,
+    "source_null_publication_excluded": 0,
+    "source_status_counts": {
+      "DEPENDENCY_EXTRACTION_ERROR": 515,
+      "RESOLVED": 4460,
+      "UNRESOLVED": 24
+    },
+    "source_status_scope": "SOURCES_WITH_SELECTED_TARGET_DECLARATIONS",
+    "source_versions": 4999,
+    "target_rejections": {},
+    "target_versions": 40,
+    "unresolved_declarations": 46,
+    "upstream_exclusions_scope": "H1_MANIFEST",
+    "upstream_resolution_status": "PARTIAL"
+  },
+  "latest_quality": {
+    "snapshot_index": 228,
+    "declaration_status_counts": {
+      "INVALID_SPEC": 5381,
+      "RESOLVED": 7202,
+      "UNMAPPED_TARGET_PACKAGE": 31,
+      "UNSUPPORTED_GIT": 16
+    },
+    "distinct_edges": 7202,
+    "duplicate_resolved_declarations": 0,
+    "excluded_kind_declarations": {
+      "optional_dependencies": 0,
+      "peer_dependencies": 0
+    },
+    "prefiltered_exclusion_counts": "NOT_ORIGINAL_POPULATION_COUNTS",
+    "quality_scope": "SELECTED_TARGET_DECLARATIONS_FROM_H1_ELIGIBLE_SOURCES",
+    "resolution_status": "PARTIAL",
+    "resolved_declarations": 7202,
+    "selected_declarations": 12630,
+    "source_future_excluded": 0,
+    "source_null_publication_excluded": 0,
+    "source_status_counts": {
+      "DEPENDENCY_EXTRACTION_ERROR": 5998,
+      "RESOLVED": 6607,
+      "UNRESOLVED": 25
+    },
+    "source_status_scope": "SOURCES_WITH_SELECTED_TARGET_DECLARATIONS",
+    "source_versions": 12630,
+    "target_rejections": {},
+    "target_versions": 49936,
+    "unresolved_declarations": 5428,
+    "upstream_exclusions_scope": "H1_MANIFEST",
+    "upstream_resolution_status": "PARTIAL"
+  },
+  "prepared_parquet_bytes": 138682,
+  "run_parquet_bytes": 2437548,
+  "full_selected_executed": false,
+  "db_written": false,
+  "independent_verification": {
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-sample-verify-20260911-v6\\report.json",
+    "sha256": "bc24452ae7083ef1fef50beb4fc8583493595dfdade54d4f1906ec0a8d2a03fb",
+    "seconds": 29.360000000000582,
+    "snapshot_count": 229,
+    "mismatch_count": 0,
+    "diagnostic_mismatch_count": 0
+  }
+}

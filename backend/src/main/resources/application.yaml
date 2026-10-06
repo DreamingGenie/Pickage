@@ -1,0 +1,35 @@
+# 공통 설정 — 모든 환경이 공유한다.
+#
+# 규칙: 이 파일에는 "GitLab 에 공개돼도 아무 일도 안 일어나는 값" 만 적는다.
+#       진짜 자격증명(GCP 서비스 계정 키, LLM API 키, prod DB 비밀번호)은
+#       여기 두지 않고 .env → 환경변수로 주입한다.
+spring:
+  application:
+    name: pickage
+
+  # 프로파일을 지정하지 않으면 local 로 뜬다.
+  # → `./gradlew bootRun` 한 줄이면 끝. 복사할 파일도, 붙일 옵션도 없다.
+  # prod 는 SPRING_PROFILES_ACTIVE=prod 환경변수로 덮어쓴다.
+  profiles:
+    default: local
+
+  jackson:
+    # 명세 0.5 — 응답 필드는 전부 snake_case.
+    #
+    # DTO 마다 @JsonProperty 를 붙이지 않는다. 붙이는 방식은 한 필드를 빠뜨려도
+    # 컴파일이 통과하고, 그 필드만 camelCase 로 나가 프론트에서 undefined 가 된다.
+    # 전역 규칙으로 두면 빠뜨릴 자리가 없다.
+    #
+    # 요청 쪽에는 영향이 없다 — 쿼리 파라미터는 @RequestParam 이름으로 직접 묶고,
+    # v1 에는 JSON 요청 본문이 아예 없다.
+    property-naming-strategy: SNAKE_CASE
+
+  jpa:
+    hibernate:
+      # 스키마는 마이그레이션 파일이 소유한다. Hibernate 는 검증만 한다.
+      # update 로 두면 Hibernate 가 테이블을 몰래 고쳐서 로컬 스키마가 갈라지고,
+      # 그 사실은 서버에 올린 뒤에야 드러난다.
+      ddl-auto: validate
+    # 영속성 컨텍스트를 뷰 렌더링까지 끌고 가지 않는다.
+    # DB 커넥션을 필요 이상으로 오래 쥐는 것을 막는다.
+    open-in-view: false

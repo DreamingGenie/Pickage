@@ -1,0 +1,33 @@
+{
+  "command": [
+    "-m",
+    "unittest",
+    "pipeline.requirements_resolution.test_input",
+    "pipeline.requirements_resolution.test_bridge",
+    "pipeline.requirements_resolution.test_build",
+    "-v"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 6.344,
+  "basis_commit": "fa71c5a407b8ad4f3dbd3eee57bf0a8bcc599a7d",
+  "production_files_changed": [],
+  "log_sha256": "c4dc26da74ed7672d00e3fd767a2de9139987875edb97dd2eb9cc19be88dacff",
+  "tests": 28,
+  "recorded_test_seconds": 5.836,
+  "static_checks": {
+    "python_parsed": 17,
+    "node_checked": 1,
+    "issues": []
+  },
+  "log": "prepush-host-tests.log",
+  "historical_checks_not_rerun": {
+    "spark_tests": 3,
+    "integration": "integration-dbf68cf2 PASSED (synthetic one-edge input)"
+  },
+  "full_run_status": {
+    "resolution_status": "PARTIAL",
+    "standard_manifest_present": false,
+    "success_marker_present": false,
+    "post_reboot_full_verification": "OutOfMemoryException at declaration_unique_key; incomplete"
+  }
+}

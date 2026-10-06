@@ -1,0 +1,232 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.0.8'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ssafy'
+version = '0.0.1-SNAPSHOT'
+
+springBoot {
+	mainClass = 'com.ssafy.pickage.PickageApplication'
+}
+
+// Opt-in standalone loader; ordinary API bootJar and deployment remain unchanged.
+tasks.register('curatedBootJar', org.springframework.boot.gradle.tasks.bundling.BootJar) {
+	targetJavaVersion = JavaVersion.VERSION_21
+	group = 'build'
+	description = 'HTTP/JPA/Flyway 없는 Curated 적재 전용 Spring 실행 파일'
+	mainClass = 'com.ssafy.pickage.curatedbatch.CuratedLoadApplication'
+	classpath = sourceSets.main.runtimeClasspath
+	archiveFileName = 'curated-loader.jar'
+	destinationDirectory = layout.buildDirectory.dir('curated-loader')
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	/* 웹 */
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+	/* validation */
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	/* Swagger UI */
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
+
+	/* data */
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+	// Redis 는 현재 아키텍처에서 쓰지 않는다 — 화면이 전부 사전 집계 조회라 캐시 계층이 없다.
+	// 클래스패스에 남겨 두면 Redis 없이 뜰 때 actuator health 가 상시 DOWN 이 되어
+	// 헬스체크를 무의미하게 만든다. 캐시가 실제로 필요해지는 시점에 되살릴 것.
+//	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
+	implementation 'org.postgresql:postgresql'
+	implementation 'org.duckdb:duckdb_jdbc:1.5.5.1'
+
+	/* 스키마 마이그레이션 */
+	// 스키마는 db/migration 의 SQL 이 소유한다. 로컬과 운영이 같은 파일을 쓰므로
+	// 구조적으로 갈라질 수 없고, Hibernate 는 ddl-auto: validate 로 검증만 한다.
+	implementation 'org.flywaydb:flyway-core'
+	// Flyway 10 부터 DB 별 지원이 모듈로 분리됐다. 이게 없으면 기동 시
+	// "Unsupported Database: PostgreSQL" 로 죽는다.
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	// Spring Boot 4 는 자동 설정을 모듈로 쪼갰다. flyway-core 만 넣으면
+	// 클래스패스에는 있지만 자동 설정이 붙지 않아 마이그레이션이 조용히 실행되지 않는다.
+	implementation 'org.springframework.boot:spring-boot-flyway'
+
+	/*
+	 * PDF (기능-14) — HTML 을 그려서 그대로 PDF 로 바꾼다.
+	 *
+	 * **레이아웃을 하나만 둔다.** 미리보기는 모달에서 HTML 로 보고 다운로드는 PDF 로 받는데,
+	 * 둘을 따로 그리면 언젠가 내용이 갈린다 — 공통-R08("화면과 PDF 결과가 일치해야 한다")이
+	 * 막으려는 것이 정확히 그것이다. 같은 HTML 을 하나는 그대로 내보내고 하나는 변환하면
+	 * 갈릴 수가 없다.
+	 *
+	 * 코드로 PDF 를 그리는 길(OpenPDF)도 있지만 그러면 미리보기용 HTML 을 따로 만들어야 한다.
+	 *
+	 * ⚠ 한글은 **폰트 파일이 있어야 한다.** 브라우저는 시스템 폰트로 알아서 그리지만 PDF 는
+	 * 자형을 문서에 심어야 하고, 없으면 **예외 없이 글자만 사라진다.**
+	 * 자세한 것은 `HtmlToPdf` 주석.
+	 */
+	implementation 'io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.28'
+	// 그래프(선·도넛)를 SVG 로 그려 HTML 에 넣는다 — 미리보기는 브라우저가, PDF 는 이 모듈이 같은 SVG 를 그린다.
+	implementation 'io.github.openhtmltopdf:openhtmltopdf-svg-support:1.1.28'
+
+	/*
+	 * S3 — 주간 수집 상태를 MinIO 에서 읽는다 (S15P21A506-347).
+	 *
+	 * 수집은 `data` 노드에서 돌고 이 서비스는 `app` 노드에 있다. 그쪽에서 이쪽 PostgreSQL 에
+	 * 닿을 수 없어(포트를 열지 않는 것이 의도된 결정이다) 상태를 MinIO 객체로 주고받는다.
+	 * 자세한 것은 `WeeklyStateStore` 주석.
+	 *
+	 * ⚠ minio-java 가 아니라 AWS SDK 인 이유: **운영 MinIO 가 로컬보다 오래된 릴리스다**
+	 * (AGENTS.md 의 "알려진 환경 차이"). 전용 클라이언트는 서버 버전에 민감하지만 이쪽은
+	 * 순수 S3 API 만 쓴다. 쓰는 것도 GET·PUT·ListObjectsV2 셋뿐이다.
+	 *
+	 * s3 하나만 넣는다. BOM 을 걸면 안 쓰는 서비스 모듈까지 버전 관리 대상이 된다.
+	 */
+	implementation 'software.amazon.awssdk:s3:2.54.18'
+
+	/* actuator */
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+
+	/* Lombok */
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testCompileOnly 'org.projectlombok:lombok'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+
+	/* 테스트 */
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+/*
+ * 테스트는 두 층으로 나뉜다. **위치가 곧 분류다.**
+ *
+ *   src/test             DB·스프링 컨텍스트가 필요 없는 시험. `gradlew test` 가 돌린다
+ *   src/integrationTest  실제 PostgreSQL 이 필요한 시험. `gradlew integrationTest` 가 돌린다
+ *
+ * 나눈 이유가 둘이다.
+ *
+ * 1. **CI 러너에는 DB 가 없다.** 섞여 있으면 `gradlew test` 가 항상 실패한다 —
+ *    Flyway 가 연결을 못 해 죽고, 화면에는 연결 거부만 뜬다.
+ * 2. **층이 시간을 먹는다.** 2026-09-10 측정 — @SpringBootTest 1개가 10.27초
+ *    (본체는 0.74초, 나머지는 컨텍스트 기동), 단위 12개가 0.05초. 개수가 아니다.
+ *
+ * @Tag 가 아니라 소스셋으로 가른 이유: 태그는 붙이는 것을 잊을 수 있고 컴파일도 통과하며
+ * 리뷰에서도 잘 안 보인다. 위치로 가르면 잊을 애너테이션이 애초에 없다.
+ */
+sourceSets {
+	integrationTest {
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
+
+// 단위 시험이 쓰는 의존성을 그대로 물려받는다. 두 곳에 같은 목록을 적으면 언젠가 갈라진다.
+configurations {
+	integrationTestImplementation.extendsFrom testImplementation
+	integrationTestCompileOnly.extendsFrom testCompileOnly
+	integrationTestAnnotationProcessor.extendsFrom testAnnotationProcessor
+	integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+/*
+ * 시험은 Gradle 과 **다른 JVM(Test 워커)** 에서 돈다. CI 잡 컨테이너 안에 JVM 이 셋이다 —
+ * gradle 런처, 데몬, 그리고 이 워커.
+ *
+ * `GRADLE_OPTS` 의 `-Dorg.gradle.jvmargs` 는 **데몬에만** 걸린다. 워커는 여기서 정하지
+ * 않으면 Gradle 기본값 512m 을 쓰는데, 그러면 잡 컨테이너 상한(`[runners.docker] memory`,
+ * deploy/ci/README.md)을 계산할 때 이 몫이 보이지 않는다. 값 자체는 기본값과 같지만,
+ * **박아 두어야 계산에 들어온다.**
+ *
+ * integrationTest 워커가 셋 중 가장 크다 — Spring 컨텍스트·Flyway·Hibernate 가 여기 뜬다.
+ * 늘려야 하면 러너의 컨테이너 상한을 함께 올릴 것. `memswap_limit` = `memory` 라
+ * 넘기는 순간 완충 없이 OOM Kill(exit 137)이다.
+ */
+tasks.withType(Test).configureEach {
+	maxHeapSize = '512m'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+
+	// ⚠ OpsEnvironmentContractTest 가 이 두 파일을 읽는다. 선언하지 않으면 Gradle 이
+	//   입력으로 모르기 때문에, 그 파일만 고친 뒤 돌려도 태스크가 UP-TO-DATE 로 **건너뛰고**
+	//   초록이 뜬다 (실제로 겪었다 — compose 의 키 이름을 망가뜨렸는데 통과했다).
+	//   CI 는 매번 새로 빌드해서 이 함정이 로컬에서만 난다.
+	inputs.file(rootProject.file('../deploy/prod/app/compose.yaml'))
+		.withPropertyName('opsCompose').withPathSensitivity(PathSensitivity.RELATIVE)
+
+	testLogging {
+		// 기본값은 예외의 클래스 이름과 위치만 찍는다. 그래서 기동 실패의 실제 원인이
+		// 콘솔에 안 보이고 HTML 리포트를 열어야 알 수 있다.
+		exceptionFormat = 'full'
+	}
+}
+
+/*
+ * ⚠ 통합 시험이 하나도 없으면 이 태스크는 **조용히 통과한다.**
+ *
+ * Gradle 9.7.1 에서 실제로 확인했다. `failOnNoDiscoveredTests` 는 기본값이 true 인데도
+ * 그렇다 — 테스트 클래스가 0개면 태스크가 NO-SOURCE 로 **스킵**되어 그 검사에 도달조차
+ * 하지 않는다. (실패하는 것은 `--tests` 필터가 0개를 잡을 때뿐이다.)
+ *
+ * 그러면 CI 가 아무것도 돌리지 않고 초록불이 된다. 검증이 사라진 것을 아무도 모른다.
+ * 그래서 태스크가 아니라 그 **의존**으로 검사한다 — 의존은 본체가 스킵돼도 실행된다.
+ */
+tasks.register('verifyIntegrationTestsExist') {
+	group = 'verification'
+	description = 'src/integrationTest 에 시험이 실제로 있는지 확인한다'
+	def classesDirs = sourceSets.integrationTest.output.classesDirs
+	doLast {
+		def found = classesDirs.asFileTree.matching {
+			include '**/*Test.class'
+			include '**/*Tests.class'
+		}
+		if (found.isEmpty()) {
+			throw new GradleException(
+				'src/integrationTest 에 시험이 하나도 없다. integrationTest 태스크는 이 경우 ' +
+					'NO-SOURCE 로 조용히 통과하므로, 그대로 두면 CI 가 아무것도 돌리지 않고 ' +
+					'초록불이 된다. 시험을 되살리든지 이 태스크와 CI 잡을 함께 지울 것.')
+		}
+	}
+}
+
+/*
+ * 실제 PostgreSQL 이 필요한 시험.
+ *
+ *   로컬  docker compose --profile api up -d postgres  후  ./gradlew integrationTest
+ *   CI    services 로 postgres 를 붙인 잡에서 명시적으로 부른다
+ *
+ * check 에 걸지 않는다 — 걸면 `gradlew build` 가 다시 DB 를 요구하게 되어 지금 푸는 문제가
+ * 이름만 바뀌어 돌아온다. Dockerfile 도 `-x test` 로 빌드하므로 영향이 없다.
+ *
+ * ⚠ 이 태스크를 CI 에 넣을 때는 **MR 파이프라인에 포함**해야 한다. 야간·수동으로만 돌리면
+ *   기동 실패가 머지된 뒤에 드러나고, 그러면 이 분리는 얻는 것 없이 검증만 잃는다.
+ */
+tasks.register('integrationTest', Test) {
+	group = 'verification'
+	description = 'DB 가 필요한 시험 (src/integrationTest)'
+	dependsOn tasks.named('verifyIntegrationTestsExist')
+	testClassesDirs = sourceSets.integrationTest.output.classesDirs
+	classpath = sourceSets.integrationTest.runtimeClasspath
+	useJUnitPlatform()
+	testLogging {
+		exceptionFormat = 'full'
+	}
+	// 단위 시험이 먼저 돈다. 빠른 쪽이 먼저 깨져야 원인을 좁히기 쉽다.
+	shouldRunAfter tasks.named('test')
+}

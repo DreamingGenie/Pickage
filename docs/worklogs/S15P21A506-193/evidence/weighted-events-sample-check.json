@@ -1,0 +1,43 @@
+{
+  "file_verification": {
+    "verified": true,
+    "scope": "SAMPLE",
+    "partitions": 3,
+    "snapshots": 229,
+    "upstream_resolution_status": "PARTIAL",
+    "ready_for_load": false,
+    "elapsed_seconds": 13.94897110000602
+  },
+  "independent_verification": {
+    "scope": "SAMPLE",
+    "method": "LEGACY_NODE_PER_SNAPSHOT_RECOMPUTATION",
+    "ready_for_load": false,
+    "prepared_manifest_sha256": "00d3fabed0ca2b031436de5d5b60e86f12b273d2d520a3210723a19a963336e8",
+    "cache_manifest_sha256": "9c118c9be5a00ba36dc90e6536d1b1d8619c22a3c8702a25a2ce65e74c4b6931",
+    "snapshot_count": 229,
+    "declaration_count": 12630,
+    "lookup_count": 50,
+    "candidate_count": 49936,
+    "total_resolved_lookups": 9803,
+    "mismatches": [],
+    "mismatch_count": 0,
+    "runtime": {
+      "node_version": "v24.18.0",
+      "semver_version": "7.8.1",
+      "package_arg_version": "13.0.2",
+      "semver_sha256": "45c9dfd2d1ce6e1c85e0c6b43f8a5d9c775a1912ac7a967f6726e29dd9198e3e",
+      "package_arg_sha256": "5d6168cccd3b9905b867b706cb56dbd286b32dd7ab17bef5f970b387bcf54b34",
+      "dependency_closure_sha256": "ee6e7c8dcd12877aff21f3d341cc671683795cb2031d447ab3ee78f22688988d",
+      "options": {
+        "loose": false,
+        "includePrerelease": false
+      },
+      "equal_precedence_tie": "original_version_utf16_ascending"
+    },
+    "elapsed_seconds": 29.562000000005355,
+    "diagnostic_counts": null,
+    "diagnostic_mismatch_count": null,
+    "report_path": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-weighted-six-0911-oracle\\report.json",
+    "report_sha256": "7dde8843cbafc5cc843901ea79b5c3e2f7535ada9f94eb8d996d9e79db04620e"
+  }
+}

@@ -1,0 +1,11 @@
+param([switch]$CheckOnly)
+$ErrorActionPreference = 'Stop'
+$jobRoot = $PSScriptRoot
+$repoRoot = (Get-Item -LiteralPath $jobRoot).Parent.Parent.FullName
+$pythonPath = 'C:/Users/SSAFY/miniforge3/python.exe'
+& $pythonPath (Join-Path $jobRoot 'check_resume.py')
+if ($LASTEXITCODE -ne 0) { throw 'Resume checks failed. No process was started.' }
+if ($CheckOnly) { return }
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$jobProcess = Start-Process -FilePath $pythonPath -ArgumentList @('-u', (Join-Path $jobRoot 'launch.py')) -WorkingDirectory $repoRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $jobRoot "resume-$stamp.stdout.log") -RedirectStandardError (Join-Path $jobRoot "resume-$stamp.stderr.log") -PassThru
+[pscustomobject]@{pid=$jobProcess.Id;started=$jobProcess.StartTime.ToString('o');jobDirectory=$jobRoot} | ConvertTo-Json -Compress

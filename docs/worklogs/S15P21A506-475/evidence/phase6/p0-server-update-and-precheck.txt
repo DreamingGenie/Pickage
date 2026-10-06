@@ -1,0 +1,16 @@
+P0 서버 반영: HEAD 789d99dc4c889d53e30419395b4d72d246a3667e (bundle develop-789d99d, sha256 82c00526…, ff-only from 766615b)
+[ ] 상한 8g:
+378-    memswap_limit: 8g   # 스왑 0. 위 minio 의 주석 참고 — 두 값은 반드시 짝으로 바꾼다
+[ ] Spark 앱 0:
+activeapps 0
+[ ] 주간 수집 비활성:
+inactive
+[ ] 메모리 10GiB+:
+13 GiB available
+[ ] 이미지:
+AI_TAG=f416bde3
+f416bde3
+3eb7ad64
+[ ] git:
+ M pipeline/collectors/bigquery/ledger/ledger.jsonl
+bundle 삭제

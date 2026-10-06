@@ -1,0 +1,26 @@
+{
+  "verified_at": "2026-09-08T04:38:14.761799+00:00",
+  "status": "PASSED",
+  "exit_code": 0,
+  "summary": [
+    "Ran 30 tests in 57.127s",
+    "OK"
+  ],
+  "command": [
+    "C:\\Users\\SSAFY\\workspace\\S15P21A506\\.venv-bq\\Scripts\\python.exe",
+    "-m",
+    "unittest",
+    "pipeline.postgresql.test_input",
+    "pipeline.postgresql.test_load",
+    "pipeline.postgresql.test_postgres",
+    "pipeline.postgresql.test_integration",
+    "-v"
+  ],
+  "postgres_container": "pickage-267-validation",
+  "contract_sha256": "80da062d17ba777c44afda5892eb77f9bb9788fa9fe7678759a0c108e3fb8662",
+  "log_path": "data\\postgresql\\verification\\postgresql-not-null-tests.log",
+  "log_sha256": "d2a75fb427db059317ca1a4ee1c8868b6f0498491e1ae90527218d44035e55bb",
+  "test_count": 30,
+  "skipped": 0,
+  "scope": "Intermediate NOT NULL/reject-NULL policy check, superseded by the user-approved default JSON plus quality history policy."
+}

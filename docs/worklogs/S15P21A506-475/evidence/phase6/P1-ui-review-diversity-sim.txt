@@ -1,0 +1,16 @@
+axios      현재 ['undici', '@algolia/requester-node-http', '@algolia/requester-browser-xhr']
+           규칙 ['undici', '@algolia/requester-node-http', 'ky']
+react      현재 ['inferno', '@modern-js/utils', '@modern-js/node-bundle-require']
+           규칙 ['inferno', '@modern-js/utils']
+sequelize  현재 ['@mikro-orm/knex', '@mikro-orm/reflection', '@mikro-orm/mysql']
+           규칙 ['@mikro-orm/knex', 'mikro-orm', 'typeorm']
+vite       현재 ['@web/dev-server-core', '@web/dev-server', '@esbuild/android-arm']
+           규칙 ['@web/dev-server-core', 'esbuild-wasm', '@nx/esbuild']
+eslint     현재 ['ts-pattern', '@eslint-community/regexpp', '@ast-grep/cli-linux-x64-gnu']
+           규칙 ['ts-pattern', '@eslint-community/regexpp', '@ast-grep/napi']
+jsdom      현재 ['@oozcitak/dom', '@types/web', 'min-document']
+           규칙 ['@oozcitak/dom', 'min-document', 'domino']
+puppeteer  현재 ['chrome-launcher', '@sparticuz/chromium', '@types/chrome-remote-interface']
+           규칙 ['chrome-launcher', '@sparticuz/chromium', '@crawlee/http']
+
+전체 기준 16316 중 top-3 가 바뀌는 기준 3388 (20.8%), 규칙 적용 후 3개 미만 1599 (현재 955)

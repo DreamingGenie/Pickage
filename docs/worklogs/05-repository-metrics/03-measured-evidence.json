@@ -1,0 +1,243 @@
+{
+  "run_id": "repository-metrics-20260909-v3",
+  "snapshot": "2026-08-31",
+  "snapshot_timestamp": "2026-08-31T21:01:10.517131Z",
+  "manifest_sha256": "ca92eaa351fcd2ecd7d9355d3b5ee0635d9046ffecdb8fc946d28b226ecc0f30",
+  "request": {
+    "code_sha256": "c880d0c4265a253d4fa651095f5db7bf68e53612b526078b42b2cbc1a017c98b",
+    "input_sha256": "3d1add9f29eb0445dc98c235cd6376f0489d48effdfa507ffbdc6080ab18f49d",
+    "policy_sha256": "4dc9174880b6b06eaba30e3d76081295f5fdb7b739199f411ae294ac47e1461d"
+  },
+  "input": {
+    "curated_run_id": "curated-20260907-v2",
+    "curated_manifest_sha256": "a537f84bae78c9209e56deddb24d94cdef606d06e0e563f93ddb67e3843e71b3",
+    "bronze_run_id": "bronze-20260907-v1",
+    "bronze_manifest_sha256": "3157a73434228145059cb92b9ba03972f3a053eca11d463b8e91f66f80711984",
+    "file_count": 418,
+    "counts": {
+      "package": 11080940,
+      "projects": 5234999,
+      "version": 54188349,
+      "versions_full": 78559731
+    }
+  },
+  "output": {
+    "files": 111,
+    "bytes": 1909715146,
+    "report": {
+      "candidate_reasons": {
+        "INVALID_OR_UNSUPPORTED_REPOSITORY_URL": 2636641,
+        "NO_REPOSITORY_URL": 15360018,
+        "VALID_REPOSITORY_CANDIDATE": 36191690
+      },
+      "conflicts": 0,
+      "lineage": {
+        "counts": {
+          "package": 11080940,
+          "projects": 5234999,
+          "version": 54188349,
+          "versions_full": 78559731
+        },
+        "snapshot": "2026-08-31",
+        "snapshot_timestamp": "2026-08-31T21:01:10.517131Z"
+      },
+      "mapping": {
+        "null": 3930455,
+        "packages": 11080940,
+        "selected": 8302621
+      },
+      "null_reasons": {
+        "NO_EXACT_OBSERVATION": 1152136,
+        "NO_VALID_REPOSITORY": 2778319
+      },
+      "output_counts": {
+        "metric/data": 11080940,
+        "quality/candidates": 54188349,
+        "quality/project_conflicts": 0,
+        "quality/project_observations": 5217958,
+        "quality/selection": 11080940,
+        "quality/unmapped_projects": 17041
+      },
+      "selection_reasons": {
+        "NO_EXACT_OBSERVATION": 1152136,
+        "NO_VALID_REPOSITORY": 2778319,
+        "SELECTED": 7150485
+      },
+      "unsupported_project_rows": 17041,
+      "validation": "PASSED"
+    }
+  },
+  "runtime": {
+    "cpus": 2,
+    "engine": "docker",
+    "image": "apache/spark@sha256:936ff39fd63e2bb5ed064f0fbe1518198473f1cdbfa2f863d087a9a8e58116ba",
+    "memory_limit": "6g",
+    "python": "3.8.10",
+    "scratch": "/tmp/repository-metrics-runtime",
+    "scratch_storage": "container_local_ephemeral",
+    "spark": "3.5.7"
+  },
+  "execution_reports": [
+    {
+      "action": "BUILT",
+      "finished_at": "2026-09-09T11:22:48.478425+09:00",
+      "manifest": "C:\\Users\\SSAFY\\workspace\\S15P21A506-05-repository-metrics\\data\\repository-metrics\\repository-metrics-20260909-v3\\run_manifest.json",
+      "output_counts": {
+        "metric/data": 11080940,
+        "quality/candidates": 54188349,
+        "quality/project_conflicts": 0,
+        "quality/project_observations": 5217958,
+        "quality/selection": 11080940,
+        "quality/unmapped_projects": 17041
+      },
+      "phase": "COMPLETE",
+      "run_id": "repository-metrics-20260909-v3",
+      "started_at": "2026-09-09T10:57:23.047412+09:00",
+      "status": "PASSED"
+    },
+    {
+      "action": "REVERIFIED",
+      "finished_at": "2026-09-09T11:25:14.833301+09:00",
+      "manifest": "C:\\Users\\SSAFY\\workspace\\S15P21A506-05-repository-metrics\\data\\repository-metrics\\repository-metrics-20260909-v3\\run_manifest.json",
+      "phase": "COMPLETE",
+      "publication": {
+        "action": "PUBLISHED",
+        "bucket": "pickage-curated",
+        "manifest_sha256": "ca92eaa351fcd2ecd7d9355d3b5ee0635d9046ffecdb8fc946d28b226ecc0f30",
+        "prefix": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3",
+        "status": "PUBLISHED",
+        "verification": "GET_SHA256_ALL_FILES"
+      },
+      "run_id": "repository-metrics-20260909-v3",
+      "started_at": "2026-09-09T11:23:30.259576+09:00",
+      "status": "REVERIFIED"
+    }
+  ],
+  "independent_verification": {
+    "metrics": {
+      "rows": 11080940,
+      "distinct_package_ids": 11080940,
+      "invalid_identity": 0,
+      "negative_values": 0,
+      "null_stars": 3930455,
+      "null_open_issues": 3930455,
+      "zero_stars": 504766,
+      "zero_open_issues": 1476898
+    },
+    "unknown_package_ids": 0,
+    "candidates": {
+      "rows": 54188349,
+      "selected": 8302621
+    },
+    "repository_selection_mismatches": 0,
+    "source_observation_mismatches": 0,
+    "package_metric_or_observed_time_mismatches": 0,
+    "project_rows": {
+      "mapped_source_rows": 5217958,
+      "unmapped_source_rows": 17041
+    },
+    "unmapped_providers": [
+      {
+        "type": "BITBUCKET",
+        "rows": 17041
+      }
+    ],
+    "sample": [
+      {
+        "name": "@angular/core",
+        "package_id": 168955,
+        "version": "22.1.4",
+        "repo_url": "https://github.com/angular/angular",
+        "stars": 101005,
+        "open_issues": 1146,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "@gitlab/ui",
+        "package_id": 1251041,
+        "version": "137.0.2",
+        "repo_url": "https://gitlab.com/gitlab-org/gitlab-services/design.gitlab.com",
+        "stars": null,
+        "open_issues": null,
+        "reason": "NO_EXACT_OBSERVATION",
+        "observed_timestamp": null
+      },
+      {
+        "name": "express",
+        "package_id": 6620867,
+        "version": "5.2.1",
+        "repo_url": "https://github.com/expressjs/express",
+        "stars": 69405,
+        "open_issues": 228,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "lodash",
+        "package_id": 8006164,
+        "version": "4.18.1",
+        "repo_url": "https://github.com/lodash/lodash",
+        "stars": 61281,
+        "open_issues": 106,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "react",
+        "package_id": 9633488,
+        "version": "19.2.8",
+        "repo_url": "https://github.com/react/react",
+        "stars": 248006,
+        "open_issues": 1281,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "typescript",
+        "package_id": 10602005,
+        "version": "7.0.2",
+        "repo_url": "https://github.com/microsoft/TypeScript",
+        "stars": 110779,
+        "open_issues": 5170,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "vite",
+        "package_id": 10797199,
+        "version": "8.2.2",
+        "repo_url": "https://github.com/vitejs/vite",
+        "stars": 82524,
+        "open_issues": 755,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      },
+      {
+        "name": "vue",
+        "package_id": 10815776,
+        "version": "3.5.42",
+        "repo_url": "https://github.com/vuejs/core",
+        "stars": 54246,
+        "open_issues": 914,
+        "reason": "SELECTED",
+        "observed_timestamp": "2026-08-31 21:01:10.517131+00:00"
+      }
+    ],
+    "elapsed_seconds": 21.953,
+    "status": "PASSED"
+  },
+  "publication_reverification": {
+    "elapsed_seconds": 19.391,
+    "finished_at": "2026-09-09T11:26:03.706929+09:00",
+    "publication": {
+      "action": "REVERIFIED",
+      "bucket": "pickage-curated",
+      "manifest_sha256": "ca92eaa351fcd2ecd7d9355d3b5ee0635d9046ffecdb8fc946d28b226ecc0f30",
+      "prefix": "depsdev/v1/repository-metrics/snapshot=2026-08-31/run_id=repository-metrics-20260909-v3",
+      "status": "PUBLISHED",
+      "verification": "GET_SHA256_ALL_FILES"
+    },
+    "started_at": "2026-09-09T11:25:44.323568+09:00"
+  }
+}

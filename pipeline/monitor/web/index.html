@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<!--
+  Pickage 데이터 흐름 — "데이터가 잘 흐르고 있는가" 한 장.
+
+  pipeline-monitor 컨테이너(pipeline/monitor/server.py)가 이 파일을 / 로 서빙한다.
+  터널을 열고 http://127.0.0.1:19998/ 을 연다 — scripts/open-monitoring.* 이 19999(netdata) 와
+  같이 열어 준다. status.html(19999) 은 자원, 여기(19998) 는 데이터 흐름이다.
+
+  재료는 같은 서버의 API 다. **요청할 때 계산한다** — 파일로 미리 써 두지 않는다.
+      /api/nodes               이 노드와 중계하는 노드들
+      /api/report?node=<x>     그 노드의 보고서. data 노드 것은 app 서버가 사설망으로 중계한다
+      /api/inventory?node=<x>  마지막 전체 목록. &fresh=1 이면 지금 버킷을 통째로 나열한다 — "전체 목록 조회" 버튼만 쓴다
+      ?fresh=1                 보고서 캐시(3초)를 무시하고 지금 다시 만든다 — "지금 확인" 버튼
+
+  ── 화면을 이렇게 짠 이유 ────────────────────────────────────────────
+  status.html 과 같은 원칙이다 — 판정 한 줄이 제일 크고, 나머지는 그 근거로 아래에 깔린다.
+  다만 여기는 "괜찮은가" 뒤에 **"무엇이 생겼나"** 를 묻는 사람이 오므로, 목록이 길다.
+  그래서 최근 것을 위에, 나머지는 접어 둔다. 접힌 것은 <details> 라 클릭 한 번이면 펴진다.
+
+  - 15초마다 다시 읽는다. "지금 확인" 은 서버의 캐시까지 비우고 다시 만든다.
+  - 한 노드에 닿지 못하면 그 노드 자리에 이유가 뜬다. 나머지 노드는 그대로 보인다.
+  - 모르는 것을 정상이라고 말하지 않는다. 절이 통째로 실패하면 그 자리에 실패 메시지가 뜬다.
+  - 시각은 상대(3분 전)로 쓰고, 마우스를 올리면 절대 시각이 보인다.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pickage 데이터 흐름</title>
+<style>
+  /* ── 토큰 ─────────────────────────────────────────────────────────
+     색은 중립이 기본이고, 상태(ok·warn·bad·info)와 핵심 수치에만 색을 쓴다.
+     글자 크기는 네 단계 — 12 캡션 · 13 표 · 14 본문 · 15 절 제목 — 와 수치 22, 판정 30. */
+  :root {
+    --bg:#ffffff; --panel:#ffffff; --code-bg:#f6f7f9; --hover:#f6f7f9; --line:#dfe2e6; --hair:#eceef1;
+    --fg:#1c1f24; --fg2:#3f4550; --dim:#6b7280; --faint:#9aa1ab; --mark-fg:#ffffff;
+    --ok:#15803d; --ok-bg:#eaf6ee; --warn:#b45309; --warn-bg:#fdf3e3; --bad:#b91c1c; --bad-bg:#fdecec;
+    --info:#1d4ed8; --info-bg:#e8eefc; --track:#eef0f3; --new:#0f7a4a;
+    --fs-cap:12px; --fs-tbl:13px; --fs-body:14px; --fs-h:15px; --fs-kpi:22px; --fs-verdict:30px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+    --r:8px;
+  }
+  /* 다크 — OS 설정을 따르되(기본), 상단 토글로 라이트/다크를 강제할 수 있다 (html[data-theme]). 선택은 브라우저에 남는다. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0f1115; --panel:#161920; --code-bg:#0f1115; --hover:#1b1f27; --line:#262b34; --hair:#1e2229;
+      --fg:#e6e8ec; --fg2:#c4c9d2; --dim:#8b93a0; --faint:#657080; --mark-fg:#0f1115;
+      --ok:#4ade80; --ok-bg:#0f2a1c; --warn:#fbbf24; --warn-bg:#2b2110; --bad:#f87171; --bad-bg:#2c1516;
+      --info:#93c5fd; --info-bg:#14223d; --track:#242933; --new:#6ee7b7;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f1115; --panel:#161920; --code-bg:#0f1115; --hover:#1b1f27; --line:#262b34; --hair:#1e2229;
+    --fg:#e6e8ec; --fg2:#c4c9d2; --dim:#8b93a0; --faint:#657080; --mark-fg:#0f1115;
+    --ok:#4ade80; --ok-bg:#0f2a1c; --warn:#fbbf24; --warn-bg:#2b2110; --bad:#f87171; --bad-bg:#2c1516;
+    --info:#93c5fd; --info-bg:#14223d; --track:#242933; --new:#6ee7b7;
+  }
+  .theme { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .theme button { font:inherit; font-size:var(--fs-cap); color:var(--dim); background:var(--panel); border:0;
+                  padding:5px 9px; cursor:pointer; line-height:1.2; }
+  .theme button + button { border-left:1px solid var(--line); }
+  .theme button.on { color:var(--fg); background:var(--track); font-weight:600; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; padding:var(--sp-5) var(--sp-4) 48px; background:var(--bg); color:var(--fg);
+         font:var(--fs-body)/1.5 "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR",
+              "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+         -webkit-font-smoothing:antialiased; font-feature-settings:"tnum" 1; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  code, .mono { font-family:"JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size:12px; }
+  a { color:var(--fg2); }
+  b { font-weight:600; }
+
+  /* ── 상단 바 ──────────────────────────────────────────────────── */
+  .top { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4); flex-wrap:wrap;
+         padding-bottom:var(--sp-3); border-bottom:1px solid var(--line); }
+  .top h1 { font-size:var(--fs-h); font-weight:700; margin:0; letter-spacing:-.01em; }
+  .top nav a { font-size:var(--fs-cap); color:var(--dim); margin-left:var(--sp-4); text-decoration:none; }
+  .top nav a:hover { color:var(--fg); text-decoration:underline; }
+  .top .when { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; font-size:var(--fs-cap); color:var(--dim); }
+  .btn { font:inherit; font-size:var(--fs-cap); font-weight:500; color:var(--fg2); background:var(--panel);
+         border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; line-height:1.2; }
+  .btn:hover { border-color:var(--dim); color:var(--fg); }
+  .btn:disabled { cursor:default; opacity:.55; }
+
+  /* ── 판정 — 화면에서 제일 먼저 읽히는 것 ─────────────────────────
+     제목 한 단어(정상·주의·문제) + 근거 목록. 항목마다 자기 심각도 기호가 붙고 해당 절로 링크된다. */
+  .verdict { display:grid; grid-template-columns:auto 1fr; gap:var(--sp-3) var(--sp-4); align-items:start;
+             padding:var(--sp-5) 0 var(--sp-5); }
+  .verdict .mark { width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
+                   font-size:22px; font-weight:700; color:var(--mark-fg); background:var(--faint); margin-top:2px; }
+  .verdict .t { font-size:var(--fs-verdict); font-weight:700; letter-spacing:-.02em; line-height:1.1; }
+  .verdict .d { font-size:var(--fs-body); color:var(--dim); margin-top:var(--sp-1); }
+  .verdict .counts { display:flex; gap:var(--sp-2); margin-top:var(--sp-2); flex-wrap:wrap; }
+  .verdict .flist { margin-top:var(--sp-3); }
+  .is-ok .mark { background:var(--ok); } .is-ok .t { color:var(--ok); }
+  .is-warn .mark { background:var(--warn); } .is-warn .t { color:var(--warn); }
+  .is-bad .mark { background:var(--bad); } .is-bad .t { color:var(--bad); }
+
+  /* ── 상태 표지 — 색 + 기호 + 글자. 색만으로 구분하지 않는다 ────── */
+  .st { display:inline-flex; align-items:center; gap:4px; font-size:var(--fs-cap); font-weight:600; line-height:1.2;
+        padding:2px 7px; border-radius:999px; white-space:nowrap; color:var(--fg2); background:var(--track); }
+  .st::before { font-size:10px; line-height:1; }
+  .st-ok   { color:var(--ok);   background:var(--ok-bg); }   .st-ok::before   { content:"✓"; }
+  .st-warn { color:var(--warn); background:var(--warn-bg); } .st-warn::before { content:"!"; font-weight:800; }
+  .st-bad  { color:var(--bad);  background:var(--bad-bg); }  .st-bad::before  { content:"✕"; }
+  .st-info { color:var(--info); background:var(--info-bg); } .st-info::before { content:"▶"; font-size:8px; }
+  .st-done { color:var(--dim);  background:var(--track); }   .st-done::before { content:"✓"; }   /* 정상이지만 눈에 안 띄어도 되는 것 (지난 단계 성공) */
+  .st-muted{ color:var(--faint);background:transparent; border:1px dashed var(--line); } .st-muted::before { content:"·"; }
+  .st-new  { color:var(--new);  background:var(--ok-bg); }   .st-new::before  { content:"+"; font-weight:800; }
+  .st.lg { font-size:var(--fs-tbl); padding:3px 10px; }
+  .steps { display:flex; flex-wrap:wrap; gap:var(--sp-1); }
+  .steps .st { font-weight:500; }
+
+  /* ── 탭 — 스크롤해도 붙어 있다. 탭마다 그 안의 문제·주의 개수 배지 ──── */
+  .tabs { position:sticky; top:0; z-index:5; display:flex; gap:2px; flex-wrap:wrap; background:var(--bg);
+          border-bottom:1px solid var(--line); padding:var(--sp-1) 0 0; }
+  .tabs button { font:inherit; font-size:var(--fs-tbl); font-weight:500; color:var(--dim); background:transparent; border:0;
+                 border-bottom:2px solid transparent; padding:8px 12px 9px; cursor:pointer; display:inline-flex;
+                 align-items:center; gap:6px; white-space:nowrap; margin-bottom:-1px; }
+  .tabs button:hover { color:var(--fg); }
+  .tabs button.on { color:var(--fg); font-weight:600; border-bottom-color:var(--fg); }
+  .tabs button .st { font-size:11px; padding:1px 6px; }
+  .tabs .sep { flex:1; }
+  #body { padding-top:var(--sp-3); }          /* 탭 바와 첫 카드 사이 숨 쉴 틈 */
+  .panel { display:none; }
+  .panel.on, body.tab-all .panel { display:block; }
+  body.tab-all .panel + .panel { margin-top:var(--sp-4); }
+  section.card.flash { animation:flash 1.6s ease-out; }
+  @keyframes flash { 0% { box-shadow:0 0 0 3px var(--info); } 100% { box-shadow:0 0 0 0 transparent; } }
+
+  /* ── 노드 줄 — 탭 위에 항상. 누르면 그 노드의 판정 항목이 펼쳐진다 ──── */
+  .nodes { display:grid; gap:var(--sp-2); margin:0 0 var(--sp-3); }
+  details.nodebar { border:1px solid var(--line); border-radius:var(--r); background:var(--panel); margin:0; }
+  details.nodebar.has-bad { border-color:var(--bad); } details.nodebar.has-warn { border-color:var(--warn); }
+  .nodebar > summary { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-3);
+                       list-style:none; cursor:pointer; font-size:var(--fs-body); color:var(--fg); }
+  .nodebar > summary::-webkit-details-marker { display:none; }
+  .nodebar > summary::before { content:"▸"; color:var(--faint); font-size:12px; width:10px; }
+  details.nodebar[open] > summary::before { content:"▾"; }
+  .nodebar > summary:hover { background:var(--hover); border-radius:var(--r); }
+  .nodebar .name { font-weight:700; letter-spacing:-.01em; }
+  .nodebar .host { font-size:var(--fs-cap); color:var(--dim); }
+  .nodebar .meta { font-size:var(--fs-cap); color:var(--faint); margin-left:auto; }
+  .nodebar .body { padding:0 var(--sp-3) var(--sp-3) calc(var(--sp-3) + 10px + var(--sp-3)); }
+  .nodebar .fail { margin:var(--sp-2) 0 0; }
+
+  /* 판정 항목 목록 — 판정 블록(전역)과 노드 줄(노드별)이 같은 모양을 쓴다 */
+  .flist { margin:var(--sp-2) 0 0; padding:0; list-style:none; display:grid; gap:var(--sp-1); }
+  .flist li { display:grid; grid-template-columns:auto 1fr; gap:var(--sp-2); align-items:baseline;
+              font-size:var(--fs-tbl); line-height:1.45; }
+  .flist li a { color:var(--fg); text-decoration:none; }
+  .flist li a:hover { text-decoration:underline; }
+  .flist li .where { color:var(--dim); font-size:var(--fs-cap); margin-left:var(--sp-1); white-space:nowrap; }
+  .flist .none { color:var(--faint); font-size:var(--fs-cap); }
+
+  /* ── 절 카드 ──────────────────────────────────────────────────── */
+  section.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+                 padding:var(--sp-4) var(--sp-4) var(--sp-3); margin-bottom:var(--sp-3); }
+  section.card.has-bad { border-color:var(--bad); }
+  section.card.has-warn { border-color:var(--warn); }
+  section.card > header { display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-3);
+                          flex-wrap:wrap; margin-bottom:var(--sp-3); }
+  section.card > header .ttl { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
+  section.card > header h2 { font-size:var(--fs-h); font-weight:600; margin:0; letter-spacing:-.01em; }
+  section.card > header .meta { font-size:var(--fs-cap); color:var(--dim); text-align:right; }
+  section.card > header .meta b { color:var(--fg2); }
+  .sub { font-size:var(--fs-cap); color:var(--dim); margin:0 0 var(--sp-2); }
+  .sub b { color:var(--fg2); }
+  .cap { font-size:var(--fs-cap); color:var(--faint); line-height:1.4; }        /* 이름 아래 보조 식별자 (이미지·run_id) */
+  .fail { font-size:var(--fs-tbl); color:var(--bad); background:var(--bad-bg); border-left:3px solid var(--bad);
+          padding:var(--sp-2) var(--sp-3); border-radius:0 6px 6px 0; margin:var(--sp-2) 0; }
+  .empty { font-size:var(--fs-tbl); color:var(--faint); padding:var(--sp-3) 0; }
+  .help { margin-top:var(--sp-3); border-top:1px dashed var(--hair); padding-top:var(--sp-2); }
+  .help > summary { font-size:var(--fs-cap); color:var(--faint); cursor:pointer; user-select:none; list-style:none; }
+  .help > summary::-webkit-details-marker { display:none; }
+  .help > summary::before { content:"ⓘ "; }
+  .help > summary:hover { color:var(--dim); }
+  .help > div { font-size:var(--fs-cap); color:var(--dim); line-height:1.6; padding:var(--sp-2) 0 0; max-width:90ch; }
+  .help code { font-size:11px; }
+
+  /* ── 표 ───────────────────────────────────────────────────────── */
+  table { width:100%; border-collapse:collapse; font-size:var(--fs-tbl); line-height:1.45; }
+  th { text-align:left; font-weight:600; font-size:var(--fs-cap); color:var(--dim); padding:6px 10px 6px 0;
+       border-bottom:1px solid var(--line); white-space:nowrap; letter-spacing:.01em; }
+  td { padding:8px 10px 8px 0; border-bottom:1px solid var(--hair); vertical-align:top; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody tr:hover td { background:var(--hover); }
+  th.r, td.r { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  th.sort { cursor:pointer; user-select:none; }
+  th.sort:hover { color:var(--fg); }
+  th.sort::after { content:" ↕"; opacity:.35; }
+  th.sort.asc::after { content:" ↑"; opacity:1; }
+  th.sort.desc::after { content:" ↓"; opacity:1; }
+  td.name { font-weight:500; word-break:break-all; color:var(--fg); }
+  td.mono:not(.name) { white-space:nowrap; }      /* 버킷·계정 같은 짧은 식별자는 한 줄로 */
+  td .cap { margin-top:1px; }
+  /* 새 것·아픈 것은 배경을 칠하지 않고 왼쪽 표지로 — 표가 통째로 물들지 않게 */
+  tr.new td:first-child { box-shadow:inset 3px 0 0 var(--new); padding-left:10px; }
+  tr.sick td:first-child { box-shadow:inset 3px 0 0 var(--bad); padding-left:10px; }
+  tr.sick td.name { color:var(--bad); }
+  tr.dimrow td { color:var(--faint); }
+  td.new, .newfg { color:var(--new); font-weight:600; }
+  td details { margin-top:var(--sp-1); }
+
+  /* ── 수치 타일 — 숫자가 먼저 읽힌다 ───────────────────────────── */
+  .kv { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:var(--sp-3) var(--sp-5);
+        margin:var(--sp-1) 0 var(--sp-4); }
+  .kv .k { font-size:var(--fs-cap); font-weight:500; color:var(--dim); }
+  .kv .v { font-size:var(--fs-kpi); font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums;
+           line-height:1.2; margin-top:2px; }
+  .kv .v small { font-size:var(--fs-tbl); font-weight:500; color:var(--dim); margin-left:2px; }
+  .kv .n { font-size:var(--fs-cap); color:var(--faint); margin-top:2px; }
+  .bar { height:4px; background:var(--track); border-radius:2px; margin:6px 0 4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--dim); }
+  .bar.warn i { background:var(--warn); } .bar.bad i { background:var(--bad); }
+
+  /* ── 절 안의 소절 ─────────────────────────────────────────────── */
+  .bucket { padding:var(--sp-3) 0 var(--sp-1); border-top:1px solid var(--hair); }
+  .bucket:first-of-type { border-top:0; padding-top:0; }
+  .bucket h3 { font-size:var(--fs-body); font-weight:600; margin:0 0 var(--sp-2); display:flex; gap:var(--sp-2);
+               align-items:baseline; flex-wrap:wrap; }
+  .bucket h3 span { font-size:var(--fs-cap); color:var(--dim); font-weight:400; }
+
+  details { margin:var(--sp-1) 0; }
+  summary { cursor:pointer; font-size:var(--fs-cap); color:var(--dim); user-select:none; }
+  summary:hover { color:var(--fg); }
+  pre { margin:var(--sp-2) 0 var(--sp-1); padding:var(--sp-2) var(--sp-3); background:var(--code-bg); border:1px solid var(--hair);
+        border-radius:6px; font-size:11.5px; line-height:1.5; overflow:auto; max-height:320px; white-space:pre-wrap;
+        word-break:break-all; color:var(--fg2); }
+  pre .err { color:var(--bad); font-weight:600; }
+  pre.err { color:var(--bad); }
+
+  footer { margin-top:var(--sp-6); padding-top:var(--sp-3); border-top:1px solid var(--line);
+           font-size:var(--fs-cap); color:var(--faint); line-height:1.7; }
+  footer a { color:var(--dim); }
+
+  /* ── 좁은 화면 — 중요도 순서는 그대로, 표만 옆으로 스크롤 ───────── */
+  @media (max-width: 760px) {
+    body { padding:var(--sp-4) var(--sp-3) 40px; }
+    .tabs { flex-wrap:nowrap; overflow-x:auto; }
+    .tabs button { padding:8px 10px 9px; font-size:var(--fs-cap); }
+    .verdict { grid-template-columns:auto 1fr; }
+    .verdict .t { font-size:24px; }
+    section.card { overflow-x:auto; padding:var(--sp-3); }
+    section.card > header .meta { text-align:left; }
+    .nodebar .meta { margin-left:0; width:100%; }
+    .kv { grid-template-columns:repeat(2, 1fr); }
+  }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Pickage 데이터 흐름</h1>
+    <div class="when">
+      <span id="updated">불러오는 중…</span>
+      <button id="now" type="button" class="btn">지금 확인</button>
+      <span class="theme" id="theme" title="화면 밝기 — 기본은 OS 설정을 따른다">
+        <button type="button" data-theme="system">시스템</button><button type="button" data-theme="light">라이트</button><button type="button" data-theme="dark">다크</button>
+      </span>
+      <nav><a href="http://127.0.0.1:19999/status.html">서버 상태</a><a href="http://127.0.0.1:19999/">netdata 대시보드</a></nav>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="mark">…</div>
+    <div><div class="t">확인 중</div><div class="d"></div><div class="counts"></div><ul class="flist"></ul></div>
+  </div>
+
+  <div class="nodes" id="nodes"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="body"></div>
+
+  <footer>
+    15초마다 다시 읽고, 값은 물을 때마다 그 자리에서 만듭니다. MinIO 는 이벤트 구독으로 보고, 버킷 전체 나열은 "전체 목록 조회" 버튼을 눌렀을 때만 합니다.<br>
+    "지금 서버 괜찮은가" 는 <a href="http://127.0.0.1:19999/status.html">서버 상태</a>, "그때 무슨 일이 있었나" 는
+    <a href="http://127.0.0.1:19999/">netdata 대시보드</a> (같은 터널의 19999). 이 화면은 "데이터가 어디까지 왔나" 만 답합니다.
+    자세한 것은 저장소의 <code>deploy/prod/monitoring/README.md</code> 11절.
+  </footer>
+</div>
+
+<script>
+// ── 밝기 — system(OS 따라감) · light · dark. localStorage 에 남는다 (없거나 막혀 있으면 system) ───────
+(function () {
+  const KEY = 'pickage-monitor-theme';
+  const read = () => { try { return localStorage.getItem(KEY) || 'system'; } catch (e) { return 'system'; } };
+  const apply = mode => {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    document.querySelectorAll('#theme button').forEach(b => b.classList.toggle('on', b.dataset.theme === mode));
+  };
+  apply(read());
+  document.getElementById('theme').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    try { localStorage.setItem(KEY, b.dataset.theme); } catch (e2) { /* 저장이 막혀도 이번 화면에는 적용된다 */ }
+    apply(b.dataset.theme);
+  });
+})();
+
+// ── 유틸 ────────────────────────────────────────────────────────────────
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+function bytes(n) {
+  if (n == null) return '—';
+  const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB']; let i = 0; let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (i === 0 ? v : v >= 100 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i];
+}
+function ago(iso, now) {
+  if (!iso) return '—';
+  const t = Date.parse(iso); if (isNaN(t)) return esc(iso);
+  const s = Math.max(0, Math.round(((now || Date.now()) - t) / 1000));
+  const txt = s < 60 ? `${s}초 전` : s < 3600 ? `${Math.round(s / 60)}분 전`
+            : s < 86400 * 2 ? `${(s / 3600).toFixed(s < 36000 ? 1 : 0)}시간 전` : `${Math.round(s / 86400)}일 전`;
+  return `<span title="${esc(local(iso))}">${txt}</span>`;
+}
+// 미래 시각 — "N분 뒤". ago() 는 과거만 다뤄 미래를 0초로 눌러 버린다.
+function until(iso, now) {
+  if (!iso) return '—';
+  const t = Date.parse(iso); if (isNaN(t)) return esc(iso);
+  const s = Math.round((t - (now || Date.now())) / 1000);
+  if (s <= 0) return '다음 발화에';
+  return s < 60 ? `${s}초 뒤` : s < 3600 ? `${Math.round(s / 60)}분 뒤` : `${(s / 3600).toFixed(1)}시간 뒤`;
+}
+function local(iso) {
+  const t = Date.parse(iso); return isNaN(t) ? iso : new Date(t).toLocaleString('ko-KR', { hour12: false });
+}
+const num = n => n == null ? '—' : Number(n).toLocaleString('ko-KR');
+// 상태 표지. 색·기호·글자가 같이 간다 (CSS 의 .st-*::before 가 ✓ ! ✕ ▶ 를 붙인다).
+//   ok 정상(강조) · done 정상(회색 — 지난 단계 성공처럼 눈에 안 띄어도 되는 것) · warn 주의 · bad 문제 · info 진행 중 · muted 해당 없음
+const chip = (text, cls, title) => `<span class="st${cls ? ' st-' + cls : ''}"${title ? ` title="${esc(title)}"` : ''}>${esc(text)}</span>`;
+// 로그 꼬리. 에러 줄은 서버가 준 패턴으로 칠하고(서버가 센 것과 같은 줄), 무시 패턴에 걸린 줄은 칠하지 않는다.
+function pre(lines, errRe, skipRe) {
+  if (!lines || !lines.length) return '<pre>(없음)</pre>';
+  const hit = l => errRe && errRe.test(l) && !(skipRe && skipRe.test(l));
+  return '<pre>' + lines.map(l => hit(l) ? `<span class="err">${esc(l)}</span>` : esc(l)).join('\n') + '</pre>';
+}
+// 서버의 파이썬 정규식을 JS 로 — (?i) 접두는 플래그로 옮긴다. 못 만들면 기본값.
+const ERR_RE = /\b(error|exception|traceback|fatal|oom|killed|denied|refused)\b/i;
+function reFrom(pattern, fallback = null) {
+  if (!pattern) return fallback;
+  try { const ci = pattern.startsWith('(?i)'); return new RegExp(ci ? pattern.slice(4) : pattern, ci ? 'i' : ''); }
+  catch (e) { return fallback; }
+}
+// 에러 줄 표지 — 임계 이상이면 주의(판정에 올라간다), 미만이면 회색으로 세어만 둔다. 0 이면 없음.
+const errChip = (n, min) => !n ? '' : n >= min && min > 0 ? chip(`에러 ${n}줄`, 'warn', `기준 ${min}줄 이상 — 판정에 올라갑니다`)
+  : chip(`에러로 보이는 ${n}줄`, 'done', min > 0 ? `기준 ${min}줄 미만 — 판정에 올리지 않습니다` : '판정에 올리지 않게 설정돼 있습니다 (error_min_lines: 0)');
+
+// ── 정렬되는 표 ─────────────────────────────────────────────────────────
+// 머리를 누르면 그 열로 정렬하고, 같은 열을 다시 누르면 방향이 뒤집힌다. 상태는 표 id 별로 남아
+// 15초 갱신에도 유지된다 — 화면은 서버 값으로 다시 그려지지만 정렬은 사람이 고른 것이다.
+const sortState = {};
+let lastDraw = null;
+function setSort(id, key) {
+  const cur = sortState[id];
+  sortState[id] = cur && cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' };
+  // fetch 의 try/catch 밖이다 — 여기서 던지면 화면이 낡은 채로 굳는다. 콘솔에 남기고 다음 갱신에 맡긴다.
+  if (lastDraw) { try { draw(...lastDraw); } catch (e) { console.error('정렬 뒤 다시 그리기 실패', e); } }
+}
+// cols: [{key, label, type: 'str'|'num'|'time', cls, render(row) → html}]. def: {key, dir}. rowCls(row) → tr class.
+function table(id, cols, rows, def, rowCls) {
+  const st = sortState[id] || def || { key: cols[0].key, dir: 'asc' };
+  const col = cols.find(c => c.key === st.key) || cols[0];
+  const val = r => { const x = r[col.key]; return col.type === 'time' ? (Date.parse(x) || 0) : col.type === 'str' ? String(x == null ? '' : x) : (x == null ? -Infinity : +x); };
+  const sorted = rows.slice().sort((a, b) => {
+    const x = val(a), y = val(b);
+    const c = col.type === 'str' ? x.localeCompare(y, 'ko') : x - y;
+    return st.dir === 'asc' ? c : -c;
+  });
+  const head = cols.map(c => `<th class="sort ${c.cls || ''} ${st.key === c.key ? st.dir : ''}" onclick="setSort('${esc(id)}','${esc(c.key)}')" title="정렬">${esc(c.label)}</th>`).join('');
+  const body = sorted.map(r => `<tr class="${rowCls ? rowCls(r) : ''}">${cols.map(c => `<td class="${c.cls || ''}">${c.render(r)}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// 판정 목록. **규칙은 서버(pipeline/monitor/verdict.py)에 있다** — 보고서의 findings 를 그대로 받아 쌓는다.
+// 화면이 스스로 flag() 하는 것은 화면에서만 아는 것 셋뿐이다: 절을 그리다 난 예외, 전체 목록(버튼으로 따로 받는다)의 잘림·실패,
+// data 보고서가 하나도 없다는 것. 규칙을 여기 더 넣지 않는다 — 시험이 없고 브라우저 시계로 재게 된다.
+const findings = [];
+let worst = 'ok';
+function flag(level, text, kind = 'client', section = null, ref = null) {
+  findings.push({ level, kind, text, section, ref });
+  if (level === 'bad') worst = 'bad'; else if (level === 'warn' && worst !== 'bad') worst = 'warn';
+}
+// 서버 판정을 받아들인다. 절 이름(어느 탭·어느 노드)을 붙여 목록에서 그 절로 갈 수 있게 한다.
+const TAB_LABEL = Object.fromEntries([['weekly', '주간 수집 회차'], ['curated', 'Curated 전처리 회차'], ['events', 'MinIO · 방금 올라온 것'],
+  ['prefixes', 'MinIO · 경로별 신규'], ['pointers', 'MinIO · 포인터'], ['inventory', 'MinIO · 전체 목록'], ['local', '로컬 디스크'], ['docker', '컨테이너·로그']]);
+function adopt(node, serverFindings) {
+  (serverFindings || []).forEach(f => {
+    const tab = tabOf(f.section);
+    findings.push({ ...f, sectionTitle: tab ? `${TAB_LABEL[tab] || tab} · ${node}` : node });
+    if (f.level === 'bad') worst = 'bad'; else if (f.level === 'warn' && worst !== 'bad') worst = 'warn';
+  });
+}
+// 행에 색을 칠할 때 — (절 id, ref) 로 그 행에 걸린 판정을 찾는다. 규칙을 다시 계산하지 않는다.
+const forRef = (section, ref) => findings.filter(f => f.section === section && f.ref === ref);
+const levelOf = (section, ref) => { const fs = forRef(section, ref); return fs.some(f => f.level === 'bad') ? 'bad' : fs.length ? 'warn' : null; };
+const hasKind = (section, ref, kind) => forRef(section, ref).some(f => f.kind === kind);
+
+// 절 카드 하나. 제목 옆에 이 절의 상태 배지(문제 N · 주의 N · 정상)가 붙고, 설명은 접힌 "읽는 법" 으로 내려간다.
+//   mark: 이 절을 그리기 시작할 때의 findings.length — 그 뒤에 쌓인 절 없는 항목(화면 자체 flag)이 이 절의 것이다.
+function card(id, title, meta, body, { mark = findings.length, help = '', extra = '' } = {}) {
+  findings.slice(mark).forEach(f => { if (!f.section) { f.section = id; f.sectionTitle = title; } });
+  const mine = findings.filter(f => f.section === id);
+  const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
+  const badge = bad ? chip(`문제 ${bad}`, 'bad') : warn ? chip(`주의 ${warn}`, 'warn') : chip('정상', 'done');
+  return `<section class="card ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="${esc(id)}">
+    <header><div class="ttl"><h2>${title}</h2>${badge}${extra}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</header>
+    ${body}
+    ${help ? `<details class="help"><summary>이 절 읽는 법</summary><div>${help}</div></details>` : ''}
+  </section>`;
+}
+const empty = text => `<div class="empty">${text}</div>`;
+
+
+// ── 주간 수집 회차 ───────────────────────────────────────────────────────
+const STATUS_CLS = { SUCCEEDED: 'ok', RUNNING: 'info', PENDING: 'muted', FAILED: 'warn', BLOCKED: 'bad', SKIPPED: 'muted', REQUESTED: 'info', NONE: 'muted' };
+const STEP_CLS = { ...STATUS_CLS, SUCCEEDED: 'done' };   // 단계 6개가 다 성공이면 회색 ✓ 여섯 — 비정상만 색이 든다
+const STATUS_KO = { SUCCEEDED: '성공', RUNNING: '실행 중', PENDING: '대기', FAILED: '실패', BLOCKED: '차단됨', SKIPPED: '건너뜀', REQUESTED: '요청됨', NONE: '없음' };
+function renderWeekly(node, weekly, now) {
+  if (!weekly) return '';
+  const mark = findings.length;
+  const runs = weekly.runs || [];
+  const sec = `${node}-weekly`;
+  // 이번 주 회차가 아예 없다 — 판정(주의/문제)은 서버가 했다. 여기서는 그 행을 맨 위에 세운다.
+  const ex = weekly.expected;
+  let missingRow = '';
+  if (ex && ex.missing) {
+    const level = levelOf(sec, `expected:${ex.week_of}`) || 'warn';
+    missingRow = `<tr class="sick"><td class="name mono">${esc(ex.week_of)}</td>
+      <td>${chip('시작 안 함', level)}</td>
+      <td><div class="steps">${chip('회차 객체 없음', 'muted')}</div><div class="cap">창 열림 ${ago(ex.window_open_at, now)} · run.json 도 우편함도 없다</div></td>
+      <td class="mono">—</td><td class="r">—</td></tr>`;
+  }
+  // 행의 색·칩은 서버 판정을 찾아 칠한다 — 규칙(오래된 RUNNING 의 기준 등)은 verdict.py 에만 있다.
+  const staleOf = r => hasKind(sec, r.week_of, 'weekly-stale');
+  const staleH = weekly.stale_running_hours || 26;
+  const rows = runs.map(r => {
+    const steps = (r.steps || []).map(s => chip(`${s.step} ${STATUS_KO[s.status] || s.status}${s.attempt_count > 1 ? ' ×' + s.attempt_count : ''}`, STEP_CLS[s.status],
+                                                s.error_message ? s.error_message.slice(0, 200) : '')).join('');
+    const errors = (r.steps || []).filter(s => s.error_message).map(s => `<b>${esc(s.step)}</b>\n${esc(s.error_message)}`).join('\n\n');
+    const detail = [];
+    if (r.last_error) detail.push(`<details><summary>마지막 오류</summary><pre class="err">${esc(r.last_error)}</pre></details>`);
+    if (errors) detail.push(`<details><summary>단계별 오류 메시지</summary><pre>${errors}</pre></details>`);
+    const stepDetails = (r.steps || []).filter(s => s.detail && Object.keys(s.detail).length);
+    if (stepDetails.length) detail.push(`<details><summary>단계 상세 (detail)</summary><pre>${esc(JSON.stringify(Object.fromEntries(stepDetails.map(s => [s.step, s.detail])), null, 1))}</pre></details>`);
+    const manual = r.manual && r.manual.requested_at
+      ? `<div class="cap">수동 요청 ${ago(r.manual.requested_at, now)} · ${r.manual.pending ? '<b class="newfg">아직 안 집어 감</b>' : '집어 감 ' + ago(r.manual.claimed_at, now)}</div>` : '';
+    const cov = r.coverage || {};
+    const stale = staleOf(r);
+    const cls = r.status === 'BLOCKED' || stale ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
+    return `<tr class="${cls}"><td class="name mono">${esc(r.week_of)}</td>
+      <td>${stale ? chip(`실행 중 · ${staleH}h 초과`, 'warn') : chip(STATUS_KO[r.status] || r.status, STATUS_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회</div>` : ''}</td>
+      <td><div class="steps">${steps || chip('단계 없음', 'muted')}</div>${manual}${detail.join('')}</td>
+      <td class="mono">${esc(cov.downloads_through || '—')}</td>
+      <td class="r">${ago(r.updated_at || r.finished_at || r.started_at, now)}</td></tr>`;
+  }).join('');
+  const body = (runs.length || missingRow)
+    ? `<table><thead><tr><th>회차 (week_of)</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th>데이터 끝 (downloads_through)</th><th class="r">갱신</th></tr></thead><tbody>${missingRow}${rows}</tbody></table>`
+    : empty('회차 객체가 하나도 없습니다. 타이머가 아직 한 번도 돌지 않았거나 _ops/weekly 를 못 읽는 것입니다.');
+  const nextLine = ex && !ex.window_open ? ` · 이번 주(${esc(ex.week_of)}) 창은 <span title="${esc(local(ex.window_open_at))}">${until(ex.window_open_at, now)}</span> 열림` : '';
+  return card(`${node}-weekly`, '주간 수집 회차',
+    `<span class="mono">pickage-raw/_ops/weekly</span> · ${weekly.weeks_total}주 중 최근 ${runs.length}주 · 읽음 ${ago(weekly.listed_at, now)}${nextLine}`,
+    body, { mark, help: '가장 최근 <b>성공</b> 회차의 "데이터 끝" 이 지금 서비스가 가진 다운로드 데이터의 끝입니다. 단계는 depsdev_t2 → gcs_sync → downloads_weekly → downloads_parquet → bronze_depsdev → bronze_downloads 순서이고, 회색 ✓ 는 끝난 단계, 색이 든 것만 봐야 할 단계입니다. ×N 은 시도 횟수. 이번 주 수집 창(화요일 10:00 KST)이 열렸는데 그 주 객체가 하나도 없으면 "시작 안 함" 행이 맨 위에 서고 — 6시간 안은 주의, 넘으면 문제 — 그것이 "실패" 보다 흔한 고장인 "아무 일도 안 일어남" 입니다. 단계 로그 전문은 로컬 디스크 탭의 <code>logs/&lt;step&gt;.log</code>.' });
+}
+
+// ── MinIO · 이벤트 (기본) ────────────────────────────────────────────────
+// 서버가 켜진 뒤 버킷 이벤트 구독으로 쌓은 것. 목록 조회를 하지 않는다.
+const EVENT_KO = { 'Put': '올라옴', 'CompleteMultipartUpload': '올라옴(멀티파트)', 'Copy': '복사', 'Delete': '지워짐', 'DeleteMarkerCreated': '지워짐' };
+const evName = e => { const m = (e.event || '').split(':').pop(); return (e.event || '').includes('Removed') ? '지워짐' : (EVENT_KO[m] || m); };
+const evRow = (e, now) => `<tr class="${(e.event || '').includes('Created') ? '' : 'dimrow'}"><td class="r">${ago(e.time, now)}</td>
+  <td class="mono">${esc(e.bucket)}</td><td class="name mono">${esc(e.key)}</td><td class="r">${bytes(e.size)}</td>
+  <td>${chip(evName(e), (e.event || '').includes('Removed') ? 'warn' : 'done')}</td><td class="mono">${esc(e.principal || '')}</td></tr>`;
+const evTable = (rows, now) => `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>객체</th><th class="r">크기</th><th>무엇</th><th>누가</th></tr></thead><tbody>${rows.map(e => evRow(e, now)).join('')}</tbody></table>`;
+
+// ── Curated 전처리 회차 (raw → Curated 디스패처, S15P21A506-372) ───────────────
+// 주간 회차 표와 같은 모양. 상태는 디스패처가 적은 것을 그대로 보여 준다 — 여기서 다시 판정하지 않는다.
+const CUR_CLS = { COMPLETE: 'ok', RUNNING: 'info', FAILED: 'warn', BLOCKED: 'bad', WAITING_INPUT: 'muted', NOT_STARTED: 'muted', NONE: 'muted' };
+const STAGE_CLS = { ...CUR_CLS, COMPLETE: 'done' };
+const CUR_KO = { COMPLETE: '완료', RUNNING: '실행 중', FAILED: '실패', BLOCKED: '차단됨', WAITING_INPUT: '입력 대기', NOT_STARTED: '시작 전', NONE: '없음' };
+const STAGE_KO = { snapshot: '스냅샷', package_version: '패키지·버전', downloads: '다운로드', repository: '저장소 지표', package_snapshot: '패키지 스냅샷', dependents: '역의존' };
+function renderCurated(node, cur, now) {
+  if (!cur) return '';
+  const mark = findings.length;
+  const runs = cur.runs || [];
+  const disp = cur.dispatcher;
+  const sec = `${node}-curated`;   // 판정은 서버가 했다 — 행 색은 levelOf 로 찾는다
+  const stageChips = r => r.stages.length
+    ? r.stages.map(s => chip(`${STAGE_KO[s.stage] || s.stage} ${CUR_KO[s.status] || s.status || ''}${s.attempt > 1 ? ' ×' + s.attempt : ''}`, STAGE_CLS[s.status],
+                             `${s.stage} · 시도 ${s.attempt}회${s.action === 'REVERIFIED' ? ' · 지난 결과 검증해 재사용' : ''}${s.error ? ' · ' + s.error.message : ''}`)).join('')
+    : chip(r.status === 'WAITING_INPUT' ? 'raw 회차 대기' : '실행기 상태 없음', 'muted');
+  const rows = runs.map(r => {
+    const lv = levelOf(sec, r.snapshot), stale = hasKind(sec, r.snapshot, 'curated-stale');
+    const cls = lv === 'bad' || stale ? 'sick' : r.status === 'RUNNING' ? 'new' : '';
+    const detail = [];
+    if (r.error) detail.push(`<details><summary>오류 (${esc(r.error.type || '')})</summary><pre class="err">${esc(r.error.message)}</pre></details>`);
+    return `<tr class="${cls}"><td class="name mono">${esc(r.snapshot)}${r.is_current ? ' ' + chip('현재 bundle', 'ok') : ''}<div class="cap">${esc(r.run_id || '')}</div></td>
+      <td>${stale ? chip('실행 중 · 36h 초과', 'warn') : chip(CUR_KO[r.status] || r.status, CUR_CLS[r.status])}${r.consecutive_failures ? `<div class="cap">연속 실패 ${r.consecutive_failures}회 · 시도 ${r.attempt}회</div>` : r.attempt > 1 ? `<div class="cap">시도 ${r.attempt}회</div>` : ''}</td>
+      <td><div class="steps">${stageChips(r)}</div>${detail.join('')}</td>
+      <td class="r">${ago(r.started_at, now)}</td>
+      <td class="r">${r.status === 'FAILED' && r.next_retry_at ? `<span class="newfg" title="${esc(local(r.next_retry_at))}">재시도 ${until(r.next_retry_at, now)}</span>` : ago(r.finished_at, now)}</td>
+      <td class="r">${ago(r.updated_at, now)}</td></tr>`;
+  }).join('');
+  const meta = `<span class="mono">${esc(cur.bucket)}/_ops/preprocessing</span> · ${num(cur.snapshots_total)}회차 중 최근 ${runs.length} · 읽음 ${ago(cur.listed_at, now)}`;
+  const current = cur.current ? `현재 완료 bundle <b class="mono">${esc(cur.current.snapshot)}</b>` : '<b>완료된 bundle 없음</b> (최초 baseline 게시 전이면 디스패처는 입력 대기로 끝난다)';
+  const dispLine = disp ? ` · 디스패처 마지막 발화 ${chip(disp.status === 'TICK_FINISHED' ? `정상 종료${disp.exit_code != null ? ` (종료 ${disp.exit_code})` : ''}` : `${disp.status}${disp.exit_code != null ? ` (종료 ${disp.exit_code})` : ''}`, disp.status === 'TICK_FINISHED' ? 'done' : 'warn')}` : '';
+  const body = `<div class="sub">${current}${dispLine}</div>
+    ${runs.length ? `<table><thead><tr><th>스냅샷</th><th>상태</th><th>단계 6개 · 시도 ×N</th><th class="r">시작</th><th class="r">끝 / 재시도</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`
+                  : empty('아직 회차 기록이 없습니다.')}`;
+  return card(`${node}-curated`, 'Curated 전처리 회차', meta, body,
+    { mark, help: '주간 수집이 SUCCEEDED 가 되면 같은 타이머가 그 날짜의 raw → Curated 전처리를 하나 고릅니다. 단계는 스냅샷 → 패키지·버전 → 다운로드 → 저장소 지표 → 패키지 스냅샷 → 역의존. 실패는 10·20·40·60분 간격으로 다시 시도하고 연속 10회면 차단됩니다 — 차단은 원인을 고친 뒤 <code>run-curated-retry.sh --retry-snapshot</code>. 단계 로그는 data 노드 <code>/srv/pickage/ingest-work/orchestration/&lt;run-id&gt;/</code>.' });
+}
+
+function renderEvents(node, minio, now) {
+  if (!minio) return '';
+  const ev = minio.events;
+  if (!ev) return '';
+  const mark = findings.length;
+  const buckets = Object.entries(ev.buckets || {});
+  const down = buckets.filter(([, b]) => !b.connected);          // 판정(주의)은 서버가 했다 — 여기서는 표지만
+  const openGaps = (ev.gaps || []).filter(g => g.to);
+  // 버킷 목록조차 아직 못 받은 상태 (MinIO 가 모니터보다 늦게 뜨는 중). 구독은 하나도 없다 — "구독한 버킷 없음" 으로 뭉개지 않는다.
+  const disc = ev.discovery || {};
+  const conn = disc.pending ? '버킷 목록 대기 중 (구독 전)'
+    : buckets.length ? `${buckets.length - down.length}/${buckets.length} 버킷 구독 중` : '구독한 버킷 없음';
+  const recent = ev.recent || [];
+  const head = recent.slice(0, 30), rest = recent.slice(30);
+  const gapsHtml = openGaps.length ? `<details><summary>${chip(`끊겼던 구간 ${openGaps.length}건`, 'warn')} — 그 사이 것은 모릅니다</summary><pre>${openGaps.map(g => `${esc(g.bucket)}  ${esc(local(g.from))} ~ ${esc(local(g.to))}  ${esc(g.error || '')}`).join('\n')}</pre></details>` : '';
+  const completed = ev.completed || [];
+  const prefixes = ev.prefixes || [];
+  const connChip = disc.pending ? chip(conn, 'warn') : down.length ? chip(conn, 'warn') : buckets.length ? chip(conn, 'done') : chip(conn, 'muted');
+  // 고리 버퍼가 한도에 닿으면 오래된 것부터 조용히 버려진다 — 그러면 아래 숫자가 전부 실제보다 적다. 인벤토리의 "목록 잘림" 과 같은 잣대.
+  const full = ev.full || (ev.held >= ev.max_events);
+  const coverage = ev.oldest ? `${ago(ev.oldest, now).replace(/<[^>]+>/g, '').replace(' 전', '')}치` : `${ev.retention_hours}시간치`;
+  const fullChip = full ? chip('보관 한도', 'warn', `한도 ${num(ev.max_events)}건에 닿아 오래된 것은 버려졌습니다 (${num(ev.dropped || 0)}건)`) : '';
+  const kpis = `<div class="kv">
+      <div><div class="k">완료 알림 (_SUCCESS)</div><div class="v ${completed.length ? 'newfg' : ''}">${num(completed.length)}<small>건</small></div><div class="n">${full ? `남은 ${coverage} 안에서` : `켜진 뒤 ${ev.retention_hours}시간치`}</div></div>
+      <div><div class="k">새 객체</div><div class="v ${ev.totals.created ? 'newfg' : ''}">+${num(ev.totals.created)}</div><div class="n">${bytes(ev.totals.bytes)} · <a href="#${esc(node)}-prefixes" onclick="return goTo('${esc(node)}-prefixes')">${prefixes.length}개 경로</a>${ev.totals.removed ? ` · 삭제 ${num(ev.totals.removed)}` : ''}${full ? ' · <b class="newfg" style="color:var(--warn)">한도에 닿아 실제보다 적음</b>' : ''}</div></div>
+      <div><div class="k">보관 중 이벤트</div><div class="v" ${full ? 'style="color:var(--warn)"' : ''}>${num(ev.held)}<small>/ ${num(ev.max_events)}건</small></div><div class="n">${full ? `한도 — ${num(ev.dropped || 0)}건 버림 · 가장 오래된 것 ${ago(ev.oldest, now)}` : `${ev.retention_hours}시간 보관 · ${ago(ev.listening_since, now)}부터`}</div></div>
+    </div>`;
+  const body = `${kpis}${gapsHtml}
+    <div class="bucket"><h3>완료 알림 <span>_SUCCESS 가 찍힌 실행 · ${completed.length}건</span></h3>
+      ${completed.length ? `<table><thead><tr><th class="r">언제</th><th>버킷</th><th>실행 경로</th><th>누가</th></tr></thead><tbody>${completed.slice(0, 50).map(e => `<tr><td class="r">${ago(e.time, now)}</td><td class="mono">${esc(e.bucket)}</td><td class="name mono">${esc(e.prefix)}</td><td class="mono">${esc(e.principal || '')}</td></tr>`).join('')}</tbody></table>` : empty('아직 없습니다. 회차가 끝나면 여기 뜹니다.')}</div>
+    <div class="bucket"><h3>이벤트 흐름 <span>최근 ${recent.length}건</span></h3>
+      ${recent.length ? evTable(head, now) + (rest.length ? `<details><summary>이전 ${rest.length}건</summary>${evTable(rest, now)}</details>` : '') : empty('아직 없습니다. 무언가 올라오면 15초 안에 보입니다.')}</div>`;
+  return card(`${node}-events`, 'MinIO · 방금 올라온 것', `${connChip}${fullChip} · <span title="${esc(local(ev.listening_since))}">${ago(ev.listening_since, now)}부터</span> 구독 · ${full ? `남은 ${coverage}` : `${ev.retention_hours}시간치`} ${num(ev.held)}건`, body,
+    { mark, help: `모니터가 켜진 뒤(${esc(local(ev.listening_since))})에 생긴 것만 여기 옵니다 — 버킷 이벤트 구독이라 목록 조회 비용이 없습니다. 보관은 ${ev.retention_hours}시간 또는 ${num(ev.max_events)}건 중 먼저 닿는 쪽까지이고, 건수 한도에 닿으면 오래된 것부터 버려져 "보관 한도" 표지가 붙고 이 절의 개수가 실제보다 적어집니다(백필 때 그렇습니다). 경로별로 묶은 것은 "MinIO 경로별 신규" 탭, 그 전 상태와 전체 개수는 "MinIO 전체 목록" 탭의 버튼으로 봅니다. 구독이 끊겼던 구간이 있으면 그 사이 것은 오지 않고, "끊겼던 구간" 으로 표시됩니다.` });
+}
+
+// ── MinIO · 경로별 신규 — 같은 이벤트를 경로(depth)로 묶은 것 ────────────
+function renderPrefixes(node, minio, now) {
+  if (!minio || !minio.events) return '';
+  const ev = minio.events;
+  const prefixes = ev.prefixes || [];
+  // 이 절의 표는 전부 "새로 생긴 것" 이라 행마다 새 것 표시를 붙이지 않는다 — 전부 붙으면 표시가 아니다.
+  const rows = prefixes.map(p => `<tr><td class="mono">${esc(p.bucket)}</td><td class="name mono">${esc(p.prefix)}
+      <details><summary>최근 객체 ${p.recent.length}개</summary><pre>${p.recent.map(o => `${esc(o.time.slice(11, 19))}  ${bytes(o.size).padStart(9)}  ${esc(o.key)}`).join('\n')}</pre></details></td>
+      <td class="r new">+${num(p.objects)}</td><td class="r">${bytes(p.bytes)}</td><td class="r">${ago(p.latest, now)}</td></tr>`).join('');
+  const kpis = `<div class="kv">
+      <div><div class="k">경로</div><div class="v">${num(prefixes.length)}<small>개</small></div><div class="n">이벤트 기준 · 깊이별 묶음</div></div>
+      <div><div class="k">새 객체</div><div class="v ${ev.totals.created ? 'newfg' : ''}">+${num(ev.totals.created)}</div><div class="n">${bytes(ev.totals.bytes)}${ev.totals.removed ? ` · 삭제 ${num(ev.totals.removed)}` : ''}</div></div>
+    </div>`;
+  const body = `${kpis}${prefixes.length
+    ? `<table><thead><tr><th>버킷</th><th>경로</th><th class="r">객체</th><th class="r">크기</th><th class="r">최근</th></tr></thead><tbody>${rows}</tbody></table>`
+    : empty('아직 없습니다. 무언가 올라오면 15초 안에 여기 묶여 보입니다.')}`;
+  const full = ev.full || (ev.held >= ev.max_events);
+  return card(`${node}-prefixes`, 'MinIO · 경로별 신규',
+    `${full ? chip('보관 한도', 'warn', `이벤트 버퍼가 한도 ${num(ev.max_events)}건에 닿아 오래된 것은 버려졌습니다 — 아래 개수는 실제보다 적습니다`) + ' · 남은 것만 · 가장 오래된 것 ' + ago(ev.oldest, now) : `켜진 뒤 ${ev.retention_hours}시간치 · ${ago(ev.listening_since, now)}부터`}`, body,
+    { help: '"MinIO 신규" 탭의 이벤트를 경로(raw·curated 는 스냅샷·수집일까지 4단계, 나머지는 3단계)로 묶어 어느 데이터셋·어느 실행에 무엇이 얼마나 생겼는지 봅니다. 경로를 펼치면 그 아래 최근 객체가 있습니다. 모니터가 켜지기 전 것까지 세려면 "MinIO 전체 목록" 탭입니다.' });
+}
+
+// ── 포인터 ─────────────────────────────────────────────────────────────
+function renderPointers(node, minio, now) {
+  if (!minio || !(minio.pointers || []).length) return '';
+  const rows = minio.pointers.map(p => {
+    const v = p.value || {};
+    return `<tr class="${p.missing ? 'dimrow' : ''}"><td class="name mono">${esc(p.bucket)}/${esc(p.key)}</td>
+      <td class="mono">${p.missing ? `없음 (${esc(p.error || '')})` : esc(v.run_id || v.run_path || JSON.stringify(v).slice(0, 80))}</td>
+      <td class="mono">${esc(v.collected_date || v.model || '')}</td><td class="r">${p.missing ? '—' : ago(p.modified, now)}</td></tr>`;
+  }).join('');
+  return card(`${node}-pointers`, 'MinIO · 포인터 (_current.json)', '소비자가 지금 읽는 실행',
+    `<table><thead><tr><th>객체</th><th>run_id</th><th>collected_date · 모델</th><th class="r">갱신</th></tr></thead><tbody>${rows}</tbody></table>`,
+    { help: '코퍼스 포인터가 바뀌면 다음 유사도 배치가 그것을 집고, 벡터 포인터가 바뀌면 app 노드의 로더가 DB 에 게시합니다. "없음" 은 아직 한 번도 게시되지 않았다는 뜻입니다.' });
+}
+
+// ── MinIO · 전체 목록 (버튼으로만) ──────────────────────────────────────
+// 버킷을 통째로 나열한다 — 객체 1,000개당 요청 하나. 그래서 사람이 누를 때만 하고,
+// 결과는 다음에 누를 때까지 그대로 둔다. 자동 갱신은 마지막 결과만 다시 읽는다.
+const inventories = {};       // node → 마지막 전체 목록 응답
+const invBusy = {};
+
+async function fullInventory(node) {
+  if (invBusy[node]) return;
+  invBusy[node] = true;
+  const btn = document.getElementById('inv-btn-' + node);
+  if (btn) { btn.disabled = true; btn.textContent = '전체 목록 조회 중… (객체가 많으면 오래 걸립니다)'; }
+  try {
+    const res = await fetch(`api/inventory?node=${encodeURIComponent(node)}&fresh=1`, { cache: 'no-store' });
+    inventories[node] = await res.json();
+  } catch (e) {
+    inventories[node] = { available: false, error: e.message };
+  } finally {
+    invBusy[node] = false;
+  }
+  await refresh(false);
+}
+
+function renderInventory(node, minio, now) {
+  if (!minio || !minio.inventory_enabled) return '';
+  const mark = findings.length;
+  const inv = inventories[node];
+  const button = `<button type="button" class="btn" id="inv-btn-${esc(node)}" onclick="fullInventory('${esc(node)}')">전체 목록 조회</button>`;
+  const helpText = '버킷을 통째로 나열해(객체 1,000개당 요청 하나) 모니터가 켜지기 <b>전</b>에 있던 것까지 셉니다 — 지난 스냅샷, 완료된 실행 전부, 경로별 개수와 크기, 24시간·7일 신규. 사람이 버튼을 누를 때만 돌고, 결과는 다음에 누를 때까지 그대로 남습니다. 방금 생긴 것은 위 "방금 올라온 것" 절이 답합니다.';
+  if (!inv || !inv.available) {
+    return card(`${node}-inventory`, 'MinIO · 전체 목록', '버튼을 눌렀을 때만',
+      `${empty('아직 조회하지 않았습니다.')}${inv && inv.error ? `<div class="fail">${esc(inv.error)}</div>` : ''}`,
+      { mark, help: helpText, extra: button });
+  }
+  const week = now - 7 * 86400 * 1000;
+  const runs = inv.completed_runs || [];
+  const recentRuns = runs.filter(r => Date.parse(r.completed_at) >= week), olderRuns = runs.filter(r => Date.parse(r.completed_at) < week);
+  const runRow = r => `<tr class="${Date.parse(r.completed_at) >= now - 86400 * 1000 ? 'new' : ''}"><td class="r">${ago(r.completed_at, now)}</td><td class="mono">${esc(r.bucket)}</td><td class="name mono">${esc(r.prefix)}</td><td class="r">${num(r.objects)}</td><td class="r">${bytes(r.bytes)}</td></tr>`;
+  const runTable = rows => `<table><thead><tr><th class="r">완료</th><th>버킷</th><th>실행 경로 (_SUCCESS 가 찍힌 곳)</th><th class="r">객체</th><th class="r">크기</th></tr></thead><tbody>${rows.map(runRow).join('')}</tbody></table>`;
+  const cards = (inv.buckets || []).map(b => {
+    if (b.error) { flag('warn', `MinIO 버킷 ${b.name} 전체 목록을 못 받았습니다 — ${b.error}`, 'inventory', `${node}-inventory`, b.name); return `<div class="bucket"><h3>${esc(b.name)}</h3><div class="fail">목록 실패 — ${esc(b.error)}</div></div>`; }
+    if (b.truncated) flag('warn', `MinIO 버킷 ${b.name} 전체 목록이 max_objects 에서 잘렸습니다. 아래 숫자가 전체가 아닙니다.`, 'inventory', `${node}-inventory`, b.name);
+    const prefixes = (b.prefixes || []).slice().sort((x, y) => (Date.parse(y.latest) || 0) - (Date.parse(x.latest) || 0));
+    const rows = prefixes.map(p => {
+      const fresh = p.new && p.new.objects > 0;
+      const recent = (p.recent || []).map(o => `${esc(o.modified.slice(0, 19).replace('T', ' '))}  ${bytes(o.size).padStart(9)}  ${esc(o.key)}`).join('\n');
+      return `<tr class="${fresh ? 'new' : ''}"><td class="name mono">${esc(p.prefix)}${fresh ? `<details><summary>최근 객체 ${p.recent.length}개</summary><pre>${recent}</pre></details>` : ''}</td>
+        <td class="r">${num(p.objects)}</td><td class="r">${bytes(p.bytes)}</td><td class="r">${ago(p.latest, now)}</td>
+        <td class="r ${fresh ? 'new' : ''}">${fresh ? `+${num(p.new.objects)} · ${bytes(p.new.bytes)}` : '—'}</td>
+        <td class="r">${p.new_7d && p.new_7d.objects ? `+${num(p.new_7d.objects)} · ${bytes(p.new_7d.bytes)}` : '—'}</td></tr>`;
+    }).join('');
+    return `<div class="bucket"><h3>${esc(b.name)}<span>${num(b.objects)} 객체 · ${bytes(b.bytes)} · 최근 변경 ${ago(b.latest, now)}</span>${b.truncated ? chip('목록 잘림', 'warn') : ''}</h3>
+      ${prefixes.length ? `<details><summary>경로 ${prefixes.length}개 (깊이 ${b.depth})</summary>
+        <table><thead><tr><th>경로</th><th class="r">객체</th><th class="r">크기</th><th class="r">최근 변경</th><th class="r">24시간 신규</th><th class="r">7일 신규</th></tr></thead><tbody>${rows}</tbody></table></details>` : empty('비어 있음')}</div>`;
+  }).join('');
+  const totalObjects = (inv.buckets || []).reduce((a, b) => a + (b.objects || 0), 0), totalBytes = (inv.buckets || []).reduce((a, b) => a + (b.bytes || 0), 0);
+  const kpis = `<div class="kv">
+      <div><div class="k">완료된 실행 · 지난 7일</div><div class="v ${recentRuns.length ? 'newfg' : ''}">${num(recentRuns.length)}<small>건</small></div><div class="n">전체 ${num(runs.length)}건 (최대 200)</div></div>
+      <div><div class="k">객체</div><div class="v">${num(totalObjects)}</div><div class="n">${(inv.buckets || []).length}개 버킷</div></div>
+      <div><div class="k">크기</div><div class="v">${bytes(totalBytes)}</div><div class="n">조회에 ${inv.took_seconds}초</div></div>
+    </div>`;
+  const body = `${kpis}
+    <div class="bucket"><h3>완료된 데이터셋 실행 <span>_SUCCESS 기준 · 지난 7일 ${recentRuns.length}건 · 전체 ${runs.length}건 (최대 200)</span></h3>
+      ${recentRuns.length ? runTable(recentRuns) : empty('지난 7일 동안 완료된 실행이 없습니다.')}
+      ${olderRuns.length ? `<details><summary>그 이전 ${olderRuns.length}건</summary>${runTable(olderRuns)}</details>` : ''}</div>
+    ${cards}
+    ${(inv.errors || []).length ? `<div class="fail">목록 실패 ${inv.errors.length}건 — ${inv.errors.map(e => esc(e.bucket + ': ' + e.error)).join(' · ')}</div>` : ''}`;
+  return card(`${node}-inventory`, 'MinIO · 전체 목록',
+    `<b title="${esc(local(inv.listed_at))}">${ago(inv.listed_at, now)}</b> 조회 · ${inv.took_seconds}초 걸림${inv.fetched_via ? ` · ${esc(inv.fetched_via)} 가 중계` : ''} · 버튼을 누른 시각의 것`,
+    body, { mark, help: helpText, extra: button });
+}
+
+// ── 로컬 디스크 ─────────────────────────────────────────────────────────
+function renderLocal(node, section, now) {
+  // 인자 이름을 local 로 두면 전역 local(iso) 을 가려 안의 시각 포맷이 깨지고, 가드가 함수를 검사해 늘 참이 된다. 그래서 section.
+  // section 이 없는 경우 둘: 서버의 local 절이 실패해 None 이거나(errors 에 이유가 있다), 그 노드에 훑을 경로가 없어 키 자체가 없다.
+  if (!section) return '';
+  const mark = findings.length;
+  const sec = `${node}-local`;
+  const paths = (section.paths || []).map((p, i) => {
+    if (p.missing) return `<div class="bucket"><h3>${esc(p.label)}</h3><div class="fail">경로가 없습니다 — compose 의 마운트를 보세요.</div></div>`;
+    const d = p.disk; let disk = '';
+    if (d && d.total) {
+      const usedPct = d.used / d.total * 100; const free = 100 - usedPct;
+      const lv = hasKind(sec, p.label, 'disk-free') ? (levelOf(sec, p.label) || '') : '';   // 임계(10%·20%)는 verdict.py 에만 있다
+      disk = `<div class="kv"><div><div class="k">파티션 남음</div><div class="v" style="${lv ? `color:var(--${lv})` : ''}">${Math.round(free)}<small>%</small></div><div class="bar ${lv}"><i style="width:${usedPct}%"></i></div><div class="n">${bytes(d.used)} 사용 · 전체 ${bytes(d.total)}</div></div>
+        <div><div class="k">이 경로</div><div class="v">${bytes(p.bytes)}</div><div class="n">${num(p.files)} 파일 · 최근 변경 ${ago(p.latest, now)}</div></div>
+        <div><div class="k">지난 ${p.new.window_hours}시간 신규</div><div class="v ${p.new.files ? 'newfg' : ''}">${p.new.files ? '+' : ''}${num(p.new.files)}<small>파일</small></div><div class="n">${bytes(p.new.bytes)}</div></div></div>`;
+    }
+    // 언제 훑었나. refresh_seconds 를 둔 경로(문헌 캐시)는 매 보고서가 아니라 주기마다 훑는다 — 그 시각을 숨기지 않는다.
+    const scanned = p.scanned_at ? `${ago(p.scanned_at, now)} 훑음 · ${p.scan_seconds ?? '—'}초 걸림 · ${p.refresh_seconds ? `${Math.round(p.refresh_seconds / 60)}분마다` : '보고서마다'}${p.cached ? ' · 마지막 결과' : ''}` : '';
+    const isNew = t => Date.parse(t) >= now - p.new.window_hours * 3600 * 1000;
+    const id = `${node}-local-${i}`;
+    const fileCols = [
+      { key: 'modified', label: '시각', type: 'time', cls: 'r', render: f => `<span title="${esc(local(f.modified))}">${esc(f.modified.slice(0, 19).replace('T', ' '))}</span>` },
+      { key: 'bytes', label: '크기', type: 'num', cls: 'r', render: f => bytes(f.bytes) },
+      { key: 'path', label: '경로', type: 'str', cls: 'name mono', render: f => esc(f.path) },
+    ];
+    const entries = table(`${id}-entries`, [
+      { key: 'name', label: '바로 아래', type: 'str', cls: 'name mono', render: e => esc(e.name) },
+      { key: 'files', label: '파일', type: 'num', cls: 'r', render: e => num(e.files) },
+      { key: 'bytes', label: '크기', type: 'num', cls: 'r', render: e => bytes(e.bytes) },
+      { key: 'latest', label: '최근 변경', type: 'time', cls: 'r', render: e => ago(e.latest, now) },
+      { key: 'oldest', label: '가장 오래된', type: 'time', cls: 'r', render: e => ago(e.oldest, now) },
+    ], p.entries || [], { key: 'latest', dir: 'desc' }, e => isNew(e.latest) ? 'new' : '');
+    const more = p.entries_total > (p.entries || []).length ? `<div class="cap">바로 아래 항목 ${num(p.entries_total)}개 중 최근 변경순 ${p.entries.length}개만 보입니다 (local.max_entries).</div>` : '';
+    const newList = p.new.files ? `<details><summary>지난 ${p.new.window_hours}시간에 생기거나 바뀐 파일 (최근 ${p.new.list.length}개)</summary>${table(`${id}-new`, fileCols, p.new.list, { key: 'modified', dir: 'desc' }, () => 'new')}</details>` : '';
+    const oldList = (p.oldest || []).length ? `<details><summary>가장 오래된 파일 ${p.oldest.length}개 — 캐시라면 비울 후보, 산출물이라면 안 지워진 옛 회차</summary>${table(`${id}-old`, fileCols, p.oldest, { key: 'modified', dir: 'asc' })}</details>` : '';
+    return `<div class="bucket"><h3><span class="mono" style="font-size:13px;color:var(--fg)">${esc(p.label)}</span>${p.note ? `<span>${esc(p.note)}</span>` : ''}</h3>${disk}
+      ${scanned ? `<div class="sub">${scanned}</div>` : ''}
+      ${entries}${more}
+      ${newList}${oldList}
+    </div>`;
+  }).join('');
+  // 단계 로그의 에러 줄 — 서버가 준 패턴·무시 패턴·임계로. 수집기 자신의 출력이라 기본 임계는 1줄이다.
+  const errRe = reFrom(section.error_pattern, ERR_RE), skipRe = reFrom(section.error_ignore_pattern);
+  const minL = section.error_min_lines == null ? 1 : section.error_min_lines;
+  const logs = (section.logs || []).map(l => {
+    return `<details><summary><span class="mono">${esc(l.path)}</span> · ${bytes(l.size)} · ${ago(l.modified, now)}${l.error_lines ? ' · ' + errChip(l.error_lines, minL) : ''}</summary>${pre(l.tail, errRe, skipRe)}</details>`;
+  }).join('');
+  const body = `${paths}
+    ${logs ? `<div class="bucket"><h3>단계별 로그 <span>최근 ${section.logs.length}개 · 꼬리 ${section.logs[0].tail.length}줄</span></h3>${logs}</div>` : ''}`;
+  return card(`${node}-local`, `로컬 디스크 · ${esc(node)}`, 'MinIO 에 올라가기 전의 산출물 · 단계별 로그 · 캐시', body,
+    { mark, help: '"바로 아래" 표는 그 경로 바로 아래 디렉터리별 파일 수·크기·최근/가장 오래된 시각입니다. 표 머리를 누르면 그 열로 정렬됩니다(최근순·오래된순·크기·개수). 주기를 둔 경로(문헌 캐시)는 매 보고서가 아니라 "N분마다" 훑고 그 사이는 마지막 결과를 보여 줍니다 — 훑은 시각이 표 위에 있습니다. 단계별 로그의 빨간 줄은 error·exception·oom 같은 단어가 있는 줄입니다.' });
+}
+
+// ── 컨테이너·로그 ───────────────────────────────────────────────────────
+function renderDocker(node, docker, now) {
+  if (!docker) return '';
+  const mark = findings.length;
+  let running = 0, sickCount = 0;
+  // 컨테이너 로그의 에러 줄 — 서버가 준 패턴·무시 패턴·임계. 재기동 직후 "Connection refused" 같은 정상 줄이 걸려
+  // 한 줄로 배너를 노랗게 만들지 않게 기본 임계는 3줄이다 (모니터링 스택을 name_pattern 에서 뺀 것과 같은 이유).
+  const errRe = reFrom(docker.error_pattern, ERR_RE), skipRe = reFrom(docker.error_ignore_pattern);
+  const minL = docker.error_min_lines == null ? 3 : docker.error_min_lines;
+  const rows = (docker.containers || []).map(c => {
+    // state 를 먼저 본다. paused · created · dead 도 ExitCode 는 0 이라 종료 코드로 가르면 "끝남 (0)" = 정상으로 새어 나간다.
+    //   running / restarting / paused / created / removing / exited / dead — Docker State.Status 의 일곱 값
+    // 판정(문제·주의·문구)은 서버가 했다. 여기서는 상태에 맞는 칩과, 그 행에 걸린 판정이 있으면 붉은 표시만.
+    const up = c.state === 'running';
+    let st;
+    if (c.state === 'restarting') st = chip('재시작 반복', 'bad');
+    else if (c.state === 'paused') st = chip('일시 중지', 'bad');
+    else if (c.state === 'dead') st = chip('죽음 (dead)', 'bad');
+    else if (c.state === 'created') st = chip('시작 안 됨', 'warn');
+    else if (c.state === 'removing') st = chip('지우는 중', 'muted');
+    else if (up) { running++; st = chip(c.health === 'unhealthy' ? '비정상' : c.health === 'healthy' ? '실행 중 · 건강' : '실행 중', c.health === 'unhealthy' ? 'bad' : 'ok'); }
+    else if (c.state === 'exited' && c.exit_code === 0) st = chip('끝남 (0)', 'done');
+    else if (c.state === 'exited') st = chip(`끝남 (${c.exit_code})`, 'warn');
+    else st = chip(`상태 ${c.state || '?'}`, 'warn');
+    const sick = forRef(`${node}-docker`, c.name).some(f => f.kind !== 'log-error');   // 로그 줄만 걸린 컨테이너는 아픈 게 아니다
+    if (sick) sickCount++;
+    const log = c.log || {};
+    const logHtml = log.error ? `<div class="fail">로그 못 읽음 — ${esc(log.error)}</div>`
+      : `<details><summary>최근 ${log.since_hours}시간 · 꼬리 ${(log.lines || []).length}줄${log.error_lines ? ' · ' + errChip(log.error_lines, minL) : ''}</summary>${pre(log.lines, errRe, skipRe)}</details>`;
+    return `<tr class="${sick ? 'sick' : ''}"><td class="name mono">${esc(c.name)}<div class="cap">${esc(c.image)}</div></td>
+      <td><div class="steps">${st}${c.oom_killed ? chip('OOM', 'bad') : ''}</div><div class="cap">${esc(c.status || '')}</div></td>
+      <td class="r ${c.restart_count ? 'newfg' : ''}">${c.restart_count || 0}</td>
+      <td class="r">${up ? ago(c.started_at, now) : ago(c.finished_at, now)}</td>
+      <td>${logHtml}</td></tr>`;
+  }).join('');
+  const total = (docker.containers || []).length;
+  const body = rows
+    ? `<table><thead><tr><th>컨테이너</th><th>상태</th><th class="r">재시작</th><th class="r">시작·종료</th><th>로그</th></tr></thead><tbody>${rows}</tbody></table>`
+    : empty('걸리는 컨테이너가 없습니다.');
+  return card(`${node}-docker`, `컨테이너·로그 · ${esc(node)}`,
+    `${total}개 중 실행 중 <b>${running}</b>${sickCount ? ` · 이상 <b style="color:var(--bad)">${sickCount}</b>` : ''} · 멈춘 것 포함, 모니터링 스택 자신은 제외`,
+    body, { mark, help: `"끝남 (0)" 은 <b>exited 상태에 종료 코드 0</b> 인 것만이고 정상입니다 — <code>minio-init</code> 같은 일회성 컨테이너와 회차를 마친 <code>pickage-weekly-run</code> 이 그렇습니다. 같은 종료 코드 0 이라도 <b>일시 중지(paused)</b>·<b>시작 안 됨(created)</b>·<b>죽음(dead)</b> 은 따로 표시되고 판정에 올라옵니다. 0 이 아닌 종료 코드·OOM·재시작 반복·healthcheck 실패도 판정 대상입니다. 재시작 횟수는 누적이라 0 이 아니어도 그 자체로는 문제가 아닙니다 — 늘어나는지를 보세요. 로그의 빨간 줄은 <code>${esc(docker.error_pattern || '')}</code> 에 걸리는 줄이고, <b>꼬리 ${(docker.containers || [])[0] ? (docker.containers[0].log || {}).tail || 40 : 40}줄 중 ${minL}줄 이상</b>일 때만 판정에 올립니다 — 재기동 직후 postgres·MinIO 를 기다리는 "Connection refused" 처럼 정상 동작이 걸리는 줄 한두 개로 배너를 노랗게 만들지 않기 위해서입니다. 그런 줄이 계속 걸리면 <code>error_ignore_pattern</code> 에 적어 세지 않게 합니다${docker.error_ignore_pattern ? ` (지금: <code>${esc(docker.error_ignore_pattern)}</code>)` : ''}.` });
+}
+
+// ── 노드 하나 ───────────────────────────────────────────────────────────
+// ── 탭 ────────────────────────────────────────────────────────────────
+// 절은 탭으로 나뉜다. 절 id 는 `<노드>-<탭>` 이라 id 끝 토큰이 곧 탭이다. 노드 요약 줄(id node-<노드>)은 탭 밖에 항상 있다.
+const TABS = [['weekly', '주간 수집'], ['curated', 'Curated 전처리'],
+              ['events', 'MinIO 신규'], ['prefixes', 'MinIO 경로별 신규'], ['pointers', 'MinIO 포인터'], ['inventory', 'MinIO 전체 목록'],
+              ['local', '로컬 디스크'], ['docker', '컨테이너·로그'], ['all', '전체']];
+const TAB_KEY = 'pickage-monitor-tab';
+let activeTab = (() => { try { return localStorage.getItem(TAB_KEY) || 'weekly'; } catch (e) { return 'weekly'; } })();
+const tabOf = id => id && !id.startsWith('node-') ? id.slice(id.lastIndexOf('-') + 1) : null;
+function setTab(key) {
+  if (!TABS.some(([k]) => k === key)) key = 'weekly';
+  activeTab = key;
+  try { localStorage.setItem(TAB_KEY, key); } catch (e) { /* 저장이 막혀도 이번 화면에는 적용된다 */ }
+  document.body.classList.toggle('tab-all', key === 'all');
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === key));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.dataset.tab === key));
+}
+// 판정 항목을 누르면 — 그 절이 있는 탭으로 가서 그 절을 보여 주고 잠깐 테두리를 밝힌다.
+function goTo(id) {
+  const tab = tabOf(id);
+  if (tab && activeTab !== 'all') setTab(tab);
+  const el = document.getElementById(id);
+  if (!el) return false;
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  return false;
+}
+function renderTabs() {
+  const count = key => {
+    const mine = findings.filter(f => key === 'all' ? true : tabOf(f.section) === key);
+    const bad = mine.filter(f => f.level === 'bad').length, warn = mine.filter(f => f.level === 'warn').length;
+    return bad ? chip(String(bad), 'bad', `문제 ${bad}`) : warn ? chip(String(warn), 'warn', `주의 ${warn}`) : '';
+  };
+  document.getElementById('tabs').innerHTML = TABS.map(([k, label], i) =>
+    `${k === 'all' ? '<span class="sep"></span>' : ''}<button type="button" data-tab="${k}" class="${k === activeTab ? 'on' : ''}" onclick="setTab('${k}')">${esc(label)}${count(k)}</button>`).join('');
+}
+
+// ── 갱신해도 보던 것이 그대로 — 절 단위 교체 ───────────────────────────
+// 통째로 innerHTML 을 바꾸면 펼친 <details> 가 닫히고 스크롤이 튄다. 그래서 id 가 있는 요소(절 카드·노드 줄)를
+// 하나씩 바꾸고, 바꾸기 전에 펼쳐 둔 details 의 열쇠를 적어 새 요소에서 다시 펼친다. 열쇠는 절 id + summary 글자
+// (숫자는 # 으로 뭉갠다 — "이전 51건" 이 "이전 52건" 이 돼도 같은 것) + 같은 글자 중 몇 번째인가. 스크롤 위치도 되돌린다.
+function detailKey(d) {
+  if (d.id) return d.id + '|self';     // 노드 줄처럼 자기 id 가 있으면 그것이 열쇠다 — summary 글자는 갱신마다 바뀔 수 있다 ("· 캐시")
+  const sec = d.closest('[id]');
+  const norm = x => ((x.querySelector(':scope > summary') || {}).textContent || '').replace(/\d+/g, '#').trim();
+  const text = norm(d);
+  const same = [...(sec || document).querySelectorAll('details')].filter(x => norm(x) === text);
+  return `${sec ? sec.id : ''}|${text}|${same.indexOf(d)}`;
+}
+function patch(container, html) {
+  const y = window.scrollY;
+  const open = new Set([...container.querySelectorAll('details[open]')].map(detailKey));
+  const fresh = document.createElement('div'); fresh.innerHTML = html;
+  const incoming = [...fresh.children];
+  const seen = new Set();
+  let cursor = null;   // 새 순서대로 끼워 넣기 위한 앵커
+  incoming.forEach(el => {
+    seen.add(el.id);
+    const old = el.id && container.querySelector(`:scope > [id="${el.id}"]`);
+    if (old) old.replaceWith(el); else if (cursor) cursor.after(el); else container.prepend(el);
+    cursor = el;
+  });
+  [...container.children].forEach(el => { if (!seen.has(el.id)) el.remove(); });
+  container.querySelectorAll('details').forEach(d => { if (open.has(detailKey(d))) d.open = true; });
+  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+}
+
+// 판정 항목 한 줄 — 심각도 표지 + 글자(누르면 그 절로) + 어느 절인지
+const findingItem = f => `<li>${chip(f.level === 'bad' ? '문제' : '주의', f.level)}<span>${f.section ? `<a href="#${esc(f.section)}" onclick="return goTo('${esc(f.section)}')">${esc(f.text)}</a>` : esc(f.text)}${f.sectionTitle ? `<span class="where">→ ${esc(f.sectionTitle)}</span>` : ''}</span></li>`;
+// 목록 — 문제가 먼저, 같은 수준 안에서 같은 종류(kind)가 3건 이상이면 한 줄로 묶어 접는다.
+// 로그 에러 줄 경고가 여럿 떠도 진짜 빨간 항목이 그 사이에 묻히지 않게.
+const KIND_KO = { 'log-error': '로그 꼬리의 에러 줄', container: '컨테이너 상태', 'container-oom': 'OOM', 'container-health': 'healthcheck 실패',
+  'disk-free': '파티션 여유', 'disk-missing': '경로 없음', 'events-disconnected': '이벤트 구독 끊김', 'weekly-blocked': '주간 회차 BLOCKED',
+  'weekly-failed': '주간 회차 FAILED', 'curated-failed': 'Curated 전처리 FAILED', report: '보고서 절 실패', client: '화면' };
+function findingList(items) {
+  if (!items.length) return '<ul class="flist"><li class="none">걸리는 것이 없습니다.</li></ul>';
+  const out = [];
+  for (const level of ['bad', 'warn']) {
+    const mine = items.filter(f => f.level === level);
+    const byKind = new Map();
+    mine.forEach(f => { const k = f.kind || 'client'; if (!byKind.has(k)) byKind.set(k, []); byKind.get(k).push(f); });
+    byKind.forEach((fs, kind) => {
+      if (fs.length < 3) { fs.forEach(f => out.push(findingItem(f))); return; }
+      const first = fs[0];
+      out.push(`<li>${chip(level === 'bad' ? '문제' : '주의', level)}<span><details><summary>${esc(KIND_KO[kind] || kind)} ${fs.length}건${first.sectionTitle ? ` <span class="where">→ ${esc(first.sectionTitle.replace(/ · .*$/, ''))} 등</span>` : ''}</summary><ul class="flist">${fs.map(findingItem).join('')}</ul></details></span></li>`);
+    });
+  }
+  return `<ul class="flist">${out.join('')}</ul>`;
+}
+// 문제·주의 태그 — 있는 것만, 둘 다 있으면 둘 다. 없으면 정상.
+const badges = items => {
+  const bad = items.filter(f => f.level === 'bad').length, warn = items.filter(f => f.level === 'warn').length;
+  return (bad ? chip(`문제 ${bad}`, 'bad') : '') + (warn ? chip(`주의 ${warn}`, 'warn') : '') + (!bad && !warn ? chip('정상', 'ok') : '');
+};
+const nodeOf = id => !id ? null : id.startsWith('node-') ? id.slice(5) : id.slice(0, id.lastIndexOf('-'));
+
+// 시각의 기준은 그 보고서를 만든 서버 시계다. 브라우저 시계가 어긋나도 "3분 전" 이 거짓말이 되지 않게 —
+// generated_at 에, 받은 뒤 흐른 시간(브라우저에서 잰 차이만)을 더한다. 정렬로 다시 그릴 때도 그만큼만 늙는다.
+function serverNow(report, fallback) {
+  const made = Date.parse(report.generated_at);
+  if (isNaN(made) || !report._received) return fallback;
+  return made + (Date.now() - report._received);
+}
+
+// 노드 하나 → 노드 줄(누르면 그 노드의 판정 항목) + 절 카드들(탭별). 어느 노드의 절인지는 카드 제목과 id 에 있다.
+function renderNode(node, report, browserNow) {
+  const mark = findings.length;
+  if (report.unreachable) {
+    flag('warn', `${node} 노드에 닿지 못했습니다 — ${(report.errors || [{}])[0].message || ''}`, 'client', `node-${node}`);
+    findings.slice(mark).forEach(f => { f.sectionTitle = node; });
+    const mine = findings.slice(mark);
+    return { strip: `<details class="nodebar has-warn" id="node-${esc(node)}"><summary><span class="name">${esc(node)}</span>${badges(mine)}</summary>
+        <div class="body"><div class="fail">${esc((report.errors || [{}])[0].message || '')}</div>${findingList(mine)}</div></details>`, cards: [] };
+  }
+  const now = serverNow(report, browserNow);
+  // 서버가 정한 판정을 받아들인다. 절 실패(errors)도 그 안에 들어 있다 — 여기서 다시 flag 하지 않는다.
+  adopt(node, report.findings);
+  if (report.findings == null && (report.errors || []).some(e => e.section === 'findings')) {
+    flag('warn', `${node}: 판정 절(findings) 자체가 실패했습니다 — 아래 카드는 그려지지만 판정 목록이 비어 있습니다. 서버 로그를 봅니다.`, 'report', `node-${node}`);
+  }
+  const via = report.fetched_via ? ` · ${esc(report.fetched_via)} 가 중계` : '';
+  const cached = report.cached ? ' · 캐시' : '';
+  const errors = (report.errors || []).map(e => `<div class="fail"><b>${esc(e.section)}</b> 절 실패 — ${esc(e.message)}</div>`).join('');
+  findings.slice(mark).forEach(f => { if (!f.sectionTitle) f.sectionTitle = node; });
+  // 절 하나를 그리다 예외가 나도 다른 절은 산다 — 그 자리에 실패 카드가 서고 판정에 올라간다.
+  // 서버가 "한 절이 죽어도 나머지는 만든다" 를 지키는데 화면이 통째로 날아가면 그 약속이 여기서 깨진다.
+  const safe = (tab, title, fn) => {
+    try { return fn(); }
+    catch (e) {
+      console.error(`[${node}-${tab}] 그리기 실패`, e);
+      const at = findings.length;
+      flag('warn', `${node}: "${title}" 절을 화면에 그리지 못했습니다 — ${e.message}. 서버 보고서는 정상일 수 있습니다 (브라우저 콘솔).`, 'render', `${node}-${tab}`);
+      return card(`${node}-${tab}`, title, chip('화면 그리기 실패', 'warn'),
+        `<div class="fail">${esc(e.message)}</div><details><summary>스택</summary><pre>${esc(e.stack || '')}</pre></details>`, { mark: at });
+    }
+  };
+  const cards = [
+    ['weekly', safe('weekly', '주간 수집 회차', () => renderWeekly(node, report.weekly, now))],
+    ['curated', safe('curated', 'Curated 전처리 회차', () => renderCurated(node, report.curated, now))],
+    ['events', safe('events', 'MinIO · 방금 올라온 것', () => renderEvents(node, report.minio, now))],
+    ['prefixes', safe('prefixes', 'MinIO · 경로별 신규', () => renderPrefixes(node, report.minio, now))],
+    ['pointers', safe('pointers', 'MinIO · 포인터 (_current.json)', () => renderPointers(node, report.minio, now))],
+    ['inventory', safe('inventory', 'MinIO · 전체 목록', () => renderInventory(node, report.minio, now))],
+    ['local', safe('local', `로컬 디스크 · ${node}`, () => renderLocal(node, report.local, now))],
+    ['docker', safe('docker', `컨테이너·로그 · ${node}`, () => renderDocker(node, report.docker, now))],
+  ].filter(([, html]) => html).map(([tab, html]) => ({ tab, html }));
+  const mine = findings.slice(mark);
+  const bad = mine.some(f => f.level === 'bad'), warn = mine.some(f => f.level === 'warn');
+  const skew = report._received ? Math.round((Date.parse(report.generated_at) - report._received) / 1000) : 0;
+  const skewNote = Math.abs(skew) > 60 ? ` · <b style="color:var(--warn)">서버·브라우저 시계 차이 ${skew > 0 ? '+' : ''}${skew}초</b>` : '';
+  const strip = `<details class="nodebar ${bad ? 'has-bad' : warn ? 'has-warn' : ''}" id="node-${esc(node)}">
+      <summary><span class="name">${esc(node)}</span><span class="host mono">${esc(report.hostname || '')}</span>${badges(mine)}
+        <span class="meta">${ago(report.generated_at, now)} 만듦 · ${report.took_seconds ?? '—'}초 걸림${via}${cached}${errors ? '' : ' · 모든 절 정상 생성'}${skewNote}</span></summary>
+      <div class="body">${errors}${findingList(mine)}</div></details>`;
+  return { strip, cards };
+}
+
+// 판정 — 제목 한 단어, 문제·주의 개수. 노드별 근거는 아래 노드 줄을 펼쳐 본다.
+// 어느 노드에도 속하지 않는 항목(전역 — 예: data 보고서가 하나도 없다)만 여기 목록으로 남는다.
+const MARKS = { ok: '✓', warn: '!', bad: '✕' };
+function setVerdict(cls, title, desc, items, nodes = []) {
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + cls;
+  v.querySelector('.mark').textContent = MARKS[cls.replace('is-', '')] || '…';
+  v.querySelector('.t').textContent = title;
+  v.querySelector('.d').textContent = desc;
+  const all = items || [];
+  const bad = all.filter(f => f.level === 'bad').length, warn = all.filter(f => f.level === 'warn').length;
+  v.querySelector('.counts').innerHTML = all.length
+    ? `${bad ? chip(`문제 ${bad}`, 'bad') : ''}${warn ? chip(`주의 ${warn}`, 'warn') : ''}` : '';
+  const global = all.filter(f => !nodes.includes(nodeOf(f.section)));
+  v.querySelector('.flist').innerHTML = global.length ? [...global.filter(f => f.level === 'bad'), ...global.filter(f => f.level === 'warn')].map(findingItem).join('') : '';
+}
+
+// 받아 둔 보고서로 화면을 그린다. 정렬을 바꿀 때는 서버에 다시 묻지 않고 이것만 다시 부른다.
+function draw(nodes, reports, now, elapsed) {
+  findings.length = 0; worst = 'ok';
+  lastDraw = [nodes, reports, now, elapsed];
+  // data 노드(MinIO·주간 회차를 가진 쪽)를 먼저 — 이 화면에 온 사람이 먼저 볼 것이 그것이다.
+  const order = nodes.map((n, i) => ({ n, r: reports[i] })).sort((a, b) => (b.r.weekly ? 1 : 0) - (a.r.weekly ? 1 : 0));
+  if (!order.some(x => x.r.weekly || x.r.minio)) flag('warn', 'MinIO·주간 회차 보고서(data 노드)가 없습니다. data 노드에 닿지 못했거나 그쪽 설정에서 minio 절이 꺼져 있습니다.', 'client');
+  const strips = [], byTab = Object.fromEntries(TABS.map(([k]) => [k, []]));
+  order.forEach(x => { const out = renderNode(x.n, x.r, now); strips.push(out.strip); out.cards.forEach(c => byTab[c.tab].push(c.html)); });
+  patch(document.getElementById('nodes'), strips.join(''));
+  TABS.filter(([k]) => k !== 'all').forEach(([k, label]) => {
+    const panel = document.querySelector(`.panel[data-tab="${k}"]`);
+    patch(panel, byTab[k].join('') || `<section class="card" id="empty-${k}">${empty(`${label} 절을 만드는 노드가 없습니다 — 그 노드에 닿지 못했거나 설정에서 꺼져 있습니다.`)}</section>`);
+  });
+  renderTabs();
+
+  document.getElementById('updated').textContent =
+    `${new Date(now).toLocaleTimeString('ko-KR')} 기준 · ${elapsed.toFixed(1)}초 걸림 · 15초마다`;
+  if (worst === 'ok') setVerdict('is-ok', '정상', '주간 회차·전처리·컨테이너·로그에서 걸리는 것이 없습니다.', [], nodes);
+  else if (worst === 'warn') setVerdict('is-warn', '주의', '당장 장애는 아니지만 두면 커지거나 확인이 필요한 것입니다. 노드 줄을 펼치면 항목이 있고, 누르면 그 절로 갑니다.', findings, nodes);
+  else setVerdict('is-bad', '문제', '노드 줄을 펼쳐 빨간 항목부터 보세요. 항목을 누르면 그 절로 갑니다.', findings, nodes);
+}
+
+async function refreshOnce(fresh) {
+  const started = Date.now();
+  try {
+    const r = await fetch('api/nodes', { cache: 'no-store' });
+    if (!r.ok) throw new Error('api/nodes ' + r.status);
+    const nodes = (await r.json()).nodes || [];
+    // 노드마다 따로 묻는다. 하나가 느리거나 죽어도 나머지는 온다.
+    const reports = await Promise.all(nodes.map(async node => {
+      try {
+        const res = await fetch(`api/report?node=${encodeURIComponent(node)}${fresh ? '&fresh=1' : ''}`, { cache: 'no-store' });
+        const body = await res.json();
+        body._received = Date.now();   // 서버 시각(generated_at)을 기준으로 상대시각을 재기 위해 — serverNow()
+        return body.node ? body : { node, unreachable: true, errors: [{ section: 'fetch', message: `${res.status}` }] };
+      } catch (e) {
+        return { node, unreachable: true, errors: [{ section: 'fetch', message: e.message }] };
+      }
+    }));
+    await Promise.all(nodes.map(async (node, i) => {
+      const m = reports[i] && reports[i].minio;
+      if (!m || !m.inventory_enabled || invBusy[node]) return;
+      try {
+        const res = await fetch(`api/inventory?node=${encodeURIComponent(node)}`, { cache: 'no-store' });
+        const body = await res.json();
+        if (body.available || !inventories[node]) inventories[node] = body;
+      } catch (e) { /* 전체 목록은 없어도 화면은 선다 */ }
+    }));
+    const now = Date.now();
+    // 읽기(fetch)와 그리기(draw)의 실패는 다른 곳을 봐야 한다. 그리기 실패는 터널 탓이 아니다 — 브라우저 콘솔이다.
+    try { draw(nodes, reports, now, (now - started) / 1000); }
+    catch (e) {
+      console.error('화면 그리기 실패', e);
+      setVerdict('is-bad', '화면을 그리지 못했습니다', e.message + ' — 서버 보고서는 받았습니다. 브라우저 콘솔의 스택을 보세요 (web/index.html 의 결함).', [{ level: 'bad', text: e.message }]);
+      document.getElementById('updated').textContent = '그리기 실패 · ' + new Date().toLocaleTimeString('ko-KR');
+    }
+  } catch (e) {
+    setVerdict('is-bad', '상태를 읽지 못했습니다', e.message + ' — pipeline-monitor 가 내려갔거나 SSH 터널(19998)이 끊겼을 수 있습니다.', [{ level: 'bad', text: e.message }]);
+    document.getElementById('updated').textContent = '갱신 실패 · ' + new Date().toLocaleTimeString('ko-KR');
+  }
+}
+
+// ── 갱신 — status.html 과 같은 모양. 겹쳐 돌지 않는다 ────────────────────
+// 15초. 값은 서버가 물을 때마다 만들므로 이 주기가 곧 "얼마나 실시간인가" 다.
+// MinIO 는 이벤트 구독이라 갱신에 비용이 없다. 전체 목록은 그 절의 버튼으로만 긁는다.
+let busy = false, timer = null;
+async function refresh(fresh) { if (busy) return; busy = true; try { await refreshOnce(fresh); } finally { busy = false; } }
+function rearm() { clearInterval(timer); timer = setInterval(() => refresh(false), 15000); }
+// 탭 패널은 한 번 만들고, 그 안의 절 카드만 갱신마다 교체한다 (patch).
+document.getElementById('body').innerHTML = TABS.filter(([k]) => k !== 'all').map(([k]) => `<div class="panel" data-tab="${k}"></div>`).join('');
+renderTabs(); setTab(activeTab);
+const nowBtn = document.getElementById('now');
+nowBtn.addEventListener('click', async () => {
+  nowBtn.disabled = true; const label = nowBtn.textContent; nowBtn.textContent = '다시 만드는 중…';
+  await refresh(true); nowBtn.textContent = label; nowBtn.disabled = false; rearm();
+});
+refresh(false); rearm();
+</script>

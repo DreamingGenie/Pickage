@@ -1,0 +1,1 @@
+{"scope":"LOCAL_RUNTIME_SETTING_CHECK_ONLY","image":"pickage-spark-experiment:runtime-3.5.3","max_heap_bytes":4294967296,"driver_memory":"4g","master":"local[2]","rows":1,"container_memory_bytes":8053063680,"swap_bytes":0,"real_data_run":false}

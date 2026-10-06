@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "elapsed_seconds": 18.69281670000055,
+  "unchanged_completed_files": 1317,
+  "result": {
+    "run_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-i32\\gpu",
+    "run_status": "COMPLETE",
+    "scope": "SAMPLE",
+    "run_manifest_sha256": "c9a4cb637c9eaa28bdc9e88bc209e25e9e62922ae6f1eff9fb39d8705d20e32e",
+    "cache_dir": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-i32\\gpu\\finalizations\\f50eb84e22e742ba9864b91aeb4d6130\\cache",
+    "cache_sha256": "f09b11e82904b1dce1fac20f49a656fbe2c6c58ac00c7ba88be7bde75ba85078",
+    "written_partitions": [],
+    "reused_partitions": [
+      0,
+      9,
+      12,
+      14,
+      15,
+      18,
+      26,
+      29,
+      34,
+      42,
+      43,
+      48,
+      49,
+      68,
+      74,
+      75,
+      84,
+      88,
+      92,
+      94,
+      107,
+      108,
+      109,
+      112,
+      116,
+      118,
+      122
+    ],
+    "worker_metrics": {},
+    "resolver_backend": "gpu",
+    "resolver_runtime": {
+      "backend": "gpu",
+      "numpy": "2.2.6",
+      "torch": "2.7.1+cu128",
+      "cuda": "12.8",
+      "device": "NVIDIA GeForce RTX 4070 Laptop GPU",
+      "total_memory_bytes": 8585281536,
+      "algorithm": "cuda-scatter-amax-cummax"
+    },
+    "elapsed_seconds": 18.671999999991385,
+    "memory": {
+      "rss_bytes": 541876224,
+      "os_peak_rss_bytes": 1877082112,
+      "private_bytes": 1630121984
+    },
+    "full_selection_executed": false,
+    "ready_for_load": false
+  }
+}

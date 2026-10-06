@@ -1,0 +1,45 @@
+[02:21:12] package_text: 922322 행 중 dependents>=5, download_rank<=100000 인 52342 행만 읽음  (/work/in/package_text.parquet)
+[02:21:12] 자격 필터: 52342 → 17807  (dependents<5 0, 12개월 초과 34410, deprecated/spam 125)
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+[1;31m2026-09-25 02:21:13.409081510 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 26, index: 3, mask: {4, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.412919912 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 30, index: 7, mask: {8, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.409471612 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 31, index: 8, mask: {9, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.412934123 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 27, index: 4, mask: {5, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.412974274 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 32, index: 9, mask: {10, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.409280291 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 29, index: 6, mask: {7, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.416944382 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 36, index: 13, mask: {14, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.409204060 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 28, index: 5, mask: {6, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.420901069 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 33, index: 10, mask: {11, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.420923760 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 34, index: 11, mask: {12, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.424997843 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 35, index: 12, mask: {13, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[1;31m2026-09-25 02:21:13.428898948 [E:onnxruntime:Default, env.cc:298 ThreadMain] pthread_setaffinity_np failed for thread: 37, index: 14, mask: {15, }, error code: 22 error msg: Invalid argument. Specify the number of threads explicitly so the affinity is not set.[m
+[02:21:14] ONNX 로드: /work/in/model  (model_ver=bge-small-v7-v5clean-batch32-step500)
+[02:21:14] 재임베딩 대상: 17807 / 17807 (변경·신규분)
+[02:23:17]   임베딩 1600/17807
+[02:24:48]   임베딩 3200/17807
+[02:26:28]   임베딩 4800/17807
+[02:28:22]   임베딩 6400/17807
+[02:30:00]   임베딩 8000/17807
+[02:31:47]   임베딩 9600/17807
+[02:33:45]   임베딩 11200/17807
+[02:35:26]   임베딩 12800/17807
+[02:37:21]   임베딩 14400/17807
+[02:38:57]   임베딩 16000/17807
+[02:40:40]   임베딩 17600/17807
+[02:40:50]   top-30 2000/17807
+[02:40:50]   top-30 4000/17807
+[02:40:50]   top-30 6000/17807
+[02:40:50]   top-30 8000/17807
+[02:40:51]   top-30 10000/17807
+[02:40:51]   top-30 12000/17807
+[02:40:51]   top-30 14000/17807
+[02:40:51]   top-30 16000/17807
+[02:40:51]   top-30 17807/17807
+[02:40:51] 검색 top-30: 534210 쌍 (17807 base)
+[02:40:51] 경고: 보완재 관문 건너뜀 — dependents 데이터 없음 (--package-text 옆 package_dependents.parquet 없음)
+[02:40:52] 구조적 관문: {'plugin_adapter': 58166, 'same_family': 119651, 'repo_archived': 1538, 'complement': None} → 354855 쌍 잔여
+[02:40:53] 채점 게이트: SKIPPED (51K holdout undefined (S15P21A506-169))
+[02:40:54] _SUCCESS 기록 (/work/out/result)
+[02:40:54] 완료 — 1182.4s
+CGROUP_MEMORY_PEAK=4289159168
+BATCH_EXIT=0

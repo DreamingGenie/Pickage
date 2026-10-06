@@ -1,0 +1,44 @@
+{
+  "source_counts": "C:\\Users\\SSAFY\\workspace\\S15P21A506\\data\\vd-i32\\gpu\\finalizations\\f50eb84e22e742ba9864b91aeb4d6130\\history\\snapshot=2026-08-31\\attempts\\645cb53827b8450dbcabbb1442751146\\counts.parquet",
+  "source_counts_sha256": "98c33e4c309fcf4ce39ae3578c8711379c035a1bb1cb4639a7fad0a00eead1ae",
+  "backend": "gpu",
+  "resolution_status": "PARTIAL",
+  "rows": [
+    {
+      "name": "axios",
+      "version": "1.20.0",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 1132689
+    },
+    {
+      "name": "axios",
+      "version": "0.21.4",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 330074
+    },
+    {
+      "name": "lodash",
+      "version": "4.18.1",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 2606910
+    },
+    {
+      "name": "lodash",
+      "version": "4.17.21",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 288288
+    },
+    {
+      "name": "react",
+      "version": "18.3.1",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 802275
+    },
+    {
+      "name": "react",
+      "version": "16.14.0",
+      "snapshot_at": "2026-08-31",
+      "dependents_count": 530228
+    }
+  ]
+}

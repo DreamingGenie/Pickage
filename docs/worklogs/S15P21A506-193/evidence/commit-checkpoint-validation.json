@@ -1,0 +1,38 @@
+{
+  "scope": "H1-H4 implementation and H5-A completed profiling checkpoint; H5-B full historical count not run",
+  "tests": {
+    "tests": 180,
+    "successful": true,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 83.183
+  },
+  "python_ast_files": 30,
+  "node_syntax_check": "PASS",
+  "unchanged_python_code_files": 30,
+  "profile_generation_contract_files": 12,
+  "profile_generation_contract_matches": true,
+  "historical_semver_worker_sha256": "22a7e19ed37c826f3bd6a9b3f3713a1676637d3cf86317ab58ab794bfc0eb543",
+  "historical_count_status": "NOT_COMPUTED",
+  "db_write_performed": false,
+  "push_performed": false,
+  "review": "README now reflects H5-A COMPLETE and H5-B not run. All scoped code bytes preserved; existing external line-ending differences recorded without modifying those files or artifact manifests.",
+  "staged_files": 104,
+  "index_file_scope_check": "PASS",
+  "index_profile_generation_contract_matching_files": 10,
+  "preexisting_external_generation_byte_differences": [
+    {
+      "path": "pipeline/snapshot/policy.py",
+      "reason": "Pre-existing external dependency CRLF worktree versus LF Git blob; file unchanged by this commit"
+    },
+    {
+      "path": "pipeline/postgresql/input.py",
+      "reason": "Pre-existing external dependency CRLF worktree versus LF Git blob; file unchanged by this commit"
+    }
+  ],
+  "checkout_raw_byte_files_checked": 31,
+  "checkout_raw_bytes_match": true,
+  "git_diff_cached_check": "PASS",
+  "credential_pattern_scan": "PASS"
+}

@@ -1,0 +1,42 @@
+{
+ "test": "data/rehearsal475/inputs/test_alternatives_full_v2.jsonl",
+ "pairs": 315,
+ "runs": {
+  "R0": {
+   "all": {
+    "pairs": 315,
+    "recall@3": 0.0476,
+    "recall@20": 0.1333,
+    "queries": 85,
+    "query_hit@3": 9
+   },
+   "in_scope": {
+    "pairs": 62,
+    "recall@3": 0.2419,
+    "recall@20": 0.6774,
+    "queries": 23,
+    "query_hit@3": 9
+   },
+   "a_in_corpus": 33,
+   "b_in_corpus": 27
+  },
+  "R1": {
+   "all": {
+    "pairs": 315,
+    "recall@3": 0.0571,
+    "recall@20": 0.1111,
+    "queries": 85,
+    "query_hit@3": 12
+   },
+   "in_scope": {
+    "pairs": 62,
+    "recall@3": 0.2903,
+    "recall@20": 0.5645,
+    "queries": 23,
+    "query_hit@3": 12
+   },
+   "a_in_corpus": 33,
+   "b_in_corpus": 27
+  }
+ }
+}

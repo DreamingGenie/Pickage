@@ -1,0 +1,239 @@
+{
+ "A": {
+  "path": "data/rehearsal475/runs/R2/out/result/candidates.parquet",
+  "rows": 204752,
+  "bases": 26406
+ },
+ "B": {
+  "path": "data/rehearsal475/prod_P4_candidates.parquet",
+  "rows": 203564,
+  "bases": 26187
+ },
+ "bases_common": 26179,
+ "bases_only_A": 227,
+ "bases_only_B": 8,
+ "top3_identical_order": 23991,
+ "top3_identical_set": 24445,
+ "top3_identical_order_pct": 91.64,
+ "top20_overlap_mean": 0.9692,
+ "bases_with_lt3_A": 1028,
+ "bases_with_lt3_B": 996,
+ "outside_available_A": {
+  "bases": 150,
+  "top3_candidates": 151
+ },
+ "outside_available_B": {
+  "bases": 0,
+  "top3_candidates": 0
+ },
+ "probes": {
+  "ws": {
+   "A": [
+    "pusher",
+    "partysocket",
+    "rpc-websockets"
+   ],
+   "B": [
+    "pusher",
+    "partysocket",
+    "rpc-websockets"
+   ]
+  },
+  "js-yaml": {
+   "A": [
+    "@zkochan/js-yaml",
+    "yaml",
+    "yaml-eslint-parser"
+   ],
+   "B": [
+    "@zkochan/js-yaml",
+    "yaml",
+    "yaml-eslint-parser"
+   ]
+  },
+  "yaml": {
+   "A": [
+    "js-yaml",
+    "@zkochan/js-yaml",
+    "read-yaml-file"
+   ],
+   "B": [
+    "@zkochan/js-yaml",
+    "js-yaml",
+    "read-yaml-file"
+   ]
+  },
+  "axios": {
+   "A": [
+    "undici",
+    "@algolia/requester-node-http",
+    "@algolia/requester-browser-xhr"
+   ],
+   "B": [
+    "undici",
+    "@algolia/requester-node-http",
+    "@algolia/requester-browser-xhr"
+   ]
+  },
+  "express": {
+   "A": [
+    "fastify",
+    "@tinyhttp/app",
+    "@hapi/hapi"
+   ],
+   "B": [
+    "fastify",
+    "@tinyhttp/app",
+    "@hapi/hapi"
+   ]
+  },
+  "react": {
+   "A": [
+    "carbon-react",
+    "inferno",
+    "blade"
+   ],
+   "B": [
+    "carbon-react",
+    "inferno",
+    "blade"
+   ]
+  },
+  "lodash": {
+   "A": [
+    "min-dash",
+    "remeda",
+    "rollup"
+   ],
+   "B": [
+    "min-dash",
+    "remeda",
+    "rollup"
+   ]
+  },
+  "moment": {
+   "A": [],
+   "B": []
+  },
+  "webpack": {
+   "A": [
+    "@textlint/module-interop",
+    "mlly",
+    "current-module-paths"
+   ],
+   "B": [
+    "@textlint/module-interop",
+    "mlly",
+    "current-module-paths"
+   ]
+  },
+  "jest": {
+   "A": [
+    "mocha",
+    "ava",
+    "jasmine-core"
+   ],
+   "B": [
+    "mocha",
+    "ava",
+    "jasmine-core"
+   ]
+  },
+  "cheerio": {
+   "A": [
+    "htmlparser2",
+    "node-html-parser",
+    "sax-wasm"
+   ],
+   "B": [
+    "htmlparser2",
+    "node-html-parser",
+    "sax-wasm"
+   ]
+  },
+  "jsdom": {
+   "A": [
+    "@oozcitak/dom",
+    "@types/web",
+    "min-document"
+   ],
+   "B": [
+    "@oozcitak/dom",
+    "@types/web",
+    "min-document"
+   ]
+  },
+  "marked": {
+   "A": [
+    "markdown-it",
+    "node-html-markdown",
+    "markdown-to-jsx"
+   ],
+   "B": [
+    "markdown-it",
+    "node-html-markdown",
+    "markdown-to-jsx"
+   ]
+  },
+  "commander": {
+   "A": [
+    "@adonisjs/ace",
+    "argue-cli",
+    "command-line-args"
+   ],
+   "B": [
+    "@adonisjs/ace",
+    "argue-cli",
+    "command-line-args"
+   ]
+  },
+  "chalk": {
+   "A": [
+    "yoctocolors",
+    "@colors/colors",
+    "colors-option"
+   ],
+   "B": [
+    "yoctocolors",
+    "@colors/colors",
+    "colors-option"
+   ]
+  },
+  "uuid": {
+   "A": [
+    "short-uuid",
+    "@bugsnag/cuid",
+    "uuidv7"
+   ],
+   "B": [
+    "short-uuid",
+    "@bugsnag/cuid",
+    "uuidv7"
+   ]
+  },
+  "dotenv": {
+   "A": [
+    "@adonisjs/env",
+    "react-native-config",
+    "env-schema"
+   ],
+   "B": [
+    "@adonisjs/env",
+    "react-native-config",
+    "env-schema"
+   ]
+  },
+  "zod": {
+   "A": [
+    "joi",
+    "ajv",
+    "@redocly/ajv"
+   ],
+   "B": [
+    "joi",
+    "@redocly/ajv",
+    "ajv"
+   ]
+  }
+ }
+}

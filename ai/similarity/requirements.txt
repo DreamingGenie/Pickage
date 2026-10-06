@@ -1,0 +1,35 @@
+# similarity_batch_pipeline.py 의존성.
+# EC2 #1(x86_64)에서 onnxruntime CPU 추론 + parquet I/O.
+#
+# 버전 고정 (2026-09-16, S15P21A506-339 CI/CD 도입 계기로 처음 고정함):
+# qualify → embed_corpus(OnnxEmbedder) → top_k → apply_gates → rerank → scoring_gate →
+# write_output 전체 경로를, MODEL_CONTRACT.md 규격(입력 input_ids/attention_mask int64 →
+# 출력 last_hidden_state float32 [batch,seq,384])을 만족하는 더미 ONNX 모델 + 합성
+# package_text로 Dockerfile과 같은 **Python 3.11**(python:3.11-slim-bookworm)에서 실제
+# 실행해 _SUCCESS 산출까지 확인함 — 이전까지는 이 코드 경로가 로컬·CI 어디서도 한 번도
+# 실행된 적이 없었다(유닛테스트는 순수 함수만 검사하고 이 무거운 의존성들은 지연
+# import라 커버 안 됨).
+#
+# ⚠ numpy만 3.12+ 요구 버전이 있어 처음엔 2.5.3으로 잘못 고정했었다 — 로컬 기본
+#   파이썬(3.14)에서 검증했다가 뒤늦게 Dockerfile의 3.11과 다르다는 걸 발견해 재검증함
+#   (2.5.3은 3.11에서 설치 자체가 안 됨). **버전을 다시 바꿀 때는 반드시 3.11 환경에서
+#   설치·실행까지 재확인할 것** — 로컬 기본 파이썬 버전과 다르면 이 사고가 재발한다.
+# ⚠ 검증 환경은 로컬 Windows(x86_64, 단 파이썬 버전은 3.11로 맞춤)이었다.
+#   2026-09-16 `linux/amd64` 컨테이너 안에서 다시 확인함 (S15P21A506-339): 이미지 빌드
+#   성공, 넷 동시 import 성공(numpy 2.4.6 / onnxruntime 1.30.0 / pyarrow 25.0.1 /
+#   transformers 5.17.0), 유닛테스트 73개 통과. **EC2 #1 위에서 돌린 것은 아니다** —
+#   같은 아키텍처·같은 베이스 이미지지만 노드에서의 실측은 여전히 S15P21A506-287 몫이다.
+#   지금부터는 이 확인을 `ai-test` 잡이 매번 한다 (.gitlab-ci.yml).
+#
+#   참고: transformers 는 torch 를 끌고 오지 않는다(위 최종 목록에 없음 — tokenizer 만
+#   쓰므로). import 할 때 "PyTorch was not found" 가 stderr 에 찍히는 것은 정상이다.
+# ⚠ 더미 ONNX 그래프는 Cast/Shape/Concat/Expand 같은 기본 연산만 쓴다 — 실제 v7
+#   모델(BERT, opset 18, Attention/LayerNorm 등)의 모든 연산자가 onnxruntime 1.30.0에서
+#   똑같이 도는지까지 검증한 것은 아니다(다만 opset 18의 표준 BERT 연산은 onnxruntime이
+#   오래전부터 지원해 위험은 낮다고 판단).
+numpy==2.4.6
+onnxruntime==1.30.0
+pyarrow==25.0.1
+transformers==5.17.0
+# tokenizer.json(fast) 사용 — sentencepiece 불필요.
+# 채점 게이트(S15P21A506-169)·보완재 감점(의존 그래프) 구현 시 추가 의존성 검토.

@@ -1,0 +1,25 @@
+test_compound_keys_are_not_concatenated (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_compound_keys_are_not_concatenated) ... ok
+test_duplicate_and_multiple_sources_count (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_duplicate_and_multiple_sources_count) ... ok
+test_duplicate_empty_and_wrong_snapshot_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_duplicate_empty_and_wrong_snapshot_rejected) ... ok
+test_empty_edges_still_emit_zero_targets (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_empty_edges_still_emit_zero_targets) ... ok
+test_empty_population_and_bad_version_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_empty_population_and_bad_version_rejected) ... ok
+test_existing_scratch_is_rejected_without_replacement (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_existing_scratch_is_rejected_without_replacement) ... ok
+test_failed_retry_preserves_previous_result (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_failed_retry_preserves_previous_result) ... ok
+test_future_and_null_publication_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_future_and_null_publication_rejected) ... ok
+test_guard_rejection_leaves_no_result (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_guard_rejection_leaves_no_result) ... ok
+test_invalid_version_forms_rejected_in_both_populations (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_invalid_version_forms_rejected_in_both_populations) ... ok
+test_malformed_population_and_orphan_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_malformed_population_and_orphan_rejected) ... ok
+test_mismatched_snapshot_date_and_timestamp_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_mismatched_snapshot_date_and_timestamp_rejected) ... ok
+test_non_utc_equivalent_timestamp_is_normalized (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_non_utc_equivalent_timestamp_is_normalized) ... ok
+test_orphan_source_and_invalid_identity_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_orphan_source_and_invalid_identity_rejected) ... ok
+test_publication_exact_timestamp_is_allowed_but_later_is_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_publication_exact_timestamp_is_allowed_but_later_is_rejected) ... ok
+test_result_count_is_integer (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_result_count_is_integer) ... ok
+test_result_creation_failure_rolls_back_scratch_and_result (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_result_creation_failure_rolls_back_scratch_and_result) ... ok
+test_target_versions_are_separate_and_chain_is_direct_only (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_target_versions_are_separate_and_chain_is_direct_only) ... ok
+test_type_mismatch_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_type_mismatch_rejected) ... ok
+test_wrong_microsecond_timestamp_rejected (pipeline.version_dependents.test_aggregate.DirectDependentsTests.test_wrong_microsecond_timestamp_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.187s
+
+OK

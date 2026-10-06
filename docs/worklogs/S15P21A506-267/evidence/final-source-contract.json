@@ -1,0 +1,13 @@
+{
+  "verified_at": "2026-09-08T04:46:27.775622+00:00",
+  "status": "PASSED",
+  "checks": {
+    "v1_matches_head": true,
+    "loader_contract_matches_full_run": true,
+    "v2_does_not_alter_service_version": true
+  },
+  "v1_sha256": "9bcbd29365e3f5d2334501414ada4916157bd18401c6f58a2a02fc7c1715ee70",
+  "contract_sha256": "9015ee602ad3be709b23df4f1d09745b129cd002beb99084226a309832e64bd2",
+  "execution_id": "load-267-full-defaulted-v1",
+  "attempt_id": "9974ae24e2504510937cea4a12952041"
+}
