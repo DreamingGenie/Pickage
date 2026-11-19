@@ -87,7 +87,7 @@
 
 ## 3. 파이프라인 구현 — `pipeline/collectors/registry/`
 
-**downloads 수집기(`pipeline/collectors/downloads/`)를 복사해 고치는 것이 가장 빠르다.** 토큰버킷·429 적응형 간격·SQLite 체크포인트·manifest·현황판·더블클릭 `.cmd`가 전부 그대로 필요하다. 차이는 "작업 1개 = 패키지 1개 요청"이고 응답 파싱만 다르다.
+**downloads 수집기(`pipeline/collectors/downloads/`)를 복사해 고치는 것이 가장 빠르다.** 요청 최소 간격·429 적응형 간격·SQLite 체크포인트·manifest·현황판·더블클릭 `.cmd`가 전부 그대로 필요하다. 차이는 "작업 1개 = 패키지 1개 요청"이고 응답 파싱만 다르다.
 
 | 파일 | 역할 | 복사 원본 |
 |---|---|---|

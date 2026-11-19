@@ -1,6 +1,6 @@
 """npm downloads collector — 수집계획_downloads_npmAPI_260902.md §3 구현.
 
-단일 프로세스 · 초당 1건 토큰버킷 · 429 지수 백오프 · SQLite 체크포인트(재시작 시 이어감)
+단일 프로세스 · 요청 최소 간격 1초(429면 간격을 15%씩 늘리는 적응형) · 429 지수 백오프 · SQLite 체크포인트(재시작 시 이어감)
 · 응답 start/end 검증 · 원본 응답을 jsonl.gz로 보존 · manifest.json 기록.
 
 사용:

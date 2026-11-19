@@ -149,7 +149,7 @@
 
 [수집기]  Python 단일 프로세스, asyncio 아님(초당 1건이라 동시성 무의미), 단일 IP(EC2 1대 cron, 준비 전엔 로컬 PC)
   큐: tier A → rank 오름차순  ·  비스코프는 128개씩 묶어 벌크, 스코프는 개별
-  속도: 토큰버킷 1건/s  ·  429 → 지수 백오프 2·4·8…60 s, 연속 5회면 5분 휴식
+  속도: 요청 최소 간격 1 s  ·  429 → 지수 백오프 2·4·8…60 s, 연속 5회면 5분 휴식
   검증: 200이어도 응답 start/end ≠ 요청이면 실패  ·  벌크 null 항목 = 미존재 패키지(NOT_FOUND)
   체크포인트: SQLite (name|chunk_id, window, status, attempts, http, fetched_at) → 중단 후 재시작 시 이어감
   출력: 원본 응답 그대로 gs://<bucket>/raw/downloads/run=YYYY-MM-DD/part-NNNN.jsonl.gz
@@ -345,7 +345,7 @@ SSAFY 캠퍼스 안 PC는 NAT로 **공인 IP를 공유**한다. 팀원이 옆자
 targets/run=YYYY-MM-DD/targets.parquet  (name, scoped, rank, tier)
   → 샤딩: worker_id = rank % N  (순위 라운드로빈 → 어느 워커가 멈춰도 상위가 고르게 남음)
   → 각 참여자: python collect.py --run 2026-09-09 --worker 2 --of 4
-       · 자기 샤드만, 초당 1건 토큰버킷, SQLite 체크포인트(재시작 시 이어감)
+       · 자기 샤드만, 요청 최소 간격 1초, SQLite 체크포인트(재시작 시 이어감)
        · 출력 gs://<bucket>/raw/downloads/run=…/worker=2/part-*.jsonl.gz + manifest.json
   → Spark는 run=… 아래 worker 폴더를 전부 읽음. 스키마·파티션 변화 없음
 ```

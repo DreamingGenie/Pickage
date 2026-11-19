@@ -18,7 +18,7 @@ npm 공식 저장소(`registry.npmjs.org/<name>`)는 요청 한 번에 패키지
 
 | 파일 | 역할 |
 |---|---|
-| `collect.py` | 대상 CSV → 패키지별 요청(전체 문서) → 버전 행으로 파싱 → jsonl.gz. 요청 간격 토큰버킷(`--interval`, 기본 0.5초), 429 지수 백오프(15%씩 늘려 상한 3초, 연속 5회면 5분 휴식, 같은 패키지에서 8회면 `failed`), 5xx·연결 오류 4회 재시도, SQLite 체크포인트, manifest.json. 원본 문서는 보존하지 않고 200MB(`--max-doc-mb`) 넘는 문서는 `failed` |
+| `collect.py` | 대상 CSV → 패키지별 요청(전체 문서) → 버전 행으로 파싱 → jsonl.gz. 요청 최소 간격(`--interval`, 기본 0.5초), 429 지수 백오프(15%씩 늘려 상한 3초, 연속 5회면 5분 휴식, 같은 패키지에서 8회면 `failed`), 5xx·연결 오류 4회 재시도, SQLite 체크포인트, manifest.json. 원본 문서는 보존하지 않고 200MB(`--max-doc-mb`) 넘는 문서는 `failed` |
 | `shard_targets.py` | 대상 CSV → 샤드 N개. 순위로 **돌아가며** 나눠(1→s1, 2→s2, …) 샤드들이 같은 순위 분포를 갖게 한다. 이름 중복은 상위 순위만 남긴다. 실제 배치는 아래 "샤드 배치" 절 |
 | `to_parquet.py` | raw → `registry_versions/part-00000.parquet` + `registry_status.parquet`. **`--raw` 에 run 폴더를 여러 개 줄 수 있다**(분할 수집). (Name, Version) 중복은 최근 fetched_at 만 남김. 수집 중에도 실행 가능(쓰고 있는 part 는 건너뜀, 아무도 안 쓰는 잘린 part 는 복구) |
 | `status.py` | 진행 상태 한 화면(실행 여부·진행률·성공/미존재/전체삭제/실패·평균/최대 문서 크기·버전 행 수·속도·429·ETA). **`--shards N` 을 주면 샤드를 합산**해 전체 진행률·완료 예상 시각을 함께 낸다. `--watch` 60초 갱신, `--refresh-parquet` 로 DuckDB UI 뷰까지 최신화 |

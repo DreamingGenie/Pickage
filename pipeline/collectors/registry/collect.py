@@ -3,7 +3,7 @@
 패키지 1개 = 요청 1회(`registry.npmjs.org/<name>`, 전체 문서). 문서에서 버전마다 dependencies · devDependencies ·
 peerDependencies · optionalDependencies · 발행 시각 · deprecated 와 패키지 형태 6열(unpacked_size · file_count ·
 module_type · main · types · exports)만 남겨 jsonl.gz 로 쓴다(원본 문서는 보존하지 않음).
-단일 프로세스 · 요청 간격 토큰버킷 · 429 지수 백오프 · SQLite 체크포인트(재시작 시 이어감) · manifest.json 기록.
+단일 프로세스 · 요청 최소 간격(429면 15%씩 늘리는 적응형) · 429 지수 백오프 · SQLite 체크포인트(재시작 시 이어감) · manifest.json 기록.
 
 사용:
   python collect.py --targets datasets/targets/rank_top100k_20260902.csv --run 2026-09-09 --out data/registry/raw --interval 0.5
