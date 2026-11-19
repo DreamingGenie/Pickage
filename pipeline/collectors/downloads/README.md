@@ -6,7 +6,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `collect.py` | npm downloads API 호출. 초당 1건 토큰버킷, 429 지수 백오프(연속 5회면 5분 휴식), SQLite 체크포인트, 응답 start/end 검증, 원본 jsonl.gz + manifest.json |
+| `collect.py` | npm downloads API 호출. 요청 최소 간격 1초(429면 15%씩 늘림, 상한 3초), 429 지수 백오프(연속 5회면 5분 휴식), SQLite 체크포인트, 응답 start/end 검증, 원본 jsonl.gz + manifest.json |
 | `to_parquet.py` | raw → `downloads/date=…/` Parquet(hive) + `downloads_status.parquet`. §4-1 결손 규칙(0 → NULL + `imputed_gap`) 적용. 수집 중에도 실행 가능(쓰고 있는 part·0바이트 part는 건너뛰고, 잘린 part는 복구). Spark 적재 전까지의 로컬 대체 |
 | `status.py` | 진행 상태 한 화면(실행 여부·진행률·속도·429·ETA). `--watch`로 60초 갱신, `--refresh-parquet`로 DuckDB UI 뷰까지 최신화(재변환은 `--refresh-min-interval` 기본 1시간에 한 번). 체크포인트가 없으면 안내만 내고 멈춘다 |
 | `start_backfill.cmd` | 백필 재시작(더블클릭). 이미 돌고 있으면 새로 띄우지 않음 |
