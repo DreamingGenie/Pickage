@@ -50,7 +50,12 @@ class PostgresIntegrationTests(unittest.TestCase):
                             key=lambda p: int(p.name[1:].split("__", 1)[0]))
         self.sql("BEGIN;\n" + migrations[0].read_text(encoding="utf-8") + "\nCOMMIT;")
         self.v1_service_schema = self.service_schema()
-        self.sql("BEGIN;\n" + "\n".join(path.read_text(encoding="utf-8") for path in migrations[1:]) + "\nCOMMIT;")
+        # V2 직후의 모습을 따로 떠 둔다. 아래 계약 시험이 보는 것은 "V2 가 서비스 표를 건드렸는가"
+        # 이지 "지금 스키마가 V1 과 같은가" 가 아니다 — V6·V7 은 package_version_snapshot 을
+        # 일부러 파티션 표로 바꿨다.
+        self.sql("BEGIN;\n" + migrations[1].read_text(encoding="utf-8") + "\nCOMMIT;")
+        self.v2_service_schema = self.service_schema()
+        self.sql("BEGIN;\n" + "\n".join(path.read_text(encoding="utf-8") for path in migrations[2:]) + "\nCOMMIT;")
         self.command = ["docker", "exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", self.database]
         self.packages = [(1, "@scope/한글", None), (2, "literal\\N", "")]
         self.versions = [
@@ -79,7 +84,12 @@ class PostgresIntegrationTests(unittest.TestCase):
                 'public.snapshot'::regclass,'public.package_snapshot'::regclass,'public.package_version_snapshot'::regclass)) s));""")
 
     def test_v2_preserves_all_five_service_table_contracts(self):
-        self.assertEqual(json.loads(self.service_schema()), json.loads(self.v1_service_schema))
+        """V2(적재 추적 표 추가)는 서비스 표 다섯의 열·제약을 바꾸지 않는다.
+
+        처음에는 모든 마이그레이션을 적용한 뒤의 스키마를 V1 과 맞댔다. V2 가 마지막이던 때는 같은
+        뜻이었지만, V6·V7 이 package_version_snapshot 을 파티션 표로 바꾼 뒤로는 언제나 실패했다. 비교 대상을 V2 직후로 고정한다.
+        """
+        self.assertEqual(json.loads(self.v2_service_schema), json.loads(self.v1_service_schema))
         self.assertEqual(self.sql("SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='version' AND column_name='dependency';"), "NO")
 
     def test_dependency_sql_null_is_rejected_without_service_changes(self):
