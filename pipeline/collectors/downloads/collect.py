@@ -7,6 +7,9 @@
   python collect.py --targets rank_top100k.csv --run 2026-09-02 --mode backfill --out data/downloads/raw
   python collect.py --targets rank_top100k.csv --run 2026-09-09 --mode weekly   --out data/downloads/raw
 옵션: --end YYYY-MM-DD(기본 UTC 오늘-2) --rate 1.0 --limit N(작업 수 상한, 테스트용) --exclude-status removed,unpublished
+      --failed-passes N(실패 작업을 끝에서 다시 도는 횟수, 기본 1) --max-failed N(넘으면 종료 코드 4)
+
+실패한 작업은 끝 상태가 아니다. 같은 run 을 다시 실행하면 pending·retry 와 함께 failed 도 다시 고른다.
 """
 import argparse
 import csv
@@ -36,6 +39,8 @@ API = "https://api.npmjs.org/downloads/range"
 UA_CONTACT = os.environ.get("OSS_SHIFT_UA_CONTACT", "")
 UA = f"oss-shift-a506 collector (SSAFY student project; {UA_CONTACT})"
 BULK_MAX = 128
+# --max-failed 를 넘겼을 때의 종료 코드. 인자 오류(2)·예외(1)와 갈라, 부르는 쪽이 "받다 말았다"를 구분하게 한다.
+EXIT_FAILED_TASKS = 4
 URL_MAX = 7000
 
 
@@ -119,6 +124,10 @@ def main():
     ap.add_argument("--max-interval", type=float, default=3.0,
                     help="429 가 이어질 때 요청 간격을 늘리는 상한(초). 기본 3.0")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--failed-passes", type=int, default=1,
+                    help="한 실행 안에서 실패한 작업을 끝에 다시 도는 횟수. 기본 1, 0 이면 다시 돌지 않는다")
+    ap.add_argument("--max-failed", type=int,
+                    help="끝났을 때 실패 작업이 이 수를 넘으면 종료 코드 4. 생략하면 실패가 남아도 0 으로 끝난다")
     ap.add_argument("--exclude-status", default="")
     ap.add_argument("--tier", default="A")
     a = ap.parse_args()
@@ -155,7 +164,12 @@ def main():
     )
     db.execute("CREATE TABLE IF NOT EXISTS events(ts TEXT, http INT, task_id TEXT)")
     db.executemany("INSERT OR IGNORE INTO tasks(id,kind,rank_min,names,ws,we) VALUES(?,?,?,?,?,?)", tasks)
+    # 지난 실행이 포기한 작업을 다시 고른다. 예전에는 failed 가 끝 상태라, 같은 run 을 다시 돌려도
+    # 그 작업은 영영 안 받았다(S15P21A506-367). 시도 횟수도 되돌린다 — 남겨 두면 첫 오류에 바로 포기한다.
+    requeued = db.execute("UPDATE tasks SET status='retry', attempts=0 WHERE status='failed'").rowcount
     db.commit()
+    if requeued:
+        print(f"[collect] 지난 실행에서 실패한 작업 {requeued}건을 다시 고른다", flush=True)
 
     pending = db.execute(
         "SELECT id,kind,names,ws,we,attempts FROM tasks WHERE status IN ('pending','retry') ORDER BY rowid"
@@ -200,12 +214,34 @@ def main():
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(m, f, ensure_ascii=False, indent=1)
 
+    progress = {"total": len(pending)}
+
+    def with_failed_passes(first):
+        """첫 바퀴 뒤에 실패한 작업을 끝에서 다시 돈다.
+
+        실패는 같은 작업을 10초 간격으로 4번 두드린 결과라 짧은 장애에 약하다. 주간 회차는 23시간쯤
+        돌기 때문에, 끝에서 한 번 더 두드리면 그 사이 풀린 장애는 여기서 회수된다. 그래도 남는 것은
+        요청 자체가 잘못됐거나(4xx) 응답 창이 어긋나는 것처럼 다시 해도 같은 것들이다.
+        """
+        yield from first
+        for n_pass in range(max(0, a.failed_passes)):
+            db.commit()
+            again = db.execute(
+                "SELECT id,kind,names,ws,we FROM tasks WHERE status='failed' ORDER BY rowid").fetchall()
+            if not again:
+                return
+            db.execute("UPDATE tasks SET status='retry', attempts=0 WHERE status='failed'")
+            db.commit()
+            progress["total"] += len(again)
+            print(f"[collect] 실패한 작업 {len(again)}건을 다시 돈다 ({n_pass + 1}/{a.failed_passes})", flush=True)
+            yield from [(*t, 0) for t in again]
+
     def rec(n, rank, kind, ws, we, now, tid, status, downloads):
         W.write({"name": n, "rank": rank, "kind": kind, "start": ws, "end": we, "tier": a.tier,
                  "fetched_at": now, "task_id": tid, "status": status, "downloads": downloads})
 
     try:
-        for i, (tid, kind, names_j, ws, we, attempts) in enumerate(pending):
+        for i, (tid, kind, names_j, ws, we, attempts) in enumerate(with_failed_passes(pending)):
             names = json.loads(names_j)
             url = f"{API}/{ws}:{we}/{','.join(enc(n) for _, n in names)}"
             while True:
@@ -285,14 +321,14 @@ def main():
             if (i + 1) % 20 == 0:
                 W.flush()
                 db.commit()
-            if (i + 1) % 100 == 0 or i + 1 == len(pending):
+            if (i + 1) % 100 == 0 or i + 1 == progress["total"]:
                 W.flush()
                 db.commit()
                 el = time.time() - started
                 per_task = (recent[-1] - recent[0]) / max(1, len(recent) - 1) if len(recent) > 1 else 0
-                eta = per_task * (len(pending) - i - 1)
+                eta = per_task * (progress["total"] - i - 1)
                 print(
-                    f"[collect] {i + 1}/{len(pending)} tasks  ok={stats['ok']} nf={stats['not_found']} "
+                    f"[collect] {i + 1}/{progress['total']} tasks  ok={stats['ok']} nf={stats['not_found']} "
                     f"fail={stats['failed']} 429={stats['http429']}  interval={interval:.2f}s "
                     f"{el / 3600:.2f}h elapsed, eta {eta / 3600:.2f}h (recent {per_task:.2f}s/task)",
                     flush=True,
@@ -305,8 +341,13 @@ def main():
         W.close()      # 행을 먼저 디스크에 내리고(gzip 트레일러 포함) 그 다음 체크포인트를 확정한다
         db.commit()
         manifest(final=True)
+        n_failed = db.execute("SELECT COUNT(*) FROM tasks WHERE status='failed'").fetchone()[0]
         db.close()
         print(f"[collect] wrote manifest {manifest_path}", flush=True)
+    if a.max_failed is not None and n_failed > a.max_failed:
+        print(f"[collect] 실패 작업 {n_failed}건이 남았다 (허용 {a.max_failed}). 다시 실행하면 그 작업부터 고른다",
+              file=sys.stderr, flush=True)
+        raise SystemExit(EXIT_FAILED_TASKS)
 
 
 if __name__ == "__main__":

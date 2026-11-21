@@ -79,7 +79,7 @@ python -m pipeline.weekly.run --force
 | 어디 | 무슨 일 | 지금 |
 | --- | --- | --- |
 | BigQuery | 누적 예산(`TIERS['t2']` 26 GiB)을 넘기면 남은 테이블을 포기하고 정상 종료 (`stopped_budget`) | **`depsdev_t2` 가 막는다** — GCS 매니페스트를 `T2_TABLES` 와 대조해 모자라면 그 단계를 실패로 올린다 |
-| npm downloads | 요청 실패를 manifest 에 적고 정상 종료. 다시 실행해도 `failed` 작업은 **다시 고르지 않는다**(`status IN ('pending','retry')`) | 보이게만 해 뒀다 — 단계 detail 의 `tasks_by_status`·`failed_tasks`. 재수집 경로는 [S15P21A506-367](https://ssafy.atlassian.net/browse/S15P21A506-367) |
+| npm downloads | 요청 실패를 manifest 에 적고 정상 종료 | 실패한 작업은 **같은 실행의 끝에서 한 번 더 돌고**(`--failed-passes`, 기본 1), 수집기를 다시 실행하면 또 고른다([S15P21A506-367](https://ssafy.atlassian.net/browse/S15P21A506-367), 2026-11-21). 그래도 남는 것(4xx·응답 창 불일치)은 종료 코드 0 인 채 단계 detail 의 `tasks_by_status`·`failed_tasks` 에 보인다. `--max-failed` 를 주면 종료 코드 4 로 올릴 수 있지만 주간 실행기는 쓰지 않는다 — 영구 실패 하나가 회차를 `BLOCKED` 로 보내기 때문이다 |
 
 **대조를 `depsdev_t2` 안에 두는 것이 핵심이다.** 뒤 단계(`gcs_sync`)로 미루면 `depsdev_t2`
 가 `SUCCEEDED` 로 남아 다음 발화가 수집기를 건너뛰고, 같은 실패만 열 번 반복해 `BLOCKED`
