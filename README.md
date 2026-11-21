@@ -361,6 +361,10 @@ README를 따르세요. 현재 저장소 전체 `python -m pytest pipeline`은 �
 로컬 PySpark 의존성 때문에 공통 성공 명령으로 사용하지 않습니다. CI의 `pipeline-ok`도 전체 테스트가
 아니라 실행 환경 smoke 검사입니다.
 
+외부 서비스 없이 도는 빠른 층(수집기·DuckDB 빌더·주간 실행기·MinIO 업로드 스크립트)은
+`sh scripts/run-pipeline-tests.sh`로 한 번에 돌릴 수 있고, GitHub에서는 `pipeline/`을 건드린
+PR마다 같은 스크립트가 실행됩니다(`.github/workflows/pipeline-tests.yml`).
+
 MR에서는 `.gitlab-ci.yml`의 프런트엔드, 백엔드 단위·통합, AI, RAG, pipeline smoke job이
 변경 영역에 맞게 실행됩니다.
 
