@@ -2,6 +2,10 @@ r"""to_parquet.py 의 저메모리 대체 (U5 예비). 같은 SQL·같은 결손
 DuckDB COPY ... PARTITION_BY(date) 로 바로 쓰고 memory_limit/temp_directory 로 디스크에 흘리는 것.
   python to_parquet_lowmem.py --raw <run dir> --out <root>/parquet [--mem 24GB]
 part 파일은 모두 완결(final)이어야 한다(복구 로직 없음).
+
+(2026-11-21) 이 파일은 09-22 운영 실행에 쓴 그대로 남긴 기록이다. 같은 방식은
+pipeline/collectors/downloads/to_parquet.py --low-memory 로 본체에 들어갔고, 거기에는 복구 로직과
+기본 경로와의 동등성 시험이 있다. 새로 돌릴 때는 본체를 쓴다.
 """
 import argparse, glob, os, sys, duckdb
 ap = argparse.ArgumentParser(); ap.add_argument("--raw", required=True); ap.add_argument("--out", required=True)

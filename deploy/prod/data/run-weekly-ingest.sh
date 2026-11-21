@@ -47,15 +47,18 @@ CURATED_CONTAINER=pickage-curated-dispatch
 #   여기만 바뀌면 그쪽은 늘 빈 잠금을 잡아 **남의 컨테이너를 지운다.**
 LOCK=/tmp/pickage-weekly.lock
 
-[ -f .env ] || {
-  echo "run-weekly-ingest.sh: .env 가 없습니다. .env.example 을 복사해 채우세요." >&2
+# 있는지가 아니라 **읽히는지**를 본다(-r). 운영의 .env 는 /srv/pickage/data.env 로 가는
+# 심링크다(README "주간 수집"). 대상이 권한 때문에 안 읽혀도 -f 는 통과하고, 타이머가 부른
+# 발화는 이 안내 없이 compose 단계에서 죽는다(S15P21A506-360 에서 겪었다).
+[ -r .env ] || {
+  echo "run-weekly-ingest.sh: .env 가 없거나 읽을 수 없습니다. .env.example 을 복사해 채우고 권한을 확인하세요." >&2
   exit 1
 }
 
 # compose 가 못 잡아 주는 것. 자격증명은 환경변수가 아니라 **파일**로 읽는다
 # (pipeline/minio/ingest_raw.py 의 client()). 없으면 수집기가 한참 뒤 S3 단계에서야 죽는다.
-[ -f "$REPO/pipeline/minio/.env.data" ] || {
-  echo "run-weekly-ingest.sh: pipeline/minio/.env.data 가 없습니다." >&2
+[ -r "$REPO/pipeline/minio/.env.data" ] || {
+  echo "run-weekly-ingest.sh: pipeline/minio/.env.data 가 없거나 읽을 수 없습니다." >&2
   echo "  cp pipeline/minio/.env.data.example pipeline/minio/.env.data 후 값을 채우세요." >&2
   exit 1
 }
@@ -81,12 +84,20 @@ fi
 
 # 잠금을 잡은 뒤에만 친다. 잠금을 못 잡았다는 것은 정상 실행이 돌고 있다는 뜻이라,
 # 그때 치면 남의 회차를 죽인다.
-if docker rm -f "$CONTAINER" >/dev/null 2>&1; then
-  echo "[weekly] 지난 발화의 컨테이너가 남아 있어 치웠습니다 ($CONTAINER)."
-fi
-if docker rm -f "$CURATED_CONTAINER" >/dev/null 2>&1; then
-  echo "[weekly] 지난 발화의 Curated 컨테이너가 남아 있어 치웠습니다 ($CURATED_CONTAINER)."
-fi
+#
+# **있는지 먼저 본다.** `docker rm -f` 는 없는 이름에도 0 으로 끝난다(Docker 29.6 실측).
+# 그 종료 코드로 "치웠습니다" 를 찍으면 발화마다 거짓 로그가 남아, 진짜로 유령이 남았던
+# 발화를 로그에서 가려낼 수 없다.
+remove_stale() {
+  docker container inspect "$1" >/dev/null 2>&1 || return 0
+  if docker rm -f "$1" >/dev/null 2>&1; then
+    echo "[weekly] 지난 발화의 $2 남아 있어 치웠습니다 ($1)."
+  else
+    echo "[weekly] 지난 발화의 $2 남아 있는데 치우지 못했습니다 ($1)." >&2
+  fi
+}
+remove_stale "$CONTAINER" "컨테이너가"
+remove_stale "$CURATED_CONTAINER" "Curated 컨테이너가"
 
 # 진단 호출은 전처리 게시를 일으키지 않는다. fd 9 잠금은 exec 뒤에도 유지된다.
 if [ "$#" -gt 0 ]; then

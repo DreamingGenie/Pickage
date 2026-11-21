@@ -76,6 +76,18 @@ export function AnalyzePage() {
   )
 
   /**
+   * 고른 목록의 최신값. 직접 추가의 왕복(`await`) 뒤에는 state 클로저가 옛 값이라 ref 로 쥔다 —
+   * 왕복 사이에 다른 추가가 자리를 채웠을 수 있다.
+   *
+   * 화면에서 바꿀 때는 `setPicked`·`setBase` 가 그 자리에서 맞추고, 아래 effect 는 뒤로가기처럼
+   * 주소가 밖에서 바뀐 경우를 받는다.
+   */
+  const pickedRef = useRef<readonly string[]>(picked)
+  useEffect(() => {
+    pickedRef.current = picked
+  }, [picked])
+
+  /**
    * 기준을 주소에 적는다. 지울 때는 `null`.
    *
    * **고른 후보는 함께 지운다.** 후보는 기준에 딸린 것이라, 기준이 바뀌면 남아 있을 자리가
@@ -85,6 +97,7 @@ export function AnalyzePage() {
    * 사용자가 "되돌아가고 싶어 할 지점" 이 아닌 변화다.
    */
   function setBase(name: string | null, options?: { replace?: boolean }) {
+    pickedRef.current = []
     const next = new URLSearchParams()
     if (name) next.set(ANALYZE_BASE_PARAM, name)
     setSearchParams(next, { replace: options?.replace ?? false })
@@ -95,8 +108,13 @@ export function AnalyzePage() {
    *
    * **언제나 `replace` 다.** 체크박스를 누를 때마다 히스토리에 항목이 쌓이면 뒤로가기가
    * 화면을 떠나는 대신 체크를 하나씩 되감게 된다.
+   *
+   * **`pickedRef` 를 여기서 바로 맞춘다**(S15P21A506-472). 렌더 뒤 effect 에서만 맞추면 주소를
+   * 바꾼 순간부터 effect 가 돌 때까지 ref 가 옛 목록이다. 그 틈에 직접 추가의 응답이 도착하면
+   * 옛 목록에 이름을 붙여 써서, 방금 체크한 후보가 주소에서 빠진다.
    */
   function setPicked(names: readonly string[]) {
+    pickedRef.current = names
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
@@ -147,11 +165,6 @@ export function AnalyzePage() {
   useEffect(() => {
     submittedRef.current = submitted
   }, [submitted])
-  /** 같은 이유로 고른 목록도 최신값을 쥔다 — 왕복 사이에 다른 추가가 자리를 채웠을 수 있다. */
-  const pickedRef = useRef(picked)
-  useEffect(() => {
-    pickedRef.current = picked
-  }, [picked])
 
   const similar = useSimilarPackages(submitted ?? '')
   /*
@@ -232,17 +245,19 @@ export function AnalyzePage() {
 
   function toggle(name: string) {
     setLimitHit(false)
-    if (picked.includes(name)) {
-      setPicked(picked.filter((n) => n !== name))
+    // 렌더 클로저의 `picked` 가 아니라 ref 를 읽는다 — 직접 추가가 방금 쓴 이름을 덮지 않게.
+    const latest = pickedRef.current
+    if (latest.includes(name)) {
+      setPicked(latest.filter((n) => n !== name))
       return
     }
     // 네 번째 요청은 기존 선택을 자동 해제하지 않는다(IA 6.3 · 구상안 4.4)
-    if (1 + picked.length >= MAX_COMPARISON) {
+    if (1 + latest.length >= MAX_COMPARISON) {
       setLimitHit(true)
       return
     }
     setLastAdded(name)
-    setPicked([...picked, name])
+    setPicked([...latest, name])
   }
 
   /**

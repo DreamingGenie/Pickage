@@ -34,6 +34,8 @@ pipeline\collectors\downloads\start_backfill.cmd
 
 # Parquet 변환
 .venv-bq/Scripts/python.exe pipeline/collectors/downloads/to_parquet.py --raw data/downloads/raw/run=2026-09-02 --out data/downloads/parquet
+# 수억 행(46.9만 패키지 규모)은 결과를 메모리에 올리지 않는 경로로. 결과는 같다(test_to_parquet.py)
+.venv-bq/Scripts/python.exe pipeline/collectors/downloads/to_parquet.py --raw <run 폴더> --out <출력> --low-memory --mem 24GB
 
 # GCS 업로드 (계획 §3 경로)
 gcloud storage rsync -r data/downloads/raw/run=2026-09-02 gs://oss-shift-a506-raw/raw/downloads/run=2026-09-02

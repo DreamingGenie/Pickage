@@ -269,7 +269,7 @@ class Collector:
         mblob.upload_from_string(json.dumps(rec, ensure_ascii=False, indent=2), content_type="application/json")
         log(f"  ✓ {table} {snap}: billed {gib(rec['billed_bytes'])} · rows {rec['rows']:,} "
             f"(기대 {exp:,} {mode})" if exp else f"  ✓ {table} {snap}: billed {gib(rec['billed_bytes'])} · rows {rec['rows']:,}")
-        log(f"    files {n_files} · {gcs_bytes / MiB:,.0f} MiB · {rec['elapsed_s']}s · verify={rec['verify']} · job {job.job_id}")
+        log(f"    files {n_files} · {gcs_bytes / MiB:,.0f} MiB · {rec['elapsed_s']}s · verify={rec['verify']} · job {rec['job_id']}")
         if not ok and not self.args.continue_on_mismatch:
             raise SystemExit(f"중단: {table} {snap} 행 수 검증 실패 (rows {rec['rows']:,}, 기대 {exp}). 매니페스트는 기록됨.")
         return rec

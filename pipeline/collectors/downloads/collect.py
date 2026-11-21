@@ -116,6 +116,8 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--end")
     ap.add_argument("--rate", type=float, default=1.0)
+    ap.add_argument("--max-interval", type=float, default=3.0,
+                    help="429 가 이어질 때 요청 간격을 늘리는 상한(초). 기본 3.0")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--exclude-status", default="")
     ap.add_argument("--tier", default="A")
@@ -175,8 +177,8 @@ def main():
     started = time.time()
     last_start = 0.0
     consec429 = 0
-    interval = 1.0 / a.rate          # 적응형: 429가 나오면 15% 늘리고(최대 3 s), 200이 이어지면 천천히 되돌린다
-    interval_min, interval_max = 1.0 / a.rate, 3.0
+    interval = 1.0 / a.rate          # 적응형: 429가 나오면 15% 늘리고(최대 --max-interval), 200이 이어지면 천천히 되돌린다
+    interval_min, interval_max = 1.0 / a.rate, max(a.max_interval, 1.0 / a.rate)
     recent = []                      # 최근 100 작업의 완료 시각 → 실제 처리율로 ETA 계산
     manifest_path = os.path.join(rundir, "manifest.json")
 
