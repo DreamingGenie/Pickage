@@ -1,0 +1,43 @@
+# 프런트엔드 검사를 PR 마다 돌린다.
+#
+# .gitlab-ci.yml 의 `frontend` 잡과 같은 순서다(typecheck → lint → test → build). GitLab 러너는
+# 운영 서버와 함께 내려가 2026-10 부터 돌지 않는다. 저장소가 GitHub 로 옮겨 온 뒤 그 자리를 채운다.
+name: frontend
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
