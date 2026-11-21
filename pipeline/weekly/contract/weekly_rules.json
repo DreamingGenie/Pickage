@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "주간 수집의 날짜·우편함 규칙을 파이썬 러너와 자바 백엔드가 각각 구현한다.",
+    "러너(pipeline/weekly/schedule.py)가 실제로 집어 가고, 백엔드(WeeklyIngestService)가 화면에 그린다.",
+    "두 구현이 이 표의 모든 줄에 같은 답을 내야 한다. 읽는 쪽:",
+    "  pipeline/weekly/test_contract.py",
+    "  backend/src/test/java/com/ssafy/pickage/domain/ops/WeeklyRulesContractTest.java",
+    "규칙을 바꾸려면 이 파일을 먼저 고친다. 그러면 안 고친 쪽 시험이 깨진다."
+  ],
+  "current_week": [
+    {"why": "화요일 한낮", "now_utc": "2026-09-15T01:00:00Z", "week_of": "2026-09-14"},
+    {"why": "월요일 00:00 UTC 정각은 새 주다", "now_utc": "2026-09-14T00:00:00Z", "week_of": "2026-09-14"},
+    {"why": "일요일 23:59:59 UTC 는 아직 지난 주다", "now_utc": "2026-09-13T23:59:59Z", "week_of": "2026-09-07"},
+    {"why": "KST 로는 월요일 08:59 이지만 UTC 로는 일요일이다. 지역시간으로 세면 한 주 앞서간다", "now_utc": "2026-09-13T23:59:00Z", "week_of": "2026-09-07"},
+    {"why": "해가 바뀌는 주. 2027-01-01 은 금요일이다", "now_utc": "2027-01-01T12:00:00Z", "week_of": "2026-12-28"},
+    {"why": "윤일이 낀 주", "now_utc": "2028-03-01T00:00:00Z", "week_of": "2028-02-28"}
+  ],
+  "window": [
+    {"why": "14일 창의 끝은 직전 일요일, 시작은 그 13일 전", "week_of": "2026-09-14", "window_start": "2026-08-31", "window_end": "2026-09-13"},
+    {"why": "달을 넘는다", "week_of": "2026-10-05", "window_start": "2026-09-21", "window_end": "2026-10-04"},
+    {"why": "해를 넘는다", "week_of": "2027-01-04", "window_start": "2026-12-21", "window_end": "2027-01-03"}
+  ],
+  "manual_pending": [
+    {"why": "요청이 없으면 대기도 없다", "requested_at": null, "claimed_at": null, "pending": false},
+    {"why": "요청만 있다", "requested_at": "2026-09-15T00:30:00Z", "claimed_at": null, "pending": true},
+    {"why": "요청 뒤에 집어 갔다", "requested_at": "2026-09-15T00:30:00Z", "claimed_at": "2026-09-15T00:40:00Z", "pending": false},
+    {"why": "집어 간 뒤 다시 넣었다", "requested_at": "2026-09-15T00:50:00Z", "claimed_at": "2026-09-15T00:40:00Z", "pending": true},
+    {"why": "같은 시각이면 이미 집어 간 것이다", "requested_at": "2026-09-15T00:40:00Z", "claimed_at": "2026-09-15T00:40:00Z", "pending": false},
+    {"why": "표기 오프셋이 달라도 같은 순간이면 같다", "requested_at": "2026-09-15T09:40:00+09:00", "claimed_at": "2026-09-15T00:40:00Z", "pending": false}
+  ]
+}

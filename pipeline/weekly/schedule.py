@@ -148,6 +148,8 @@ def is_manual_pending(requested_at: datetime | None,
 
     ⚠ 백엔드의 `WeeklyIngestService.pending()` 과 **같은 규칙이어야 한다.** 그쪽이 화면에
     `manual_pending` 을 그리고, 이쪽이 실제로 집어 간다. 어긋나면 화면과 거동이 갈린다.
+    두 구현은 `contract/weekly_rules.json` 한 표로 맞댄다(test_contract.py · 백엔드
+    `WeeklyRulesContractTest`). 실행 주 계산과 14일 창도 같은 표에 있다.
     """
     if requested_at is None:
         return False

@@ -365,8 +365,10 @@ README를 따르세요. 현재 저장소 전체 `python -m pytest pipeline`은 �
 `sh scripts/run-pipeline-tests.sh`로 한 번에 돌릴 수 있고, GitHub에서는 `pipeline/`을 건드린
 PR마다 같은 스크립트가 실행됩니다(`.github/workflows/pipeline-tests.yml`).
 
-MR에서는 `.gitlab-ci.yml`의 프런트엔드, 백엔드 단위·통합, AI, RAG, pipeline smoke job이
-변경 영역에 맞게 실행됩니다.
+운영 중에는 MR마다 `.gitlab-ci.yml`의 프런트엔드, 백엔드 단위·통합, AI, RAG, pipeline smoke job이
+변경 영역에 맞게 실행됐습니다. GitLab 러너는 운영 서버와 함께 내려갔고, 지금은 GitHub Actions가
+프런트엔드(`frontend.yml`), 백엔드 단위·통합(`backend.yml`), pipeline 빠른 층(`pipeline-tests.yml`)을
+PR마다 돌립니다. AI·RAG 시험과 배포 잡은 옮기지 않았습니다.
 
 ## 저장소 구조
 
