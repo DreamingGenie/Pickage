@@ -1,0 +1,79 @@
+# 백엔드 단위 시험과 통합 시험을 PR 마다 돌린다.
+#
+# .gitlab-ci.yml 의 `backend-test`·`backend-integration-test` 와 같은 명령이다. 통합 시험을 PR 에
+# 넣는 것은 backend/build.gradle 의 요구다 — `gradlew test` 는 Spring 컨텍스트를 띄우지 않아
+# 기동 실패가 머지된 뒤에야 드러난다.
+#
+# pipeline/postgresql 의 적재기는 Flyway 마이그레이션(backend/…/db/migration)을 읽지만 여기서는
+# 돌리지 않는다. 그쪽 시험은 PySpark·psql 전제가 달라 따로다.
+name: backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "pipeline/weekly/contract/**"
+      - ".github/workflows/backend.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "backend/**"
+      - "pipeline/weekly/contract/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: 단위 시험
+        working-directory: backend
+        run: ./gradlew --no-daemon test
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      # 운영·로컬 compose 와 같은 16. 버전이 갈리면 여기서 통과한 마이그레이션이 다른 데서 깨진다.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          # 비밀이 아니다. 이 컨테이너는 잡이 끝나면 사라지고 밖에서 닿을 수 없다.
+          POSTGRES_PASSWORD: pickage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # DisposableTestDatabase 가 시험마다 DB 를 새로 만들고 Flyway 전체를 적용한 뒤 지운다.
+      PICKAGE_TEST_POSTGRES_URL_PREFIX: "jdbc:postgresql://localhost:5432/"
+      PICKAGE_TEST_POSTGRES_USER: postgres
+      PICKAGE_TEST_POSTGRES_PASSWORD: pickage
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: 통합 시험
+        working-directory: backend
+        run: ./gradlew --no-daemon integrationTest
