@@ -12,11 +12,13 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "pipeline/weekly/contract/**"
       - ".github/workflows/backend.yml"
   push:
     branches: [develop, main]
     paths:
       - "backend/**"
+      - "pipeline/weekly/contract/**"
       - ".github/workflows/backend.yml"
 
 permissions:
