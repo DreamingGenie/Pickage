@@ -27,6 +27,7 @@ export PYTHONIOENCODING=utf-8
 # 시험 파일이 없는 폴더는 건너뛴다. Python 3.12 의 unittest 는 시험 0개면 종료 코드 5 다.
 FLAT_DIRS="
 pipeline/collectors/bigquery
+pipeline/collectors/downloads
 pipeline/collectors/registry
 pipeline/collectors/keywords
 pipeline/duckdb
