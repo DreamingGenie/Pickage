@@ -83,7 +83,7 @@ pickage-curated/depsdev/v1/package-dependents/snapshot=2026-08-31/
 
 **`min분모`(overlap coefficient)를 쓸 것.** 위 표에서 두 방식이 갈리는 유일한 행이 바로 그 사례다.
 
-### 그래도 진짜 대체쌍의 8~11%가 걸린다 — hard filter로 쓰지 말 것
+### 그래도 진짜 대체쌍의 6.7~9.8%가 걸린다 — hard filter로 쓰지 말 것
 
 정답지로 실측했다. 여기 걸리는 것은 **거짓 탈락**이다.
 

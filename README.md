@@ -14,6 +14,15 @@ SSAFY 15기 A506 팀의 빅데이터 분산 프로젝트입니다. 이 README는
 > 운영 DB도 남아 있지 않습니다. 아래 [프로젝트 실행](#프로젝트-실행) 절차로 로컬에서 띄운 화면의 값은
 > 실제 분석 결과가 아니라 **목업 데이터**(프런트 mock 또는 `seed/seed_service_full.sql`)입니다.
 
+![Pickage 첫 화면](docs/images/cover.jpg)
+
+| 후보 고르기 | 비교 보고서 | 교체 흐름 |
+| --- | --- | --- |
+| ![express와 비슷한 패키지 후보 고르기](docs/images/01.jpg) | ![다운로드·이슈·추세 비교](docs/images/02.jpg) | ![이탈 사유와 교체 흐름](docs/images/03.jpg) |
+| express와 비슷한 패키지 후보를 고릅니다 | 다운로드·이슈·추세를 나란히 봅니다 | 이탈 사유와 교체 흐름을 봅니다 |
+
+화면은 운영 종료 전 팀 운영 서버에서 실제 데이터로 찍었습니다(2026-10-02).
+
 ## 목차
 
 - [프로젝트 소개](#프로젝트-소개)
@@ -428,6 +437,11 @@ PR마다 돌립니다. AI·RAG 시험과 배포 잡은 옮기지 않았습니다
 
 ## 개발 참여 안내
 
+팀 프로젝트 기간의 규칙입니다. 종료 뒤에는 Jira 키 없이 작업하고 훅을 켜지 않습니다([`CLAUDE.md`](CLAUDE.md) 맨 위).
+
+<details>
+<summary>팀 시절 브랜치·커밋 규칙과 Git hook 안내</summary>
+
 팀 협업 규칙의 정본은 [`AGENTS.md`](AGENTS.md)입니다. 브랜치·커밋 컨벤션, Jira 연동 절차,
 MR 템플릿과 로컬·운영 환경 차이를 정의합니다. AI 에이전트를 쓰면 Claude는
 [`CLAUDE.md`](CLAUDE.md), Codex 등은 `AGENTS.md`를 읽습니다.
@@ -496,6 +510,8 @@ feat: deps.dev BigQuery 수집기 추가 (S15P21A506-122)
 - 브랜치 규칙 구현은 `scripts/lib/check-branch-name.sh` 한 곳에 있습니다.
 - 예외가 꼭 필요하면 `git commit --no-verify` 또는 `git push --no-verify`를 사용할 수 있지만
   상시 사용하지 않습니다.
+
+</details>
 
 ## 과거 자료
 
